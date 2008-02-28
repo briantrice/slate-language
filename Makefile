@@ -1,8 +1,8 @@
 
 CC=gcc
 LD=ld
-INCLUDES=-I.
-CFLAGS=-ansi -Wall -pedantic -g $(INCLUDES)
+INCLUDES=
+CFLAGS=-std=c99 -Wall -pedantic-errors -g $(INCLUDES)
 OBJECTS=
 
 all: vm
