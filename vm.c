@@ -219,6 +219,7 @@ struct object_heap
     struct Interpreter* interpreter;
     struct Object* true;
     struct Object* false;
+    struct Object* nil;
   } cached;
 };
 /****************************************/
@@ -310,6 +311,7 @@ void cache_specials(struct object_heap* heap) {
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);
  heap->cached.true = (struct Object*) get_special(heap, SPECIAL_OOP_TRUE);
  heap->cached.false = (struct Object*) get_special(heap, SPECIAL_OOP_FALSE);
+ heap->cached.nil = (struct Object*) get_special(heap, SPECIAL_OOP_NIL);
 
 }
 
@@ -521,6 +523,41 @@ void interpreter_branch_if_true(struct object_heap* oh, struct Interpreter * i)
   }
 
 }
+
+/*fix rewrite this so it doesn't copy+paste?*/
+void interpreter_branch_if_false(struct object_heap* oh, struct Interpreter * i)
+{
+
+  word_t offset;
+  struct Object* condition;
+  
+  offset = decode_short(i);
+  condition = interpreter_stack_pop(oh, i);
+  if (condition == oh->cached.false) {
+    i -> codePointer = i -> codePointer + offset;
+  } else {
+    if (!(condition == oh->cached.true)) {
+      i->codePointer = i->codePointer - 3;
+      interpreter_signal_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_A_BOOLEAN), condition);
+    }
+  }
+
+}
+
+
+void interpreter_push_environment(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, i->method->environment);
+}
+void interpreter_push_nil(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.nil);
+}
+void interpreter_push_false(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.false);
+}
+void interpreter_push_true(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.true);
+}
+
 
 
 void interpreter_new_array(struct object_heap* oh, struct Interpreter * i, word_t n)
