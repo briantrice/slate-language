@@ -74,7 +74,7 @@ struct Map
   word_t flags;
   word_t representative;
   struct OopArray * delegates;
-  word_t slotCount;
+  struct Object* slotCount;
   struct SlotTable * slotTable;
   struct RoleTable * roleTable;
   word_t dispatchID;
@@ -102,8 +102,8 @@ struct RoleEntry
 };
 struct SlotEntry
 {
-  word_t name;
-  word_t offset;
+  struct Object* name;
+  struct Object* offset; /*smallint?*/
 };
 struct SlotTable
 {
@@ -274,6 +274,11 @@ struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<
 #define MAP_FLAG_RESTRICT_DELEGATION 2
 #define MAP_FLAG_IMMUTABLE 4
 
+#define SLOT_OFFSET_MASK (~1)
+#define SLOT_TYPE_MASK 1
+#define SLOT_TYPE_DELEGATE 1
+#define SLOT_TYPE_DATA 0
+
 #define HEADER_SIZE sizeof(word_t)
 
 #define TRUE 1
@@ -399,16 +404,32 @@ word_t object_word_size(struct Object* o) {
 
 }
 
-word_t object_array_offset(struct OopArray* o) {
+word_t object_array_offset(struct Object* o) {
   return object_size((struct Object*)o) * sizeof(word_t);
 }
+
+word_t object_array_size(struct Object* o) {
+
+  assert(object_type(o) != TYPE_OBJECT);
+  return (object_payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
+
+}
+
+word_t slot_table_capacity(struct SlotTable* roles) {
+  return object_array_size((struct Object*)roles) / ((sizeof(struct SlotEntry) + (sizeof(word_t) - 1)) / sizeof(word_t));
+}
+
+word_t role_table_capacity(struct RoleTable* roles) {
+  return object_array_size((struct Object*)roles) / ((sizeof(struct RoleEntry) + (sizeof(word_t) - 1)) / sizeof(word_t));
+}
+
 
 
 word_t object_byte_size(struct Object* o) {
   if (object_type(o) == TYPE_OBJECT) {
-    return object_array_offset((struct OopArray*)o);
+    return object_array_offset(o);
   } 
-  return object_array_offset((struct OopArray*)o) + object_payload_size(o);
+  return object_array_offset(o) + object_payload_size(o);
 
 }
 
@@ -528,6 +549,123 @@ word_t interpreter_decode_short(struct Interpreter* i) {
   return (word_t) (i->method->code->elements[n] | (i->method->code->elements[n + 1] << 8));
 }
 
+void print_symbol(struct Object* name) {
+  fwrite(&((struct Symbol*)name)->elements[0], 1, object_payload_size(name), stdout);
+}
+
+
+void indent(word_t amount) { word_t i; for (i=0; i<amount; i++) printf("    "); }
+
+void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t depth, word_t max_depth) {
+
+  struct Map* map;
+  word_t i;
+
+  if (depth >= max_depth || object_is_smallint(o)) {
+    print_object(o);
+    return;
+  }
+
+  map = o->map;
+  print_object(o);
+
+  indent(depth); printf("{\n");
+
+  if (object_type(o) == TYPE_BYTE_ARRAY) {
+    char* elements = (char*)inc_ptr(o, object_array_offset(o));
+    indent(depth); printf("bytes: '");
+    for (i=0; i < object_payload_size(o); i++) {
+      if (elements[i] >= 32 && elements[i] <= 126) {
+        printf("%c", elements[i]);
+      } else {
+        printf("\\x%02lx", (word_t)elements[i]);
+      }
+    }
+    printf("'\n");
+  }
+  if (object_type(o) == TYPE_OOP_ARRAY) {
+    struct OopArray* array = (struct OopArray*)o;
+    indent(depth); printf("size(array) = %lu\n", object_array_size(o));
+    for (i=0; i < object_array_size(o); i++) {
+      indent(depth); printf("array[%lu]: ", i); print_object_with_depth(oh, array->elements[i], depth+1, max_depth);
+      if (object_array_size(o) - i > 10) {
+        indent(depth); printf("...\n");
+        i = object_array_size(o) - 2;
+      }
+    }
+  }
+
+  if ((map->flags & MAP_FLAG_RESTRICT_DELEGATION) == 0) {
+    /*print if delegate*/
+    
+    struct OopArray* delegates = map->delegates;
+    word_t offset = object_array_offset((struct Object*)delegates);
+    word_t limit = object_total_size((struct Object*)delegates);
+    for (i = 0; offset != limit; offset += sizeof(word_t), i++) {
+      struct Object* delegate = object_slot_value_at_offset((struct Object*)delegates, offset);
+      indent(depth); printf("delegate[%lu] = ", i); print_object_with_depth(oh, delegate, depth+1, max_depth);
+    }
+  }
+
+  if (object_type(o) != TYPE_PAYLOAD) {
+    struct SlotTable* slotTable = map->slotTable;
+    word_t limit = object_to_smallint(map->slotCount);
+    indent(depth); printf("slot count: %lu\n", limit);
+    for (i=0; i < limit; i++) {
+      bool delegate = 0;
+      if (slotTable->slots[i].name == oh->cached.nil) continue;
+      indent(depth);
+      if ((object_to_smallint(slotTable->slots[i].offset) & SLOT_TYPE_MASK) == SLOT_TYPE_DELEGATE) {
+        printf("delegate_");
+        delegate = 1;
+      }
+      printf("slot[%lu]['", i); print_symbol(slotTable->slots[i].name); printf("'] = ");
+      if (!delegate) {
+        print_object(object_slot_value_at_offset(o, object_to_smallint(slotTable->slots[i].offset) & SLOT_OFFSET_MASK));
+      } else {
+        print_object_with_depth(oh, object_slot_value_at_offset(o, object_to_smallint(slotTable->slots[i].offset) & SLOT_OFFSET_MASK),
+                                depth+1, max_depth);
+      }
+    }
+  }
+
+#if 0
+  if (depth < 2) {
+    indent(depth); printf("map = "); print_object_with_depth(oh, (struct Object*)map, depth+1, max_depth);
+  }
+#endif
+  /*roles */
+  {
+    struct RoleTable* roleTable = map->roleTable;
+    word_t limit = role_table_capacity(roleTable);
+    indent(depth); printf("role table capacity: %lu\n", limit);
+    for (i = 0; i < limit; i++) {
+      if (roleTable->roles[i].name == oh->cached.nil) {continue;}
+      else {
+        indent(depth); printf("role[%lu]['", i); print_symbol(roleTable->roles[i].name);
+        printf("'] @ 0x%04lx\n", object_to_smallint(roleTable->roles[i].rolePositions));
+#if 0
+        print_object_with_depth(oh, (struct Object*)roleTable->roles[i].methodDefinition, max_depth, max_depth);
+#endif
+        if (limit - i > 50 && depth >= 2) {
+          indent(depth); printf("...\n");
+          i = limit - 3;
+        }
+      }
+      
+    }
+    
+  }
+
+
+  indent(depth); printf("}\n");
+
+}
+
+void print_detail(struct object_heap* oh, struct Object* o) {
+  print_object_with_depth(oh, o, 1, 5);
+}
+
 word_t* gc_allocate(struct object_heap* oh, word_t size) {
 
   /*FIX!!!!!!!!*/
@@ -645,18 +783,6 @@ struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Objec
   /*fix*/
   return NULL;
 }
-word_t object_array_size(struct Object* o) {
-
-  assert(object_type(o) != TYPE_OBJECT);
-  return (object_payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
-
-}
-
-
-word_t role_table_capacity(struct RoleTable* roles) {
-  return object_array_size((struct Object*)roles) / ((sizeof(struct RoleEntry) + (sizeof(word_t) - 1)) / sizeof(word_t));
-}
-
 
 
 struct RoleEntry* role_table_entry_for_name(struct object_heap* oh, struct RoleTable* roles, struct Object* name) {
@@ -668,7 +794,7 @@ struct RoleEntry* role_table_entry_for_name(struct object_heap* oh, struct RoleT
   if (tableSize == 0) return NULL;
   hash = object_hash(name) & (tableSize-1); /*fix base2 assumption*/
   
-  /*fix clean up why do we iterate through the table like this?????*/
+  
   for (index = hash; index < tableSize; index++) {
 
     role = &roles->roles[index];
@@ -699,8 +825,11 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
 
 #ifdef PRINT_DEBUG
   printf("dispatch to: '");
-  fwrite(&((struct Symbol*)name)->elements[0], 1, object_payload_size(name), stdout);
+  print_symbol(name);
   printf("' (arity: %lu)\n", arity);
+  for (i = 0; i < arity; i++) {
+    printf("arguments[%lu] = \n", i); print_detail(oh, arguments[i]);
+  }
   printf("resend: "); print_object(resendMethod);
 #endif
 
@@ -723,7 +852,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
     struct Object* arg = arguments[i];
     delegationCount = 0;
     depth = 0;
-    restricted = WORDT_MAX;
+    restricted = -1;
     
     do {
       /* Set up obj to be a pointer to the object, or SmallInteger if it's
@@ -775,7 +904,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
               def->foundPositions |= (1 << i);
 
 #ifdef PRINT_DEBUG
-              printf("found role <%p> for '%s' found: %lx dis: %lx\n",(void*) role,
+              printf("found role <%p> for '%s' foundPos: %lx dispatchPos: %lx\n",(void*) role,
                      ((struct Symbol*)(role->name))->elements, def->foundPositions, def->dispatchPositions);
 #endif
 
@@ -827,7 +956,14 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
           assert(0);
         }
         if (dispatch != NULL && bestDef == dispatch) {
-          if (dispatch->slotAccessor != oh->cached.nil) arguments[0] = slotLocation;
+          if (dispatch->slotAccessor != oh->cached.nil) {
+            arguments[0] = slotLocation;
+
+#ifdef PRINT_DEBUG
+            printf("arguments[0] changed to slot location: \n");
+            print_detail(oh, arguments[0]);
+#endif
+          }
           if (resendMethod == 0 && arity <= METHOD_CACHE_ARITY) method_save_cache(oh, dispatch, name, arguments, arity);
           return dispatch;
         }
@@ -836,7 +972,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
       }
       if (object_array_size((struct Object*)map->delegates) > 0) {
         struct OopArray* delegates = map->delegates;
-        word_t offset = object_array_offset(delegates);
+        word_t offset = object_array_offset((struct Object*)delegates);
         word_t limit = object_total_size((struct Object*)delegates);
         for (; offset != limit; offset += sizeof(word_t)) {
           struct Object* delegate = object_slot_value_at_offset((struct Object*)delegates, offset);
@@ -851,7 +987,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
       if (delegationCount < DELEGATION_STACK_SIZE) {
         arg = oh->delegation_stack[delegationCount];
         if (delegationCount < restricted) {
-          restricted = WORDT_MAX;
+          restricted = -1;
         }
       }
 
@@ -862,6 +998,11 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
 
   if (dispatch != NULL && dispatch->slotAccessor != oh->cached.nil) {
     arguments[0] = slotLocation;
+#ifdef PRINT_DEBUG
+            printf("arguments[0] changed to slot location: \n");
+            print_detail(oh, arguments[0]);
+#endif
+
   }
   if (dispatch != NULL && resendMethod == 0 && arity < METHOD_CACHE_ARITY) {
     method_save_cache(oh, dispatch, name, arguments, arity);
