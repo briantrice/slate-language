@@ -629,11 +629,11 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     }
   }
 
-#if 0
+
   if (depth < 2) {
     indent(depth); printf("map = "); print_object_with_depth(oh, (struct Object*)map, depth+1, max_depth);
   }
-#endif
+  
   /*roles */
   {
     struct RoleTable* roleTable = map->roleTable;
