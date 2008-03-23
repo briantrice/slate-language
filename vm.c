@@ -95,14 +95,14 @@ struct PrimitiveMethod
 };
 struct RoleEntry
 {
-  struct Object* name;
+  struct Symbol* name;
   struct Object* rolePositions; /*smallint?*/
   struct MethodDefinition * methodDefinition;
   struct Object* nextRole; /*smallint?*/
 };
 struct SlotEntry
 {
-  struct Object* name;
+  struct Symbol* name;
   struct Object* offset; /*smallint?*/
 };
 struct SlotTable
@@ -115,7 +115,7 @@ struct Symbol
 {
   struct ObjectHeader header;
   struct Map * map;
-  word_t cacheMask;
+  struct Object* cacheMask;
   unsigned char elements[];
 };
 struct CompiledMethod
@@ -278,7 +278,10 @@ struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<
 #define MAP_FLAG_IMMUTABLE 4
 
 
-#define HEADER_SIZE sizeof(word_t)
+#define HEADER_SIZE (sizeof(word_t))
+#define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
+#define WORD_BYTES_MINUS_ONE (sizeof(word_t)-1)
+#define ROLE_ENTRY_WORD_SIZE ((sizeof(struct RoleEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
 #define FUNCTION_FRAME_SIZE 4
 
 #define TRUE 1
@@ -543,8 +546,8 @@ word_t interpreter_decode_short(struct Interpreter* i) {
   return (word_t) (i->method->code->elements[n] | (i->method->code->elements[n + 1] << 8));
 }
 
-void print_symbol(struct Object* name) {
-  fwrite(&((struct Symbol*)name)->elements[0], 1, object_payload_size(name), stdout);
+void print_symbol(struct Symbol* name) {
+  fwrite(&name->elements[0], 1, object_payload_size((struct Object*)name), stdout);
 }
 
 void indent(word_t amount) { word_t i; for (i=0; i<amount; i++) printf("    "); }
@@ -633,7 +636,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     word_t limit = object_to_smallint(map->slotCount);
     indent(depth); printf("slot count: %lu\n", limit);
     for (i=0; i < limit; i++) {
-      if (slotTable->slots[i].name == oh->cached.nil) continue;
+      if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
       indent(depth);
       printf("slot[%lu]['", i); print_symbol(slotTable->slots[i].name); printf("'] = ");
       {
@@ -656,7 +659,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     word_t limit = role_table_capacity(roleTable);
     indent(depth); printf("role table capacity: %lu\n", limit);
     for (i = 0; i < limit; i++) {
-      if (roleTable->roles[i].name == oh->cached.nil) {continue;}
+      if (roleTable->roles[i].name == (struct Symbol*)oh->cached.nil) {continue;}
       else {
         indent(depth); printf("role[%lu]['", i); print_symbol(roleTable->roles[i].name);
         printf("'] @ 0x%04lx\n", object_to_smallint(roleTable->roles[i].rolePositions));
@@ -693,7 +696,7 @@ void print_stack(struct object_heap* oh) {
 }
 
 
-word_t* gc_allocate(struct object_heap* oh, word_t size) {
+word_t* heap_allocate(struct object_heap* oh, word_t size) {
 
   /*FIX!!!!!!!!*/
   return malloc(size);
@@ -701,12 +704,12 @@ word_t* gc_allocate(struct object_heap* oh, word_t size) {
 }
 
 
-struct Object* heap_allocate_chunk_with_payload(struct object_heap* oh, word_t words, word_t payload_size) {
+struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, word_t payload_size) {
 
   struct Object* o;
   word_t size = words*sizeof(word_t) + sizeof(struct ObjectPayload) + \
     ((payload_size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1)); /*word aligned payload*/
-  struct ObjectPayload* op = (struct ObjectPayload*)gc_allocate(oh, size);
+  struct ObjectPayload* op = (struct ObjectPayload*)heap_allocate(oh, size);
 
   object_set_format((struct Object*)op, TYPE_PAYLOAD);
   objectpayload_set_size(op, payload_size);
@@ -717,9 +720,35 @@ struct Object* heap_allocate_chunk_with_payload(struct object_heap* oh, word_t w
 }
 
 
+struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
+  struct Object* newObj;
+  
+  if (object_type(proto) == TYPE_OBJECT) {
+    newObj = (struct Object*)heap_allocate(oh, object_size(proto));
+  } else {
+    newObj = heap_allocate_with_payload(oh, object_size(proto), object_payload_size(proto));
+  }
+
+  object_set_format(newObj, object_type(proto));
+  object_set_idhash(newObj, heap_new_hash(oh));
+  copy_words_into((word_t*)proto + HEADER_SIZE_WORDS, object_word_size(proto) - HEADER_SIZE_WORDS, (word_t*)newObj + HEADER_SIZE_WORDS);
+
+  return newObj;
+}
+
+
+struct Object* heap_clone_special(struct object_heap* oh, word_t special_index) {
+  return heap_clone(oh, get_special(oh, special_index));
+}
+
+struct Map* heap_clone_map(struct object_heap* oh, struct Map* map) {
+  return (struct Map*)heap_clone(oh, (struct Object*)map);
+}
+
+
 struct OopArray* heap_clone_oop_array_sized(struct object_heap* oh, struct Object* proto, word_t size) {
 
-  struct Object* newObj = heap_allocate_chunk_with_payload(oh, object_size(proto), size * sizeof(word_t));
+  struct Object* newObj = heap_allocate_with_payload(oh, object_size(proto), size * sizeof(word_t));
   object_set_format(newObj, TYPE_OOP_ARRAY);
   object_set_idhash(newObj, heap_new_hash(oh));
   /*copy everything but the header bits*/
@@ -755,7 +784,7 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
 void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struct Object* value) {
 
 #ifdef PRINT_DEBUG
-  printf("Stack push at %lu (fp=%lu): ", i->stackPointer, i->framePointer); print_detail(oh, value);
+  printf("Stack push at %lu (fp=%lu):\n", i->stackPointer, i->framePointer); /*print_detail(oh, value);*/
 #endif
   if (i->stackPointer == i->stackSize) {
     interpreter_grow_stack(oh, i);
@@ -779,8 +808,8 @@ struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter*
   {
     struct Object* o = i->stack->elements[i->stackPointer];
 #ifdef PRINT_DEBUG
-    printf("popping from stack, new stack pointer: %lu, object: ", i->stackPointer);
-    print_detail(oh, o);
+    printf("popping from stack, new stack pointer: %lu\n", i->stackPointer);
+    /*print_detail(oh, o);*/
 #endif
     return o;
   }
@@ -809,62 +838,157 @@ void interpreter_signal_with_with(struct object_heap* oh, struct Interpreter* i,
 
 
 
-void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Object* name, struct Object* arguments[], word_t arity) {
+void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t arity) {
   /*fix*/
 
 }
 
-struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Object* name, struct Object* arguments[], word_t arity) {
+void method_flush_cache(struct object_heap* oh, struct Object* name) {
+  /*fix*/
+
+}
+
+struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t arity) {
   /*fix*/
   return NULL;
 }
 
 
-struct RoleEntry* role_table_entry_for_name(struct object_heap* oh, struct RoleTable* roles, struct Object* name) {
+struct RoleEntry* role_table_entry_for_name(struct object_heap* oh, struct RoleTable* roles, struct Symbol* name) {
 
   word_t tableSize, hash, index;
   struct RoleEntry* role;
 
   tableSize = role_table_capacity(roles);
   if (tableSize == 0) return NULL;
-  hash = object_hash(name) & (tableSize-1); /*fix base2 assumption*/
+  hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
   
   
   for (index = hash; index < tableSize; index++) {
 
     role = &roles->roles[index];
     if (role->name == name) return role;
-    if (role->name == oh->cached.nil) return NULL;
+    if (role->name == (struct Symbol*)oh->cached.nil) return NULL;
   }
   for (index = 0; index < hash; index++) {
     role = &roles->roles[index];
     if (role->name == name) return role;
-    if (role->name == oh->cached.nil) return NULL;
+    if (role->name == (struct Symbol*)oh->cached.nil) return NULL;
   }
 
   return NULL;
 }
 
-struct SlotEntry* slot_table_entry_for_name(struct object_heap* oh, struct SlotTable* slots, struct Object* name) {
+
+struct RoleEntry* role_table_entry_for_inserting_name(struct object_heap* oh, struct RoleTable* roles, struct Symbol* name) {
+
+  word_t tableSize, hash, index;
+  struct RoleEntry* role;
+
+  tableSize = role_table_capacity(roles);
+  if (tableSize == 0) return NULL;
+  hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
+  
+  
+  for (index = hash; index < tableSize; index++) {
+
+    role = &roles->roles[index];
+    if (role->name == (struct Symbol*)oh->cached.nil) return role;
+  }
+  for (index = 0; index < hash; index++) {
+    role = &roles->roles[index];
+    if (role->name == (struct Symbol*)oh->cached.nil) return role;
+  }
+
+  return NULL;
+}
+
+
+struct RoleEntry* role_table_insert(struct object_heap* oh, struct RoleTable* roles, struct Symbol* name) {
+  struct RoleEntry* chain = role_table_entry_for_inserting_name(oh, roles, name);
+  struct RoleEntry* role = role_table_entry_for_name(oh, roles, name);
+
+  if (chain != NULL) {
+    while (chain->nextRole != oh->cached.nil) {
+      chain = & roles->roles[object_to_smallint(chain->nextRole)];
+    }
+    chain->nextRole = smallint_to_object((word_t)role - (word_t)roles->roles);
+  }
+
+  return role;
+}
+
+word_t role_table_accommodate(struct RoleTable* roles, word_t n) {
+
+  word_t tableSize, requested;
+
+  tableSize = role_table_capacity(roles);
+  assert(tableSize + n >= 0);
+  requested = tableSize + n;
+  while (tableSize > requested)
+    tableSize >>= 1;
+  if (tableSize ==0 && requested > 1)
+    tableSize = 1;
+  while (tableSize < requested)
+    tableSize <<= 1;
+
+  return tableSize;
+}
+
+
+word_t role_table_empty_space(struct object_heap* oh, struct RoleTable* roles) {
+
+  word_t space = 0, i;
+
+  for (i = 0; i < role_table_capacity(roles); i++) {
+    if (roles->roles[i].name == (struct Symbol*)oh->cached.nil) space++;
+  }
+
+  return space;
+}
+
+struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleTable* roles, word_t n, struct MethodDefinition* method) {
+  word_t oldSize, newSize, i;
+  struct RoleTable* newRoles;
+
+  oldSize = role_table_capacity(roles);
+  newSize = role_table_accommodate(roles, (oldSize / 3 - role_table_empty_space(oh, roles)) + n);
+  newRoles = (struct RoleTable*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), newSize * ROLE_ENTRY_WORD_SIZE);
+
+  for (i = 0; i < oldSize; i++) {
+    struct Symbol* roleName = (struct Symbol*)roles->roles[i].name;
+    if (roleName != (struct Symbol*)oh->cached.nil && roles->roles[i].methodDefinition != method) {
+      struct RoleEntry * role = role_table_insert(oh, newRoles, roleName);
+      *role = roles->roles[i];
+      role->nextRole = oh->cached.nil;
+    }
+    
+  }
+
+  return newRoles;
+
+}
+
+struct SlotEntry* slot_table_entry_for_name(struct object_heap* oh, struct SlotTable* slots, struct Symbol* name) {
 
   word_t tableSize, hash, index;
   struct SlotEntry* slot;
 
   tableSize = slot_table_capacity(slots);
   if (tableSize == 0) return NULL;
-  hash = object_hash(name) & (tableSize-1); /*fix base2 assumption*/
+  hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
   
   
   for (index = hash; index < tableSize; index++) {
 
     slot = &slots->slots[index];
     if (slot->name == name) return slot;
-    if (slot->name == oh->cached.nil) return NULL;
+    if (slot->name == (struct Symbol*)oh->cached.nil) return NULL;
   }
   for (index = 0; index < hash; index++) {
     slot = &slots->slots[index];
     if (slot->name == name) return slot;
-    if (slot->name == oh->cached.nil) return NULL;
+    if (slot->name == (struct Symbol*)oh->cached.nil) return NULL;
   }
 
   return NULL;
@@ -873,11 +997,104 @@ struct SlotEntry* slot_table_entry_for_name(struct object_heap* oh, struct SlotT
 
 
 
+
+struct MethodDefinition* object_has_role_named_at(struct Object* obj, struct Symbol* selector, word_t position, struct Object* method) {
+
+  word_t i;
+
+  for (i = 0; i < role_table_capacity(obj->map->roleTable); i++) {
+    struct RoleEntry* role = &obj->map->roleTable->roles[i];
+    if (role->name == selector
+        && (object_to_smallint(role->rolePositions) & position) == position
+        && role->methodDefinition->method == method) {
+      return role->methodDefinition;
+    }
+
+  }
+
+  return NULL;
+
+}
+
+void object_change_map(struct object_heap* oh, struct Object* obj, struct Map* map) {
+  if (obj->map->representative == obj) obj->map->representative = oh->cached.nil;
+  obj->map = map;
+}
+
+void object_represent(struct object_heap* oh, struct Object* obj, struct Map* map) {
+  object_change_map(oh, obj, map);
+  map->representative = obj;
+}
+
+word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Symbol* selector, word_t position, struct MethodDefinition* method) {
+
+  struct Map* map;
+  struct RoleEntry *entry, *chain;
+
+  map = heap_clone_map(oh, obj->map);
+  chain = role_table_entry_for_name(oh, obj->map->roleTable, selector);
+  object_represent(oh, obj, map);
+  
+  while (chain != NULL) {
+
+    if (chain->methodDefinition == method) {
+
+      /*fix: do we want to copy the roletable*/
+      map->roleTable = role_table_grow_excluding(oh, map->roleTable, 0, NULL);
+      entry = role_table_entry_for_name(oh, map->roleTable, selector);
+      while (entry != NULL) {
+        if (entry->methodDefinition == method) {
+          entry->rolePositions = smallint_to_object(object_to_smallint(entry->rolePositions) | position);
+          return FALSE;
+        }
+        if (entry->nextRole == oh->cached.nil) {
+          entry = NULL;
+        } else {
+          entry = &map->roleTable->roles[object_to_smallint(entry->nextRole)];
+        }
+      }
+      
+    }
+
+    if (chain->nextRole == oh->cached.nil) {
+      chain = NULL;
+    } else {
+      chain = &map->roleTable->roles[object_to_smallint(chain->nextRole)];
+    }
+  }
+  
+  /*not found, adding role*/
+  map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
+  entry = role_table_insert(oh, map->roleTable, selector);
+#if 0
+   role_table_entry_for_inserting_name(oh, map->roleTable, name);
+  chain = role_table_entry_for_name(oh, map->roleTable, name);
+  if (chain != NULL) {
+    while (chain->nextRole != oh->cached.nil) {
+      chain = & map->roleTable->roles[object_to_smallint(chain->nextRole)];
+    }
+    chain->nextRole = smallint_as_object((word_t)entry - (word_t)map->roleTable->roles);
+  }
+#endif
+  entry->name = selector;
+  entry->nextRole = oh->cached.nil;
+  entry->rolePositions = smallint_to_object(position);
+  entry->methodDefinition = method;
+  return TRUE;
+
+}
+
+void object_remove_role(struct object_heap* oh, struct Object* obj, struct Symbol* selector, struct MethodDefinition* method) {
+
+  assert(NULL);
+
+}
+
 /*
  * This is the main dispatch function
  *
  */
-struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Object* name,
+struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbol* name,
                                             struct Object* arguments[], word_t arity, struct Object* resendMethod) {
 
   struct MethodDefinition *dispatch, *bestDef;
@@ -890,7 +1107,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Objec
   print_symbol(name);
   printf("' (arity: %lu)\n", arity);
   for (i = 0; i < arity; i++) {
-    /*printf("arguments[%lu] = \n", i); print_detail(oh, arguments[i]);*/
+    printf("arguments[%lu] = \n", i); print_detail(oh, arguments[i]);
   }
   printf("resend: "); print_object(resendMethod);
 #endif
@@ -1112,7 +1329,7 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
   obj = args[0];
   name = args[1];
   proto = get_special(oh, SPECIAL_OOP_SMALL_INT_PROTO);
-  se = slot_table_entry_for_name(oh, proto->map->slotTable, name);
+  se = slot_table_entry_for_name(oh, proto->map->slotTable, (struct Symbol*)name);
   if (se == NULL) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL);
   } else {
@@ -1122,6 +1339,129 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
 
 
 }
+
+void interpreter_push_nil(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.nil);
+}
+
+
+void prim_map(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* obj;
+  obj = args[0];
+  
+  if (object_is_smallint(obj)) {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  } else {
+    interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)obj->map);
+  }
+
+
+}
+
+void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* array;
+  word_t i;
+
+  array = args[0];
+  i = object_to_smallint(args[1]);
+  
+  if (i < object_array_size(array)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, ((struct OopArray*)array)->elements[i]);
+  } else {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[1], args[0], NULL);
+
+  }
+
+
+}
+struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
+
+  word_t positions, i;
+  struct MethodDefinition* def;
+
+  positions = 0;
+  def = NULL;
+
+  for (i = 0; i < n; i++) {
+    if (!object_is_smallint(args[i])) {
+
+      struct MethodDefinition* roleDef = object_has_role_named_at(args[i], selector, 1<<i, method);
+      if (roleDef != NULL) {
+        positions |= 1<<i;
+        def = roleDef;
+      }
+
+    }
+  }
+
+  return ((def != NULL && positions == def->dispatchPositions)? def : NULL);
+
+}
+
+struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
+
+  struct Object* argBuffer[16];
+  word_t positions, i;
+  struct MethodDefinition *def, *oldDef;
+
+  def = (struct MethodDefinition*)heap_clone_special(oh, SPECIAL_OOP_METHOD_DEF_PROTO);
+  positions = 0;
+  for (i = 0; i < n; i++) {
+    if (!object_is_smallint(args[i]) && args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
+      positions |= (1 << i);
+    }
+  }
+
+
+  selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
+  assert(n<=16);
+  copy_words_into((word_t*)args, n, (word_t*)argBuffer);
+  oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
+  if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
+    oldDef = NULL;
+  }
+  /*fix: push root: <def> */
+  def->method = method;
+  def->dispatchPositions = positions;
+  for (i = 0; i < n; i++) {
+    if (!object_is_smallint(args[i]) && args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
+      if (oldDef != NULL) {
+        object_remove_role(oh, args[i], selector, oldDef);
+      }
+      object_add_role_at(oh, args[i], selector, 1<<i, def);
+    }
+  }
+  /*root stack pop*/
+
+  return def;
+    
+}
+
+void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct MethodDefinition* def;
+  struct Object *method = args[0], *selector = args[1], *roles=args[2];
+  struct Object* traitsWindow = method->map->delegates->elements[0];
+
+   
+  if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
+    struct Closure* closure = (struct Closure*)heap_clone(oh, method);
+    closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
+    closure->method->method = closure->method;
+    closure->method->selector = selector;
+    method = (struct Object*)closure;
+  } else {
+    struct CompiledMethod* closure= (struct CompiledMethod*)heap_clone(oh, method);
+    closure->method = closure;
+    closure->selector = selector;
+    method = (struct Object*) closure;
+  }
+
+  def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
+  def->slotAccessor = oh->cached.nil;
+  method_flush_cache(oh, selector);
+  interpreter_stack_push(oh, oh->cached.interpreter, method);
+}
+
 
 void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj;
@@ -1134,7 +1474,7 @@ void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n,
   if (object_is_smallint(obj)) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL);
   } else {
-    se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
+    se = slot_table_entry_for_name(oh, obj->map->slotTable, (struct Symbol*)name);
     if (se == NULL) {
       interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL);
     } else {
@@ -1260,9 +1600,9 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) = {
 
- /*0-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*0-9*/ prim_as_method_on, prim_fixme, prim_map, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at_slot_named, prim_smallint_at_slot_named, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -1286,7 +1626,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   struct Object* traitsWindow;
 
   /*fix*/
-  struct MethodDefinition* def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
+  struct MethodDefinition* def = method_dispatch_on(oh, (struct Symbol*)selector, dispatchers, arity, NULL);
 
   if (def == NULL) {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
@@ -1299,7 +1639,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   traitsWindow = method->map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
-    printf("calling primitive\n");
+    printf("calling primitive: %lu\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts);
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
@@ -1526,9 +1866,6 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
 
 void interpreter_push_environment(struct object_heap* oh, struct Interpreter * i) {
   interpreter_stack_push(oh, i, i->method->environment);
-}
-void interpreter_push_nil(struct object_heap* oh, struct Interpreter * i) {
-  interpreter_stack_push(oh, i, oh->cached.nil);
 }
 void interpreter_push_false(struct object_heap* oh, struct Interpreter * i) {
   interpreter_stack_push(oh, i, oh->cached.false);
