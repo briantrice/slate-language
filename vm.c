@@ -381,7 +381,7 @@ word_t object_payload_size(struct Object* o) {
 
 bool object_in_memory(struct object_heap* heap, struct Object* oop) {
 
-  return (heap->memory <= (byte_t*)oop && heap->memory + heap->memory_size > (byte_t*)oop);
+  return (heap->memory <= (byte_t*)oop && (word_t)heap->memory + heap->memory_size > (word_t)oop);
 
 }
 
@@ -699,7 +699,8 @@ void print_stack(struct object_heap* oh) {
 word_t* heap_allocate(struct object_heap* oh, word_t size) {
 
   /*FIX!!!!!!!!*/
-  return malloc(size);
+  word_t* res = malloc(size*sizeof(word_t));
+  return res;
 
 }
 
@@ -731,7 +732,9 @@ struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
 
   object_set_format(newObj, object_type(proto));
   object_set_idhash(newObj, heap_new_hash(oh));
-  copy_words_into((word_t*)proto + HEADER_SIZE_WORDS, object_word_size(proto) - HEADER_SIZE_WORDS, (word_t*)newObj + HEADER_SIZE_WORDS);
+  copy_words_into((word_t*)inc_ptr(proto, HEADER_SIZE),
+                  object_word_size(proto) - HEADER_SIZE_WORDS,
+                  (word_t*)inc_ptr(newObj, HEADER_SIZE));
 
   return newObj;
 }
@@ -905,8 +908,8 @@ struct RoleEntry* role_table_entry_for_inserting_name(struct object_heap* oh, st
 
 
 struct RoleEntry* role_table_insert(struct object_heap* oh, struct RoleTable* roles, struct Symbol* name) {
-  struct RoleEntry* chain = role_table_entry_for_inserting_name(oh, roles, name);
-  struct RoleEntry* role = role_table_entry_for_name(oh, roles, name);
+  struct RoleEntry* chain = role_table_entry_for_name(oh, roles, name);
+  struct RoleEntry* role = role_table_entry_for_inserting_name(oh, roles, name);
 
   if (chain != NULL) {
     while (chain->nextRole != oh->cached.nil) {
@@ -2110,6 +2113,7 @@ struct Object* object_after(struct object_heap* heap, struct Object* o) {
   assert(object_in_memory(heap, o) && object_total_size(o) != 0);
 
   o = (struct Object*)inc_ptr(o, object_total_size(o));
+  if (!object_in_memory(heap, o)) return NULL;
   /*fix last allocated and next live*/
   o = drop_payload(o);
   return o;

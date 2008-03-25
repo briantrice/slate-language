@@ -2,7 +2,7 @@
 CC=gcc
 LD=ld
 INCLUDES=
-CFLAGS=-std=c99 -Wall -pedantic-errors -g -DPRINT_DEBUG $(INCLUDES)
+CFLAGS=-std=c99 -Wall -pedantic-errors -g -lefence -DPRINT_DEBUG $(INCLUDES)
 OBJECTS=
 
 all: vm
