@@ -696,10 +696,10 @@ void print_stack(struct object_heap* oh) {
 }
 
 
-word_t* heap_allocate(struct object_heap* oh, word_t size) {
+word_t* gc_allocate(struct object_heap* oh, word_t size) {
 
   /*FIX!!!!!!!!*/
-  word_t* res = malloc(size*sizeof(word_t));
+  word_t* res = malloc(size);
   return res;
 
 }
@@ -710,7 +710,7 @@ struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, 
   struct Object* o;
   word_t size = words*sizeof(word_t) + sizeof(struct ObjectPayload) + \
     ((payload_size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1)); /*word aligned payload*/
-  struct ObjectPayload* op = (struct ObjectPayload*)heap_allocate(oh, size);
+  struct ObjectPayload* op = (struct ObjectPayload*)gc_allocate(oh, size);
 
   object_set_format((struct Object*)op, TYPE_PAYLOAD);
   objectpayload_set_size(op, payload_size);
@@ -725,7 +725,7 @@ struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
   struct Object* newObj;
   
   if (object_type(proto) == TYPE_OBJECT) {
-    newObj = (struct Object*)heap_allocate(oh, object_size(proto));
+    newObj = (struct Object*)gc_allocate(oh, sizeof(word_t) * object_size(proto));
   } else {
     newObj = heap_allocate_with_payload(oh, object_size(proto), object_payload_size(proto));
   }
@@ -751,11 +751,15 @@ struct Map* heap_clone_map(struct object_heap* oh, struct Map* map) {
 
 struct OopArray* heap_clone_oop_array_sized(struct object_heap* oh, struct Object* proto, word_t size) {
 
-  struct Object* newObj = heap_allocate_with_payload(oh, object_size(proto), size * sizeof(word_t));
+  struct Object* newObj = heap_allocate_with_payload(oh, object_size(proto), size * sizeof(struct Object*));
   object_set_format(newObj, TYPE_OOP_ARRAY);
   object_set_idhash(newObj, heap_new_hash(oh));
   /*copy everything but the header bits*/
-  copy_words_into((word_t *) inc_ptr(proto, HEADER_SIZE), object_size(proto) - 1, (word_t*) inc_ptr(newObj, HEADER_SIZE));
+
+  copy_words_into((word_t *) inc_ptr(proto, HEADER_SIZE),
+                  object_size(proto) - HEADER_SIZE_WORDS,
+                  (word_t*) inc_ptr(newObj, HEADER_SIZE));
+
   fill_words_with((word_t*)newObj  + object_size(proto), size, (word_t)oh->cached.nil);
   
   return (struct OopArray*) newObj;
