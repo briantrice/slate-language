@@ -123,7 +123,7 @@ struct CompiledMethod
   struct ObjectHeader header;
   struct Map * map;
   struct CompiledMethod * method;
-  struct Object* selector;
+  struct Symbol* selector;
   struct Object* inputVariables;
   struct Object* localVariables;
   struct Object* restVariable;
@@ -260,8 +260,19 @@ void objectpayload_set_size(struct ObjectPayload* xxx, word_t size) {
   xxx->header |= (size&0x3FFFFFFF);
 }
 
+
 /*fix see if it can be post incremented*/
 word_t heap_new_hash(struct object_heap* oh) { return ++oh->next_hash;}
+
+
+
+/* DETAILS: This trick is from Tim Rowledge. Use a shift and XOR to set the 
+ * sign bit if and only if the top two bits of the given value are the same, 
+ * then test the sign bit. Note that the top two bits are equal for exactly 
+ * those integers in the range that can be represented in 31-bits.
+*/
+word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
+/*fix i didn't understand the above*/
 
 word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
 struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
@@ -378,6 +389,7 @@ word_t object_payload_size(struct Object* o) {
 
 }
 
+word_t object_is_immutable(struct Object* o) {return ((word_t)o->map->flags & MAP_FLAG_IMMUTABLE) != 0; }
 
 bool object_in_memory(struct object_heap* heap, struct Object* oop) {
 
@@ -685,6 +697,49 @@ void print_detail(struct object_heap* oh, struct Object* o) {
   print_object_with_depth(oh, o, 1, 5);
 }
 
+void print_type(struct object_heap* oh, struct Object* o) {
+  word_t i;
+  struct Object* traits;
+  struct Object* traitsWindow;
+  struct OopArray* x;
+  if (object_is_smallint(o)) {
+    printf("<smallint value: %lu>\n", object_to_smallint(o));
+    return;
+  }
+
+  x = o->map->delegates;
+  if (!x || object_array_size((struct Object*)x) < 1) goto fail;
+
+  traitsWindow = x->elements[0];
+  x = traitsWindow->map->delegates;
+  if (!x || object_array_size((struct Object*)x) < 1) goto fail;
+
+  traits = x->elements[object_array_size((struct Object*)x)-1];
+
+  {
+    struct Map* map = traits->map;
+    struct SlotTable* slotTable = map->slotTable;
+    word_t limit = object_to_smallint(map->slotCount);
+    for (i=0; i < limit; i++) {
+      if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
+      if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0)
+      {
+        struct Object* obj = object_slot_value_at_offset(traits, object_to_smallint(slotTable->slots[i].offset));
+        if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
+          break;
+        } else {
+          print_byte_array(obj);
+          return;
+        }
+      }
+    }
+  }  
+
+ fail:
+  printf("<unknown type>\n");
+}
+
+
 void print_stack(struct object_heap* oh) {
   struct Interpreter* i = oh->cached.interpreter;
   word_t size = i->stackPointer;
@@ -843,6 +898,14 @@ void interpreter_signal_with_with(struct object_heap* oh, struct Interpreter* i,
   interpreter_signal(oh, i, signal, args, 2, opts);
 }
 
+void interpreter_signal_with_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct Object* arg3, struct OopArray* opts) {
+  struct Object* args[3];
+  args[0] = arg;
+  args[1] = arg2;
+  args[2] = arg3;
+  interpreter_signal(oh, i, signal, args, 3, opts);
+}
+
 
 
 void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t arity) {
@@ -850,7 +913,7 @@ void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, stru
 
 }
 
-void method_flush_cache(struct object_heap* oh, struct Object* name) {
+void method_flush_cache(struct object_heap* oh, struct Symbol* name) {
   /*fix*/
 
 }
@@ -1091,9 +1154,26 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
 
 }
 
-void object_remove_role(struct object_heap* oh, struct Object* obj, struct Symbol* selector, struct MethodDefinition* method) {
+word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Symbol* selector, struct MethodDefinition* method) {
 
-  assert(NULL);
+  struct Map* map;
+  struct RoleTable* roles = obj->map->roleTable;
+  word_t i, matches = 0;
+
+  for (i = 0; i< role_table_capacity(roles); i++) {
+
+    if (roles->roles[i].methodDefinition == method) {
+      matches++;
+    }
+
+  }
+
+  if (matches == 0) return FALSE;
+  map = heap_clone_map(oh, obj->map);
+  map->roleTable = role_table_grow_excluding(oh, roles, matches, method);
+  object_represent(oh, obj, map);
+
+  return TRUE;
 
 }
 
@@ -1109,12 +1189,12 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   word_t bestRank, depth, delegationCount, resendRank, restricted, i;
 
 
-#ifdef PRINT_DEBUG
+#ifdef PRINT_DEBUG_DISPATCH
   printf("dispatch to: '");
   print_symbol(name);
   printf("' (arity: %lu)\n", arity);
   for (i = 0; i < arity; i++) {
-    printf("arguments[%lu] = \n", i); print_detail(oh, arguments[i]);
+    printf("arguments[%lu] = ", i); print_type(oh, arguments[i]);
   }
   printf("resend: "); print_object(resendMethod);
 #endif
@@ -1246,7 +1326,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
           if (dispatch->slotAccessor != oh->cached.nil) {
             arguments[0] = slotLocation;
 
-#ifdef PRINT_DEBUG
+#ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
             printf("arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
 #endif
@@ -1290,7 +1370,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
   if (dispatch != NULL && dispatch->slotAccessor != oh->cached.nil) {
     arguments[0] = slotLocation;
-#ifdef PRINT_DEBUG
+#ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
             printf("arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
 #endif
@@ -1381,6 +1461,100 @@ void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct Oop
 
 
 }
+
+
+void prim_at_put(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object *array = args[0], *i = args[1], *val = args[2];
+  word_t index = object_to_smallint(i);
+
+  if (object_is_immutable(array)) {
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), array, NULL);
+    return;
+  }
+  
+  if (index < object_array_size(array)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, ((struct OopArray*)array)->elements[index] = val);
+  } else {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, array, NULL);
+  }
+}
+
+
+void prim_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  /*struct Object* array = args[0];*/
+  struct Object* i = args[1];
+  if (object_is_smallint(i)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)
+                           heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                      object_to_smallint(i)));
+  } else {
+    interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.nil);
+  }
+}
+
+
+void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter, (args[0]==args[1])?oh->cached.true:oh->cached.false);
+}
+
+
+void prim_size(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(object_array_size(args[0])));
+}
+
+void prim_bitand(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)((word_t)args[0] & (word_t)args[1]));
+}
+void prim_bitor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)((word_t)args[0] | (word_t)args[1]));
+}
+
+void prim_plus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* x = args[0];
+  struct Object* y = args[1];
+  word_t z = object_to_smallint(x) + object_to_smallint(y);
+  if (smallint_fits_object(z)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(z));
+  } else {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_ADD_OVERFLOW), x, y, NULL);
+  }
+}
+
+
+void prim_minus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* x = args[0];
+  struct Object* y = args[1];
+  word_t z = object_to_smallint(x) - object_to_smallint(y);
+  if (smallint_fits_object(z)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(z));
+  } else {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SUBTRACT_OVERFLOW), x, y, NULL);
+  }
+}
+
+
+void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* x = args[0];
+  struct Object* y = args[1];
+  word_t z = object_to_smallint(x) * object_to_smallint(y);
+  if (z > 1073741823 || z < -1073741824) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), x, y, NULL);
+  } else {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(z));
+  }
+}
+
+void prim_quo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* x = args[0];
+  struct Object* y = args[1];
+  if (object_to_smallint(y) == 0) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_DIVIDE_BY_ZERO), x, y, NULL);
+  } else {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(object_to_smallint(x) / object_to_smallint(y)));
+  }
+}
+
+
 struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
   word_t positions, i;
@@ -1446,7 +1620,8 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
 
 void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct MethodDefinition* def;
-  struct Object *method = args[0], *selector = args[1], *roles=args[2];
+  struct Object *method = args[0], *roles=args[2];
+  struct Symbol *selector = (struct Symbol*)args[1];
   struct Object* traitsWindow = method->map->delegates->elements[0];
 
    
@@ -1466,6 +1641,16 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
   def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
   def->slotAccessor = oh->cached.nil;
   method_flush_cache(oh, selector);
+#ifdef PRINT_DEBUG
+  printf("Defining function '"); print_symbol(selector);
+  printf("' on:\n");
+  {
+    word_t i;
+    for (i = 0; i < object_array_size(roles); i++) {
+      printf("arg[%lu] = ", i); print_type(oh, ((struct OopArray*)roles)->elements[i]);
+    }
+  }
+#endif
   interpreter_stack_push(oh, oh->cached.interpreter, method);
 }
 
@@ -1568,7 +1753,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   i->stack->elements[framePointer - 2] = (struct Object*) lexicalContext;
   i->stack->elements[framePointer - 1] = smallint_to_object(i->framePointer);
 
-#ifdef PRINT_DEBUG
+#ifdef PRINT_DEBUG_FUNCALL
   printf("i->stack->elements[%lu(fp-4)] = \n", framePointer - 4);
   print_detail(oh, i->stack->elements[framePointer - 4]);
   printf("i->stack->elements[%lu(fp-3)] = \n", framePointer - 3);
@@ -1609,9 +1794,9 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
 
  /*0-9*/ prim_as_method_on, prim_fixme, prim_map, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at_slot_named, prim_smallint_at_slot_named, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*20-9*/ prim_fixme, prim_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_equals, prim_fixme, prim_bitor, prim_bitand, 
+ /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -1863,9 +2048,94 @@ void interpreter_branch_if_false(struct object_heap* oh, struct Interpreter * i)
 
 }
 
-void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t val) {
+void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t n) {
 
-  assert(0);
+  word_t framePointer;
+  struct LexicalContext* lexicalContext;
+  struct Object *barrier, *traitsWindow;
+  struct Object** args;
+  struct Symbol* selector;
+  struct OopArray* argsArray;
+  struct Closure* method;
+  struct CompiledMethod* resender;
+  struct MethodDefinition* def;
+
+  if (n == 0) {
+    framePointer = i->framePointer;
+    lexicalContext = i->lexicalContext;
+  } else {
+    lexicalContext = i->closure->lexicalWindow[n-1];
+    framePointer = object_to_smallint(lexicalContext->framePointer);
+    /*Attempted to resend without enclosing method definition.*/
+    assert((struct Object*)lexicalContext != i->stack->elements[framePointer-2]);
+  }
+
+  barrier = i->stack->elements[framePointer-3];
+  resender = ((struct Closure*) barrier)->method;
+  args = (resender->heapAllocate == oh->cached.true)? lexicalContext->variables : &i->stack->elements[framePointer];
+  selector = resender->selector;
+  n = object_to_smallint(resender->inputVariables);
+  def = method_dispatch_on(oh, selector, args, n, barrier);
+  if (def == NULL) {
+    argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
+    copy_words_into((word_t*)args, n, (word_t*)argsArray->elements);
+    interpreter_signal_with_with_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON),
+                                      (struct Object*)selector, (struct Object*)argsArray, (struct Object*) resender, NULL);
+    return;
+
+  }
+
+  method = (struct Closure*)def->method;
+  traitsWindow = method->map->delegates->elements[0];
+  if (traitsWindow == oh->cached.primitive_method_window) {
+#ifdef PRINT_DEBUG
+    printf("calling primitive: %lu\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+#endif
+    primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, n, NULL);
+    return;
+  }
+
+  if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
+    struct OopArray* optKeys = resender->optionalKeywords;
+    interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, NULL);
+    /* fix check that i is still in the same place in memory?*/
+    if (i->closure == method) {
+      word_t optKey;
+      for (optKey = 0; optKey < object_array_size((struct Object*)optKeys); optKey++) {
+        struct Object* optVal = args[n+optKey];
+        if (optVal != oh->cached.nil) {
+          interpreter_dispatch_optional_keyword(oh, i, optKeys->elements[optKey], optVal);
+        }
+      }
+    }
+
+  } else {
+    struct OopArray* optsArray;
+    struct OopArray* optKeys;
+    struct OopArray* signalOpts;
+    word_t optKey;
+    
+    optKeys = resender->optionalKeywords;
+    optsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                              object_array_size((struct Object*)optKeys) * 2);
+    
+    for (optKey = 0; optKey < object_array_size((struct Object*)optKeys); optKey++) {
+      struct Object* optVal = args[n+optKey];
+      optsArray->elements[optKey*2] = optKeys->elements[optKey];
+      optsArray->elements[optKey*2+1] = optVal;
+    }
+    
+    signalOpts = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+    signalOpts->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
+    signalOpts->elements[1] = (struct Object*) optsArray;
+    argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
+    copy_words_into((word_t*) args, n, (word_t*) argsArray->elements);
+    
+    interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_APPLY_TO),
+                                 def->method, (struct Object*) argsArray, signalOpts);
+    
+  }
+
 
 }
 
