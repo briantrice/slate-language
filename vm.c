@@ -215,6 +215,7 @@ struct object_heap
   byte_t mark_color;
   byte_t * memory;
   word_t memory_size;
+  word_t memory_limit;
   struct OopArray* special_objects_oop; /*root for gc*/
   word_t current_dispatch_id;
   bool interrupt_flag;
@@ -809,12 +810,44 @@ void print_stack_types(struct object_heap* oh, word_t last_count) {
 }
 
 
-word_t* gc_allocate(struct object_heap* oh, word_t size) {
+
+
+bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t next_hash, word_t special_oop, word_t cdid) {
+  oh->memory_limit = limit;
+  /*oh->memory = malloc(limit);*/
+  oh->memory = (byte_t*)mmap((void*)0x1000000, 30*1024*1024, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  perror("err: ");
+  if (oh->memory == NULL || oh->memory == (void*)-1) {
+    fprintf(stderr, "Initial GC allocation of memory failed.\n");
+    return 0;
+  }
+  oh->special_objects_oop = (struct OopArray*)((byte_t*)oh->memory + special_oop);
+  oh->next_hash = next_hash;
+  oh->memory_size = size;
+  oh->current_dispatch_id = cdid;
+  oh->interrupt_flag = 0;
+  oh->mark_color = 1;
+
+  return 1;
+}
+
+void gc_close(struct object_heap* oh) {
+
+  free(oh->memory);
+}
+
+word_t* gc_allocate(struct object_heap* oh, word_t bytes) {
 
   /*FIX!!!!!!!!*/
-  word_t* res = malloc(size);
+#if 1
+  assert(bytes % sizeof(word_t) == 0);
+  assert(oh->memory_size + bytes < oh->memory_limit);
+  word_t* res = (word_t*)((byte_t*)oh->memory + oh->memory_size);
+  oh->memory_size += bytes;
   return res;
-
+#else
+  return malloc(bytes);
+#endif
 }
 
 void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
@@ -1058,7 +1091,7 @@ struct RoleEntry* role_table_insert(struct object_heap* oh, struct RoleTable* ro
     while (chain->nextRole != oh->cached.nil) {
       chain = & roles->roles[object_to_smallint(chain->nextRole)];
     }
-    chain->nextRole = smallint_to_object((word_t)role - (word_t)roles->roles);
+    chain->nextRole = smallint_to_object(role - roles->roles);
   }
 
   return role;
@@ -2763,10 +2796,11 @@ int main(int argc, char** argv) {
 
   FILE* file;
   struct slate_image_header sih;
-  byte_t* image_start;
   struct object_heap heap;
+  word_t memory_limit = 30 * 1024 * 1024;
+
   memset(&heap, 0, sizeof(heap));
-  
+
   if (argc > 2) {
     fprintf(stderr, "You must supply an image file as an argument\n");
     return 1;
@@ -2789,27 +2823,20 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  image_start = malloc(sih.size);
+
+  if (!heap_initialize(&heap, sih.size, memory_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
+
   printf("Image size: %ld bytes\n", sih.size);
-  if (fread(image_start, 1, sih.size, file) != sih.size) {
+  if (fread(heap.memory, 1, sih.size, file) != sih.size) {
     fprintf(stderr, "Error fread()ing image\n");
     return 1;
   }
 
-
-  heap.memory = image_start;
-  heap.special_objects_oop = (struct OopArray*)(image_start + sih.special_objects_oop);
-  heap.next_hash = sih.next_hash;
-  heap.memory_size = sih.size;
-  heap.current_dispatch_id = sih.current_dispatch_id;
-  heap.interrupt_flag = 0;
-  heap.mark_color = 1;
-
   adjust_oop_pointers(&heap, (word_t)heap.memory);
   interpret(&heap);
   
+  gc_close(&heap);
 
-  free(image_start);
   fclose(file);
 
   return 0;
