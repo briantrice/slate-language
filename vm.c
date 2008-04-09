@@ -4,6 +4,21 @@
  * Based on original by Lee Salzman and Brian Rice
  */
 
+
+/***************************
+
+TODO:
+
+- replace(?) "->elements[i]" calls to function calls since
+the array elements might not come directly after the header
+on objects that have slots. use (byte|object)_array_(get|set)_element
+
+
+- gc
+
+
+***************************/
+
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -235,6 +250,10 @@ struct object_heap
 };
 /****************************************/
 
+
+void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts);
+
+
 #define OBJECT_SIZE_MASK 0x3F
 bool oop_is_object(word_t xxx)   { return ((((word_t)xxx)&1) == 0); }
 bool oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&1) == 1);}
@@ -442,6 +461,25 @@ byte_t byte_array_get_element(struct Object* o, word_t i) {
 byte_t byte_array_set_element(struct Object* o, word_t i, byte_t val) {
   byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset(o));
   return elements[i] = val;
+}
+
+
+struct Object* object_array_get_element(struct Object* o, word_t i) {
+  struct Object** elements = (struct Object**)inc_ptr(o, object_array_offset(o));
+  return elements[i];
+}
+
+struct Object* object_array_set_element(struct Object* o, word_t i, struct Object* val) {
+  struct Object** elements = (struct Object**)inc_ptr(o, object_array_offset(o));
+  return elements[i] = val;
+}
+
+struct Object** object_array_elements(struct Object* o) {
+  return (struct Object**)inc_ptr(o, object_array_offset(o));
+}
+
+struct Object** array_elements(struct OopArray* o) {
+  return object_array_elements((struct Object*) o);
 }
 
 word_t object_array_size(struct Object* o) {
@@ -772,6 +810,16 @@ void print_type(struct object_heap* oh, struct Object* o) {
   if (!x || array_size(x) < 1) goto fail;
 
   traitsWindow = x->elements[0];
+
+  {
+    if (traitsWindow == oh->cached.compiled_method_window) {
+      printf("(method: ");
+      print_byte_array((struct Object*)(((struct CompiledMethod*)o)->method->selector));
+      printf(")");
+    }
+  }
+
+
   x = traitsWindow->map->delegates;
   if (!x || array_size(x) < 1) goto fail;
 
@@ -1121,7 +1169,7 @@ void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n,
     print_detail(oh, args[i]);
   }
   printf("partial stack: \n");
-  print_stack_types(oh, 32);
+  print_stack_types(oh, 200);
   assert(0);
   exit(1);
 
@@ -2123,6 +2171,17 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struc
 
 }
 
+void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  exit(0);
+}
+
+void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  /*fix*/
+  print_detail(oh, args[0]);
+  interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.nil);
+}
+
+
 void prim_clone(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   interpreter_stack_push(oh, oh->cached.interpreter, heap_clone(oh, args[0]));
 }
@@ -2266,6 +2325,33 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, st
 }
 
 
+void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object *obj = args[0], *slotArray = args[1], *valueArray = args[2], *newObj;
+  word_t i;
+
+  if (object_is_smallint(obj)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, obj);
+    return;
+  }
+  newObj = heap_clone(oh, obj);
+
+  /*fix, check that arrays are same size, and signal errors*/
+
+  for (i = 0; i < object_array_size(slotArray); i++) {
+    struct Symbol* name = (struct Symbol*)object_array_get_element(slotArray, i);
+    struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
+    if (se == NULL) {
+      interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL);
+    } else {
+      object_slot_value_at_offset_put(newObj, object_to_smallint(se->offset), object_array_get_element(valueArray, i));
+    }
+  }
+  
+  interpreter_stack_push(oh, oh->cached.interpreter, newObj);
+}
+
+
+
 void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct MethodDefinition* def;
   struct Object *method = args[0], *roles=args[2];
@@ -2371,6 +2457,108 @@ void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], 
   }
 }
 
+/* 
+ * Args are the actual arguments to the function. dispatchers are the
+ * objects we find the dispatch function on. Usually they should be
+ * the same.
+ */
+
+void send_to_through_arity_with_optionals(struct object_heap* oh,
+                                                  struct Symbol* selector, struct Object* args[],
+                                                  struct Object* dispatchers[], word_t arity, struct OopArray* opts) {
+  struct OopArray* argsArray;
+  struct Closure* method;
+  struct Object* traitsWindow;
+
+  struct MethodDefinition* def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
+
+  if (def == NULL) {
+    argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
+    copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, NULL);
+    return;
+  }
+
+  method = (struct Closure*)def->method;
+  traitsWindow = method->map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
+  if (traitsWindow == oh->cached.primitive_method_window) {
+#ifdef PRINT_DEBUG
+    printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+#endif
+    primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts);
+  } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
+    interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts);
+  } else {
+    struct OopArray* optsArray = NULL;
+    if (opts != NULL) {
+      optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+      optsArray->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
+      optsArray->elements[1] = (struct Object*)opts;
+    }
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, optsArray);
+  }
+
+}
+
+void send_message_with_optionals(struct object_heap* oh, struct Interpreter* i, word_t n, struct OopArray* opts) {
+
+  struct Object** args;
+  struct Symbol* selector;
+
+#ifdef PRINT_DEBUG_FUNCALL
+      printf("send_message_with_optionals BEFORE\n");
+      printf("stack pointer: %ld\n", i->stackPointer);
+      printf("frame pointer: %ld\n", i->framePointer);
+      print_stack_types(oh, 16);
+#endif
+
+
+  i->stackPointer = i->stackPointer - n;
+  args = &i->stack->elements[i->stackPointer];
+  selector = (struct Symbol*)interpreter_stack_pop(oh, i);
+  send_to_through_arity_with_optionals(oh, selector, args, args, n, opts);
+
+#ifdef PRINT_DEBUG_FUNCALL
+      printf("send_message_with_optionals AFTER\n");
+      printf("stack pointer: %ld\n", i->stackPointer);
+      printf("frame pointer: %ld\n", i->framePointer);
+      print_stack_types(oh, 16);
+#endif
+
+
+}
+
+
+
+void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals) {
+  struct Symbol* selector = (struct Symbol*)args[0];
+  struct OopArray* opts, *arguments = (struct OopArray*)args[1];
+
+  if (optionals == NULL) {
+    opts = NULL;
+  } else {
+    opts = (struct OopArray*)optionals->elements[1];
+    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  }
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts); 
+}
+
+void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals) {
+  struct Symbol* selector = (struct Symbol*)args[0];
+  struct OopArray* opts, * arguments = (struct OopArray*)args[1], *dispatchers = (struct OopArray*)args[2];
+
+  if (optionals == NULL) {
+    opts = NULL;
+  } else {
+    opts = (struct OopArray*)optionals->elements[1];
+    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  }
+  /*fix check array sizes are the same*/
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts); 
+}
+
+
+
 
 void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object *method = args[0], *slot = args[2];
@@ -2402,10 +2590,10 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) = {
 
- /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_fixme, prim_clone, prim_fixme, prim_clone_with_slot_valued, prim_fixme, 
+ /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_fixme, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
- /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_applyto, prim_fixme, prim_fixme, prim_findon, 
- /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_equals, prim_fixme, prim_bitor, prim_bitand, 
+ /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
+ /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_fixme, prim_bitor, prim_bitand, 
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -2413,77 +2601,6 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*80-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
 
 };
-
-/* 
- * Args are the actual arguments to the function. dispatchers are the
- * objects we find the dispatch function on. Usually they should be
- * the same.
- */
-
-void send_to_through_arity_with_optionals(struct object_heap* oh,
-                                                  struct Object* selector, struct Object* args[],
-                                                  struct Object* dispatchers[], word_t arity, struct OopArray* opts) {
-  struct OopArray* argsArray;
-  struct Closure* method;
-  struct Object* traitsWindow;
-
-  struct MethodDefinition* def = method_dispatch_on(oh, (struct Symbol*)selector, dispatchers, arity, NULL);
-
-  if (def == NULL) {
-    argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
-    copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), selector, (struct Object*)argsArray, NULL);
-    return;
-  }
-
-  method = (struct Closure*)def->method;
-  traitsWindow = method->map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
-  if (traitsWindow == oh->cached.primitive_method_window) {
-#ifdef PRINT_DEBUG
-    printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
-#endif
-    primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts);
-  } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
-    interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts);
-  } else {
-    struct OopArray* optsArray = NULL;
-    if (opts != NULL) {
-      optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
-      optsArray->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
-      optsArray->elements[1] = (struct Object*)opts;
-    }
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, optsArray);
-  }
-
-}
-
-void send_message_with_optionals(struct object_heap* oh, struct Interpreter* i, word_t n, struct OopArray* opts) {
-
-  struct Object** args;
-  struct Object* selector;
-
-#ifdef PRINT_DEBUG_FUNCALL
-      printf("send_message_with_optionals BEFORE\n");
-      printf("stack pointer: %ld\n", i->stackPointer);
-      printf("frame pointer: %ld\n", i->framePointer);
-      print_stack_types(oh, 16);
-#endif
-
-
-  i->stackPointer = i->stackPointer - n;
-  args = &i->stack->elements[i->stackPointer];
-  selector = interpreter_stack_pop(oh, i);
-  send_to_through_arity_with_optionals(oh, selector, args, args, n, opts);
-
-#ifdef PRINT_DEBUG_FUNCALL
-      printf("send_message_with_optionals AFTER\n");
-      printf("stack pointer: %ld\n", i->stackPointer);
-      printf("frame pointer: %ld\n", i->framePointer);
-      print_stack_types(oh, 16);
-#endif
-
-
-}
 
 
 
