@@ -825,6 +825,27 @@ void print_type(struct object_heap* oh, struct Object* o) {
 
   traits = x->elements[array_size(x)-1];
 
+
+  { /*print our own printName if we have one*/
+    struct Map* map = o->map;
+    struct SlotTable* slotTable = map->slotTable;
+    word_t limit = object_to_smallint(map->slotCount);
+    for (i=0; i < limit; i++) {
+      if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
+      if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0)
+      {
+        struct Object* obj = object_slot_value_at_offset(traits, object_to_smallint(slotTable->slots[i].offset));
+        if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
+          break;
+        } else {
+          print_byte_array(obj);
+          break;
+        }
+      }
+    }
+  }  
+
+
   {
     struct Map* map = traits->map;
     struct SlotTable* slotTable = map->slotTable;
@@ -837,13 +858,16 @@ void print_type(struct object_heap* oh, struct Object* o) {
         if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
           break;
         } else {
+          printf("(");
           print_byte_array(obj);
-          printf("\n");
+          printf(")\n");
           return;
         }
       }
     }
   }  
+
+
 
  fail:
   printf("<unknown type>\n");
@@ -871,6 +895,47 @@ void print_stack_types(struct object_heap* oh, word_t last_count) {
   }
 }
 
+
+void print_backtrace(struct object_heap* oh) {
+  word_t depth = 0;
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  while (fp > FUNCTION_FRAME_SIZE) {
+    word_t j;
+    struct Object** vars;
+    struct Closure* closure = (struct Closure*)i->stack->elements[fp-3];
+    struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];
+
+
+    vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
+    printf("------------------------------\n");
+    printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
+
+    for (j = 0; j < object_to_smallint(closure->method->inputVariables); j++) {
+      printf("arg[%ld] = ", j);
+      if (depth > 0) {
+        print_type(oh, lc->variables[j]);
+      } else {
+        print_detail(oh, lc->variables[j]);
+      }
+    }
+
+    for (j = 0; j < object_to_smallint(closure->method->localVariables); j++) {
+      printf("var[%ld] = ", j);
+      if (depth > 0) {
+        print_type(oh, vars[j]);
+      } else {
+        print_detail(oh, vars[j]);
+      }
+    }
+
+
+
+    fp = object_to_smallint(i->stack->elements[fp-1]);
+    depth++;
+  }
+
+}
 
 
 struct Object* object_after(struct object_heap* heap, struct Object* o) {
@@ -1170,6 +1235,7 @@ void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n,
   }
   printf("partial stack: \n");
   print_stack_types(oh, 200);
+  print_backtrace(oh);
   assert(0);
   exit(1);
 
