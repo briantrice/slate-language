@@ -897,32 +897,34 @@ void print_stack_types(struct object_heap* oh, word_t last_count) {
 
 
 void print_backtrace(struct object_heap* oh) {
-  word_t depth = 0;
+  word_t depth = 0, detail_depth = -1 /*raise this to print verbose args in stack longer*/;
   struct Interpreter* i = oh->cached.interpreter;
   word_t fp = i->framePointer;
+  printf("backtrace: fp=%ld, sp=%ld\n", fp, i->stackPointer);
   while (fp > FUNCTION_FRAME_SIZE) {
     word_t j;
     struct Object** vars;
     struct Closure* closure = (struct Closure*)i->stack->elements[fp-3];
     struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];
-
+    word_t input_count = object_to_smallint(closure->method->inputVariables);
+    word_t local_count = object_to_smallint(closure->method->localVariables);
 
     vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
 
-    for (j = 0; j < object_to_smallint(closure->method->inputVariables); j++) {
+    for (j = 0; j < input_count; j++) {
       printf("arg[%ld] = ", j);
-      if (depth > 0) {
-        print_type(oh, lc->variables[j]);
+      if (depth > detail_depth) {
+        print_type(oh, vars[j]);
       } else {
-        print_detail(oh, lc->variables[j]);
+        print_detail(oh, vars[j]);
       }
     }
 
-    for (j = 0; j < object_to_smallint(closure->method->localVariables); j++) {
-      printf("var[%ld] = ", j);
-      if (depth > 0) {
+    for (j = input_count; j < input_count + local_count; j++) {
+      printf("var[%ld] = ", j - input_count);
+      if (depth > detail_depth) {
         print_type(oh, vars[j]);
       } else {
         print_detail(oh, vars[j]);
@@ -1225,6 +1227,18 @@ struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter*
   }
 
 }
+
+void interpreter_stack_pop_amount(struct object_heap* oh, struct Interpreter* i, word_t amount) {
+
+  if (i -> stackPointer - amount < 0) {
+    /*error("Attempted to pop empty interpreter stack.");*/
+    assert(0);
+  }
+
+  i->stackPointer = i->stackPointer - amount;
+
+}
+
 
 void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n, struct Object* args[]) {
   word_t i;
@@ -1986,7 +2000,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
 
 
 
-void interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value) {
+bool interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value) {
 
   struct OopArray* optKeys = i->method->optionalKeywords;
 
@@ -1999,12 +2013,12 @@ void interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interp
       } else {
         i->stack->elements[i->framePointer + object_to_smallint(i->method->inputVariables) + optKey] = value;
       }
-      return;
+      return TRUE;
     }
   }
 
   /*fix*/
-  assert(0);
+  return FALSE;
 }
 
 
@@ -2073,10 +2087,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 #endif
 
 
-#ifdef PRINT_DEBUG_FUNCALL
-  print_stack_types(oh, 16);
-#endif
-  
   i->framePointer = framePointer;
   i->method = method;
   i->closure = closure;
@@ -2318,6 +2328,11 @@ void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t
 
 void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   interpreter_stack_push(oh, oh->cached.interpreter, (args[0]==args[1])?oh->cached.true:oh->cached.false);
+}
+
+void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter,
+ (object_to_smallint(args[0])==object_to_smallint(args[1]))?oh->cached.true:oh->cached.false);
 }
 
 
@@ -2659,7 +2674,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_fixme, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
- /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_fixme, prim_bitor, prim_bitand, 
+ /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -3056,6 +3071,9 @@ void interpreter_new_array(struct object_heap* oh, struct Interpreter * i, word_
 
 void interpret(struct object_heap* oh) {
 
+ /* we can set a conditional breakpoint if the vm crash is consistent */
+  unsigned long int instruction_counter = 0;
+
 #ifdef PRINT_DEBUG
   printf("Interpret: img:%p size:%ld spec:%p next:%ld\n",
          (void*)oh->memory, oh->memory_size, (void*)oh->special_objects_oop, oh->next_hash);
@@ -3085,6 +3103,7 @@ void interpret(struct object_heap* oh) {
       printf("code pointer: %ld/%ld\n", i->codePointer, i->codeSize);
 #endif
       
+      instruction_counter++;
       op = i->method->code->elements[i->codePointer];
       prevPointer = i->codePointer;
       i->codePointer++;
@@ -3092,6 +3111,11 @@ void interpret(struct object_heap* oh) {
       if (val == 15) {
         val = interpreter_decode_immediate(i);
       }
+
+#ifdef PRINT_DEBUG_INSTRUCTION_COUNT
+      printf("instruction counter: %lu\n", instruction_counter);
+#endif
+
 #ifdef PRINT_DEBUG_STACK_POINTER
       printf("stack pointer: %ld\n", i->stackPointer);
       printf("frame pointer: %ld\n", i->framePointer);
@@ -3132,7 +3156,7 @@ void interpret(struct object_heap* oh) {
         break;
       case 7:
         PRINTOP("op: stack pop\n");
-        interpreter_stack_pop(oh, i);
+        interpreter_stack_pop_amount(oh, i, val);
         break;
       case 8:
         PRINTOP("op: new array\n");
