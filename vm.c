@@ -789,8 +789,28 @@ void print_detail(struct object_heap* oh, struct Object* o) {
   print_object_with_depth(oh, o, 1, 5);
 }
 
-void print_type(struct object_heap* oh, struct Object* o) {
+bool print_printname(struct object_heap* oh, struct Object* o) {
+
   word_t i;
+  struct Map* map = o->map;
+  struct SlotTable* slotTable = map->slotTable;
+  word_t limit = object_to_smallint(map->slotCount);
+  for (i=0; i < limit; i++) {
+    if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
+    if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0) {
+      struct Object* obj = object_slot_value_at_offset(o, object_to_smallint(slotTable->slots[i].offset));
+      if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
+        return FALSE;
+      } else {
+        print_byte_array(obj);
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+void print_type(struct object_heap* oh, struct Object* o) {
   struct Object* traits;
   struct Object* traitsWindow;
   struct OopArray* x;
@@ -826,49 +846,15 @@ void print_type(struct object_heap* oh, struct Object* o) {
   traits = x->elements[array_size(x)-1];
 
 
-  { /*print our own printName if we have one*/
-    struct Map* map = o->map;
-    struct SlotTable* slotTable = map->slotTable;
-    word_t limit = object_to_smallint(map->slotCount);
-    for (i=0; i < limit; i++) {
-      if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
-      if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0)
-      {
-        struct Object* obj = object_slot_value_at_offset(traits, object_to_smallint(slotTable->slots[i].offset));
-        if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
-          break;
-        } else {
-          print_byte_array(obj);
-          break;
-        }
-      }
-    }
-  }  
+
+  print_printname(oh, o);
+  
+  printf("(");
+  print_printname(oh, traits);
+  printf(")\n");
 
 
-  {
-    struct Map* map = traits->map;
-    struct SlotTable* slotTable = map->slotTable;
-    word_t limit = object_to_smallint(map->slotCount);
-    for (i=0; i < limit; i++) {
-      if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
-      if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0)
-      {
-        struct Object* obj = object_slot_value_at_offset(traits, object_to_smallint(slotTable->slots[i].offset));
-        if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
-          break;
-        } else {
-          printf("(");
-          print_byte_array(obj);
-          printf(")\n");
-          return;
-        }
-      }
-    }
-  }  
-
-
-
+  return;
  fail:
   printf("<unknown type>\n");
 }
@@ -922,12 +908,23 @@ void print_backtrace(struct object_heap* oh) {
       }
     }
 
-    for (j = input_count; j < input_count + local_count; j++) {
-      printf("var[%ld] = ", j - input_count);
-      if (depth > detail_depth) {
-        print_type(oh, vars[j]);
-      } else {
-        print_detail(oh, vars[j]);
+    if (closure->method->heapAllocate == oh->cached.true) {
+      for (j = 0; j < local_count; j++) {
+        printf("var[%ld] = ", j);
+        if (depth > detail_depth) {
+          print_type(oh, lc->variables[j]);
+        } else {
+          print_detail(oh, lc->variables[j]);
+        }
+      }
+    } else {
+      for (j = input_count; j < input_count + local_count; j++) {
+        printf("var[%ld] = ", j - input_count);
+        if (depth > detail_depth) {
+          print_type(oh, vars[j]);
+        } else {
+          print_detail(oh, vars[j]);
+        }
       }
     }
 
@@ -1189,7 +1186,10 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
     assert(i->stackPointer + n <= i->stackSize);
   }
   i->stackPointer += n;
+
+#ifdef PRINT_DEBUG_STACK_PUSH
   printf("stack allocate, new stack pointer: %ld\n", i->stackPointer);
+#endif
 
 }
 
@@ -1675,6 +1675,54 @@ struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj,
   if (newObj == NULL) return obj;
 
   newObj->map->slotCount = smallint_to_object(object_to_smallint(newObj->map->slotCount) + 1);
+
+  return newObj;
+}
+
+struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, struct Symbol* name) {
+  word_t offset;
+  struct Object* newObj;
+  struct Map* map;
+  struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
+  if (se == NULL) return obj;
+
+  offset = object_to_smallint(se->offset);
+  map = heap_clone_map(oh, obj->map);
+  map->slotCount = smallint_to_object(object_to_smallint(map->slotCount) - 1);
+  /*rootstack push &map*/
+  map->slotTable = slot_table_grow_excluding(oh, map->slotTable, -1, se->name);
+  slot_table_relocate_by(oh, map->slotTable, offset, -sizeof(word_t));
+
+  if (object_type(obj) == TYPE_OBJECT) {
+    newObj = heap_allocate(oh, object_size(obj)-1);
+    object_set_format(newObj, TYPE_OBJECT);
+  } else {
+    if (object_size(obj) == OBJECT_SIZE_MASK) {
+      if (object_payload_size(obj) == sizeof(word_t)) {
+        newObj = heap_allocate(oh, OBJECT_SIZE_MASK);
+        object_set_format(newObj, TYPE_OBJECT);
+      } else {
+        newObj = heap_allocate_with_payload(oh, OBJECT_SIZE_MASK, object_payload_size(obj) - sizeof(word_t));
+        object_set_format(newObj, TYPE_OOP_ARRAY);
+      }
+    } else {
+      newObj = heap_allocate_with_payload(oh,  object_size(obj) -1 , object_payload_size(obj));
+      object_set_format(newObj, object_type(obj));
+    }
+  }
+
+  /*root stack pop */
+  /*fix we don't need to set the format again, right?*/
+  object_set_idhash(newObj, heap_new_hash(oh));
+  copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj),
+                  offset - object_first_slot_offset(obj), 
+                  (byte_t*) newObj + object_first_slot_offset(newObj));
+
+  copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj) + sizeof(word_t),
+                  object_total_size(obj) - offset - sizeof(word_t), 
+                  (byte_t*) newObj + offset);
+  newObj->map = map;
+  map->representative = newObj;
 
   return newObj;
 }
@@ -2248,13 +2296,16 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struc
 }
 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  print_stack_types(oh, 128);
+  print_backtrace(oh);
   exit(0);
 }
 
 void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   /*fix*/
-  print_detail(oh, args[0]);
-  interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.nil);
+  /*  print_detail(oh, args[0]);
+      print_backtrace(oh);*/
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(object_hash(args[0])));
 }
 
 
@@ -2332,7 +2383,7 @@ void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct
 
 void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   interpreter_stack_push(oh, oh->cached.interpreter,
- (object_to_smallint(args[0])==object_to_smallint(args[1]))?oh->cached.true:oh->cached.false);
+ (object_to_smallint(args[0])<object_to_smallint(args[1]))?oh->cached.true:oh->cached.false);
 }
 
 
@@ -2356,6 +2407,69 @@ void prim_plus(struct object_heap* oh, struct Object* args[], word_t n, struct O
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_ADD_OVERFLOW), x, y, NULL);
   }
+}
+
+void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+
+  struct Object *method = args[0], *traitsWindow;
+  struct OopArray* roles = (struct OopArray*)args[1];
+  struct Symbol* selector = (struct Symbol*)oh->cached.nil;
+  struct MethodDefinition* def;
+  word_t i;
+
+  traitsWindow = method->map->delegates->elements[0];
+
+  if (traitsWindow == oh->cached.closure_method_window || traitsWindow == oh->cached.compiled_method_window) {
+    selector = ((struct Closure*)method)->method->selector;
+  } else {
+    /*May only remove a CompiledMethod or Closure.*/
+    assert(0);
+  }
+
+  def = method_is_on_arity(oh, method, selector, array_elements(roles), array_size(roles));
+  if (def == NULL) {
+    interpreter_stack_push(oh, oh->cached.interpreter, method);
+    return;
+  }
+
+  for (i = 0; i < array_size(roles); i++) {
+    struct Object* role = array_elements(roles)[i];
+    if (!object_is_smallint(role)) {
+      object_remove_role(oh, role, selector, def);
+    }
+  }
+
+  method_flush_cache(oh, selector);
+  interpreter_stack_push(oh, oh->cached.interpreter, method);
+
+}
+
+
+void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  word_t bits = object_to_smallint(args[0]);
+  word_t shift = object_to_smallint(args[1]);
+  word_t z;
+  if (shift >= 0) {
+    if (shift >= 32 && bits != 0) {
+      interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL);
+      return;
+    }
+
+    z = bits << shift;
+
+    if (!smallint_fits_object(z) || z >> shift != bits) {
+      interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL);
+      return;
+    }
+
+  } else if (shift <= -32) {
+    z = bits >> 31;
+  } else {
+    z = bits >> -shift;
+  }
+  
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(z));
+
 }
 
 
@@ -2456,13 +2570,15 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
   def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
   def->slotAccessor = oh->cached.nil;
   method_flush_cache(oh, selector);
-#ifdef PRINT_DEBUG
+#ifdef PRINT_DEBUG_DEFUN
   printf("Defining function '"); print_symbol(selector);
   printf("' on:\n");
   {
     word_t i;
     for (i = 0; i < object_array_size(roles); i++) {
-      printf("arg[%ld] = ", i); print_type(oh, ((struct OopArray*)roles)->elements[i]);
+      printf("arg[%ld] = ", i);
+      if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+      printf("\n");
     }
   }
 #endif
@@ -2535,6 +2651,17 @@ void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], 
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL);
   } else {
     interpreter_stack_push(oh, oh->cached.interpreter, object_add_slot_named(oh, obj, name, value));
+  }
+}
+
+void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct Object* obj = args[0];
+  struct Symbol* name = (struct Symbol*)args[1];
+
+  if (object_is_smallint(obj)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL);
+  } else {
+    interpreter_stack_push(oh, oh->cached.interpreter, object_remove_slot(oh, obj, name));
   }
 }
 
@@ -2671,11 +2798,11 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) = {
 
- /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_fixme, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
- /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
+ /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_removefrom, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
+ /*10-9*/ prim_fixme, prim_fixme, prim_clone_without_slot, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
  /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
- /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
+ /*40-9*/ prim_fixme, prim_fixme, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -3287,7 +3414,7 @@ int main(int argc, char** argv) {
   FILE* file;
   struct slate_image_header sih;
   struct object_heap heap;
-  word_t memory_limit = 30 * 1024 * 1024;
+  word_t memory_limit = 50 * 1024 * 1024;
 
   memset(&heap, 0, sizeof(heap));
 
