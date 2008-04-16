@@ -897,6 +897,7 @@ void print_backtrace(struct object_heap* oh) {
 
     vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
+    printf("fp: %ld\n", fp);
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
 
     for (j = 0; j < input_count; j++) {
@@ -958,8 +959,8 @@ bool object_is_free(struct object_heap* heap, struct Object* o) {
 bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t next_hash, word_t special_oop, word_t cdid) {
   oh->memory_limit = limit;
   /*oh->memory = malloc(limit);*/
-  oh->memory = (byte_t*)mmap((void*)0x1000000, 30*1024*1024, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
-  perror("err: ");
+  oh->memory = (byte_t*)mmap((void*)0x1000000, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  /*perror("err: ");*/
   if (oh->memory == NULL || oh->memory == (void*)-1) {
     fprintf(stderr, "Initial GC allocation of memory failed.\n");
     return 0;
@@ -2214,6 +2215,43 @@ void prim_findon(struct object_heap* oh, struct Object* args[], word_t n, struct
 }
 
 
+
+void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+
+  struct Closure* body = (struct Closure*) args[0];
+  struct Object* ensureHandler = args[1];
+
+  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL);
+  interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
+  interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
+  oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
+
+}
+
+
+void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+
+  struct Interpreter* i = (struct Interpreter*)args[0];
+  struct Symbol* selector = (struct Symbol*) args[1];
+  struct CompiledMethod* method;
+  word_t frame = i->framePointer;
+
+
+
+  while (frame > FUNCTION_FRAME_SIZE) {
+    method = (struct CompiledMethod*) i->stack->elements[frame-3];
+    if (method->selector == selector) {
+      interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(frame));
+      return;
+    }
+    frame = object_to_smallint(i->stack->elements[frame-1]);
+  }
+
+  interpreter_push_nil(oh, oh->cached.interpreter);
+
+}
+
+
 void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj, *i;
   obj = args[0];
@@ -2800,9 +2838,9 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
 
  /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_removefrom, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_clone_without_slot, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
- /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_fixme, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
+ /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_ensure, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
  /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
- /*40-9*/ prim_fixme, prim_fixme, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_fixme, 
+ /*40-9*/ prim_fixme, prim_fixme, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -3414,7 +3452,7 @@ int main(int argc, char** argv) {
   FILE* file;
   struct slate_image_header sih;
   struct object_heap heap;
-  word_t memory_limit = 50 * 1024 * 1024;
+  word_t memory_limit = 80 * 1024 * 1024;
 
   memset(&heap, 0, sizeof(heap));
 
