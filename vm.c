@@ -221,6 +221,8 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
   word_t stackSize;
 };
 
+#define SLATE_ERROR_RETURN (-1)
+#define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
 #define METHOD_CACHE_SIZE 1024
 
@@ -235,6 +237,8 @@ struct object_heap
   word_t current_dispatch_id;
   bool interrupt_flag;
   word_t next_hash;
+  FILE** file_index;
+  word_t file_index_size;
   struct Object *nextFree, *lastAllocated;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
@@ -363,12 +367,89 @@ struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<
 #define SPECIAL_OOP_APPLY_TO 32
 #define SPECIAL_OOP_OPTIONALS 33
 
+#define SF_READ				1
+#define SF_WRITE			1 << 1
+#define SF_CREATE			1 << 2
+#define SF_CLEAR			1 << 3
+
 
 #ifdef PRINT_DEBUG_OPCODES
 #define PRINTOP(X) printf(X)
 #else
 #define PRINTOP(X)
 #endif
+
+
+void error(char* str) {
+  fprintf(stderr, str);
+  assert(0);
+}
+
+void fill_words_with(word_t* dst, word_t n, word_t value)
+{
+  while (n > 0)
+  {
+    *dst = value;
+    dst++;
+    n--;
+  }
+}
+
+void copy_words_into(word_t * src, word_t n, word_t * dst)
+{
+  if ((src < dst) && ((src + n) > dst))
+  {
+    dst = dst + n;
+    src = src + n;
+    
+    {
+      do
+      {
+        dst = dst - 1;
+        src = src - 1;
+        *dst = *src;
+        n = n - 1;
+      }
+      while (n > 0);
+    }
+  }
+  else
+    while (n > 0)
+    {
+      *dst = *src;
+      dst = dst + 1;
+      src = src + 1;
+      n = n - 1;
+    }
+}
+
+void copy_bytes_into(byte_t * src, word_t n, byte_t * dst)
+{
+  if ((src < dst) && ((src + n) > dst))
+  {
+    dst = dst + n;
+    src = src + n;
+    
+    {
+      do
+      {
+        dst = dst - 1;
+        src = src - 1;
+        *dst = *src;
+        n = n - 1;
+      }
+      while (n > 0);
+    }
+  }
+  else
+    while (n > 0)
+    {
+      *dst = *src;
+      dst = dst + 1;
+      src = src + 1;
+      n = n - 1;
+    }
+}
 
 
 
@@ -408,6 +489,10 @@ void cache_specials(struct object_heap* heap) {
  heap->cached.closure_method_window = (struct Object*) get_special(heap, SPECIAL_OOP_CLOSURE_WINDOW);
 
 }
+
+
+
+/*************** BASIC OBJECT FIELDS ******************/
 
 word_t object_payload_size(struct Object* o) {
 
@@ -552,73 +637,6 @@ struct Object* object_slot_value_at_offset_put(struct Object* o, word_t offset, 
 }
 
 
-void fill_words_with(word_t* dst, word_t n, word_t value)
-{
-  while (n > 0)
-  {
-    *dst = value;
-    dst++;
-    n--;
-  }
-}
-
-void copy_words_into(word_t * src, word_t n, word_t * dst)
-{
-  if ((src < dst) && ((src + n) > dst))
-  {
-    dst = dst + n;
-    src = src + n;
-    
-    {
-      do
-      {
-        dst = dst - 1;
-        src = src - 1;
-        *dst = *src;
-        n = n - 1;
-      }
-      while (n > 0);
-    }
-  }
-  else
-    while (n > 0)
-    {
-      *dst = *src;
-      dst = dst + 1;
-      src = src + 1;
-      n = n - 1;
-    }
-}
-
-void copy_bytes_into(byte_t * src, word_t n, byte_t * dst)
-{
-  if ((src < dst) && ((src + n) > dst))
-  {
-    dst = dst + n;
-    src = src + n;
-    
-    {
-      do
-      {
-        dst = dst - 1;
-        src = src - 1;
-        *dst = *src;
-        n = n - 1;
-      }
-      while (n > 0);
-    }
-  }
-  else
-    while (n > 0)
-    {
-      *dst = *src;
-      dst = dst + 1;
-      src = src + 1;
-      n = n - 1;
-    }
-}
-
-
 word_t interpreter_decode_immediate(struct Interpreter* i) {
 
   word_t code;
@@ -649,6 +667,10 @@ short int interpreter_decode_short(struct Interpreter* i) {
   
   return (short int) (i->method->code->elements[n] | (i->method->code->elements[n + 1] << 8));
 }
+
+
+/*************** DEBUG PRINTING ******************/
+
 
 void print_symbol(struct Symbol* name) {
   fwrite(&name->elements[0], 1, object_payload_size((struct Object*)name), stdout);
@@ -737,8 +759,8 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
 
   if (object_type(o) != TYPE_PAYLOAD) {
     struct SlotTable* slotTable = map->slotTable;
-    word_t limit = object_to_smallint(map->slotCount);
-    indent(depth); printf("slot count: %ld\n", limit);
+    word_t limit = slot_table_capacity(map->slotTable);
+    indent(depth); printf("slot count: %ld\n", object_to_smallint(map->slotCount));
     for (i=0; i < limit; i++) {
       if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
       indent(depth);
@@ -794,7 +816,7 @@ bool print_printname(struct object_heap* oh, struct Object* o) {
   word_t i;
   struct Map* map = o->map;
   struct SlotTable* slotTable = map->slotTable;
-  word_t limit = object_to_smallint(map->slotCount);
+  word_t limit = slot_table_capacity(slotTable);
   for (i=0; i < limit; i++) {
     if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
     if (strncmp((char*)slotTable->slots[i].name->elements, "printName", 9) == 0) {
@@ -901,7 +923,7 @@ void print_backtrace(struct object_heap* oh) {
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
 
     for (j = 0; j < input_count; j++) {
-      printf("arg[%ld] = ", j);
+      printf("arg[%ld] (%p) = ", j, (void*)vars[j]);
       if (depth > detail_depth) {
         print_type(oh, vars[j]);
       } else {
@@ -911,7 +933,7 @@ void print_backtrace(struct object_heap* oh) {
 
     if (closure->method->heapAllocate == oh->cached.true) {
       for (j = 0; j < local_count; j++) {
-        printf("var[%ld] = ", j);
+        printf("var[%ld] (%p)= ", j, (void*)lc->variables[j]);
         if (depth > detail_depth) {
           print_type(oh, lc->variables[j]);
         } else {
@@ -920,7 +942,7 @@ void print_backtrace(struct object_heap* oh) {
       }
     } else {
       for (j = input_count; j < input_count + local_count; j++) {
-        printf("var[%ld] = ", j - input_count);
+        printf("var[%ld] (%p) = ", j - input_count, (void*)vars[j]);
         if (depth > detail_depth) {
           print_type(oh, vars[j]);
         } else {
@@ -936,6 +958,163 @@ void print_backtrace(struct object_heap* oh) {
   }
 
 }
+
+
+/***************** FILES *************************/
+word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)
+{
+  word_t payloadSize = object_payload_size((struct Object *) fromArray);
+  if (bufferSize < payloadSize)
+    return SLATE_ERROR_RETURN;
+
+  copy_bytes_into((byte_t*) fromArray -> elements, bufferSize, targetBuffer);
+  
+  return payloadSize;
+}
+
+
+word_t extractCString (struct ByteArray * array, byte_t* buffer, word_t bufferSize)
+{
+  word_t arrayLength = byte_array_extract_into(array, (byte_t*)buffer, bufferSize - 1);
+
+  if (arrayLength < 0)
+    return SLATE_ERROR_RETURN;
+
+  buffer [arrayLength] = '\0';	
+  return arrayLength;
+}
+
+bool valid_handle(struct object_heap* oh, word_t file) {
+  return (0 <= file && file < oh->file_index_size && oh->file_index[file] != NULL);
+}
+
+word_t allocate_file(struct object_heap* oh)
+{
+  word_t file;
+  word_t initial_size = oh->file_index_size;
+  for (file = 0; file < initial_size; ++ file) {
+    if (!(valid_handle(oh, file)))
+      return file;
+  }
+  oh->file_index_size *= 2;
+  oh->file_index = realloc(oh->file_index, oh->file_index_size * sizeof(FILE*));
+  assert(oh->file_index);
+
+  for (file = initial_size; file < oh->file_index_size; file++) {
+    oh->file_index[file] = NULL;
+  }
+  
+  return initial_size;
+}
+
+void closeFile(struct object_heap* oh, word_t file)
+{
+  if (valid_handle(oh, file)) {
+    fclose (oh->file_index[file]);
+    oh->file_index[file] = NULL;
+  }
+}
+
+word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags)
+{
+  byte_t nameString[SLATE_FILE_NAME_LENGTH];
+  word_t nameLength;
+  char mode[8];
+  word_t modeIndex = 0;
+  word_t file;
+
+  nameLength = extractCString(name, nameString, sizeof(nameString));
+
+  if (nameLength <= 0)
+    return SLATE_ERROR_RETURN;
+
+  file = allocate_file(oh);
+  if (file < 0)
+    return SLATE_ERROR_RETURN;
+
+  // (CLEAR \/ CREATE) /\ !WRITE
+  if ((flags & SF_CLEAR || flags & SF_CREATE) && (! (flags & SF_WRITE)))
+    error("ANSI does not support clearing or creating files that are not opened for writing");
+
+  // WRITE /\ !READ
+  if (flags & SF_WRITE && (! (flags & SF_READ)))
+    error("ANSI does not support opening files for writing only");
+
+  if (flags & SF_WRITE) {
+    if (flags & SF_CLEAR) {
+      mode[modeIndex++] = 'w';
+      if (flags & SF_READ)
+	mode[modeIndex++] = '+';
+    } else {
+      mode[modeIndex++] = 'r';
+      mode[modeIndex++] = '+';
+    }
+  } else if (flags & SF_READ)
+    mode[modeIndex++] = 'r';
+  else {
+    fprintf(stderr, "Slate: Unexpected mode flags for ANSI file module: %ld, falling back to \"r\"", flags);
+    mode[modeIndex++] = 'r';
+  }
+
+  mode[modeIndex++] = 'b';
+  mode[modeIndex++] = 0;
+
+  oh->file_index[file] = fopen((char*)nameString, mode);
+  return (valid_handle(oh, file) ? file : SLATE_ERROR_RETURN);
+}
+
+word_t writeFile(struct object_heap* oh, word_t file, word_t n, char * bytes)
+{
+  return (valid_handle(oh, file) ? fwrite (bytes, 1, n, oh->file_index[file])
+	  : SLATE_ERROR_RETURN);
+}
+
+word_t readFile(struct object_heap* oh, word_t file, word_t n, char * bytes)
+{
+  return (valid_handle(oh, file) ? fread (bytes, 1, n, oh->file_index[file])
+	  : SLATE_ERROR_RETURN);
+}
+
+word_t sizeOfFile(struct object_heap* oh, word_t file)
+{
+  word_t pos, size;
+  if (!(valid_handle(oh, file)))
+    return SLATE_ERROR_RETURN;
+  pos = ftell (oh->file_index[file]);
+  fseek (oh->file_index[file], 0, SEEK_END);
+  size = ftell (oh->file_index[file]);
+  fseek (oh->file_index[file], pos, SEEK_SET);
+  return size;
+}
+
+word_t seekFile(struct object_heap* oh, word_t file, word_t offset)
+{
+  return (valid_handle(oh, file) && fseek (oh->file_index[file], offset, SEEK_SET) == 0
+	  ? ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
+}
+
+word_t tellFile(struct object_heap* oh, word_t file)
+{
+  return (valid_handle(oh, file) ?  ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
+}
+
+bool endOfFile(struct object_heap* oh, word_t file)
+{
+  word_t c;
+  if (!(valid_handle(oh, file)))
+    return TRUE;
+  c = fgetc (oh->file_index[file]);
+  if (c == EOF)
+    return TRUE;
+  else {
+    ungetc (c, oh->file_index[file]);
+    return FALSE;
+  }
+}
+
+
+
+/*************** MEMORY ******************/
 
 
 struct Object* object_after(struct object_heap* heap, struct Object* o) {
@@ -971,6 +1150,8 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t n
   oh->current_dispatch_id = cdid;
   oh->interrupt_flag = 0;
   oh->mark_color = 1;
+  oh->file_index_size = 256;
+  oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
 
   return 1;
 }
@@ -1746,7 +1927,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   print_symbol(name);
   printf("' (arity: %ld)\n", arity);
   for (i = 0; i < arity; i++) {
-    printf("arguments[%ld] = ", i); print_type(oh, arguments[i]);
+    printf("arguments[%ld] (%p) = ", i, (void*)arguments[i]); print_type(oh, arguments[i]);
   }
   /*  printf("resend: "); print_object(resendMethod);*/
 #endif
@@ -1947,6 +2128,8 @@ void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Ob
   if (def == NULL) {
     unhandled_signal(oh, selector, n, args);
   }
+  /*take this out when the debugger is mature*/
+  assert(0);
   method = (struct Closure*)def->method;
   interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, opts);
 }
@@ -2070,6 +2253,15 @@ bool interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interp
   return FALSE;
 }
 
+void interpreter_push_nil(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.nil);
+}
+void interpreter_push_false(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.false);
+}
+void interpreter_push_true(struct object_heap* oh, struct Interpreter * i) {
+  interpreter_stack_push(oh, i, oh->cached.true);
+}
 
 void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter * i, struct OopArray* opts) {
 
@@ -2097,7 +2289,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
   
-  if (n < inputs || (n > inputs && method->restVariable != oh->cached.nil)) {
+  if (n < inputs || (n > inputs && method->restVariable != oh->cached.true)) {
     struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*) args, n, (word_t*)argsArray->elements);
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL);
@@ -2174,6 +2366,109 @@ void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], wo
 }
 
 
+void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[1]);
+  closeFile(oh, handle);
+  interpreter_push_nil(oh, oh->cached.interpreter);
+
+}
+
+void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
+  struct ByteArray* bytes = (struct ByteArray*)args[3];
+  word_t retval;
+
+  retval = readFile(oh, handle, n, (char*)(bytes->elements + start));
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+}
+
+void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
+  struct ByteArray* bytes = (struct ByteArray*)args[3];
+  word_t retval;
+  retval = writeFile(oh, handle, n, (char*)(bytes->elements + start));
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+}
+
+
+void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
+  word_t retval = seekFile(oh, handle, n);
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+}
+
+void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[1]);
+  word_t retval = tellFile(oh, handle);
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+}
+
+
+void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[1]);
+  if (endOfFile(oh, handle)) {
+    interpreter_push_true(oh, oh->cached.interpreter);
+  } else {
+    interpreter_push_false(oh, oh->cached.interpreter);
+  }
+}
+
+void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle = object_to_smallint(args[1]);
+  word_t retval = sizeOfFile(oh, handle);
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+}
+
+
+
+void prim_flush_output(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  /*struct Object *console=args[0];*/
+  fflush(stdout);
+  fflush(stderr);
+  interpreter_push_nil(oh, oh->cached.interpreter);
+}
+
+void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle;
+  struct Object /**file=args[0],*/ *fname=args[1];
+
+  handle = openFile(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE);
+  if (handle >= 0) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(handle));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle;
+  struct Object /**file=args[0],*/ *fname=args[1];
+
+  handle = openFile(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE|SF_CLEAR|SF_CREATE);
+  if (handle >= 0) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(handle));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+
+void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t handle;
+  struct Object /**file=args[0],*/ *fname=args[1];
+
+  handle = openFile(oh, (struct ByteArray*)fname, SF_READ);
+  if (handle >= 0) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(handle));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+
 void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj;
   struct Object* name;
@@ -2194,9 +2489,6 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
 
 }
 
-void interpreter_push_nil(struct object_heap* oh, struct Interpreter * i) {
-  interpreter_stack_push(oh, i, oh->cached.nil);
-}
 
 
 void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
@@ -2842,8 +3134,8 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_fixme, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_fixme, prim_fixme, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
+ /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_fixme, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
 
 };
@@ -3138,12 +3430,6 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
 
 void interpreter_push_environment(struct object_heap* oh, struct Interpreter * i) {
   interpreter_stack_push(oh, i, i->method->environment);
-}
-void interpreter_push_false(struct object_heap* oh, struct Interpreter * i) {
-  interpreter_stack_push(oh, i, oh->cached.false);
-}
-void interpreter_push_true(struct object_heap* oh, struct Interpreter * i) {
-  interpreter_stack_push(oh, i, oh->cached.true);
 }
 
 void interpreter_is_identical_to(struct object_heap* oh, struct Interpreter * i) {
