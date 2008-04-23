@@ -1211,8 +1211,11 @@ word_t* gc_allocate(struct object_heap* oh, word_t bytes) {
 
   /*FIX!!!!!!!!*/
   assert(bytes % sizeof(word_t) == 0);
-  assert(oh->memory_size + bytes < oh->memory_limit);
-  if (oh->memory_size + bytes >= oh->memory_limit) exit(2);
+  if (oh->memory_size + bytes >= oh->memory_limit) {
+    printf("Out of memory... Exiting\n");
+    exit(2);
+  }
+
   word_t* res = (word_t*)oh->nextFree;
 
   oh->lastAllocated = oh->nextFree;

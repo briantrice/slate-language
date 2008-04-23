@@ -20,9 +20,9 @@ backup: superclean
 vm: vm.c $(OBJECTS)
 	gcc $(CFLAGS) $(LIBRARIES) -o vm vm.c $(OBJECTS)
 
-#fix needs gp on every arg
+#fix needs pg on every arg
 vm.prof: vm.c $(OBJECTS)
-	gcc -std=c99 -Wall -lm -pedantic-errors -pg -DPRINT_DEBUG_DEFUN -O2 -o vm.prof vm.c
+	gcc -std=c99 -Wall -lm -pedantic-errors -pg -o vm.prof vm.c
 
 
 #fix cflags
