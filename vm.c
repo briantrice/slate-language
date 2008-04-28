@@ -41,15 +41,12 @@ struct CompiledMethod;
 struct LexicalContext;
 struct RoleTable;
 struct OopArray;
-struct ObjectPayload;
 struct MethodDefinition;
 struct Object;
 struct ByteArray;
 struct MethodCacheEntry;
 struct Closure;
-struct Root;
 struct Interpreter;
-struct ObjectHeader;
 struct ForwardedObject;
 struct Map;
 struct BreakEntry;
@@ -65,10 +62,24 @@ struct slate_image_header {
   word_t current_dispatch_id;
 };
 
-struct ObjectPayload
+
+
+struct Object
 {
   word_t header;
+  word_t objectSize; /*in words... used for slot storage*/
+  word_t payloadSize; /*in bytes... used for ooparray and bytearray elements*/
+  /*put the map after*/
+  struct Map * map;
+
 };
+/* when we clone objects, make sure we don't overwrite the things within headersize. 
+ * we might clone with a new size, and we don't want to set the size back.
+ */
+#define HEADER_SIZE (sizeof(struct Object) - sizeof(struct Map*))
+#define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
+
+
 #define METHOD_CACHE_ARITY 6
 
 struct MethodCacheEntry
@@ -77,19 +88,14 @@ struct MethodCacheEntry
   struct Symbol* selector;
   struct Map * maps[METHOD_CACHE_ARITY];
 };
-struct ObjectHeader
-{
-  word_t header;
-};
 struct ForwardedObject
 {
-  struct ObjectHeader header;
+  word_t header;
   struct Object * target;
 };
 struct Map
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* flags;
   struct Object* representative;
   struct OopArray * delegates;
@@ -106,8 +112,7 @@ struct BreakEntry
 };
 struct PrimitiveMethod
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* index;
   struct Object* selector;
   struct Object* inputVariables;
@@ -126,21 +131,18 @@ struct SlotEntry
 };
 struct SlotTable
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct SlotEntry slots[];
 };
 struct Symbol
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* cacheMask;
   unsigned char elements[];
 };
 struct CompiledMethod
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct CompiledMethod * method;
   struct Symbol* selector;
   struct Object* inputVariables;
@@ -157,27 +159,23 @@ struct CompiledMethod
 };
 struct LexicalContext
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* framePointer;
   struct Object* variables[];
 };
 struct RoleTable
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct RoleEntry roles[];
 };
 struct OopArray
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* elements[];
 };
 struct MethodDefinition
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct Object* method;
   struct Object* slotAccessor;
   word_t dispatchID;
@@ -185,33 +183,21 @@ struct MethodDefinition
   word_t foundPositions;
   word_t dispatchRank;
 };
-struct Object
-{
-  struct ObjectHeader header;
-  struct Map * map;
-};
+
 struct ByteArray
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   unsigned char elements[];
 };
 struct Closure
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct CompiledMethod * method;
   struct LexicalContext * lexicalWindow[];
 };
-struct Root
-{
-  struct ObjectHeader header;
-  struct Map * map;
-};
 struct Interpreter /*note the bottom fields are treated as contents in a bytearray so they don't need to be converted from objects to get the actual smallint value*/
 {
-  struct ObjectHeader header;
-  struct Map * map;
+  struct Object base;
   struct OopArray * stack;
   struct CompiledMethod * method;
   struct Closure * closure;
@@ -228,16 +214,21 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_ERROR_RETURN (-1)
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
-
+#define MAX_FIXEDS 64
+#define REMEMBERED_SET_SIZE 128
+#define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
 
 /*these things never exist in slate land (so word_t types are their actual value)*/
 struct object_heap
 {
   byte_t mark_color;
-  byte_t * memory;
-  word_t memory_size;
-  word_t memory_limit;
+  byte_t * memoryOld;
+  byte_t * memoryYoung;
+  word_t memoryOldSize;
+  word_t memoryYoungSize;
+  word_t memoryOldLimit;
+  word_t memoryYoungLimit;
   struct OopArray* special_objects_oop; /*root for gc*/
   word_t current_dispatch_id;
   bool interrupt_flag;
@@ -245,9 +236,17 @@ struct object_heap
   word_t method_cache_hit, method_cache_access;
   FILE** file_index;
   word_t file_index_size;
-  struct Object *nextFree, *lastAllocated;
+  struct Object *nextFree;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
+  struct Object* fixedObjects[MAX_FIXEDS];
+  struct Object* rememberedSet[REMEMBERED_SET_SIZE];
+  size_t rememberedSetPosition;
+
+  struct Object** markStack;
+  size_t markStackSize;
+  size_t markStackPosition;
+
   struct {
     struct Interpreter* interpreter;
     struct Object* true;
@@ -258,39 +257,54 @@ struct object_heap
     struct Object* closure_method_window;
   } cached;
 };
+
+
+
 /****************************************/
+
+
 
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts);
 
-
-#define OBJECT_SIZE_MASK 0x3F
 #define SMALLINT_MASK 0x1
+
+word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
+struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
+
+
 bool oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
 bool oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
 bool object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-word_t object_mark(struct Object* xxx)      { return  (((xxx)->header.header)&1); }
-void object_set_mark(struct Object* xxx)      { (((xxx)->header.header)|=1); }
-word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header.header)>>1)&0x7FFFFF);}
-word_t object_size(struct Object* xxx)       {return   ((((xxx)->header.header)>>24)&OBJECT_SIZE_MASK);}
-word_t payload_size(struct Object* xxx) {return ((((xxx)->header.header))&0x3FFFFFFF);}
-word_t object_type(struct Object* xxx)     {return     ((((xxx)->header.header)>>30)&0x3);}
+word_t object_is_marked(struct Object* xxx)      { return  (((xxx)->header)&MARK_MASK); }
+word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header)>>1)&0x7FFFFF);}
+word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
+word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
+word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
+
+
+void object_set_mark(struct object_heap* oh, struct Object* xxx) {
+  xxx->header &= ~MARK_MASK;
+  xxx->header|=oh->mark_color & MARK_MASK;
+}
+void object_unmark(struct object_heap* oh, struct Object* xxx)  {
+  xxx->header &= ~MARK_MASK;
+  xxx->header|= ((~oh->mark_color)&MARK_MASK);
+}
 
 void object_set_format(struct Object* xxx, word_t type) {
-  xxx->header.header &= ~(3<<30);
-  xxx->header.header |= (type&3) << 30;
+  xxx->header &= ~(3<<30);
+  xxx->header |= (type&3) << 30;
 }
 void object_set_size(struct Object* xxx, word_t size) {
-  xxx->header.header &= ~(0x3F<<24);
-  xxx->header.header |= (size&0x3F) << 24;
+  xxx->objectSize = size;
 }
 void object_set_idhash(struct Object* xxx, word_t hash) {
-  xxx->header.header &= ~(0x7FFFFF<<1);
-  xxx->header.header |= (hash&0x7FFFFF) << 1;
+  xxx->header &= ~(0x7FFFFF<<1);
+  xxx->header |= (hash&0x7FFFFF) << 1;
 }
-void objectpayload_set_size(struct ObjectPayload* xxx, word_t size) {
-  xxx->header &= ~(0x3FFFFFFF);
-  xxx->header |= (size&0x3FFFFFFF);
+void payload_set_size(struct Object* xxx, word_t size) {
+  xxx->payloadSize = size;
 }
 
 
@@ -307,8 +321,6 @@ word_t heap_new_hash(struct object_heap* oh) { return ++oh->next_hash;}
 word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
 /*fix i didn't understand the above*/
 
-word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
-struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
 
 #define inc_ptr(xxx, yyy)     ((byte_t*)xxx + yyy)
 
@@ -327,8 +339,6 @@ typedef float float_t;
 #define MAP_FLAG_IMMUTABLE 4
 
 
-#define HEADER_SIZE (sizeof(word_t))
-#define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
 #define WORD_BYTES_MINUS_ONE (sizeof(word_t)-1)
 #define ROLE_ENTRY_WORD_SIZE ((sizeof(struct RoleEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
 #define SLOT_ENTRY_WORD_SIZE ((sizeof(struct SlotEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
@@ -340,7 +350,7 @@ typedef float float_t;
 #define TYPE_OBJECT 0
 #define TYPE_OOP_ARRAY  1
 #define TYPE_BYTE_ARRAY 2
-#define TYPE_PAYLOAD 3
+
 
 
 #define SPECIAL_OOP_LOBBY 0
@@ -477,7 +487,6 @@ void print_object(struct Object* oop) {
     case TYPE_OBJECT: typestr = "normal"; break;
     case TYPE_OOP_ARRAY: typestr = "oop array"; break;
     case TYPE_BYTE_ARRAY: typestr = "byte array"; break;
-    case TYPE_PAYLOAD: typestr = "payload"; break;
     }
     printf("<object at %p, hash: 0x%lX, size: %ld, type: %s>\n", (void*)oop, object_hash(oop), object_size(oop), typestr);
   }
@@ -510,35 +519,15 @@ void cache_specials(struct object_heap* heap) {
 
 /*************** BASIC OBJECT FIELDS ******************/
 
-word_t object_payload_size(struct Object* o) {
 
-  /*in memory there is a payload header before the object*/
-  o = (struct Object*) inc_ptr(o, -HEADER_SIZE);
-  return payload_size(o);
+/* for any assignment where an old gen object points to a new gen
+object.  call it before the next GC happens. !Before any stack pushes! */
+void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest);
 
-}
+
 
 word_t object_is_immutable(struct Object* o) {return ((word_t)o->map->flags & MAP_FLAG_IMMUTABLE) != 0; }
 
-bool object_in_memory(struct object_heap* heap, struct Object* oop) {
-
-  return (heap->memory <= (byte_t*)oop && (word_t)heap->memory + heap->memory_size > (word_t)oop);
-
-}
-
-struct Object* drop_payload(struct Object* o) {
-  if (object_type(o) == TYPE_PAYLOAD) {
-    return (struct Object*)inc_ptr(o, HEADER_SIZE);
-  }
-  return o;
-}
-
-struct Object* first_object(struct object_heap* heap) {
-
-  struct Object* o = (struct Object*)heap->memory;
-  
-  return drop_payload(o);
-}
 
 
 word_t object_word_size(struct Object* o) {
@@ -546,7 +535,7 @@ word_t object_word_size(struct Object* o) {
   if (object_type(o) == TYPE_OBJECT) {
     return object_size(o);
   } 
-  return object_size(o) + (object_payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t); 
+  return object_size(o) + (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t); 
 
 }
 
@@ -590,12 +579,12 @@ float_t* float_part(struct ByteArray* o) {
 word_t object_array_size(struct Object* o) {
 
   assert(object_type(o) != TYPE_OBJECT);
-  return (object_payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
+  return (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
 
 }
 
 word_t byte_array_size(struct ByteArray* o) {
-  return object_payload_size((struct Object*)o);
+  return payload_size((struct Object*)o);
 }
 
 
@@ -617,7 +606,7 @@ word_t object_byte_size(struct Object* o) {
   if (object_type(o) == TYPE_OBJECT) {
     return object_array_offset(o);
   } 
-  return object_array_offset(o) + object_payload_size(o);
+  return object_array_offset(o) + payload_size(o);
 
 }
 
@@ -630,7 +619,7 @@ word_t object_total_size(struct Object* o) {
 
 word_t object_first_slot_offset(struct Object* o) {
 
-  return HEADER_SIZE + sizeof(struct Map*);
+  return sizeof(struct Object);
 
 }
 
@@ -642,7 +631,7 @@ word_t object_last_slot_offset(struct Object* o) {
 word_t object_last_oop_offset(struct Object* o) {
 
   if (object_type(o) == TYPE_OOP_ARRAY) {
-    return object_last_slot_offset(o) + object_payload_size(o);
+    return object_last_slot_offset(o) + payload_size(o);
   }
   return object_last_slot_offset(o);
 }
@@ -653,7 +642,9 @@ struct Object* object_slot_value_at_offset(struct Object* o, word_t offset) {
 
 }
 
+
 struct Object* object_slot_value_at_offset_put(struct Object* o, word_t offset, struct Object* value) {
+
 
   return (struct Object*)((*((word_t*)inc_ptr(o, offset))) = (word_t)value);
 
@@ -696,7 +687,7 @@ short int interpreter_decode_short(struct Interpreter* i) {
 
 
 void print_symbol(struct Symbol* name) {
-  fwrite(&name->elements[0], 1, object_payload_size((struct Object*)name), stdout);
+  fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout);
 }
 
 void indent(word_t amount) { word_t i; for (i=0; i<amount; i++) printf("    "); }
@@ -706,14 +697,14 @@ void print_byte_array(struct Object* o) {
   word_t i;
   char* elements = (char*)inc_ptr(o, object_array_offset(o));
   printf("'");
-  for (i=0; i < object_payload_size(o); i++) {
+  for (i=0; i < payload_size(o); i++) {
     if (elements[i] >= 32 && elements[i] <= 126) {
       printf("%c", elements[i]);
     } else {
       printf("\\x%02lx", (word_t)elements[i]);
     }
-    if (i > 10 && object_payload_size(o) - i > 100) {
-      i = object_payload_size(o) - 20;
+    if (i > 10 && payload_size(o) - i > 100) {
+      i = payload_size(o) - 20;
       printf("{..snip..}");
     }
   }
@@ -780,7 +771,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     }
   }
 
-  if (object_type(o) != TYPE_PAYLOAD) {
+  {/*if?*/
     struct SlotTable* slotTable = map->slotTable;
     word_t limit = slot_table_capacity(map->slotTable);
     indent(depth); printf("slot count: %ld\n", object_to_smallint(map->slotCount));
@@ -986,7 +977,7 @@ void print_backtrace(struct object_heap* oh) {
 /***************** FILES *************************/
 word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)
 {
-  word_t payloadSize = object_payload_size((struct Object *) fromArray);
+  word_t payloadSize = payload_size((struct Object *) fromArray);
   if (bufferSize < payloadSize)
     return SLATE_ERROR_RETURN;
 
@@ -1164,64 +1155,125 @@ int setCurrentDirectory(struct ByteArray *newWd) {
 /*************** MEMORY ******************/
 
 
-struct Object* object_after(struct object_heap* heap, struct Object* o) {
-  /*print_object(o);*/
-  assert(object_in_memory(heap, o) && object_total_size(o) != 0);
+void method_flush_cache(struct object_heap* oh, struct Symbol* selector) {
+  struct MethodCacheEntry* cacheEntry;
+  if (selector == (struct Symbol*)oh->cached.nil) {
+    fill_words_with((word_t*)oh->methodCache, METHOD_CACHE_SIZE*sizeof(struct MethodCacheEntry), 0);
+  } else {
+    word_t i;
+    for (i = 0; i < METHOD_CACHE_SIZE; i++) {
+      if ((cacheEntry = &oh->methodCache[i])->selector == selector) cacheEntry->selector = (struct Symbol*)oh->cached.nil;
+    }
+  }
+}
 
-  o = (struct Object*)inc_ptr(o, object_total_size(o));
-  if (!object_in_memory(heap, o)) return o;/*fix, should this be null?*/
-  /*fix last allocated and next live*/
-  o = drop_payload(o);
-  return o;
+
+bool object_is_old(struct object_heap* oh, struct Object* oop) {
+  return (oh->memoryOld <= (byte_t*)oop && (word_t)oh->memoryOld + oh->memoryOldSize > (word_t)oop);
+
+}
+
+bool object_is_young(struct object_heap* oh, struct Object* obj) {
+  return (oh->memoryYoung <= (byte_t*)obj && (word_t)oh->memoryYoung + oh->memoryYoungSize > (word_t)obj);
+  
+}
+
+bool object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
+  return (memory <= (byte_t*)oop && (word_t)memory + memorySize > (word_t)oop);
+
+}
+
+struct Object* object_after(struct object_heap* heap, struct Object* o) {
+
+  assert(object_total_size(o) != 0);
+
+  return (struct Object*)inc_ptr(o, object_total_size(o));
 }
 
 bool object_is_free(struct object_heap* heap, struct Object* o) {
 
-  return object_mark(o) != heap->mark_color || object_hash(o) >= ID_HASH_RESERVED;
+  return object_is_marked(o) != heap->mark_color || object_hash(o) >= ID_HASH_RESERVED;
 }
 
 
+struct Object* heap_make_free_space(struct object_heap* oh, word_t* start, word_t words) {
+  struct Object* obj;
 
-bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t next_hash, word_t special_oop, word_t cdid) {
-  oh->memory_limit = limit;
-  oh->memory = (byte_t*)mmap((void*)0x1000000, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  assert(words > 0);
+
+#ifdef PRINT_DEBUG
+  printf("Making %ld words of free space at: %p\n", words, (void*)start);
+#endif
+
+  fill_words_with(start, words, 0);
+
+  obj = (struct Object*)start;
+  object_set_format(obj, TYPE_OBJECT);
+  object_set_size(obj, words);
+  payload_set_size(obj, 0); /*zero it out or old memory will haunt us*/
+  obj->map = NULL;
+  /*fix should we mark this?*/
+  object_set_idhash(obj, ID_HASH_FREE);
+  return obj;
+}
+
+
+bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
+  oh->memoryOldLimit = limit;
+  oh->memoryYoungLimit = young_limit;
+
+  oh->memoryOldSize = size;
+  oh->memoryYoungSize = young_limit;
+
+  oh->memoryOld = (byte_t*)mmap((void*)0x1000000, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  oh->memoryYoung = (byte_t*)mmap((void*)0x2000000, young_limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
   /*perror("err: ");*/
-  if (oh->memory == NULL || oh->memory == (void*)-1) {
+  if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
+      || oh->memoryYoung == NULL || oh->memoryYoung == (void*)-1) {
     fprintf(stderr, "Initial GC allocation of memory failed.\n");
     return 0;
   }
-  oh->special_objects_oop = (struct OopArray*)((byte_t*)oh->memory + special_oop);
+
+  oh->nextFree = (struct Object*)oh->memoryYoung;
+  heap_make_free_space(oh, (word_t*)oh->nextFree, oh->memoryYoungSize / sizeof(word_t));
+
+
+  oh->special_objects_oop = (struct OopArray*)((byte_t*)oh->memoryOld + special_oop);
   oh->next_hash = next_hash;
-  oh->memory_size = size;
   oh->current_dispatch_id = cdid;
   oh->interrupt_flag = 0;
   oh->mark_color = 1;
   oh->file_index_size = 256;
   oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
-
+  oh->rememberedSetPosition = 0;
+  oh->markStackSize = 1024*1024*4;
+  oh->markStackPosition = 0;
+  oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
+  assert(oh->markStack != NULL);
   return 1;
 }
 
 void gc_close(struct object_heap* oh) {
 
-  free(oh->memory);
+  munmap(oh->memoryOld, oh->memoryOldLimit);
+  munmap(oh->memoryYoung, oh->memoryYoungLimit);
+
 }
 
 word_t* gc_allocate(struct object_heap* oh, word_t bytes) {
 
   /*FIX!!!!!!!!*/
   assert(bytes % sizeof(word_t) == 0);
-  if (oh->memory_size + bytes >= oh->memory_limit) {
+  if (oh->memoryOldSize + bytes >= oh->memoryOldLimit) {
     printf("Out of memory... Exiting\n");
     exit(2);
   }
 
   word_t* res = (word_t*)oh->nextFree;
 
-  oh->lastAllocated = oh->nextFree;
   oh->nextFree = (struct Object*)inc_ptr(oh->nextFree, bytes);
 
-  oh->memory_size += bytes;
+  oh->memoryOldSize += bytes;
   return res;
 }
 
@@ -1242,94 +1294,196 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
   }
 }
 
-struct Object* heap_make_free_space(struct object_heap* oh, word_t* start, word_t words) {
-  struct Object* obj;
-
-  assert(words > 0);
-
-#ifdef PRINT_DEBUG
-  printf("Making %ld words of free space at: %p\n", words, (void*)start);
-#endif
-
-  if (words > OBJECT_SIZE_MASK) {
-    struct ObjectPayload* payload = (struct ObjectPayload*)start;
-    object_set_format((struct Object*) payload, TYPE_PAYLOAD);
-    objectpayload_set_size(payload, (words*sizeof(word_t)) - sizeof(struct ObjectPayload) + sizeof(struct ObjectHeader));
-    obj = (struct Object*)(payload+1);
-    object_set_format(obj, TYPE_BYTE_ARRAY);
-    object_set_size(obj, 1);
-    assert(0); /*i think this is one word too big. test before removing*/
-  } else {
-    obj = (struct Object*)start;
-    object_set_format(obj, TYPE_OBJECT);
-    object_set_size(obj, words);
-  }
-
-  object_set_idhash(obj, ID_HASH_FREE);
-  return obj;
-}
 
 
 void heap_free_object(struct object_heap* oh, struct Object* obj) {
   
-  if (object_type(obj) == TYPE_OBJECT) {
+  heap_make_free_space(oh, (word_t*)obj, object_word_size(obj));
 
-    heap_make_free_space(oh, (word_t*)obj, object_word_size(obj));
-  } else {
-    heap_make_free_space(oh, (word_t*)((byte_t*)obj - sizeof(struct ObjectPayload)), object_word_size(obj));
+}
+
+void heap_flush_rememberedSet(struct object_heap* oh) {
+  oh->rememberedSetPosition = 0;
+}
+
+void heap_finish_gc(struct object_heap* oh) {
+  method_flush_cache(oh, NULL);
+  heap_flush_rememberedSet(oh);
+  cache_specials(oh);
+}
+void heap_start_gc(struct object_heap* oh) {
+  oh->mark_color ^= MARK_MASK;
+  oh->markStackPosition = 0;
+}
+
+
+/*adds something to the mark stack and mark it if it isn't marked already*/
+void heap_mark(struct object_heap* oh, struct Object* obj) {
+  if (object_is_marked(obj)) return;
+  object_set_mark(oh, obj);
+  
+  if (oh->markStackPosition + 1 >=oh->markStackSize) {
+    oh->markStackSize *= 2;
+#ifdef PRINT_DEBUG
+    printf("Growing mark stack to %ld\n", oh->markStackSize);
+#endif
+    oh->markStack = realloc(oh->markStack, oh->markStackSize * sizeof(struct Object*));
+    assert(oh->markStack);
+  }
+  oh->markStack[oh->markStackPosition++] = obj;
+}
+
+
+void heap_mark_specials(struct object_heap* oh, bool mark_old) {
+  word_t i;
+  for (i = 0; i < array_size(oh->special_objects_oop); i++) {
+    struct Object* obj = oh->special_objects_oop->elements[i];
+    if (!mark_old && object_is_old(oh, obj)) continue;
+    heap_mark(oh, obj);
+  }
+
+}
+
+void heap_mark_interpreter_stack(struct object_heap* oh, bool mark_old) {
+  word_t i;
+  for (i = 0; i < oh->cached.interpreter->stackPointer; i++) {
+    struct Object* obj = oh->cached.interpreter->stack->elements[i];
+    if (!mark_old && object_is_old(oh, obj)) continue;
+    heap_mark(oh, obj);
+  }
+
+}
+
+void heap_mark_fields(struct object_heap* oh, struct Object* o) {
+  word_t offset, limit;
+  heap_mark(oh, (struct Object*)o->map);
+  offset = object_first_slot_offset(o);
+  limit = object_last_oop_offset(o) + sizeof(word_t);
+  for (; offset != limit; offset += sizeof(word_t)) {
+    struct Object* val = object_slot_value_at_offset(o, offset);
+    if (!object_is_smallint(val)) {
+      heap_mark(oh, val);
+    }
+  }
+
+
+}
+
+void heap_mark_recursively(struct object_heap* oh, bool mark_old) {
+
+  while (oh->markStackPosition > 0) {
+    struct Object* obj;
+    oh->markStackPosition--;
+    obj = oh->markStack[oh->markStackPosition];
+    if (!mark_old && object_is_old(oh, obj)) continue;
+    heap_mark_fields(oh, obj);
   }
 
 }
 
 
-void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
 
-  struct Object* o = first_object(oh);
-  heap_free_object(oh, x);
+void heap_full_gc(struct object_heap* oh) {
+  heap_start_gc(oh);
+  heap_mark_specials(oh, 1);
+  heap_mark_interpreter_stack(oh, 1);
+  heap_mark_recursively(oh, 1);
+  heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
+  heap_tenure(oh);
+  oh->nextFree = heap_find_first_free(oh, oh->memoryYoung, oh->memoryYoungSize);
+  heap_finish_gc(oh);
+}
 
-  while (object_in_memory(oh, o)) {
+void heap_gc(struct object_heap* oh) {
+#if 0
+  heap_start_gc(oh);
+  heap_mark_specials(oh, 0);
+  heap_mark_interpreter_stack(oh, 0);
+  /*heap_mark_remembered(oh)*/
+  heap_mark_recursively(oh, 0);
+  heap_finish_gc(oh);
+#endif
+  /*fixme do inc gc*/
+  heap_full_gc(oh);
+}
+
+
+
+void heap_fixed_add(struct object_heap* oh, struct Object* x) {
+  word_t i;
+  for (i = 0; i < MAX_FIXEDS; i++) {
+    if (oh->fixedObjects[i] == NULL) {
+      oh->fixedObjects[i] = x;
+      return;
+    }
+  }
+
+  assert(0);
+  
+}
+
+void heap_fixed_remove(struct object_heap* oh, struct Object* x) {
+  word_t i;
+  for (i = 0; i < MAX_FIXEDS; i++) {
+    if (oh->fixedObjects[i] == x) {
+      oh->fixedObjects[i] = NULL;
+      return;
+    }
+  }
+  assert(0);
+}
+
+void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize) {
+  struct Object* o = (struct Object*)memory;
+
+  while (object_in_memory(oh, o, memory, memorySize)) {
+    /*print_object(o);*/
     if (!object_is_free(oh, o)) {
       object_forward_pointers_to(oh, o, x, y);
     }
-      o = object_after(oh, o);
+
+    o = object_after(oh, o);
   }
 
 
 }
 
-void heap_force_gc(struct object_heap* oh) {
+void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
 
+  heap_free_object(oh, x);
+  heap_forward_from(oh, x, y, oh->memoryOld, oh->memoryOldSize);
+  heap_forward_from(oh, x, y, oh->memoryYoung, oh->memoryYoungSize);
+}
+
+void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
+  if (object_is_young(oh, dest) && object_is_old(oh, src)) {
+    assert(oh->rememberedSetPosition < REMEMBERED_SET_SIZE);
+    oh->rememberedSet[oh->rememberedSetPosition++] = dest;
+    if (oh->rememberedSetPosition + 1 >= REMEMBERED_SET_SIZE) heap_gc(oh);
+  }
 
 }
 
-
-
-struct Object* heap_allocate(struct object_heap* oh, word_t words) {
-  struct Object* obj = (struct Object*)gc_allocate(oh, words * sizeof(word_t));
-  object_set_size(obj, words);
-  object_set_mark(obj);
-  assert(!object_is_free(oh, obj));
-  return obj;
-
-}
 
 
 struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, word_t payload_size) {
 
   struct Object* o;
-  word_t size = words*sizeof(word_t) + sizeof(struct ObjectPayload) + \
-    ((payload_size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1)); /*word aligned payload*/
-  struct ObjectPayload* op = (struct ObjectPayload*)gc_allocate(oh, size);
+  /*word aligned payload*/
+  word_t size = words*sizeof(word_t) + ((payload_size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1));
+  o = (struct Object*)gc_allocate(oh, size);
 
-  object_set_format((struct Object*)op, TYPE_PAYLOAD);
-  objectpayload_set_size(op, payload_size);
-  o = (struct Object*)(op + 1);
+  object_set_format(o, TYPE_BYTE_ARRAY);
+  payload_set_size(o, payload_size);
   object_set_size(o, words);
-  object_set_mark(o);
+  object_set_mark(oh, o);
   assert(!object_is_free(oh, o));
   return o;
 }
 
+struct Object* heap_allocate(struct object_heap* oh, word_t words) {
+  return heap_allocate_with_payload(oh, words, 0);
+}
 
 struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
   struct Object* newObj;
@@ -1337,7 +1491,7 @@ struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
   if (object_type(proto) == TYPE_OBJECT) {
     newObj = heap_allocate(oh, object_size(proto));
   } else {
-    newObj = heap_allocate_with_payload(oh, object_size(proto), object_payload_size(proto));
+    newObj = heap_allocate_with_payload(oh, object_size(proto), payload_size(proto));
   }
 
   object_set_format(newObj, object_type(proto));
@@ -1376,7 +1530,7 @@ struct OopArray* heap_clone_oop_array_sized(struct object_heap* oh, struct Objec
                   (word_t*) inc_ptr(newObj, HEADER_SIZE));
 
   fill_words_with((word_t*)newObj  + object_size(proto), size, (word_t)oh->cached.nil);
-  
+
   return (struct OopArray*) newObj;
 }
 
@@ -1394,7 +1548,7 @@ struct ByteArray* heap_clone_byte_array_sized(struct object_heap* oh, struct Obj
 
   /*assumption that we are word aligned*/
   fill_words_with((word_t*)newObj  + object_size(proto), (bytes+ sizeof(word_t) - 1) / sizeof(word_t), 0);
-  
+
   return (struct ByteArray*) newObj;
 }
 
@@ -1406,6 +1560,7 @@ void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i) {
   i -> stackSize *= 2;
   newStack = (struct OopArray *) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), i->stackSize);
   copy_words_into((word_t*) i->stack->elements, i->stackPointer, (word_t*) newStack->elements);
+  
   i -> stack = newStack;
 
 }
@@ -1508,17 +1663,6 @@ void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, stru
   }
 }
 
-void method_flush_cache(struct object_heap* oh, struct Symbol* selector) {
-  struct MethodCacheEntry* cacheEntry;
-  if (selector == (struct Symbol*)oh->cached.nil) {
-    fill_words_with((word_t*)oh->methodCache, METHOD_CACHE_SIZE*sizeof(struct MethodCacheEntry), 0);
-  } else {
-    word_t i;
-    for (i = 0; i < METHOD_CACHE_SIZE; i++) {
-      if ((cacheEntry = &oh->methodCache[i])->selector == selector) cacheEntry->selector = (struct Symbol*)oh->cached.nil;
-    }
-  }
-}
 
 struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbol* selector, struct Object* arguments[], word_t n) {
   struct MethodCacheEntry* cacheEntry;
@@ -1853,16 +1997,6 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   /*not found, adding role*/
   map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
   entry = role_table_insert(oh, map->roleTable, selector);
-#if 0
-   role_table_entry_for_inserting_name(oh, map->roleTable, name);
-  chain = role_table_entry_for_name(oh, map->roleTable, name);
-  if (chain != NULL) {
-    while (chain->nextRole != oh->cached.nil) {
-      chain = & map->roleTable->roles[object_to_smallint(chain->nextRole)];
-    }
-    chain->nextRole = smallint_as_object((word_t)entry - (word_t)map->roleTable->roles);
-  }
-#endif
   entry->name = selector;
   entry->nextRole = oh->cached.nil;
   entry->rolePositions = smallint_to_object(position);
@@ -1907,30 +2041,23 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
   entry = slot_table_entry_for_name(oh, obj->map->slotTable, name);
   if (entry != NULL) return NULL;
   map = heap_clone_map(oh, obj->map);
-  /*fix root stack push map*/
+  heap_fixed_add(oh, (struct Object*)map);
   map->slotTable = slot_table_grow_excluding(oh, map->slotTable, 1, (struct Symbol*)oh->cached.nil);
   slot_table_relocate_by(oh, map->slotTable, offset, sizeof(word_t));
   entry = slot_table_entry_for_inserting_name(oh, map->slotTable, name);
   entry->name = name;
   entry->offset = smallint_to_object(offset);
-  /*if it's not big enough or the max size, we have to turn it into an oop array*/
-  if (object_size(obj) == OBJECT_SIZE_MASK) {
-    newObj = heap_allocate_with_payload(oh, OBJECT_SIZE_MASK, 
-                                        (object_type(obj) == TYPE_OBJECT? sizeof(word_t): object_payload_size(obj) + sizeof(word_t)));
-    object_set_format(newObj, TYPE_OOP_ARRAY);
-  
+
+  if (object_type(obj) == TYPE_OBJECT) {
+    newObj = heap_allocate(oh, object_size(obj) + 1);
   } else {
-
-    if (object_type(obj) == TYPE_OBJECT) {
-      newObj = heap_allocate(oh, object_size(obj) + 1);
-    } else {
-      newObj = heap_allocate_with_payload(oh, object_size(obj) + 1, object_payload_size(obj));
-    }
-    object_set_format(newObj, object_type(obj));
-
+    newObj = heap_allocate_with_payload(oh, object_size(obj) + 1, payload_size(obj));
   }
+  object_set_format(newObj, object_type(obj));
+  
 
-  /*root pop*/
+
+  heap_fixed_remove(oh, (struct Object*) map);
   object_set_idhash(newObj, heap_new_hash(oh));
   copy_bytes_into((byte_t*)obj+ object_first_slot_offset(obj),
                   offset-object_first_slot_offset(obj),
@@ -1969,7 +2096,7 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
   offset = object_to_smallint(se->offset);
   map = heap_clone_map(oh, obj->map);
   map->slotCount = smallint_to_object(object_to_smallint(map->slotCount) - 1);
-  /*rootstack push &map*/
+  heap_fixed_add(oh, (struct Object*)map);
   map->slotTable = slot_table_grow_excluding(oh, map->slotTable, -1, se->name);
   slot_table_relocate_by(oh, map->slotTable, offset, -sizeof(word_t));
 
@@ -1977,28 +2104,18 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
     newObj = heap_allocate(oh, object_size(obj)-1);
     object_set_format(newObj, TYPE_OBJECT);
   } else {
-    if (object_size(obj) == OBJECT_SIZE_MASK) {
-      if (object_payload_size(obj) == sizeof(word_t)) {
-        newObj = heap_allocate(oh, OBJECT_SIZE_MASK);
-        object_set_format(newObj, TYPE_OBJECT);
-      } else {
-        newObj = heap_allocate_with_payload(oh, OBJECT_SIZE_MASK, object_payload_size(obj) - sizeof(word_t));
-        object_set_format(newObj, TYPE_OOP_ARRAY);
-      }
-    } else {
-      newObj = heap_allocate_with_payload(oh,  object_size(obj) -1 , object_payload_size(obj));
-      object_set_format(newObj, object_type(obj));
-    }
+    newObj = heap_allocate_with_payload(oh,  object_size(obj) -1 , payload_size(obj));
+    object_set_format(newObj, object_type(obj));
   }
 
-  /*root stack pop */
+  heap_fixed_remove(oh, (struct Object*) map);
   /*fix we don't need to set the format again, right?*/
   object_set_idhash(newObj, heap_new_hash(oh));
   copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj),
                   offset - object_first_slot_offset(obj), 
                   (byte_t*) newObj + object_first_slot_offset(newObj));
 
-  copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj) + sizeof(word_t),
+  copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj) + sizeof(word_t), /*+one slot*/
                   object_total_size(obj) - offset - sizeof(word_t), 
                   (byte_t*) newObj + offset);
   newObj->map = map;
@@ -2311,7 +2428,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
   }
-  /*fix: push root: <def> */
+  heap_fixed_add(oh, (struct Object*)def);
   def->method = method;
   def->dispatchPositions = positions;
   for (i = 0; i < n; i++) {
@@ -2322,8 +2439,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
       object_add_role_at(oh, args[i], selector, 1<<i, def);
     }
   }
-  /*root stack pop*/
-
+  heap_fixed_remove(oh, (struct Object*)def);
   return def;
     
 }
@@ -2590,7 +2706,7 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
 
 
 void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
-  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(object_payload_size(args[0])));
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(payload_size(args[0])));
 }
 
 void prim_findon(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
@@ -2717,9 +2833,9 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struc
     interpreter_push_nil(oh, oh->cached.interpreter);
   } else {
     object_change_map(oh, obj, map);
+    heap_store_into(oh, args[0], args[1]);
     interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)map);
   }
-
 
 }
 
@@ -2796,6 +2912,7 @@ void prim_at_put(struct object_heap* oh, struct Object* args[], word_t n, struct
   }
   
   if (index < object_array_size(array)) {
+    heap_store_into(oh, array, val);
     interpreter_stack_push(oh, oh->cached.interpreter, ((struct OopArray*)array)->elements[index] = val);
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, array, NULL);
@@ -2817,7 +2934,7 @@ void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t
 
 
 void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
-  interpreter_stack_push(oh, oh->cached.interpreter, (args[0]==args[1])?oh->cached.true:oh->cached.false);
+  interpreter_stack_push(oh, oh->cached.interpreter, (args[0] == args[1])?oh->cached.true:oh->cached.false);
 }
 
 void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
@@ -3060,7 +3177,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, st
 
   if (!object_is_smallint(x) && !object_is_smallint(y) && x != y) {
     heap_forward(oh, x, y);
-    heap_force_gc(oh);
+    /*heap_full_gc(oh); fix? needed?*/
   }
 
 }
@@ -3084,6 +3201,7 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
     if (se == NULL) {
       interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL);
     } else {
+      /*since the object was just cloned, we aren't expecting a tenured obj to point to a new one*/
       object_slot_value_at_offset_put(newObj, object_to_smallint(se->offset), object_array_get_element(valueArray, i));
     }
   }
@@ -3180,6 +3298,7 @@ void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL);
   } else {
     word_t offset = object_to_smallint(se->offset);
+    heap_store_into(oh, obj, val);
     interpreter_stack_push(oh, oh->cached.interpreter, object_slot_value_at_offset_put(obj, offset, val));
   }
 
@@ -3235,7 +3354,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   }
 
   method = (struct Closure*)def->method;
-  traitsWindow = method->map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
+  traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
     printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
@@ -3597,7 +3716,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   }
 
   method = (struct Closure*)def->method;
-  traitsWindow = method->map->delegates->elements[0];
+  traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
     printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
@@ -3751,7 +3870,7 @@ void interpret(struct object_heap* oh) {
 
 #ifdef PRINT_DEBUG
   printf("Interpret: img:%p size:%ld spec:%p next:%ld\n",
-         (void*)oh->memory, oh->memory_size, (void*)oh->special_objects_oop, oh->next_hash);
+         (void*)oh->memoryOld, oh->memoryOldSize, (void*)oh->special_objects_oop, oh->next_hash);
   printf("Special oop: "); print_object((struct Object*)oh->special_objects_oop);
 #endif
 
@@ -3937,22 +4056,20 @@ void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amo
 
 }
 
-void adjust_oop_pointers(struct object_heap* heap, word_t shift_amount) {
+void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_t* memory, word_t memorySize) {
 
-  struct Object* o = first_object(heap);
+  struct Object* o = (struct Object*)memory;
 #ifdef PRINT_DEBUG
   printf("First object: "); print_object(o);
 #endif
-  while (object_in_memory(heap, o)) {
+  while (object_in_memory(oh, o, memory, memorySize)) {
     /*print_object(o);*/
-    if (!object_is_free(heap, o)) {
-      adjust_fields_by(heap, o, shift_amount);
-      heap->lastAllocated = o;
+    if (!object_is_free(oh, o)) {
+      adjust_fields_by(oh, o, shift_amount);
     }
-    o = object_after(heap, o);
+    o = object_after(oh, o);
   }
-  
-  heap->nextFree = object_after(heap, heap->lastAllocated);
+
 
 }
 
@@ -3963,6 +4080,8 @@ int main(int argc, char** argv) {
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * 1024 * 1024;
+  word_t young_limit = 10 * 1024 * 1024;
+  size_t res;
 
   heap = calloc(1, sizeof(struct object_heap));
 
@@ -3989,15 +4108,15 @@ int main(int argc, char** argv) {
   }
   
 
-  if (!heap_initialize(heap, sih.size, memory_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
+  if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
 
   printf("Image size: %ld bytes\n", sih.size);
-  if (fread(heap->memory, 1, sih.size, file) != sih.size) {
-    fprintf(stderr, "Error fread()ing image\n");
+  if ((res = fread(heap->memoryOld, 1, sih.size, file)) != sih.size) {
+    fprintf(stderr, "Error fread()ing image. Got %lu, expected %lu.\n", res, sih.size);
     return 1;
   }
 
-  adjust_oop_pointers(heap, (word_t)heap->memory);
+  adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
   interpret(heap);
   
   gc_close(heap);
