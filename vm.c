@@ -219,6 +219,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
+#define PINNED_CARD_SIZE (sizeof(word_t) * 8)
 
 /*these things never exist in slate land (so word_t types are their actual value)*/
 struct object_heap
@@ -242,13 +243,13 @@ struct object_heap
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
   struct Object* fixedObjects[MAX_FIXEDS];
 
-  struct Object** rememberedSet;
-  size_t rememberedSetPosition;
-  size_t rememberedSetSize;
 
   struct Object** markStack;
   size_t markStackSize;
   size_t markStackPosition;
+
+  word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
+  void* stackBottom;
 
   struct {
     struct Interpreter* interpreter;
@@ -327,6 +328,7 @@ void object_set_format(struct Object* xxx, word_t type) {
   xxx->header |= (type&3) << 30;
 }
 void object_set_size(struct Object* xxx, word_t size) {
+  assert(size >= HEADER_SIZE_WORDS+1);
   xxx->objectSize = size;
 }
 void object_set_idhash(struct Object* xxx, word_t hash) {
@@ -564,14 +566,17 @@ word_t object_array_offset(struct Object* o) {
   return object_size((struct Object*)o) * sizeof(word_t);
 }
 
+byte_t* byte_array_elements(struct ByteArray* o) {
+  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset((struct Object*)o));
+  return elements;
+}
+
 byte_t byte_array_get_element(struct Object* o, word_t i) {
-  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset(o));
-  return elements[i];
+  return byte_array_elements((struct ByteArray*)o)[i];
 }
 
 byte_t byte_array_set_element(struct Object* o, word_t i, byte_t val) {
-  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset(o));
-  return elements[i] = val;
+  return byte_array_elements((struct ByteArray*)o)[i] = val;
 }
 
 
@@ -580,8 +585,9 @@ struct Object* object_array_get_element(struct Object* o, word_t i) {
   return elements[i];
 }
 
-struct Object* object_array_set_element(struct Object* o, word_t i, struct Object* val) {
+struct Object* object_array_set_element(struct object_heap* oh, struct Object* o, word_t i, struct Object* val) {
   struct Object** elements = (struct Object**)inc_ptr(o, object_array_offset(o));
+  heap_store_into(oh, o, val);
   return elements[i] = val;
 }
 
@@ -1215,19 +1221,12 @@ struct Object* object_after(struct object_heap* heap, struct Object* o) {
   return (struct Object*)inc_ptr(o, object_total_size(o));
 }
 
+
 bool object_is_free(struct object_heap* heap, struct Object* o) {
 
-  return object_markbit(o) != heap->mark_color || object_hash(o) >= ID_HASH_RESERVED;
+  return (object_markbit(o) != heap->mark_color || object_hash(o) >= ID_HASH_RESERVED);
 }
 
-/*optimize ?*/
-bool object_is_fixed(struct object_heap* oh, struct Object* x) {
-  word_t i;
-  for (i = 0; i < MAX_FIXEDS; i++) {
-    if (oh->fixedObjects[i] == x) return 1;
-  }
-  return 0;
-}
 
 struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, word_t words) {
 
@@ -1241,15 +1240,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   object_set_format(obj, TYPE_OBJECT);
   object_set_size(obj, words);
   payload_set_size(obj, 0); /*zero it out or old memory will haunt us*/
-#if 0
-  if (oh->cached.nil) {
-    obj->map = oh->cached.nil->map; /*fix this is wrong but what else can we do*/
-  } else {
-#endif
-    obj->map = NULL;
-#if 0
-  }
-#endif
+  obj->map = NULL;
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
   return obj;
@@ -1271,6 +1262,8 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t y
 
   oh->memoryOld = (byte_t*)mmap((void*)0x1000000, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
   oh->memoryYoung = (byte_t*)mmap((void*)0x2000000, young_limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  oh->pinnedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
       || oh->memoryYoung == NULL || oh->memoryYoung == (void*)-1) {
@@ -1289,9 +1282,6 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t y
   oh->mark_color = 1;
   oh->file_index_size = 256;
   oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
-  oh->rememberedSetPosition = 0;
-  oh->rememberedSetSize = 1024*8;
-  oh->rememberedSet = malloc(oh->rememberedSetSize * sizeof(struct Object*));
   oh->markStackSize = 1024*1024*4;
   oh->markStackPosition = 0;
   oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
@@ -1327,7 +1317,9 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
   if (!object_in_memory(oh, oh->nextFree, oh->memoryYoung, oh->memoryYoungSize)) {
     oh->nextFree = (struct Object*)oh->memoryYoung;
   }
-  oh->nextFree = heap_find_first_young_free(oh, oh->nextFree, bytes + 4 /*plus room to break in half*/);
+  /*fix also look for things the exact same size*/
+  /*plus room to break in half*/
+  oh->nextFree = heap_find_first_young_free(oh, oh->nextFree, bytes + sizeof(struct Object));
   if (oh->nextFree == NULL) {
     if (!already_scavenged) {
       heap_gc(oh);
@@ -1378,18 +1370,36 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 
 }
 
-void heap_flush_rememberedSet(struct object_heap* oh) {
-  oh->rememberedSetPosition = 0;
-}
 
 void heap_finish_gc(struct object_heap* oh) {
   method_flush_cache(oh, NULL);
-  heap_flush_rememberedSet(oh);
-  cache_specials(oh);
+  /*  cache_specials(oh);*/
+  fill_words_with((word_t*)oh->pinnedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE, 0);
 }
 void heap_start_gc(struct object_heap* oh) {
   oh->mark_color ^= MARK_MASK;
   oh->markStackPosition = 0;
+  
+}
+
+bool object_is_pinned(struct object_heap* oh, struct Object* x) {
+  if (object_is_young(oh, x)) {
+    word_t diff = (byte_t*) x - oh->memoryYoung;
+    return (oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
+  }
+  return 0;
+  
+}
+
+void heap_pin_young_object(struct object_heap* oh, struct Object* x) {
+  if (object_is_young(oh, x) && !object_is_smallint(x)) {
+    word_t diff = (byte_t*) x - oh->memoryYoung;
+#if 0
+    printf("pinning "); print_object(x);
+#endif
+    oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] |= 1 << (diff % PINNED_CARD_SIZE);
+  }
+  
 }
 
 
@@ -1440,8 +1450,8 @@ void heap_mark_interpreter_stack(struct object_heap* oh, bool mark_old) {
   word_t i;
   for (i = 0; i < oh->cached.interpreter->stackPointer; i++) {
     struct Object* obj = oh->cached.interpreter->stack->elements[i];
-    if (!mark_old && object_is_old(oh, obj)) continue;
     if (object_is_smallint(obj)) continue;
+    if (!mark_old && object_is_old(oh, obj)) continue;
     heap_mark(oh, obj);
   }
 
@@ -1533,12 +1543,18 @@ void heap_what_points_to(struct object_heap* oh, struct Object* x) {
 void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* obj = (struct Object*) memory;
   word_t count = 80;
+  word_t pin_count = 0, used_count = 0, free_count = 0;
   printf("\nmemory:\n");
   while (object_in_memory(oh, obj, memory, memorySize)) {
-    if (object_is_free(oh, obj)) {
+    if (object_is_pinned(oh, obj)) {
+      printf("X");
+      pin_count++;
+    } else if (object_is_free(oh, obj)) {
       printf(" ");
+      free_count++;
     } else {
       printf("*");
+      used_count++;
     }
     count--;
     if (count == 0) {
@@ -1549,8 +1565,10 @@ void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize)
     obj = object_after(oh, obj);
   }
   printf("\n");
+  printf("free: %ld, used: %ld, pinned: %ld\n", free_count, used_count, pin_count);
 
 }
+
 
 void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*) memory;
@@ -1581,10 +1599,10 @@ void heap_tenure(struct object_heap* oh) {
   word_t tenure_count = 0, tenure_words = 0;
   struct Object* tenure_start = (struct Object*) (oh->memoryOld + oh->memoryOldSize);
   struct Object* obj = (struct Object*) oh->memoryYoung;
-  struct Object* prev = obj;
+  struct Object* prev;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
-    if (!object_is_free(oh, obj) && !object_is_fixed(oh, obj)) {
+    if (!object_is_free(oh, obj) && !object_is_pinned(oh, obj)) {
       assert((word_t)tenure_start + object_total_size(obj) - (word_t) oh->memoryOld < oh->memoryOldLimit);
       tenure_count++;
       tenure_words += object_word_size(obj);
@@ -1593,6 +1611,24 @@ void heap_tenure(struct object_heap* oh) {
       object_set_idhash(obj, ID_HASH_FORWARDED);
       tenure_start = object_after(oh, tenure_start);
     }
+    obj = object_after(oh, obj);
+  }
+  oh->memoryOldSize += tenure_words * sizeof(word_t);
+#ifdef PRINT_DEBUG_GC
+  printf("GC tenured %ld objects (%ld words)\n", tenure_count, tenure_words);
+#endif
+
+  heap_update_forwarded_pointers(oh, oh->memoryOld, oh->memoryOldSize);
+  /*fixed objects in the young space need to have their pointers updated also*/
+  heap_update_forwarded_pointers(oh, oh->memoryYoung, oh->memoryYoungSize);
+
+
+  /*we coalesce after it has been tenured so we don't erase forwarding pointers */
+  /*todo do lazily*/
+  obj = (struct Object*) oh->memoryYoung;
+  prev = obj;
+  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+
     /*coalesce free spaces*/
     if (object_is_free(oh, obj) && object_is_free(oh, prev) && obj != prev) {
       heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
@@ -1603,26 +1639,72 @@ void heap_tenure(struct object_heap* oh) {
     }
 
   }
-  oh->memoryOldSize += tenure_words * sizeof(word_t);
-#ifdef PRINT_DEBUG_GC
-  printf("GC tenured %ld objects (%ld words)\n", tenure_count, tenure_words);
-#endif
 
-  heap_update_forwarded_pointers(oh, oh->memoryOld, oh->memoryOldSize);
-  /*fixed objects in the young space need to have their pointers updated also*/
-  heap_update_forwarded_pointers(oh, oh->memoryYoung, oh->memoryYoungSize);
+
   oh->nextFree = (struct Object*)oh->memoryYoung;
 
 }
+
+void heap_mark_pinned_young(struct object_heap* oh) {
+  struct Object* obj = (struct Object*) oh->memoryYoung;
+  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+    if (object_hash(obj) < ID_HASH_RESERVED && object_is_pinned(oh, obj)) heap_mark(oh, obj);
+    obj = object_after(oh, obj);
+  }
+}
+
+void heap_sweep_young(struct object_heap* oh) {
+  word_t young_count = 0, young_word_count = 0;
+  
+  struct Object* obj = (struct Object*) oh->memoryYoung;
+  struct Object* prev = obj;
+  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+    /* the pinned objects are ones on the C stack or rememberedSet (from heap_store_into)*/
+    if (object_is_free(oh, obj) && !object_is_pinned(oh, obj)) {
+      young_count++;
+      young_word_count += object_word_size(obj);
+      if (object_hash(prev) == ID_HASH_FREE && obj != prev) {
+        heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
+        obj = object_after(oh, prev);
+        continue;
+      } else {
+        heap_free_object(oh, obj);
+      }
+    }
+    prev = obj;
+    obj = object_after(oh, obj);
+  }
+#ifdef PRINT_DEBUG_GC
+  printf("GC freed %ld young objects (%ld words)\n", young_count, young_word_count);
+#endif
+  oh->nextFree = (struct Object*)oh->memoryYoung;
+
+}
+
+void heap_pin_c_stack(struct object_heap* oh) {
+  /* right now we only pin things in memoryYoung because things in memoryOld never move */
+  word_t stackTop;
+  word_t** stack = oh->stackBottom;
+  while ((void*)stack > (void*)&stackTop) {
+    heap_pin_young_object(oh, (struct Object*)*stack);
+    stack--;
+  }
+
+
+}
+
+
 
 void heap_full_gc(struct object_heap* oh) {
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryOld, oh->memoryOldSize);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
+  heap_pin_c_stack(oh);
   heap_mark_specials(oh, 1);
   heap_mark_interpreter_stack(oh, 1);
   heap_mark_fixed(oh, 1);
   heap_mark_recursively(oh, 1);
+  /*  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
   heap_tenure(oh);
   heap_finish_gc(oh);
@@ -1631,15 +1713,19 @@ void heap_full_gc(struct object_heap* oh) {
 void heap_gc(struct object_heap* oh) {
 #if 0
   heap_start_gc(oh);
+  heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
+  heap_pin_c_stack(oh);
   heap_mark_specials(oh, 0);
-  heap_mark_fixed(oh, 0);
   heap_mark_interpreter_stack(oh, 0);
-  /*heap_mark_remembered(oh)*/
+  heap_mark_fixed(oh, 0);
+  heap_mark_pinned_young(oh);
   heap_mark_recursively(oh, 0);
+  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);
+  heap_sweep_young(oh);
   heap_finish_gc(oh);
-#endif
-  /*fixme do inc gc*/
+#else
   heap_full_gc(oh);
+#endif
 }
 
 
@@ -1698,23 +1784,10 @@ void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* 
     assert(object_hash(dest) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
   }
 
-  if (object_is_young(oh, dest) && object_is_old(oh, src)) {
-    assert(oh->rememberedSetPosition < oh->rememberedSetSize);
-    oh->rememberedSet[oh->rememberedSetPosition++] = dest;
-    if (oh->rememberedSetPosition + 1 >= oh->rememberedSetSize) {
-      oh->rememberedSetSize *= 2;
-      oh->rememberedSet = realloc(oh->rememberedSet, oh->rememberedSetSize * sizeof(struct Object*));
-      assert(oh->rememberedSet);
-#ifdef PRINT_DEBUG_GC
-  printf("GC remembered set grew to %lu\n", oh->rememberedSetSize);
-#endif
-
-    }
+  if (/*object_is_young(oh, dest) && (implicit by following cmd)*/ object_is_old(oh, src)) {
+    heap_pin_young_object(oh, dest);
   }
-
 }
-
-
 
 struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, word_t payload_size) {
 
@@ -1839,10 +1912,8 @@ void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struc
   }
   if (i->stackPointer == i->stackSize) {
     interpreter_grow_stack(oh, i);
-    /* important if the interpreter somehow moved?*/
-    i = oh->cached.interpreter;
   }
-
+  heap_store_into(oh, (struct Object*)i->stack, value);
   i->stack->elements[i -> stackPointer] = value;
   i->stackPointer++;
 }
@@ -2249,6 +2320,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   
   /*not found, adding role*/
   map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
+
   entry = role_table_insert(oh, map->roleTable, selector);
   entry->name = selector;
   entry->nextRole = oh->cached.nil;
@@ -2275,6 +2347,7 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
   if (matches == 0) return FALSE;
   map = heap_clone_map(oh, obj->map);
   map->roleTable = role_table_grow_excluding(oh, roles, matches, method);
+
   object_represent(oh, obj, map);
 
   return TRUE;
@@ -2526,7 +2599,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
         if (dispatch != NULL && bestDef == dispatch) {
           if (dispatch->slotAccessor != oh->cached.nil) {
             arguments[0] = slotLocation;
-
+            /*do we need to try to do a heap_store_into?*/
 #ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
             printf("arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
@@ -2597,7 +2670,7 @@ void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Ob
     unhandled_signal(oh, selector, n, args);
   }
   /*take this out when the debugger is mature*/
-  assert(0);
+  /*assert(0);*/
   method = (struct Closure*)def->method;
   interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, opts);
 }
@@ -2676,7 +2749,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
 
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
-  copy_words_into((word_t*)args, n, (word_t*)argBuffer);
+  copy_words_into((word_t*)args, n, (word_t*)argBuffer); /*for pinning i presume */
   oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
   if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
@@ -2741,20 +2814,26 @@ void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter *
 
 
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
-                                               struct Object* args[], word_t n, struct OopArray* opts) {
+                                               struct Object* argsNotStack[], word_t n, struct OopArray* opts) {
 
 
   word_t inputs, framePointer;
   struct Object** vars;
   struct LexicalContext* lexicalContext;
   struct CompiledMethod* method;
+  struct Object* args[16];
   
+
 #ifdef PRINT_DEBUG
   printf("apply to arity %ld\n", n);
 #endif
 
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
+
+  /*make sure they are pinned*/
+  assert(n <= 16);
+  copy_words_into((word_t*)argsNotStack, n, (word_t*)args);
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true)) {
     struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
@@ -2782,6 +2861,9 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   i->stack->elements[framePointer - 3] = (struct Object*) closure;
   i->stack->elements[framePointer - 2] = (struct Object*) lexicalContext;
   i->stack->elements[framePointer - 1] = smallint_to_object(i->framePointer);
+
+  heap_store_into(oh, (struct Object*)i->stack, (struct Object*)closure);
+  heap_store_into(oh, (struct Object*)i->stack, (struct Object*)lexicalContext);
 
 #ifdef PRINT_DEBUG_FUNCALL_VERBOSE
   printf("i->stack->elements[%ld(fp-4)] = \n", framePointer - 4);
@@ -2840,12 +2922,22 @@ void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, str
 
 }
 
+void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  word_t /*handle = object_to_smallint(args[2]),*/ n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
+  struct ByteArray* bytes = (struct ByteArray*)args[3];
+  word_t retval;
+
+  retval = fread((char*)(byte_array_elements(bytes) + start), 1, n, stdin);
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
+
+}
+
 void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
 
-  retval = readFile(oh, handle, n, (char*)(bytes->elements + start));
+  retval = readFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
 }
 
@@ -2853,7 +2945,7 @@ void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
-  retval = writeFile(oh, handle, n, (char*)(bytes->elements + start));
+  retval = writeFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
 }
 
@@ -3483,7 +3575,6 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
     closure->selector = selector;
     method = (struct Object*) closure;
   }
-
   def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
   def->slotAccessor = oh->cached.nil;
   method_flush_cache(oh, selector);
@@ -3500,6 +3591,7 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
   }
   printf("\n");
 #endif
+
   interpreter_stack_push(oh, oh->cached.interpreter, method);
 }
 
@@ -3596,6 +3688,13 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   struct OopArray* argsArray;
   struct Closure* method;
   struct Object* traitsWindow;
+  struct Object* argsStack[16];
+  struct Object* dispatchersStack[16];
+  /*make sure they are pinned*/
+  assert(arity <= 16);
+  /*for gc*/
+  copy_words_into((word_t*)args, arity, (word_t*)argsStack);
+  copy_words_into((word_t*)dispatchers, arity, (word_t*)dispatchersStack);
 
   struct MethodDefinition* def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
 
@@ -3726,7 +3825,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
+ /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_fixme, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
@@ -3829,6 +3928,7 @@ void interpreter_load_variable(struct object_heap* oh, struct Interpreter* i, wo
 
 void interpreter_store_variable(struct object_heap* oh, struct Interpreter* i, word_t n) {
   if (i->method->heapAllocate == oh->cached.true) {
+    heap_store_into(oh, (struct Object*)i->lexicalContext, i->stack->elements[i->stackPointer - 1]);
     i->lexicalContext->variables[n] = i->stack->elements[i->stackPointer - 1];
   } else {
     i->stack->elements[i->framePointer+n] = i->stack->elements[i->stackPointer - 1];
@@ -3837,6 +3937,7 @@ void interpreter_store_variable(struct object_heap* oh, struct Interpreter* i, w
 
 void interpreter_store_free_variable(struct object_heap* oh, struct Interpreter * i, word_t n)
 {
+  heap_store_into(oh, (struct Object*)i->closure->lexicalWindow[n-1], i->stack->elements[i->stackPointer - 1]);
   i->closure->lexicalWindow[n-1]->variables[interpreter_decode_immediate(i)] = i->stack->elements[i->stackPointer - 1];
 }
 
@@ -3873,6 +3974,8 @@ void interpreter_new_closure(struct object_heap* oh, struct Interpreter * i, wor
   }
   newClosure->lexicalWindow[0] = i->lexicalContext;
   newClosure->method = (struct CompiledMethod *) i->method->literals->elements[n];
+  heap_store_into(oh, (struct Object*)newClosure, (struct Object*)i->lexicalContext);
+  heap_store_into(oh, (struct Object*)newClosure, i->method->literals->elements[n]);
   interpreter_stack_push(oh, i, (struct Object*)newClosure);
 }
 
@@ -3942,6 +4045,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   struct Closure* method;
   struct CompiledMethod* resender;
   struct MethodDefinition* def;
+  struct Object* argsStack[16]; /*for pinning*/
 
   if (n == 0) {
     framePointer = i->framePointer;
@@ -3956,8 +4060,13 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   barrier = i->stack->elements[framePointer-3];
   resender = ((struct Closure*) barrier)->method;
   args = (resender->heapAllocate == oh->cached.true)? lexicalContext->variables : &i->stack->elements[framePointer];
+
+
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
+  assert(n <= 16);
+  copy_words_into((word_t*)args, n, (word_t*)argsStack);
+
   def = method_dispatch_on(oh, selector, args, n, barrier);
   if (def == NULL) {
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
@@ -3981,7 +4090,6 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     struct OopArray* optKeys = resender->optionalKeywords;
     interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, NULL);
-    /* fix check that i is still in the same place in memory?*/
     if (i->closure == method) {
       word_t optKey;
       for (optKey = 0; optKey < array_size(optKeys); optKey++) {
@@ -4370,6 +4478,7 @@ int main(int argc, char** argv) {
   }
 
   adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
+  heap->stackBottom = &heap;
   interpret(heap);
   
   gc_close(heap);
