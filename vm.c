@@ -670,9 +670,9 @@ struct Object* object_slot_value_at_offset(struct Object* o, word_t offset) {
 }
 
 
-struct Object* object_slot_value_at_offset_put(struct Object* o, word_t offset, struct Object* value) {
+struct Object* object_slot_value_at_offset_put(struct object_heap* oh, struct Object* o, word_t offset, struct Object* value) {
 
-
+  heap_store_into(oh, o, value);
   return (struct Object*)((*((word_t*)inc_ptr(o, offset))) = (word_t)value);
 
 }
@@ -1205,12 +1205,12 @@ bool object_is_old(struct object_heap* oh, struct Object* oop) {
 }
 
 bool object_is_young(struct object_heap* oh, struct Object* obj) {
-  return (oh->memoryYoung <= (byte_t*)obj && (word_t)oh->memoryYoung + oh->memoryYoungSize > (word_t)obj);
+  return (oh->memoryYoung <= (byte_t*)obj && (byte_t*)oh->memoryYoung + oh->memoryYoungSize > (byte_t*)obj);
   
 }
 
 bool object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
-  return (memory <= (byte_t*)oop && (word_t)memory + memorySize > (word_t)oop);
+  return (memory <= (byte_t*)oop && (byte_t*)memory + memorySize > (byte_t*)oop);
 
 }
 
@@ -1243,6 +1243,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   obj->map = NULL;
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
+  fill_words_with((word_t*)(obj+1), words-sizeof(struct Object), 0);
   return obj;
 }
 
@@ -1295,6 +1296,15 @@ void gc_close(struct object_heap* oh) {
   munmap(oh->memoryYoung, oh->memoryYoungLimit);
 
 }
+bool object_is_pinned(struct object_heap* oh, struct Object* x) {
+  if (object_is_young(oh, x)) {
+    word_t diff = (byte_t*) x - oh->memoryYoung;
+    return (oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
+  }
+  return 0;
+  
+}
+
 
 struct Object* heap_find_first_young_free(struct object_heap* oh, struct Object* obj, word_t bytes) {
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
@@ -1346,7 +1356,10 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
 void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct Object* x, struct Object* y) {
 
   word_t offset, limit;
-  if (o->map == (struct Map*)x) o->map = (struct Map*)y;
+  if (o->map == (struct Map*)x) {
+    heap_store_into(oh, o, y);
+    o->map = (struct Map*)y;
+  }
   offset = object_first_slot_offset(o);
   limit = object_last_oop_offset(o) + sizeof(word_t);
   for (; offset != limit; offset += sizeof(word_t)) {
@@ -1355,7 +1368,7 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
 #ifdef PRINT_DEBUG
       printf("Forwarding pointer in "); print_type(oh, o); printf(" to "); print_type(oh, y);
 #endif
-      object_slot_value_at_offset_put(o, offset, y);
+      object_slot_value_at_offset_put(oh, o, offset, y);
     }
   }
 }
@@ -1382,14 +1395,6 @@ void heap_start_gc(struct object_heap* oh) {
   
 }
 
-bool object_is_pinned(struct object_heap* oh, struct Object* x) {
-  if (object_is_young(oh, x)) {
-    word_t diff = (byte_t*) x - oh->memoryYoung;
-    return (oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
-  }
-  return 0;
-  
-}
 
 void heap_pin_young_object(struct object_heap* oh, struct Object* x) {
   if (object_is_young(oh, x) && !object_is_smallint(x)) {
@@ -1584,7 +1589,7 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
     for (; offset != limit; offset += sizeof(word_t)) {
       struct Object* val = object_slot_value_at_offset(o, offset);
       while (!object_is_smallint(val) && object_hash(val) == ID_HASH_FORWARDED) {
-        object_slot_value_at_offset_put(o, offset, (val=((struct ForwardedObject*)val)->target));
+        object_slot_value_at_offset_put(oh, o, offset, (val=((struct ForwardedObject*)val)->target));
       }
     }
   next:
@@ -1711,7 +1716,7 @@ void heap_full_gc(struct object_heap* oh) {
 }
 
 void heap_gc(struct object_heap* oh) {
-#if 0
+#if 1
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
   heap_pin_c_stack(oh);
@@ -1720,7 +1725,7 @@ void heap_gc(struct object_heap* oh) {
   heap_mark_fixed(oh, 0);
   heap_mark_pinned_young(oh);
   heap_mark_recursively(oh, 0);
-  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);
+  /*heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_sweep_young(oh);
   heap_finish_gc(oh);
 #else
@@ -2074,7 +2079,7 @@ struct RoleEntry* role_table_entry_for_inserting_name(struct object_heap* oh, st
 struct RoleEntry* role_table_insert(struct object_heap* oh, struct RoleTable* roles, struct Symbol* name) {
   struct RoleEntry* chain = role_table_entry_for_name(oh, roles, name);
   struct RoleEntry* role = role_table_entry_for_inserting_name(oh, roles, name);
-
+  heap_store_into(oh, (struct Object*)roles, (struct Object*)name);
   if (chain != NULL) {
     while (chain->nextRole != oh->cached.nil) {
       chain = & roles->roles[object_to_smallint(chain->nextRole)];
@@ -2273,11 +2278,13 @@ struct MethodDefinition* object_has_role_named_at(struct Object* obj, struct Sym
 
 void object_change_map(struct object_heap* oh, struct Object* obj, struct Map* map) {
   if (obj->map->representative == obj) obj->map->representative = oh->cached.nil;
+  heap_store_into(oh, obj, (struct Object*)map);
   obj->map = map;
 }
 
 void object_represent(struct object_heap* oh, struct Object* obj, struct Map* map) {
   object_change_map(oh, obj, map);
+  heap_store_into(oh, (struct Object*)map, obj);
   map->representative = obj;
 }
 
@@ -2296,6 +2303,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
 
       /*fix: do we want to copy the roletable*/
       map->roleTable = role_table_grow_excluding(oh, map->roleTable, 0, NULL);
+      /* roleTable is in young memory now so we don't have to store_into*/
       entry = role_table_entry_for_name(oh, map->roleTable, selector);
       while (entry != NULL) {
         if (entry->methodDefinition == method) {
@@ -2347,7 +2355,7 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
   if (matches == 0) return FALSE;
   map = heap_clone_map(oh, obj->map);
   map->roleTable = role_table_grow_excluding(oh, roles, matches, method);
-
+  heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
   object_represent(oh, obj, map);
 
   return TRUE;
@@ -2388,11 +2396,12 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
   copy_bytes_into((byte_t*)obj+ object_first_slot_offset(obj),
                   offset-object_first_slot_offset(obj),
                   (byte_t*)newObj + object_first_slot_offset(newObj));
-  object_slot_value_at_offset_put(newObj, offset, value);
+  object_slot_value_at_offset_put(oh, newObj, offset, value);
 
   copy_bytes_into((byte_t*)obj+offset, object_total_size(obj) - offset, (byte_t*)newObj + offset + sizeof(word_t));
   newObj->map = map;
   map->representative = newObj;
+  heap_store_into(oh, (struct Object*)map, (struct Object*)map->representative);
 
   return newObj;
 }
@@ -2446,7 +2455,7 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
                   (byte_t*) newObj + offset);
   newObj->map = map;
   map->representative = newObj;
-
+  heap_store_into(oh, (struct Object*)map, map->representative);
   return newObj;
 }
 
@@ -2643,6 +2652,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
 
   if (dispatch != NULL && dispatch->slotAccessor != oh->cached.nil) {
+    /*check heap store into?*/
     arguments[0] = slotLocation;
 #ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
             printf("arguments[0] changed to slot location: \n");
@@ -2781,8 +2791,10 @@ bool interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interp
   for (optKey = 0; optKey < size; optKey++) {
     if (optKeys->elements[optKey] == key) {
       if (i->method->heapAllocate == oh->cached.true) {
+        heap_store_into(oh, (struct Object*)i->lexicalContext, value);
         i->lexicalContext->variables[object_to_smallint(i->method->inputVariables) + optKey] = value;
       } else {
+        heap_store_into(oh, (struct Object*)i->stack, value);
         i->stack->elements[i->framePointer + object_to_smallint(i->method->inputVariables) + optKey] = value;
       }
       return TRUE;
@@ -2889,6 +2901,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     struct OopArray* restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
     copy_words_into(((word_t*)args)+inputs, n - inputs, (word_t*)restArgs->elements);
     vars[inputs+array_size(method->optionalKeywords)] = (struct Object*) restArgs;
+    heap_store_into(oh, (struct Object*)lexicalContext, (struct Object*)restArgs);/*fix, not always right*/
   } else {
     if (method->restVariable == oh->cached.true) {
       vars[inputs+array_size(method->optionalKeywords)] = get_special(oh, SPECIAL_OOP_ARRAY_PROTO);
@@ -3547,7 +3560,7 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
       interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL);
     } else {
       /*since the object was just cloned, we aren't expecting a tenured obj to point to a new one*/
-      object_slot_value_at_offset_put(newObj, object_to_smallint(se->offset), object_array_get_element(valueArray, i));
+      object_slot_value_at_offset_put(oh, newObj, object_to_smallint(se->offset), object_array_get_element(valueArray, i));
     }
   }
   
@@ -3566,6 +3579,7 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
   if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
     struct Closure* closure = (struct Closure*)heap_clone(oh, method);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
+    heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
     closure->method->method = closure->method;
     closure->method->selector = selector;
     method = (struct Object*)closure;
@@ -3643,8 +3657,7 @@ void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL);
   } else {
     word_t offset = object_to_smallint(se->offset);
-    heap_store_into(oh, obj, val);
-    interpreter_stack_push(oh, oh->cached.interpreter, object_slot_value_at_offset_put(obj, offset, val));
+    interpreter_stack_push(oh, oh->cached.interpreter, object_slot_value_at_offset_put(oh, obj, offset, val));
   }
 
  /*note: not supporting delegate slots*/
@@ -3723,6 +3736,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
       optsArray->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
       optsArray->elements[1] = (struct Object*)opts;
+      heap_store_into(oh, (struct Object*)optsArray, (struct Object*)opts);
     }
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, optsArray);
   }
@@ -3799,6 +3813,7 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
   if (traitsWindow == oh->cached.closure_method_window) {
     struct Closure* closure = (struct Closure*)heap_clone(oh, method);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
+    heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
     closure->method->method = closure->method;
     closure->method->selector = selector;
     method = (struct Object*)closure;
@@ -3890,7 +3905,11 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
   i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - 2];
   i->closure = (struct Closure*) i->stack->elements[i->framePointer - 3];
+  heap_store_into(oh, (struct Object*)i, (struct Object*)i->lexicalContext);
+  heap_store_into(oh, (struct Object*)i, (struct Object*)i->closure);
   i->method = i->closure->method;
+  heap_store_into(oh, (struct Object*)i, (struct Object*)i->closure->method);
+
   i->codeSize = object_byte_size((struct Object*)i->method->code) - sizeof(struct ByteArray);
 
 #ifdef PRINT_DEBUG_CODE_POINTER
@@ -4119,6 +4138,8 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     signalOpts = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
     signalOpts->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
     signalOpts->elements[1] = (struct Object*) optsArray;
+    heap_store_into(oh, (struct Object*)signalOpts, (struct Object*)optsArray);
+
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*) args, n, (word_t*) argsArray->elements);
     
@@ -4411,7 +4432,7 @@ void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amo
   for (; offset != limit; offset += sizeof(word_t)) {
     struct Object* val = object_slot_value_at_offset(o, offset);
     if (!object_is_smallint(val)) {
-      object_slot_value_at_offset_put(o, offset, (struct Object*)inc_ptr(val, shift_amount));
+      object_slot_value_at_offset_put(oh, o, offset, (struct Object*)inc_ptr(val, shift_amount));
     }
   }
 
