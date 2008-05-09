@@ -239,6 +239,7 @@ struct object_heap
   FILE** file_index;
   word_t file_index_size;
   struct Object *nextFree;
+  struct Object *nextOldFree;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
   struct Object* fixedObjects[MAX_FIXEDS];
@@ -1221,10 +1222,14 @@ struct Object* object_after(struct object_heap* heap, struct Object* o) {
   return (struct Object*)inc_ptr(o, object_total_size(o));
 }
 
+bool object_is_marked(struct object_heap* heap, struct Object* o) {
 
-bool object_is_free(struct object_heap* heap, struct Object* o) {
+  return (object_markbit(o) == heap->mark_color);
+}
 
-  return (object_markbit(o) != heap->mark_color || object_hash(o) >= ID_HASH_RESERVED);
+bool object_is_free(struct Object* o) {
+
+  return (object_hash(o) >= ID_HASH_RESERVED);
 }
 
 
@@ -1243,7 +1248,9 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   obj->map = NULL;
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
+#if 0
   fill_words_with((word_t*)(obj+1), words-sizeof(struct Object), 0);
+#endif
   return obj;
 }
 
@@ -1255,14 +1262,17 @@ struct Object* heap_make_used_space(struct object_heap* oh, struct Object* obj, 
 
 
 bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
+  void* oldStart = (void*)0x10000000;
+  void* youngStart = (void*)0x80000000;
   oh->memoryOldLimit = limit;
   oh->memoryYoungLimit = young_limit;
 
   oh->memoryOldSize = size;
   oh->memoryYoungSize = young_limit;
 
-  oh->memoryOld = (byte_t*)mmap((void*)0x1000000, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
-  oh->memoryYoung = (byte_t*)mmap((void*)0x2000000, young_limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  assert((byte_t*)oldStart + limit < (byte_t*) youngStart);
+  oh->memoryOld = (byte_t*)mmap((void*)oldStart, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+  oh->memoryYoung = (byte_t*)mmap((void*)youngStart, young_limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
   oh->pinnedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
 
   /*perror("err: ");*/
@@ -1273,6 +1283,7 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t y
   }
 
   oh->nextFree = (struct Object*)oh->memoryYoung;
+  oh->nextOldFree = (struct Object*)oh->memoryOld;
   heap_make_free_space(oh, oh->nextFree, oh->memoryYoungSize / sizeof(word_t));
 
 
@@ -1308,10 +1319,71 @@ bool object_is_pinned(struct object_heap* oh, struct Object* x) {
 
 struct Object* heap_find_first_young_free(struct object_heap* oh, struct Object* obj, word_t bytes) {
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
-    if (object_is_free(oh, obj) && object_total_size(obj) >= bytes) return obj;
+    if (object_is_free(obj) && object_total_size(obj) >= bytes) return obj;
     obj = object_after(oh, obj);
   }
   return NULL;
+}
+
+struct Object* heap_find_first_old_free(struct object_heap* oh, struct Object* obj, word_t bytes) {
+  while (object_in_memory(oh, obj, oh->memoryOld, oh->memoryOldSize)) {
+    if (object_is_free(obj) && object_total_size(obj) >= bytes) return obj;
+    obj = object_after(oh, obj);
+  }
+  return NULL;
+}
+
+void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySize) {
+  struct Object* obj = (struct Object*) memory;
+  word_t pin_count = 0, used_count = 0, free_count = 0;
+  printf("\nmemory:\n");
+  while (object_in_memory(oh, obj, memory, memorySize)) {
+    if (object_is_pinned(oh, obj)) {
+      printf("[pinned ");
+      pin_count++;
+    } else if (object_is_free(obj)) {
+      printf("[free ");
+      free_count++;
+    } else {
+      printf("[used ");
+      used_count++;
+    }
+    printf("%ld]\n", object_total_size(obj));
+
+    obj = object_after(oh, obj);
+  }
+  printf("\n");
+  printf("free: %ld, used: %ld, pinned: %ld\n", free_count, used_count, pin_count);
+
+}
+
+struct Object* gc_allocate_old(struct object_heap* oh, word_t bytes) {
+  word_t words = bytes / sizeof(word_t);
+  assert(bytes % sizeof(word_t) == 0);
+
+  if (!object_in_memory(oh, oh->nextOldFree, oh->memoryOld, oh->memoryOldSize)) {
+    oh->nextOldFree = (struct Object*)oh->memoryOld;
+  }
+
+  oh->nextOldFree = heap_find_first_old_free(oh, oh->nextOldFree, bytes + sizeof(struct Object));
+
+  if (oh->nextOldFree == NULL) {
+    assert(oh->memoryOldSize+bytes < oh->memoryOldLimit);
+    oh->nextOldFree = (struct Object*)(oh->memoryOld + oh->memoryOldSize);
+    heap_make_used_space(oh, oh->nextOldFree, words);
+    oh->memoryOldSize += bytes;
+    return oh->nextOldFree;
+
+  } else {
+    struct Object* next;
+    word_t oldsize;
+    oldsize = object_word_size(oh->nextOldFree);
+    heap_make_used_space(oh, oh->nextOldFree, words);
+    next = object_after(oh, oh->nextOldFree);
+    heap_make_free_space(oh, next, oldsize - words);
+    return oh->nextOldFree;
+  }
+
 }
 
 
@@ -1339,9 +1411,10 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
       already_full_gc = 1;
       heap_full_gc(oh);
     } else {
+      heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
       assert(0);
     }
-
+    oh->nextFree = (struct Object*)oh->memoryYoung;
     goto start;
   }
   /*we break the space in half if we can*/
@@ -1492,13 +1565,15 @@ void heap_mark_recursively(struct object_heap* oh, bool mark_old) {
 void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* obj = (struct Object*) memory;
   struct Object* prev = obj;
-
+  word_t freed_words = 0, coalesce_count = 0;
   while (object_in_memory(oh, obj, memory, memorySize)) {
-    if (object_markbit(obj) != oh->mark_color) {
+    if (!object_is_marked(oh, obj)) {
+      freed_words += object_word_size(obj);
       heap_free_object(oh, obj);
     }
-    if (object_is_free(oh, obj) && object_is_free(oh, prev) && obj != prev) {
+    if (object_is_free(obj) && object_is_free(prev) && obj != prev) {
       heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
+      coalesce_count++;
       obj = object_after(oh, prev);
     } else {
       prev = obj;
@@ -1506,7 +1581,9 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
     }
     
   }
-
+#ifdef PRINT_DEBUG_GC_1
+  printf("GC Freed %ld words and coalesced %ld times\n", freed_words, coalesce_count);
+#endif
 }
 
 void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize) {
@@ -1554,7 +1631,7 @@ void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize)
     if (object_is_pinned(oh, obj)) {
       printf("X");
       pin_count++;
-    } else if (object_is_free(oh, obj)) {
+    } else if (object_is_free(obj)) {
       printf(" ");
       free_count++;
     } else {
@@ -1575,12 +1652,13 @@ void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize)
 }
 
 
+
 void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*) memory;
  
   while (object_in_memory(oh, o, memory, memorySize)) {
     word_t offset, limit;
-    if (object_is_free(oh, o)) goto next;
+    if (object_is_free(o)) goto next;
     while (object_hash((struct Object*)o->map) == ID_HASH_FORWARDED) {
       o->map = (struct Map*)((struct ForwardedObject*)(o->map))->target;
     }
@@ -1602,24 +1680,22 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
 void heap_tenure(struct object_heap* oh) {
   /*bring all marked young objects to old generation*/
   word_t tenure_count = 0, tenure_words = 0;
-  struct Object* tenure_start = (struct Object*) (oh->memoryOld + oh->memoryOldSize);
   struct Object* obj = (struct Object*) oh->memoryYoung;
   struct Object* prev;
+  oh->nextOldFree = (struct Object*)oh->memoryOld;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
-    if (!object_is_free(oh, obj) && !object_is_pinned(oh, obj)) {
-      assert((word_t)tenure_start + object_total_size(obj) - (word_t) oh->memoryOld < oh->memoryOldLimit);
+    if (!object_is_free(obj) && !object_is_pinned(oh, obj)) {
+      struct Object* tenure_start = gc_allocate_old(oh, object_total_size(obj));
       tenure_count++;
       tenure_words += object_word_size(obj);
       copy_words_into((word_t*)obj, object_word_size(obj), (word_t*) tenure_start);
       ((struct ForwardedObject*) obj)->target = tenure_start;
       object_set_idhash(obj, ID_HASH_FORWARDED);
-      tenure_start = object_after(oh, tenure_start);
     }
     obj = object_after(oh, obj);
   }
-  oh->memoryOldSize += tenure_words * sizeof(word_t);
-#ifdef PRINT_DEBUG_GC
+#ifdef PRINT_DEBUG_GC_1
   printf("GC tenured %ld objects (%ld words)\n", tenure_count, tenure_words);
 #endif
 
@@ -1635,7 +1711,7 @@ void heap_tenure(struct object_heap* oh) {
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
 
     /*coalesce free spaces*/
-    if (object_is_free(oh, obj) && object_is_free(oh, prev) && obj != prev) {
+    if (object_is_free(obj) && object_is_free(prev) && obj != prev) {
       heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
       obj = object_after(oh, prev);
     } else {
@@ -1665,10 +1741,10 @@ void heap_sweep_young(struct object_heap* oh) {
   struct Object* prev = obj;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /* the pinned objects are ones on the C stack or rememberedSet (from heap_store_into)*/
-    if (object_is_free(oh, obj) && !object_is_pinned(oh, obj)) {
+    if (object_is_free(obj) && !object_is_pinned(oh, obj)) {
       young_count++;
       young_word_count += object_word_size(obj);
-      if (object_hash(prev) == ID_HASH_FREE && obj != prev) {
+      if (object_is_free(prev) && obj != prev) {
         heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
         obj = object_after(oh, prev);
         continue;
@@ -1679,7 +1755,7 @@ void heap_sweep_young(struct object_heap* oh) {
     prev = obj;
     obj = object_after(oh, obj);
   }
-#ifdef PRINT_DEBUG_GC
+#ifdef PRINT_DEBUG_GC_2
   printf("GC freed %ld young objects (%ld words)\n", young_count, young_word_count);
 #endif
   oh->nextFree = (struct Object*)oh->memoryYoung;
@@ -1766,7 +1842,7 @@ void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* 
 
   while (object_in_memory(oh, o, memory, memorySize)) {
     /*print_object(o);*/
-    if (!object_is_free(oh, o)) {
+    if (!object_is_free(o)) {
       object_forward_pointers_to(oh, o, x, y);
     }
 
@@ -1778,9 +1854,9 @@ void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* 
 
 void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
 
-  heap_free_object(oh, x);
   heap_forward_from(oh, x, y, oh->memoryOld, oh->memoryOldSize);
   heap_forward_from(oh, x, y, oh->memoryYoung, oh->memoryYoungSize);
+  heap_free_object(oh, x);
 }
 
 void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
@@ -1805,7 +1881,7 @@ struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, 
   payload_set_size(o, payload_size);
   object_set_size(o, words);
   object_set_mark(oh, o);
-  assert(!object_is_free(oh, o));
+  assert(!object_is_free(o));
   return o;
 }
 
@@ -3535,7 +3611,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, st
 
   if (!object_is_smallint(x) && !object_is_smallint(y) && x != y) {
     heap_forward(oh, x, y);
-    /*heap_full_gc(oh); fix? needed?*/
+    heap_gc(oh);
   }
 
 }
@@ -4446,7 +4522,7 @@ void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_
 #endif
   while (object_in_memory(oh, o, memory, memorySize)) {
     /*print_object(o);*/
-    if (!object_is_free(oh, o)) {
+    if (!object_is_free(o)) {
       adjust_fields_by(oh, o, shift_amount);
     }
     o = object_after(oh, o);
@@ -4462,7 +4538,7 @@ int main(int argc, char** argv) {
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * 1024 * 1024;
-  word_t young_limit = 10 * 1024 * 1024;
+  word_t young_limit = 1 * 1024 * 1024;
   size_t res;
 
   heap = calloc(1, sizeof(struct object_heap));
