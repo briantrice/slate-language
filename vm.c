@@ -14,7 +14,10 @@ the array elements might not come directly after the header
 on objects that have slots. use (byte|object)_array_(get|set)_element
 
 
-- gc
+- some gc bugs where not everything gets marked or pinned when
+  interpreter_signal calls interpreter_apply_to_arity_with_optionals
+  and the new lexicalcontext causes some args[] to be collected
+  immaturely
 
 
 ***************************/
@@ -78,7 +81,7 @@ struct Object
  */
 #define HEADER_SIZE (sizeof(struct Object) - sizeof(struct Map*))
 #define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
-
+#define SLATE_IMAGE_MAGIC (word_t)0xABCDEF43
 
 #define METHOD_CACHE_ARITY 6
 
@@ -94,6 +97,11 @@ struct ForwardedObject
   word_t objectSize; 
   word_t payloadSize; 
   struct Object * target; /*rather than the map*/
+};
+struct ForwardPointerEntry /*for saving images*/
+{
+  struct Object* fromObj;
+  struct Object* toObj;
 };
 struct Map
 {
@@ -244,6 +252,8 @@ struct object_heap
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
   struct Object* fixedObjects[MAX_FIXEDS];
 
+  int argcSaved;
+  char** argvSaved;
 
   struct Object** markStack;
   size_t markStackSize;
@@ -1003,6 +1013,26 @@ void print_backtrace(struct object_heap* oh) {
 
 
 /***************** FILES *************************/
+
+
+word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
+
+  word_t i, iLen, nRemaining, totalLen;
+
+  nRemaining = limit;
+  totalLen = 0;
+  for (i=0; i<oh->argcSaved; i++) {
+    iLen = strlen (oh->argvSaved [i]) + 1;
+    memcpy (buffer + totalLen, oh->argvSaved [i], max(iLen, nRemaining));
+    totalLen += iLen;
+
+    nRemaining = max(nRemaining - iLen, 0);
+  }
+  return totalLen;
+
+}
+
+
 word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)
 {
   word_t payloadSize = payload_size((struct Object *) fromArray);
@@ -1448,8 +1478,35 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
 
 
 
+word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize) {
+  struct Object* obj = (struct Object*) memory;
+  word_t count = 0;
+  while (object_in_memory(oh, obj, memory, memorySize)) {
+    word_t offset, limit;
+    offset = object_first_slot_offset(obj);
+    limit = object_last_oop_offset(obj) + sizeof(word_t);
+    for (; offset != limit; offset += sizeof(word_t)) {
+      struct Object* val = object_slot_value_at_offset(obj, offset);
+      if (val == x) {
+        if (!object_is_free(x)) count++;
+        print_object(obj);
+        break;
+      }
+    }
+    obj = object_after(oh, obj);
+  }
+  return count;
+
+}
+
+word_t heap_what_points_to(struct object_heap* oh, struct Object* x) {
+  
+  return heap_what_points_to_in(oh, x, oh->memoryOld, oh->memoryOldSize) + heap_what_points_to_in(oh, x, oh->memoryYoung, oh->memoryYoungSize);
+
+}
+
 void heap_free_object(struct object_heap* oh, struct Object* obj) {
-#if 0
+#ifdef PRINT_DEBUG_GC_MARKINGS
   printf("freeing "); print_object(obj);
 #endif
   heap_make_free_space(oh, obj, object_word_size(obj));
@@ -1484,7 +1541,7 @@ void heap_pin_young_object(struct object_heap* oh, struct Object* x) {
 /*adds something to the mark stack and mark it if it isn't marked already*/
 void heap_mark(struct object_heap* oh, struct Object* obj) {
   if (object_markbit(obj) == oh->mark_color) return;
-#if 0
+#ifdef PRINT_DEBUG_GC_MARKINGS
   printf("marking "); print_object(obj);
 #endif
   object_set_mark(oh, obj);
@@ -1590,35 +1647,12 @@ void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize) 
   struct Object* obj = (struct Object*) memory;
 
   while (object_in_memory(oh, obj, memory, memorySize)) {
+#ifdef PRINT_DEBUG_GC_MARKINGS
+    printf("unmarking "); print_object(obj);
+#endif
     object_unmark(oh, obj);
     obj = object_after(oh, obj);
   }
-
-}
-
-void heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize) {
-  struct Object* obj = (struct Object*) memory;
-
-  while (object_in_memory(oh, obj, memory, memorySize)) {
-    word_t offset, limit;
-    offset = object_first_slot_offset(obj);
-    limit = object_last_oop_offset(obj) + sizeof(word_t);
-    for (; offset != limit; offset += sizeof(word_t)) {
-      struct Object* val = object_slot_value_at_offset(obj, offset);
-      if (val == x) {
-        print_object(obj);
-        break;
-      }
-    }
-    obj = object_after(oh, obj);
-  }
-
-}
-
-void heap_what_points_to(struct object_heap* oh, struct Object* x) {
-  
-  heap_what_points_to_in(oh, x, oh->memoryOld, oh->memoryOldSize);
-  heap_what_points_to_in(oh, x, oh->memoryYoung, oh->memoryYoungSize);
 
 }
 
@@ -1662,6 +1696,7 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
     while (object_hash((struct Object*)o->map) == ID_HASH_FORWARDED) {
       o->map = (struct Map*)((struct ForwardedObject*)(o->map))->target;
     }
+    assert(!object_is_free((struct Object*)o->map));
     offset = object_first_slot_offset(o);
     limit = object_last_oop_offset(o) + sizeof(word_t);
     for (; offset != limit; offset += sizeof(word_t)) {
@@ -1669,6 +1704,8 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
       while (!object_is_smallint(val) && object_hash(val) == ID_HASH_FORWARDED) {
         object_slot_value_at_offset_put(oh, o, offset, (val=((struct ForwardedObject*)val)->target));
       }
+      assert(object_is_smallint(val) || !object_is_free(val));
+
     }
   next:
     o = object_after(oh, o);
@@ -1685,11 +1722,19 @@ void heap_tenure(struct object_heap* oh) {
   oh->nextOldFree = (struct Object*)oh->memoryOld;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
+    if (!object_is_marked(oh, obj)) {
+      heap_free_object(oh, obj);
+    }
     if (!object_is_free(obj) && !object_is_pinned(oh, obj)) {
       struct Object* tenure_start = gc_allocate_old(oh, object_total_size(obj));
       tenure_count++;
       tenure_words += object_word_size(obj);
       copy_words_into((word_t*)obj, object_word_size(obj), (word_t*) tenure_start);
+#ifdef PRINT_DEBUG_GC_MARKINGS
+    printf("tenuring from "); print_object(obj);
+    printf("tenuring to "); print_object(tenure_start);
+#endif
+
       ((struct ForwardedObject*) obj)->target = tenure_start;
       object_set_idhash(obj, ID_HASH_FORWARDED);
     }
@@ -1792,7 +1837,7 @@ void heap_full_gc(struct object_heap* oh) {
 }
 
 void heap_gc(struct object_heap* oh) {
-#if 1
+#if 0
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
   heap_pin_c_stack(oh);
@@ -1863,6 +1908,7 @@ void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* 
   /*  print_object(dest);*/
   if (!object_is_smallint(dest)) {
     assert(object_hash(dest) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
+    assert(object_hash(src) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
   }
 
   if (/*object_is_young(oh, dest) && (implicit by following cmd)*/ object_is_old(oh, src)) {
@@ -2430,10 +2476,11 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
 
   if (matches == 0) return FALSE;
   map = heap_clone_map(oh, obj->map);
+  heap_fixed_add(oh, (struct Object*)map);
   map->roleTable = role_table_grow_excluding(oh, roles, matches, method);
   heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
   object_represent(oh, obj, map);
-
+  heap_fixed_remove(oh, (struct Object*)map);
   return TRUE;
 
 }
@@ -2905,7 +2952,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
                                                struct Object* argsNotStack[], word_t n, struct OopArray* opts) {
 
 
-  word_t inputs, framePointer;
+  word_t inputs, framePointer, j;
   struct Object** vars;
   struct LexicalContext* lexicalContext;
   struct CompiledMethod* method;
@@ -2937,10 +2984,17 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     lexicalContext->framePointer = smallint_to_object(framePointer);
     interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE);
     vars = &lexicalContext->variables[0];
+    for (j = 0; j < inputs; j++) {
+      heap_store_into(oh, (struct Object*)lexicalContext, args[j]);
+    }
+
   } else {
     lexicalContext = (struct LexicalContext*) oh->cached.nil;
     interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE /*frame size in words*/ + object_to_smallint(method->localVariables));
     vars = &i->stack->elements[framePointer];
+    for (j = 0; j < inputs; j++) {
+      heap_store_into(oh, (struct Object*)i->stack, args[j]);
+    }
   }
 
 
@@ -2969,6 +3023,11 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   i->method = method;
   i->closure = closure;
   i->lexicalContext = lexicalContext;
+
+  heap_store_into(oh, (struct Object*)i, (struct Object*)lexicalContext);
+  heap_store_into(oh, (struct Object*)i, (struct Object*)method);
+  heap_store_into(oh, (struct Object*)i, (struct Object*)closure);
+
   i->codeSize = object_byte_size((struct Object*)method->code) - sizeof(struct ByteArray);
   i->codePointer = 0;
   fill_words_with(((word_t*)vars)+inputs, object_to_smallint(method->localVariables) - inputs, (word_t)oh->cached.nil);
@@ -3271,6 +3330,14 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struc
     interpreter_stack_push(oh, oh->cached.interpreter, (struct Object*)map);
   }
 
+}
+
+void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  struct ByteArray* arguments = (struct ByteArray*)args[1];
+  interpreter_stack_push(oh, oh->cached.interpreter, 
+                         smallint_to_object(write_args_into(oh, (char*)byte_array_elements(arguments), byte_array_size(arguments))));
+
+  
 }
 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
@@ -3790,7 +3857,9 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   if (def == NULL) {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
+    heap_fixed_add(oh, (struct Object*)argsArray);
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, NULL);
+    heap_fixed_remove(oh, (struct Object*)argsArray);
     return;
   }
 
@@ -3907,17 +3976,192 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
 
 }
 
+struct ForwardPointerEntry* forward_pointer_hash_get(struct ForwardPointerEntry* table,
+                                                    word_t forwardPointerEntryCount,
+                                                    struct Object* fromObj) {
+  word_t index;
+  word_t hash = (word_t)fromObj % forwardPointerEntryCount;
+  struct ForwardPointerEntry* entry;
+
+  for (index = hash; index < forwardPointerEntryCount; index++) {
+    entry = &table[index];
+    if (entry->fromObj == fromObj || entry->fromObj == NULL) return entry;
+  }
+  for (index = 0; index < hash; index++) {
+    entry = &table[index];
+    if (entry->fromObj == fromObj || entry->fromObj == NULL) return entry;
+  }
+
+  return NULL;
+
+
+}
+
+struct ForwardPointerEntry* forward_pointer_hash_add(struct ForwardPointerEntry* table,
+                                                    word_t forwardPointerEntryCount,
+                                                    struct Object* fromObj, struct Object* toObj) {
+
+  struct ForwardPointerEntry* entry = forward_pointer_hash_get(table, forwardPointerEntryCount, fromObj);
+  if (NULL == entry) return NULL; /*full table*/
+  assert(entry->fromObj == NULL || entry->fromObj == fromObj); /*assure we don't have inconsistancies*/
+  entry->fromObj = fromObj;
+  entry->toObj = toObj;
+  return entry;
+
+}
+
+
+void copy_used_objects(struct object_heap* oh, struct Object** writeObject,  byte_t* memoryStart, word_t memorySize,
+struct ForwardPointerEntry* table, word_t forwardPointerEntryCount) {
+  struct Object* readObject = (struct Object*) memoryStart;
+  while (object_in_memory(oh, readObject, memoryStart, memorySize)) {
+    if (!object_is_free(readObject)) {
+      assert(NULL != forward_pointer_hash_add(table, forwardPointerEntryCount, readObject, *writeObject));
+      copy_words_into((word_t*)readObject, object_word_size(readObject), (word_t*)*writeObject);
+      *writeObject = object_after(oh, *writeObject);
+    }
+    readObject = object_after(oh, readObject);
+  }
+
+}
+
+void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, word_t memorySize,
+                                     struct ForwardPointerEntry* table, word_t forwardPointerEntryCount) {
+
+  struct Object* o = (struct Object*) memory;
+ 
+  while (object_in_memory(oh, o, memory, memorySize)) {
+    word_t offset, limit;
+    o->map = (struct Map*)forward_pointer_hash_get(table, forwardPointerEntryCount, (struct Object*)o->map)->toObj;
+    offset = object_first_slot_offset(o);
+    limit = object_last_oop_offset(o) + sizeof(word_t);
+    for (; offset != limit; offset += sizeof(word_t)) {
+      struct Object* val = object_slot_value_at_offset(o, offset);
+      if (!object_is_smallint(val)) {
+        object_slot_value_at_offset_put(oh, o, offset, 
+                                        forward_pointer_hash_get(table, forwardPointerEntryCount, val)->toObj);
+      }
+    }
+    o = object_after(oh, o);
+  }
+
+}
+
+
+void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount) {
+
+  word_t offset, limit;
+  o->map = (struct Map*) inc_ptr(o->map, shift_amount);
+  offset = object_first_slot_offset(o);
+  limit = object_last_oop_offset(o) + sizeof(word_t);
+  for (; offset != limit; offset += sizeof(word_t)) {
+    struct Object* val = object_slot_value_at_offset(o, offset);
+    if (!object_is_smallint(val)) {
+      /*avoid calling the function because it will call heap_store_into*/
+      (*((word_t*)inc_ptr(o, offset))) = (word_t)inc_ptr(val, shift_amount);
+  /*      object_slot_value_at_offset_put(oh, o, offset, (struct Object*)inc_ptr(val, shift_amount));*/
+    }
+  }
+
+}
+
+
+void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_t* memory, word_t memorySize) {
+
+  struct Object* o = (struct Object*)memory;
+#ifdef PRINT_DEBUG
+  printf("First object: "); print_object(o);
+#endif
+  while (object_in_memory(oh, o, memory, memorySize)) {
+    /*print_object(o);*/
+    if (!object_is_free(o)) {
+      adjust_fields_by(oh, o, shift_amount);
+    }
+    o = object_after(oh, o);
+  }
+
+
+}
+
+
+void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
+  char nameString [SLATE_FILE_NAME_LENGTH];
+  struct slate_image_header sih;
+  struct Object* name = args[1];
+  size_t nameLength = payload_size(name);
+  FILE * imageFile;
+
+  word_t totalSize, forwardPointerEntryCount;
+  byte_t* memoryStart;
+  struct Object *writeObject;
+  struct ForwardPointerEntry* forwardPointers;
+  /* do a full gc, allocate a new chunk of memory the size of the young and old combined,
+   * copy all the non-free objects to the new memory while keeping an array of the position changes,
+   * go through the memory and fix up the pointers, adjust points to start from 0 instead of memoryStart,
+   * and write the header and the memory out to disk
+   */
+
+  /*push true so if it resumes from the save image, it will do init code*/
+  interpreter_push_true(oh, oh->cached.interpreter);
+
+  if (nameLength >= sizeof(nameString)) {
+    interpreter_stack_pop(oh, oh->cached.interpreter);
+    interpreter_push_nil(oh, oh->cached.interpreter);
+    return;
+  }
+  memcpy(nameString, (char*)byte_array_elements((struct ByteArray*)name), nameLength);
+  nameString[nameLength] = '\0';
+
+  imageFile = fopen(nameString, "wb");
+  if (!imageFile) {
+    interpreter_stack_pop(oh, oh->cached.interpreter);
+    interpreter_push_nil(oh, oh->cached.interpreter);
+
+    return;
+  }
+  printf("Saving image to %s\n", nameString);
+  heap_full_gc(oh);
+  totalSize = oh->memoryOldSize + oh->memoryYoungSize;
+  forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
+  memoryStart = malloc(totalSize);
+  writeObject = (struct Object*)memoryStart;
+  forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
+  assert(memoryStart != NULL);
+  copy_used_objects(oh, &writeObject, oh->memoryOld, oh->memoryOldSize, forwardPointers, forwardPointerEntryCount);
+  copy_used_objects(oh, &writeObject, oh->memoryYoung, oh->memoryYoungSize, forwardPointers, forwardPointerEntryCount);
+  totalSize = (byte_t*)writeObject - memoryStart;
+  adjust_object_fields_with_table(oh, memoryStart, totalSize, forwardPointers, forwardPointerEntryCount);
+  adjust_oop_pointers_from(oh, 0-(word_t)memoryStart, memoryStart, totalSize);
+  sih.magic = SLATE_IMAGE_MAGIC;
+  sih.size = totalSize;
+  sih.next_hash = heap_new_hash(oh);
+  sih.special_objects_oop = (byte_t*) (forward_pointer_hash_get(forwardPointers, forwardPointerEntryCount, (struct Object*)oh->special_objects_oop)->toObj) - memoryStart;
+  sih.current_dispatch_id = oh->current_dispatch_id;
+
+  fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile);
+  fwrite(memoryStart, 1, totalSize, imageFile);
+  fclose(imageFile);
+  free(forwardPointers);
+  free(memoryStart);
+
+  interpreter_stack_pop(oh, oh->cached.interpreter);
+  interpreter_push_false(oh, oh->cached.interpreter);
+  
+  
+
+}
+
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) = {
 
  /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_removefrom, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_clone_without_slot, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_ensure, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
- /*30-9*/ prim_fixme, prim_fixme, prim_exit, prim_fixme, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
+ /*30-9*/ prim_fixme, prim_run_args_into, prim_exit, prim_fixme, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
- /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_fixme, prim_fixme, 
+ /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
@@ -4499,38 +4743,6 @@ void interpret(struct object_heap* oh) {
 
 }
 
-void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount) {
-
-  word_t offset, limit;
-  o->map = (struct Map*) inc_ptr(o->map, shift_amount);
-  offset = object_first_slot_offset(o);
-  limit = object_last_oop_offset(o) + sizeof(word_t);
-  for (; offset != limit; offset += sizeof(word_t)) {
-    struct Object* val = object_slot_value_at_offset(o, offset);
-    if (!object_is_smallint(val)) {
-      object_slot_value_at_offset_put(oh, o, offset, (struct Object*)inc_ptr(val, shift_amount));
-    }
-  }
-
-}
-
-void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_t* memory, word_t memorySize) {
-
-  struct Object* o = (struct Object*)memory;
-#ifdef PRINT_DEBUG
-  printf("First object: "); print_object(o);
-#endif
-  while (object_in_memory(oh, o, memory, memorySize)) {
-    /*print_object(o);*/
-    if (!object_is_free(o)) {
-      adjust_fields_by(oh, o, shift_amount);
-    }
-    o = object_after(oh, o);
-  }
-
-
-}
-
 
 int main(int argc, char** argv) {
 
@@ -4560,7 +4772,7 @@ int main(int argc, char** argv) {
   fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, file);
   fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file);
   
-  if (sih.magic != (word_t)0xABCDEF43) {
+  if (sih.magic != SLATE_IMAGE_MAGIC) {
     fprintf(stderr, "Magic number (0x%lX) doesn't match (word_t)0xABCDEF43\n", sih.magic);
     return 1;
   }
@@ -4576,6 +4788,8 @@ int main(int argc, char** argv) {
 
   adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
   heap->stackBottom = &heap;
+  heap->argcSaved = argc;
+  heap->argvSaved = argv;
   interpret(heap);
   
   gc_close(heap);
