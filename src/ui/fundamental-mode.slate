@@ -1,0 +1,232 @@
+prototypes define: #TextMode &parents: {CommandMap} &slots:
+{
+  #modeString -> 'Undefined'.
+  #buffer -> Nil.
+}.
+
+
+
+mode@(TextMode traits) on: buffer
+[
+  mode buffer: buffer.
+  mode
+].
+
+
+
+
+prototypes define: #FundamentalMode &parents: {TextMode} &slots:
+{
+  #modeString -> 'Fundamental'.
+  #simpleCharacters -> 'aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ1!2@3#4$5%6^7&8*9(0)=+\\|/?-_,<.>\'"[{]}~`;:'.
+}.
+
+
+mode@(FundamentalMode traits) addMovementBindingsTo: buffer
+[ | moveForwardBlock moveBackwardBlock |
+
+   "forward and back"
+
+    moveForwardBlock: [
+        buffer view update.
+        (buffer endOfBuffer < (buffer activePoint clone `>> [line: (buffer activePoint line + 1).]))
+           ifFalse: [buffer activePoint line: (buffer activePoint line + 1)]
+      ].
+
+    moveBackwardBlock: [
+        buffer view update.
+        ((buffer activePoint clone `>> [line: (buffer activePoint line - 1).]) < buffer beginningOfBuffer)
+           ifFalse: [buffer activePoint line: (buffer activePoint line - 1)]
+      ].
+
+
+
+    (MovePointCommand name: #forward-char arguments: {Nil. 1} buffer: buffer) installIn: mode.
+    (TextBufferBlockCommand name: #line-forward doBlock: moveForwardBlock undoBlock: moveBackwardBlock) installIn: mode.
+    (TextBufferBlockCommand name: #line-backward doBlock: moveBackwardBlock  undoBlock: moveForwardBlock) installIn: mode.
+    (MovePointCommand name: #backward-char arguments: {Nil. -1} buffer: buffer) installIn: mode.
+
+    (MovePointBeginningOfLineCommand name: #beginning-of-line arguments: {Nil} buffer: buffer) installIn: mode.
+    (MovePointEndOfLineCommand name: #end-of-line arguments: {Nil} buffer: buffer) installIn: mode.
+
+    "FIXME 64 is left ctrl, 128 is right ctrl, and 192 is both. what should I do?"
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 275) forCommand: #forward-char.
+    mode addAccelerator: (KeyboardAccelerator newKey: 102 &modifiers: 64) forCommand: #forward-char.
+    mode addAccelerator: (KeyboardAccelerator newKey: 102 &modifiers: 128) forCommand: #forward-char.
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 276) forCommand: #backward-char.
+    mode addAccelerator: (KeyboardAccelerator newKey: 98 &modifiers: 64) forCommand: #backward-char.
+    mode addAccelerator: (KeyboardAccelerator newKey: 98 &modifiers: 128) forCommand: #backward-char.
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 274) forCommand: #line-forward.
+    mode addAccelerator: (KeyboardAccelerator newKey: 110 &modifiers: 64) forCommand: #line-forward.
+    mode addAccelerator: (KeyboardAccelerator newKey: 110 &modifiers: 128) forCommand: #line-forward.
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 273) forCommand: #line-backward.
+    mode addAccelerator: (KeyboardAccelerator newKey: 112 &modifiers: 64) forCommand: #line-backward.
+    mode addAccelerator: (KeyboardAccelerator newKey: 112 &modifiers: 128) forCommand: #line-backward.
+
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 278) forCommand: #beginning-of-line.
+    mode addAccelerator: (KeyboardAccelerator newKey: 97 &modifiers: 64) forCommand: #beginning-of-line.
+    mode addAccelerator: (KeyboardAccelerator newKey: 97 &modifiers: 128) forCommand: #beginning-of-line.
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 279) forCommand: #end-of-line.
+    mode addAccelerator: (KeyboardAccelerator newKey: 101 &modifiers: 64) forCommand: #end-of-line.
+    mode addAccelerator: (KeyboardAccelerator newKey: 101 &modifiers: 128) forCommand: #end-of-line.
+
+
+  mode
+].
+
+
+mode@(FundamentalMode traits) addBackspaceBindingsTo: buffer
+[
+
+    (TextBufferCommandGroup name: #backspace-character commands:
+      {
+        MovePointCommand name: #backward-char arguments: {Nil. -1} buffer: buffer.
+        DeleteFromPointCommand name: #delete-char arguments: {Nil. 1} buffer: buffer.
+
+      }) installIn: mode.
+
+
+    (DeleteFromPointCommand name: #delete-character arguments: {Nil. 1} buffer: buffer) installIn: mode.
+
+
+    mode addAccelerator: (KeyboardAccelerator newKey: 8) forCommand: #backspace-character.
+    mode addAccelerator: (KeyboardAccelerator newKey: 127) forCommand: #delete-character.
+    mode addAccelerator: (KeyboardAccelerator newKey: 100 &modifiers: 64) forCommand: #delete-character.
+    mode addAccelerator: (KeyboardAccelerator newKey: 100 &modifiers: 128) forCommand: #delete-character.
+
+    mode
+].
+
+
+mode@(FundamentalMode traits) addCharacterBindingsTo: buffer
+[ | symbol unshiftedSymbol shiftedSymbol |
+
+
+  mode simpleCharacters pairsDo:
+  [ | :unshifted :shifted |
+
+    unshiftedSymbol: (('insert-char-' ; (unshifted as: String)) as: Symbol).
+    shiftedSymbol: (('insert-char-' ; (shifted as: String)) as: Symbol).
+
+    {unshiftedSymbol -> unshifted. shiftedSymbol -> shifted} do:
+      [ | :character |
+
+       (TextBufferCommandGroup name: character key commands:
+         { "Nil can represent the active point for some commands, other times we will have to
+           generate a command on the fly. "
+          InsertTextCommand name: #insert-char arguments: {Nil. character value as: String} buffer: buffer.
+          MovePointCommand name: #forward-char arguments: {Nil. 1} buffer: buffer.
+        }) installIn: mode.
+
+      ].
+
+    mode addAccelerator: (KeyboardAccelerator newKey: (unshifted as: Integer)) forCommand: unshiftedSymbol.
+    mode addAccelerator: (KeyboardAccelerator newKey: (unshifted as: Integer) &modifiers: 1) forCommand: shiftedSymbol.
+    mode addAccelerator: (KeyboardAccelerator newKey: (unshifted as: Integer) &modifiers: 2) forCommand: shiftedSymbol.
+
+    mode addAccelerator: (KeyboardAccelerator newKey: (shifted as: Integer)) forCommand: shiftedSymbol.
+    mode addAccelerator: (KeyboardAccelerator newKey: (shifted as: Integer) &modifiers: 1) forCommand: unshiftedSymbol.
+    mode addAccelerator: (KeyboardAccelerator newKey: (shifted as: Integer) &modifiers: 2) forCommand: unshiftedSymbol.
+  
+  ].
+
+  " install space (copy paste...) "
+  { #space -> String Character space.
+    #tab -> String Character tab.
+    #linefeed -> String Character lf. } do:
+  [ | :character |
+
+    symbol: (('insert-char-' ; (character key as: String)) as: Symbol).
+
+    (TextBufferCommandGroup name: symbol commands:
+      { "Nil can represent the active point for some commands, other times we will have to
+         generate a command on the fly. "
+        InsertTextCommand name: #insert-char arguments: {Nil. character value as: String} buffer: buffer.
+        MovePointCommand name: #forward-char arguments: {Nil. 1} buffer: buffer.
+      }) installIn: mode.
+
+
+    mode addAccelerator: (KeyboardAccelerator newKey: (character value as: Integer)) forCommand: symbol.
+
+
+  ].
+
+
+
+  mode
+].
+
+
+
+
+
+mode@(FundamentalMode traits) addRegionBindingsTo: buffer
+[
+
+  (DropMarkCommand name: #drop-mark arguments: {} buffer: buffer) installIn: mode.
+  (DeleteRegionCommand name: #kill-region arguments: {} buffer: buffer) installIn: mode.
+
+  (TextBufferCommandGroup name: #kill-line commands:
+     {
+       DropMarkCommand name: #drop-mark arguments: {} buffer: buffer.
+       MovePointEndOfLineCommand name: #end-of-line arguments: {Nil} buffer: buffer.
+       DeleteRegionCommand name: #kill-region arguments: {} buffer: buffer.
+     }) installIn: mode.
+
+
+  mode addAccelerator: (KeyboardAccelerator newKey: ($\s as: Integer) &modifiers: 64) forCommand: #drop-mark.
+  mode addAccelerator: (KeyboardAccelerator newKey: ($\s as: Integer) &modifiers: 128) forCommand: #drop-mark.
+
+  mode addAccelerator: (KeyboardAccelerator newKey: ($w as: Integer) &modifiers: 64) forCommand: #kill-region.
+  mode addAccelerator: (KeyboardAccelerator newKey: ($w as: Integer) &modifiers: 128) forCommand: #kill-region.
+
+  mode addAccelerator: (KeyboardAccelerator newKey: ($k as: Integer) &modifiers: 64) forCommand: #kill-line.
+  mode addAccelerator: (KeyboardAccelerator newKey: ($k as: Integer) &modifiers: 128) forCommand: #kill-line.
+
+  mode
+].
+
+
+
+
+
+
+mode@(FundamentalMode traits) on: buffer
+[
+  resend.
+
+  mode addCharacterBindingsTo: buffer.
+  mode addMovementBindingsTo: buffer.
+  mode addBackspaceBindingsTo: buffer.
+  mode addRegionBindingsTo: buffer.
+
+
+  mode
+].
+
+
+
+mode@(FundamentalMode traits) handle: event@(KeyboardPressEvent traits)
+[
+ | key |
+
+  key: (KeyboardAccelerator newKey: event key &modifiers: event modifiers).
+
+  lobby inform: key printString.
+
+  ((key = (KeyboardAccelerator newKey: ($u as: Integer) &modifiers: 64)) \/
+    [key = (KeyboardAccelerator newKey: ($u as: Integer) &modifiers: 128)])
+   ifTrue: [
+     mode unrecord
+     ]
+   ifFalse: [
+     resend
+   ].
+
+].

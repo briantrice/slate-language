@@ -1,0 +1,142 @@
+
+collections addPrototype: #Heap derivedFrom: {SortedArray}.
+"A heap is a SortedArray of items.
+It is more efficient than a standard SortedArray if elements are only
+removed at the beginning, and elements are added in arbitrary sort order."
+Heap sortBlock: [| :a :b | a < b].
+"The block used for comparing items for sorting."
+
+h@(Heap traits) push: obj
+[
+  h add: obj.
+  h
+].
+
+h@(Heap traits) pop
+[
+  h removeAt: h lastIndex
+].
+
+h@(Heap traits) at: _ put: _
+[shouldNotImplement].
+
+h@(Heap traits) sorts: a before: b
+[
+  h sortBlock applyWith: a with: b
+].
+
+h@(Heap traits) reSort
+[
+  h isEmpty ifTrue: [^ h].
+  h firstIndex + h size // 2
+    above: 0
+    do: [| :index | h checkDownFrom: index].
+  h
+].
+
+h@(Heap traits) add: obj
+[
+  h isFull ifTrue: [h grow].
+  h contents at: (h lastIndex: h lastIndex + 1) put: obj.
+  h checkUpFrom: h lastIndex.
+  obj
+].
+
+h@(Heap traits) removeAt: index
+"Remove the element at the given index and ensure the sorting order is okay."
+[| removed |
+  removed: (h contents at: index).
+  h contents at: index put: (h contents at: h lastIndex).
+  h contents at: h lastIndex put: Nil.
+  h lastIndex: h lastIndex - 1.
+  index > h lastIndex ifFalse: [h checkDownSingle: index].
+  removed
+].
+
+h@(Heap traits) removeFirst
+[h removeAt: 0].
+
+h@(Heap traits) remove: obj ifAbsent: block
+"Removes the first object matching the given one."
+[
+  h isEmpty ifTrue: [^ block do].
+  h firstIndex to: h lastIndex
+    do: [| :index | (h contents at: index) = obj
+		  ifTrue: [^ (h removeAt: index)]].
+  block do
+].
+
+h@(Heap traits) = ss
+"Re-use the exact same method as SortedArray."
+[
+  resend
+].
+
+h@(Heap traits) as: ss@(SortedArray traits)
+[(ss newSizeOf: h) `>> [sortBlock: h sortBlock. addAll: h. ]].
+
+h@(Heap traits) sort
+[
+  h as: SortedArray
+].
+
+h@(Heap traits) checkDownFrom: index
+"Check the heap downwards for correctness starting at the given index.
+Everything above (i.e. left of) the index is ok."
+[| value k n j |
+  index <= h firstIndex ifTrue: [^ h].
+  n: (h lastIndex // 2).
+  k: index.
+  value: (h contents at: index).
+  [k <= n] whileTrue:
+    [j: k + k.
+    "use max(j,j+1)"
+    (j < h lastIndex
+	/\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
+      ifTrue: [j: j + 1].
+    "check if position k is ok"
+    (h sorts: value before: (h contents at: j))
+      ifTrue: [n: k - 1] "break loop"
+      ifFalse: ["make room at j by moving j-th element to k-th slot"
+		 h contents at: k put: (h contents at: j).
+		"and try again with j"
+		k: j]].
+  h contents at: k put: value
+].
+
+h@(Heap traits) checkDownSingle: index
+"This is checkDownFrom: optimized for the case when only one element can be at
+a wrong position. It avoids one comparison at each node when travelling down
+the heap and checks the heap upwards after the element is at a bottom
+position. Since the probability for being at the bottom of the heap is much
+larger than for being somewhere in the middle this version should be faster."
+[| value k n j |
+  index <= h firstIndex ifTrue: [^ h].
+  n: (h lastIndex // 2).
+  k: index.
+  value: (h contents at: index).
+  [k <= n] whileTrue:
+    [j: k + k.
+    "use max(j,j+1)"
+    (j < h lastIndex
+	/\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
+      ifTrue: [j: j + 1].
+    h contents at: k put: (h contents at: j).
+    "and try again with j"
+    k: j].
+  h contents at: k put: value.
+  h checkUpFrom: k
+].
+
+h@(Heap traits) checkUpFrom: index
+"Check the heap upwards for correctness starting at the given index.
+Everything below the index is ok."
+[| value k kDiv2 tmp |
+  index <= h firstIndex ifTrue: [^ h].
+  k: index.
+  value: (h contents at: index).
+  [k > 1 /\ [h sorts: value before: (tmp: (h contents at: (kDiv2: k // 2)))]]
+    whileTrue: [array at: k put: tmp.
+		k: kDiv2].
+  array at: k put: value
+].

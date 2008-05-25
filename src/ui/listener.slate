@@ -1,0 +1,56 @@
+"A program providing an interactive read-eval-print loop on some Stream pair.
+This does not require being in a terminal medium or emulation."
+
+"See CLIM Spec ch. 24"
+
+Graphics define: #InputEditingStream &parents: {ReadWriteStream}.
+{#buffer -> ExtensibleArray new. "The editable contents for the target's input."
+ #position -> 0. "The index into the buffer Sequence where the `cursor' is."
+ #scanPosition -> 0. "The index into the buffer Sequence where the next input is."
+ #performRescan -> False "Whether the buffer should be rescanned before the next input."}.
+"Overrides a target stream's operations in order to provide input-editing
+semantics, but otherwise delegates primarily to that target."
+InputEditingStream addDelegate: #target valued: Stream clone.
+"The target Stream."
+"TODO: include a semaphore or lock/mutex or something for rescan periods."
+
+"NOTE: Invariant: `scanPosition <= position' at all times."
+"NOTE: Optional slots: an accumulator or a most-recently-used presentation
+history, or others."
+
+s@(InputEditingStream traits) newOn: s
+[
+  e clone on: s
+].
+
+s@(InputEditingStream traits) on: s
+[
+  e target: s.
+  e
+].
+
+s@(InputEditingStream traits) rescanBuffer
+"Resets the scanPosition to its original state and reparses the buffer's
+contents before reading any more input."
+[
+  s scanPosition: 0.
+  "TODO: Perform re-parsing."
+  s
+].
+
+s@(InputEditingStream traits) next
+[| gesture |
+  s rescanIfNecessary.
+  [s scanPosition < s buffer size
+     ifTrue: [gesture: s next. s scanPosition: s scanPosition + 1]
+     ifFalse: [s buffer at: s scanPosition insert: (gesture: s target next)].
+   s process: gesture.
+   gesture is: InputEditingCommand] whileTrue
+].
+
+s@(InputEditingStream traits) x
+[
+  
+].
+
+"TODO: CLIM Spec 24.2-5"

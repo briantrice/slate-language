@@ -1,0 +1,359 @@
+se@(SceneElement traits) emptySpaceRequirement
+"This returns the default space requirements for leaf elements. Override
+it as necessary."
+[
+  SpaceRequirement zero
+].
+
+se@(SceneElement traits) childrensSpaceRequirements
+[
+  se children collect: #spaceRequirement `er
+].
+
+se@(SceneElement traits) composeSpaceRequirement
+"Recurses through its children to compose their SpaceRequirement objects,
+accumulating them into the element's own."
+[
+  se needToComposeSpaceRequirement ifTrue: [
+    se children do: [|:each| each composeSpaceRequirement].
+    se atSlotNamed: #needToComposeSpaceRequirement put: False]
+].
+
+se@(SceneElement traits) composeSpaceRequirementWithinExtent: size
+"Accomplishes the same task as composeSpaceRequirement, but giving top-down hints on the
+dimensions of the result."
+"TODO: is this needed?"
+[
+].
+
+se@(SceneElement traits) allocateSpaceWithinExtent: size
+"Accomplishes the sub-task of allocateSpace, with top-down requirements on
+the dimensions of the result."
+[
+  se needToAllocateSpace ifTrue: [
+    se children do: [|:each| each allocateSpace].
+    se atSlotNamed: #needToAllocateSpace put: False].
+].
+
+se@(SceneElement traits) allocateSpace
+"Arrange the element's children within the available space and allocate space
+to them according to their space requirements and its own composition rules
+by calling allocateSpace on each of the children."
+[
+  se allocateSpaceWithinExtent: se boundingRect extent
+].
+
+se@(SceneElement traits) spaceRequirement: sr@(SpaceRequirement traits)
+"This is called to indicate that composeSpaceRequirement may now return something
+different from previous invocations and/or to update the user
+SpaceRequirement options."
+[
+  se atSlotNamed: #spaceRequirement put: sr.
+  se noteSpaceRequirementChanged
+].
+
+se@(SceneElement traits) noteSpaceRequirementIsInvalid
+[
+  se atSlotNamed: #needToComposeSpaceRequirement put: True.
+  se treeParent ifNotNil: [se treeParent noteSpaceRequirementIsInvalidFor: se]
+].
+
+se@(SceneElement traits) noteSpaceRequirementIsInvalidFor: ch@(SceneElement traits)
+[
+  se noteSpaceRequirementIsInvalid
+].
+
+se@(SceneElement traits) noteSpaceRequirementChanged
+[
+  se noteAllocationIsInvalid
+].
+
+se@(SceneElement traits) noteSpaceRequirementChangedFor: ch@(SceneElement traits)
+[
+  se noteAllocationIsInvalid
+].
+
+se@(SceneElement traits) noteAllocationIsInvalid
+[
+  se atSlotNamed: #needToAllocateSpace put: True.
+  se treeParent ifNotNil: [se treeParent noteAllocationIsInvalidFor: se]
+].
+
+se@(SceneElement traits) noteAllocationIsInvalidFor: ch@(SceneElement traits)
+[
+  se noteAllocationIsInvalid
+].
+
+Graphics define: #Alignment &parents: {SceneElement}.
+"TODO: is this needed?"
+
+Graphics define: #HorizontalAlignment &parents: {Alignment}.
+"TODO: is this needed?"
+
+Graphics define: #VerticalAlignment &parents: {Alignment}.
+"TODO: is this needed?"
+
+Graphics define: #Layout &parents: {SceneElement} &slots:
+{#xSpacing -> 0.
+ #ySpacing -> 0.
+ "x and y-spacing specify how much space should be between submorphs."
+ #alignmentX.
+ #alignmentY
+ "Alignment values can be one of those below or Nil, which specifies none."}.
+"TODO: is this needed?"
+
+Graphics define: #HorizontalAlignments
+  &builder: [{#left. #center. #right} as: ExtensibleArray].
+Graphics define: #VerticalAlignments
+  &builder: [{#top. #center. #bottom} as: ExtensibleArray].
+
+lm@(Layout traits) spacing
+[Point x: lm xSpacing y: lm ySpacing].
+
+lm@(Layout traits) spacing: p@(Point traits)
+[
+  lm xSpacing: p x.
+  lm ySpacing: p y.
+  p
+].
+
+Graphics define: #HBox &parents: {SceneElement}.
+
+hb@(HBox traits) composeSpaceRequirement
+[| newSR |
+  resend.
+  newSR: hb emptySpaceRequirement clone.
+  hb childrensSpaceRequirements do: [| :each |
+    newSR preferredWidth: newSR preferredWidth + each preferredWidth.
+    newSR preferredHeight: (newSR preferredHeight max: each preferredHeight).
+    newSR maxHeight: (newSR maxHeight max: each maxHeight).
+    newSR maxWidth: newSR maxWidth + each maxWidth.
+    newSR minHeight: (newSR minHeight max: each minHeight).
+    newSR minWidth: newSR minWidth + each minWidth].
+  hb spaceRequirement: newSR
+].
+
+se@(HBox traits) allocateSpaceWithinExtent: size
+[|ratio pos|
+  size x < se spaceRequirement minWidth ifTrue: [
+    ratio: size x / se spaceRequirement minWidth.
+    pos: 0.
+    se children do: [|:ch width|
+      width: ch spaceRequirement minWidth * ratio floor.
+      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      pos: pos + width].
+    ^ se].
+  size x < se spaceRequirement preferredWidth ifTrue: [
+    ratio: (size x - se spaceRequirement minWidth) / (se spaceRequirement preferredWidth - se spaceRequirement minWidth).
+    pos: 0.
+    se children do: [|:ch width|
+      width: ch spaceRequirement minWidth + ((ch spaceRequirement preferredWidth - ch spaceRequirement minWidth) * ratio) floor.
+      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      pos: pos + width].
+    ^ se].
+  size x < se spaceRequirement maxWidth ifTrue: [
+    ratio: (size x - se spaceRequirement preferredWidth) / (se spaceRequirement maxWidth - se spaceRequirement preferredWidth).
+    pos: 0.
+    se children do: [|:ch width|
+      width: ch spaceRequirement preferredWidth + ((ch spaceRequirement maxWidth - ch spaceRequirement preferredWidth) * ratio) floor.
+      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      pos: pos + width].
+    ^ se].
+  pos: 0.
+  se children do: [|:ch width|
+    width: ch spaceRequirement maxWidth floor.
+    ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+    pos: pos + width].
+  resend
+].
+
+Graphics define: #VBox &parents: {Layout}.
+
+vb@(VBox traits) composeSpaceRequirement
+[| newSR |
+  resend.
+  newSR: vb emptySpaceRequirement clone.
+  vb childrensSpaceRequirements do: [| :each |
+    newSR preferredHeight: newSR preferredHeight + each preferredHeight.
+    newSR preferredWidth: (newSR preferredWidth max: each preferredWidth).
+    newSR maxHeight: newSR maxHeight + each maxHeight.
+    newSR maxWidth: (newSR maxWidth max: each maxWidth).
+    newSR minHeight: newSR minHeight + each minHeight.
+    newSR minWidth: (newSR minWidth max: each minWidth)].
+  vb spaceRequirement: newSR
+].
+
+se@(VBox traits) allocateSpaceWithinExtent: size
+[|ratio pos|
+  size y < se spaceRequirement minHeight ifTrue: [
+    ratio: size y / se spaceRequirement minHeight.
+    pos: 0.
+    se children do: [|:ch height|
+      height: ch spaceRequirement minHeight * ratio floor.
+      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      pos: pos + height].
+    ^ se].
+  size y < se spaceRequirement preferredHeight ifTrue: [
+    ratio: (size y - se spaceRequirement minHeight) / (se spaceRequirement preferredHeight - se spaceRequirement minHeight).
+    pos: 0.
+    se children do: [|:ch height|
+      height: ch spaceRequirement minHeight + ((ch spaceRequirement preferredHeight - ch spaceRequirement minHeight) * ratio) floor.
+      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      pos: pos + height].
+    ^ se].
+  size y < se spaceRequirement maxHeight ifTrue: [
+    ratio: (size y - se spaceRequirement preferredHeight) / (se spaceRequirement maxHeight - se spaceRequirement preferredHeight).
+    pos: 0.
+    se children do: [|:ch height|
+      height: ch spaceRequirement preferredHeight + ((ch spaceRequirement maxHeight - ch spaceRequirement preferredHeight) * ratio) floor.
+      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      pos: pos + height].
+    ^ se].
+  pos: 0.
+  se children do: [|:ch height|
+    height: ch spaceRequirement maxHeight floor.
+    ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+    pos: pos + height].
+  resend
+].
+
+Graphics define: #Rack &parents: {Layout}.
+"Racks hold many elements in a row of the same element thickness. It will
+regularize the elements' thicknesses when composing them as best it can."
+"TODO: is this needed? HBox and VBox regularlize thicknesses"
+
+Graphics define: #HRack &parents: {Rack}.
+"TODO: is this needed? HBox and VBox regularlize thicknesses"
+
+hr@(HRack traits) composeSpaceRequirement
+[| newSR unitSR |
+  newSR: hr emptySpaceRequirement clone.
+  unitSR: EmptySpaceRequirement.
+  hr childrensSpaceRequirements do: [| :each |
+    newSR preferredHeight: (height max: each preferredHeight).
+    unitSR preferredWidth: (width max: each preferredWidth).
+    newSR maxHeight: (newSR maxHeight max: each maxHeight).
+    unitSR maxWidth: (newSR maxWidth max: each maxWidth).
+    newSR minHeight: (newSR minHeight max: each minHeight).
+    unitSR minWidth: (newSR minWidth max: each minWidth)].
+  newSR: newSR + unitSR * hr children size.
+  newSR
+].
+
+Graphics define: #VRack &parents: {Rack}.
+"TODO: is this needed? HBox and VBox regularlize thicknesses"
+
+vr@(VRack traits) composeSpaceRequirement
+[| newSR unitSR |
+  newSR: vr emptySpaceRequirement clone.
+  unitSR: EmptySpaceRequirement.
+  vr childrensSpaceRequirements do: [| :each |
+    unitSR preferredHeight: (height max: each preferredHeight).
+    newSR preferredWidth: (width max: each preferredWidth).
+    unitSR maxHeight: (newSR maxHeight max: each maxHeight).
+    newSR maxWidth: (newSR maxWidth max: each maxWidth).
+    unitSR minHeight: (newSR minHeight max: each minHeight).
+    newSR minWidth: (newSR minWidth max: each minWidth)].
+  newSR: newSR + unitSR * vr children size.
+  newSR
+].
+
+Graphics define: #Pile &parents: {Layout}.
+"Lays out elements one on top of the next, with an alignment."
+
+Graphics define: #Table &parents: {Layout} &slots:
+{#numRows -> 0.
+ #numColumns -> 0.
+ #rowHeights.
+ #rowWidths}.
+"Lays out a 2-dimensional spread of rows and columns of elements."
+
+Graphics define: #Grid &parents: {Layout}.
+"Same as a Table, but each cell is of the same size."
+
+Graphics define: #Spacing &parents: {SceneElement}.
+"Lays out children with a spacing border. Children overlap each other."
+
+{#leftMargin. #rightMargin. #topMargin. #bottomMargin} do: [|:slotName|
+    Spacing addImmutableSlot: slotName valued: 0.
+    [|:se :v| 
+        se atSlotNamed: slotName put: v.
+        se noteSpaceRequirementIsInvalid.
+        se repaintSoon.
+        se] asMethod: (mutatorNameFor: slotName) on: {Spacing traits. NoRole}].
+
+se@(Spacing traits) cleanup
+[
+    resend.
+    {#leftMargin. #rightMargin. #topMargin. #bottomMargin} do: [|:slotName|
+        se removeMutator: slotName].
+].
+
+se@(Spacing traits) composeSpaceRequirement
+[| newSR |
+    resend.
+    newSR: se emptySpaceRequirement clone.
+    se childrensSpaceRequirements do: [| :each |
+        newSR preferredWidth: (newSR preferredWidth max: each preferredWidth).
+        newSR preferredHeight: (newSR preferredHeight max: each preferredHeight).
+        newSR maxWidth: (newSR maxWidth max: each maxWidth).
+        newSR maxHeight: (newSR maxHeight max: each maxHeight).
+        newSR minWidth: (newSR minWidth max: each minWidth).
+        newSR minHeight: (newSR minHeight max: each minHeight)].
+    newSR preferredWidth: newSR preferredWidth + se leftMargin + se rightMargin.
+    newSR preferredHeight: newSR preferredHeight + se topMargin + se bottomMargin.
+    newSR maxWidth: newSR maxWidth + se leftMargin + se rightMargin.
+    newSR maxHeight: newSR maxHeight + se topMargin + se bottomMargin.
+    newSR minWidth: newSR minWidth + se leftMargin + se rightMargin.
+    newSR minHeight: newSR minHeight + se topMargin + se bottomMargin.
+    se spaceRequirement: newSR
+].
+
+se@(Spacing traits) allocateSpaceWithinExtent: size
+[
+    se children do: [|:ch|
+        ch boundingRect: (Rectangle 
+            origin: (se leftMargin , se topMargin)
+            extent: (size x - se leftMargin - se rightMargin min: ch spaceRequirement maxWidth),
+                    (size y - se topMargin - se bottomMargin min: ch spaceRequirement maxHeight))].
+    resend
+].
+
+Graphics define: #ResizableSpacing &parents: {Spacing} &slots: {#cornerSize -> 15}.
+"Same as Spacing, but border is resizable by user"
+
+se@(ResizableSpacing traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    ((se is: ResizableSpacing) not) \/ [(event is: LeftMouseButtonPressEvent) not] ifTrue: [break].
+    se inputHandler ifNil: [|x y w h|
+        x: event position x - se boundingRect left.
+        y: event position y - se boundingRect top.
+        w: se boundingRect width.
+        h: se boundingRect height.
+        (x < se leftMargin) \/ [x >= (w - se rightMargin)] \/
+        [y < se topMargin] \/ [y >= (h - se bottomMargin)] ifTrue: [{
+            [(x < se cornerSize) /\ [y < se cornerSize]] -> [TopLeft].
+            [(x >= (w - se cornerSize)) /\ [y >= (h - se cornerSize)]] -> [BottomRight].
+            [(x >= (w - se cornerSize)) /\ [y < se cornerSize]] -> [TopRight].
+            [(x < se cornerSize) /\ [y >= (h - se cornerSize)]] -> [BottomLeft].
+            [y < se cornerSize] -> [Top].
+            [x >= (w - se cornerSize)] -> [Right].
+            [y >= (h - se cornerSize)] -> [Bottom].
+            [x < se cornerSize] -> [Left]} do: [|:each|
+                each key do ifTrue: [^ (se startAdjusting: each value do position: event position)]]]].
+    resend
+].
+
+Graphics define: #Border &parents: {Layout}.
+"Same as a Spacing, but with a drawn border."
+
+Graphics define: #Restraint &parents: {Layout}.
+"Prevents the size constraints of the child from propagating beyond
+this element."
+rm@(Restraint traits) noteSpaceRequirementChangedFor: ch@(SceneElement traits)
+"Do nothing."
+[].
+
+Graphics define: #BulletinBoard &parents: {Layout}.
+"Same as Squeak's PasteUpMorph, it preserves location and size of contents."
+"TODO: is this needed? SceneElement default behavior is like this"

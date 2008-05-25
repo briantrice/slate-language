@@ -1,0 +1,524 @@
+
+"This file contains the basis for unicode encoded strings."
+
+prototypes define: #UnicodeCharacter &parents: {EncodedCharacter}.
+prototypes define: #UnicodeSubset &parents: {Cloneable}.
+
+prototypes ensureNamespace: #Unicode.
+CharacterData ensureNamespace: #Unicode.
+
+"EncodedString is Unicode by default. encodings-unicode.slate must be the
+first encoding-file to be loaded."
+EncodedString addSlot: #elementType valued: UnicodeCharacter.
+
+prototypes define: #UnicodeString &parents: {EncodedString}
+ &slots: {#elementType -> UnicodeCharacter. #contents -> #{}}.
+
+s@(UnicodeString traits) new &capacity: n
+[s clone `>> [contents: (s contents new &capacity: n). ]].
+
+s@(UnicodeString traits) size
+[
+  s contents size
+].
+
+s@(UnicodeString traits) isEmpty
+[
+  s contents isEmpty
+].
+
+s@(UnicodeString traits) at: n
+[
+  s contents at: n
+].
+
+s@(UnicodeString traits) at: n put: char
+[
+  s contents at: n put: char
+].
+
+prototypes define: #SmallUnicodeString &parents: {UnicodeString}
+  &slots: {#elementType -> UnicodeCharacter.
+	   #bytes1 -> ByteArray new.
+	   #bytes2 -> ByteArray new.
+	   #bytes3 -> ByteArray new}.
+
+unicode@(Integer traits) as: c@(UnicodeCharacter traits)
+[
+ c newCode: unicode
+].
+
+u@(UnicodeCharacter traits) as: _@(Integer traits)
+[
+  u code
+].
+
+s@(SmallUnicodeString traits) new &capacity: n
+[
+ s cloneSettingSlots: #(bytes1 bytes2 bytes3)
+   to: {s bytes1 newSize: n. s bytes2 newSize: n. s bytes3 newSize: n}
+].
+
+s@(SmallUnicodeString traits) size
+[
+  s bytes1 size
+].
+
+s@(SmallUnicodeString traits) isEmpty
+[
+  s bytes1 isEmpty
+].
+
+s@(SmallUnicodeString traits) at: n
+[| part1 part2 part3 value |
+ part1: (s bytes1 at: n).
+ part2: ((s bytes2 at: n) bitShift: 8).
+ part3: ((s bytes3 at: n) bitShift: 16).
+ value: ((part1 bitOr: part2) bitOr: part3).
+ value as: UnicodeCharacter
+].
+
+s@(SmallUnicodeString traits) at: n put: char
+[| c byte1 byte2 byte3 value |
+ c: char code.
+ byte1: (c bitAnd:  16rFF).
+ byte2: ((c bitAnd: 16rFF00) bitShift: -8).
+ byte3: ((c bitAnd: 16rFF0000) bitShift: -16).
+ s bytes1 at: n put: byte1.
+ s bytes2 at: n put: byte2.
+ s bytes3 at: n put: byte3.
+ s
+].
+
+s@(SmallUnicodeString traits) do: block
+"Avoids a direct do: delegation, to use its own at: implementation."
+[
+  s bytes1 doWithIndex: [| :_ :index | block applyTo: {s at: index}]
+].
+
+u@Unicode addSubset: name
+[u define: name &parents: {UnicodeSubset}].
+
+#(General
+AlphabeticPresentations
+Arabic
+ArabicPresentationsA
+ArabicPresentationsB
+Armenian
+Arrows
+Bengali
+BlockElements
+BoxDrawing
+Braille
+Buhid
+ByzantineMusicals
+CanadianAboriginal
+Cherokee
+CombiningDiacritical
+CombiningDiacriticalForSymbols
+CombiningHalfMarks
+ControlPictures
+CurrencySymbols
+Cyrillic
+Deseret
+Devanagari
+Dingbats
+EnclosedAlnums
+Ethiopic
+GeneralPunctuation
+GeometricShapes
+Georgian
+Gothic
+Greek
+GreekExtended
+Gujarati
+Gurmukhi
+Hanunoo
+Hebrew
+IPA
+Japanese
+Kannada
+Khmer
+Korean
+Lao
+Latin
+LatinExtendedAB
+LatinExtendedAdditional
+LetterlikeSymbols
+Malayalam
+MathAlnumSymbols
+MathOperators
+MiscMathSymbolsA
+MiscMathSymbolsB
+MiscSymbols
+MiscTechnical
+Mongolian
+MusicalSymbols
+Myanmar
+NumberForms
+OCRs
+Ogham
+OldItalic
+Oriya
+Runic
+SimplifiedChinese
+Sinhala
+SpacingModifiers
+SuperAndSubscript
+SupplementalArrowsA
+SupplementalArrowsB
+SupplementalMathOperators
+Syriac
+Tagalog
+Tagbanwa
+Tags
+Tamil
+Telugu
+Thaana
+Thai
+Tibetan
+TraditionalChinese
+Vietnamese
+YiRadicals
+YiSyllables) do: [| :name | Unicode addSubset: name].
+
+UnicodeCharacter traits compareAndHashUsingSlots: #(code).
+
+c@(UnicodeCharacter traits) unicodeSubset
+"Find the subset of Unicode characters a character belongs to.
+This is localized. This was adapted from Squeak m17n package."
+[| subset |
+ c code unicodeSubsetWithKanjiClass: CurrentLocale KanjiClass
+].
+
+unicode@(Integer traits) unicodeSubsetWithKanjiClass: kanjiClass
+[| code4096 |
+ code4096: unicode // 4096.
+ code4096 = 0 ifTrue: [^ (unicode unicodeSubsetFor0)].
+ code4096 = 1 ifTrue: [^ (unicode unicodeSubsetFor1)].
+ code4096 = 2 ifTrue: [unicode >= 16r2E80 ifTrue: [
+			 ^ (kanjiClass unicodeSubsetForKanjiClass)].
+		       ^ (unicode unicodeSubsetFor2)].
+ code4096 = 3 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 4 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 5 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 6 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 7 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 8 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 9 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+ code4096 = 10 ifTrue: [^ (unicode unicodeSubsetFor10)].
+ code4096 = 11 ifTrue: [^ Unicode Korean].
+ code4096 = 12 ifTrue: [^ Unicode Korean].
+ code4096 = 13 ifTrue: [^ (unicode unicodeSubsetFor13)].
+ code4096 = 14 ifTrue: [^ Unicode General].
+ code4096 = 15 ifTrue: [unicode <= 16rF8FF ifTrue: [^ Unicode General].
+			unicode <= 16rFAFF ifTrue: [(^ kanjiClass unicodeSubsetForKanjiClass)].
+			unicode <= 16rFB4F ifTrue: [^ Unicode AlphabeticPresentations].
+			unicode <= 16rFDFF ifTrue: [^ Unicode ArabicPresentationsA].
+			unicode <= 16rFE0F ifTrue: [^ Unicode General].
+			unicode <= 16rFE2F ifTrue: [^ Unicode CombiningHalfMarks].
+			unicode <= 16rFE4F ifTrue: [^ Unicode General].
+			unicode <= 16rFE6F ifTrue: [^ Unicode General].
+			unicode <= 16rFEFF ifTrue: [^ Unicode ArabicPresentationsB].
+			unicode <= 16rFFEF ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
+			^ Unicode General].
+ 16r10300 <= unicode /\ [unicode <= 16r1032F] ifTrue:[^ Unicode OldItalic].
+ unicode <= 16r1034F ifTrue: [^ Unicode Gothic].
+ 16r10400 <= unicode /\ [unicode <= 16r1044F] ifTrue: [^ Unicode Deseret].
+ unicode <= 16r1CFFF ifTrue: [^ Unicode General].
+ unicode <= 16r1D0FF ifTrue: [^ Unicode ByzantineMusicals].
+ unicode <= 16r1D3FF ifTrue: [^ Unicode General].
+ unicode <= 16r1D7FF ifTrue: [^ Unicode MathAlnumSymbols].
+ 16r20000 <= unicode /\ [unicode <= 16r2FA1F] ifTrue: [(^ kanjiClass unicodeSubsetForKanjiClass)].
+ Unicode General
+].
+
+kanjiClass@(Symbol traits) unicodeSubsetForKanjiClass
+[
+ kanjiClass = #Japanese ifTrue: [^ Unicode Japanese].
+ kanjiClass = #Korean ifTrue: [^ Unicode Korean].
+ kanjiClass = #SimplifiedChinese ifTrue: [^ Unicode SimplifiedChinese].
+ "kanjiClass = Taiwanese ifTrue: [^ Unicode TraditionalChinese]."
+ "kanjiClass = Vietnamese ifTrue: [^ Unicode Vietnamese]."
+ Unicode General
+].
+
+unicode@(Integer traits) unicodeSubsetFor0
+[
+  unicode < 16r780 ifTrue: [
+   unicode < 16r100 ifTrue: [^ Unicode Latin].
+   unicode <= 16r24F ifTrue: [^ Unicode LatinExtendedAB].
+   unicode <= 16r2AF ifTrue: [^ Unicode IPA].
+   unicode <= 16r2FF ifTrue: [^ Unicode SpacingModifiers].
+   unicode <= 16r36F ifTrue: [^ Unicode CombiningDiacritical].
+   unicode <= 16r3FF ifTrue: [^ Unicode Greek].
+   unicode <= 16r52F ifTrue: [^ Unicode Cyrillic].
+   unicode <= 16r58F ifTrue: [^ Unicode Armenian].
+   unicode <= 16r5FF ifTrue: [^ Unicode Hebrew].
+   unicode <= 16r6FF ifTrue: [^ Unicode Arabic].
+   unicode <= 16r74F ifTrue: [^ Unicode Syriac].
+   ^ Unicode General].
+ unicode <= 16r7BF ifTrue: [^ Unicode Thaana].
+ unicode < 16r900 ifTrue: [^ Unicode General].
+ unicode <= 16r97F ifTrue: [^ Unicode Devanagari].
+ unicode <= 16r9FF ifTrue: [^ Unicode Bengali].
+ unicode <= 16rA7F ifTrue: [^ Unicode Gurmukhi].
+ unicode <= 16rAFF ifTrue: [^ Unicode Gujarati].
+ unicode <= 16rB7F ifTrue: [^ Unicode Oriya].
+ unicode <= 16rBFF ifTrue: [^ Unicode Tamil].
+ unicode <= 16rC7F ifTrue: [^ Unicode Telugu].
+ unicode <= 16rCFF ifTrue: [^ Unicode Kannada].
+ unicode <= 16rD7F ifTrue: [^ Unicode Malayalam].
+ unicode <= 16rDFF ifTrue: [^ Unicode Sinhala].
+ unicode <= 16rE7F ifTrue: [^ Unicode Thai].
+ unicode <= 16rEFF ifTrue: [^ Unicode Lao].
+ unicode <= 16rFFF ifTrue: [^ Unicode Tibetan].
+ Unicode General
+].
+
+unicode@(Integer traits) unicodeSubsetFor1
+[
+  unicode < 16r1700 ifTrue: 
+    [unicode <= 16r109F ifTrue: [^ Unicode Myanmar].
+     unicode <= 16r10FF ifTrue: [^ Unicode Georgian].
+     unicode <= 16r11FF ifTrue: [^ Unicode General].
+     unicode <= 16r137F ifTrue: [^ Unicode Ethiopic].
+     unicode <= 16r13FF ifTrue: [^ Unicode Cherokee].
+     unicode <= 16r167F ifTrue: [^ Unicode CanadianAboriginal].
+     unicode <= 16r169F ifTrue: [^ Unicode Ogham].
+     unicode <= 16r16FF ifTrue: [^ Unicode Runic].
+     ^ Unicode General].
+ unicode <= 16r171F ifTrue: [^ Unicode Tagalog].
+ unicode <= 16r173F ifTrue: [^ Unicode Hanunoo].
+ unicode <= 16r175F ifTrue: [^ Unicode Buhid].
+ unicode <= 16r177F ifTrue: [^ Unicode Tagbanwa].
+ unicode <= 16r17FF ifTrue: [^ Unicode Khmer].
+ unicode <= 16r18AF ifTrue: [^ Unicode Mongolian].
+ unicode <= 16r1EFF ifTrue: [^ Unicode LatinExtendedAdditional].
+ unicode <= 16r1FFF ifTrue: [^ Unicode GreekExtended].
+ Unicode General
+].
+
+unicode@(Integer traits) unicodeSubsetFor2
+[
+  unicode < 16r2600 ifTrue: 
+    [unicode <= 16r206F ifTrue: [^ Unicode GeneralPunctuation].
+     unicode <= 16r209F ifTrue: [^ Unicode SuperAndSubscript].
+     unicode <= 16r20CF ifTrue: [^ Unicode CurrencySymbols].
+     unicode <= 16r20FF ifTrue: [^ Unicode CombiningDiacriticalForSymbols].
+     unicode <= 16r214F ifTrue: [^ Unicode LetterlikeSymbols].
+     unicode <= 16r218F ifTrue: [^ Unicode NumberForms].
+     unicode <= 16r21FF ifTrue: [^ Unicode Arrows].
+     unicode <= 16r22FF ifTrue: [^ Unicode MathOperators].
+     unicode <= 16r23FF ifTrue: [^ Unicode MiscTechnical].
+     unicode <= 16r243F ifTrue: [^ Unicode ControlPictures].
+     unicode <= 16r245F ifTrue: [^ Unicode OCRs].
+     unicode <= 16r24FF ifTrue: [^ Unicode EnclosedAlnums].
+     unicode <= 16r257F ifTrue: [^ Unicode BoxDrawing].
+     unicode <= 16r259F ifTrue: [^ Unicode BlockElements].
+     unicode <= 16r25FF ifTrue: [^ Unicode GeometricShapes].
+     ^ Unicode General].
+ unicode <= 16r26FF ifTrue: [^ Unicode MiscSymbols].
+ unicode <= 16r27BF ifTrue: [^ Unicode Dingbats].
+ unicode <= 16r27EF ifTrue: [^ Unicode MiscMathSymbolsA].
+ unicode <= 16r27FF ifTrue: [^ Unicode SupplementalArrowsA].
+ unicode <= 16r28FF ifTrue: [^ Unicode Braille].
+ unicode <= 16r297F ifTrue: [^ Unicode SupplementalArrowsB].
+ unicode <= 16r29FF ifTrue: [^ Unicode MiscMathSymbolsB].
+ unicode <= 16r2AFF ifTrue: [^ Unicode SupplementalMathOperators].
+ Unicode General
+].   
+
+unicode@(Integer traits) unicodeSubsetFor10
+[
+ unicode >= 16rAC00 ifTrue: [^ Unicode Korean].
+ unicode <= 16rA48F ifTrue: [^ Unicode YiSyllables].
+ unicode <= 16rA4CF ifTrue: [^ Unicode YiRadicals].
+ Unicode General
+].
+
+unicode@(Integer traits) unicodeSubsetFor13
+[
+ unicode <= 16rD7AF ifTrue: [^ Unicode Korean].
+ Unicode General
+].
+
+_@(UnicodeCharacter traits) codeRange
+[0 to: 16r10FFFF].
+
+c@(UnicodeCharacter traits) allCharacters
+"Answers all unicode characters. Use with caution."
+[
+  c codeRange collect: [| :code | code as: c]
+].
+
+_@(UnicodeString traits) accepts: _@(UnicodeCharacter traits)
+[True].
+
+c@(UnicodeCharacter traits) is: ss@(UnicodeSubset traits)
+[
+  c unicodeSubset is: ss
+].
+
+CharacterData define: #MathematicalPluses
+	      &builder: [{16r2B as: UnicodeCharacter}].   "$+"
+CharacterData define: #MathematicalMinuses
+	      &builder: [{16r2D as: UnicodeCharacter.    "$-"
+			 16r2212 as: UnicodeCharacter.  "Minus sign"
+			 16rFE63 as: UnicodeCharacter.  "Small minus"
+			 16rFF0D as: UnicodeCharacter}]. "Full-width minus"
+CharacterData define: #MathematicalPeriods
+	      &builder: [{16r2E as: UnicodeCharacter}].   "$."
+"TODO: add more, if there are any"
+CharacterData define: #MathematicalExponents
+              &builder: [{16r52 as: UnicodeCharacter.
+                          16r72 as: UnicodeCharacter}].
+"TODO: move also thousands separators here"
+
+l@(ReadStream traits) readInteger &radix: radix &separators: separators
+"The general method for building integers from the raw characters, with a
+radix (number of digits) parameter. The separators are characters to be
+ignored."
+[| number |
+  separators ifNil: [separators: {(16r5F as: UnicodeCharacter).      "$_"
+                                  (16r66C as: UnicodeCharacter)}].  "Arabian thousands separator" 
+  radix ifNil: [radix: 10].
+  number: 0.
+  [l isAtEnd not
+     /\ [(l peek isDigit &radix: radix)
+	   \/ [separators includes: l peek]]]
+    whileTrue:
+      [| c |
+        c: l next.
+        (c isDigit &radix: radix)
+          ifTrue:
+            [number: number * radix + (c toDigit &radix: radix)]
+      ].
+  number
+].
+
+l@(ReadStream traits) readNumber &separators: separators
+"The overall routine for building numbers.
+FIXME: add checks that numbers are of same script"
+[| token number sign c pluses minuses |
+   separators ifNil: [separators: {(16r5F as: UnicodeCharacter).    "$_"
+                                  (16r66C as: UnicodeCharacter)}]. "Arabian thousands separator" 
+  "Assign the default sign, then override it based on the presence of an
+  explicit sign character."
+  sign: 1.
+  c: l peek.
+  (CharacterData MathematicalPluses includes: c)
+    \/ [CharacterData MathematicalMinuses includes: c]
+    ifTrue: [(CharacterData MathematicalMinuses includes: c) 
+		ifTrue: [sign: -1].
+	     l next].
+  "Now read in all the continuous string of digits possible as an integer."
+  number: (l readInteger &radix: 10).
+  "Reaching the end of the lexing stream just finalizes the process."
+  l isAtEnd ifTrue: [^ (sign * number)].
+  "Conditionalize on the next character: it may set up a radix or a decimal."
+  c: l next.
+  (CharacterData MathematicalExponents includes: c)
+    ifTrue:
+      [number: (l readInteger &radix: number)]
+    ifFalse:
+      [(CharacterData MathematicalPeriods includes: c)
+	 /\ [l isAtEnd not] /\ [l peek isDigit]
+         ifTrue:
+           [number: (number as: Float) + (l readMantissa &separators: separators).
+            l isAtEnd
+              ifTrue: [^ (sign * number)].
+            c: l next].
+       c = (16r65 as: UnicodeCharacter) \/ [c = (16r45 as: UnicodeCharacter)] "e or E"
+         ifTrue:
+           [number: (number as: Float) * (10.0 raisedTo: l readExponent)]].
+  sign * number
+].
+
+l@(ReadStream traits) readMantissa &separators: separators
+"Build a floating-point number's fractional part."
+"FIXME: the mantissa should probably also follow the same radix"
+[| number place |
+  separators ifNil: [separators: {(16r5F as: UnicodeCharacter).      "$_"
+                                  (16r66C as: UnicodeCharacter)}].  "Arabian thousands separator" 
+  number: 0.
+  place: 1.
+  [l isAtEnd not /\ [l peek isDigit \/ [separators includes: l peek]]]
+    whileTrue:
+      [| c |
+        c: l next.
+	c toDigit.
+        c isDigit
+          ifTrue:
+            [number: number * 10 + c toDigit.
+	     place: place * 10]
+      ].
+  (number as: Float) / (place as: Float)
+].
+
+l@(ReadStream traits) readExponent
+"Build a floating-point number's exponent as an integer."
+"FIXME: the exponent should probably also follow the same radix"
+[| sign c |
+  sign: 1.
+  c: l peek.
+  (CharacterData MathematicalPluses includes: c)
+   \/ [CharacterData MathematicalMinuses includes: c]
+    ifTrue:
+      [(CharacterData MathematicalMinuses includes: c) ifTrue: [sign: -1]
+       l next].
+  sign * l readInteger
+].
+
+c@(UnicodeString traits) as: _@(Number traits) &radix: radix
+[
+ c reader readNumber &radix: radix
+].
+
+c@(UnicodeString traits) as: _@(Integer traits) &radix: radix
+[
+ (c as: Number) as: Integer
+].
+
+c@(UnicodeCharacter traits) as: _@(ASCIICharacter traits)
+[
+  c code < 16r100
+   ifTrue: [c code as: ASCIICharacter]
+   ifFalse: [0] "FIXME: what should this be?"
+].
+
+c@(ASCIICharacter traits) as: u@(UnicodeCharacter traits)
+[u newCode: c code].
+
+c@(UnicodeCharacter traits) as: s@(UnicodeString traits)
+[(s newSize: 1) `>> [at: 0 put: c. ]].
+
+n@(Integer traits) as: s@(UnicodeString traits)
+[n printString as: s].
+
+f@(Float traits) as: s@(UnicodeString traits)
+[f printString as: s].
+
+c@(UnicodeCharacter traits) cr [16rA as: UnicodeCharacter].
+
+c@(UnicodeCharacter traits) tab [16r9 as: UnicodeCharacter].
+
+c@(UnicodeCharacter traits) space [16r20 as: UnicodeCharacter].
+
+c@(UnicodeCharacter traits) stringEscape [16r5C as: UnicodeCharacter].
+
+s1@(UnicodeString traits) lexicographicallyCompare: s2@(UnicodeString traits)
+"Answer a sign of comparing the two strings' characters in order."
+"NOTE: this works only for basic latin characters. This is not really
+Unicode-aware, and should be fixed."
+[
+  (s1 toUppercase) with: (s2 toUppercase) do:
+    [| :c1 :c2 |
+     c1 code < c2 code ifTrue: [^ -1].
+     c1 code > c2 code ifTrue: [^ 1]].
+  s1 size < s2 size
+    ifTrue: [^ -1].
+  s1 size > s2 size
+    ifTrue: [^ 1].
+  0
+].

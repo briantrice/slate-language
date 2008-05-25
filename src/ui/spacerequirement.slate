@@ -1,0 +1,153 @@
+Graphics define: #SpaceRequirement &parents: {Cloneable} &slots:
+{#preferredWidth -> 0.
+ #preferredHeight -> 0.
+ #maxX.
+ #maxY.
+ #minX.
+ #minY}.
+"The size slots are Points specifying (width,height) parameters for each
+requested option. The coordinates may be dimensioned, but if not, are
+interpreted as fractions of the container size. If Nil, min and max default
+to the preferred values. Don't access the fooX slots directly, as they have
+wrappers to handle defaults."
+"TODO: fix description"
+
+sr@(SpaceRequirement traits) newPreferred: pref max: max min: min
+[
+  sr cloneSettingSlots: #(preferredWidth preferredHeight maxX maxY minX minY)
+     to: {pref x. pref y. max x. max y. min x. min y}
+].
+
+Graphics define: #EmptySpaceRequirement
+	 &builder: [(SpaceRequirement newPreferred: Point origin
+	    max: Point origin min: Point origin)].
+
+sr@(SpaceRequirement traits) zero
+"A convenient accessor."
+[EmptySpaceRequirement].
+
+sr@(SpaceRequirement traits) reset
+"Resets all parameters, causing the defaults to be active."
+[
+  sr `>>
+     [preferredWidth: Nil. preferredHeight: Nil.
+      maxX: Nil. maxY: Nil. minX: Nil. minY: Nil. ]
+].
+
+sr@(SpaceRequirement traits) minWidth
+[
+  sr minX ifNil: [sr preferredWidth]
+].
+
+sr@(SpaceRequirement traits) minHeight
+[
+  sr minY ifNil: [sr preferredHeight]
+].
+
+sr@(SpaceRequirement traits) maxWidth
+[
+  sr maxX ifNil: [sr preferredWidth]
+].
+
+sr@(SpaceRequirement traits) maxHeight
+[
+  sr maxY ifNil: [sr preferredHeight]
+].
+
+sr@(SpaceRequirement traits) minWidth: n
+[
+  sr minX: n
+].
+
+sr@(SpaceRequirement traits) minHeight: n
+[
+  sr minY: n
+].
+
+sr@(SpaceRequirement traits) maxWidth: n
+[
+  sr maxX: n
+].
+
+sr@(SpaceRequirement traits) maxHeight: n
+[
+  sr maxY: n
+].
+
+sr@(SpaceRequirement traits) preferredSize
+[
+  Point x: sr preferredWidth y: sr preferredHeight
+].
+
+sr@(SpaceRequirement traits) preferredSize: n@(Number traits)
+[
+  sr preferredX: n.
+  sr preferredY: n.
+  n
+].
+
+sr@(SpaceRequirement traits) preferredSize: p@(Point traits)
+[
+  sr preferredX: p x.
+  sr preferredY: p y.
+  p
+].
+
+sr1@(SpaceRequirement traits) with: sr2@(SpaceRequirement traits)
+   collect: block into: result
+"Fills a SpaceRequirement's slots with the results of applying the given
+block to each pair of slots from the originals."
+[
+  result `>>
+    [preferredWidth: (block applyTo: {r preferredWidth. sr2 preferredWidth}).
+     preferredHeight: (block applyTo: {r preferredHeight. sr2 preferredHeight}).
+     maxX: (block applyTo: {r maxWidth with: sr2 maxWidth}).
+     maxY: (block applyTo: {r maxHeight with: sr2 maxHeight}).
+     minX: (block applyTo: {r maxWidth with: sr2 maxWidth}).
+     minY: (block applyTo: {r maxHeight with: sr2 maxHeight}). ]
+].
+
+sr1@(SpaceRequirement traits) with: sr2@(SpaceRequirement traits) collect: block
+"Returns a new SpaceRequirement, whose slots are the results of applying the
+given block to each pair of slots from the originals."
+[
+  sr1 with: sr2 collect: block into: sr1 clone
+].
+
+sr@(SpaceRequirement traits) collect: block into: result
+"Fills a SpaceRequirement's slots with the results of applying the given
+block to each slot value in the original."
+[
+  result `>>
+    [preferredWidth: (block applyWith: sr preferredWidth).
+     preferredHeight: (block applyWith: sr preferredHeight).
+     maxX: (block applyWith: sr maxWidth).
+     maxY: (block applyWith: sr maxHeight).
+     minX: (block applyWith: sr maxWidth).
+     minY: (block applyWith: sr maxHeight). ]
+].
+
+sr@(SpaceRequirement traits) collect: block
+"Returns a new SpaceRequirement, whose slots are the results of applying the
+given block to each slot value in the original."
+[
+  sr collect: block into: sr clone
+].
+
+sr1@(SpaceRequirement traits) + sr2@(SpaceRequirement traits)
+[sr1 with: sr2 collect: #+ `er ].
+
+sr1@(SpaceRequirement traits) - sr2@(SpaceRequirement traits)
+[sr1 with: sr2 collect: #- `er ].
+
+sr@(SpaceRequirement traits) * n
+[sr collect: #* `er <-* n].
+
+sr@(SpaceRequirement traits) / n
+[sr collect: #/ `er <-* n].
+
+sr@(SpaceRequirement traits) + n@(Number traits)
+[sr collect: #+ `er <-* n].
+
+sr@(SpaceRequirement traits) - n@(Number traits)
+[sr collect: #- `er <-* n].

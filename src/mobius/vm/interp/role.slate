@@ -1,0 +1,175 @@
+prototypes define: #RoleEntry &parents: {Cloneable}
+  &slots: {#selector. #rolePositions. #methodDefinition}.
+"An object representing an entry in the object Map table for a method dispatch
+installation."
+
+r1@(RoleEntry traits) = r2@(RoleEntry traits)
+[
+  r1 selector == r2 selector
+   /\ [r1 rolePositions = r2 rolePositions]
+   /\ [r1 methodDefinition = r2 methodDefinition]
+].
+
+r@(RoleEntry traits) hash
+[
+  (r selector hash bitXor: r rolePositions hash)
+    bitXor: r methodDefinition hash
+].
+
+r@(RoleEntry traits) appliesToPosition: dispatchIndex
+[
+  (r rolePositions >> dispatchIndex bitAnd: 1) = 1
+].
+
+prototypes define: #EmbeddedRoleEntry &parents: {RoleEntry}
+  &slots: {#nextRoleIndex. #table}.
+"A RoleEntry subtype for describing the dispatch record installation as-is
+within the table, so that the table can be traversed."
+
+r@(EmbeddedRoleEntry traits) nextRole
+[
+  r nextRoleIndex ifNotNilDo: [| :index | r table at: index]
+].
+
+m@(Map traits) roleInTableAt: index
+"Takes a raw index into the RoleTable array and answers a RoleEntry object with
+that as starting index, or Nil if there is none."
+[
+  (m roleTable at: index) ifNotNilDo:
+    [| :selector |
+     EmbeddedRoleEntry
+       cloneSettingSlots:
+	 #(selector rolePositions methodDefinition nextRoleIndex)
+       to: {selector.
+	    m roleTable at: index + 1.
+	    m roleTable at: index + 2.
+	    m roleTable at: index + 3}]
+].
+
+Map traits define: #RoleReadStream &parents: {ReadStream}
+  &slots: {#map. #index -> 0 "The raw index into the role table."}.
+"An in-order traversal stream over the role-table in a Map, returning
+EmbeddedRoleEntry objects."
+
+m@(Map RoleReadStream traits) on: map [m map: map. m].
+
+m@(Map traits) roleReadStream [m RoleReadStream newOn: m].
+
+obj@(Root traits) roleReader [obj _map roleReadStream].
+
+m@(Map RoleReadStream traits) reset [m index: 0. m].
+
+m@(Map RoleReadStream traits) elementType [RoleEntry].
+
+m@(Map RoleReadStream traits) isAtEnd
+[m index > m map roleTable indexLast].
+
+m@(Map RoleReadStream traits) next
+"TODO: prevent this from returning Nil when it reaches the end... raise Exhaustion?"
+[| result |
+  [m isAtEnd] whileFalse:
+    [result: (m map roleInTableAt: m index).
+     m index: m index + 4.
+     result ifNotNil: [^ result]]
+].
+
+x@(Root traits) roles
+"Answers all the roles applying to the object."
+[((x roleReader select: [| :role | role isNotNil]) >> {} writer) contents].
+
+x@(Root traits) rolesAt: dispatchIndex
+"Answer the roles applying to the object at the given argument dispatch index."
+[
+  ((x roleReader select:
+    [| :role | role isNotNil /\ [role appliesToPosition: dispatchIndex]])
+    >> {} writer) contents
+].
+
+x@(Root traits) roleIndices
+"Answer the position indices that the object has roles for."
+[| rolePositions |
+  rolePositions: (x roleReader inject: 0 into:
+    [| :positions :role | positions bitOr:
+      (role ifNil: [0] ifNotNil: [role rolePositions])]) last.
+  [| :result |
+   (rolePositions as: BitArray) doWithIndex:
+     [| :isRole :index | isRole ifTrue: [result nextPut: index]]] writingAs: {}
+].
+
+x@(Root traits) rolesNamed: selector
+"Answer the roles applying to the object for the given selector, in any
+position. This will not return duplicates."
+[
+  ((x roleReader select:
+    [| :role | role isNotNil /\ [role selector == selector]])
+     >> IdentitySet new writer) contents
+].
+
+x@(Root traits) rolesNamed: selector at: dispatchIndex
+"Answer the roles applying to the object for the given selector, in the given
+position. This will not return duplicates."
+[
+  ((x roleReader select:
+    [| :role | role isNotNil /\ [role selector == selector] /\
+       [role appliesToPosition: dispatchIndex]])
+    >> IdentitySet new writer) contents
+].
+
+x@(Root traits) methods
+[x roles collect: [| :r | r methodDefinition method]].
+
+x@(Root traits) accessorMethods
+[| selectors |
+  selectors: (x slotNames collect: [| :s | x accessorNameFor: s]).
+  (((x roleReader select: [| :r | selectors includes: r selector])
+		 collect: [| :r | r methodDefinition method])
+    >> IdentitySet new writer) contents
+].
+
+x@(Root traits) mutatorMethods
+[| selectors |
+  selectors: (x slotNames collect: [| :s | x mutatorNameFor: s]).
+  (((x roleReader select: [| :r | selectors includes: r selector])
+		 collect: [| :r | r methodDefinition method])
+    >> IdentitySet new writer) contents
+].
+
+x@(Root traits) methodsNamed: selector
+[
+  (x rolesNamed: selector) select:
+    [| :r | r selector = selector] collect: [| :r | r methodDefinition method]
+].
+
+x@(Root traits) methodsNamed: selector at: dispatchIndex
+[
+  (x rolesNamed: selector at: dispatchIndex) select:
+    [| :r | r selector = selector] collect: [| :r | r methodDefinition method]
+].
+
+x@(Root traits) methodsAt: dispatchIndex
+[
+  (x rolesAt: dispatchIndex)
+    collect: [| :r | r methodDefinition method]
+].
+
+x@(Root traits) methodsSending: selector
+[
+  ((x roleReader select:
+    [| :r | r isNotNil /\
+       [r methodDefinition method allSelectorsSent includes: selector]])
+      >> [| :r | r methodDefinition method]
+      >> IdentitySet new writer) contents
+].
+
+x@(Root traits) methodsSendingMacro: selector
+[
+  [| :result |
+   x roleReader do:
+     [| :r m | m: (r ifNotNil: [r methodDefinition method]).
+      (m isSameAs: CompiledMethod) ifTrue:
+	[m sourceTree ifNotNilDo:
+	  [| :src |
+	   (src allMacroSelectorsSent includes: selector)
+	     ifTrue: [result nextPut: m]]]]]
+    writingAs: IdentitySet
+].

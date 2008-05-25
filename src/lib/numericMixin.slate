@@ -1,0 +1,137 @@
+Mixins define: #NumericMixin &parents: {Mixin}.
+
+t@(NumericMixin traits) as: x@(Number traits)
+[
+  t collect: [| :each | each as: n]
+].
+
+t@(NumericMixin traits) + n@(Number traits)
+[
+  t collect: [| :each | each + n]
+].
+
+t@(NumericMixin traits) + u@(NumericMixin traits)
+[
+  t with: u collect: [| :x :y | x + y]
+].
+
+t@(NumericMixin traits) * n@(Number traits)
+[
+  t collect: [| :each | each * n]
+].
+
+t@(NumericMixin traits) * u@(NumericMixin traits)
+[
+  t with: u collect: [| :x :y | x * y]
+].
+
+t@(NumericMixin traits) / n@(Number traits)
+[
+  t collect: [| :each | each / n]
+].
+
+t@(NumericMixin traits) / u@(NumericMixin traits)
+[
+  t with: u collect: [| :x :y | x / y]
+].
+
+t@(NumericMixin traits) // n@(Number traits)
+[
+  t collect: [| :each | each // n]
+].
+
+t@(NumericMixin traits) // u@(NumericMixin traits)
+[
+  t with: u collect: [| :x :y | x // y]
+].
+
+t@(NumericMixin traits) \\ n@(Number traits)
+[
+  t collect: [| :each | each \\ n]
+].
+
+t@(NumericMixin traits) \\ u@(NumericMixin traits)
+[
+  t with: u collect: [| :x :y | x \\ y]
+].
+
+t@(NumericMixin traits) isNegative
+[
+  t collect: [| :each | each isNegative]
+].
+
+t@(NumericMixin traits) abs
+[
+  t collect: [| :each | each abs]
+].
+
+t@(NumericMixin traits) - x
+[
+  t collect: [| :each | each + x negated]
+].
+
+t@(NumericMixin traits) isZero
+[
+  (contents detect: [| :each | each isZero not]) isNil
+].
+
+c@(NumericMixin traits) min
+[
+  c inject: c anyOne into: [| :min :each | min min: each]
+].
+
+c@(NumericMixin traits) max
+[
+  c inject: c anyOne into: [| :max :each | max max: each]
+].
+
+c@(NumericMixin traits) range
+[
+  c max - c min
+].
+
+c@(NumericMixin traits) median
+[
+  (c as: SortedArray) median
+].
+
+c@(NumericMixin traits) average
+[
+  c sum / c size
+].
+
+c@(NumericMixin traits) sum
+"Kludge to include unit'd measurement support."
+[| sum sample |
+  sample: c anyOne.
+  sum: (c inject: 0 into: [| :sum :each | sum + each]).
+  sum - sample
+].
+
+c@(NumericMixin traits) <= d@(NumericMixin traits)
+[
+  c doWithIndex: [| :index | (c at: index) <= (d at: index)
+    ifFalse: [^ False]].
+  True
+].
+
+c@(NumericMixin traits) >= d@(NumericMixin traits)
+[
+  c doWithIndex: [| :index | (c at: index) >= (d at: index)
+    ifFalse: [^ False]].
+  True
+].
+
+c@(NumericMixin traits) < d@(NumericMixin traits)
+[
+  c doWithIndex: [| :index | (c at: index) < (d at: index)
+    ifFalse: [^ False]].
+  True
+].
+
+c@(NumericMixin traits) > d@(NumericMixin traits)
+[
+  c doWithIndex: [| :index | (c at: index) > (d at: index)
+    ifFalse: [^ False]].
+  True
+].

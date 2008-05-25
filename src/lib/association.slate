@@ -1,0 +1,56 @@
+collections define: #LookupKey &parents: {Comparable}.
+LookupKey addSlot: #key.
+
+"A LookupKey implements the fundamental protocol required by
+the key in a key-value assocation (see Association)."
+
+x@(LookupKey traits) < y@(LookupKey traits)
+[
+  x key < y key
+].
+
+x@(LookupKey traits) = y@(LookupKey traits)
+[
+  x key = y key
+].
+
+x@(LookupKey traits) hash
+[
+  x key hash
+].
+
+collections define: #Association &parents: {LookupKey}.
+Association addSlot: #value.
+
+"An Association designates a mapping from a single key to a
+single value.  The key must implement <, =, and hash.  
+
+TODO: Explain any requirements for keys.  Why must keys be Comparable.
+
+Creation examples:
+ Assocation newFrom: key to: value.
+ key -> value.
+
+Note that Association is not currently used in the 
+implementation of Dictionary.  This is because a Dictionary
+implemented as a single collection of Associations allows
+the possibility of altering the individual Associations
+without the Dictionary being notified of the changes.  This
+can break a dictionary implementation due to optimization
+associations such as order based on the key value."
+
+x@(Root traits) -> y
+"Create and return a new association mapping x to y."
+[Association cloneSettingSlots: #(key value) to: {x. y}].
+
+x@(Association traits) newFrom: key to: value
+[x cloneSettingSlots: #(key value) to: {x. y}].
+
+x@(Association traits) = y@(Association traits)
+[resend /\ [x value = y value]].
+
+x@(Association traits) hash
+[resend * x value hashMultiply].
+
+x@(Root traits) define: assoc@(Association traits)
+[x addImmutableSlot: assoc key valued: assoc value. x atSlotNamed: assoc key].

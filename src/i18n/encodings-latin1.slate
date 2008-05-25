@@ -1,0 +1,214 @@
+
+"This isn't really Latin1, it's actually ASCII. This should become Latin1.
+This is just an adaptation of string.slate in slate distribution. This
+isn't really tested, either, consider this as more like an example."
+
+prototypes define: #Latin1Character &parents: {EncodedCharacter}.
+Latin1Character traits define: #Whitespace -> #(32 9 10 11 12 13 0).
+Latin1Character traits define: #Vowels -> #(65 69 73 79 85 97 101 105 111 117).
+Latin1Character traits define: #Delimiters -> #(40 41 91 93 123 125 39 44 32 34).
+
+prototypes define: #Latin1String &parents: {EncodedString}
+  &slots: {#contents -> #{}}.
+Latin1String elementType: Latin1Character.
+
+s@(Latin1String traits) new &capacity: n
+[s copy `>> [contents: s contents new &capacity: (n ifNil: [0]). ]].
+
+s@(Latin1String traits) size
+[
+  s contents size
+].
+
+s@(Latin1String traits) at: n 
+[ 
+  (s contents at: n) as: s elementType 
+].
+
+s@(Latin1String traits) at: n put: c@(EncodedCharacter traits)
+[
+  s contents at: n put: c code
+].
+
+s@(Latin1String traits) isEmpty
+[
+  s contents isEmpty
+].
+
+code@(Integer traits) as: l1@(Latin1Character traits)
+[| proto newL1 |
+ newL1: (l1 newCode: code).
+ newL1
+].
+
+c@(Latin1Character traits) as: i@(Integer traits)
+[
+  c code
+].
+
+c1@(Latin1Character traits) = c2@(Latin1Character traits)
+[
+  c1 code = c2 code
+].
+
+c@(Latin1Character traits) cr [10 as: Latin1Character].
+
+c@(Latin1Character traits) tab [9 as: Latin1Character].
+
+c@(Latin1Character traits) space [32 as: Latin1Character].
+
+c@(Latin1Character traits) stringEscape [92 as: Latin1Character].
+
+c@(Latin1Character traits) codeRange
+[
+  0 to: 255
+].
+
+a@(Latin1Character traits) allCharacters
+[
+  a codeRange collect: [| :code | code as: a]
+].
+
+c@(Latin1Character traits) isAlphanumeric
+[
+  c isLetter or: [c isDigit]
+].
+
+c@(Latin1Character traits) isWhitespace
+[
+  c Whitespace includes: c code
+].
+
+c@(Latin1Character traits) isDelimiter
+[
+  c Delimiters includes: c code
+].
+
+c@(Latin1Character traits) isDigit &radix: radix
+[| value |
+  radix `defaultsTo: 10.
+  value: c code.
+  (value >= 48 and: [value <= 57])
+    ifTrue: [^ (value - 48 < radix)].
+  (value >= 65 and: [value <= 90])
+    ifTrue: [^ (value - 65 < (radix - 10))].
+  (value >= 97 and: [value <= 122])
+    ifTrue: [^ (value - 97 < (radix - 10))].
+  False
+].
+
+c@(Latin1Character traits) toDigit &radix: radix
+[| value |
+  radix `defaultsTo: 10.
+  (c isDigit &radix: radix) ifFalse: [^ Nil].
+  value: c code.
+  value >= 97 ifTrue: [^ (value - 97 + 10)].
+  value >= 65 ifTrue: [^ (value - 65 + 10)].
+  value >= 48 ifTrue: [^ (value - 48)].
+  Nil
+].
+
+c@(Latin1Character traits) isLetter
+[c isUppercase \/ [c isLowercase]].
+
+c@(Latin1Character traits) isLowercase
+[c code between: 97 and: 122].
+
+c@(Latin1Character traits) isUppercase
+[c code between: 65 and: 90].
+
+c@(Latin1Character traits) toLowercase
+[
+  c isUppercase
+    ifTrue: [c code + 32 as: c]
+    ifFalse: [c]
+].
+
+c@(Latin1Character traits) toUppercase
+[
+  c isLowercase
+    ifTrue: [c code - 32 as: c]
+    ifFalse: [c]
+].
+
+c@(Latin1Character traits) isVowel
+[c Vowels includes: c code].
+
+c@(Latin1Character traits) isQuote
+[#(34 39) includes: c code].
+
+c@(Latin1Character traits) isPrintable
+[c code between: 32 and: 126].
+
+_@(Latin1String traits) accepts: _@(Root traits)
+[False].
+
+_@(Latin1String traits) accepts: _@(Latin1Character traits)
+[True].
+
+s@(Latin1String traits) first
+[s at: 0].
+
+s@(Latin1String traits) capitalize
+"Modifies the first Character to be uppercase."
+[
+  s isEmpty
+    ifFalse: [s at: 0 put: s first toUppercase].
+  s
+].
+
+s@(Latin1String traits) toUppercase
+"Modifies the Characters to be uppercase."
+[s infect: #toUppercase `er ].
+
+s@(Latin1String traits) toLowercase
+"Modifies the Characters to be lowercase."
+[s infect: #toLowercase `er ].
+
+s@(Latin1String traits) toSwapCase
+"Modifies the Characters to have swapped case."
+[
+  s doWithIndex: [| :each :index | each isLowercase
+    ifTrue: [s at: index put: each toUppercase]
+    ifFalse: [s at: index put: each toLowercase]]
+].
+
+s1@(Latin1String traits) lexicographicallyCompare: s2@(Latin1String traits)
+"Answer a sign of comparing the two Strings' Characters in order."
+[
+  s1 with: s2 do:
+    [| :c1 :c2 |
+     c1 code < c2 code ifTrue: [^ -1].
+     c1 code > c2 code ifTrue: [^ 1]].
+  s1 size < s2 size
+    ifTrue: [^ -1].
+  s1 size > s2 size
+    ifTrue: [^ 1].
+  0
+].
+
+ch@(Latin1Character traits) rot13
+[| value upper |
+  upper: ch isUppercase.
+  value: (ch toLowercase as: Integer).
+  (value >= 97) /\ (value < 110)
+    ifTrue: [value: value + 13]
+    ifFalse: [(value > 109) /\ (value <= 122)
+                ifTrue: [value: value - 13]].
+  upper
+    ifTrue: [(value as: Latin1Character) toUppercase]
+    ifFalse: [value as: Latin1Character]
+].
+
+s@(Latin1String traits) rot13
+[| result |
+  result: s newSameSize.
+  s doWithIndex: [| :each :index |
+    result at: index put: each rot13].
+  result
+].
+
+c@(Latin1Character traits) printOn: w@(WriteStream traits)
+[
+  w nextPut: (c code as: ASCIICharacter)
+].

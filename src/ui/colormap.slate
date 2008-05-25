@@ -1,0 +1,70 @@
+"ColorMaps consist of two parts. An indexable part, describing a lookup table and a fixed part describing the color space conversion. The fixed part is actually four shifts and four masks which can be used to expand, contract, or exchange color components individually."
+
+"Based on Squeaks ColorMap class and the description of NewBitBlt at http://minnow.cc.gatech.edu/squeak/1212"
+
+Graphics define: #ColorMap &parents: {Cloneable}
+ &slots: {#colors. #shifts. #masks}.
+
+a@(ColorMap traits) mapBitsFrom: srcBitMask to: dstBitMask
+"Returns an array of the shift and mask for mapping channel values from one depth to another."
+[|srcBits dstBits srcLow srcHigh dstLow dstHigh bits mask shift|
+  (srcBitMask = 0 or: [dstBitMask = 0]) ifTrue: [^{0 . 0}]. "No mask or shift"
+  "Get the low and high bit positions for the bitMasks"
+  srcLow: srcBitMask lowBit. srcHigh: srcBitMask highBit + 1.
+  dstLow: dstBitMask lowBit. dstHigh: dstBitMask highBit + 1.
+  "Get the number of bits in each bitMask"
+  srcBits: srcHigh - srcLow. dstBits: dstHigh - dstLow.
+  "Get the maximum number of bits which can be transfered"
+  bits: (srcBits min: dstBits).
+  "Get the transfer mask"
+  mask: (1 bitShift: bits) - 1.
+  "Move the mask to mask the highest bits of srcBitMask"
+  mask: (mask bitShift: (srcHigh - bits)).
+  "Calculate the shift so that the MSBit of the src mask matches the MSBit of the dest mask"
+  shift: dstHigh - srcHigh.
+  {shift . mask}
+].
+
+
+a@(ColorMap traits) mappingFromARGB: dstBitMasks
+"Return a ColorMap mapping from ARGB into dstBitMasks"
+[a mappingFrom: #{16rFF000000 . 16rFF0000 . 16rFF00 . 16rFF} to: dstBitMasks].
+
+a@(ColorMap traits) mappingToARGB: srcBitMasks
+"Return a ColorMap mapping from srcBitMasks to ARGB"
+[a mappingFrom: srcBitMasks to: #{16rFF000000 . 16rFF0000 . 16rFF00 . 16rFF}].
+
+a@(ColorMap traits) mappingFrom: srcBitMasks@(Array traits) to: dstBitMasks@(Array traits)
+"Return a ColorMap which maps from srcBitMasks to dstBitMasks"
+"srcBitMasks and dstBitMasks are in ARGB order"
+[|shifts masks shiftAndMask|
+  shifts: ("Integer"Array new &capacity: 4).
+  masks: (WordArray new &capacity: 4).
+  0 to: 3 do: [|:index|
+    shiftAndMask: (a mapBitsFrom: (srcBitMasks at: index) to: (dstBitMasks at: index)).
+    shifts at: index put: (shiftAndMask at: 0).
+    masks at: index put: (shiftAndMask at: 1)].
+  a shifts: shifts masks: masks
+].
+
+
+"Support methods"
+a@(ColorMap traits) shifts: shiftArray@(Array traits) masks: maskArray@(Array traits)
+[
+  a shifts: shiftArray masks: maskArray colors: Nil
+].
+
+a@(ColorMap traits) shifts: shiftArray masks: maskArray colors: colorArray
+[|newCM|
+  newCM: ColorMap copy.
+  newCM setShifts: shiftArray masks: maskArray colors: colorArray.
+  newCM
+].
+
+a@(ColorMap traits) setShifts: shiftArray masks: maskArray colors: colorArray
+[
+  shiftArray ifNotNil: [a shifts: (shiftArray as: "Integer"Array)].
+  maskArray ifNotNil: [a masks: (maskArray as: "Word"Array)].
+  colorArray ifNotNil: [a colors: (colorArray as: "Word"Array)].
+].
+

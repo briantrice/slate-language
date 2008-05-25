@@ -1,0 +1,976 @@
+m@(CompiledMethod traits) sourceTreeOf: index
+"Find the source tree corresponding to a bytecode's index."
+[
+  m debugMap
+    do: [| :start :end :sourceTree |
+         (index between: start and: end)
+           ifTrue: [^ sourceTree]]
+    inGroupsOf: 3.
+  Nil
+].
+
+m@(CompiledMethod traits) new
+"Answer a new CompiledMethod with a fresh compilation state."
+[
+  m clone `>>
+    [| :newM |
+      method: newM.
+      literals: m literals new.
+      selectors: m selectors new.
+      optionalKeywords: m optionalKeywords new.
+      code: m code new.
+      debugMap: m debugMap new. ]
+].
+
+m@(CompiledMethod traits) recompile
+"If the method has a sourceTree, replace the method with a re-compiled version
+of it."
+[
+  m sourceTree
+    ifNil: [warn: 'The method has no source code to recompile.'. m]
+    ifNotNilDo: [| :src | m forwardTo: src compile]
+].
+
+m@(CompiledMethod traits) isExtended: code
+"Answer whether the number corresponds to an extended opcode."
+[(code bitAnd: 16r0F) = 16r0F].
+
+m@(CompiledMethod traits) isJump: code
+"Answer whether the number corresponds to a jump opcode."
+[{16r0F. 16r1F. 16r2F} includes: code].
+
+m@(CompiledMethod traits) indexOfNextOpcodeAfter: index
+"Answer the index in the bytecode array of the next opcode occurring after
+the one at the given index.
+ASSUME: the bytecode at the index should be interpreted as an opcode."
+[| code |
+  code: (m code at: index).
+  (m isExtended: code)
+    ifTrue:
+      [(m isJump: code) "Whether it's a jump."
+        ifTrue: [index + 3] "16-bit offset for jumping."
+        ifFalse: [index + 1]]
+    ifFalse:
+      [(code bitAnd: 16rF0) = 16rF0 "Extended immediate value."
+        ifTrue: "Loop through the 16rFF's to get past the immediate value."
+          [| result |
+            result: index + 1.
+            [(m code at: result) >= 16r80]
+              whileTrue: [result: result + 1].
+            result + 1]
+        ifFalse:
+          [index + 1]]
+].
+
+m@(CompiledMethod traits) opcodeIndicesDo: block
+"Iterate through the CompiledMethod's bytecodes, applying the block to each
+index where an opcode should be."
+[| index |
+  index: 0.
+  [index < m code size]
+    whileTrue:
+      [block applyWith: index.
+       index: (m indexOfNextOpcodeAfter: index)]
+].
+
+m@(CompiledMethod traits) immediateCodeAt: index
+"Reads the bytecode at the index and determines first that it needs an
+immediate value, and then reads in the value according to the scheme of
+encoding."
+[| code result |
+  code: (m code at: index).
+  (m isExtended: code)
+    ifTrue: [error: 'The bytecode ' ; (code as: String) ; ' cannot have an immediate value.'].
+  result: (code bitShift: -4).
+  curIndex: index.
+  result = 16rF
+    ifFalse: [^ result].
+  result: 0.
+  [curIndex: curIndex + 1.
+   result: (result bitShift: 7) + ((m code at: curIndex) bitAnd: 16r7F).
+   (m code at: curIndex) >= 16r80] whileTrue.
+  result
+].
+
+VM define: #ByteCompiler &parents: {Cloneable}
+  &slots: {#contexts -> Stack new "The current lexical context stack."}.
+"A ByteCompiler of VM Bytecode CompiledMethods."
+VM ByteCompiler traitsWindow addDelegate: VM ByteCode.
+"So the generator knows what bytecodes it supports."
+
+g@(VM ByteCompiler traits) new
+[g clone `>> [contexts: g contexts new. ]].
+
+VM ByteCompiler traits define: #Context &parents: {Cloneable} &slots:
+  {#isClosure -> False "Whether the method being compiled is a closure.".
+   #method -> CompiledMethod new "The method the context targets.".
+   #codeWriter "The stream for writing bytecodes to the method.".
+   #selectors -> ExtensibleArray new
+   "Gathers the method's literal array; must be indexable before committing.".
+   #literals -> ExtensibleArray new
+   "Gathers the method's selector array; must be indexable before committing.".
+   #debugMap -> ExtensibleArray new
+   "Gathers the method's debug map; must be indexable at all times.".
+   #labels -> ExtensibleArray new
+   "Maps from label serials to bytecode indices.".
+   #relocations -> Dictionary new
+   "Maps from bytecode indices of jump opcodes to label serials."}.
+
+c@(VM ByteCompiler Context traits) newOn: method
+"Answer a new ByteCompiler Context that targets the given method. The method is
+taken as-is and not cloned."
+[
+  c cloneSettingSlots: #(method codeWriter selectors literals debugMap labels relocations)
+   to: {method. method code writer. method selectors as: c selectors.
+        method literals as: c literals.
+	method debugMap as: c debugMap.
+	c labels new.
+	c relocations new}
+].
+
+c@(VM ByteCompiler Context traits) copy
+[resend `>> [selectors: c selectors copy. literals: c literals copy.
+        labels: c labels copy. relocations: c relocations copy. ]].
+
+c@(VM ByteCompiler Context traits) resolveLabel: label at: index
+[
+  (c labels at: label) - index
+].
+
+c@(VM ByteCompiler Context traits) resolveLabels
+"This takes the labels Dictionary and uses it to replace the temporary ID's
+placed in the jump fields with actual offsets."
+[| code |
+  code: c method code.
+  c relocations keysAndValuesDo:
+    [| :index :label offset |
+     offset: (c resolveLabel: label at: index) - 2.
+     code at: index put: offset.
+     code at: index + 1 put: (offset byteShift: -1)]
+].
+
+c@(VM ByteCompiler Context traits) flush
+"Act like a WriteStream, making the target method assume the final resulting
+arrays necessary for it to operate."
+[
+  c method code: c codeWriter contents.
+  c method literals: (c literals as: Array).
+  c method selectors: (c selectors as: Array).
+  c method debugMap: (c debugMap as: Array).
+  c resolveLabels.
+  c
+].
+
+gen@(VM ByteCompiler traits) currentContext
+[gen contexts top].
+
+gen@(VM ByteCompiler traits) currentMethod
+"The current method."
+[gen currentContext method].
+
+gen@(VM ByteCompiler traits) codeWriter
+"The writestream onto the current method's code ByteArray."
+[gen currentContext codeWriter].
+
+gen@(VM ByteCompiler traits) mapTo: sourceTree
+[| index entry debugMap |
+  index: gen codeWriter position.
+  debugMap: gen currentContext debugMap.
+  debugMap isEmpty not /\ [debugMap last == sourceTree]
+    ifTrue: [debugMap at: debugMap indexLast put: index]
+    ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
+].
+
+gen@(VM ByteCompiler traits) emitByte: value from: node
+[
+  gen mapTo: node.
+  gen codeWriter nextPut: value
+].
+
+gen@(VM ByteCompiler traits) emitShort: value from: node
+[
+  gen emitByte: value intoByte from: node.
+  gen emitByte: (value byteShift: -1) from: node
+].
+
+gen@(VM ByteCompiler traits) emitImmediate: value from: node
+[| bytes |
+  bytes: 0.
+  [(1 bitShift: 7 * bytes) <= value]
+    whileTrue: [bytes: bytes + 1].
+  [bytes > 1]
+    whileTrue:
+      [bytes: bytes - 1.
+       gen emitByte: ((value bitShift: -7 * bytes) bitAnd: 16r7F) + 16r80 from: node].
+  gen emitByte: (value bitAnd: 16r7F) from: node
+].
+
+gen@(VM ByteCompiler traits) newLabel
+[| label |
+  label: gen currentContext labels size.
+  gen currentContext labels addLast: Nil.
+  label
+].
+
+gen@(VM ByteCompiler traits) emitLabel
+[| label |
+  label: gen newLabel.
+  gen emitLabel: label.
+  label
+].
+
+gen@(VM ByteCompiler traits) emitLabel: label
+[
+  gen currentContext labels at: label put: gen codeWriter position
+].
+
+gen@(VM ByteCompiler traits) emitRelocationAgainst: label
+[
+  gen currentContext relocations at: gen codeWriter position put: label
+].
+
+gen@(VM ByteCompiler traits) emitBranchTo: label from: msg
+[
+  gen emitRelocationAgainst: label.
+  gen emitShort: 0 from: msg
+].
+
+gen@(VM ByteCompiler traits) shareLiteral: x with: y
+[x == y].
+
+gen@(VM ByteCompiler traits) shareLiteral: x@(Collection traits) with: y@(Collection traits)
+[
+  (x isSameAs: y) /\ [x = y]
+].
+
+gen@(VM ByteCompiler traits) shareLiteral: x@(Number traits) with: y@(Number traits)
+[
+  (x isSameAs: y) /\ [x = y]
+].
+
+gen@(VM ByteCompiler traits) emitLiteral: obj
+"Ensure that the literal object is included in the literals array. If it is
+not present already, it is appended to the end, thus ensuring that no other
+indices require shifting. Answer the literal's index."
+[
+  (gen currentContext literals
+    indexOfFirstSatisfying:
+      [| :literal | gen shareLiteral: literal with: obj])
+    ifNil: [gen currentContext literals `>> [addLast: obj. indexLast]]
+].
+
+gen@(VM ByteCompiler traits) emitSelector: selector
+"Ensure that the literal object is included in the selectors array. If it is
+not present already, it is appended to the end, thus ensuring that no other
+indices require shifting. Answer the selector's index."
+[
+  gen currentContext selectors `>> [include: selector. indexOf: selector]
+].
+
+gen@(VM ByteCompiler traits) emitInstruction: code from: node
+"Emitting an instruction without an immediate value required just puts the
+byte onto the end."
+[
+  gen emitByte: code from: node
+].
+
+gen@(VM ByteCompiler traits) emitInstruction: code withImmediate: value from: node
+"For instructions taking an immediate-value argument, handle the encoding
+scheme for the caller."
+[
+  value < 16rF
+    ifTrue: [gen emitByte: code + (value bitShift: 4) from: node]
+    ifFalse:
+      [gen emitByte: (code bitOr: 16rF0) from: node.
+       gen emitImmediate: value from: node]
+].
+
+_@(VM ByteCompiler traits) generate: _@(Syntax Node traits)
+"Do nothing in the default case, for comments and annotations and such."
+[].
+
+gen@(VM ByteCompiler traits) generate: ann@(Syntax Annotation traits)
+"Generate the annotation's value."
+[
+  gen generate: ann value
+].
+
+gen@(VM ByteCompiler traits) generate: block@(Syntax Block traits) &topLevel: topLevel
+"Encountering a new block, build a new CompiledMethod object and push it and
+a new bytecode array writer onto the generator, then go through the underlying
+code and generate that. When done, pop both, set up the block as a literal
+and push it onto the stack."
+[| newBlock codeWriter isClosure |
+  topLevel `defaultsTo: False.
+  newBlock: CompiledMethod new.
+  newBlock environment: (gen contexts isEmpty
+    ifTrue: [block parentScope topLevel namespace]
+    ifFalse: [gen currentMethod environment]).
+  newBlock sourceTree: block.
+  gen contexts push: (gen Context newOn: newBlock).
+  block statements size > 1
+    ifTrue: [block statements allButLastDo:
+          [| :node | gen generate: node].
+         gen emitInstruction: gen popStack withImmediate: block statements indexLast from: block.
+         gen generate: block statements last]
+    ifFalse: [gen generate: block statements first].
+  "Set the variable information after generation, just in case it was modified."
+  newBlock `>>
+   [inputVariables: block inputVariables size.
+    localVariables: block localVariables size.
+    restVariable: block restVariable isNotNil.
+    optionalKeywords: block optionalKeywords.].
+  isClosure: gen currentContext isClosure.
+  gen contexts pop flush.
+  "Forces the newBlock to record all the remaining stream input correctly."
+  gen contexts isEmpty \/ [topLevel]
+    ifFalse:
+      [| index |
+        index: (gen emitLiteral: newBlock).
+        isClosure
+          ifTrue:
+            [gen emitInstruction: gen newClosure withImmediate: index from: block]
+          ifFalse:
+            [gen emitInstruction: gen loadLiteral withImmediate: index from: block]].
+  newBlock
+].
+
+gen@(VM ByteCompiler traits) generate: def@(Syntax MethodDefinition traits)
+"Translate method definitions to equivalent asMethod:on: invocations."
+[
+  gen contexts isEmpty
+    ifTrue: [^ resend].
+  "If the generate: happened at the top level, generate it as a normal block instead."
+  gen emitInstruction: gen loadSelector withImmediate: (gen emitSelector: #asMethod:on:) from: def.
+  resend.
+  gen emitInstruction: gen loadSelector withImmediate: (gen emitSelector: def selector) from: def.
+  def roles do: [| :role | gen generate: role].
+  gen emitInstruction: gen newArray withImmediate: def roles size from: def.
+  gen emitInstruction: gen sendMessage withImmediate: 3 from: def
+].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax Resend traits)
+[| lexOffset scope |
+  scope: gen currentMethod sourceTree.
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: 'resend must be used within a method definition.']).
+  lexOffset > 0
+    ifTrue:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+        (gen contexts top: lexOffset) do: #isClosure: `er <-* True].
+  gen emitInstruction: gen resendMessage withImmediate: lexOffset from: r
+].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax Return traits)
+[overrideThis].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax Return traits) by: lexOffset
+[
+  lexOffset > 0
+    ifTrue:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+       (gen contexts top: lexOffset) do: [| :x | x isClosure: True]].
+  gen generate: r value.
+  gen emitInstruction: gen returnFrom withImmediate: lexOffset from: r
+].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax ReturnClose traits)
+"Exits the first enclosing named method in the lexical scope."
+[| lexOffset |
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: '^ must be used within a method definition.']).
+  gen generate: r by: lexOffset
+].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax ReturnFar traits)
+"Exits the last enclosing named method in the lexical scope."
+[| lexOffset |
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: '^^ must be used within a method definition.']).
+  gen generate: r by: lexOffset
+].
+
+gen@(VM ByteCompiler traits) generate: r@(Syntax ReturnLevel traits)
+"Exits the Nth enclosing lexical scope."
+[gen generate: r by: r level].
+
+gen@(VM ByteCompiler traits) generate: literal@(Syntax Literal traits)
+"Generate the appropriate literal-push bytecode and adds the literal to the
+literals array."
+[| index |
+  literal value
+    caseOf:
+      {
+        Nil -> [gen emitInstruction: gen pushNil from: literal].
+        True -> [gen emitInstruction: gen pushTrue from: literal].
+        False -> [gen emitInstruction: gen pushFalse from: literal].
+      }
+    otherwise:
+      [
+        index: (gen emitLiteral: literal value).
+        gen emitInstruction: gen loadLiteral withImmediate: index from: literal
+      ]
+].
+
+gen@(VM ByteCompiler traits) generate: n@(Syntax CompoundStatement traits)
+"Handle the basis case of generating the code for each statement in the node
+in order, pushing the results on the stack."
+[
+  n statements do: [| :node | gen generate: node]
+].
+
+gen@(VM ByteCompiler traits) generate: n@(Syntax Parenthesis traits)
+"With this node type, only the last result should remain on the stack, so
+this naive implementation must pop all but the last."
+"TODO: find some way to avoid the excessive stack work.
+Maybe pop each one as it proceeds?"
+[
+  n statements size > 1
+    ifTrue: [n statements allButLastDo:
+      [| :node | gen generate: node].
+        gen emitInstruction: gen popStack withImmediate: n statements indexLast from: n.
+        gen generate: n statements last]
+    ifFalse: [gen generate: n statements first]
+].
+
+gen@(VM ByteCompiler traits) generate: i@(Syntax ImplicitArgument traits)
+"The implicit argument amounts to putting the enclosing lexical environment
+onto the stack."
+[
+  gen emitInstruction: gen pushEnvironment from: i
+].
+
+gen@(VM ByteCompiler traits) generate: _@(Syntax Namespace traits)
+[shouldNotImplement].
+
+gen@(VM ByteCompiler traits) generate: load@(Syntax LoadVariable traits)
+[| scope lexOffset varIndex |
+  scope: load variable scope.
+  varIndex: (scope localVariables indexOf: load variable).
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+      ifNil:
+        [error: 'Could not determine variable scope.']).
+  lexOffset isZero
+    ifTrue:
+      [gen emitInstruction: gen loadVariable withImmediate: varIndex from: load]
+    ifFalse:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+        (gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+        gen emitInstruction: gen loadFreeVariable withImmediate: lexOffset from: load.
+        gen emitImmediate: varIndex from: load]
+].
+
+gen@(VM ByteCompiler traits) generate: store@(Syntax StoreVariable traits)
+[| scope lexOffset varIndex |
+  gen generate: store value.
+  scope: store variable scope.
+  varIndex: (scope localVariables indexOf: store variable).
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+      ifNil:
+        [error: 'Could not determine variable scope.']).
+  lexOffset isZero
+    ifTrue:
+      [gen emitInstruction: gen storeVariable withImmediate: varIndex from: store]
+    ifFalse:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+        (gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+        gen emitInstruction: gen storeFreeVariable withImmediate: lexOffset from: store.
+        gen emitImmediate: varIndex from: store]
+].
+
+gen@(VM ByteCompiler traits) generate: array@(Syntax Array traits)
+"Generate the code to push the element expression results on the stack,
+then the appropriate literal-array constructor bytecode."
+[
+  resend.
+  gen emitInstruction: gen newArray withImmediate: array size from: array
+].
+
+gen@(VM ByteCompiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits)
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+[
+  gen emitInstruction: gen loadSelector withImmediate: (gen emitSelector: selector) from: msg.
+  args do: [| :arg | gen generate: arg].
+  gen emitInstruction: gen sendMessage withImmediate: args size from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: msg@(Syntax Message traits) &optionals: opts
+[
+  gen generate: msg selector on: msg arguments from: (opts ifNil: [msg])
+].
+
+gen@(VM ByteCompiler traits) generate: macro@(Syntax Macro traits) &optionals: opts
+[
+  gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree)
+].
+
+gen@(VM ByteCompiler traits) generate: def@(Syntax Deferred traits) &optionals: opts
+[| block message |
+  block: Syntax Block new `>> [parentScope: gen currentMethod sourceTree. ].
+  def arguments size timesRepeat: #addInputVariable `er <- block.
+  message: (Syntax Message sending: def selector to:
+    (block inputVariables collect: [| :var | Syntax LoadVariable from: var])).
+  opts
+    ifNotNil:
+      [message:
+        ((Syntax OptionalArguments for: message)
+          `>> [arguments: (opts arguments deepCopy: block). ])].
+  block statements: {message}.
+  gen generate:
+    (Syntax KeywordMessage
+      sending: #whenFulfilled:
+      to: {def arguments as: Syntax Array. block})
+].
+
+gen@(VM ByteCompiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits)
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+[
+  gen emitInstruction: gen loadSelector withImmediate: (gen emitSelector: selector) from: opts.
+  args do: [| :arg | gen generate: arg].
+  opts keywords with: opts arguments
+    do: [| :key :arg |
+          gen emitInstruction: gen loadSelector withImmediate: (gen emitSelector: key) from: opts.
+          gen generate: arg
+        ].
+  gen emitInstruction: gen newArray withImmediate: opts keywords size + opts arguments size from: opts.
+  gen emitInstruction: gen sendMessageWithOptionals withImmediate: args size from: opts
+].
+
+gen@(VM ByteCompiler traits) generate: opts@(Syntax OptionalKeywords traits)
+[
+  gen generate: opts message &optionals: opts
+].
+
+gen@(VM ByteCompiler traits) generate: _@#True on: args from: msg
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen emitInstruction: gen pushTrue from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#False on: args from: msg
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen emitInstruction: gen pushFalse from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#Nil on: args from: msg
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen emitInstruction: gen pushNil from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#== on: args from: msg
+"Handles the special case of sending ==, which should have only one
+implementation."
+[
+  args do: [| :arg | gen generate: arg].
+  gen emitInstruction: gen isIdenticalTo from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: _@#do on: args from: msg
+"If the block is a literal with no variables, then inline it.
+Otherwise, fall back to evaluating it via 'do'."
+[| block |
+  block: args first.
+  (block isSameAs: Syntax Block)
+    /\ [block localVariables isEmpty]
+    ifFalse: [^ resend].
+  block statements size > 1
+    ifTrue: [block statements allButLastDo:
+          [| :node | gen generate: node].
+         gen emitInstruction: gen popStack withImmediate: block statements indexLast from: block.
+         gen generate: block statements last]
+    ifFalse: [gen generate: block statements first]
+].
+
+gen@(VM ByteCompiler traits) generateExecutionOf: args from: msg
+[gen generate: #do on: args from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#loop on: args from: msg
+"Repeatedly evaluates a block via 'do'."
+[| label |
+  label: gen emitLabel.
+  gen generateExecutionOf: args from: msg.
+  gen emitInstruction: gen popStack withImmediate: 1 from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitInstruction: gen pushNil from: msg
+].
+
+gen@(VM ByteCompiler traits) branchTableHash: key
+[
+  key identityHash
+].
+
+gen@(VM ByteCompiler traits) buildBranchTableMapping: keys
+[| table tableSize |
+  tableSize: 1.
+  [tableSize < keys size]
+    whileTrue:
+      [tableSize: tableSize * 2].
+  table: (Array newSize: tableSize * 2).
+  keys do:
+    [| :key hash |
+      hash: ((gen branchTableHash: key) bitAnd: (tableSize - 1) * 2).
+      [(table at: hash) isNil]
+        whileFalse:
+          [key = (table at: hash)
+            ifTrue:
+              [error: 'Duplicate key ' ; key printString ; ' in caseOf:.'].
+            hash: hash + 2.
+            hash >= (tableSize * 2)
+              ifTrue:
+                [hash: 0]].
+      table at: hash put: key
+    ].
+  table
+].
+
+gen@(VM ByteCompiler traits) mayInlineConditions: msg
+"Answer whether a safe inlining is possible for a conditions: expression without
+further analysis; currently this is the case where the second argument is a
+literal array, and the appropriate Associations and their elements are laid
+out with literal blocks."
+[
+  (msg arguments second isSameAs: Syntax Array) /\
+   [msg arguments second statements allSatisfy:
+     [| :assoc |
+      (assoc is: Syntax Message)
+        /\ [assoc selector = #->]
+        /\ [assoc arguments allSatisfy: [| :arg | arg is: Syntax Block]]]]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#conditions:otherwise: on: args from: msg
+[| labels table indices branchOffset otherwiseLabel endLabel |
+  (gen mayInlineConditions: msg)
+    ifTrue: [^ resend] "TODO: remove this line when the inlining works."
+    ifFalse: [^ resend].
+  args second statements `cacheAs: #assocs.
+  labels: (assocs collect: [| :_ | gen newLabel]).
+  table:
+    (gen
+      buildBranchTableMapping:
+        (assocs collect: [| :assoc | assoc arguments first value])).
+  indices: IdentityDictionary new.
+  0 below: table size by: 2 do: [| :index |
+    (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
+
+  gen generate: args first.
+  TODO: 'Replace this with a consecutive execution of each block in the table, checking for True to branch to the corresponding label.'.
+  gen emitInstruction: gen branchKeyed withImmediate: (gen emitLiteral: table) from: msg.
+  branchOffset: gen codeWriter position.
+  gen emitInstruction: gen jumpTo from: msg.
+  endLabel: gen newLabel.
+  otherwiseLabel: gen newLabel.
+  gen emitBranchTo: otherwiseLabel from: msg.
+
+  assocs with: labels do:
+    [| :assoc :label |
+      gen emitLabel: label.
+      table
+        at: (indices at: assoc arguments first value) + 1
+        put: (gen currentContext resolveLabel: label at: branchOffset).
+      gen generateExecutionOf: {assoc arguments second} from: msg.
+      gen emitInstruction: gen jumpTo from: msg.
+      gen emitBranchTo: endLabel from: msg].
+
+  "Handle the otherwise clause. If we didn't get a literal block for it, just
+  encode a Nil-push."
+  gen emitLabel: otherwiseLabel.
+  args size >= 3
+    ifTrue: [gen generateExecutionOf: {args third} from: msg]
+    ifFalse: [gen emitInstruction: gen pushNil from: msg].
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#caseOf: on: args from: msg
+"Generates a caseOf:otherwise: with a default otherwise clause."
+[
+  (gen mayInlineCaseOf: msg)
+    ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) mayInlineCaseOf: msg
+"Answer whether a safe inlining is possible for a caseOf: expression without
+further analysis; currently this is the case where the second argument is a
+literal array, and the appropriate Associations and their elements are laid
+out with literal keys."
+[
+  (msg arguments second isSameAs: Syntax Array) /\
+   [msg arguments second statements allSatisfy:
+     [| :assoc |
+      (assoc is: Syntax Message)
+        /\ [assoc selector = #->]
+        /\ [assoc arguments first is: Syntax Literal]
+        /\ [{Symbol. ASCIIString Character. SmallInteger} anySatisfy:
+          [| :proto | assoc arguments first value is: proto]]]]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#caseOf:otherwise: on: args from: msg
+[| labels table indices branchOffset otherwiseLabel endLabel |
+  (gen mayInlineCaseOf: msg)
+    ifFalse: [^ resend].
+  args second statements `cacheAs: #assocs.
+  labels: (assocs collect: [| :_ | gen newLabel]).
+  table:
+    (gen
+      buildBranchTableMapping:
+        (assocs collect: [| :assoc | assoc arguments first value])).
+  indices: IdentityDictionary new.
+  0 below: table size by: 2 do: [| :index |
+    (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
+
+  gen generate: args first.
+  gen emitInstruction: gen branchKeyed withImmediate: (gen emitLiteral: table) from: msg.
+  branchOffset: gen codeWriter position.
+  gen emitInstruction: gen jumpTo from: msg.
+  endLabel: gen newLabel.
+  otherwiseLabel: gen newLabel.
+  gen emitBranchTo: otherwiseLabel from: msg.
+
+  assocs with: labels do:
+    [| :assoc :label |
+      gen emitLabel: label.
+      table
+        at: (indices at: assoc arguments first value) + 1
+        put: (gen currentContext resolveLabel: label at: branchOffset).
+      gen generateExecutionOf: {assoc arguments second} from: msg.
+      gen emitInstruction: gen jumpTo from: msg.
+      gen emitBranchTo: endLabel from: msg].
+
+  "Handle the otherwise clause. If we didn't get a literal block for it, just
+  encode a Nil-push."
+  gen emitLabel: otherwiseLabel.
+  args size >= 3
+    ifTrue: [gen generateExecutionOf: {args third} from: msg]
+    ifFalse: [gen emitInstruction: gen pushNil from: msg].
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#caseOf: on: args from: msg
+"Generates a caseOf:otherwise: with a default otherwise clause."
+[
+  (gen mayInlineCaseOf: msg)
+    ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) generate: _@#ifTrue:ifFalse: on: args from: msg
+"Branches to one of two blocks and evaluates it."
+[| falseLabel endLabel |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  gen generate: args first.
+  gen emitInstruction: gen branchIfFalse from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen generateExecutionOf: {args third} from: msg.
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#ifTrue: on: args from: msg
+"Optionally evaluates a block."
+[| falseLabel endLabel |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  gen generate: args first.
+  gen emitInstruction: gen branchIfFalse from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen emitInstruction: gen pushNil from: msg.
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#ifFalse: on: args from: msg
+"Optionally evaluates a block."
+[| falseLabel endLabel |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  gen generate: args first.
+  gen emitInstruction: gen branchIfTrue from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen emitInstruction: gen pushNil from: msg.
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#/\ on: args from: msg
+"Optionally evaluates a block."
+[| falseLabel endLabel |
+  (args second isSameAs: Syntax Block)
+    ifFalse: [^ resend].
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  gen generate: args first.
+  gen emitInstruction: gen branchIfFalse from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen emitInstruction: gen pushFalse from: msg.
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#\/ on: args from: msg
+"Optionally evaluates a block."
+[| block falseLabel endLabel |
+  (args second isSameAs: Syntax Block)
+    ifFalse: [^ resend].
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  gen generate: args first.
+  gen emitInstruction: gen branchIfTrue from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen emitInstruction: gen pushTrue from: msg.
+  gen emitLabel: endLabel
+].
+
+gen@(VM ByteCompiler traits) generate: _@#whileTrue: on: args from: msg
+"Repeatedly evaluates a block while it returns True."
+[| label endLabel |
+  endLabel: gen newLabel.
+  label: gen emitLabel.
+  gen generateExecutionOf: {args first} from: msg.
+  gen emitInstruction: gen branchIfFalse from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen popStack withImmediate: 1 from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitLabel: endLabel.
+  gen emitInstruction: gen pushNil from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: _@#whileFalse: on: args from: msg
+"Repeatedly evaluates a block while it returns False."
+[| label endLabel |
+  endLabel: gen newLabel.
+  label: gen emitLabel.
+  gen generateExecutionOf: {args first} from: msg.
+  gen emitInstruction: gen branchIfTrue from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg.
+  gen emitInstruction: gen popStack withImmediate: 1 from: msg.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitLabel: endLabel.
+  gen emitInstruction: gen pushNil from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: _@#whileTrue on: args from: msg
+"Repeatedly evaluates a block while it returns True."
+[| label |
+  label: gen emitLabel.
+  gen generateExecutionOf: args from: msg.
+  gen emitInstruction: gen branchIfTrue from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitInstruction: gen pushNil from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: _@#whileFalse on: args from: msg
+"Repeatedly evaluates a block while it returns False."
+[| label |
+  label: gen emitLabel.
+  gen generateExecutionOf: args from: msg.
+  gen emitInstruction: gen branchIfFalse from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitInstruction: gen pushNil from: msg
+].
+
+gen@(VM ByteCompiler traits) generate: _@#fill:with: on: args from: msg
+[| block index var value |
+  block: args first.
+  index: args second.
+  value: args third.
+  (block isSameAs: Syntax Block) /\
+    [index isSameAs: Syntax Literal] /\
+    [block inputVariables acceptsKey: index value]
+    ifFalse: [^ resend].
+  (value isSameAs: Syntax Literal)
+    ifFalse:
+      [| tmp |
+        tmp: gen currentMethod sourceTree addVariable.
+        gen generate: (Syntax StoreVariable of: value into: tmp).
+        gen emitInstruction: gen popStack withImmediate: 1 from: msg.
+        value: (Syntax LoadVariable from: tmp)].
+  index: index value.
+  var: (block inputVariables at: index).
+  block inputVariables: (block inputVariables copyWithoutAt: index).
+  block localVariables
+    replaceFrom: index
+    below: block localVariables indexLast
+    with: block localVariables
+    startingAt: index + 1.
+  block localVariables at: block localVariables indexLast put: var.
+  block statements:
+    {(Syntax StoreVariable of: value into: var)} ; block statements.
+  gen generate: block
+].
+
+gen@(VM ByteCompiler traits) generate: _@#<- on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-1 on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-2 on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 1) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-3 on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 2) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-4 on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 3) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-5 on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 4) at: 1) from: msg].
+
+gen@(VM ByteCompiler traits) generate: _@#<-* on: args from: msg
+"Optimizes currying calls on literal blocks using #fill:with:."
+[
+  (args first isSameAs: Syntax Block)
+    ifTrue:
+      [gen generate: #fill:with:
+	   on: (args copyWith:
+	     (Syntax Literal for: args first inputVariables indexLast) at: 1)
+	   from: msg]
+    ifFalse: [resend]
+].
+
+gen@(VM ByteCompiler traits) generate: mode@(Syntax Mode traits)
+"Modes are not supported for bytecode compilation."
+[shouldNotImplement].

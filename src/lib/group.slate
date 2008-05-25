@@ -1,0 +1,57 @@
+
+collections define: #Grouping &parents: {ExtensibleCollection}
+  &slots: {#contents -> Dictionary new.
+	   #attributeBlock -> Method Identity}.
+"Similar to a Bag, storing elements given into bins keyed by the result of
+applying a attributeBlock to each."
+
+g@(Grouping traits) new &capacity: n
+[g cloneSettingSlots: #(contents) to: {g contents new &capacity: n}].
+
+c@(Collection traits) grouped
+[c groupedBy: Method Identity].
+
+c@(Collection traits) groupedBy: keyBlock
+[Grouping new `>> [attributeBlock: keyBlock. addAll: c. ]].
+
+g@(Grouping traits) add: obj
+[| key group |
+  key: (g attributeBlock applyWith: obj).
+  group: (g contents at: key ifAbsent:
+    [g contents at: key put: Set new]).
+  group include: obj.
+  obj
+].
+
+g@(Grouping traits) remove: obj
+[| key group |
+  key: (g attributeBlock applyWith: obj).
+  group: (g contents at: key ifAbsent: [^ obj]).
+  group remove: obj.
+  group isEmpty ifTrue: [g contents removeKey: key].
+  obj
+].
+
+g@(Grouping traits) do: block
+"Perform the block for each occurrence of each element in the bag."
+[
+  g contents valuesDo: [| :val |
+    val do: block].
+  g
+].
+
+collections define: #SequentialGrouping &parents: {Grouping}.
+"A Grouping that preserves the order of an original sequential ordering
+(whether from a WriteStream on the Grouping or an actual Sequence)."
+
+s@(Sequence traits) groupedBy: keyBlock
+[SequentialGrouping new `>> [attributeBlock: keyBlock. addAll: c. ]].
+
+g@(SequentialGrouping traits) add: obj
+[| key group |
+  key: (g attributeBlock applyWith: obj).
+  group: (g contents at: key ifAbsent:
+    [g contents at: key put: ExtensibleArray new]).
+  group include: obj.
+  obj
+].

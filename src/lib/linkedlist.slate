@@ -1,0 +1,121 @@
+collections define: #LinkedCollection &parents: {Collection}.
+"LinkedCollections are those whose elements include state that encodes the
+collection's structure. This includes linked-lists, trees, and graphs. The
+collection types may or may not have a facade object which is different from
+the elements and may keep track of circularities or such.
+
+The general axioms for LinkedCollections are that they must be singly-
+connected (it's a topology term for all-in-one-piece), and that the results of
+'c add: a' or 'c remove: a' will side-effect 'a'. Or if add: and remove: are
+not defined, consider it in terms of the change between include: results
+changing."
+
+lc@(LinkedCollection traits) new
+"Links cannot be pre-allocated simply by overall size. This generally
+doesn't need to be overridden unless the collection type uses a facade."
+[
+  lc clone clear
+].
+
+lc@(LinkedCollection traits) clear
+"Cut off all the links. Override this for each collection type."
+[overrideThis].
+
+collections define: #Link &parents: {Cloneable} &slots: {#next. #previous}.
+"A Link is a kind of mixin that can be added to ordinary objects to allow
+them to refer to other Link-mixed objects as a binary-linked structure.
+A Link being at an end is represented by an adjacency set to that same Link."
+
+collections define: #LinkedList
+  &parents: {Link. LinkedCollection. ExtensibleSequence}.
+"A LinkedList is a Link extended to be an ExtensibleSequence of Links."
+
+l@(LinkedList traits) clear
+"An empty LinkedList circularly points to itself."
+[
+  l next: l.
+  l previous: l.
+  l
+].
+
+l@(LinkedList traits) new
+[
+  l clone `>> [clear. ]
+].
+
+ll@(LinkedList traits) accepts: link@(Link traits)
+"LinkedList expects Link elements, although it is not necessary for it to
+reject non-Link elements if they respond to the protocol logically."
+[True].
+
+ll@(LinkedList traits) do: block
+[| link |
+  link: ll next.
+  [link == ll]
+    whileFalse:
+      [| each |
+        each: link.
+        link: link next.
+        block applyWith: each]
+].
+
+ll@(LinkedList traits) reverseDo: block
+[| link |
+  link: ll previous.
+  [link == ll]
+    whileFalse:
+      [| each |
+        each: link.
+        link: link previous.
+        block applyWith: each]
+].
+
+ll@(LinkedList traits) isEmpty [ll next == ll].
+
+ll@(LinkedList traits) first [ll next].
+ll@(LinkedList traits) last [ll previous].
+
+ll@(LinkedList traits) at: index
+[| position |
+  position: ll next.
+  index
+    timesRepeat: [position: position next].
+  position
+].
+
+ll@(LinkedList traits) after: link
+[
+  link next == ll ifTrue: [Nil] ifFalse: [link next]
+].
+
+ll@(LinkedList traits) before: link
+[
+  link previous == ll ifTrue: [Nil] ifFalse: [link previous]
+].
+
+ll@(LinkedList traits) add: newObject
+[ll addLast: newObject].
+
+ll@(LinkedList traits) add: newObject before: oldObject
+[
+  newObject next: oldObject.
+  newObject previous: oldObject previous.
+  oldObject previous: newObject.
+  newObject previous next: newObject.
+  newObject
+].
+
+ll@(LinkedList traits) add: newObject after: oldObject
+[
+  ll add: newObject before: oldObject next
+].
+
+ll@(LinkedList traits) addFirst: newObject
+[
+  ll add: newObject before: ll first
+].
+
+ll@(LinkedList traits) addLast: newObject
+[
+  ll add: newObject after: ll last
+].

@@ -1,0 +1,21 @@
+Graphics define: #SimpleButtonElement &parents: {SceneElement. Activator. PaintSolidBackground. Text}.
+
+Graphics define: #SimpleBorderedButtonElement &parents: {SimpleButtonElement. PaintBorder}.
+
+se@(SimpleButtonElement traits) textXOffset [ 0 ].
+
+se@(SimpleButtonElement traits) textYOffset [ se boundingRect height // 2 - (se fontSize // 2)].
+
+se@(SimpleButtonElement traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    (event is: LeftMouseButtonPressEvent) not ifTrue: [break].
+    se actionSelector sendTo: ({se target} ; se arguments)
+].
+
+se@(SimpleButtonElement traits) handle: event@(PaintEvent traits)
+[ 
+  se textOffset: se textXOffset , (0 - se textYOffset).
+  resend
+].
+
+

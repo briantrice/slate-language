@@ -1,0 +1,292 @@
+prototypes ensureNamespace: #conditions &delegate: True.
+
+conditions addSlot: #conditionStack valued: Stack new.
+"The current active condition stack. This assumes that no concurrency is
+present."
+
+conditions define: #Condition &parents: {Cloneable}.
+"A situation in the call context which is not handled in normal program logic,
+and may require investigative or other special handling."
+Condition addSlot: #handlers valued: {}.
+"The ordered group of handlers for the condition."
+Condition addSlot: #exitContinuation valued: [| :result |].
+"A continuation which when invoked will exit from the handler."
+Condition addSlot: #returnContinuation valued: [| :result |].
+"A continuation which when invoked will return from the point where the condition was signaled."
+
+c@(Condition traits) new
+"Create and initialize a new condition."
+[c clone].
+
+c@(Condition traits) defaultHandler
+"Do nothing, and return nothing by default."
+[Nil].
+
+c@(Condition traits) isRestartAvailable
+"Answer whether there is an available Restart for the Condition."
+[
+].
+
+c@(Condition traits) signal
+"Signalling a Condition."
+[
+  c tryHandlers
+].
+
+_@(Condition traits) describeOn: console
+"The default description for a Condition."
+[
+  console ; 'Undescribed condition\n'
+].
+
+block@(Method traits) on: c@(Condition traits) do: handler
+"Establishes a handler to be executed when the Condition is signaled within the block."
+[| context |
+  context: (c cloneSettingSlots: #(handlers exitContinuation)
+	      to: {{handler}. [| :result | ^ result]}).
+  conditionStack push: context.
+  block ensure: [conditionStack pop]
+].
+
+block@(Method traits) on: col@(Collection traits) do: handler
+"Establishes the handlers to be executed when the Condition is signaled within the block."
+[
+  col do:
+    [| :c context |
+     context:
+       (c cloneSettingSlots: #(handlers exitContinuation)
+	  to: {{handler}. [| :result | ^ result]}).
+     conditionStack push: context].
+  block ensure: [conditionStack pop: col size]
+].
+
+block@(Method traits) handlingCases: handlers
+"Establishes handlers to be executed when their associated Conditions are
+signaled within the block."
+[| context continuation pos |
+  continuation: [| :result | ^ result].
+  pos: conditionStack position.
+  handlers
+    reverseDo:
+      [| :handler |
+       context: (handler key cloneSettingSlots: #(handlers exitContinuation)
+			to: {{handler value}. continuation}).
+       conditionStack push: context].
+  block ensure: [conditionStack position: pos]
+].
+
+c@(Condition traits) tryHandlers
+"Tries all of the active handlers, beginning with the most-
+recently established."
+[| delegates |
+   c returnContinuation: [| :result | ^ result].
+   delegates: c allDelegates.
+   conditionStack
+     reverseDoWithIndex:
+       [| :context :index |
+        (delegates includes: context traits)
+	  ifTrue:
+            [[index: index - 1.
+              index >= 0 /\
+                [(conditionStack at: index) exitContinuation == context exitContinuation]]
+               whileTrue.
+             c exitContinuation: context exitContinuation.
+             context handlers do: [| :handler | handler applyWith: c]]].
+   c defaultHandler 
+].
+
+c@(Condition traits) return: result
+[
+  c returnContinuation applyWith: result
+].
+
+c@(Condition traits) return
+[
+  c return: Nil
+].
+
+c@(Condition traits) exit: result
+[
+  c exitContinuation applyWith: result
+].
+
+c@(Condition traits) exit
+[
+  c exit: Nil
+].
+
+block@(Method traits) breakOn: c
+"Breaks execution in case the given Condition is signaled within the block."
+[
+  block on: c do: [| :inst | inst exit].
+].
+
+conditions define: #Restart &parents: {Condition}.
+"A Restart is a Condition which is signaled by another Condition for the
+purpose of handling it."
+Restart addSlot: #condition.
+"The actual signaled condition that invoked this restart."
+
+r@(Restart traits) newCondition: c
+[r new `>> [condition: c. ]].
+
+r@(Restart traits) appliesTo: c@(Condition traits)
+"Answers whether the Restart applies to the Condition. The default is to
+return True."
+[True].
+
+r@(Restart traits) describeOn: console
+[
+  console ; 'Undescribed restart\n'
+].
+
+r@(Restart traits) queryFrom: d
+[
+].
+
+block handleWith: r@(Restart traits)
+[
+  block on: r do: [| :_ |]
+].
+
+conditions define: #Abort &parents: {Restart}.
+"An Abort is a Restart which exits the computation, unwinding the stack."
+
+_@lobby abort
+[
+  Abort signal
+].
+
+_@(Abort traits) describeOn: console
+[
+  console ; 'Abort evaluation of expression\n'
+].
+
+conditions define: #Quit &parents: {Restart}.
+"Quit is a Restart which exits the Slate environment, noting an error."
+
+_@(Quit traits) describeOn: console
+[
+  console ; 'Quit Slate\n'
+].
+
+_@(Quit traits) defaultHandler
+"Cause Slate to exit with an error code to the underlying system."
+[exit &code: 1].
+
+conditions define: #DescriptiveConditionMixin &parents: {Cloneable}.
+"Conditions which bear a description."
+DescriptiveConditionMixin addSlot: #description valued: 'Undescribed condition'.
+
+c@(DescriptiveConditionMixin traits) newDescription: description
+[c new `>> [description: description. ]].
+
+c@(DescriptiveConditionMixin traits) describeOn: console
+[
+  console ; c description ; '\n' 
+].
+
+conditions define: #Warning &parents: {DescriptiveConditionMixin. Condition}.
+"Warnings are Conditions which should generate notifications, but do not need
+to be raised for handling, i.e. no action needs to be taken."
+
+_@lobby warn: message
+[
+  (Warning newDescription: message) signal.
+].
+
+warn@(Warning traits) describeOn: console
+[
+  console ; 'Warning: ' ; warn description ; '\n'
+].
+
+warn@(Warning traits) defaultHandler
+[
+  warn describeOn: DebugConsole
+].
+
+m@(Method traits) ignoringWarnings
+[
+  m on: Warning do: [| :w | w return]
+].
+
+conditions define: #SimpleWarning &parents: {Warning}.
+"A SimpleWarning is a Warning."
+
+conditions define: #StyleWarning &parents: {SimpleWarning}.
+"A StyleWarning is a Warning that certain conventions set up by the library
+author have not been followed, which could lead to problems."
+
+_@lobby deprecated
+[
+  (StyleWarning newDescription: 'This method has been deprecated.') signal
+].
+
+conditions define: #BreakPoint &parents: {Condition}.
+"A BreakPoint is a Condition raised when instrumenting code for
+debugging from a particular place in the code. It may restarted."
+
+_@lobby break
+[ 
+  (BreakPoint new) signal
+].
+
+_@(BreakPoint traits) describeOn: console
+[ 
+  console ; 'Break point\n'.
+].
+
+bp@(BreakPoint traits) defaultHandler
+"Invoke the debugger after setting up a Restart for the BreakPoint."
+[
+  [bp invokeDebugger]
+    on: (BreakPoint Restart newBreakPoint: bp)
+    do: [| :bpr | ^ Nil]
+].
+
+BreakPoint define: #Restart &parents: {Restart}.
+"A BreakPoint Restart is a Restart used to restart from a BreakPoint."
+BreakPoint Restart addSlot: #breakPoint.
+
+bpr@(BreakPoint Restart traits) newBreakPoint: bp
+[bpr cloneSettingSlots: #(breakPoint) to: {bp}].
+
+bpr@(BreakPoint Restart traits) describeOn: console
+[
+  console ; 'Restart break point\n'
+].
+
+bpr@(BreakPoint Restart traits) appliesTo: bp
+[
+  bpr breakPoint == bp
+].
+
+conditions define: #SeriousCondition &parents: {Condition}.
+"A SeriousCondition is a Condition that requires handling, but is not a
+semantic Error of the program. Rather, it's due to some incidental or
+pragmatic consideration."
+
+c@(SeriousCondition traits) defaultHandler
+"Just raise a debugger if no handler is provided."
+[
+  c invokeDebugger
+].
+
+conditions define: #Error &parents: {SeriousCondition}.
+"An Error is a SeriousCondition which involves some misstep in program logic,
+and raises the need for handlers."
+
+conditions define: #DescriptiveError &parents: {DescriptiveConditionMixin. Error}.
+"A DescriptiveError is an Error which carries a description.
+It is usually not recoverable."
+
+_@(DescriptiveError traits) describeOn: console
+[
+  console ; 'Error: '.
+  resend
+].
+
+_@lobby error: message
+[
+  (DescriptiveError newDescription: message) signal
+].

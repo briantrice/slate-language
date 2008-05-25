@@ -1,0 +1,152 @@
+Graphics define: #ScrollbarElement &parents: {SceneElement} &slots:
+{
+  "the blocks return the correct numbers"
+
+  #scrollVertical -> True.
+  #itemSize -> [ 1 ]. "the smallest scrollable increment"
+  #pageSize -> [ 5 ]. "the largest scrollable increment"
+  #value -> 0. " the current position of the scroll bar"
+  #minimum -> [ 0 ].
+  #maximum -> [ 10 ]
+}.
+
+
+se@(ScrollbarElement traits) min
+[
+  se minimum do
+].
+
+se@(ScrollbarElement traits) max
+[
+  se maximum do
+].
+
+se@(ScrollbarElement traits) smallStep
+[
+  se itemSize do
+].
+
+se@(ScrollbarElement traits) largeStep
+[
+  se pageSize do
+].
+
+se@(ScrollbarElement traits) moveUp
+[
+  se repaintSoon.
+  se value: ((se value - se smallStep) max: se min)
+].
+
+se@(ScrollbarElement traits) pageUp
+[
+  se repaintSoon.
+  se value: ((se value - se largeStep) max: se min)
+].
+
+
+se@(ScrollbarElement traits) moveDown
+[
+  se repaintSoon.
+  se value: ((se value + se smallStep) min: se max)
+].
+
+se@(ScrollbarElement traits) pageDown
+[
+  se repaintSoon.
+  se value: ((se value + se largeStep) min: se max)
+].
+
+
+se@(ScrollbarElement traits) newVerticalScroll: vscroll@(Boolean traits) itemSize: itemsize pageSize: pagesize min: min max: max
+[ 
+ (se cloneSettingSlots: #(scrollVertical itemSize pageSize minimum maximum)
+               to: {vscroll. itemsize. pagesize. min. max})
+].
+
+
+se@(ScrollbarElement traits) newVerticalOnObject: obj@(SceneElement traits) itemSize: itemsize@(Integer traits)
+[ 
+ (se cloneSettingSlots: #(scrollVertical itemSize pageSize minimum maximum)
+               to: {True. [itemsize]. [obj boundingRect height * 2 // 3]. [obj innerBounds top]. [obj innerBounds bottom]})
+].
+
+
+se@(ScrollbarElement traits) newHorizontalOnObject: obj@(SceneElement traits) itemSize: itemsize@(Integer traits)
+[ 
+ (se cloneSettingSlots: #(scrollVertical itemSize pageSize minimum maximum)
+               to: {False. [itemsize]. [obj boundingRect width * 2 // 3]. [obj innerBounds left]. [obj innerBounds right]})
+].
+
+
+se@(ScrollbarElement traits) sliderRectangle
+[| pageSize |
+
+ se max = 0 ifTrue: [lobby inform: 'se max is zero'. break].
+
+ se scrollVertical
+  ifTrue: [Rectangle origin: (0 , (se value / se max * se boundingRect height - 10) ceiling)
+                     corner: (se boundingRect width , 
+                              (se value / se max * se boundingRect height + 10) ceiling)]
+  ifFalse: [Rectangle origin: ((se value / se max * se boundingRect width - 10) ceiling , 0)
+                      corner: ((se value / se max * se boundingRect width + 10) ceiling ,
+                                se boundingRect height)]
+].
+
+se@(ScrollbarElement traits) handle: event@(PaintEvent traits)
+[ 
+
+    resend.
+
+    se getPath: event context.
+    event context `>> [
+        save.
+        clip.
+        sourceRGB: se scrollbarBackgroundColor alpha: se scrollbarBackgroundAlpha.
+        rectangle: se boundingRect.
+        fill.
+        translate: se boundingRect origin.
+        sourceRGB: se scrollbarForegroundColor alpha: se scrollbarForegroundAlpha.
+        rectangle: se sliderRectangle.
+        fill.
+        restore.
+    ]
+
+].
+
+
+se@(ScrollbarElement traits) findScrollValue: event@(MouseButtonPressEvent traits)
+[
+ se boundingRect height = 0 ifTrue: [lobby inform: 'boundingrect is zero'. break].
+
+(se scrollVertical ifTrue: [event position y - se boundingRect origin y / se boundingRect height * se max]
+                  ifFalse: [event position x - se boundingRect origin x / se boundingRect width * se max]
+ ) ceiling
+].
+
+se@(ScrollbarElement traits) handle: event@(LeftMouseButtonPressEvent traits)
+  "left mouse button for now sets the position"
+[
+  se repaintSoon.
+  se value: (se findScrollValue: event)
+
+].
+
+se@(ScrollbarElement traits) handle: event@(RightMouseButtonPressEvent traits)
+  "right mouse button for now moves up and down pages"
+[
+  ((se findScrollValue: event) >= se value) ifTrue: [se pageDown] ifFalse: [se pageUp]
+].
+
+
+se@(ScrollbarElement traits) handle: event@(X1MouseButtonPressEvent traits)
+  "maybe this is the scrollwheel"
+[
+  se pageDown
+].
+
+se@(ScrollbarElement traits) handle: event@(X2MouseButtonPressEvent traits)
+  "maybe this is the scrollwheel"
+[
+  se pageUp
+].
+

@@ -1,0 +1,19 @@
+prototypes define: #Writer &parents: {StructuredPrinterMixin. Stream WrapperStream}.
+"A basis for formatted code-printing."
+
+w@(Writer traits) indentString
+['  '].
+
+w@(Writer traits) print: node
+"The basic printing method to specialize on the target syntax object."
+[overrideThis].
+
+w@(Writer traits) indentedDo: block surroundedBy: str1 and: str2
+[
+  w newLine.
+  w ; str1.
+  w indentedDo: [block do].
+  w newLine.
+  w ; str2.
+].
+

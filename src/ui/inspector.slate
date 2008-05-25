@@ -1,0 +1,101 @@
+Graphics define: #InspectorSlotDescription &parents: {PaintSolidBackground. PaintChildren. HBox} &slots: {#inspector. #label. #value}.
+
+se@(InspectorSlotDescription traits) newLabel: label value: value inspector: inspector
+[|p|
+    [p: value prettyPrinted] on: SeriousCondition do: [|:c| p: '???'. c exit: Nil].
+    se new `>> [
+        inspector: inspector.
+        add: (Text new `>> [
+            textOffset: 0, -4.
+            text: label ; ': '.
+            spaceRequirement: (SpaceRequirement newPreferred: 150, 16 max: 150, 16 min: 150, 16).]).
+        add: (Text new `>> [
+            textOffset: 0, -4.
+            text: p.
+            spaceRequirement: (SpaceRequirement newPreferred: 200, 16 max: 600, 16 min: 50, 16).]).
+        label: label.
+        value: value.]
+].
+
+se@(InspectorSlotDescription traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    se inspector `>> [
+        caption: se inspector caption ; ' ' ; se label.
+        value: se value.
+        refresh].
+].
+
+se@(InspectorSlotDescription traits) handle: event@(RightMouseButtonPressEvent traits)
+[
+    (se value) inspectOn: (se inspector treeParent) &caption: (se inspector caption ; ' ' ; se label)
+].
+
+Graphics define: #Inspector &slots: {#value} &parents: {Frame}.
+
+se@(Inspector traits) newValue: value &caption: caption
+[|n|
+    caption `defaultsTo: value printName.
+    n: se new.
+    n value: value.
+    n caption: caption.
+    n refresh.
+    n extent: n spaceRequirement preferredWidth , n spaceRequirement preferredHeight.
+    n
+].
+
+se@(Inspector traits) refresh
+[
+    se content: SceneElement new `>> [
+        parents: {VBox. PaintChildren. PassInputToInputHandler. PassPointerToChildren}.].
+    se value inspectionItems do: [|:each|
+        se content add: (InspectorSlotDescription newLabel: each key value: each value inspector: se)].
+    se composeSpaceRequirement.
+    se extent: se boundingRect width , se spaceRequirement preferredHeight.
+    se
+].
+
+x@(Root traits) slotInspectionItems
+[|items|
+    items: ExtensibleArray new.
+    x slotNames do: [|:slotName|
+        items add: slotName -> (x atSlotNamed: slotName)].
+    items
+].
+
+x@(Root traits) containerInspectionItems
+[|items index|
+    items: ExtensibleArray new.
+    index: 0.
+    (x sliceUpTo: (x size min: 20)) do: [|:each|
+        items add: '(' ; (index as: String) ; ')' -> each.
+        index: index + 1].
+    items
+].
+
+x@(Root traits) defaultInspectionItems
+[
+    {'(printName)' -> x printName.
+     '(pretty printed)' -> x} ;; x slotInspectionItems
+].
+
+x@(Root traits) inspectionItems
+[
+    x defaultInspectionItems
+].
+
+x@(Collection traits) inspectionItems
+[
+    {'(printName)' -> x printName} ;; x slotInspectionItems ;; x containerInspectionItems
+].
+
+x@(ASCIIString traits) inspectionItems
+[
+    x defaultInspectionItems
+].
+
+r@(Root traits) inspectOn: se@(SceneElement traits) &caption: caption
+[|i|
+    i: (Graphics Inspector newValue: r &caption: caption).
+    se addFirst: i.
+    i
+].

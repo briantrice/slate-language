@@ -1,0 +1,56 @@
+collections define: #SharedQueue &parents: {ExtensibleSequence}
+  &slots: {#mutex -> Nil.
+           #waitq -> Nil.
+	   #inner -> Queue new}.
+
+s@(SharedQueue traits) copy
+[shouldNotImplement].
+
+s@(SharedQueue traits) new
+[
+  s cloneSettingSlots: #(mutex waitq inner)
+    to: {Semaphore newMutex.
+	 Semaphore new.
+	 s inner new}
+].
+
+s@(SharedQueue traits) isEmpty
+[
+  s inner isEmpty
+].
+
+s@(SharedQueue traits) addLast: x
+[
+  s mutex critical: [s inner addLast: x].
+  s waitq signal.
+  x
+].
+
+s@(SharedQueue traits) removeFirst
+[
+  s waitq wait.
+  s mutex critical: [s inner removeFirst]
+].
+
+"TODO: change the Queue protocol to a mixin/trait and re-use it here:"
+"Queue-compatible protocol: " (
+q@(Queue traits) remove [q removeFirst].
+q@(Queue traits) remove: n [q removeFirst: n].
+
+q@(Queue traits) push: obj [q add: obj].
+q@(Queue traits) pop [q remove].
+q@(Queue traits) pushAll: c [q addAll: c].
+q@(Queue traits) pop: n [q remove: n].
+).
+
+"Producer/consumer."
+"
+load: 'src/lib/process.slate'.
+load: 'src/lib/semaphore.slate'.
+load: 'src/lib/sharedqueue.slate'.
+lobby define: #q -> SharedQueue new.
+[
+  [(1 to: 10) do: [|:i| q addLast: i. Scheduler yield. ]] spawn.
+  [[q removeFirst print. Console ; '\n'] loop] spawn.
+] do.
+"

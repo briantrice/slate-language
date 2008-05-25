@@ -1,0 +1,330 @@
+conditions define: #Debugger &parents: {Cloneable}.
+Debugger `>>
+[addSlot: #condition. "The Condition that raised the debugging context."
+ addSlot: #restarts valued: ExtensibleArray new.
+ "The available Restart objects, in linear precedence order."
+ addSlot: #interpreter valued: bootstrapInterpreter.
+ "The Interpreter currently being debugged."
+ addSlot: #resource valued: DebugConsole. "The interaction terminal."
+ addSlot: #parser valued: Syntax Parser.
+ "The Syntax Parser for expressions at the prompt."
+ addSlot: #printer valued: DebugConsole writer. "The simple printer."
+ addSlot: #namespace valued: lobby newSubSpace.
+ "The namespace in which expressions are evaluated."
+ addSlot: #framePointer valued: 0.
+ "The frame pointer of where the currenly debugged frame nested."
+ addSlot: #basePrompt valued: ': '.
+].
+
+d@(Debugger traits) refreshWorkspace
+[d namespace: d namespace newSisterSpace. d installMethods].
+
+d@(Debugger traits) on: resource
+[
+  d resource: resource.
+  d parser: (d parser newOn: resource reader).
+  d printer: resource writer.
+  d
+].
+
+d@(Debugger traits) newFor: c &interpreter: interp &console: resource
+[
+  interp `defaultsTo: d interpreter.
+  resource `defaultsTo: d resource.
+  d clone `>>
+    [| :newD |
+     on: resource.
+     condition: c.
+     restarts: d restarts new.
+     namespace: d namespace clone.
+     parser currentScope: (Syntax Namespace for: newD namespace).
+     parser parseInteractively:
+       ([repl parser parseInteractively]
+	  on: SeriousCondition do: [| :c | c return: False]).
+     framePointer: (d interpreter framePointerOf: #invokeDebugger). ]
+].
+
+c@(Condition traits) invokeDebugger
+"The hook for any Condition to start the debugger and enter its loop."
+[(Debugger newFor: c) enter].
+
+d@(Debugger traits) findRestarts
+"Rebuilds the list of applicable restarts."
+[
+  d restarts clear.
+  conditionStack
+    reverseDo:
+      [| :context |
+       (context is: Restart) /\ [context appliesTo: d condition]
+	 ifTrue: [d restarts addLast: context]].
+  d restarts
+].
+
+d@(Debugger traits) describeRestarts
+"Describes the restarts available in the context, if any."
+[| out |
+  out: d printer.
+  out ; 'The following condition was signaled:\n'.
+  d condition describeOn: out.
+  out ; '\n'.
+  out ; (d restarts isEmpty
+    ifTrue: ['No restarts are available.\n']
+    ifFalse: ['The following restarts are available:\n']).
+  d restarts
+    doWithIndex:
+      [| :restart :index |
+        out ; index printString ; ')\t'.
+        restart describeOn: out].
+  out ; '\nEnter \'help.\' for instructions.\n'
+].
+
+d@(Debugger traits) isValidFrameIndex: index
+[index >= 4].
+
+d@(Debugger traits) currentFrameIndex
+"Answers the current frame index or Nil if it is too low to be meaningful."
+[| frame |
+  frame: (d interpreter stack at: d framePointer - 1).
+  (d isValidFrameIndex: frame) ifTrue: [frame]
+].
+
+d@(Debugger traits) methodForFrameIndex: frame
+"Answer the method as consistent with interpreting the given number as a frame
+index, or Nil if not possible."
+[| method |
+  (d isValidFrameIndex: frame) ifTrue:
+    [method: (d interpreter stack at: frame - 3).
+     "Closures add one level of indirection to the actual method."
+     (method isSameAs: Closure) ifTrue: [method: method method].
+     method]
+].
+
+d@(Debugger traits) currentMethod
+"Answer the current frame method or Nil if not possible."
+[d methodForFrameIndex: (d interpreter stack at: d framePointer - 1)].
+
+d@(Debugger traits) currentLexicalContext
+"Answers the current lexical context or Nil if not possible."
+[
+  d currentMethod ifNotNilDo:
+    [| :method frame |
+     frame: d currentFrameIndex.
+     frame ifNil: [^ Nil].
+     method heapAllocate
+       ifTrue: [d interpreter stack at: frame - 2]
+       ifFalse: [d interpreter stack sliceFrom: frame
+				     below: frame + method localVariables]]
+].
+
+d@(Debugger traits) findScopesOf: method
+[| scope visited frame |
+  scope: method sourceTree.
+  scope ifNil: [^ {}].
+  visited: IdentitySet new.
+  [| :scopes |
+  frame: (d interpreter stack at: d framePointer - 1).
+  [d isValidFrameIndex: frame]
+    whileTrue:
+      [method: (d interpreter stack at: frame - 3) method.
+       (scope includesScope: method sourceTree)
+         ifTrue:
+           [(visited includes: method sourceTree)
+              ifTrue: [^ scopes contents].
+            visited include: method sourceTree.
+            scopes nextPut: frame.
+            (method sourceTree parentScope isSameAs: Syntax Namespace)
+              ifTrue: [^ scopes contents]].
+       frame: (d interpreter stack at: frame - 1)]] writingAs: {}
+].
+
+d@(Debugger traits) evaluate: expr at: frame
+[| method compiler exprClosure |
+  (d isValidFrameIndex: frame) ifTrue:
+    [method: (d interpreter stack at: frame - 3) method].
+  expr: (Syntax Block newFor: expr).
+  expr parentScope: (method isNotNil /\ [method sourceTree isNotNil]
+    ifTrue: [method sourceTree]
+    ifFalse: [d parser currentScope]).
+  expr linkVariables.
+  compiler: VM ByteCompiler new.
+  exprClosure: Closure new.
+  method
+    ifNotNil:
+      [(d findScopesOf: method) reverseDo:
+        [| :frame closure |
+         closure: (d interpreter stack at: frame - 3).
+         exprClosure:
+           (exprClosure copyWith:
+             ((d interpreter stack at: frame - 2)
+               ifNil:
+                 [closure: closure clone.
+                  closure method:
+                    ((closure isSameAs: Closure)
+                      ifTrue: [closure method clone]
+                      ifFalse: [closure]).
+		  closure method method: closure method.
+                  closure method heapAllocate: True.
+                  d interpreter stack at: frame - 3 put: closure.
+                  d interpreter stack at: frame - 2 put:
+                    (LexicalContext newWithAll:
+                      (d interpreter stack sliceFrom: frame below: frame + closure method localVariables))
+                    `>> [framePointer: frame. ]])
+             at: 0).
+         compiler contexts push: (compiler Context newOn: closure method)]].
+  expr: (compiler generate: expr &topLevel: True).
+  expr environment: d namespace.
+  method ifNotNil: [d namespace parentNamespace: method environment].
+  exprClosure method: expr.
+  exprClosure do
+].
+
+d@(Debugger traits) evaluate: expr
+[
+  d evaluate: expr at: (d interpreter stack at: d framePointer - 1)
+].
+
+d@(Debugger traits) prompt
+"Prints out the restarting options with a prompt and numeric labels, and reads
+in the selected option number, returning it if valid."
+[| out |
+  out: d printer.
+  out ; 'Debug'.
+  d restarts isEmpty
+    ifFalse: [out ; ' [0'.
+	      d restarts size > 1 ifTrue:
+		[out ; '..' ; d restarts indexLast printString].
+	      out ; ']'].
+  out ; d basePrompt.
+  out flush.
+  [| expr result |
+    expr: d parser next.
+    result: (d evaluate: expr).
+    (expr is: Syntax Message) /\ [#(: restart: up up: down down: frame restarts help) includes: expr selector]
+      ifFalse:
+        [result printOn: out.
+          out newLine.
+          out flush]
+  ] on: SeriousCondition
+    do: [| :c |
+      out ; '\nThe following condition was signaled from within the debugger:\n'.
+      c describeOn: d printer.
+      c exit]
+].
+
+d@(Debugger traits) signalRestartAt: index
+"Takes the restart option number from the queryRestart and invokes it."
+[
+  (d restarts acceptsKey: index)
+    ifTrue: [((d restarts at: index) newCondition: d condition)
+	       `>> [queryFrom: d. signal]]
+    ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
+].
+
+d@(Debugger traits) framePrint
+[| out frame codePointer method lexicalContext |
+  out: d printer.
+  codePointer: (d interpreter stack at: d framePointer - 4).
+  method: d currentMethod.
+  method == ensureMarker
+    ifTrue: [out ; 'ensure: handler invoked.\n'. ^ Nil].
+  lexicalContext: d currentLexicalContext.
+  lexicalContext ifNil: [out ; 'Top of stack.\n'. ^ Nil].
+  method sourceTree ifNil:
+    [out ; method printString ; '\n\n'.
+     lexicalContext isEmpty ifFalse:
+       [out ; 'Anonymous arguments: \n'.
+	lexicalContext doWithIndex:
+	  [| :val :index |
+           out ; index printString ; ': ' ; val printString ; '\n'].
+	out ; '\n']]
+    ifNotNil:
+      [(Syntax SourceWriter newOn: out) print: method sourceTree.
+       out ; '\n\n'.
+       (Syntax SourceWriter newOn: out) print: (method sourceTreeOf: codePointer - 1).
+       out ; '\n\n'.
+       method sourceTree localVariables doWithIndex:
+	 [| :var :index | out ; (var name as: String) ; ': '
+	    ; (lexicalContext at: index) printString ; '\n']]
+].
+
+d@(Debugger traits) currentFrameValueAt: index
+[
+  d currentLexicalContext
+    ifNotNilDo: [| :context | context at: index ifAbsent: [Nil]]
+].
+
+d@(Debugger traits) currentFrameValueAt: index put: obj
+[
+  d currentLexicalContext
+    ifNotNilDo: [| :context | context at: index put: obj].
+].
+
+d@(Debugger traits) frameDown
+[| frame nextFrame method |
+  nextFrame: (d interpreter framePointerOf: #invokeDebugger).
+  [frame: nextFrame.
+   nextFrame: (d interpreter stack at: frame - 1).
+   nextFrame ~== d framePointer /\ [d isValidFrameIndex: nextFrame]] whileTrue.
+
+  (d isValidFrameIndex: nextFrame) ifTrue: [d framePointer: frame].
+].
+
+d@(Debugger traits) frameUp
+[| frame |
+  frame: (d interpreter stack at: d framePointer - 1).
+  (d isValidFrameIndex: frame) ifTrue: [d framePointer: frame].
+].
+
+d@(Debugger traits) printHelp
+[
+  d printer
+   ; 'The debugger is a specialized evaluator that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
+   ; ': index. (or restart: index.) - signal the restart at the given index\n'
+   ; 'up - move up a frame\n'
+   ; 'up: N - move up N frames\n'
+   ; 'down - move down a frame\n'
+   ; 'down: N - move down N frames\n'
+   ; 'frame - print the current frame\n'
+   ; 'arg: N - evaluates the frame\'s value at index N\n'
+   ; 'arg: N put: - sets the frame\'s value at index N\n'
+   ; 'restarts - print the currently available restarts\n'
+   ; 'help - print this help listing\n'.
+].
+
+d@(Debugger traits) installMethods
+[
+  _@(d namespace) up
+  [d frameUp. d framePrint].
+  _@(d namespace) down
+  [d frameDown. d framePrint].
+  _@(d namespace) up: n
+  [n timesRepeat: [d frameUp]. d framePrint].
+  _@(d namespace) down: n
+  [n timesRepeat: [d frameDown]. d framePrint].
+  _@(d namespace) frame
+  [d framePrint].
+  _@(d namespace) arg: n
+  [d currentFrameValueAt: n].
+  _@(d namespace) arg: n put: newVal
+  [d currentFrameValueAt: n put: newVal].
+  _@(d namespace) backtrace &limit: n
+  [d printBacktrace &limit: n].
+  _@(d namespace) restarts
+  [d describeRestarts].
+  _@(d namespace) restart: index
+  [d signalRestartAt: index].
+  _@(d namespace) : index
+  [d signalRestartAt: index].
+  _@(d namespace) help
+  [d printHelp].
+].
+
+d@(Debugger traits) enter
+"The main interactive debugger loop."
+[
+  d refreshWorkspace.
+  d findRestarts.
+  d describeRestarts.
+
+  [d prompt] loop
+].

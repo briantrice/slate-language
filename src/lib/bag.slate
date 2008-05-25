@@ -1,0 +1,210 @@
+collections define: #Bag &parents: {ExtensibleCollection}
+  &slots: {#contents -> Dictionary new
+"A Mapping from objects to the number of occurrences of each."}.
+"Bags are unsorted collections that can have multiple copies of the same
+object. Basically, they map distinguishable instance objects to the number
+of times they occur; they're excellent for accumulating counts."
+
+b@(Bag traits) newSized: n
+"This can't really relate to the actual size of the bag, just the number of
+unique element values."
+[b cloneSettingSlots: #(contents) to: {b contents new &capacity: n}].
+
+b@(Bag traits) new &capacity: n
+"This is an approximation included for protocol completeness. The core method
+newSized: should be used by the caller if it knows better (basically, if it
+too is a Bag, and knows what composition of objects is being delivered in
+advance)."
+[
+  n `defaultsTo: 4.
+  b newSized: n
+].
+
+b@(Bag traits) size
+"Total up the number of occurrences for each element."
+[b contents inject: 0 into: #+`er].
+
+b@(Bag traits) copy
+[b cloneSettingSlots: #(contents) to: {b contents copy}].
+
+b@(Bag traits) accepts: obj
+"Answers whether the object can be part of the bag, as determined by the
+implementation as element->numOccurrences mapping."
+[b contents acceptsKey: obj].
+
+b@(Bag traits) add: obj withOccurrences: n
+"Add n number of b's."
+[
+  b contents at: obj put: (b contents at: obj ifAbsent: [0]) + n.
+  obj
+].
+
+b@(Bag traits) as: c@(Set traits)
+"Collect the elements contained. Ignore the number of occurrences."
+[b contents keySet as: c].
+
+b@(Bag traits) add: obj
+"How the default add: compatible protocol works for bags."
+[b add: obj withOccurrences: 1].
+
+b@(Bag traits) include: obj
+"To make sure the object is in the collection at least once, check to see if
+it is a key in the contents, if not, add it and set the count to 1."
+[
+  (b includes: obj)
+    ifFalse: [b at: obj put: 1].
+  b
+].
+
+b@(Bag traits) do: block
+"Perform the block for each occurrence of each element in the bag."
+[
+  b contents keysAndValuesDo: [| :key :val |
+    val timesRepeat: [block applyWith: key]].
+  b
+].
+
+b@(Bag traits) elementsAndOccurrencesDo: block
+"Perform the block for each element and its occurrence in the Bag."
+[
+  b contents keysAndValuesDo: block.
+  b
+].
+
+b@(Bag traits) includes: obj
+"If it's a key, then there are occurrences of it."
+[
+  b contents includesKey: obj
+].
+
+b@(Bag traits) occurrencesOf: obj
+"If it's a key, return the number of occurrences noted."
+[
+  (b includes: obj)
+    ifTrue: [b contents at: obj]
+    ifFalse: [0]
+].
+
+b@(Bag traits) remove: obj ifAbsent: block
+"Decrement the number of occurrences noted. Remove the key entirely if there's
+only 1. Otherwise, run the exception."
+[| count |
+  (count: (b contents at: obj ifAbsent: [^ block do])) = 1
+    ifTrue: [b contents removeKey: obj]
+    ifFalse: [b contents at: obj put: count - 1].
+  obj
+].
+
+b@(Bag traits) removeEvery: obj
+"An optimization for bags."
+[
+  b contents removeKey: obj.
+  obj
+].
+
+b@(Bag traits) sortedCounts
+"Return a collection of counts in decreasing order."
+[| counts |
+  counts: (SortedArray newSizeOf: b contents).
+  counts sortBlock: [| :x :y | x >= y].
+  b contents keysAndValuesDo: [| :key :val |
+    counts add: (val -> key)].
+  counts
+].
+
+b@(Bag traits) sortedElements
+"Return a collection of sorted elements with counts."
+[| elements |
+  elements: (SortedArray newSizeOf: b).
+  b contents associationsDo: [| :assoc | elements add: assoc].
+  elements
+].
+
+c@(Collection traits) elementsWithCounts &by: comparison
+[| result |
+  result: Bag new.
+  comparison ifNotNil: [result contents equalsBlock: comparison].
+  c >> result.
+  result
+].
+
+c@(Collection traits) elementsWithFrequencies &by: comparison
+[
+  c size `cache.
+  (c elementsWithCounts &by: comparison) collect: [| :each | each / c size]
+].
+
+c@(Bag traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"Print the element and number of occurrences like a Repetition."
+[| index tally |
+  index: 0.
+  tally: 0.
+  c contents keysDo: [| :_ | tally: tally + 1].
+  c elementsAndOccurrencesDo:
+    [| :each :count |
+     each printOn: o.
+     o ; ' x '.
+     count printOn: o.
+     index: index + 1.
+     index < tally ifTrue:
+       [block do]].
+  o
+].
+
+Bag traits define: #ReadStream &parents: {Collection ReadStream} &slots:
+{#collection -> Bag new.
+ #elementIdx -> 0.
+ "Which element index is the current one. This should traverse over the Mapping
+  from least to greatest, however the Mapping defines it."
+ #occurrence -> 0
+"Which occurrence is being looked at. It should vary from 0 to < the number of
+occurrences for that element value."}.
+"Bag ReadStreams need some state to track their position in the Bag."
+
+i@(Bag ReadStream traits) on: b
+"Targets the Bag and resets the position."
+[
+  resend.
+  i collection: b.
+  i elementIdx: 0.
+  i occurrence: 0.
+  i
+].
+
+i@(Bag ReadStream traits) atLastOccurrence
+"Answer whether there are any further occurrences of the same element as the
+iterator currently points to."
+[i occurrence = (i collection contents at: i elementIdx)].
+
+i@(Bag ReadStream traits) isAtEnd
+"The iterator has reached the end when it targets the last element and points
+to the last occurrence of that object."
+[i elementIdx = i collection contents tally /\ [i atLastOccurrence]].
+
+i@(Bag ReadStream traits) next
+"Significant logic has to occur to verify and update the position."
+[
+  i isAtEnd ifTrue: [^ Nil].
+  i atLastOccurrence
+    ifTrue: [i elementIdx: i elementIdx + 1. i occurrence: 1]
+    ifFalse: [i occurrence: i occurrence + 1].
+  i collection contents keyAt: i elementIdx
+].
+
+i@(Bag ReadStream traits) next: n
+"This returns a Sequence up to the requested length of the next elements.
+It returns early if it reaches the end, with the accumulated results."
+[| result |
+  result: (Array newSize: n).
+  result keysDo: [| :idx |
+    i next ifNil: [^ result] ifNotNilDo: [| :each | result at: idx put: each]].
+  result
+].
+
+i@(Bag ReadStream traits) peek
+"Note that this doesn't cache the peeked value."
+[
+  i isAtEnd ifTrue: [^ Nil].
+  i collection contents keyAt:
+    (i atLastOccurrence ifTrue: [i elementIdx + 1] ifFalse: [i elementIdx])
+].

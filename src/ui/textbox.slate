@@ -1,0 +1,154 @@
+
+"
+  The following make up a textbox (MVC paradigm):
+--------------------------------------------------
+
+- #model: this is something like an ArrayTextBuffer. All modifications
+   that are formally performed here must be sent this way:
+   model@(TextBuffer traits) execute: action@(TextBufferCommand
+   traits). #undo: has the same-typed arguments. These actions will be
+   chained together and then most likely executed using the recording
+   facilities in command.slate.
+
+- #view: The model has to be displayed so the view here has to handle
+   drawing the textbox and it also has to handle input from the mouse
+   (actually, just changing the mouse coordinates to a TextBuffer
+   Pointer and calling the right function in the #inputHandler. The
+   reason I decided to do this here was because some views might like
+   to color text or turn them into buttons, as well as have their own
+   custom wrapping options. For example, someone might right a view to
+   have vertical lines and the mappings to the horizontally-based
+   #model will be done in the view.
+
+- #inputHandler: This is how the user generates TextBufferCommands to be
+   executed by the model. Keypresses are looked up in the command map.
+   See fundamental-mode.slate for some examples.
+
+
+"
+
+
+" -- the textbox morph -- "
+
+
+Graphics define: #TextboxElement &parents: {ScrollpaneElement. PassInputToInputHandler} &slots:
+{
+  #model -> Nil.
+  #view -> Nil.
+  "#commandMap -> Nil. " "use inputHandler instead"
+}.
+
+
+te@(TextboxElement traits) handle: event@(PaintEvent traits)
+[
+
+    resend.
+
+    "TODO: only paint relevant items"
+
+    event context `>> [
+        rectangle: te innerArea.
+        save.
+        clip.
+        translate: (te boundingRect origin - te offset).
+        font: te font &italic: te italic &bold: te bold.
+        fontSize: te fontSize.
+    ].
+
+
+    te view paintOn: event context withOffset: te offset.
+
+    event context restore.
+    event context
+].
+
+
+
+
+teclass@(TextboxElement traits) newModel: model view: view inputHandler: controller
+" For example: TextboxElement newModel: ArrayTextBuffer view: SimpleTextView inputHandler: FundamentalMode. "
+[ | te |
+  te: (teclass newInnerBounds: (Rectangle origin: 0 , 0 extent: 100 , 100)).
+  te model: (model new).
+  te view: (view new `>> [on: te model.]).
+  te model view: te view.
+  te view morph: te.
+  te inputHandler: (controller new `>> [on: te model.]).
+  te
+].
+
+
+
+
+
+" -- a simple view -- "
+
+
+
+
+Graphics define: #SimpleTextView &parents: {Cloneable} &slots:
+{
+ #model -> Nil.
+ #morph -> Nil. "We change the size so the scrollpane knows how big we are."
+}.
+
+stv@(SimpleTextView traits) on: model
+[
+ stv model: model.
+ stv
+].
+
+
+
+
+stv@(SimpleTextView traits) paintOn: context withOffset: point
+[
+ | position index selection |
+
+
+  "FIXME do selections and wrap and stuff"
+
+
+    " for the list item to print "
+    position: (0 , (stv morph fontSize)).
+    index: 0.
+    context sourceRGB: stv morph textColor alpha: stv morph textAlpha.
+
+    stv model lines do: [| :item |
+                    context moveTo: position.
+                    context showText: (item as: String).
+
+                    position: (position x , (position y + stv morph fontSize)).
+                    index: index + 1].
+
+    context sourceRGB: stv morph foregroundColor alpha: stv morph foregroundAlpha.
+
+    "FIXME don't hardcode width"
+
+    stv model allPoints do: [| :point |
+                    context moveTo: ((point position * (7)) , ((point line + 1 * stv morph fontSize) + 2)).
+                    context showText: '_'].
+
+    context sourceRGB: stv morph selectionColor alpha: stv morph selectionAlpha.
+    context moveTo: ((stv model activePoint position * (7)) , 
+                     ((stv model activePoint line + 1 * stv morph fontSize) + 2)).
+    context showText: '_'.
+
+
+].
+
+
+stv@(SimpleTextView traits) update
+"The model has changed so we need to repaint it."
+[
+  "FIXME change the width and height"
+  stv morph repaintSoon.
+].
+
+
+
+
+" -- a model is in text.slate -- "
+
+" -- a inputHandler is in fundamental-mode.slate -- "
+

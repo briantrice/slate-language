@@ -1,0 +1,40 @@
+Optimizer MR define: #Module &parents: {Cloneable} &slots:
+{#architecture. "The architecture this module targets."
+ #globalVariables -> ExtensibleArray new. "GlobalVariables contained in this Module"
+ #functions -> ExtensibleArray new "Functions contained in this Module."}.
+"Represents a compilation unit."
+
+mod@(Optimizer MR Module traits) newArchitecture: arch
+[mod clone `>>
+  [architecture: arch.
+    globalVariables: mod globalVariables new.
+    functions: mod functions new. ]
+].
+
+mod@(Optimizer MR Module traits) functionNamed: name
+[mod functions detect: [| :fun | fun name = name]].
+
+mod@(Optimizer MR Module traits) variableNamed: name
+[mod globalVariables detect: [| :var | var name = name]].
+
+Optimizer MR define: #Function &parents: {Cloneable} &slots:
+{#module.
+ #name.
+ #inputVariables -> {}.
+ #outputVariables -> {}.
+ #localVariables -> ExtensibleArray new.
+ #constants -> {}.
+ "Maps particular allocated constants to whatever GlobalVariable stores them."
+ #basicBlocks -> ExtensibleArray new
+ "A function. Contains slots for variables (the inputs, the outputs, and
+local variables)."}.
+"NOTE: May want a separate Closure object with a second set of input variables
+representing specifically the environment records that need to be passed in."
+
+fun@(Optimizer MR Function traits) newNamed: name
+[fun clone `>>
+  [name: name.
+    localVariables: fun localVariables new.
+    basicBlocks: fun basicBlocks new. ]
+].
+

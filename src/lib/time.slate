@@ -1,0 +1,386 @@
+
+"Date and Time protocols, included from ANSI Smalltalk packages for Squeak."
+
+prototypes ensureNamespace: #time &delegate: True.
+
+time define: #Time &parents: {Comparable} &slots: {#secondsSinceMidnight -> 0}.
+"Time represents a point within a 24-hour period, stored as seconds since midnight."
+
+time define: #Duration &parents: {Comparable} &slots: {#totalSeconds -> 0}.
+"Duration represents a span of time with no particular fixed start point."
+
+Time traits compareAndHashUsingSlots: #(secondsSinceMidnight).
+Duration traits compareAndHashUsingSlots: #(totalSeconds).
+
+t@(Time traits) newForSeconds: n
+[t cloneSettingSlots: #(secondsSinceMidnight) to: {n}].
+
+t@(Time traits) newForHours: h minutes: m seconds: s
+[t cloneSettingSlots: #(secondsSinceMidnight) to: {h * SecondsInHour + (m * SecondsInMinute) + s}].
+
+d@(Duration traits) newForSeconds: n
+[d cloneSettingSlots: #(totalSeconds) to: {n}].
+
+d@(Duration traits) days: n [d newForSeconds: n * SecondsInDay].
+d@(Duration traits) hours: n [d newForSeconds: n * SecondsInHour].
+d@(Duration traits) minutes: n [d newForSeconds: n * SecondsInMinute].
+
+t@(Time traits) as: d@(Duration traits)
+[d newForSeconds: t secondsSinceMidnight].
+
+d@(Duration traits) as: t@(Time traits)
+[t newForSeconds: d totalSeconds].
+
+t@(Time traits) days [(t as: Duration) days].
+t@(Time traits) hours [(t as: Duration) hours].
+t@(Time traits) minutes [(t as: Duration) minutes].
+t@(Time traits) seconds [(t as: Duration) seconds].
+
+d@(Duration traits) days
+"The number of whole days represented, possibly negative."
+[
+  d totalSeconds abs // SecondsInDay * d totalSeconds sign
+].
+
+d@(Duration traits) hours
+"The number of whole hours represented, possibly negative, after whole days
+are discounted."
+[
+  d totalSeconds abs \\ SecondsInDay // SecondsInHour * d totalSeconds sign
+].
+
+d@(Duration traits) minutes
+"The number of whole minutes, possibly negative, after whole days and hours
+are discounted."
+[
+  d totalSeconds abs \\ SecondsInHour // SecondsInMinute * d totalSeconds sign
+].
+
+d@(Duration traits) seconds
+"The number of seconds, possibly negative, after whole days, hours, minutes
+are discounted."
+[
+  d totalSeconds abs \\ SecondsInMinute * d totalSeconds sign
+].
+
+t@(Time traits) + d@(Duration traits)
+[
+  t newForSeconds: t secondsSinceMidnight + d totalSeconds
+].
+
+t1@(Time traits) - t2@(Time traits)
+[
+  Duration newForSeconds: t1 secondsSinceMidnight - t2 secondsSinceMidnight
+].
+
+t1@(Time traits) < t2@(Time traits)
+[
+  t1 secondsSinceMidnight < t2 secondsSinceMidnight
+].
+
+d@(Duration traits) * n@(Number traits)
+[
+  d newForSeconds: d totalSeconds * n
+].
+
+d@(Duration traits) / n@(Number traits)
+[
+  d newForSeconds: d totalSeconds / n
+].
+
+d1@(Duration traits) / d2@(Duration traits)
+[
+  d1 totalSeconds / d2 totalSeconds
+].
+
+d1@(Duration traits) + d2@(Duration traits)
+[
+  d1 newForSeconds: d1 totalSeconds + d2 totalSeconds
+].
+
+d1@(Duration traits) - d2@(Duration traits)
+[
+  d1 newForSeconds: d1 totalSeconds - d2 totalSeconds
+].
+
+d@(Duration traits) abs
+[
+  d newForSeconds: d totalSeconds abs
+].
+
+d@(Duration traits) negated
+[
+  d newForSeconds: d totalSeconds negated
+].
+
+d@(Duration traits) isZero
+[
+  d totalSeconds isZero
+].
+
+t@(Time traits) isMidnight
+[
+  d secondsSinceMidnight isZero
+].
+
+d@(Duration traits) sign
+[
+  d totalSeconds sign
+].
+
+d@(Duration traits) isPositive
+[
+  d totalSeconds isPositive
+].
+
+d@(Duration traits) isNegative
+[
+  d totalSeconds isNegative
+].
+
+d1@(Duration traits) < d2@(Duration traits)
+[
+  d1 totalSeconds < d2 totalSeconds
+].
+
+d1@(Duration traits) > d2@(Duration traits)
+[
+  d1 totalSeconds > d2 totalSeconds
+].
+
+d@(Duration traits) printAbsOn: stream
+[| tempSecs |
+  stream ; (d days abs printString).
+  stream nextPut: $:.
+  stream ; (d hours abs printString truncateTo: 2 paddedBy: $0).
+  stream nextPut: $:.
+  stream ; (d minutes abs printString truncateTo: 2 paddedBy: $0).
+  stream nextPut: $:.
+  tempSecs: d seconds abs.
+  tempSecs < 10 ifTrue: [stream nextPut: $0].
+  tempSecs fractionPart = 0
+    ifTrue: [tempSecs: (tempSecs as: Integer)].
+  stream ; (tempSecs printString).
+  d
+].
+
+d@(Duration traits) printOn: stream
+"Prints out the format [-]D:HH:MM:SS[.S] ."
+[
+  d totalSeconds isNegative ifTrue: [stream nextPut: $-].
+  d printAbsOn: stream
+].
+
+time define: #Date &parents: {Comparable} &slots: {#julianDayNumber}.
+
+time define: #MonthNames -> #(January February March April May June July August September October December).
+time define: #WeekDayNames -> #(Sunday Monday Tuesday Wednesday Thursday Friday).
+
+time define: #Month &parents: {Cloneable}
+  &slots: {#name -> ''. #firstDayWithinYear -> 0. #length -> 0}.
+
+m@(Month traits) newNamed: name startingAt: start length: length
+[m cloneSettingSlots: #(name firstDayWithinYear length)
+   to: {name. start. length}].
+
+m@(Month traits) newNamed: name from: start to: end
+[m newNamed: name startingAt: start length: end - start + 1].
+
+m@(Month traits) abbreviation
+[m name first: 3].
+
+time ensureNamespace: #months &slots:
+  {#January -> (Month newNamed: 'January' startingAt: 1 length: 31).
+   #February -> (Month newNamed: 'February' startingAt: 32 length: 28).
+   #March -> (Month newNamed: 'March' startingAt: 60 length: 31).
+   #April -> (Month newNamed: 'April' startingAt: 91 length: 30).
+   #May -> (Month newNamed: 'May' startingAt: 121 length: 31).
+   #June -> (Month newNamed: 'June' startingAt: 152 length: 30).
+   #July -> (Month newNamed: 'July' startingAt: 182 length: 31).
+   #August -> (Month newNamed: 'August' startingAt: 213 length: 31).
+   #September -> (Month newNamed: 'September' startingAt: 244 length: 30).
+   #October -> (Month newNamed: 'October' startingAt: 274 length: 31).
+   #November -> (Month newNamed: 'November' startingAt: 305 length: 30).
+   #December -> (Month newNamed: 'December' startingAt: 335 length: 31)}.
+
+time define: #JulianMonths -> (Set new &capacity: 12).
+months slotValuesDo: [| :each | JulianMonths add: each].
+
+time define: #SecondsInMinute -> 60.
+time define: #SecondsInHour -> (SecondsInMinute * 60).
+time define: #SecondsInDay -> (SecondsInHour * 24).
+
+time define: #Instant &parents: {Comparable}
+   &slots: {#localDate. #localOffsetToUTC. #localTime.
+	    #localTimeZoneName. #localTimeZoneAbbrev}.
+"Instant objects represent individual points in Coordinated Universal
+Time (UTC) formerly called GMT at Greenwich, UK as represented in an
+implementation defined local time, including consideration of time zones."
+
+i@(Instant traits) dayOfMonth
+"Answer an Integer between 1 and 31, inclusive, representing the day of the
+month in the local time of the receiver, which includes the receiver."
+[i localDate dayOfMonth].
+
+i@(Instant traits) dayOfWeek
+"Answer an Integer between 1 and 7, inclusive, representing the day of the
+week in the local time of the receiver, which includes the receiver. Sunday
+is 1, Monday 2, and so on."
+[| dayIndex |
+  dayIndex: i localDate weekdayIndex + 1.
+  dayIndex > 7 ifTrue: [1] ifFalse: [dayIndex]
+].
+
+i@(Instant traits) dayOfWeekAbbreviation
+[
+  i dayOfWeekName first: 3
+].
+
+i@(Instant traits) dayOfWeekName
+"Answer the name of the day of the week in the local time."
+[
+  i localDate weekday as: String
+].
+
+i@(Instant traits) dayOfYear
+"Answer an Integer between 1 and 366, inclusive, representing the day of
+the year in the local time of the receiver, which includes the receiver."
+[
+  i localDate day
+].
+
+i@(Instant traits) hour
+"Answer an Integer between 0 and 23, inclusive, representing the hour of the
+day in the local time of the receiver. This may be in either the 12 or 24
+hour clock."
+[
+  i localTime hours
+].
+
+i@(Instant traits) hour24
+[
+  i hour
+].
+
+i@(Instant traits) hour12
+"Answer an Integer between 1 and 12, inclusive, representing the hour of the
+day in the 12-hour clock of the local time of the receiver."
+[| tempHour |
+  tempHour: (self hour + 1) abs.
+  tempHour > 12
+    ifTrue: [tempHour - 12]
+    ifFalse: [tempHour]
+].
+
+i@(Instant traits) minute
+"Answer an Integer between 0 and 59, inclusive, representing the minute of
+the hour in the local time of the receiver."
+[
+  i localTime minutes
+].
+
+i@(Instant traits) second
+"Answer an Integer between 0 and 59, inclusive, representing the second of
+the minute in the local time of the receiver, including the fractional part."
+[
+  i localTime seconds abs
+].
+
+i@(Instant traits) year
+"Answer an Integer representing the year of the local time which includes
+the receiver."
+[
+  i localDate year
+].
+
+i@(Instant traits) month
+"Answer an Integer between 1 and 12, inclusive, representing the month of
+the year in the local time of the receiver."
+[
+  i localDate monthIndex
+].
+
+i@(Instant traits) monthName
+"Answer the name of the month of the year in the local time of the
+receiver, which includes the receiver."
+[
+  i localDate monthName as: String
+].
+
+i@(Instant traits) monthAbbreviation
+"Answer a <readableString> which is the abbreviated name of the month of the
+year in the local time of the receiver, which includes the receiver."
+[
+  i monthName first: 3
+].
+
+i@(Instant traits) offset
+[
+  i localOffsetToUTC
+].
+
+i@(Instant traits) offset: d@(Duration traits)
+"Answer an Instant equivalent to the receiver, but with its local time
+offset from UTC by the Duration."
+[
+  d abs < Day
+    ifTrue: [i cloneSettingSlots: #(localOffsetToUTC) to: {d}]
+    ifFalse: [i error: 'Invalid UTC-offset.']
+].
+
+i@(Instant traits) rationalise
+"Adjust the receiver so localTime is less than a day and positive."
+[| timeDays |
+  i localTime isNegative ifTrue: [
+    timeDays: i localTime days abs + 1.
+    i localDate: (i localDate subtractDays: timeDays).
+    i localTime: (Duration days: timeDays) + i localTime].
+  "Insure time is less than a day."
+  timeDays: i localTime days.
+  timeDays > 0 ifTrue: [i localDate: (i localDate addDays: timeDays).
+    i localTime: i localTime - (Duration days: timeDays)].
+  i
+].
+
+i@(Instant traits) + d@(Duration traits)
+[i cloneSettingSlots: #(localTime) to: {i localTime + d} `>> [rationalise. ]].
+
+i@(Instant traits) - d@(Duration traits)
+[
+  i + d negated
+].
+
+i1@(Instant traits) - i2@(Instant traits)
+[
+  "We're expecting Date - Date to give a Duration here."
+  (i2 localDate - i1 localDate) + (i2 localTime - i1 localTime)
+].
+
+time define: #DaylightEndDate.
+time define: #DaylightOffset.
+time define: #DaylightStartDate.
+time define: #DaylightTimeZoneAbbrev.
+time define: #DaylightTimeZoneName.
+time define: #DaysInMonth.
+time define: #DaysToMonth.
+time define: #DefaultIsStandard.
+time define: #Offset.
+time define: #StandardOffset.
+time define: #StandardTimeZoneAbbrev.
+time define: #StandardTimeZoneName.
+time define: #TimeZoneAbbrev.
+time define: #TimeZoneName.
+
+time define: #TimeZone &slots: {#name. #offset. #abbreviation}.
+"TimeZone collects basic information to encode a UTC time zone."
+
+tz@(TimeZone traits) newNamed: name offset: offset abbrev: abbreviation
+[
+  tz traits define: abbreviation intern ->
+   (tz cloneSettingSlots: #(name offset abbreviation) to: {name. offset. abbreviation})
+].
+
+TimeZone newNamed: 'Universal Time' offset: 0 abbrev: 'UTC'.
+TimeZone newNamed: 'Greenwich Mean Time' offset: 0 abbrev: 'GMT'.
+TimeZone newNamed: 'Pacific Standard Time' offset: -8 abbrev: 'PST'.
+TimeZone newNamed: 'Pacific Daylight Time' offset: -7 abbrev: 'PDT'.

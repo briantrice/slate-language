@@ -1,0 +1,75 @@
+CHANGELOG
+---------
+
+Mars 26, 2005
+-Added library methods for working with events to SDLLib.slate
+-Change the name back to libSDL rather than libSDL-1.2
+
+Mars 19, 2005
+I changed my SDLgfx lib to the latest version: 2.0.13.
+The only change I had to made is change filledpie... to
+filledPie...
+
+Mars 13, 2005
+I decided to move stuff to darcs.
+Making so, I found that I began adding stuff to declare events
+in SDLgfxLib2.slate, but that it don't work at all, so I commented it
+out. BTW I renamed it to SDLgfxLib.slate, and change the directory
+structure to be under src/ui/SDL rather than src/plugins/SDL.
+
+February 14, 2005
+-Finally found that SDLgfxLib2.slate was not able to use #PSurf
+(Surface Pointer) because I was not passing &argumentFormats: SDLLib argFormatOverrides. to installMethodsForDefs:
+
+February 4, 2005
+-fixed some missing case about test2.slate (see February 2), and
+remove some old comments saying that it was showing nothing (which
+was now false, they worked)
+-rewrote SDLLib.slate and SDLgfxLib to use newer FFI (installMethods)
+
+February 2, 2005
+-rewrote test2.slate to use a new {34. 21. 13} asInt16Array.
+
+change to what will become version 6 (January 22, 2005)
+-SDLLib VideoModeOK resultFormat: {SDLLib EM_AF Int.}
+change to SDLLib VideoModeOK resultFormat: SDLLib EM_AF Int.
+so fixing isModeAvailableWithWidth:height:bpp:flags:
+-added SDLLib RWFromFile and changed SDL LoadBMP to use it,
+so fixing the bug with LoadBMP.
+
+change to what will become version 5 (January 21, 2005)
+-in some SDLLib fun_name argumentFormat:, fun_name was incorrect in
+SDLgfxLib, that sould fix polygons, bezierCurves.
+-It seems strings are fixed too, for unknown reason
+
+change to what will become version 4
+-added preinit.slate, to load correctly src/lib/extlib.slate
+before loading init.slate
+-Changing test2.slate to add xPoints1 and yPoints1 (Array of Int16)
+-Changing test2.slate, bezier1, to use xPoints1 and yPoints1
+-Changing SDLgfxLib.slate, bezier and polygons to
+  pass Bytes for vecX and vecY, rather than Pointer that I did put before
+
+change to what will become version 3
+-fixed hlineRGBAX1:x2:y:... was doing a pixel rather than a line
+-changed drawing routines to show an error if SDL currentSurf is
+Nil rather than to segfaults
+-changed rectanbleRGBAx1:... in rectangleRGBAX1:...
+-removed a bad $\xA0 character in lineX1:... at end of currentFGColor
+-removed a bad $\xA0 character in circleX:... at end of currentFGColor
+-added missing dot after radY in filledEllipseRGBAx:...
+-changed filledPieX1:... in filledPieX:...
+-in filledPieX: changed SDLLib filledPieColor for filledpieColor
+"hey, in SDLLib, they choosed to call it filledpieColor"
+-idem for filledPieRGBAx:...
+-removed a bad $\xA0 character in trigonX1:... at end of currentFGColor
+-added missing x3. y3. in filledTrigonRGBAx1:...
+-removed a bad $\xA0 character in polygonVecX:... at end of currentFGColor
+
+
+change to what will become version 2
+-added screen in SDLgfx (Jan 11, 2005) that make it load properly
+-added a init.slate supposing that SDL will be in src/plugins/SDL
+-renamed READ_SDL.txt in README_SDL.txt
+-changed SDLgfxLib to SDLLib in pixelColor of SDLgfx.slate
+-added all missing functions in SDLgfx.slate

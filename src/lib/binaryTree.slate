@@ -1,0 +1,160 @@
+
+"Influenced by http://cs.oberlin.edu/~jwalker/tree/ which is Jeffery
+Walker's description of a sound object-oriented factoring and implementation
+of binary trees and binary search trees."
+
+collections define: #BinaryTree
+  &parents: {LinkedCollection. Association. Mapping}
+  &slots: {#treeParent. #leftChild. #rightChild}.
+"A Tree with two children, for simplicity."
+
+bt@(BinaryTree traits) clear
+"Reset all the slots."
+[
+  bt leftChild: Nil.
+  bt rightChild: Nil.
+  bt key: Nil.
+  bt value: Nil.
+  bt
+].
+
+bt@(BinaryTree traits) new
+"There's no way to pre-allocate trees for a certain size, so this creates
+a new node and clears it."
+[
+  bt clone clear
+].
+
+bt@(BinaryTree traits) isEmpty
+[
+  bt key isNil
+].
+
+bt@(BinaryTree traits) rotateLeft
+[| parent child grandChild |
+  parent: bt treeParent.
+  child: bt rightChild.
+  grandChild: child leftChild.
+  child leftChild: bt.
+  bt rightChild: grandChild.
+  parent leftChild == bt
+    ifTrue: [parent leftChild: child]
+    ifFalse: [parent rightChild: child].
+  child treeParent: parent.
+  bt treeParent: child.
+  grandChild treeParent: bt.
+  child
+].
+
+bt@(BinaryTree traits) rotateRight
+[| parent child grandChild |
+  parent: bt treeParent.
+  child: bt leftChild.
+  grandChild: child rightChild.
+  child rightChild: bt.
+  bt leftChild: grandChild.
+  parent leftChild == bt
+    ifTrue: [parent leftChild: child]
+    ifFalse: [parent rightChild: child].
+  child treeParent: parent.
+  bt treeParent: child.
+  grandChild treeParent: bt.
+  child
+].
+
+bt@(BinaryTree traits) size
+"The number of nodes including the target node and its branches recursively."
+[| size |
+  size: 1.
+  bt leftChild ifNotNilDo: [| :c | size: size + c size].
+  bt rightChild ifNotNilDo: [| :c | size: size + c size].
+  size
+].
+
+bt@(BinaryTree traits) isBalanced
+"Whether one subtree differs by more than 1 in size from the other's size."
+[
+  bt leftChild ifNil: [^ (bt rightChild
+    ifNil: [True]
+    ifNotNil: [bt rightChild size <= 1])].
+  bt rightChild ifNil: [^ (bt leftChild size <= 1)].
+  (bt leftChild size - bt rightChild size) abs <= 1
+].
+
+bt@(BinaryTree traits) at: key ifAbsent: block
+[| child |
+  child: (bt scanFor: key)
+  child key = key
+    ifTrue: [child value]
+    ifFalse: [block do]
+].
+
+bt@(BinaryTree traits) at: key ifPresent: block
+[
+  block applyWith: (bt at: key ifAbsent: [^ Nil])
+].
+
+bt@(BinaryTree traits) at: key put: value
+[
+  bt isEmpty ifTrue: [bt key: key. bt value: value. ^ bt].
+  (bt scanFor: key) `cacheAs: #child.
+  child key = key
+    ifTrue: [child value: value]
+    ifFalse:
+      [| newChild |
+       newChild:
+	 (child cloneSettingSlots: #(key treeParent leftChild rightChild value)
+	        to: {key. bt. Nil. Nil. value}).
+       key < child key
+         ifTrue: [child leftChild: newChild]
+         ifFalse: [child rightChild: newChild].
+       newChild]
+].
+
+bt@(BinaryTree traits) scanFor: key
+"Recurse through the branches, comparing keys. This method will return a node.
+Whether the node is directly addressed by the key is exactly the same fact as
+whether the tree has that key at all."
+[
+  bt isEmpty ifTrue: [^ bt].
+  key < bt key
+    ifTrue:
+      [bt leftChild ifNil: [bt] ifNotNil: [bt leftChild scanFor: key]]
+    ifFalse: [
+      bt key < key
+        ifTrue:
+          [bt rightChild ifNil: [bt] ifNotNil: [bt rightChild scanFor: key]]
+        ifFalse: [bt]]
+].
+
+bt@(BinaryTree traits) do: block
+"Recurse through the left and right branches, and apply to the value slots."
+[
+  block applyWith: bt value. "TODO: check for Nil?"
+  bt leftChild ifNotNilDo: [| :c | c do: block].
+  bt rightChild ifNotNilDo: [| :c | c do: block].
+  bt
+].
+
+bt@(BinaryTree traits) keysAndValuesDo: block
+"Recurse through the left and right branches, and apply to both slots."
+[
+  block applyWith: bt key with: bt value.
+  bt leftChild ifNotNil: [bt leftChild keysAndValuesDo: block].
+  bt rightChild ifNotNil: [bt rightChild keysAndValuesDo: block].
+  bt
+].
+
+collections define: #BinarySearchTree
+  &parents: {BinaryTree. NoDuplicatesCollection}.
+"This is a self-balancing binary tree, supporting Extensible protocols."
+
+bst@(BinarySearchTree traits) add: obj
+[
+].
+
+bst@(BinarySearchTree traits) remove: obj
+[
+].
+
+

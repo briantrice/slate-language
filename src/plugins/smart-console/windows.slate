@@ -1,0 +1,420 @@
+terminals define: #WindowsConsole &parents: {StructuredConsole}.
+
+WindowsConsole traits `>> [
+  addSlot: #consoleIn. "Windows HANDLE's"
+  addSlot: #consoleOut.
+  addSlot: #bufferWindowPosition. "Stores the actual left top origo of the window position
+                                   in the internal buffer of cmd.exe"
+  addSlot: #originalConsoleInMode valued: (ByteArray newSize: Windows DWORD byteSize).
+  addSlot: #originalConsoleOutMode valued: (ByteArray newSize: Windows DWORD byteSize).
+  addSlot: #originalCursorPen.
+  addSlot: #clearChar valued: Windows CHAR_INFO clone.
+
+  "Create new prorotypes for the streams for methods we install on them"
+  define: #EventStream &parents: {WindowsConsole EventStream}.
+  "define: #ReadStream &parents: {WindowsConsole ReadStream}. we don't override anything for now"
+  define: #WriteStream &parents: {WindowsConsole WriteStream}.
+  define: #ReadWriteStream &parents: {WindowsConsole ReadStream. WindowsConsole WriteStream}.
+].
+
+WindowsConsole clearChar Attributes: 0.
+WindowsConsole clearChar Char_AsciiChar: #[$\s as: Integer].
+
+WindowsConsole traits ensureNamespace: #colors &slots:
+{#Black      -> 16r00.
+ #Navy       -> 16r01.
+ #DarkGreen  -> 16r02.
+ #Aquamarine -> 16r03.
+ #Maroon     -> 16r04.
+ #Purple     -> 16r05.
+ #Olive      -> 16r06.
+ #LightGray  -> 16r07.
+ #DarkGray   -> 16r08.
+ #Blue       -> 16r09.
+ #Green      -> 16r0A.
+ #Cyan       -> 16r0B.
+ #Red        -> 16r0C.
+ #Magenta    -> 16r0D.
+ #Yellow     -> 16r0E.
+ #White      -> 16r0F}.
+
+WindowsConsole defaultForegroundColor: WindowsConsole colors LightGray.
+
+w@(WindowsConsole WriteStream traits) next: n putAll: seq startingAt: start
+"Override the generic cursor tracking mechanism with reading the cursor position
+after the output"
+[| result |
+  result: resend.
+  w resource updateBufferWindowPosition.
+  result
+].
+
+c@(WindowsConsole traits) updateBufferWindowPosition
+[
+  c updateBufferWindowPositionFrom: c screenBufferInfo.
+].
+
+c@(WindowsConsole traits) updateBufferWindowPositionFrom: info
+[
+  c bufferWindowPosition ifNil: [c bufferWindowPosition: {0. 0}].
+  c bufferWindowPosition at: 0 put: info srWindow_Left.
+  c bufferWindowPosition at: 1 put: info srWindow_Top.
+  c moveCursorTo: {c actualCursorColumnIn: info. c actualCursorRowIn: info}.
+].
+
+c@(WindowsConsole traits) updateCursorPositionFrom: col@(Collection traits)
+[
+  "Hide implementation, we will read back the cursor position after any output"
+].
+
+_@(WindowsConsole traits) elementType
+[Character].
+
+_@(WindowsConsole traits) collectionType
+[String].
+
+c@(WindowsConsole traits) isAvailable
+[
+  "TODO implement it somehow, could be it's ok this way if accessed trough Platform Console"
+  [Windows Kernel GetStdHandle] on: Error do: [| :_ | ^ False].
+  True
+].
+
+c@(WindowsConsole traits) enterStructuredMode
+[
+  c consoleIn: (Windows Kernel GetStdHandle applyTo: {#[Windows STD_INPUT_HANDLE]}).
+  c consoleOut: (Windows Kernel GetStdHandle applyTo: {#[Windows STD_OUTPUT_HANDLE]}).
+
+  (Windows Kernel GetConsoleMode applyTo: {c consoleIn. c originalConsoleInMode}) not \/
+    [(Windows Kernel GetConsoleMode applyTo: {c consoleOut. c originalConsoleOutMode}) not]
+      ifTrue: [^ False].
+
+  Windows Kernel SetConsoleMode applyTo:
+    {c consoleIn. #[Windows ENABLE_WINDOW_INPUT "+ Windows ENABLE_MOUSE_INPUT"]}.
+  Windows Kernel SetConsoleMode applyTo:
+    {c consoleOut. #[Windows ENABLE_WRAP_AT_EOL_OUTPUT + Windows ENABLE_PROCESSED_OUTPUT]}.
+
+  True
+].
+
+c@(WindowsConsole traits) enteredStructuredMode
+[| info |
+  info: c screenBufferInfo.
+  c originalCursorPen: info wAttributes.
+  c updateBufferWindowPositionFrom: info.
+  resend
+].
+
+c@(WindowsConsole traits) leaveStructuredMode
+[
+  Windows Kernel SetConsoleMode applyTo: {c consoleIn. c originalConsoleInMode}.
+  Windows Kernel SetConsoleMode applyTo: {c consoleOut. c originalConsoleOutMode}.
+  Windows Kernel SetConsoleTextAttribute applyTo: {c consoleOut. c originalCursorPen}.
+].
+
+c@(WindowsConsole traits) screenBufferInfo
+[| info |
+  info: Windows CONSOLE_SCREEN_BUFFER_INFO clone.
+  (Windows Kernel GetConsoleScreenBufferInfo applyTo: {c consoleOut. info})
+    ifFalse: [error: 'Failed to get screen buffer info'. ^ Nil].
+  info
+].
+
+c@(WindowsConsole traits) actualColumns
+[
+  c assumeStructuredMode.
+  c actualColumnsIn: c screenBufferInfo
+].
+
+c@(WindowsConsole traits) actualColumnsIn: info
+[
+  info srWindow_Right - info srWindow_Left + 1
+].
+
+c@(WindowsConsole traits) actualRows
+[
+  c assumeStructuredMode.
+  c actualRowsIn: c screenBufferInfo
+].
+
+c@(WindowsConsole traits) actualRowsIn: info
+[
+  info srWindow_Bottom - info srWindow_Top + 1
+].
+
+c@(WindowsConsole traits) actualCursorColumn
+[
+  c assumeStructuredMode.
+  c actualCursorColumnIn: c screenBufferInfo
+].
+
+c@(WindowsConsole traits) actualCursorColumnIn: info
+[
+  info dwCursorPosition_X - c bufferWindowPosition first
+].
+
+c@(WindowsConsole traits) actualCursorRow
+[
+  c assumeStructuredMode.
+  c actualCursorRowIn: c screenBufferInfo
+].
+
+c@(WindowsConsole traits) actualCursorRowIn: info
+[
+  info dwCursorPosition_Y - c bufferWindowPosition second
+].
+
+c@(WindowsConsole traits) scroll &lines: lines
+[| info entire dest |
+  c assumeStructuredMode.
+  lines ifNil: [lines: 1].
+  info: c screenBufferInfo.
+  entire: Windows SMALL_RECT clone.
+  dest: Windows COORD clone.
+
+  entire `>> [Top: 1. Left: 0. Bottom: info dwSize_Y - 1. Right: info dwSize_X - 1].
+  dest X: 0.
+  dest Y: 0.
+
+  Windows Kernel ScrollConsoleScreenBufferA applyTo:
+    {c consoleOut. entire. entire. dest. c clearChar}.
+
+  c updateBufferWindowPosition.
+].
+
+c@(WindowsConsole traits) currentConsolePen
+[
+  c currentFgColor + (c currentBgColor << 4)
+].
+
+c@(WindowsConsole traits) clear
+[
+  c clear: c width * c height startingAt: {0. 0}.
+  c moveCursorTo: 0 , 0.
+].
+
+c@(WindowsConsole traits) clearToEOL
+[
+  c clear: c width - c cursorColumn startingAt: {c cursorColumn. c cursorRow}.
+].
+
+c@(WindowsConsole traits) clearToEOS
+[
+  c clear: (c width - c cursorColumn) + ((c height - c cursorRow) * c width)
+    startingAt: {c cursorColumn. c cursorRow}.
+].
+
+c@(WindowsConsole traits) clear: count startingAt: coord
+[| info home dword |
+  c assumeStructuredMode.
+  info: c screenBufferInfo.
+  home: Windows COORD clone.
+  home X: coord first + c bufferWindowPosition first.
+  home Y: coord second + c bufferWindowPosition second.
+  dword: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+
+  (Windows Kernel GetConsoleScreenBufferInfo applyTo: {c consoleOut. info})
+    ifTrue: [
+      Windows Kernel FillConsoleOutputCharacterA applyTo: {
+        c consoleOut. c clearChar. count. home. dword}.
+      Windows Kernel FillConsoleOutputAttribute applyTo: {
+        c consoleOut. c currentConsolePen. count. home. dword}].
+"      c moveCursorTo: (c cursorColumn + (count rem: c width)) , (c cursorRow + (count // c width))]."
+].
+
+c@(WindowsConsole traits) moveCursorTo: pos
+[| coord info |
+  c assumeStructuredMode.
+  info: c screenBufferInfo.
+  coord: Windows COORD clone.
+  coord X: pos first + c bufferWindowPosition first.
+  coord Y: pos second + c bufferWindowPosition second.
+  Windows Kernel SetConsoleCursorPosition applyTo: {c consoleOut. coord}.
+  resend
+].
+
+c@(WindowsConsole traits) attributeMode: mode
+[
+  c setAttributeMode: mode withFg: c currentFgColor withBg: c currentBgColor.
+  resend
+].
+
+c@(WindowsConsole traits) foregroundColor: fg
+[
+  c setAttributeMode: c currentMode withFg: fg withBg: c currentBgColor.
+  resend
+].
+
+c@(WindowsConsole traits) backgroundColor: bg
+[
+  c setAttributeMode: c currentMode withFg: c currentFgColor withBg: bg.
+  resend
+].
+
+c@(WindowsConsole traits) setAttributeMode: mode withFg: fg withBg: bg
+"This is the primitive"
+[
+  c assumeStructuredMode.
+  mode = #[SmartConsole modes Bold]
+    ifTrue: [fg: (fg bitOr: #[Windows BACKGROUND_INTENSITY]).
+             bg: (bg bitOr: #[Windows BACKGROUND_INTENSITY])].
+"    ifFalse: [fg: (fg bitAnd: #[Windows BACKGROUND_INTENSITY bitNot]).
+              bg: (bg bitAnd: #[Windows BACKGROUND_INTENSITY bitNot])]."
+  Windows Kernel SetConsoleTextAttribute applyTo: {c consoleOut. fg bitOr: bg << 4}.
+].
+
+c@(WindowsConsole traits) write: n to: handle from: array startingAt: start
+[| written |
+  c assumeStructuredMode.
+  written: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+  start ~= 0 ifTrue: [array: (array copyFrom: start)].
+  Windows Kernel WriteConsoleA applyTo:
+    {c consoleOut. array. n. written. Nil}.
+  written int32At: 0
+].
+
+c@(WindowsConsole traits) initKeyMappings
+[
+  c keyCodeToKeyName: c keyCodeToKeyName new.
+  c sequenceToKeyName: c sequenceToKeyName new.
+  
+  {
+    37 -> #LeftArrow.
+    38 -> #UpArrow.
+    39 -> #RightArrow.
+    40 -> #DownArrow.
+
+    33 -> #PageUp.
+    34 -> #PageDown.
+    35 -> #End.
+    36 -> #Home.
+    45 -> #Insert.
+    46 -> #Delete.
+
+    8  -> #Backspace.
+    9  -> #Tab.
+    13 -> #Enter.
+    13 -> #Enter.
+    19 -> #Pause.
+    145 -> #ScrollLock.
+    27 -> #Escape.
+    93 -> #Menu.
+    
+  } do: [| :entry | c keyCodeToKeyName add: entry].
+
+  112 upTo: 123 do: [| :code index |
+    index: code - 111.
+    c keyCodeToKeyName at: code put: ('Function' ; index printString) intern].
+].
+
+"EventStream stuff"
+
+WindowsConsole EventStream `>> [
+  addSlot: #nextEvent.
+].
+
+s@(WindowsConsole EventStream traits) hasNext
+[| c dword record |
+  "If we have an event waiting just return true"
+  s nextEvent ifNotNil: [^ True].
+
+  "Otherwise try to read a meaningful event while the OS reports that events are ready"
+  c: s console.
+  dword: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+  record: Windows INPUT_RECORD clone.
+  [
+    (Windows Kernel GetNumberOfConsoleInputEvents applyTo: {s console consoleIn. dword})
+      ifTrue: [
+        (dword int32At: 0) > 0
+          ifTrue: [
+            Windows Kernel ReadConsoleInputA applyTo: {c consoleIn. record. 1. dword}.
+            (s nextEvent: (s buildEventFrom: record))
+              ifNotNil: [^ True]]
+          ifFalse: [^ False]]
+      ifFalse: [^ False].
+  ] loop.
+].
+
+"TODO manage resource with multiple instances, unbind event stream for background screens"
+s@(WindowsConsole EventStream traits) next
+[| c record dword |
+  c: s console.
+  c assumeStructuredMode.
+  
+  s nextEvent ifNotNil: [| result |
+    result: s nextEvent.
+    s nextEvent: Nil.
+    ^ result].
+
+  record: Windows INPUT_RECORD clone.
+  dword: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+
+  [| info event |
+    "This seems to be the only way to detect console _window_ (not buffer) resize events."
+    info: c screenBufferInfo.
+    (c actualColumnsIn: info) ~= c columns \/
+      [(c actualRowsIn: info) ~= c rows]
+        ifTrue: [c resized. ^ c ResizeEvent new].
+
+    Windows Kernel ReadConsoleInputA applyTo: {c consoleIn. record. 1. dword}.
+    event: (s buildEventFrom: record).
+    event ifNotNil: [^ event].
+  ] loop.
+].
+
+s@(WindowsConsole EventStream traits) buildEventFrom: record
+[| c record dword |
+  c: s console.
+  record EventType = #[Windows KEY_EVENT] /\ [record Event_KeyEvent_bKeyDown ~= 0]
+    ifTrue: [| event name asciiCode controlFlags |
+      event: (c KeyDownEvent newForKeyCode: record Event_KeyEvent_wVirtualKeyCode).
+      name: (c keyCodeToKeyName at: event keyCode ifAbsent: [Nil]).
+      controlFlags: record Event_KeyEvent_dwControlKeyState.
+      event leftAltState: (controlFlags bitAnd: #[Windows LEFT_ALT_PRESSED]) isZero not.
+      event rightAltState: (controlFlags bitAnd: #[Windows RIGHT_ALT_PRESSED]) isZero not.
+      event leftControlState: (controlFlags bitAnd: #[Windows LEFT_CTRL_PRESSED]) isZero not.
+      event rightControlState: (controlFlags bitAnd: #[Windows RIGHT_CTRL_PRESSED]) isZero not.
+      "TODO numlock, scrolllock, capslock"
+      asciiCode: record Event_KeyEvent_uChar_AsciiChar.
+      asciiCode isZero ifFalse: [
+        event controlState ifTrue: [asciiCode: (asciiCode bitOr: 2r01100000)].
+        asciiCode = 13 ifTrue: [asciiCode: 10].
+        "ASCII codes 9, 10, 32-128 are passed as valid characters"
+        (asciiCode between: 32 and: 128) \/ [asciiCode = 9] \/ [asciiCode = 10]
+            ifTrue: [event char: (asciiCode as: ASCIICharacter)]].
+
+      event keyName: name.
+      event char isNotNil \/ [event keyName isNotNil]
+        ifTrue: [^ event]].
+].
+
+c@(WindowsConsole traits) flush
+[
+].
+
+c@(WindowsConsole traits) cursorVisibility: bool
+[| info |
+  info: Windows CONSOLE_CURSOR_INFO clone.
+  Windows Kernel GetConsoleCursorInfo applyTo: {c consoleOut. info}.
+  bool ifTrue: [info bVisible: 1] ifFalse: [info bVisible: 0].
+  Windows Kernel SetConsoleCursorInfo applyTo: {c consoleOut. info}.
+].
+
+c@(WindowsConsole traits) hideCursor
+[
+  c cursorVisibility: False.
+].
+
+_@(WindowsConsole traits) showCursor
+[
+  c cursorVisibility: True.
+].
+
+
+"TODO ?"
+_@(WindowsConsole traits) deleteChar
+[overrideThis].
+_@(WindowsConsole traits) deleteLines: n
+[overrideThis].
+_@(WindowsConsole traits) insertLines: n
+[overrideThis].

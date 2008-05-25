@@ -1,0 +1,30 @@
+includeHeaderNamed: '<stdlib.h>'.
+includeHeaderNamed: '<stdio.h>'.
+includeHeaderNamed: '<assert.h>'.
+includeHeaderNamed: '"slate.h"'.
+
+console@ConsoleObject read: n from: handle into: seq startingAt: start
+"The standard input base API."
+[| bytes!(UnsignedChar pointer) size!UnsignedLongInt |
+  bytes: seq pointer arrayElements!(UnsignedChar pointer) cast + start asSmallInt.
+  size: n asSmallInt.
+  interpreter stackPush: 'fread(bytes, 1, size, stdin)' directly!LongInt asObject.
+] `pidginPrimitive.
+
+console@ConsoleObject write: n to: handle from: seq startingAt: start
+"The standard output base API."
+[| bytes!(UnsignedChar pointer) size!UnsignedLongInt |
+  bytes: seq pointer arrayElements!(UnsignedChar pointer) cast + start asSmallInt.
+  size: n asSmallInt.
+  handle asSmallInt = 0
+    ifTrue: [interpreter stackPush: 'fwrite(bytes, 1, size, stdout)' directly!LongInt asObject]
+    ifFalse: [interpreter stackPush: 'fwrite(bytes, 1, size, stderr)' directly!LongInt asObject]
+] `pidginPrimitive.
+
+console@ConsoleObject flushOutput
+"Calls the ANSI C flush API on standard output and returns Nil."
+[
+  'fflush (stdout)' directly.
+  'fflush (stderr)' directly.
+  interpreter pushNil
+] `pidginPrimitive.

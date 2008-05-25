@@ -1,0 +1,35 @@
+ObjC define: #Writer &parents: {C Writer}.
+"Writes out ObjC code."
+
+w@(ObjC Writer traits) print: msg@(ObjC Message traits)
+[
+  w nextPut: $[.
+  selector isUnarySelector ifTrue:
+    [(w printAsArgument: args first) ifTrue: [w newColumn].
+     w printSelectorPrefixOf: node.
+     w ; selector name].
+  selector isBinarySelector ifTrue:
+    [(w printAsArgument: args first) ifTrue: [w newColumn].
+     w printSelectorPrefixOf: node.
+     w ; selector name.
+     w newColumn.
+     w printAsArgument: args second].
+  "For keyword sends, print the first argument, partition the selector by
+   the colons, (at an offset of 1 to synchronize indices for looping),
+   and then loop from one to the end, printing the keywords and arguments
+   alternately."
+  selector isKeywordSelector ifTrue:
+    [| names |
+     names: (selector name splitWith: $:).
+     (w printAsArgument: args first) ifTrue: [w newColumn].
+     1 below: args size do:
+       [| :index arg |
+        index = 1
+          ifTrue: [w printSelectorPrefixOf: node]
+          ifFalse: [w newColumn].
+	w ; ((names at: index - 1) as: String).
+	w ; ': '.
+        w printAsArgument: (args at: index)]].
+  w nextPut: $].
+  w
+].

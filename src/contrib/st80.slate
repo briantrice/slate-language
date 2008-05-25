@@ -1,0 +1,39 @@
+"Smalltalk-80 compatibility idioms.
+These exist for didactic / documentation purposes only, and should NOT be
+relied upon for any purpose and will NOT be supported in any way."
+
+"Globals:"
+
+#true alias: #True on: {prototypes}.
+#false alias: #False on: {prototypes}.
+#nil alias: #Nil on: {prototypes}.
+#Smalltalk alias: #lobby on: {lobby}.
+#ObjectMemory alias: #Image on: {prototypes}. "This isn't a real equivalent."
+
+"Methods:"
+
+#value alias: #do on: {Method traits}.
+#value: alias: #applyWith: on: {Method traits}.
+#value:value: alias: #applyWith:with: on: {Method traits}.
+#value:value:value: alias: #applyWith:with:with: on: {Method traits}.
+#values: alias: #applyTo: on: {Method traits}.
+
+#value: alias: #sendWith: on: {Symbol traits}.
+x@(Root traits) perform: selector [selector value: x].
+
+"Collections:"
+
+#SequenceableCollection alias: #Sequence on: {collections}.
+#ArrayedCollection alias: #Sequence on: {collections}.
+#OrderedCollection alias: #ExtensibleArray on: {collections}.
+#SortedCollection alias: #SortedArray on: {collections}.
+
+#new: alias: #newSize: on: {collections}.
+
+c@(Collection traits) inject: init into: binBlock
+[c gather: binBlock &initial: init].
+
+#reduce: alias: #gather: on: {collections}.
+
+c@(Collection traits) reduce: binBlock ifEmpty: emptyBlock
+[c isEmpty ifTrue: [emptyBlock do] ifFalse: [c gather: binBlock]].

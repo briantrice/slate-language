@@ -1,0 +1,170 @@
+
+mappings define: #EmptyMapping &builder: [Mapping clone].
+"The Mapping that doesn't point to anything."
+
+_@EmptyMapping size [0].
+_@EmptyMapping capacity [0].
+
+_@EmptyMapping do: _ [].
+_@EmptyMapping keysAndValuesDo: _ [].
+
+e@EmptyMapping at: key [ key keyNotFoundOn: e].
+e@EmptyMapping at: key put: _ [ key keyNotFoundOn: e].
+_@EmptyMapping at: _ ifAbsent: block [block do].
+_@EmptyMapping at: _ ifPresent: _ [].
+
+mappings define: #MapOverlay &parents: {Mapping}.
+"This class implements a Mapping that takes an existing mapping
+and 'overlays' it with another existing mapping.
+
+Given existing Dictionaries d1 and d2:
+
+Slate> d1: Dictionary new `>> [at: 1 put: 'one'. at: 3 put: 'three'.].
+
+Slate> d2: Dictionary new `>> [at: 2 put: 'Two'. at: 3 put: 'Three'.].
+
+Create a new MapOverlay:
+
+Slate> mo: (d1 overlayWith: d2).
+
+Examples:
+
+Slate> mo at: 1.
+'one'
+
+Slate> mo at: 2.
+'Two'
+
+Slate> mo at: 3.
+'Three'
+"
+MapOverlay addSlot: #original valued: EmptyMapping.
+"The original Mapping to be overlayed."
+MapOverlay addSlot: #overlay.
+"The mapping used as the overlay for the original Mapping."
+
+m1@(Mapping traits) overlayWith: m2@(Mapping traits)
+"Creates a new MapOverlay.  Since Mappings are Sequences, we
+cannot re-use ; for mapping overlays without some confusion."
+[MapOverlay cloneSettingSlots: #(original overlay) to: {m1. m2}].
+
+overlay@(Mapping traits) over: base@(Mapping traits)
+[base overlayWith: overlay].
+
+m@(MapOverlay traits) at: key ifAbsent: block
+[
+  m overlay at: key ifAbsent: [m original at: key ifAbsent: block]
+].
+
+m@(MapOverlay traits) at: key put: value
+"Only the overlay is ever modified."
+[ m overlay at: key put: value ].
+
+m@(MapOverlay traits) keyAtValue: value ifAbsent: block
+[
+  m overlay
+    keyAtValue: value
+    ifAbsent: [m original keyAtValue: value ifAbsent: block]
+].
+
+m@(MapOverlay traits) acceptsKey: key
+[ m overlay acceptsKey: key ].
+
+m@(MapOverlay traits) keysAndValuesDo: block
+"First iterates over all the keys and values in the overlay
+and then iterates over the distinct keys and values in the original."
+[
+  m overlay keysAndValuesDo: block.
+  m original keysAndValuesDo: 
+    [| :key :value |
+     m overlay at: key ifAbsent: [block applyTo: {key . value}]].
+  m
+].
+
+m@(MapOverlay traits) keysDo: block
+"First iterates over all keys in the overlay and then iterates
+over distinct keys in the original."
+[
+  m overlay keysDo: block.
+  m original keysDo:
+    [| :key | m overlay at: key ifAbsent: [block applyWith: key]].
+  m
+].
+
+m@(MapOverlay traits) valuesDo: block
+"Iterates over all values in the overlay and then iterates
+over the values in the original skipping values for which
+the matching key is defined in the overlay."
+[
+  m overlay valuesDo: block.
+  m original keysAndValuesDo:
+    [ | :key :value |
+      m overlay at: key ifAbsent: [block applyWith: value]].
+  m
+].
+
+m@(MapOverlay traits) size
+"Returns the number of key-value pairs in the overlay plus
+the number of distinct key-value pairs in the original."
+[ | originalSize |
+  originalSize: 0.
+  m original keysDo:
+    [ | :key |
+       m overlay at: key ifAbsent: [ originalSize: originalSize + 1 ]].
+  m overlay size + originalSize
+].
+
+m@(MapOverlay traits) capacity
+"Since the original is not modified the capacity of the Mapping
+is the sum of the capacity of the overlay and the size
+of the original."
+[
+  m overlay capacity + m original size
+].
+
+mappings define: #SingleValueMap &parents: {Mapping}.
+"Maps a set of keys to a single value. This in combination with MapOverlay
+helps to represent sparse Mappings."
+SingleValueMap addSlot: #keys valued: Set new.
+"The set of keys mapped. This could be a Set or a Range (for sparse
+Sequences) Generally, it simply has to be a NoDuplicatesCollection."
+SingleValueMap addSlot: #value.
+"The single value used."
+
+m@(SingleValueMap traits) newFromAll: c to: obj
+"Creates a new SingleValueMap using the collection as keys to access the given
+object."
+[m cloneSettingSlots: #(keys value) to: {c. obj}].
+
+m@(SingleValueMap traits) at: key ifAbsent: block
+[
+  (m keys includes: key)
+    ifTrue: [m value]
+    ifFalse: [block do]
+].
+
+m@(SingleValueMap traits) at: key put: obj
+[
+  obj = m value
+    ifTrue: [keys include: key]
+    ifFalse: [error: 'This Mapping cannot store that object.']
+].
+
+m@(SingleValueMap traits) keysAndValuesDo: block
+[
+  m keys do: [| :key | block applyWith: key with: m value]
+].
+
+m@(SingleValueMap traits) keyAtValue: obj ifAbsent: block
+[
+  obj = m value
+    ifTrue: [keys atRandom]
+    ifFalse: [block do]
+].
+
+m@(SingleValueMap traits) keyAtIdentityValue: obj ifAbsent: block
+[
+  obj == m value
+    ifTrue: [keys atRandom]
+    ifFalse: [block do]
+].

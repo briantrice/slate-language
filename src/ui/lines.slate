@@ -1,0 +1,86 @@
+Graphics define: #PolyLine &parents: {Trace}
+  &slots: {#segments -> ExtensibleArray new}.
+"PolyLines are Sequences of LineSegments."
+
+pl@(PolyLine traits) copy
+[resend `>> [segments: pl segments copy. ]].
+
+pl@(PolyLine traits) calcBoundingRect
+[|s|
+  s: pl iterator
+].
+
+pl1@(PolyLine traits) = pl2@(PolyLine traits)
+[pl1 segments = pl2 segments].
+
+pl@(PolyLine traits) hash
+"TODO: Check this"
+[pl segments hash].
+
+pl@(PolyLine traits) iterator
+[pl segments iterator].
+
+pl@(PolyLine traits) contains: p@(Point traits)
+[
+  pl segments detect: [| :each | (each contains: p)]
+].
+
+pl@(PolyLine traits) as: p@(Path traits)
+"Convert a PolyLine of LineSegments to a Path of Points"
+[|newP|
+  newP: p copy.
+"TODO: Remove duplicate points"
+  pl segments
+     do: [| :each | newP points add: each start.
+          newP points add: each end].
+  newP
+].
+
+p@(Path traits) as: pl@(PolyLine traits)
+[pl cloneSettingSlots: #(segments) to: {p segments}].
+
+p@(Polygon traits) as: pl@(PolyLine traits)
+[pl cloneSettingSlots: #(segments) to: {p segments}].
+
+ls@(LineSegment traits) angle
+"The angle of the line in radians"
+[|t|
+  t: ((ls end y - ls start y as: Float) arctan: (ls end x - ls start x as: Float)).
+  t isPositive ifFalse: [t: 360 degreesToRadians + t].
+  t
+].
+
+ls@(LineSegment traits) angleBetween: a and: b
+"Is the angle of the LineSegment between a and b?
+Handles the case where the x axis is between a & b"
+"Angles go anticlockwise from a to b"
+[
+  a > b ifTrue:
+    [ls angle `cache >= a
+       /\ [ls angle <= #[ 360 degreesToRadians]]
+       \/ [ls angle <= b /\ [ls angle >= 0]]]
+	ifFalse: [angle between: a and: b]
+].
+
+p@(Polygon traits) newForWidth: w@(Number traits) flatness: f@(Number traits)
+"Returns a regular polygon which is within flatness of a circle"
+[| minV poly |
+  minV: Pi / (1 - (2 * f / w) as: Float) arccos.
+  (minV mod: 4) `cache isZero ifFalse: [minV: minV + 4 - (minV mod: 4)].
+  poly: (Polygon newRegularWithSides: (minV as: Integer)).
+  poly points: ((DisplayTransform scale: w) actOn: poly points contents).
+  poly
+].
+
+p@(Polygon traits) newRegularWithSides: n@(Integer traits)
+"Returns a regular polygon inscribed in a unit circle"
+[| vertices theta |
+  (n < 3) ifTrue: [error: 'Can\'t make a polygon with less than three sides'].
+  theta: (360 / n) degreesToRadians.
+  vertices: ((0 below: n) collect:
+    [| :index | (theta * index) cos , (theta * index) sin]).
+  (vertices as: Path) as: p
+].
+
+pl1@(PolyLine traits) add: pl2@(PolyLine traits)
+[pl1 copy `>> [segments addAll: pl2 segments. ]].

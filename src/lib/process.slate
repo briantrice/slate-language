@@ -1,0 +1,76 @@
+prototypes ensureNamespace: #processes &delegate: True.
+
+processes define: #SuspendedProcess &parents: {Cloneable}
+  &slots: {#interpreter -> Nil.
+           #conditionStack -> Stack new}.
+
+s@(SuspendedProcess traits) newFor: interp &conditions: stack
+[s cloneSettingSlots: #(interpreter conditionStack)
+   to: {interp. stack ifNil: [s conditionStack new]}].
+
+i@(Interpreter traits) suspended [SuspendedProcess newFor: i].
+
+s@(SuspendedProcess traits) createAndDo: block
+[
+  block applyWith: (s newFor: (lobby globals specialOops at: 17)
+		      &conditions: conditions conditionStack).
+  Scheduler schedule.
+].
+
+s@(SuspendedProcess traits) resume [
+  conditions conditionStack: s conditionStack.
+  lobby globals specialOops at: 17 put: (s interpreter).
+  Interpreter interrupt.
+].
+
+processes define: #Scheduler &parents: {Cloneable}
+  &slots: {#queue -> Queue new}.
+
+b@(Method traits) spawn
+[| i s |
+  i: Interpreter clone.
+  i initializeThreadOn:
+    [[b on: Condition do:
+      [| :c | c describeOn: DebugConsole. c exit: Nil].
+      ] ensure: [Scheduler schedule]].
+  s: i suspended.
+  Scheduler queue push: s.
+].
+
+s@Scheduler unblock: susp
+[
+  s queue push: susp
+].
+
+s@Scheduler yield
+[
+  SuspendedProcess createAndDo: [| :susp | s unblock: susp].
+].
+
+s@Scheduler schedule
+[
+  s queue isEmpty ifTrue: [error: 'No runnable suspensions.'].
+  s queue pop resume.
+].
+
+s@Scheduler criticalSection: aBlock
+[
+  "This is valid only because we're a non-preemptive multiprocessor at the moment."
+  aBlock do
+].
+
+"
+load: 'src/lib/process.slate'.
+[['hi' print. Scheduler yield.] loop] spawn.
+[['bye' print. Scheduler yield.] loop] spawn.
+Scheduler schedule.
+"
+
+"
+load: 'src/lib/process.slate'.
+_@lobby foo [ [['hi' print. Scheduler yield. ^ 123] loop] spawn. ].
+foo.
+Scheduler yield.
+Scheduler yield.
+Scheduler yield.
+"

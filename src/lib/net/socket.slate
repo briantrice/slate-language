@@ -1,0 +1,107 @@
+lobby ensureNamespace: #Net.
+
+Net define: #Socket &parents: {ExternalResource} &slots: {#remoteLocator}.
+
+Net Socket traits define: #Endpoint.
+
+e@(Net Socket Endpoint traits) type
+"Retrieves a prototypical instance of an ExternalResource that can
+deal with this endpoint."
+[overrideThis].
+
+Net Socket traits define: #Locator &parents: {ExternalResource Locator}
+  &slots: {#endpoint}.
+
+l@(Net Socket Locator traits) type
+[l endpoint type].
+
+Net Socket traits define: #ConnectionTarget
+  &parents: {Net Socket Locator}.
+
+Net Socket traits define: #ServiceAnchor
+  &parents: {Net Socket Locator}.
+
+l@(Net Socket Locator traits) newEndpoint: e@(Net Socket Endpoint traits)
+[l cloneSettingSlots: #(endpoint) to: {e}].
+
+Net Socket traits define: #Ip4Address &slots: {#ip -> 0}.
+
+i@(Net Socket Ip4Address traits) fromInteger: n
+[i cloneSettingSlots: #(ip) to: {n}].
+
+i@(Net Socket Ip4Address traits) asIp4
+[i ip].
+
+i@(Net Socket Ip4Address traits) printString
+[
+  (((3 downTo: 0) collect: [| :b | (i ip bitShift: b * -8) intoByte printString])
+   join &separator: '.') as: String
+].
+
+l@(Net Socket Ip4Address traits) newFrom: s@(String traits)
+"Answer a new Locator with a dotted ip address"
+"We split the dotted ip string and stuff the bytes into an Integer
+(network byte order)."
+[
+  l cloneSettingSlots: #(ip) to:
+    {((s splitWith: $. ) collect: [| :s | Integer readFrom: s])
+          inject: 0 into: [| :int :octet | (int bitShift: 8) + octet]}
+].
+
+l@(Net Socket Ip4Address traits) accepts: s@(String traits)
+"True = (Net Socket Ip4Address accepts: '127.0.0.1')."
+"False = (Net Socket Ip4Address accepts: 'hello')."
+"False = (Net Socket Ip4Address accepts: 'one.two.yes.no')."
+"False = (Net Socket Ip4Address accepts: '0127.0.0.1')." "Should this be this way?"
+"False = (Net Socket Ip4Address accepts: '999.0.0.1')."
+[| octets |
+  octets: (s splitWith: $. ).
+  octets size = 4
+    /\ [octets allSatisfy:
+      [| :octet |
+       octet size <= 3
+         /\ [octet allSatisfy: #isDigit`er]
+         /\ [(Integer readFrom: octet) between: 0 and: 16rFF]]]
+].
+
+Net Socket traits define: #Tcp4Endpoint &parents: {Net Socket Endpoint}
+  &slots: {#address. #port}.
+
+e@(Net Socket Tcp4Endpoint traits) type
+[
+  Platform isPosix ifTrue: [Net Tcp4Socket]
+].
+
+e@(Net Socket Tcp4Endpoint traits) newAt: address port: port
+[e cloneSettingSlots: #(address port) to: {address. port}].
+
+e@(Net Socket Tcp4Endpoint traits) newFrom: s@(String traits)
+[| parts |
+  parts: (s splitWith: $:).
+  e newAt: (Net Socket Ip4Address newFrom: parts first)
+    port: (parts length < 2
+      ifTrue: [0] ifFalse: [Integer readFrom: (parts at: 1)])
+].
+
+l@(Net Socket Tcp4Endpoint traits) accepts: s@(String traits)
+[| parts |
+  parts: (s splitWith: $:).
+  (parts size between: 1 and: 2)
+    /\ [Net Socket Ip4Address accepts: parts first]
+    /\ [parts size = 1 \/ [parts second allSatisfy: #isDigit`er]]
+].
+
+s@(Net Socket traits) open: hostname@(String traits) port: n
+"Open and connect a socket to the specified host and port"
+[| addr |
+  addr: ((s Ip4Address accepts: hostname)
+    ifTrue: [s Ip4Address newFrom: hostname]
+    ifFalse: [Net DNSAddress forHostname: hostname]).
+  (s ConnectionTarget newEndpoint: (s Tcp4Endpoint newAt: addr port: n)) newResource
+].
+
+s@(Net Socket traits) bindPort: n &address: a
+[
+  a `defaultsTo: (s Ip4Address fromInteger: 0).
+  (s ServiceAnchor newEndpoint: (s Tcp4Endpoint newAt: a port: n)) newResource
+].

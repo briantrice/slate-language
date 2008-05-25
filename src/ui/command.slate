@@ -1,0 +1,310 @@
+prototypes define: #Command
+"A command is an object that represents a user interaction. Commands are
+stored with the command name and a list of the arguments. All positional
+arguments will be represented in the command object, but only those keywords
+arguments that were explicitly supplied by the user will be included.
+When the Command is invoked, the code representing that interaction is
+executed."
+  &slots: {#name -> ''.
+	   #arguments -> ExtensibleArray new}.
+
+prototypes define: #UnsuppliedArgument &builder: [Oddball clone].
+"A marker object for unsupplied arguments to Commands."
+
+c@(Command traits) isPartial
+"A partial Command is one with UnsuppliedArgument in place of any required
+argument."
+[
+  c arguments identityIncludes: UnsuppliedArgument
+].
+
+c@(Command traits) newNamed: name withArgs: arguments
+[
+overrideThis
+].
+
+c@(Command traits) copyCommand
+"Sometimes the templates in a commandMap need to be copyied"
+[
+ (c cloneSettingSlots: #(arguments)
+               to: {c arguments copy})
+].
+
+
+c@(Command traits) execute
+"Executing the Command."
+[overrideThis].
+
+c@(Command traits) undo
+"Undo the Command."
+[overrideThis].
+
+"The vocabulary for command maps described in:
+
+http://www.mikemac.com/mikemac/clim/commands.html
+
+is a little confusing. Sometimes I think 'menu' is used to refer to a list of commands
+but many people these days think of the visual thing at the top of the window.
+I guess everyone should use the installIn: interface though so it shoundn't matter.
+"
+
+prototypes define: #CommandMap &parents: {Cloneable}
+"Menus and Command-sets"
+  &slots: {#name.               "The name (I suppose this is more for info/documentation)"
+	   #mapDelegates -> {}. "A list of CommandMaps to inherit from"
+	   #translators.        "Pointer event to command mapping (PointerAccelerator -> Symbol of cmd)"
+	   #accelerators.       "Keyboard events to command mapping (KeyboardAccelerator -> Symbol of cmd)"
+	   #history.            "A history of all the commands that have been executed by this command map"
+	   #currentNode.        "The place where to insert new commands to (somewhere in the history)"
+	   #menu                "Symbols to command object mapping (Symbol of cmd -> Command)"
+"TODO: clean these slots up."}.
+
+
+prototypes define: #CommandHistory &parents: {OrderedTree} &slots: {#command}.
+
+
+map@(CommandMap traits) newNamed: name &delegates: delegates &history: history
+[ 
+ "The symbol that is installed in map's menu is the commands name"
+
+ delegates `defaultsTo: #().
+ history `defaultsTo: CommandHistory new.
+
+ (map cloneSettingSlots: #(name mapDelegates translators accelerators menu history)
+               to: {name. delegates. Set new. Dictionary new. Dictionary new. Dictionary new. history})
+    `>> [currentNode: history.]
+].
+
+
+map@(CommandMap traits) new
+[ 
+  resend newNamed: #unnamed
+].
+
+
+
+c@(Command traits) installIn: map@(CommandMap traits)
+[
+  (map menu includes: c name) ifTrue: [break] ifFalse: [map menu at: c name put: c].
+  c
+].
+
+
+map@(CommandMap traits) installCommand: c@(Command traits)
+[
+  c installIn: map.
+  map
+].
+
+
+map@(CommandMap traits) addAccelerator: accelerator@(KeyboardAccelerator traits) forCommand: c
+[
+  (map accelerators includes: accelerator)
+    ifTrue: [break]
+    ifFalse: [map accelerators at: accelerator put: ((c is: Symbol) ifTrue: [c] ifFalse: [c name])].
+  map
+].
+
+
+map@(CommandMap traits) addTranslator: accelerator@(PointerAccelerator traits) forCommand: c
+[
+  (map translators includes: accelerator)
+    ifTrue: [break]
+    ifFalse: [map translators at: accelerator put: ((c is: Symbol) ifTrue: [c] ifFalse: [c name])].
+  map
+].
+
+map@(CommandMap traits) record: c@(Command traits)
+[ | branch |
+  branch: (CommandHistory new `>> [command: c.]).
+  map currentNode add: branch.
+  map currentNode: branch
+].
+
+map@(CommandMap traits) unrecord
+[
+  map currentNode treeParent ifNotNil: [
+    map currentNode command undo.
+    map currentNode: (map currentNode treeParent)
+  ]
+
+].
+
+
+
+map@(CommandMap traits) recordAndExecute: c@(Command traits)
+[ | cmd |
+  "WARNING: we have to deep copy because sometimes execute will overwrite arguments"
+  cmd: c copyCommand.
+
+  map record: cmd.
+  cmd execute
+].
+
+
+
+"FIXME : should we handle stuff on release events or other states?"
+
+map@(CommandMap traits) handle: event@(InputEvent traits)
+[
+
+].
+
+
+"FIXME: how should mapDelegates be delegated to? maybe it'd be better
+to remove the slot and just use the in-slate inheritance system thingy
+to do it?  "
+
+map@(CommandMap traits) handle: event@(KeyboardPressEvent traits)
+[ | accelerators command |
+  accelerators: (map accelerators at: (KeyboardAccelerator newKey: event key &modifiers: event modifiers)
+                                  ifAbsent: [Nil]).
+  command: (map menu at: accelerators ifAbsent: [Nil]).
+  command ifNil: [map mapDelegates do: [| :delegate | delegate handle: event]]
+          ifNotNil: [map recordAndExecute: command].
+].
+
+
+map@(CommandMap traits) handle: event@(MouseButtonPressEvent traits)
+[ | accelerators commands |
+  accelerators: (map translators select: [ | :t |  t region contains: event position]).
+  commands: (accelerators collect: [ | :eachAcc | menu at: eachAcc ifAbsent: [Nil]]).
+  commands do: [ | :eachCmd | eachCmd ifNotNil: [map recordAndExecute: eachCmd]].
+  (commands allSatisfy [ | :c | c = Nil ]) ifTrue: [map mapDelegates do: [| :delegate | delegate handle: event]]
+ 
+].
+
+
+
+ " --    Command Group   --     "
+
+
+prototypes define: #CommandGroup &parents: {Command}. "The arguments are the commands"
+
+cg@(CommandGroup traits) name: name commands: arguments
+[
+  cg cloneSettingSlots: #(name arguments) to: {name. arguments}
+].
+
+"
+
+FIXME: wtf doesn't this work? parser error wrt the period in the macro? annoying
+
+c@(CommandGroup traits) copyCommand
+[ 
+  resend `>> [arguments: (c arguments collect: [ | :cmd | cmd copyCommand ]).].
+].
+"
+
+c@(CommandGroup traits) copyCommand
+[ | new |
+  new: resend.
+  new arguments: (c arguments collect: [ | :cmd | cmd copyCommand ]).
+  new
+].
+
+
+c@(CommandGroup traits) execute
+[
+  c arguments do: [ | :cmd |  cmd execute ]
+].
+
+c@(CommandGroup traits) undo
+[c arguments reverse do: [ | :cmd |  cmd undo ]].
+
+
+
+
+ " --     Block Command     --  "
+
+prototypes define: #BlockCommand &parents: {Command} &slots: {#doBlock. #undoBlock}.
+
+
+c@(BlockCommand traits) name: name doBlock: doBlock undoBlock: undoBlock
+[
+  c cloneSettingSlots: #(name doBlock undoBlock) to: {name. doBlock. undoBlock}
+].
+
+
+c@(BlockCommand traits) execute
+[c doBlock do].
+
+c@(BlockCommand traits) undo
+[c undoBlock do].
+
+
+
+
+prototypes define: #CommandRecordingStream &parents: {ReadWriteStream} &slots:
+{
+ #model -> Nil.
+ #stack -> Stack new.
+}.
+
+
+crs@(CommandRecordingStream traits) on: se
+"Creates a new stream with the output record as top-level history.
+Note that calling this on an existing stream will copy some attributes."
+[crs cloneSettingSlots: #(stack model)
+     to: {Stack new. se}].
+
+crs@(CommandRecordingStream traits) newOn: se
+"Creates a new stream with the output record as top-level history."
+[crs clone on: se].
+
+crs@(CommandRecordingStream traits) enter: se
+[
+  crs stack push: se
+].
+
+crs@(CommandRecordingStream traits) leave
+[
+  crs stack `>> [size = 0 ifTrue: [^ Nil]. pop]
+].
+
+crs@(CommandRecordingStream traits) history
+"Returns the history se top-level output record."
+[
+  crs contents
+].
+
+crs@(CommandRecordingStream traits) contents
+"Answer the actual output record, since it is more structured than an
+ExtensibleArray. TODO: make this overriding unnecessary."
+[
+  crs stack as: Array
+].
+
+crs@(CommandRecordingStream traits) current
+"Return the output record that the stream currently has open for writing.
+This is the top of the output record stack."
+[
+  crs stack top
+].
+
+crs@(CommandRecordingStream traits) add: se
+[
+  crs nextPut: se
+].
+
+crs@(CommandRecordingStream traits) nextPut: se
+[
+  crs push: se
+].
+
+crs@(CommandRecordingStream traits) execute
+[
+  crs history do: [ | :action | action execute]
+].
+
+crs@(CommandRecordingStream traits) undo
+[
+  crs history reverse do: [ | :action | action undo]
+].
+
+
+
+
+crs@(CommandRecordingStream traits) remove: se
+"unsupported"
+[overrideThis].

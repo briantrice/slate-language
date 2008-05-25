@@ -1,0 +1,533 @@
+SDL Lib addSlot: #argFormatOverrides valued: Dictionary new.
+{
+  #PSurf    -> ExternalMethod ArgumentFormat Pointer.
+  #SInt16Ar -> ExternalMethod ArgumentFormat Bytes.
+} do: [| :assoc | SDL Lib argFormatOverrides add: assoc].
+
+CObject parseDefinitionsFrom:
+{
+  {'PSURF'.   Types C Void pointer}.
+  {'SInt16Ar'. Types C Void pointer}
+} into: SDL Lib.
+
+_@(SDL Lib) initGfxPrimitives
+[
+  (ExternalLibrary newNamed: 'libSDL_gfx') installMethodsForDefs:
+    #(
+      (Int 'pixelColor' (PSurf Int Int Int))
+      (Int 'pixelRGBA' (PSurf Int Int Int Int Int Int))
+      (Int 'hlineColor'   (PSurf Int Int Int Int))
+      (Int 'hlineRGBA' (PSurf Int Int Int Int Int Int Int))
+      (Int 'vlineColor'  (PSurf Int Int Int Int))
+      (Int 'vlineRGBA' (PSurf Int Int Int Int Int Int Int))
+      (Int 'rectangleColor' (PSurf Int Int Int Int Int))
+      (Int 'rectangleRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'boxColor' (PSurf Int Int Int Int Int))
+      (Int 'boxRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'lineColor' (PSurf Int Int Int Int Int))
+      (Int 'lineRGBA'  (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'aalineColor' (PSurf Int Int Int Int Int))
+      (Int 'aalineRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'circleColor' (PSurf Int Int Int Int))
+      (Int 'circleRGBA' (PSurf Int Int Int Int Int Int Int))
+      (Int 'aacircleColor' (PSurf Int Int Int Int))
+      (Int 'aacircleRGBA' (PSurf Int Int Int Int Int Int Int))
+      (Int 'filledCircleColor' (PSurf Int Int Int Int))
+      (Int 'filledCircleRGBA' (PSurf Int Int Int Int Int Int Int))
+      (Int 'ellipseColor' (PSurf Int Int Int Int Int))
+      (Int 'ellipseRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'aaellipseColor' (PSurf Int Int Int Int Int))
+      (Int 'aaellipseRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'filledEllipseColor' (PSurf Int Int Int Int Int))
+      (Int 'filledEllipseRGBA' (PSurf Int Int Int Int Int Int Int Int))
+      (Int 'filledPieColor' (PSurf Int Int Int Int Int Int))
+      (Int 'filledPieRGBA' (PSurf Int Int Int Int Int Int Int Int Int))
+      (Int 'trigonColor' (PSurf Int Int Int Int Int Int Int))
+      (Int 'trigonRGBA' (PSurf Int Int Int Int Int Int Int Int Int Int))
+      (Int 'aatrigonColor' (PSurf Int Int Int Int Int Int Int))
+      (Int 'aatrigonRGBA' (PSurf Int Int Int Int Int Int Int Int Int Int))
+      (Int 'filledTrigonColor' (PSurf Int Int Int Int Int Int Int))
+      (Int 'filledTrigonRGBA' (PSurf Int Int Int Int Int Int Int Int Int Int))
+      (Int 'polygonColor' (PSurf SInt16Ar SInt16Ar Int Int))
+      (Int 'polygonRGBA' (PSurf SInt16Ar SInt16Ar Int Int Int Int Int))
+      (Int 'aapolygonColor' (PSurf SInt16Ar SInt16Ar Int Int))
+      (Int 'aapolygonRGBA' (PSurf SInt16Ar SInt16Ar Int Int Int Int Int))
+      (Int 'filledPolygonColor' (PSurf SInt16Ar SInt16Ar Int Int))
+      (Int 'filledPolygonRGBA' (PSurf SInt16Ar SInt16Ar Int Int Int Int Int))
+      (Int 'bezierColor' (PSurf SInt16Ar SInt16Ar Int Int Int))
+      (Int 'bezierRGBA' (PSurf SInt16Ar SInt16Ar Int Int Int Int Int Int))
+      (Int 'stringColor' (PSurf Int Int CString Int))
+      (Int 'stringRGBA' (PSurf Int Int CString Int Int Int Int))
+    ) on: SDL Lib &typesIn: SDL Lib &argumentFormats: SDL Lib argFormatOverrides.
+].
+
+SDL Lib initGfxPrimitives.
+
+"FGColor = Foreground Color BGColor = Background Color"
+SDL addSlot: #currentFGColor valued: 16rFF8080FF. "pink opaque"
+SDL addSlot: #currentBGColor valued: 16r80B080FF. "green opaque"
+
+SDL addSlot: #fgc. "foreground color"
+SDL fgc addSlot: #red valued: 255.
+SDL fgc addSlot: #green valued: 0.
+SDL fgc addSlot: #blue valued: 0.
+SDL fgc addSlot: #alpha valued: 255.
+
+SDL addSlot: #bgc. "background color"
+SDL bgc addSlot: #red valued: 0.
+SDL bgc addSlot: #green valued: 0.
+SDL bgc addSlot: #blue valued: 255.
+SDL bgc addSlot: #alpha valued: 255.
+
+SDL addSlot: #screen.
+SDL addSlot: #currentSurf valued: SDL screen.
+
+SDL addSlot: #antiAlias valued: False.
+
+sdl@SDL pixelX: x y: y &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib pixelColor applyTo: {
+   surf.
+   x. y. 
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL pixelRGBAx: x y: y &on: surf &r: r &g: g &b: b &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib pixelRGBA applyTo: {
+    surf.
+    x. y.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].
+
+sdl@SDL hlineX1: x1 x2: x2 y: y &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib hlineColor applyTo: {
+   surf.
+   x1. x2. y. 
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL hlineRGBAx1: x1 x2: x2 y: y &on: surf &r: r 
+  &g: g &b: b &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib hlineRGBA applyTo: {
+    surf.
+    x1. x2. y.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].
+
+sdl@SDL vlineX: x y1: y1 y2: y2 &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib vlineColor applyTo: {
+   surf.
+   x. y1. y2. 
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL vlineRGBAx: x y1: y1 y2: y2 &on: surf &: r 
+  &g: g &b: b &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib vlineRGBA applyTo: {
+    surf.
+    x. y1. y2.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].
+
+sdl@SDL rectangleX1: x1 y1: y1 x2: x2 y2: y2 
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib rectangleColor applyTo: {
+   surf.
+   x1. y1. x2. y2. 
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL rectangleRGBAx1: x1 y1: y1 x2: x2 y2: y2 
+  &on: surf &r: r &g: g &b: b &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib rectangleRGBA applyTo: {
+    surf.
+    x1. y1. x2. y2.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].
+
+sdl@SDL boxX1: x1 y1: y1 x2: x2 y2: y2 
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib boxColor applyTo: {
+   surf.
+   x1. y1. x2. y2. 
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL boxRGBAx1: x1 y1: y1 x2: x2 y2: y2 
+  &on: surf &r: r &g: g &b: b &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib boxRGBA applyTo: {
+    surf.
+    x1. y1. x2. y2.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+
+sdl@SDL lineX1: x1  y1: y1  x2: x2  y2: y2 
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  color ifNil: [color: sdl currentFGColor].
+  sdl antiAlias
+  ifTrue: [sdl Lib aalineColor applyTo: {surf. x1. y1. x2. y2. color}]
+  ifFalse: [sdl Lib lineColor applyTo: {surf. x1. y1. x2. y2. color}]
+].
+
+
+
+sdl@SDL lineRGBAx1: x1 y1: y1 x2: x2 y2: y2 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  r ifNil: [r: sdl fgc red].
+  g ifNil: [g: sdl fgc green].
+  b ifNil: [b: sdl fgc blue].
+  a ifNil: [a: sdl fgc alpha].
+  sdl antiAlias
+  ifTrue: [sdl Lib aalineRGBA
+    applyTo: {surf. x1. y1. x2. y2. r. g. b. a}]
+  ifFalse: [sdl Lib lineRGBA applyTo: 
+   {surf. x1. y1. x2. y2. r. g. b. a}]
+].
+
+
+
+sdl@SDL circleX: x y: y rad: rad &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  color ifNil: [color: sdl currentFGColor].
+  sdl antiAlias
+  ifTrue: [sdl Lib aacircleColor applyTo: {surf. x. y. rad. color}]
+  ifFalse: [sdl Lib circleColor applyTo: {surf. x. y. rad. color}]
+].
+
+
+sdl@SDL circleRGBAx: x y: y rad: rad 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  r ifNil: [r: sdl fgc red].
+  g ifNil: [g: sdl fgc green].
+  b ifNil: [b: sdl fgc blue].
+  a ifNil: [a: sdl fgc alpha].
+  sdl antiAlias
+  ifTrue: [sdl Lib aacircleRGBA
+    applyTo: {surf. x. y. rad. r. g. b. a}]
+  ifFalse: [sdl Lib circleRGBA applyTo: 
+   {surf. x. y. rad. r. g. b. a}]
+].
+
+
+sdl@SDL filledCircleX: x y: y rad: rad &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib filledCircleColor applyTo: {
+   surf.
+   x. y. rad. 
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL filledCircleRGBAx: x y: y rad: rad 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib filledCircleRGBA applyTo: {
+    surf.
+    x. y. rad.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+sdl@SDL ellipseX: x y: y radX: radX radY: radY
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  color ifNil: [color: sdl currentFGColor].
+  sdl antiAlias
+  ifTrue: [sdl Lib aaellipseColor applyTo: {surf. x. y. radX. radY.
+   color}]
+  ifFalse: [sdl Lib ellipseColor applyTo: {surf. x. y. radX. radY.
+   color}]
+].
+
+
+sdl@SDL ellipseRGBAx: x y: y radX: radX radY: radY
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  r ifNil: [r: sdl fgc red].
+  g ifNil: [g: sdl fgc green].
+  b ifNil: [b: sdl fgc blue].
+  a ifNil: [a: sdl fgc alpha].
+  sdl antiAlias
+  ifTrue: [sdl Lib aaellipseRGBA
+    applyTo: {surf. x. y. radX. radY. r. g. b. a}]
+  ifFalse: [sdl Lib ellipseRGBA applyTo: 
+   {surf. x. y. radX. radY. r. g. b. a}]
+].
+
+
+sdl@SDL filledEllipseX: x y: y radX: radX radY: radY
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib filledEllipseColor applyTo: {
+   surf.
+   x. y. radX. radY. 
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL filledEllipseRGBAx: x y: y radX: radX radY: radY
+  &on: surf  &r: r &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib filledEllipseRGBA applyTo: {
+    surf.
+    x. y. radX. radY.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+sdl@SDL filledPieX: x y: y rad: rad begin: begin end: end
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib filledPieColor applyTo: {
+   surf.
+   x. y. rad. begin. end.
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL filledPieRGBAx: x y: y rad: rad begin: begin end: end 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib filledPieRGBA applyTo: {
+    surf.
+    x. y. rad. begin. end.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+
+sdl@SDL trigonX1: x1 y1: y1 x2: x2 y2: y2 x3: x3 y3: y3
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  color ifNil: [color: sdl currentFGColor].
+  sdl antiAlias
+  ifTrue: [sdl Lib aatrigonColor applyTo:
+    {surf. x1. y1. x2. y2. x3. y3. color}]
+  ifFalse: [sdl Lib trigonColor applyTo: 
+    {surf. x1. y1. x2. y2. x3. y3. color}]
+].
+
+
+sdl@SDL trigonRGBAx1: x1 y1: y1 x2: x2 y2: y2 x3: x3 y3: y3
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  r ifNil: [r: sdl fgc red].
+  g ifNil: [g: sdl fgc green].
+  b ifNil: [b: sdl fgc blue].
+  a ifNil: [a: sdl fgc alpha].
+  sdl antiAlias
+  ifTrue: [sdl Lib aatrigonRGBA
+    applyTo: {surf. x1. y1. x2. y2. x3. y3. r. g. b. a}]
+  ifFalse: [sdl Lib trigonRGBA applyTo: 
+   {surf. x1. y1. x2. y2. x3. y3. r. g. b. a}]
+].
+
+
+sdl@SDL filledTrigonX1: x1 y1: y1 x2: x2 y2: y2 x3: x3 y3: y3 
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib filledTrigonColor applyTo: {
+   surf.
+   x1. y1. x2. y2. x3. y3.
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL filledTrigonRGBAx1: x1 y1: y1 x2: x2 y2: y2 x3: x3 y3: y3
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib filledTrigonRGBA applyTo: {
+    surf.
+    x1. y1. x2. y2. x3. y3.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+
+sdl@SDL polygonVecX: vecX vecY: vecY nbr: nbr
+  &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  color ifNil: [color: sdl currentFGColor].
+  sdl antiAlias
+  ifTrue: [sdl Lib aapolygonColor
+    applyTo: {surf. vecX. vecY. nbr. color}]
+  ifFalse: [sdl Lib polygonColor
+    applyTo: {surf. vecX. vecY. nbr. color}]
+].
+
+
+sdl@SDL polygonRGBAvecX: vecX vecY: vecY nbr: nbr
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  r ifNil: [r: sdl fgc red].
+  g ifNil: [g: sdl fgc green].
+  b ifNil: [b: sdl fgc blue].
+  a ifNil: [a: sdl fgc alpha].
+  sdl antiAlias
+  ifTrue: [sdl Lib aapolygonRGBA
+    applyTo: {surf. vecX. vecY. nbr. r. g. b. a}]
+  ifFalse: [sdl Lib polygonRGBA applyTo: 
+   {surf. vecX. vecY. nbr. r. g. b. a}]
+].
+
+sdl@SDL filledPolygonVecX: vecX vecY: vecY nbr: nbr
+ &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib filledPolygonColor applyTo: {
+   surf.
+   vecX. vecY. nbr. 
+   color ifNil: [sdl currentBGColor]}
+].
+
+sdl@SDL filledPolygonRGBAvecX: vecX vecY: vecY nbr: nbr 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib filledPolygonRGBA applyTo: {
+    surf.
+    vecX. vecY. nbr.
+    r ifNil: [sdl bgc red].
+    g ifNil: [sdl bgc green].
+    b ifNil: [sdl bgc blue].
+    a ifNil: [sdl bgc alpha]}
+].
+
+sdl@SDL bezierVecX: vecX vecY: vecY nbr: nbr s: s
+ &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib bezierColor applyTo: {
+   surf.
+   vecX. vecY. nbr. s.
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL bezierRGBAvecX: vecX vecY: vecY nbr: nbr s: s 
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib bezierRGBA applyTo: {
+    surf.
+    vecX. vecY. nbr. s.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].
+
+sdl@SDL stringX: x y: y string: string &on: surf &color: color
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+ sdl Lib stringColor applyTo: {
+   surf.
+   x. y. string.
+   color ifNil: [sdl currentFGColor]}
+].
+
+sdl@SDL stringRGBAx: x y: y string: string
+  &on: surf  &r: r  &g: g  &b: b  &a: a
+[
+ surf ifNil: [surf: sdl currentSurf].
+ surf ifNil: [error: 'sdl currentSurf is Nil'].
+  sdl Lib stringRGBA applyTo: {
+    surf.
+    x. y. string.
+    r ifNil: [sdl fgc red].
+    g ifNil: [sdl fgc green].
+    b ifNil: [sdl fgc blue].
+    a ifNil: [sdl fgc alpha]}
+].

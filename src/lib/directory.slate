@@ -1,0 +1,306 @@
+"Directory traitsWindow _map delegates at: Directory traitsWindow _map delegates size - 2 put: ExternalResource traits."
+Directory traitsWindow _delegates: {Root traits. Derivable traits. Cloneable traits. ExternalResource traits. Directory traits}.
+
+"Directory traitsWindow atSlotNamed: #traits1 put: ExternalResource traits."
+Directory addSlotsFrom: ExternalResource.
+Directory traits define: #Locator &parents: {File Locator}.
+Directory traits define: #RelativeLocator &parents: {File RelativeLocator}.
+Directory traits define: #AbsoluteLocator &parents: {File AbsoluteLocator}.
+
+Directory locator: Directory Locator.
+
+l@(Directory Locator traits) type
+"So a Locator knows it's for a Directory and not a File."
+[Directory].
+
+l@(Directory Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
+[
+  pathSeparator ifNil: [pathSeparator: l pathSeparator].
+  l path: ((s upToEnd splitWith: pathSeparator) as: l path).
+  l
+].
+
+l@(Directory Locator traits) readFrom: s &pathSeparator: pathSeparator
+"Handle a missing path separator at the end."
+[
+  resend `>>
+   [| :newL |
+    name ifNotNilDo:
+      [| :name |
+       newL path addLast: name.
+       newL name: Nil].
+    version ifNotNilDo:
+      [| :version |
+       newL path at: newL path indexLast put:
+	 newL path last ; '.' ; version.
+       newL version: Nil].
+    fileType ifNotNilDo:
+      [| :type |
+       newL path at: newL path indexLast put:
+	 newL path last ; '.' ; type.
+       newL fileType: Nil]. ]
+].
+
+dir1@(Directory traits) = dir2@(Directory traits)
+[dir1 locator = dir2 locator].
+
+dir@(Directory traits) newNamed: dirname
+"Answer a new Directory with the given name."
+[
+  dir cloneSettingSlots: #(handle locator) to: {Nil. dir Locator readFrom: (dirname as: String)}
+].
+
+dir@(Directory traits) childNamed: name
+"Answers a new Directory object with its locator and the given name
+concatenated."
+[dir newNamed: (dir locator as: String) ; name].
+
+dir@(Directory traits) isParentOf: subdir@(Directory traits)
+[dir locator path isPrefixOf: subdir locator path].
+
+subdir@(Directory traits) isChildOf: dir@(Directory traits)
+[dir isParentOf: subdir].
+
+dir@(Directory traits) enable
+"Reset the directory."
+[| dirname result |
+  [dir close] on: dir Closed do: [| :c | c return].
+  dirname: (dir locator as: String).
+  result: (dir primitiveOpen: dirname).
+  result isNegative
+    ifTrue: [error: result negated printString]
+    ifFalse: [dir handle: result].
+].
+
+dir@(Directory traits) disable
+"Call the close primitive."
+[
+  dir handle ifNotNil: [| result |
+    result: (dir primitiveClose: dir handle).
+    result isZero ifFalse: [error: result negated printString]].
+].
+
+dir@(Directory traits) exists
+"Answer whether the directory as specified by its locator already exists.
+If it's already open, it exists; otherwise try to open it and then close it
+if the result is successful. Then answer whether it worked."
+[
+  dir isOpen \/
+    [(dir primitiveOpen: (dir locator as: String)) isNegative not
+       /\ [[dir close] on: dir Closed do: [| :c | c return]. True]]
+].
+
+dir@(Directory traits) nextDirEntry
+"Answers the next file entry name. This is stateful and should only be used
+by Directory Streams."
+[| buffer len |
+  dir handle ifNil: [error: 'Directory not open'].
+  buffer: (String new &capacity: 256).
+  len: (dir primitiveRead: dir handle into: buffer).
+  len isNegative
+    ifTrue: [error: len negated printString. Nil]
+    ifFalse: [len isZero ifTrue: [Nil] "End-marker."
+			 ifFalse: [buffer copyFrom: 0 to: len - 1]]
+].
+
+dir@(Directory traits) isRoot
+"Whether the given Directory is the root of its local filesystem."
+[dir locator isNotNil /\ [dir locator isRoot]].
+
+dir@(Directory traits) root
+"Answer the root of the given directory's filesystem."
+[
+  dir isRoot
+    ifTrue: [dir]
+    ifFalse: [dir newNamed: dir locator copy `>> [path: dir locator path new. ]]
+].
+
+dir@(Directory traits) parent
+"Answer the Directory immediately above the current one."
+[
+  dir locator path isEmpty
+    ifTrue: [dir]
+    ifFalse: [dir newNamed: dir locator copy `>> [path removeLast. ]]
+].
+
+f@(File traits) parent
+"Answer the Directory containing the file (as given by the path)."
+[Directory newNamed: f locator copy `>> [name: Nil. ]].
+
+f@(File traits) directory
+[f parent].
+
+dir@(Directory traits) withOpenNamed: dirname do: block
+"Calls sessionDo: on a Directory made for the given dirname."
+[
+  (dir newNamed: dirname) sessionDo: block
+].
+
+loc@(File Locator traits) openDirectory
+"Opens and answers the Directory for the given Locator."
+[
+  (Directory newNamed: loc) open
+].
+
+dir@(Directory traits) current
+"Get the current Directory used by Slate. This uses a ByteArray to pass the String
+name and the return value tells how long the actual contents are."
+[| buffer dirLength |
+  buffer: (ByteArray newSize: 256).
+  dirLength: (dir primitiveGetCurrentDirectory: buffer).
+  dir newNamed: ((buffer first: dirLength) as: String)
+].
+
+dir@(Directory traits) enter
+"Sets the Directory to be the current Slate directory."
+[| returnCode |
+  dir exists ifFalse: [error: 'You cannot enter a directory that does not exist.'].
+  returnCode: (dir primitiveSetCurrentDirectory: ((dir locator as: String) as: ByteArray)).
+  returnCode isZero ifFalse: [error: 'Couldn\'t set the directory']
+].
+
+dir@(Directory traits) current: someDirName
+[dir current: (dir newNamed: someDirName). dir current].
+
+dir@(Directory traits) current: someDir@(Directory traits)
+"Set the current Slate Directory, using the enter method."
+[someDir enter].
+
+prototypes define: #LogicalDirectory &parents: {Directory}
+  &slots: {#resolver -> [] "A block which resolves to the concrete Directory."}.
+"A LogicalDirectory is one whose definition is not concrete but based on
+a relationship that needs to be resolved at the last possible moment to avoid
+static platform/installation dependency."
+
+dir@(LogicalDirectory traits) newResolving: block
+[(dir cloneSettingSlots: #(locator resolver) to: {Nil. block})
+   `>> [registerStartupHandler. ]].
+
+x@(LogicalDirectory traits) = y@(LogicalDirectory traits)
+[x == y].
+
+dir@(LogicalDirectory traits) as: concrete@(Directory traits)
+"This wraps the resolver block."
+[dir resolver do].
+
+concrete@(Directory traits) as: dir@(LogicalDirectory traits)
+"This isn't very useful..."
+[dir newResolving: [concrete]].
+
+LogicalDirectory addAccessor:
+"This refreshes the locator slot contents and returns them if it is Nil."
+[| :dir |
+  (dir atSlotNamed: #locator)
+    ifNil: [dir atSlotNamed: #locator put: dir resolver do locator]
+    ifNotNilDo: [| :locator | locator]
+] for: #locator.
+
+dir@(Directory traits) home
+"Ask the current platform object for the home-directory string."
+[dir newNamed: Environment homeDirectory].
+
+dir@(Directory traits) walk: block
+"Calls the block on each pathname below the current Directory, recursively."
+[| locator |
+  locator: dir locator.
+  dir sessionDo:
+    [| :each eachDir |
+     eachDir: (dir newNamed: each).
+     eachDir exists
+       ifTrue: [eachDir walk: block]
+       ifFalse: [block sendWith: eachDir locator]].
+].
+
+dir@(Directory traits) / path
+"Answers a new Directory or File that is specified by the relative location
+given as argument."
+[(path as: File RelativeLocator &base: dir locator) newResource].
+
+Directory traits define: #Stream
+	    &parents: {ExternalResource ReadStream. PeekableStream}
+	    &slots: {#cache -> Nil}.
+"A Stream of the pathnames that are entries in the Directory."
+
+Directory traits define: #ReadStream &parents: {Directory Stream}.
+"Directory traits removeSlot: #WriteStream.
+Directory traits removeSlot: #ReadWriteStream."
+
+ds@(Directory Stream traits) on: dir@(Directory traits)
+"Open a Directory ReadStream on the path (could be a String)."
+[
+  #on: sendTo: {ds. dir} through: {ExternalResource Stream. Nil}
+].
+
+ds@(Directory Stream traits) elementType
+[String].
+
+ds@(Directory Stream traits) collectionType
+[Array].
+
+ds@(Directory Stream traits) isAtEnd
+[
+  ds peek.
+  ds cache == ds
+].
+
+ds@(Directory Stream traits) next
+[| result |
+  result: ds peek.
+  ds cache: Nil.
+  result
+].
+
+ds@(Directory Stream traits) peek
+"Fills the cache slot with the next entry. The stream itself as used as the
+end-marker when reached (Nil marks an empty cache, a separate condition)."
+[
+  ds cache ifNil: [| buffer |
+    buffer: (String new &capacity: 256).
+    ds cache: (ds resource nextDirEntry ifNil: [ds])].
+  ds cache
+].
+
+ds@(Directory Stream traits) reset
+"Moves the stream position back to zero by closing and re-opening."
+[
+  ds cache: Nil.
+  ds resource enable.
+  ds
+].
+
+dir@(Directory traits) entries
+"Answer all the entries in one Collection."
+[
+  dir sessionDo: [| :d | d reader reset upToEnd]
+].
+
+dir@(Directory traits) children
+"Answer all the entries in one Collection of File and Directory objects."
+[
+  [| :result |
+   dir sessionDo:
+     [| :d | (d reader do:
+       [| :each | result nextPut: (File newNamed: (dir locator newChildNamed: each))])]]
+    writingAs: Set
+].
+
+Directory traits define: #Proxy &parents: {Directory}
+  &slots: {#children -> Dictionary new}.
+"This holds a Dictionary which responds to accesses that name its sub-
+elements, returning further objects which are similarly-usable."
+
+p@(Directory Proxy traits) newNamed: dirname
+[resend `>> [children: p children new. ]].
+
+dir@(Directory traits) proxy
+[dir Proxy newNamed: dir locator].
+
+f@(File traits) proxy
+[f].
+
+p@(Directory Proxy traits) proxy
+[p].
+
+p@(Directory Proxy traits) / childName
+[p children at: childName ifAbsentPut:
+  [p newOn: (p childNamed: childName)]].

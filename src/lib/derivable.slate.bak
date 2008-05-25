@@ -1,0 +1,263 @@
+
+
+d@(Root traits) traitsTally
+[
+  d traitsWindow _delegates size
+].
+
+d@(Derivable traits) traitsReverseDo: block
+"Least important to most important traits"
+[| index tally |
+  index: 0.
+  tally: d traitsTally.
+  [index = tally]
+    whileFalse:
+      [block applyTo: {d traitsWindow _delegates at: index}.
+       index: index + 1]
+].
+
+d@(Derivable traits) traitsDo: block
+"Most important to least important traits"
+[| index |
+  index: d traitsTally.
+  [index = 0]
+    whileFalse:
+      [index: index - 1.
+       block applyTo: {d traitsWindow _delegates at: index}]
+].
+
+
+d@(Derivable traits) gatherTraits &mixins: mixins
+"Answers an array of the traits objects in order..."
+[| tally order index |
+  mixins `defaultsTo: #().
+  "TODO: Bootstrap-replace these two lines with the third (commented):"
+  tally: d traitsTally.
+  mixins do: [| :mixin | tally: tally + mixin traitsTally].
+  "tally: (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
+  order: (Array newSize: tally).
+
+  index: tally.
+  mixins reverseDo:
+    [| :mixin |
+     mixin traitsReverseDo:
+       [| :traits |
+        (order includes: traits)
+          ifFalse:
+            [index: index - 1.
+             order at: index put: traits]]].
+  d traitsReverseDo:
+    [| :traits |
+     (order includes: traits)
+       ifFalse:
+         [index: index - 1.
+          order at: index put: traits]].
+
+  order allButFirst: index
+
+].
+
+classList@(Array traits) selectThoseUsingTraits: traits
+"we don't have a lot of primitives to use"
+[ |result index |
+
+  result: (Array newSize: classList size).
+  index: 0.
+  classList do: [ |:class| (class traitsWindow _delegates includes: traits)
+                             ifTrue: [result at: index put: class. index: index + 1]].
+
+  result first: index
+].
+"
+d@(Derivable traits) mixTraits &mixins: mixins
+"Answers an array of the traits objects in order..."
+[| tally index traitList nodes classList |
+  mixins `defaultsTo: #().
+  "TODO: Bootstrap-replace these two lines with the third (commented):"
+  tally: d traitsTally.
+  mixins do: [| :mixin | tally: tally + mixin traitsTally].
+  "tally: (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
+  traitList: (d gatherTraits &mixins: mixins).
+  nodes: (Array newSize: traitList size).
+  classList: (Array newSize: mixins size + 1).
+  index: 1.
+
+  "classList is (d ; mixins)"
+  classList at: 0 put: d.
+  [index = classList size]
+    whileFalse:
+      [classList at: index put: (mixins at: index - 1)].
+
+  "nodes is a list of {traits. {classes-pointing-to-those-traits...}}"
+  index: 0.
+  [index = nodes size]
+    whileFalse:
+      [nodes at: index put: {traitList at: index. classList selectThoseUsingTraits: (traitsList at: index)}].
+"
+  "start topo sort"
+"
+].
+"
+
+d@(Derivable traits) orderTraits &mixins: mixins
+"Answers an array of the traits objects in order..."
+[| tally order index |
+  mixins `defaultsTo: #().
+  "TODO: Bootstrap-replace these two lines with the third (commented):"
+  tally: d traitsTally.
+  mixins do: [| :mixin | tally: tally + mixin traitsTally].
+  "tally: (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
+  order: (Array newSize: tally).
+
+  index: tally.
+  mixins reverseDo:
+    [| :mixin |
+     mixin traitsReverseDo:
+       [| :traits |
+        (order includes: traits)
+          ifFalse:
+            [index: index - 1.
+             order at: index put: traits]]].
+  d traitsReverseDo:
+    [| :traits |
+     (order includes: traits)
+       ifFalse:
+         [index: index - 1.
+          order at: index put: traits]].
+
+  order allButFirst: index
+
+].
+
+
+d@(Derivable traits) derive &mixins: mixins &rejects: rejectSlots
+"Constructs and returns a new prototype based on the argument with a new
+Traits object that delegates to the old one. If mixins are specified,
+the Traits object inherits from each extra object's Traits in right-to-left
+order. Also, the new prototype gains slots from the other objects involved,
+except for those named rejects."
+[| newWindow newObj |
+  mixins `defaultsTo: #().
+  rejectSlots `defaultsTo: #().
+  newWindow: Cloneable clone.
+  newWindow restrictDelegation.
+  newWindow _delegates: (d orderTraits &mixins: mixins).
+  newWindow addDelegate: Cloneable clone. "the traits for this object"
+  newObj: d clone.
+  newObj _delegates: {newWindow}.
+  mixins do:
+    [| :mixin | newObj addSlotsFrom: mixin].
+  rejectSlots do:
+    [| :each | newObj removeSlot: each].
+  newObj
+].
+
+x@(Root traits) addPrototype: protoName &parents: parents &immutable: immutable
+"Creates a new prototype with the given name, handles derive calls
+transparently, and sets the traits name slot to the name for convenience."
+[| newProto |
+  immutable `defaultsTo: False.
+  parents `defaultsTo: {Cloneable}.
+  parents size = 0 ifTrue: [error: 'Parent objects must be supplied.'].
+  newProto: ((parents at: 0) derive &mixins: (parents allButFirst: 1)).
+  immutable ifTrue: [newProto: newProto immutably].
+  "ensureSlot:is: may return the old value if =, but always returns what
+  is installed after the method is done."
+  (x hasSlotNamed: protoName)
+    ifTrue: [| oldProto |
+	     oldProto: (x atSlotNamed: protoName).
+	     newProto: (x ensureSlot: protoName is: newProto
+	       unlessSatisfies:
+		 [| :old oldParents newParents |
+		  "Modified equality using == over each delegate pair."
+		  oldParents: old traitsWindow _delegates.
+		  newParents: newProto traitsWindow _delegates.
+		  oldParents size = newParents size
+		    /\ [oldParents keySet allSatisfy:
+		      [| :index | (oldParents at: index) == (newParents at: index)]]]).
+	     newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
+	     newProto]
+    ifFalse: [x addImmutableSlot: protoName valued: newProto].
+  (x atSlotNamed: protoName) `>> [addPrintName: protoName name. ]
+].
+
+x@(Root traits) addPrintName: name
+"Add a printName slot on the object's traitsWindow and its traits.
+Override as necessary."
+[x traitsWindow addImmutableSlot: #printName valued: name ; ' traitsWindow'.
+  x traits addImmutableSlot: #printName valued: name ; ' traits'.
+].
+
+x@(Root traits) addPrototype: protoName derivedFrom: parents
+"Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
+[x addPrototype: protoName &parents: parents].
+
+x@(Root traits) define: slotName using: builder
+"Creates a conservative new immutable slot holding the results of the block.
+If such a slot already exists, recursively add slots from the built object
+with their values in cases where the slots do not already exist in the
+existing object. This is essentially a conservative object-slot tree builder."
+[| new |
+  new: builder do.
+  (x hasSlotNamed: slotName)
+    ifTrue:
+      [(x atSlotNamed: slotName)
+	ifNil: [x atSlotNamed: slotName put: new]
+	ifNotNilDo: [| :old | old addSlotsFromRecursively: new]]
+    ifFalse: [x addImmutableSlot: slotName valued: new].
+  x atSlotNamed: slotName
+].
+
+x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
+  &builder: builder &namespace: ns &owner: obj &immutable: immutable
+"Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
+[| proto |
+  immutable `defaultsTo: False.
+  slotSpecs `defaultsTo: #().
+  proto: (builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable]
+		  ifNotNil: [x define: protoName using: builder]).
+  slotSpecs do:
+    [| :each | (each is: Association)
+	       ifTrue: [(immutable ifTrue: [#addImmutableSlot:valued:] ifFalse: [#addSlot:valued:]) sendTo: {proto. each key. each value}]
+	       ifFalse: [(immutable ifTrue: [#addImmutableSlot:] ifFalse: [#addSlot:]) sendTo: {proto. each}]].
+  builder ifNil:
+    [ns
+      ifNil: [(x isSameAs: Namespace) /\
+		[(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m applyTo: {proto}) == x]]
+		ifTrue: [[| :_ | x] asMethod: #surroundings on: {proto traits}]]
+      ifNotNil: [[| :_ | ns] asMethod: #surroundings on: {proto traits}].
+     obj ifNotNil: [[| :_ | obj] asMethod: #owner on: {proto traits}]].
+  proto
+].
+
+x@(Root traits) defineOddball: name &parents: parents
+"Makes a new Oddball."
+"TODO: handle the &parents: option."
+[x define: name &builder: [Oddball clone]].
+
+x@(Root traits) commentTemplate
+"Answers a basic comment as a String for the object based on its definition."
+[| slotNames delegateNames |
+  slotNames: x slotNames.
+  [| :result |
+   result ; x printName asAn capitalize ; ' is ' ; x traits printName asAn ; '.\n'.
+   x traitsTally > 1
+     ifTrue:
+       [result ; 'Mixins: '.
+	x traitsDo: [| :trait | result ; trait printName ; ', '].
+	result ; '\n'].
+   (#size findsSameMethodOn: {x} asOn: {Array})
+     ifTrue: [result ; 'It has indexable slots.\n'].
+   slotNames isEmpty
+     ifTrue: [result ; 'It has no named slots.']
+     ifFalse:
+       [result ; 'It has named slots: '.
+	slotNames do:
+	  [| :name val |
+	   result ; name name.
+	   val: (x atSlotNamed: name).
+	   val ifNotNil: [result ; ' -> ' ; val printString].
+	   result ; '. ']].
+   result ; '\n'
+   ] writingAs: ''
+].

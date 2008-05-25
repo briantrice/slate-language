@@ -1,0 +1,127 @@
+lobby ensureNamespace: #Net.
+
+"http://www.ietf.org/rfc/rfc3986.txt"
+Net define: #URL &parents: {Cloneable}
+  &slots: {#scheme. #authority. #path. #query. #fragment}.
+
+Net define: #Actor &parents: {Cloneable} &slots: {#url. #connected}.
+
+Net ensureNamespace: #HTTP.
+
+Net HTTP define: #Method &parents: {Cloneable}
+  &slots: {#GET -> 'GET'. #PUT -> 'PUT'}.
+
+Net HTTP define: #Actor &parents: {Net Actor}
+  &slots: {#method -> Net HTTP Method GET.
+	   #socket.
+	   #responseHeaders -> Dictionary.
+	   #content.
+	   #contentLength}.
+
+u@(Net URL traits) readFrom: s
+[| r | 
+  r: (Regex Matcher for: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  (r matches: s)
+    ifTrue: [Net URL clone `>>
+	       [scheme: (r subexpression: 3). 
+		authority: (r subexpression: 5). 
+		path: (r subexpression: 6). 
+		query: (r subexpression: 8). 
+		fragment: (r subexpression: 10). ]]
+    ifFalse: [ 'unable to parse URL' signal ]
+].
+
+u@(Net URL traits) as: s@(String traits)
+[
+ [| :result |
+ u scheme = '' ifFalse: [result ; u scheme ; ':'].
+ u authority = '' ifFalse: [result ; '//' ; u authority].
+ result ; u path.
+ u query = '' ifFalse: [result ; '?' ; u query].
+ u fragment = '' ifFalse: [result ; '#' ; u fragment]
+   ] streamingAs: ''
+].
+
+u@(Net URL traits) actor
+[
+  u scheme = 'http' ifTrue: [ ^ (Net HTTP Actor fromUrl: u ) ].
+  'scheme not found' signal.
+].
+
+hua@(Net HTTP Actor traits) fromUrl: u
+[
+ hua clone `>> [ url: u. connected: False. ]
+].
+
+
+huc@(Net HTTP Actor traits) requestMethod: m@(Net HTTP Method traits)
+[
+ huc method: m
+].
+
+huc@(Net HTTP Actor traits) connect
+[
+ | address port |
+ address: ((huc url authority splitWith: $:) at: 0).
+ (huc url authority splitWith: $:) size = 1 ifTrue: [ port: 80 ] ifFalse: [ port: ((huc url authority splitWith: $:) at: 1)].
+ huc socket: (Net Socket open: address port: port).
+ huc connected: True.
+ huc
+].
+
+huc@(Net HTTP Actor traits) sendCommand: cmd path: pth
+[
+ huc socket writer ; cmd ; ' ' ; pth ; ' HTTP/1.0\r\n'.
+].
+
+huc@(Net HTTP Actor traits) sendHeader: name value: val
+[
+ huc socket writer ; name ; ': ' ; val ; '\r\n'.
+].
+
+huc@(Net HTTP Actor traits) endHeaders
+[
+ huc socket writer ; '\r\n'.
+].
+
+huc@(Net HTTP Actor traits) contents
+[
+ huc connected ifFalse: [ huc connect ].
+ huc sendCommand: (huc method as: String) path: huc url path.
+ huc endHeaders.
+ huc readResponse.
+ huc content: ( huc socket reader next: (huc contentLength)).
+ huc socket close.
+ huc content
+].
+
+huc@(Net HTTP Actor traits) readResponse
+[ 
+  | response r h |
+ "reads the response and response headers
+  if response code is other than 200, signal a http condition"
+ response: huc readLine.
+ Console ; 'response is ' ; (response as: String).
+
+ (((response splitWith: $ ) at: 1) = '200') ifTrue: [
+	 huc responseHeaders: huc responseHeaders new.
+         response: huc readLine.
+	 
+ 	 [ response = '\r\n' ] whileFalse: [ huc responseHeaders at: (((response splitWith: $:) at: 0) as: String) put: ((((response splitWith: $:) at: 1) as: String) strip). response: huc readLine.].
+	huc contentLength: (( huc responseHeaders at: 'Content-Length') as: Integer).
+ ] ifFalse: [ 'http error code' signal ].
+].
+
+huc@(Net HTTP Actor traits) readLine
+[
+ | line prev cur |
+ line: ((ExtensibleArray new &capacity: 20) writer).
+ [ prev: cur. cur: huc socket reader next. line writer nextPut: cur. (prev = $\r) and: [ cur = $\n ]] whileFalse.
+ line contents
+].
+
+_@Net testURLParsing
+[| myurl |
+  myurl: (Net URL readFrom: 'http://localhost/~jewel/moo').
+  myurl actor contents print.
+].

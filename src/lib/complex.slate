@@ -1,0 +1,220 @@
+
+numerics define: #Complex &parents: {Number. CoercibleNumberMixin} &slots:
+{#real -> 0. "The real component."
+ #imaginary -> 0 "The imaginary component."}.
+"Represents a complex number, having a real and imaginary part, which should
+not be altered per instance."
+Complex traits define: #level -> 4.
+
+c1@(Complex traits) = c2@(Complex traits)
+[
+  c1 real = c2 real /\ [c1 imaginary = c2 imaginary]
+].
+
+c@(Complex traits) = n@(Number traits)
+[
+  c imaginary isZero /\ [c real = n]
+].
+
+c@(Complex traits) hash
+[
+  c real hash bitXor: c imaginary hash
+].
+
+c@(Complex traits) real: real imaginary: imaginary
+[c cloneSettingSlots: #(real imaginary) to: {real. imaginary}].
+
+r@(Number traits) plusImaginary: i@(Number traits)
+"A convenient method for creating Complex quantities."
+[Complex real: r imaginary: i].
+
+x@(Number traits) as: c@(Complex traits)
+"Creates the corresponding complex number for the value, using a corresponding
+zero coordinate."
+[
+  c real: x imaginary: x zero
+].
+
+c@(Complex traits) as: x@(Number traits)
+"Converts to a number if possible, but returns itself otherwise."
+[
+  c imaginary isZero
+    ifTrue: [c real]
+    ifFalse: [c]
+].
+
+c@(Complex traits) unit
+[
+  c real unit as: c
+].
+
+c@(Complex traits) zero
+[
+  c real zero as: c
+].
+
+c@(Complex traits) isZero
+[
+  c real isZero /\ [c imaginary isZero]
+].
+
+c@(Complex traits) isPositive
+[
+  c real isPositive \/
+    [c real isZero /\ [c imaginary isPositive]]
+].
+
+c@(Complex traits) isNegative
+[
+  c real isNegative \/
+    [c real isZero /\ [c imaginary isNegative]]
+].
+
+c@(Complex traits) sign
+"Returns a complex number of unit dimensions in the same quadrant."
+[
+  c real: c real sign imaginary: c imaginary sign
+].
+
+c@(Complex traits) radius
+[
+  (c real squared + c imaginary squared) sqrt
+].
+
+c@(Complex traits) abs
+"The magnitude of the complex as a vector."
+[
+  c radius
+].
+
+c1@(Complex traits) < c2@(Complex traits)
+"This is highly dubious, since Complex arithmetic and relationships are
+totally different than linearly-ordered Comparables. This is here solely to
+satisfy Comparable protocol, embedding Complex into Real numbers."
+[
+  deprecated
+  c1 real < c2 real
+].
+
+numerics define: #I &builder: [Complex real: 0 imaginary: 1].
+"The square root of -1."
+
+c@(Complex traits) theta
+"The angle between the complex coordinates and the positive real-axis."
+[
+  c real isZero
+     ifTrue:
+       [c imaginary isPositive
+	  ifTrue: [Pi / 2]
+	  ifFalse: [Pi * 3 / 2]]
+     ifFalse:
+       [| tan result |
+	  tan: c imaginary / c real.
+	  result: tan arctan.
+	  c real isPositive
+	    ifTrue: [result]
+	    ifFalse: [Pi + result]]
+].
+
+c@(Complex traits) conjugated
+"Returns the complex conjugate."
+[
+  c real: c real imaginary: c imaginary negated
+].
+
+c1@(Complex traits) + c2@(Complex traits)
+[
+  c1 real: c1 real + c2 real
+     imaginary: c1 imaginary + c2 imaginary
+].
+
+c1@(Complex traits) - c2@(Complex traits)
+[
+  c1 real: c1 real - c2 real
+     imaginary: c1 imaginary - c2 imaginary
+].
+
+c1@(Complex traits) * c2@(Complex traits)
+[
+  c1 real: c2 real * c1 real - (c1 imaginary * c2 imaginary)
+     imaginary: c1 real * c2 imaginary + (c1 imaginary * c2 real)
+].
+
+c1@(Complex traits) / c2@(Complex traits)
+[| denom |
+  denom: c2 real squared + c2 imaginary squared.
+  c1 real: c1 real * c2 real + (c1 imaginary * c2 imaginary) / denom
+     imaginary: c2 real * c1 imaginary - (c2 imaginary * c1 real) / denom
+].
+
+c@(Complex traits) sqrt
+[| r |
+  c imaginary isZero /\ [c real isNegative not]
+     ifTrue: [^ c real sqrt].
+  c real: c imaginary / 2 / (r: (c radius - c real / 2) sqrt)
+    imaginary: r
+].
+
+c@(Complex traits) exp
+[ | im |
+  im: c imaginary.
+  c real exp * (im cos + (im sin * I))
+].
+
+c@(Complex traits) ln
+[
+  c real: c radius ln imaginary: c theta
+].
+
+c@(Complex traits) cos
+[
+  (c * I) exp + (c * I) negated exp / 2
+].
+
+c@(Complex traits) sin
+[
+  (c * I) exp - (c * I) negated exp / 2
+].
+
+c@(Complex traits) tan
+[
+  c sin / c cos
+].
+
+c@(Complex traits) raisedTo: n
+[
+  n isZero ifTrue: [^ 1].
+  n isPositive
+    ifTrue: [(n * c ln) exp]
+    ifFalse: [(c raisedTo: n negated) reciprocal]
+].
+
+n@(Number traits) i [n * I].
+
+c@(Complex traits) printOn: s
+[
+  s ; '('.
+  c real isZero ifFalse: [c real printOn: s. s ; ' + '].
+  c imaginary printOn: s.
+  s ; ' i)'.
+  "(c real isZero
+    ifTrue: [`(c imaginary `unquote i)]
+    ifFalse: [`(c real `unquote + c imaginary `unquote i)])
+    printOn: s."
+  s
+].
+
+c1@(Complex traits) isCloseTo: c2@(Complex traits)
+[
+  (c1 real isCloseTo: c2 real) /\ [c1 imaginary isCloseTo: c2 imaginary]
+].
+
+c@(Complex traits) isCloseTo: n@(Number traits)
+[
+  (c imaginary isCloseTo: 0.0) /\ [c real isCloseTo: n]
+].
+
+n@(Number traits) isCloseTo: c@(Complex traits)
+[
+  c isCloseTo: n
+].

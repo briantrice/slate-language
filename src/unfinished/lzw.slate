@@ -1,0 +1,38 @@
+prototypes define: #LZWReadStream &parents: {PositionableReadStream} &slots:
+{#source -> ReadStream clone.
+"The stream from which the values are read."
+ #strings -> Trie new.
+"The set of sequences seen so far; the codes are stored at the leaves."
+ #currentString}.
+"A ReadStream which reads from another stream some LZW-compressed data and
+outputs the decompressed contents."
+
+lz@(LZWReadStream traits) on: s
+[
+  lz source: s.
+  lz strings: lz strings new.
+  lz currentString: lz strings.
+  lz
+].
+
+lz@(LZWReadStream traits) wordSize
+[
+  lz source wordSize
+].
+
+lz@(LZWReadStream traits) next
+[| nextChar |
+  nextChar: lz source next.
+  
+].
+
+prototypes define: #LZWWriteStream &parents: {PositionableWriteStream} &slots:
+{#source -> ReadStream clone. "The stream to which the compressed values are written."
+ #strings -> Trie new. "The set of sequences seen so far; the codes are stored at the leaves."
+ #currentString}.
+"A WriteStream which writes out data in an LZW-compressed form. The flush
+method actually causes the write to occur, since a dictionary needs to be built
+up first to encode the data."
+
+
+

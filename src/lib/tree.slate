@@ -1,0 +1,236 @@
+collections define: #OrderedTree
+  &parents: {LinkedCollection. ExtensibleSequence}
+  &slots: {#treeParent. "The parent node, Nil for top-level nodes."
+	   #children -> ExtensibleArray new "The sub-nodes."}.
+"A Tree node, linking to its parent node and storing its children in a
+Sequence."
+
+ot@(OrderedTree traits) clear
+[
+  ot children: ot children new.
+  ot
+].
+
+ot@(OrderedTree traits) new &capacity: n
+[ot cloneSettingSlots: #(children) to: {ot children new &capacity: n}].
+
+ot@(OrderedTree traits) newFor: obj &capacity: n
+[(ot new &capacity: n) `>> [add: obj]].
+
+ot@(OrderedTree traits) newForAll: c@(Collection traits)
+[ot cloneSettingSlots: #(children) to: {c as: ot children}].
+
+ot@(OrderedTree traits) size [ot children size].
+
+ot@(OrderedTree traits) do: block [ot children do: block].
+
+ot@(OrderedTree traits) at: index [ot children at: index].
+
+ot@(OrderedTree traits) iterator
+[ot children iterator].
+
+ot@(OrderedTree traits) reader
+[ot children reader].
+
+ot@(OrderedTree traits) writer
+"NOTE: If the children object is not Extensible. Otherwise, a new structure
+may be constructed which is not placed into the slot implicitly."
+[ot children writer].
+
+ot@(OrderedTree traits) siblings
+"Return all children of the node's parent, excepting the original node.
+Answer Nil if there is no parent or the wrong parent."
+[
+  ot treeParent
+    ifNil: [ExtensibleArray new]
+    ifNotNilDo: [| :p | p children copy `>> [remove: ot ifAbsent: [^ Nil]. ]]
+].
+
+ot@(OrderedTree traits) previousSibling
+[ot treeParent ifNotNilDo: [| :p | p children before: ot]].
+
+ot@(OrderedTree traits) nextSibling
+[ot treeParent ifNotNilDo: [| :p | p children after: ot]].
+
+ot@(OrderedTree traits) raise
+"Moves this tree element to the first in the collection list of the parent -
+relies on being able to directly manipulate that collection."
+[
+  ot treeParent children move: ot to: ot children indexFirst.
+].
+
+ot@(OrderedTree traits) bury
+"Moves this tree element to the last in the children list of the parent -
+relies on being able to directly manipulate that collection."
+[| siblings |
+  siblings: ot treeParent children.
+  siblings move: ot to: siblings indexLast.
+].
+
+ch@(OrderedTree traits) reparentTo: ot
+"Handle the aspect of unsetting any parent link and backlink as necessary.
+Avoid adding to the new parent, since the position matters."
+[
+  ch treeParent ifNotNilDo: [| :p | p remove: ch].
+  ch treeParent: ot.
+].
+
+obj reparentTo: ot@(OrderedTree traits)
+[].
+
+ot@(OrderedTree traits) isLeaf: child
+"Answer whether the given element would not count as a sub-tree of the
+tree if it were a child of it - if it's anything but a tree itself."
+[(child is: ot) not].
+
+ot@(OrderedTree traits) at: index put: ch
+[
+  ch reparentTo: ot.
+  ot children at: index put: ch.
+  ot
+].
+
+ot@(OrderedTree traits) addFirst: ch
+[
+  ch reparentTo: ot.
+  ot children addFirst: ch.
+  ot
+].
+
+ot@(OrderedTree traits) addLast: ch
+"Add a tree node as a child, and set the parent back-link."
+[
+  ch reparentTo: ot.
+  ot children addLast: ch.
+  ot
+].
+
+ot@(OrderedTree traits) remove: ch
+"Remove the tree node as a child, making sure to remove the parent link."
+[
+  ot children remove: ch ifAbsent: [^ Nil].
+  ch reparentTo: Nil.
+  ot
+].
+
+ot@(OrderedTree traits) remove: ch ifAbsent: block
+[
+  ot children remove: ch ifAbsent: [block do]
+].
+
+collections define: #Trie
+	    &parents: {OrderedTree. NoDuplicatesCollection. Mapping}.
+"A trie is a Set of Sequences encoded as a left-to-right element search tree.
+At nodes whose path represents a Sequence that is an element, the node is
+tagged with the element. To use a Trie as a Set, the element should be the
+Sequence itself, handled by the add:/remove: protocol; otherwise it can be
+used as a Dictionary."
+Trie addSlot: #element valued: Nil.
+"Records the element that the trie node encodes, if it does at all. The
+element should consist of the sequence of all the keys used in order to access
+the given node. As a result, trie nodes must be root-aware."
+Trie children: IdentityDictionary new.
+"Uses a Mapping of Sequence elements to the next Node."
+
+t@(Trie traits) new &capacity: n
+"Tries are generally 'narrow' Trees."
+[n ifNil: [n: 3]. resend].
+
+t@(Trie traits) acceptsKey: _
+[False].
+
+t@(Trie traits) acceptsKey: _@(Sequence traits)
+"This is not quite true, since any key will work that responds to at:
+appropriately when given 0..n of integers and has a size."
+[True].
+
+t@(Trie traits) includes: s@(Sequence traits)
+"Treat the trie as a set of its keys. Searching for values is more expensive."
+[
+  (t at: s) isNotNil
+].
+
+t@(Trie traits) size
+[
+  t children
+    inject: t children size
+    into: [| :sum :each | sum + each size]
+].
+
+t@(Trie traits) nodeFor: seq
+"Returns the Trie node for the given Sequence."
+[| here |
+  here: t.
+  seq do: [| :each | here: (here children at: each ifAbsent: [])].
+  here
+].
+
+t@(Trie traits) at: s@(Sequence traits)
+"Search from here each of the elements of the sequence in turn."
+[
+  (t nodeFor: s) ifNotNilDo: [| :node | node element]
+].
+
+t@(Trie traits) nearestNodeFor: seq
+"Returns the Trie node that completes the greatest part of the Sequence."
+[| here next cursor |
+  here: t.
+  next: t.
+  cursor: 0.
+  [next isNil] whileFalse:
+    [next: (here children at: (seq at: cursor) ifAbsent: []).
+     next ifNotNil: [here: next. cursor: cursor + 1]].
+  here
+].
+
+t@(Trie traits) at: s@(Sequence traits) put: obj
+"Traverse down the Trie, adding nodes once an element isn't found.
+Annotate the final node with the given element."
+[| here next cursor |
+  here: t.
+  next: t.
+  cursor: 0.
+  [next isNil \/ [cursor = s size]] whileFalse:
+    [next: (here children at: (s at: cursor) ifAbsent: []).
+     next ifNotNil: [here: next. cursor: cursor + 1]].
+  "here is now at the last existing relevant Trie node.
+  cursor is the index within the Sequence of the next element to add."
+  cursor below: s size do:
+    [| :index |
+      next: t new.
+      here children at: (s at: index) put: next.
+      next treeParent: here.
+      here: next].
+  here element: obj.
+  obj
+].
+
+t@(Trie traits) add: s@(Sequence traits)
+"Treat the trie as a Set."
+[
+  t at: s put: s
+].
+
+t@(Trie traits) remove: s@(Sequence traits)
+"Search the trie for the sequence, stop at the last found, then recursively
+delete nodes with no element but the argument and move back up the tree.
+This returns the keyed value if there is one."
+[| next here lastPoint |
+  here: t.
+  next: t.
+  lastPoint: 0.
+  [next isNil] whileFalse:
+    [s doWithIndex: [| :each :index |
+     next: (here children at: each ifAbsent: []).
+     next ifNotNil: [lastPoint: index. here: next]]].
+  here element: Nil.
+  [here element isNil /\ [here children size <= 1]] whileTrue:
+    [| temp |
+     temp: here.
+     here: here treeParent.
+     here ifNil: [^ s]
+	  ifNotNil: [here children keysAndValuesRemove:
+	      [| :key :value | value == temp].
+	    temp treeParent: Nil]].
+  s
+].

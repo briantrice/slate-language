@@ -1,0 +1,830 @@
+numerics ensureNamespace: #Units &delegate: True.
+"Based on the Squeak Units code at http://home.netsurf.de/helge.horch/squeak/units.html"
+
+numerics define: #Unit.
+
+u1@(Unit traits) * u2@(Unit traits)
+[| unitDict units expons scratch |
+  unitDict: Dictionary new.
+  u1 unitsAndExponentsDo: [| :unit :expon | (unitDict includesKey: unit)
+    ifTrue: [unitDict at: unit put: (unitDict at: unit) + expon]
+    ifFalse: [unitDict at: unit put: expon]].
+  u2 unitsAndExponentsDo: [| :unit :expon | (unitDict includesKey: unit)
+    ifTrue: [unitDict at: unit put: (unitDict at: unit) + expon]
+    ifFalse: [unitDict at: unit put: expon]].
+  units: ExtensibleArray new.
+  expons: ExtensibleArray new.
+  (unitDict keySet sortBy: 
+    [| :left :right | 
+      (left abbrev lexicographicallyCompare: right abbrev) < 0])
+    do: [| :unit |
+      scratch: (unitDict at: unit).
+      scratch isZero ifFalse: [units add: unit. expons add: scratch]].
+  (units size = 1 and: [(expons at: 0) = 1])
+    ifTrue: [^ (units at: 0)].
+  ComplexUnit units: units exponents: expons
+].
+
+u1@(Unit traits) / u2@(Unit traits)
+[u1 * u2 reciprocal].
+
+u1@(Unit traits) per: u2@(Unit traits)
+[u1 / u2].
+
+u@(Unit traits) raisedTo: expon
+[
+  ComplexUnit units: {u} exponents: {expon}
+].
+
+u@(Unit traits) reciprocal
+[
+  ComplexUnit units: {u} exponents: {-1}
+].
+
+u@(Unit traits) squared
+[u * u].
+
+u1@(Unit traits) factor: u2@(Unit traits)
+[
+  u2 * (u1 bases / u2 bases)
+].
+
+u@(Unit traits) unitsAndExponentsDo: block
+"Evaluate the block once for each unit/exponent pair in u, defaulting to this."
+[block applyWith: u with: 1].
+
+u@(Unit traits) conversionFactorTo: v@(Unit traits)
+"Assuming u and v are consistent, return the numerical answer to u*X=v."
+[u conversionFactor / v conversionFactor].
+
+u@(Unit traits) additiveFactor
+"The value of the base level of the scale - usually 0; the only thing that
+has a real standard non-zero value is Temperatures (by old convention)."
+[0].
+
+_@(Unit traits) consistentWith: _@(Unit traits)
+[False].
+
+numerics define: #ObjectUnit &parents: {Unit}
+"A Unit used to describe/count Slate objects."
+  &slots: {#object -> Nil.
+"The object/exemplar on which the Unit is based."
+#comparisonBlock -> #isSameAs: `er.
+"How to tell if units are compatible; the caller needs to consider this."}.
+
+u@(ObjectUnit traits) isConsistentWith: v@(ObjectUnit traits)
+[u comparisonBlock applyTo: {u object. v object}].
+
+u@(ObjectUnit traits) printOn: s@(PrettyPrinterMixin traits)
+[s ; 'of: ' ; (RootedPath from: here to: u object) printString].
+
+u@(ObjectUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: p
+[
+  p ifTrue: [s ; u object printName plural]
+    ifFalse: [s ; u object printName]
+].
+
+numerics define: #UnitValue &parents: {Number} &slots: {#unit. #value}.
+
+uv@(UnitValue traits) unit: unit value: value
+[uv cloneSettingSlots: #(unit value) to: {unit. value}].
+
+uv@(UnitValue traits) printOn: s@(PrettyPrinterMixin traits) &full: bool
+[
+  uv value printOn: s.
+  s ; ' '.
+  (full ifNil: [True])
+    ifTrue: [uv unit printFullOn: s plural: uv value ~= 1]
+    ifFalse: [uv unit printOn: s].
+  uv
+].
+
+x@(Number traits) as: uv@(UnitValue traits)
+[
+  UnitValue unit: CompoundUnit null value: x
+].
+
+uv@(UnitValue traits) as: x@(Number traits)
+[uv value].
+
+uv@(UnitValue traits) convertTo: u@(Unit traits)
+"Convert the value to have the same units as u, using scaling factors."
+[| cf |
+  (uv unit isConsistentWith: u) ifFalse: [^ Nil].
+  cf: (uv unit conversionFactorTo: u).
+  uv unit: u value: uv value * cf
+].
+
+uv@(UnitValue traits) bases
+"Return the reduction of uv to base units."
+[
+  uv convertTo: uv unit baseUnits
+].
+
+uv@(UnitValue traits) as: u@(Unit traits)
+[
+  uv convertTo: u
+].
+
+x@(Number traits) of: u@(Unit traits)
+[
+  UnitValue unit: u value: x
+].
+
+x@(Number traits) of: obj &comparison: comparisonBlock
+[| u |
+  u: ObjectUnit `>> [object: obj. ].
+  comparisonBlock ifNotNil: [u comparisonBlock: comparisonBlock].
+  UnitValue unit: u value: x
+].
+
+x@(Number traits) as: u@(Unit traits)
+[
+  x of: u
+].
+
+x@(UnitValue traits) isConsistentWith: y@(UnitValue traits)
+[
+  x unit isConsistentWith: y unit
+].
+
+x@(UnitValue traits) + y@(UnitValue traits)
+[| sum |
+  (x isConsistentWith: y) ifFalse: [^ Nil].
+  (x as: y) `>> [value: sum value + y value. reduced]
+].
+
+x@(UnitValue traits) + y
+[
+  x value + y as: x unit
+].
+
+x + y@(UnitValue traits)
+[
+  y + x
+].
+
+x@(UnitValue traits) - y@(UnitValue traits)
+[
+  x + y negated
+].
+
+x@(UnitValue traits) - y
+[
+  x value - y as: x unit
+].
+
+x - y@(UnitValue traits)
+[
+  x - y value as: x unit
+].
+
+x@(UnitValue traits) * y@(UnitValue traits)
+[
+  (x unit: x unit * y unit value: x value * y value) reduced
+].
+
+x@(UnitValue traits) * y
+[
+  x value * y as: x unit
+].
+
+x * y@(UnitValue traits)
+[
+  y * x
+].
+
+x@(UnitValue traits) / y@(UnitValue traits)
+[
+  (y unit: x unit / y unit value: x value / y value) reduced
+].
+
+x@(UnitValue traits) / y
+[
+  x value / y as: x unit
+].
+
+x / y@(UnitValue traits) 
+[
+  x / y value as: x unit
+].
+
+x@(UnitValue traits) = y@(UnitValue traits)
+[
+  (x isConsistentWith: y) and: [y value = (x as: y) value]
+].
+
+x@(UnitValue traits) < y@(UnitValue traits)
+[
+  (x isConsistentWith: y) and: [x value < (x as: y) value]
+].
+
+uv@(UnitValue traits) negated
+[uv value negated as: uv unit].
+
+uv@(UnitValue traits) reduced
+"Answer the scalar part if the units have 'vanished'."
+[
+  uv unit units isEmpty ifTrue: [uv value] ifFalse: [uv]
+].
+
+uv1@(UnitValue traits) factor: uv2@(UnitValue traits)
+"Factor with respect to another unit or unitValue."
+[
+  uv1 factor: uv2 unit
+].
+
+uv@(UnitValue traits) factor: u@(Unit traits)
+[
+  uv as: (uv unit factor: u).
+].
+
+uv@(UnitValue traits) raisedTo: expon
+[
+  uv unit: (uv unit raisedTo: expon) value: (uv value raisedTo: expon)
+].
+
+uv@(UnitValue traits) reciprocal
+[uv raisedTo: -1].
+
+uv@(UnitValue traits) sqrt
+[
+  uv unit: (uv unit raisedTo: 1 / 2) value: (uv value sqrt)
+].
+
+uv@(UnitValue traits) ceiling
+[
+  uv value ceiling as: uv unit
+].
+
+uv@(UnitValue traits) floor
+[
+  uv value floor as: uv unit
+].
+
+uv@(UnitValue traits) roundTo: x
+[
+  (uv value roundTo: x) as: uv unit
+].
+
+uv@(UnitValue traits) roundUpTo: x
+[
+  (uv value roundUpTo: x) as: uv unit
+].
+
+uv@(UnitValue traits) truncateTo: x
+[
+  (uv value truncateTo: x) as: uv unit
+].
+
+uv@(UnitValue traits) rounded
+[
+  (uv value rounded) as: uv unit
+].
+
+numerics define: #CompoundUnit &parents: {Unit} &slots: {#units. #exponents}.
+
+CompoundUnit traits compareAndHashUsingSlots: #(units exponents).
+
+cu@(CompoundUnit traits) reciprocal
+[
+  cu units: cu units
+     exponents: (cu exponents collect: [| :each | each negated])
+].
+
+cu@(CompoundUnit traits) raisedTo: expon
+[
+  cu units: cu units
+     exponents: (cu exponents collect: [| :each | each * expon])
+].
+
+cu@(CompoundUnit traits) unitsAndExponentsDo: block
+[
+  cu units with: cu exponents do: block
+].
+
+cu@(CompoundUnit traits) conversionFactor
+[1].
+
+cu@(CompoundUnit traits) printOn: s@(PrettyPrinterMixin traits)
+[| first any count |
+  first: True.
+  any: False.
+  cu unitsAndExponentsDo: [| :unit :expon |
+    expon isPositive
+      ifTrue: [any: True.
+        first ifFalse: [s nextPut: $*].
+        first: False.
+        unit printOn: s.
+        expon ~= 1 ifTrue: [s nextPut: $^. expon printOn: s]]].
+  count: (cu exponents inject: 0 into: [| :c :each |
+    each isNegative ifTrue: [c + 1] ifFalse: [c]]).
+  count isPositive
+    ifTrue: [any ifFalse: [s nextPut: $1].
+      s nextPut: $/.
+      count > 1 ifTrue: [s nextPut: $(].
+      first: True.
+      cu unitsAndExponentsDo: [| :unit :expon |
+        expon ~= 1 ifTrue: [first ifFalse: [s nextPut: $*].
+        first: False.
+        unit printOn: s.
+        expon < -1 ifTrue: [s nextPut: $^. expon negated printOn: s]]].
+      count > 1 ifTrue: [s nextPut: $)]].
+  cu
+].
+
+cu@(CompoundUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
+[| pos neg |
+  pos: (cu exponents anySatisfy: [| :expon | expon isPositive]).
+  neg: (cu exponents anySatisfy: [| :expon | expon isNegative]).
+  pos ifTrue: [cu printUnitsWhereExponent: [| :expon | expon isPositive]
+                  on: s plural: b].
+  neg /\ pos ifTrue: [s nextPut: $\s].
+  neg ifTrue: [s ; 'per '.
+    cu printUnitsWhereExponent: [| :expon | expon isNegative] on: s plural: b]
+  cu
+].
+
+cu@(CompoundUnit traits) printUnitsWhereExponent: block on: s plural: b
+[| power first count index thisPlural |
+  first: True.
+  count: (cu exponents count: block).
+  index: 0.
+  cu units with: cu exponents do: [| :unit :expon |
+    (block applyWith: expon)
+      ifTrue: [first ifTrue: [first: False] ifFalse: [s nextPut: $\s].
+        index: index + 1.
+        thisPlural: (plural and: [index = count]).
+        power: expon abs.
+        ((power is: Integer) and: [power <= 3])
+          ifTrue: [power = 2 ifTrue: [s ; 'square '].
+            power = 3 ifTrue: [s ; 'cubic ']].
+        unit printFullOn: s plural: b.
+        (power > 3 or: [(power is: Integer) not])
+          s nextPut: $^. power printOn: s]].
+  cu
+].
+
+cu1@(CompoundUnit traits) isConsistentWith: cu2@(CompoundUnit traits)
+[
+  cu1 units = cu2 units and: [cu1 bases = cu2 bases]
+].
+
+numerics define: #ComplexUnit &parents: {CompoundUnit}
+  &slots: {#conversionFactor. #cachedBases}.
+
+cu@(ComplexUnit traits) units: units exponents: expons
+[| newCU |
+  newCU: (cu cloneSettingSlots: #(units exponents conversionFactor)
+	     to: {units. expons. 1}).
+  newCU units with: newCU exponents do: [| :unit :expon |
+    newCU conversionFactor: newCU conversionFactor
+      * (unit conversionFactor raisedTo: expon)].
+  newCU
+].
+
+cu@(ComplexUnit traits) bases
+"Calculating bases is expensive, so the values are cached."
+[
+  cu cachedBases ifNil: [cu cachedBases: cu calculateBases]
+].
+
+cu@(ComplexUnit traits) calculateBases
+[| bases unitDict newUs newExpons scratch |
+  cu unitsAndExponentsDo: [| :unit :expon |
+    bases: unit bases.
+    bases unitsAndExponentsDo: [| :subunit :subexpon |
+      scratch: subexpon * expon.
+      (unitDict includesKey: subunit)
+        ifTrue: [unitDict at: subunit put: (unitDict at: subunit) + scratch]
+        ifFalse: [unitDict at: subunit put: scratch]]].
+  newUs: ExtensibleArray new.
+  newExpons: ExtensibleArray new.
+  (unitDict keySet sortedBy: [| :l :r | l abbrev < r abbrev])
+    do: [| :unit |
+      scratch: (unitDict at: unit).
+      scratch isZero ifFalse: [newUs add: unit. newExpons add: scratch]].
+  CompoundUnit units: newUs exponents: newExpons
+].
+
+cu1@(ComplexUnit traits) isConsistentWith: cu2@(ComplexUnit traits)
+[
+  cu1 bases isConsistentWith: cu2 bases
+].
+
+numerics define: #ModifiedUnit &parents: {Unit} &slots: {#base. #modification}.
+
+"A base unit with a modification that makes it incompatible with anything
+not having the same modification, good for domain-specific use.
+e.g. 1.6 moles -> 1.6 moles of sulfuric acid. (Strings not required)"
+
+mu@(ModifiedUnit traits) base: u modification: mod
+[mu cloneSettingSlots: #(base modification) to: {u. mod}].
+
+ModifiedUnit traits compareAndHashUsingSlots: #(base modification).
+
+mu@(ModifiedUnit traits) bases
+[
+  mu
+].
+
+mu@(ModifiedUnit traits) conversionFactor
+[
+  mu base conversionFactor
+].
+
+mu@(ModifiedUnit traits) modify: mod
+[
+  mu base: mu modification: mod
+].
+
+mu@(ModifiedUnit traits) printOn: s@(PrettyPrinterMixin traits)
+[| mod |
+  mu base printOn: s.
+  s ; '('.
+  mod: mu modification.
+  (mod is: String)
+    ifTrue: [s ; mod]
+    ifFalse: [mod printOn: s].
+  s ; ')'.
+  mu
+].
+
+mu@(ModifiedUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
+[| mod |
+  mu base printFullOn: s plural: b.
+  s ; '( of '.
+  mod: mu modification.
+  (mod is: String)
+    ifTrue: [s ; mod]
+    ifFalse: [mod printOn: s].
+  s ; ')'.
+  mu
+].
+
+mu@(ModifiedUnit traits) isConsistentWith: cu@(ComplexUnit traits)
+[
+  mu isConsistentWith: cu bases
+].
+
+mu1@(ModifiedUnit traits) isConsistentWith: mu2@(ModifiedUnit traits)
+[
+  mu1 base = mu2 base and: [mu1 modification = mu2 modification]
+].
+
+numerics define: #PrefixedUnit &parents: {Unit} &slots: {#base. #prefix}.
+
+"A Unit with an SI Prefix attached."
+
+pu@(PrefixedUnit traits) prefix: prefix base: unit
+[pu cloneSettingSlots: #(prefix base) to: {prefix. unit}].
+
+pu@(PrefixedUnit traits) prefixedBy: prefix
+"Combine the prefixes."
+[pu cloneSettingSlots: #(prefix) to: {newPU prefix * prefix}].
+
+pu@(PrefixedUnit traits) isConsistentWith: u@(Unit traits)
+[
+  pu base isConsistentWith: u
+].
+
+u@(Unit traits) isConsistentWith: pu@(PrefixedUnit traits)
+[
+  pu base isConsistentWith: u
+].
+
+pu@(PrefixedUnit traits) conversionFactor
+[
+  pu prefix scalingFactor * pu base conversionFactor
+].
+
+pu@(PrefixedUnit traits) printOn: s@(PrettyPrinterMixin traits)
+[
+  s ; pu prefix abbrev.
+  pu base printOn: s.
+  pu
+].
+
+pu@(PrefixedUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
+[
+  s ; pu prefix prefixName.
+  pu base printFullOn: s plural: b.
+  pu
+].
+
+numerics define: #SIPrefix &parents: {Cloneable}
+  &slots: {#abbrev. #prefixName. #scalingFactor}.
+"SI Prefixes:
+ http://physics.nist.gov/cuu/Units/prefixes.html
+ http://www.bipm.org/en/si/prefixes.html
+Main SI site:
+ http://www.bipm.org/en/si/
+A Standard interchange format for SI units and numbers
+ http://swiss.csail.mit.edu/~jaffer/MIXF/"
+
+Units ensureNamespace: #Prefixes.
+Units Prefixes ensureNamespace: #ByName &delegate: True.
+Units Prefixes ensureNamespace: #ByAbbrev &delegate: True.
+
+sip@(SIPrefix traits) name: name abbrev: abbrev scalingFactor: n
+[| newSIP |
+  newSIP: (sip cloneSettingSlots: #(abbrev prefixName scalingFactor)
+	       to: {abbrev. name. n}).
+  Units Prefixes ByName addImmutableSlot: name intern valued: newSIP.
+  Units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: newSIP.
+  newSIP
+].
+
+sip@(SIPrefix traits) named: name
+[
+  Units SIPrefixesByName at: name intern
+].
+
+sip@(SIPrefix traits) abbrev: name
+[
+  Units SIPrefixesByAbbrev at: name intern
+].
+
+u@(Unit traits) prefixedBy: prefix@(SIPrefix traits)
+[
+  PrefixedUnit prefix: prefix base: u
+].
+
+p1@(SIPrefix traits) * p2@(SIPrefix traits)
+[| scalingFactor newSIP |
+  scalingFactor: p1 scalingFactor * p2 scalingFactor.
+  Units SIPrefixesByName keysAndValuesDo: [| :key :value |
+    value scalingFactor = scalingFactor ifTrue: [^ value]].
+  Nil
+].
+
+SIPrefix name: 'yotta' abbrev: 'Y' scalingFactor: (10 raisedTo: 24).
+SIPrefix name: 'zetta' abbrev: 'Z' scalingFactor: (10 raisedTo: 21).
+SIPrefix name: 'exa' abbrev: 'E' scalingFactor: (10 raisedTo: 18).
+SIPrefix name: 'peta' abbrev: 'P' scalingFactor: (10 raisedTo: 15).
+SIPrefix name: 'tera' abbrev: 'T' scalingFactor: (10 raisedTo: 12).
+SIPrefix name: 'giga' abbrev: 'G' scalingFactor: (10 raisedTo: 9).
+SIPrefix name: 'mega' abbrev: 'M' scalingFactor: (10 raisedTo: 6).
+SIPrefix name: 'kilo' abbrev: 'k' scalingFactor: (10 raisedTo: 3).
+SIPrefix name: 'hecto' abbrev: 'h' scalingFactor: (10 raisedTo: 2).
+SIPrefix name: 'deca' abbrev: 'da' scalingFactor: (10 raisedTo: 1).
+SIPrefix name: 'deci' abbrev: 'd' scalingFactor: (10 raisedTo: -1).
+SIPrefix name: 'centi' abbrev: 'c' scalingFactor: (10 raisedTo: -2).
+SIPrefix name: 'milli' abbrev: 'm' scalingFactor: (10 raisedTo: -3).
+SIPrefix name: 'micro' abbrev: 'u' scalingFactor: (10 raisedTo: -6).
+SIPrefix name: 'nano' abbrev: 'n' scalingFactor: (10 raisedTo: -9).
+SIPrefix name: 'pico' abbrev: 'p' scalingFactor: (10 raisedTo: -12).
+SIPrefix name: 'atto' abbrev: 'a' scalingFactor: (10 raisedTo: -15).
+SIPrefix name: 'femto' abbrev: 'f' scalingFactor: (10 raisedTo: -18).
+SIPrefix name: 'zepto' abbrev: 'z' scalingFactor: (10 raisedTo: -21).
+SIPrefix name: 'yocto' abbrev: 'y' scalingFactor: (10 raisedTo: -24).
+
+numerics define: #NamedUnit &parents: {Unit}
+  &slots: {#abbrev. #unitName. #pluralName}.
+
+nu@(NamedUnit traits) name: n1 abbrev: ab &plural: np
+[nu cloneSettingSlots: #(abbrev unitName pluralName)
+    to: {ab. n1. np ifNil: [n1 plural]}].
+
+nu@(NamedUnit traits) printOn: s@(PrettyPrinterMixin traits)
+[
+  s ; nu abbrev.
+  nu
+].
+
+nu@(NamedUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
+[
+  b ifTrue: [s ; nu unitName] ifFalse: [s ; nu pluralName].
+  nu
+].
+
+numerics define: #BaseUnit &parents: {NamedUnit}.
+
+"Defines core SI units and allows for basic extension."
+
+bu@(BaseUnit traits) modify: mod
+[
+  ModifiedUnit base: bu modification: mod
+].
+
+bu@(BaseUnit traits) bases
+[bu].
+
+bu@(BaseUnit traits) conversionFactor
+[1].
+
+bu1@(BaseUnit traits) isConsistentWith: bu2@(BaseUnit traits)
+[bu1 == bu2].
+
+x@(UnitValue traits) / y@(Unit traits)
+[x / (1 of: y)].
+
+bu@(BaseUnit traits) isConsistentWith: cu@(ComplexUnit traits)
+[bu isConsistentWith: cu bases].
+
+cu@(CompoundUnit traits) isConsistentWith: cu2@(BaseUnit traits)
+"Compound units always have a non-trivial set of units."
+[False].
+
+mu@(ModifiedUnit traits) isConsistentWith: bu@(BaseUnit traits)
+[False].
+
+bu@(BaseUnit traits) isConsistentWith: mu@(ModifiedUnit traits)
+[False].
+
+_@(ModifiedUnit traits) is: _@(BaseUnit traits)
+"Modified units are effectively new bases."
+[True].
+
+Units ensureNamespace: #SI &delegate: True.
+Units SI ensureNamespace: #ByName &delegate: True.
+Units SI ensureNamespace: #ByAbbrev &delegate: True.
+Units SI ensureNamespace: #ByPluralName &delegate: True.
+
+bu@(BaseUnit traits) name: n1 abbrev: ab &plural: np
+[| newBU n1s nps abs |
+  np ifNil: [np: n1 plural].
+  newBU: resend.
+  [| :n | n of: newBU] asMethod: n1 intern on: {Number traits}.
+  [| :n | n of: newBU] asMethod: ab intern on: {Number traits}.
+  Units SI ByName addImmutableSlot: n1 intern valued: newBU.
+  Units SI ByAbbrev addImmutableSlot: ab intern valued: newBU.
+  Units SI ByPluralName addImmutableSlot: np intern valued: newBU.
+  newBU
+].
+
+BaseUnit name: 'gram' abbrev: 'g'.
+BaseUnit name: 'meter' abbrev: 'm'.
+BaseUnit name: 'second' abbrev: 's'.
+BaseUnit name: 'candela' abbrev: 'c' &plural: 'candela'.
+BaseUnit name: 'mole' abbrev: 'mol'.
+
+bu@(BaseUnit traits) named: name
+[
+  name intern sendTo: {Units SI ByName}
+].
+
+bu@(BaseUnit traits) abbrev: name
+[
+  name intern sendTo: {Units SI ByAbbrev}
+].
+
+bu@(BaseUnit traits) pluralNamed: name
+[
+  name intern sendTo: {Units SI ByPluralName}
+].
+
+cu@(ComplexUnit traits) isConsistentWith: bu@(BaseUnit traits)
+[bu isConsistentWith: cu bases].
+
+numerics define: #TemperatureBaseUnit &parents: {BaseUnit}.
+
+TemperatureBaseUnit name: 'kelvin' abbrev: 'K' &plural: 'kelvin'.
+
+numerics define: #DerivedUnit &parents: {NamedUnit} &slots: {#unitValue}.
+
+"This defines a unit in terms of powers of other units, plus a scalar."
+
+Units ensureNamespace: #ByName &delegate: True.
+Units ensureNamespace: #ByAbbrev &delegate: True.
+Units ensureNamespace: #ByPluralName &delegate: True.
+
+du@(DerivedUnit traits) name: n1 abbrev: ab value: val &plural: np
+[| newU |
+  np ifNil: [np: n1 plural].
+  newU: (du name: n1 abbrev: ab &plural: np).
+  newU unitValue: val.
+  [| :n | n of: newU] asMethod: n1 intern on: {Number traits}.
+  [| :n | n of: newU] asMethod: ab intern on: {Number traits}.
+  Units ByName addImmutableSlot: n1 intern valued: newU.
+  Units ByAbbrev addImmutableSlot: ab intern valued: newU.
+  Units ByPluralName addImmutableSlot: np intern valued: newU.
+  newU
+].
+
+du@(DerivedUnit traits) unit
+[
+  du unitValue unit
+].
+
+du@(DerivedUnit traits) bases
+[
+  du unitValue unit bases
+].
+
+du@(DerivedUnit traits) conversionFactor
+[
+  du unitValue value * du unitValue unit conversionFactor
+].
+
+du@(DerivedUnit traits) isConsistentWith: bu@(BaseUnit traits)
+[
+  bu isConsistentWith: du unit
+].
+
+bu@(BaseUnit traits) isConsistentWith: du@(DerivedUnit traits)
+[
+  bu isConsistentWith: du unit
+].
+
+DerivedUnit
+  name: 'centimeter'
+  abbrev: 'cm'
+  value: (1 of: (Units m prefixedBy: Units Prefixes c)).
+
+DerivedUnit
+  name: 'kilometer'
+  abbrev: 'km'
+  value: (1 of: (Units m prefixedBy: Units Prefixes k)).
+
+DerivedUnit
+  name: 'kilogram'
+  abbrev: 'kg'
+  value: (1 of: (Units g prefixedBy: Units Prefixes k)).
+
+DerivedUnit
+  name: 'inch'
+  abbrev: 'in'
+  value: (2.54 of: Units cm).
+
+DerivedUnit
+  name: 'foot'
+  abbrev: 'ft'
+  value: (12 of: Units in)
+  &plural: 'feet'.
+
+DerivedUnit
+  name: 'yard'
+  abbrev: 'yd'
+  value: (3 of: Units ft).
+
+DerivedUnit
+  name: 'mile'
+  abbrev: 'mi'
+  value: (5280 of: Units ft).
+
+DerivedUnit
+  name: 'acre'
+  abbrev: 'acre'
+  value: (4046.87260987 of: Units m squared).
+
+DerivedUnit
+  name: 'newton'
+  abbrev: 'N'
+  value: (1 of: Units kg * Units m / Units s squared)
+  &plural: 'newtons'.
+
+DerivedUnit
+  name: 'minute'
+  abbrev: 'min'
+  value: (60 of: Units s).
+
+DerivedUnit
+  name: 'hour'
+  abbrev: 'h'
+  value: (60 of: Units min).
+
+DerivedUnit
+  name: 'day'
+  abbrev: 'd'
+  value: (24 of: Units h).
+
+DerivedUnit
+  name: 'year'
+  abbrev: 'yr'
+  value: (365.242198781 of: Units d).
+
+DerivedUnit
+  name: 'hertz'
+  abbrev: 'Hz'
+  value: ((1 of: Units s) raisedTo: -1)
+  &plural: 'hertz'.
+
+numerics define: #TemperatureUnit &parents: {DerivedUnit}
+  &slots: {#additiveFactor}.
+
+tu@(TemperatureUnit traits) name: n1 abbrev: ab value: val additiveFactor: af &plural: np
+[
+  (tu name: n1 abbrev: ab value: val &plural: np) `>> [additiveFactor: af. ]
+].
+
+TemperatureUnit
+  name: 'degree Rankine'
+  abbrev: 'R'
+  value: (5 / 9 of: Units K)
+  additiveFactor: 0
+  &plural: 'degrees Rankine'.
+
+TemperatureUnit
+  name: 'degree Fahrenheit'
+  abbrev: 'F'
+  value: (5 / 9 of: Units K)
+  additiveFactor: -459.67
+  &plural: 'degrees Fahrenheit'.
+
+TemperatureUnit
+  name: 'degree Celsius'
+  abbrev: 'C'
+  value: (1 of: Units K)
+  additiveFactor: -273.15
+  &plural: 'degrees Celsius'.

@@ -1,0 +1,106 @@
+Optimizer Platform ensureNamespace: #x86.
+
+Optimizer Platform x86 define: #Architecture &builder: [Optimizer MR Architecture newNamed: 'Intel x86'].
+
+
+[| segs sp gp fp |
+  segs: (Optimizer MR RegisterFile newNamed: 'segment registers').
+  Optimizer Platform x86 Architecture addRegisterFile: segs.
+  Optimizer Platform x86 define: #SegmentRegisters -> segs.
+  {'CS'. 'DS'. 'ES'. 'FS'. 'GS'. 'SS'}
+    do:
+      [| :name reg |
+        reg: (Optimizer MR Register newNamed: name type: Types _Unsigned16).
+        Optimizer Platform x86 define: name intern -> reg.
+        segs addRegister: reg
+      ].
+
+  sp: (Optimizer MR RegisterFile newNamed: 'special purpose registers').
+  Optimizer Platform x86 Architecture addRegisterFile: sp.
+  Optimizer Platform x86 define: #SpecialPurposeRegisters -> sp.
+  {'ESP'. 'EBP'}
+    do:
+      [| :name reg |
+        reg: (Optimizer MR Register newNamed: name type: Types _Unsigned32).
+        Optimizer Platform x86 define: name intern -> reg.
+        sp addRegister: reg
+      ].
+
+  gp: (Optimizer MR RegisterFile newNamed: 'general purpose registers' &allocatable: True).
+  Optimizer Platform x86 Architecture addRegisterFile: gp.
+  Optimizer Platform x86 define: #GeneralPurposeRegisters -> gp.
+  gp scratchRegisters: 1.
+  {'EAX'. 'EDX'. 'ECX'}
+    do:
+      [| :name reg |
+        reg: (Optimizer MR Register newNamed: name type: Types _Signed32).
+        Optimizer Platform x86 define: name intern -> reg.
+        gp addRegister: reg.
+        gp addInputRegister: reg.
+        gp addOutputRegister: reg
+      ].
+  {'EBX'. 'ESI'. 'EDI'}
+    do:
+      [| :name reg |
+        reg: (Optimizer MR Register newNamed: name type: Types _Signed32).
+        Optimizer Platform x86 define: name intern -> reg.
+        gp addRegister: reg.
+      ].
+  
+  fp: (Optimizer MR RegisterStack newNamed: 'x87 floating point register stack' &allocatable: True).
+  Optimizer Platform x86 Architecture addRegisterFile: fp.
+  Optimizer Platform x86 define: #FloatingPointRegisters -> fp.
+  fp scratchRegisters: 2.
+  0 upTo: 6
+    do:
+      [| :index |
+        fp addRegister: (Optimizer MR Register newNamed: 'F' ; index printString type: Types _Float64)
+      ].
+  0 upTo: 7
+    do:
+      [| :index |
+        fp addStackRegister: (Optimizer MR IndexedRegister newNamed: 'ST(' ; index printString ; ')' type: Types _Float64 &index: index)
+      ].
+
+  Optimizer Platform x86 ensureNamespace: #OperandMode.
+
+  Optimizer Platform x86 OperandMode addSlot: #SegmentRead valued:
+    (Optimizer MR OperandMode Read newRegisterFile: segs).
+  Optimizer Platform x86 OperandMode addSlot: #SegmentWrite valued:
+    (Optimizer MR OperandMode Write newRegisterFile: segs).
+  Optimizer Platform x86 OperandMode addSlot: #SegmentReadWrite valued:
+    (Optimizer MR OperandMode ReadWrite newRegisterFile: segs).
+
+  Optimizer Platform x86 OperandMode addSlot: #IntegerRead valued:
+    (Optimizer MR OperandMode Read newRegisterFile: sp) \/
+      (Optimizer MR OperandMode Read newRegisterFile: gp).
+  Optimizer Platform x86 OperandMode addSlot: #IntegerWrite valued:
+    (Optimizer MR OperandMode Write newRegisterFile: sp) \/
+      (Optimizer MR OperandMode Write newRegisterFile: gp).
+  Optimizer Platform x86 OperandMode addSlot: #IntegerReadWrite valued:
+    (Optimizer MR OperandMode ReadWrite newRegisterFile: sp) \/
+      (Optimizer MR OperandMode ReadWrite newRegisterFile: gp).
+
+  Optimizer Platform x86 OperandMode addSlot: #FloatRead valued:
+    (Optimizer MR OperandMode IndexedRead newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #FloatWrite valued:
+    (Optimizer MR OperandMode IndexedWrite newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #FloatReadWrite valued:
+    (Optimizer MR OperandMode IndexedReadWrite newRegisterFile: fp).
+
+  Optimizer Platform x86 OperandMode addSlot: #FloatPop valued:
+    (Optimizer MR OperandMode Pop newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #FloatPush valued:
+    (Optimizer MR OperandMode Push newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #FloatPopPush valued:
+    (Optimizer MR OperandMode PopPush newRegisterFile: fp).
+
+  Optimizer Platform x86 OperandMode addSlot: #VirtualFloatRead valued:
+    (Optimizer MR OperandMode Read newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #VirtualFloatWrite valued:
+    (Optimizer MR OperandMode Write newRegisterFile: fp).
+  Optimizer Platform x86 OperandMode addSlot: #VirtualFloatReadWrite valued:
+    (Optimizer MR OperandMode ReadWrite newRegisterFile: fp).
+
+] do.
+

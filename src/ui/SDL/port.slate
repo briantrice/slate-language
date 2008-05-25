@@ -1,0 +1,160 @@
+ports ensureNamespace: #SDL.
+
+CObject parseDefinitionsFrom:
+#(('SDLPortEvent'
+    (Structure
+      ('type' UnsignedChar)
+      ('param1' LongInt)
+      ('param2' LongInt)))
+) into: SDL.
+
+SDL define: #Lib &builder:
+  [ExternalInterface newForLibrary: 'sdl-ui' primitives:
+    #(
+    (LongInt 'Restart' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt))
+    (Void 'Destroy' ())
+    (UnsignedLongInt 'PollEvent' (#[SDL _SDLPortEvent pointer]))
+    (UnsignedLongInt 'WaitEvent' (#[SDL _SDLPortEvent pointer]))
+
+    (Void 'Clip' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt))
+    (Void 'Update' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt))
+    (Void 'Flip' ())
+    (Void 'DrawPoint' (UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawRectangle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawFilledRectangle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawLine' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawCircle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawFilledCircle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawEllipse' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawFilledEllipse' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+    (Void 'DrawFilledTriangle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
+) &leader: 'SDLPort'].
+
+SDL define: #Port 
+  &parents: {Port. ReadStream}
+  &slots: {#width -> 640. #height -> 480. #bpp -> 0.
+	   #fullScreen -> False. #doubleBuffer -> False}.
+
+_@(SDL Port traits) serverType
+['SDL'].
+
+p@(SDL Port traits) restart
+[
+  SDL Lib enable.
+  SDL Lib primitives Restart applyTo: 
+    {p width.
+      p height.
+      p bpp.
+      p fullScreen ifTrue: [1] ifFalse: [0].
+      p doubleBuffer ifTrue: [1] ifFalse: [0]}.
+  p
+].
+
+_@(SDL Port traits) destroy
+[
+  SDL Lib primitives Destroy do
+].
+
+_@(SDL Port traits) flush
+[
+  SDL Lib primitives Flip do
+].
+
+_@(SDL Port traits) isAtEnd
+[False].
+
+p@(SDL Port traits) next
+[| data event |
+  data: SDL SDLPortEvent clone.
+  [(SDL Lib primitives WaitEvent applyWith: data) isZero
+    ifTrue: [error: 'Could not read event from SDL Port'].
+    data _type caseOf:
+      {0 -> [Quit signal].
+       1 -> [p width: data _param1.
+             p height: data _param2.
+             p restart.
+             ^ (WindowConfigEvent clone `>> [region: (Rectangle origin: Point origin corner: (Point x: p width y: p height)). ])].
+       2 -> [^ (WindowRepaintEvent clone `>> [region: (Rectangle origin: Point origin corner: (Point x: p width y: p height)). ])].     
+       3 -> [^ (KeyboardPressEvent clone `>> [key: data _param1. ])].
+       4 -> [^ (KeyboardReleaseEvent clone `>> [key: data _param1. ])].
+       5 -> [^ (MouseMotionEvent clone `>> [position: (Point x: data _param1 y: data _param2). ])].
+       6 -> [^ (MouseButtonPressEvent clone `>> [button: data _param1. ])].
+       7 -> [^ (MouseButtonReleaseEvent clone `>> [button: data _param1. ])].
+       8 -> [^ MouseEnterEvent clone].
+       9 -> [^ MouseLeaveEvent clone].
+      }] loop
+].
+
+Portlist include: SDL Port.
+
+SDL define: #Medium &parents: {Medium}.
+
+SDL Medium traits define: #colorScale -> 255.99.
+
+m@(SDL Medium traits) rgbArrayFor: c@(Color traits)
+[
+  {(c red * m colorScale `cache) floor.
+   (c green * m colorScale) floor.
+   (c blue * m colorScale) floor}
+].
+
+m@(SDL Medium traits) foregroundRGBArray
+[m rgbArrayFor: m foreground].
+
+obj drawOn: m@(SDL Medium traits)
+[warn: 'Unhandled shape: ' ; obj printString].
+
+p@(Point traits) drawOn: m@(SDL Medium traits)
+[
+  SDL Lib primitives DrawPoint applyTo: 
+    {p x. p y} ; m foregroundRGBArray
+].
+
+r@(Rectangle traits) drawOn: m@(SDL Medium traits)
+[
+  SDL Lib primitives DrawFilledRectangle applyTo:
+    {r origin x. r origin y. r corner x. r corner y} ; m foregroundRGBArray
+].
+
+l@(LineSegment traits) drawOn: m@(SDL Medium traits)
+[
+  SDL Lib primitives DrawLine applyTo:
+    {l start x. l start y. l end x. l end y} ; m foregroundRGBArray
+].
+
+p@(Path traits) drawOn: m@(SDL Medium traits)
+[| start |
+  start: p points first.
+  p points allButFirstDo:
+    [| :end |
+      SDL Lib primitives DrawLine applyTo:
+        {start x. start y. end x. end y} ; m foregroundRGBArray.
+      start: end]
+].
+
+e@(Ellipse traits) drawOn: m@(SDL Medium traits)
+[
+  e isCircle
+    ifTrue:
+      [SDL Lib primitives DrawFilledCircle applyTo:
+        {e center x. e center y. e xRadius. e yRadius}
+	 ; m foregroundRGBArray]
+    ifFalse:
+      [SDL Lib primitives DrawFilledEllipse applyTo:
+        {e center x. e center y. e xRadius. e yRadius}
+         ; m foregroundRGBArray]
+].
+
+p@(Polygon traits) drawOn: m@(SDL Medium traits)
+"Draw a filled Polygon one spanning triangle at a time."
+[| firstPoint prevPoint |
+  m foregroundRGBArray `cache.
+  firstPoint: p points first.
+  prevPoint: p points second.
+  p points from: 2 below: p points indexLast do:
+    [| :nextPoint |
+      SDL Lib primitives DrawFilledTriangle applyTo:
+        {firstPoint x. firstPoint y. prevPoint x. prevPoint y. nextPoint x. nextPoint y}
+       ; m foregroundRGBArray.
+     prevPoint: nextPoint]
+].

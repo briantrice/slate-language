@@ -1,0 +1,62 @@
+"Logical NOT."
+_@True not [False].
+_@False not [True].
+
+"Boolean-conditional evaluation."
+_@True ifTrue: block ifFalse: _ [block do].
+_@False ifTrue: _ ifFalse: block [block do].
+
+bool@(Boolean traits) ifTrue: block
+"Some sugaring for ifTrue:ifFalse:."
+[
+  bool ifTrue: block ifFalse: []
+].
+
+bool@(Boolean traits) ifFalse: block
+"Some sugaring for ifTrue:ifFalse:."
+[
+  bool ifTrue: [] ifFalse: block
+].
+
+"Logical AND and OR. This works by having True and False be children of
+Boolean traits."
+
+_@True /\ _@True [True].
+_@(Boolean traits) /\ _@(Boolean traits) [False].
+_@False \/ _@False [False].
+_@(Boolean traits) \/ _@(Boolean traits) [True].
+
+"Boolean Equivalence."
+x@(Boolean traits) eqv: y@(Boolean traits) [x == y].
+
+"Boolean Exclusive OR."
+x@(Boolean traits) xor: y@(Boolean traits) [x eqv: y not].
+
+bool@(Boolean traits) and: block
+"Conditional AND, but it can return the value of the block."
+[bool ifTrue: block ifFalse: [False]].
+
+bool@(Boolean traits) or: block
+"Conditional OR, but it can return the value of the block."
+[bool ifTrue: [True] ifFalse: block].
+
+bool@(Boolean traits) and: x and: y
+"Sugaring."
+[(bool and: x) and: y].
+
+bool@(Boolean traits) and: x and: y and: z
+"Sugaring."
+[((bool and: x) and: y) and: z].
+
+bool@(Boolean traits) or: x or: y
+"Sugaring."
+[(bool or: x) or: y].
+
+bool@(Boolean traits) or: x or: y or: z
+"Sugaring."
+[((bool or: x) or: y) or: z].
+
+"Administrative/prettying methods:" (
+_@True printName ['True'].
+_@False printName ['False'].
+).

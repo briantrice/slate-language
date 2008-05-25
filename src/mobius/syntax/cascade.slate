@@ -1,0 +1,150 @@
+node@(Syntax Node traits) cascadedTo: _
+"The default behavior for treating a Syntax Node as cascaded onto some
+source variable - no-transformation."
+[node].
+
+imp@(Syntax ImplicitArgument traits) cascadedTo: sourceVar
+"Implicit argument sends cascaded to a variable are treated as loads."
+[
+  Syntax LoadVariable from: sourceVar
+].
+
+msg@(Syntax Message traits) cascadedTo: sourceVar
+"Arbitrary messages are treated by first transforming the first argument,
+then replacing it in the arguments as necessary."
+[| replacement |
+  replacement: (msg arguments first cascadedTo: sourceVar).
+  replacement == msg arguments first
+    ifFalse:
+      [msg arguments at: 0 put: replacement].
+  msg
+].
+
+opts@(Syntax OptionalKeywords traits) cascadedTo: sourceVar
+"Forward the cascade to the enclosed message."
+[| replacement |
+  replacement: (opts message cascadedTo: sourceVar).
+  replacement == opts message
+    ifFalse:
+      [opts message: replacement].
+  opts
+].
+
+store@(Syntax StoreVariable traits) cascadedTo: sourceVar
+"A store to a variable when cascaded is treated as a mutator keyword
+message to a load of it."
+[
+  Syntax KeywordMessage
+    sending: (store variable name name ; ':') intern
+    to: {Syntax LoadVariable from: sourceVar. store value}
+].
+
+load@(Syntax LoadVariable traits) cascadedTo: sourceVar
+"A load of a variable when cascaded is treated as an accessor
+message to a load of it."
+[
+  Syntax UnaryMessage
+    sending: load variable name
+    to: {Syntax LoadVariable from: sourceVar}
+].
+
+"
+paren@(Syntax Parenthesis traits) cascadedTo: sourceVar
+[| replacement |
+  replacement: (paren statements first cascadedTo: sourceVar).
+  replacement == paren statements first
+    ifFalse:
+      [paren statements at: 0 put: replacement].
+  paren
+].
+"
+
+source@(Syntax Node traits) >> cascade@(Syntax Block traits) &environment: env
+"This is the cascading macro. It transforms an expression and a block into
+a form where the top-level statements' expressions are cascaded onto the result
+of evaluating the first at run-time. Technically, it expands into a new block.
+If the cascade block has an input argument, it is bound to this cascaded value
+so it can be explicitly referenced for statements where non-top-level access is
+necessary."
+[| sourceVar body block |
+  env
+    ifNil:
+      [block: Syntax Block new].
+  cascade localVariables size > cascade inputVariables size
+    ifTrue: 
+      [block: cascade].
+  cascade inputVariables isEmpty
+    ifTrue: 
+      [sourceVar: (block ifNil: [env]) addVariable]
+    ifFalse: 
+      [sourceVar: cascade inputVariables first.
+        block == cascade
+          ifFalse:
+            [(block ifNil: [env]) addVariable: sourceVar]].
+  body:
+    {Syntax StoreVariable of: source into: sourceVar} ;
+      (cascade statements
+        collect: [| :statement | statement cascadedTo: sourceVar]).
+  (body last isSameAs: Syntax Literal) /\ [body last value isNil]
+    ifTrue:
+      [body at: body indexLast put: (Syntax LoadVariable from: sourceVar)].
+  block
+    ifNil:
+      [body as: Syntax Parenthesis]
+    ifNotNil:
+      [block inputVariables: {}.
+        block statements: body.
+        Syntax UnaryMessage sending: #do to: {block}]
+].
+
+node@(Syntax Node traits) substitutingSlotsOf: source for: vars
+[
+  node
+].
+
+load@(Syntax LoadVariable traits) substitutingSlotsOf: source for: vars
+[
+  (vars includes: load variable)
+    ifTrue:
+      [Syntax UnaryMessage sending: load variable name to:
+        {Syntax LoadVariable from: source}]
+    ifFalse:
+      [load]
+].
+
+store@(Syntax StoreVariable traits) substitutingSlotsOf: source for: vars
+[
+  (vars includes: store variable)
+    ifTrue:
+      [Syntax KeywordMessage sending: (store variable name name ; ':') intern to:
+        {Syntax LoadVariable from: source. store value}]
+    ifFalse:
+      [store]
+].
+
+source@(Syntax Node traits) withSlotsDo: cascade@(Syntax Block traits) &environment: env
+"A macro for a different type of cascade. This searches the cascade block's input
+arguments and binds them to corresponding slots in the result of evaluating the
+source code."
+[| sourceVar body block |
+  env
+    ifNil:
+      [block: Syntax Block new].
+  cascade localVariables size > cascade inputVariables size
+    ifTrue:
+      [block: cascade].
+  sourceVar: (block ifNil: [env]) addVariable.
+  cascade transformBy:
+    [| :node |
+      node substitutingSlotsOf: sourceVar for: cascade inputVariables].
+  body: {Syntax StoreVariable of: source into: sourceVar} ; cascade statements.
+  block
+    ifNil:
+      [body as: Syntax Parenthesis]
+    ifNotNil:
+      [block localVariables: (block localVariables difference: block inputVariables).
+        block inputVariables: {}.
+        block statements: body.
+        Syntax UnaryMessage sending: #do to: {block}]
+].
+

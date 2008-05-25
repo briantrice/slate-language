@@ -1,0 +1,99 @@
+Graphics define: #FrameCloseButton &parents: {PaintSolidBackground} &slots: {#frame}.
+FrameCloseButton backgroundColor: Colors Blue.
+FrameCloseButton spaceRequirement: (SpaceRequirement newPreferred: 16, 16 max: 16, 16 min: 16, 16).
+
+se@(FrameCloseButton traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    se frame close.
+].
+
+se@(FrameCloseButton traits) handle: event@(PaintEvent traits)
+[
+    resend.
+    event context `>> [
+        moveTo: se boundingRect topLeft.
+        lineTo: se boundingRect bottomRight.
+        moveTo: se boundingRect topRight.
+        lineTo: se boundingRect bottomLeft.
+        sourceRGB: Colors White alpha: 1.
+        lineWidth: 3.
+        stroke]
+].
+
+Graphics define: #FrameTitle &parents: {PaintSolidBackground. Text} &slots: {#frame}.
+FrameTitle textOffset: 0, -4.
+FrameTitle backgroundColor: Colors Blue.
+FrameTitle textColor: Colors White.
+FrameTitle spaceRequirement: (SpaceRequirement newPreferred: 200, 16 max: 600, 16 min: 50, 16).
+
+se@(FrameTitle traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    se frame startAdjusting: Position position: (se frame translatePoint: event position fromChild: se)
+].
+
+Graphics define: #FrameCaption &parents: {
+    PaintChildren. 
+    PassInputToInputHandler. 
+    PassPointerToChildren.
+    HBox}.
+
+se@(FrameCaption traits) newFrame: frame
+[
+    FrameCaption new `>> [
+        add: FrameTitle new `>> [frame: frame.].
+        add: FrameCloseButton new `>> [frame: frame.].]
+].
+
+se@(FrameCaption traits) caption
+[
+    se first text
+].
+
+se@(FrameCaption traits) caption: caption
+[
+    se first text: caption.
+].
+
+Graphics define: #Frame &parents: {
+    PaintSolidBackground. 
+    PaintChildren. 
+    PassInputToInputHandler. 
+    PassPointerToChildren.
+    ResizableSpacing}.
+
+Frame backgroundColor: Colors Grey.
+Frame leftMargin: 6.
+Frame rightMargin: 6.
+Frame topMargin: 6.
+Frame bottomMargin: 6.
+
+se@(Frame traits) new
+[|n|
+    n: resend.
+    n add: SceneElement new `>> [
+        parents: {VBox. PaintChildren. PassInputToInputHandler. PassPointerToChildren}.
+        add: (FrameCaption newFrame: n).
+        add: SceneElement new.].
+    n
+].
+
+se@(Frame traits) caption
+[
+    se first first caption
+].
+
+se@(Frame traits) caption: caption
+[
+    se first first caption: caption
+].
+
+se@(Frame traits) content
+[
+    se first second
+].
+
+se@(Frame traits) content: content
+[
+    se first remove: se first second.
+    se first add: content.
+].

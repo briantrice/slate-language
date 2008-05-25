@@ -1,0 +1,54 @@
+
+c@(UnicodeCharacter traits) printOn: w &inString: isInString &encodedIn: encoding &makeEncoder: makeEncoder
+[| encoder |
+  makeEncoder `defaultsTo: False.
+  isInString `defaultsTo: False.
+  encoding `defaultsTo: UTF8.
+  encoder: (makeEncoder ifTrue: [encoding Encoder newOn: w] ifFalse: [w]).
+  c code ifNil: [encoder ; '("' ; c printName ; '")']
+	 ifNotNil: [isInString ifFalse: [encoder nextPut: ($$ as: UnicodeCharacter)].
+	            encoder nextPut: c].
+].
+
+c@(UnicodeSubset traits) printOn: w
+[w ; '("Unicode ' ; c printName ; '")'].
+
+s@(EncodedString traits) printOn: w
+[s do: [| :each | each printOn: w &inString: True]].
+
+s@(UnicodeString traits) printOn: o &encodedIn: encoding &makeEncoder: makeEncoder
+"Print the String readably, using escapes to preserve the contents."
+"FIXME: this currently relies on the fact that every unprintable character
+is in 8-bit range. That might change."
+[| encoder |
+   makeEncoder `defaultsTo: False.
+   encoding `defaultsTo: UTF8.
+   encoder: (makeEncoder ifTrue: [encoding Encoder newOn: o] ifFalse: [o]).
+  '\'' printOn: encoder.
+  s doWithIndex:
+    [| :c :index |
+      index >= o stringLimit
+        ifTrue: ['...\'' printOn: encoder. ^ o].
+      c caseOf:
+        {
+          (16r27 as: UnicodeCharacter) -> ['\\\'' printOn: encoder].
+          (16r9 as: UnicodeCharacter) -> ['\\t' printOn: encoder].
+          (16rA as: UnicodeCharacter) -> ['\\n' printOn: encoder].
+          (16rB as: UnicodeCharacter) -> ['\\v' printOn: encoder].
+          (16rC as: UnicodeCharacter) -> ['\\f' printOn: encoder].
+          (16rD as: UnicodeCharacter) -> ['\\r' printOn: encoder].
+          (16r8 as: UnicodeCharacter) -> ['\\b' printOn: encoder].
+          (16r7 as: UnicodeCharacter) -> ['\\a' printOn: encoder].
+          (16r1B as: UnicodeCharacter) -> ['\\e' printOn: encoder].
+          (16r0 as: UnicodeCharacter) -> ['\\0' printOn: encoder].
+        }
+        otherwise:
+          [c isPrintable
+            ifTrue: [c printOn: encoder &inString: True]
+            ifFalse:
+              ['\\x' printOn: encoder.
+                (c as: Integer) // 16 printOn: o radix: 16.
+                (c as: Integer) \\ 16 printOn: o radix: 16]]].
+  '\'' printOn: encoder.
+  o
+].

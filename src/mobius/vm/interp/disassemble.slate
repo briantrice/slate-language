@@ -1,0 +1,120 @@
+CompiledMethod traits define: #OpStream &parents: {ReadStream}
+ &slots: {#codePosition -> 0. #codeSize -> 0. #method -> Nil}.
+
+CompiledMethod traits define: #Instruction &slots: {#name. #arguments -> {}}.
+"An Instruction just stores the name of the op-code and the arguments for it."
+
+method@(CompiledMethod traits) opReader
+[method OpStream newOn: method].
+
+s@(CompiledMethod OpStream traits) on: method@(CompiledMethod traits)
+[
+  s method: method.
+  s codeSize: method code size.
+  s codePosition: 0.
+  s
+].
+
+s@(CompiledMethod OpStream traits) hasAnEnd [True].
+
+s@(CompiledMethod OpStream traits) isAtEnd
+[s codePosition >= s codeSize].
+
+s@(CompiledMethod OpStream traits) decodeShort
+"Get the next two bytes and turn them into a SmallInteger appropriately
+and advance the index."
+[| n val |
+  n: s codePosition.
+  val: (s method code at: n) + ((s method code at: n + 1) << 8).
+  s codePosition: n + 2.
+  val > 16r7FFF
+    ifTrue: [-16r8000 + (val bitAnd: 16r7FFF)]
+    ifFalse: [val]
+].
+
+s@(CompiledMethod OpStream traits) decodeImmediate
+"Find the next encoded SmallInteger starting with the trailing 3 bits of the
+byte and then any following bytes as encoded, advancing the index."
+[| n code val |
+  n: s codePosition.
+  code: (s method code at: n).
+  val: (code bitAnd: 16r7F).
+  [code >= 16r80]
+    whileTrue:
+      [n: n + 1.
+       code: (s method code at: n).
+       val: (val << 7 bitOr: (code bitAnd: 16r7F))].
+  s codePosition: n + 1.
+  val
+].
+
+s@(CompiledMethod OpStream traits) next
+"Answer an Instruction object representing the next instruction. Immediate
+values are decoded, and literal values are printed as appropriate."
+[| op val name extraInfo |
+  "Get the opcode, increment our index, and get the next immediate value."
+  op: (s method code at: s codePosition).
+  s codePosition: s codePosition + 1.
+  (op bitAnd: 16r0F) = 16r0F
+    ifFalse:
+      [val: op >> 4.
+       val = 16rF ifTrue: [val: s decodeImmediate].
+       op: (op bitAnd: 16r0F)].
+  "Find the Instruction's name."
+  VM ByteCode slotNamesAndValuesDo:
+    [| :slotName :code | code = op ifTrue: [name: slotName]].
+  "Set up the Instruction object with the name and all the available arguments."
+  CompiledMethod Instruction cloneSettingSlots: #(name arguments) to:
+    {name.
+     (name
+       caseOf:
+         {#loadFreeVariable -> [{val. s decodeImmediate}].
+	  #storeFreeVariable -> [{val. s decodeImmediate}].
+	  #loadLiteral -> [{val. s method literals at: val}].
+	  #loadSelector -> [{val. s method selectors at: val}].
+          #jumpTo -> [{s decodeShort}].
+          #branchIfTrue -> [{s decodeShort}].
+          #branchIfFalse -> [{s decodeShort}]}
+       otherwise: 
+         [val ifNil: [{}] ifNotNil: [{val}]])}
+].
+
+i@(CompiledMethod Instruction traits) disassembleOn: s
+"For each opcode, print out the name and then each of the arguments on a line."
+[
+  s ; i name name.
+  i arguments do: [| :arg | s ; ' ' ; arg printString].
+  s ; '\n'.
+].
+
+i@(CompiledMethod OpStream traits) disassembleOn: s
+"Print out each opcode, prefixed by the instruction offset number."
+[| offset |
+  offset: 0.
+  i do: [| :each | 
+    s ; offset printString ; ': '.
+    each disassembleOn: s.
+    offset: i codePosition].
+].
+
+m@(CompiledMethod traits) disassembleOn: s
+"Print out method meta-data and then the instruction stream."
+[
+  s writer lines ;
+   {'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]).
+    'inputs: ' ; m inputVariables printString.
+    'locals: ' ; m localVariables printString.
+    'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']).
+    'rest parameter: ' ; m restVariable printString.
+    'optional keywords: ' ; (m optionalKeywords isEmpty
+	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])}.
+  m opReader disassembleOn: s.
+].
+
+m@(CompiledMethod traits) disassemble
+"Print to the Console by default."
+[m disassembleOn: Console writer].
+
+closure@(Closure traits) disassemble
+"Skip Closure objects and print their internal methods instead."
+[closure method disassembleOn: Console writer].

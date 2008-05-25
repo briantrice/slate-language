@@ -1,0 +1,145 @@
+"This provides the information-exchange protocol for inputting and outputting
+objects using Presentations, and adding context for them."
+
+Graphics define: #Presentation &parents: {Mixin} &slots:
+{#object. "The object presented."
+ #type.
+"The PresentationType object, describing the type of object, formatting
+and criteria that must be satisfied for this presentation's subject."
+ #view.
+"The View that this Presentation is applied to (separate from the target)."
+ #singleBox. "Boolean sensitivity"
+ #highlighting "Boolean highlighting"}.
+"Presentations are designed as a Mixin which encodes the UI type and
+representation with formatting."
+
+Graphics define: #PresentationType &parents: {Cloneable} &slots:
+{#name -> ''.
+ #description -> ''. "The name assigned for UI purposes."
+ #keepsHistory. "Boolean for #history use."
+ #history}.
+"Objects describing the type-characteristics of Presentation objects."
+"TODO: refactor keepsHistory into history isNil with overriding as needed."
+
+Graphics define: #View &parents: {Cloneable}.
+"Views are a concept which allows specifying an output format style as an
+extra dispatch argument instead of providing specialized method names or
+hardcoding the style into the display medium. It is intended to be extended,
+but primarily based on Oddballs (cloning these is useless)."
+
+Graphics define: #TextView &parents: {View}.
+Graphics define: #TextDialogView &parents: {TextView}.
+Graphics define: #TextMenuView &parents: {TextView}.
+Graphics define: #GadgetView &parents: {View}.
+Graphics define: #GadgetMenuView &parents: {GadgetView}.
+Graphics define: #GadgetDialogView &parents: {GadgetView}.
+Graphics define: #HandDocumentationView &parents: {TextView}.
+
+SceneElement Stream addSlot: #defaultView valued: View.
+"This is where the default View argument is obtained."
+"TODO: Move this to the appropriate place in the initialization."
+
+obj@(Root traits) presentAs: p@(Presentation traits) on: s@(Stream traits)
+     view: v@(View traits)
+"Display the representation of obj on the view
+TODO: implement optional keyword forContext:."
+[
+  
+].
+
+obj@(Root traits) presentAs: p on: s
+[obj presentAs: p on: s view: s defaultView].
+
+obj@(Root traits) presentOn: s
+[obj presentAs: obj presentationType on: s].
+
+p@(Presentation traits) present: obj@(Root traits) on: s@(Stream traits)
+     view: v@(View traits)
+"An alternate syntax. The presentation is used as the desired type."
+[
+  obj presentAs: p on: s view: v
+].
+
+p@(Presentation traits) present: obj@(Root traits) on: target
+"Get the default WriteStream to something."
+"TODO: determine a robust way of providing the default view."
+[p present: obj through: target writer].
+
+p@(Presentation traits) acceptThrough: s@(Stream traits) from: v@(View traits)
+"Return the object parsed from s, which might not be of type p.
+TODO: implement optional keywords default, default-type"
+[
+].
+
+p@(Presentation traits) acceptThrough: s
+[p acceptThrough: s from: s defaultView].
+
+p@(Presentation traits) accept
+[p acceptThrough: Console reader from: TextView].
+
+p@(Presentation traits) matches: context
+"presentation-matches-context-type"
+[
+].
+
+"NOTE: CLIM function describe maps to printOn:/printName."
+
+"TODO: find out what accept-present-default translates to."
+
+p@(Presentation traits) positionTest: x@(Point traits) in: r@(SceneElement traits)
+"Definitively answers hit detection queries, ensuring x is within the output record, specialized for p."
+[
+].
+
+p@(Presentation traits) highlightOn: s@(Stream traits)
+"Draw a highlight box on the output record in stream s."
+[
+].
+
+p@(Presentation traits) unhighlightOn: s@(Stream traits)
+"Draw a highlight box on the output record in stream s."
+[
+].
+
+"TODO: implement 23.4 below."
+
+"p@(Presentation traits) "
+
+"23.5"
+
+lobby define: #InputContexts &builder: [Stack new].
+"Elements in CLIM of InputContexts are supposed to be a Presentation (type) tagged with indicating where in the control structure it was established. It is not strictly a stack, but the order reflects call order."
+"TODO: make this an attribute of some more general context type."
+
+l@lobby inputContext
+[l InputContexts top].
+
+"23.6..."
+
+"------------------------------------"
+
+"Some actual presentation types:"
+
+Graphics ensureNamespace: #presentations &delegate: True.
+
+Root traits define: #presentationType &parents: {Presentation}.
+
+Syntax Node traits define: #presentationType
+  &parents: {Root traits presentationType}.
+
+presentations define: #Root &parents: {Presentation}.
+
+presentations define: #Boolean &parents: {presentations Root}.
+
+True define: #presentationType &parents: {presentations Boolean}.
+
+False define: #presentationType &parents: {presentations Boolean}.
+
+Nil define: #presentationType &parents: {presentations Root}.
+
+presentations define: #Command &parents: {Presentation}.
+
+presentations define: #Null &parents: {Presentation}.
+"This represents where there is no presentation that is applicable in the
+current input context."
+

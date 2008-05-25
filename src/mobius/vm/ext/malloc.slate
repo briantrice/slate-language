@@ -1,0 +1,65 @@
+includeHeaderNamed: '"malloc.h"'.
+
+a@ByteArrayTraits newFixedAreaSized: size
+[| handle!LongInt |
+  size isSmallInt ifFalse: [^ interpreter pushNil].
+  handle: 'openMemory (size >> 1)' directly.
+  handle >= 0
+    ifTrue: [interpreter stackPush: handle asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.
+
+a@ByteArrayTraits close: handle
+[
+  handle isSmallInt
+    ifTrue: ['closeMemory (handle >> 1)' directly].
+  interpreter pushNil
+] `pidginPrimitive.
+
+a@ByteArrayTraits noteNewReferenceTo: handle
+[
+  handle isSmallInt
+    ifTrue: ['addRefMemory (handle >> 1)' directly].
+  interpreter pushNil
+] `pidginPrimitive.
+
+a@ByteArrayTraits write: n into: handle startingAt: start
+"Write N elements from the ByteArray into the memory area indicated by the
+handle, offset into it by the start parameter. We call readMemory since from
+the handle's perspective, it's reading from the ByteArray into itself."
+[
+  handle isSmallInt
+    ifTrue: [interpreter stackPush: 'readMemory (handle >> 1, start >> 1, n >> 1, (char *)(((struct ByteArray *) a)->elements + (start >> 1)))' directly!LongInt asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.
+
+a@ByteArrayTraits read: n from: handle startingAt: start
+"Read N elements into the ByteArray from the memory area indicated by the
+handle, offset into it by the start parameter. We call writeMemory since from
+the handle's perspective, it's writing into the ByteArray from itself."
+[
+  handle isSmallInt
+    ifTrue: [interpreter stackPush: 'writeMemory (handle >> 1, start >> 1, n >> 1, (char *)(((struct ByteArray *) a)->elements + (start >> 1)))' directly!LongInt asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.
+
+a@ByteArrayTraits sizeOf: handle
+[
+  handle isSmallInt
+    ifTrue: [interpreter stackPush: 'sizeOfMemory (handle >> 1)' directly!LongInt asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.
+
+a@ByteArrayTraits resize: handle to: size
+[
+  handle isSmallInt /\ [size isSmallInt]
+    ifTrue: [interpreter stackPush: 'resizeMemory (handle >> 1, size >> 1)' directly!LongInt asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.
+
+a@ByteArrayTraits addressOf: handle at: offset into: addressBuffer
+[
+  handle isSmallInt /\ [offset isSmallInt]
+    ifTrue: [interpreter stackPush: 'addressOfMemory (handle >> 1, offset >> 1, ((struct ByteArray *) addressBuffer)->elements)' directly!LongInt asObject]
+    ifFalse: [interpreter pushNil]
+] `pidginPrimitive.

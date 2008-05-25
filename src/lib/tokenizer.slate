@@ -1,0 +1,54 @@
+prototypes define: #Tokenizer &parents: {StreamProcessor} &slots:
+{#separators -> ASCIIString Character Whitespace copy}.
+"A stream that collects characters and emits words separated by
+any of the given separators."
+"FIXME: ASCIIString Character Whitespace is not ASCII specific.
+Being a whitespace needs some abstraction over the actual encoding."
+
+s@(Tokenizer traits) newOn: target withSeparators: separators
+[(s newOn: target) `>> [separators: separators. ]].
+
+s@(ReadStream traits) split
+"Answer a Tokenizer over the input argument with the default separators."
+[Tokenizer newOn: s].
+
+s@(ReadStream traits) splitWith: separators
+"Answer a Tokenizer over the input argument with the given separators."
+[Tokenizer newOn: s withSeparators: separators].
+
+s@(Tokenizer traits) skipSeparators
+[
+  [s isSeparator: s source peek]
+    whileTrue: [s source next].
+  s
+].
+
+s@(Tokenizer traits) isAtEnd
+[
+  [s skipSeparators] on: Stream Exhaustion do: [| :c | ^ True].
+  s source isAtEnd
+].
+
+s@(Tokenizer traits) reset
+[
+  resend.
+  s source reset.
+  s
+].
+
+s@(Tokenizer traits) isSeparator: char
+[
+  s separators includes: char
+].
+
+s@(Tokenizer traits) next
+[| result |
+  result: s source collectionType new writer.
+  [s skipSeparators.
+    [result nextPut: s source next.
+      s isSeparator: s source peek]
+      whileFalse
+  ] breakOn: Stream Exhaustion.
+  result position isZero ifTrue: [s exhausted].
+  result contents
+].

@@ -1,0 +1,68 @@
+"Requires time.slate to be loaded already."
+
+CObject parseDefinitionsFrom: #(('CTimeval' (Structure ('seconds' LongInt)
+						       ('microseconds' LongInt))))
+	into: time. "time is a namespace."
+
+Time traits define: #Lib
+  &builder: [ExternalInterface newForLibrary: 'time' primitives:
+    #((Int GetTimeOfDay (#[time _CTimeval pointer]))
+      (Int GetClockTime ())
+      (Int GetClocksPerSecond ())
+      (CString GetCalendarTimeStringInSeconds ())
+      (CString GetStandardTimeZoneName ())
+      (CString GetDSTTimeZoneName ())
+      (Int GetTimeZoneOffsetInSeconds ())
+      (Boolean IsDSTRelevant ())
+      ) &leader: 'slate_'].
+
+Time Lib enable.
+
+tv@CTimeval as: _@(Float traits)
+"TODO: Not very useful, since float resolution is too small. Need Doubles!"
+[tv seconds + (tv microseconds / 1000000.0)].
+
+t@(Time traits) timevalNow
+[| tv |
+  tv: CTimeval clone.
+  t Lib primitives GetTimeOfDay applyWith: tv storage.
+  tv
+].
+
+t@(Time traits) epochSeconds
+[t timevalNow seconds].
+
+t@(Time traits) calendarTimeString
+"TODO: This should be generalised to take the time to pass to ctime."
+[t Lib primitives GetCalendarTimeStringInSeconds do].
+
+t@(Time traits) clocksPerSecond
+"TODO: update this only in startupActions."
+[t Lib primitives GetClocksPerSecond do].
+
+t@(Time traits) clockNow
+[(t Lib primitives GetClockTime do as: Float) / t clocksPerSecond].
+
+"Some naive benchmark methods:"
+
+m@(Method traits) timeToRun
+"The number of seconds to execute the method.
+NOTE: FFI overhead is not accounted for."
+[| start end |
+  start: Time clockNow.
+  [m do] ensure: [end: Time clockNow].
+  end - start
+].
+
+m@(Method traits) timeToRun: n
+"The number of seconds to execute the method N times.
+NOTE: this does not account for FFI overhead or caching."
+[| start end |
+  start: Time clockNow.
+  [n timesRepeat: [m do]] ensure: [end: Time clockNow].
+  end - start
+].
+
+m@(Method traits) averageTimeToRun: n
+"The number of seconds to execute the method by averaging over N calls."
+[(m timeToRun: n) / n].

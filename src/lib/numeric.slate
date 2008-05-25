@@ -1,0 +1,871 @@
+prototypes ensureNamespace: #numerics &delegate: True.
+
+numerics define: #Comparable &parents: {Cloneable}.
+"A Comparable is any object that compares linearly (<, =, >) with other like
+objects."
+
+"BUG: This conflicts with CoercibleNumberMixin < CoercibleNumberMixin.
+Some comparisons depend on the coercions to happen to see the relevant < definition.
+x@(Comparable traits) < y@(Comparable traits)  [overrideThis].
+"
+x@(Comparable traits) <= y@(Comparable traits) [(y < x) not].
+x@(Comparable traits) >= y@(Comparable traits) [(x < y) not].
+x@(Comparable traits) > y@(Comparable traits)  [y < x].
+
+x@(Comparable traits) <=> y@(Comparable traits)
+"Answer the sign of the difference between the two arguments."
+[
+  x < y ifTrue: [-1]
+    ifFalse: [x = y ifTrue: [0] ifFalse: [1]]
+].
+
+x@(Comparable traits) sign
+"Answer the sign of the argument by comparing it with its zero element."
+[x <=> x zero].
+
+x@(Comparable traits) between: min@(Comparable traits) and: max@(Comparable traits)
+"Return whether the first argument is between the other two."
+[
+  x >= min /\ [x <= max]
+].
+
+x@(Comparable traits) min: y@(Comparable traits)
+"Return the lesser argument."
+[
+  x < y ifTrue: [x] ifFalse: [y]
+].
+
+x@(Comparable traits) max: y@(Comparable traits)
+"Return the greater argument."
+[
+  x > y ifTrue: [x] ifFalse: [y]
+].
+
+x@(Comparable traits) min: y@(Comparable traits) max: z@(Comparable traits)
+[
+  (x min: y) max: z
+].
+
+numerics define: #Number &parents: {Comparable}.
+"A Number is a Comparable value upon which arithmetic operations may be performed."
+
+n@(Number traits) abs
+"The absolute value."
+[
+  n isNegative ifTrue: [n negated] ifFalse: [n]
+].
+
+n@(Number traits) negated
+"The argument's additive inverse generically."
+[n zero - n].
+
+n@(Number traits) isZero
+"This method tests for zero generically."
+[n = n zero].
+
+n@(Number traits) isPositive
+"Whether it's positive generically."
+[n > n zero].
+
+n@(Number traits) isNegative
+"Whether it's negative generically."
+[n < n zero].
+
+n@(Number traits) isUnit
+"This method tests for one generically."
+[n = n unit].
+
+n@(Number traits) sign
+"Answers 1 for positive, -1 for negative, 0 for zero."
+[
+  n isZero
+    ifTrue: [0]
+    ifFalse: [n isPositive ifTrue: [1] ifFalse: [-1]]
+].
+
+_@(Number traits) isInfinite [False].
+
+n@(Number traits) zero
+"This method returns the zero element for the numeric type.
+So, n * n zero = n zero."
+[0].
+
+n@(Number traits) unit
+"This method returns the unit element for the numeric type.
+So, n * n unit = n."
+[1].
+
+n@(Number traits) divideByZero
+"The default handler for division by zero."
+[
+  [(DivideByZero of: n) signal] handleWith: DivideByZero ReturnInput
+].
+
+numerics define: #CoercibleNumberMixin &parents: {Cloneable}.
+"A CoercibleNumberMixin integrates a Number into the coercible tower of Numbers."
+
+t@(CoercibleNumberMixin traits) level
+[
+overrideThis
+].
+
+numerics define: #Integer &parents: {Number. CoercibleNumberMixin}.
+"
+SmallInteger traitsWindow atSlotNamed: #traits1 put: Integer traits.
+SmallInteger traitsWindow atSlotNamed: #traits2 put: Number traits.
+SmallInteger traitsWindow atSlotNamed: #traits3 put: Comparable traits.
+SmallInteger traitsWindow atSlotNamed: #traits4 put: CoercibleNumberMixin traits.
+"
+
+
+SmallInteger traitsWindow _delegates: 
+  {CoercibleNumberMixin traits. Comparable traits. Number traits. Integer traits. SmallInteger traits}.
+
+
+
+
+
+SmallInteger traits addImmutableSlot: #minimumValue valued: -16r40000000.
+SmallInteger traits addImmutableSlot: #maximumValue valued: 16r3FFFFFFF.
+SmallInteger traits addImmutableSlot: #level valued: 0.
+"Level of the number type for coercion purposes."
+
+i@(SmallInteger traits) bitAt: n
+[(i bitAnd: 1 << n) sign].
+
+i@(SmallInteger traits) highBit
+[| n bit |
+  i = SmallInteger minimumValue
+    ifTrue: [^ (i bitNot highBit + 1)].
+  bit: 0.
+  n: i abs.
+  n > 16rFFFF
+    ifTrue: [bit: bit + 16. n: (n bitShift: -16)].
+  n > 16rFF
+    ifTrue: [bit: bit + 8. n: (n bitShift: -8)].
+  n > 16rF
+    ifTrue: [bit: bit + 4. n: (n bitShift: -4)].
+  n > 2r11
+    ifTrue: [bit: bit + 2. n: (n bitShift: -2)].
+  n > 2r1
+    ifTrue: [bit: bit + 1].
+  bit
+].
+
+x@(SmallInteger traits) bitShiftOverflow: y@(SmallInteger traits)
+[
+  (x as: BigInteger) bitShift: y
+].
+
+x@(SmallInteger traits) addOverflow: y@(SmallInteger traits)
+[
+  (x as: BigInteger) + (y as: BigInteger)
+].
+
+x@(SmallInteger traits) subtractOverflow: y@(SmallInteger traits)
+[
+  (x as: BigInteger) - (y as: BigInteger)
+].
+
+x@(SmallInteger traits) multiplyOverflow: y@(SmallInteger traits)
+[
+  (x as: BigInteger) * (y as: BigInteger)
+].
+
+numerics define: #Float &parents: {Number. CoercibleNumberMixin}.
+
+n@(Float traits) zero
+"This method returns the zero element for the numeric type.
+So, n * n zero = n zero."
+[0.0].
+
+n@(Float traits) unit
+"This method returns the unit element for the numeric type.
+So, n * n unit = n."
+[1.0].
+
+x@(Float traits) isNaN
+"Simple, endianness-independent test for Not-a-Number."
+[x ~= x].
+
+f@(Float traits) as: _@(Float traits)
+[f].
+
+n@(Number traits) isNaN
+"Compatibility with Float."
+[False].
+
+"
+SingleFloat traitsWindow atSlotNamed: #traits1 put: Float traits.
+SingleFloat traitsWindow atSlotNamed: #traits2 put: Number traits.
+SingleFloat traitsWindow atSlotNamed: #traits3 put: Comparable traits.
+SingleFloat traitsWindow atSlotNamed: #traits4 put: CoercibleNumberMixin traits.
+"
+
+SingleFloat traitsWindow _delegates: 
+  {CoercibleNumberMixin traits. Comparable traits. Number traits. Float traits. SingleFloat traits}.
+
+SingleFloat traits addImmutableSlot: #level valued: 3.
+"Level of the number type for coercion purposes."
+
+SingleFloat traits addImmutableSlot: #tolerance valued: 0.0001.
+
+_@(Number traits) tolerance [0].
+
+f@(SingleFloat traits) hash
+[
+  f significand bitXor: f exponent
+].
+
+x@(Number traits) isCloseTo: y@(Number traits)
+"Whether the two Floats are close to each other in value."
+[
+  x isZero ifTrue: [^ (y abs < y tolerance)].
+  y isZero ifTrue: [^ (x abs < x tolerance)].
+  x isNaN \/ [y isNaN] ifTrue: [^ False].
+  (x - y) abs <= (x tolerance min: y tolerance)
+].
+
+f@(SingleFloat traits) significandSize
+[
+  23
+].
+
+f@(SingleFloat traits) exponentSize
+[
+  8
+].
+
+f@(SingleFloat traits) bias
+[
+  127
+].
+
+x@(Float traits) raisedTo: y@(Float traits)
+"Implements floating-point exponentiation in terms of the natural logarithm
+and exponential primitives - this is generally faster than the naive method."
+[
+  y isZero ifTrue: [^ x unit].
+  x isZero \/ [y isUnit] ifTrue: [^ x].
+  (x ln * y) exp
+].
+
+f@(Float traits) truncated
+[| significand exponent n |
+  significand: f significand.
+  exponent: f exponent.
+  exponent = (f bias * 2 + 1)
+    ifTrue:
+      [error: 'Can\'t coerce floating-point Inf or NaN to an integer.'].
+  exponent isZero
+    ifTrue:
+      [
+        significand isZero
+          ifTrue: [^ 0].
+        f isNegative
+          ifTrue: [^ -1]
+          ifFalse: [^ 0]
+      ].
+  exponent: exponent - f bias.
+  significand: ((1 bitShift: f significandSize) bitOr: significand).
+  n: (significand bitShift: exponent - f significandSize).
+  f isNegative
+    ifTrue: [n negated]
+    ifFalse: [n]
+].
+
+f@(Float traits) as: _@(Integer traits)
+[
+  f truncated
+].
+
+i@(Integer traits) as: _@(Float traits)
+[| f n length significand bits newF |
+  i isZero
+    ifTrue: [^ SingleFloat zero].
+"  i highBit <= SingleFloat significandSize
+    ifTrue: [f: SingleFloat]
+    ifFalse: [f: DoubleFloat].
+"
+  f: SingleFloat.
+  n: i abs.
+  length: n highBit.
+  length > f bias
+    ifTrue:
+      [error: 'Integer is too large to coerce to floating-point value.'].
+  significand:
+   ((n bitShift: f significandSize - length)
+     bitAnd: (1 bitShift: f significandSize) - 1).
+  newF: (f withSignificand: significand exponent: length + f bias).
+  i isNegative
+   ifTrue: [newF negated]
+   ifFalse: [newF]
+].
+
+"Constants"
+numerics addImmutableSlot: #Pi valued: 3.141592654.
+numerics addImmutableSlot: #E valued: 2.718281828.
+
+n@(Number traits) squared
+"The square of the number."
+[n * n].
+
+n@(Number traits) sqrt
+"The square root of the number."
+[
+  n isNegative ifTrue: [(n as: Complex) sqrt]
+    ifFalse: [n raisedTo: 1 / 2]
+].
+
+n@(Integer traits) succ
+"Answer the Integer's successor."
+[n + 1].
+
+n@(Integer traits) pred
+"Answer the Integer's predecessor."
+[n - 1].
+
+n@(Integer traits) factorial
+"The standard recursive definition."
+[
+  n isNegative ifTrue: [error: 'Negative inputs to factorial are invalid.'].
+  n <= 1
+    ifTrue: [1]
+    ifFalse: [n * ((n - 1) factorial)]
+].
+
+x@(Integer traits) gcd: y@(Integer traits)
+"Euclid's algorithm for finding the greatest common divisor."
+[| n m |
+  n: x.
+  m: y.
+  [n isZero] whileFalse: [n: m \\ (m: n)].
+  m abs
+].
+
+x@(Number traits) quo: y@(Number traits)
+"Division rounded towards zero."
+[
+  (x / y) truncated
+].
+
+x@(Number traits) rem: y@(Number traits)
+"Find the modulus (remainder) of a pair of numbers. Floats will return a non-
+Integer difference."
+[
+  x - ((x quo: y) * y)
+].
+
+x@(Number traits) quoRem: y@(Number traits)
+"Calculate the quotient and the remainder, ideally at once, of x and y."
+[
+  {x quo: y. x rem: y}
+].
+
+x@(Number traits) mod: y@(Number traits)
+"An alias for rem:."
+[
+  x rem: y
+].
+
+base@(Integer traits) raisedTo: expon mod: n
+"Answer (base raisedTo: expon) mod: n, only more efficiently than that.
+It works in the standard way, by square-and-multiply, expanding the
+exponent into a sum of powers of 2, and factoring the base by this
+as it proceeds."
+[
+  expon isNegative
+    ifTrue: [(base raisedTo: (expon negated) mod: n) inverseMod: n]
+    ifFalse:
+      [| z |
+       z: 1.
+       [expon isZero] whileFalse:
+	[[(expon mod: 2) isZero] whileTrue:
+	  [expon: expon // 2.
+	   base: (base squared mod: n)].
+	 expon: expon - 1.
+	 z: (z * base mod: n)]
+       z]
+].
+
+m@(Integer traits) inverseMod: n@(Integer traits)
+"Answer x such that (m * x) \\ n = 1."
+[| a b q |
+  a: 1. b: 0.
+  [m isZero] whileFalse:
+    [q: n // m. m: n \\ (n: m). a: (b - (q * (b: a)))].
+  n ~= 1 ifTrue: [error: 'Integer does not have an inverse.'].
+  b
+].
+
+x@(Number traits) isEven
+"Answer whether the Number is even; modulo tells us the remainder of division."
+[
+  (x rem: 2) isZero
+].
+
+x@(Number traits) isOdd
+"Odd numbers are those which are not even."
+[
+  x isEven not
+].
+
+m@(Integer traits) isPrime
+"Whether the Integer is evenly divisible by no other Integers than 1 and
+itself."
+[| k q |
+  m isEven ifTrue: [^ (m = 2)].
+  k: 1.
+  q: (m - 1 bitShift: -1).
+  [q isOdd]
+    whileFalse:
+      [q: (q bitShift: -1).
+       k: k + 1].
+  25 timesRepeat: [(m isProbablyPrimeWithK: k andQ: q) ifFalse: [^ False]].
+  True
+].
+
+m@(Integer traits) isProbablyPrimeWithK: k andQ: q
+"Algorithm P, probabilistic primality test, from
+Knuth, Donald E. 'The Art of Computer Programming', Vol 2,
+Third Edition, section 4.5.4, page 395."
+[| x j y |
+  x: (m - 2) atRandom + 1.
+  j: 0.
+  y: (x raisedTo: q mod: m).
+  [(j isZero /\ [y isUnit] \/ [y + 1 = m]) ifTrue: [^ True].
+   j isPositive /\ [y isUnit] ifTrue: [^ False].
+   True]
+    whileTrue:
+      [j: j + 1.
+       j < k ifTrue: [y: y squared \\ m]
+	     ifFalse: [^ False]]
+].
+
+x@(Number traits) truncated
+"The greatest lesser Integer value."
+[x quo: 1].
+
+x@(Integer traits) truncated
+"Integers have no fractional part."
+[x].
+
+i@(Integer traits) as: _@(Integer traits)
+"By default integers merely coerce to themselves."
+[i].
+
+x@(Number traits) ln
+"Define the natural logarithm in terms of the Float primitive."
+[(x as: Float) ln].
+
+x@(Number traits) log: base
+"Define the logarithm-base-N in terms of natural logarithm ratios."
+[x ln / base ln].
+
+x@(Number traits) log10
+[x log: 10].
+
+x@(Number traits) exp
+"Define E raisedTo: x in terms of the Float primitive."
+[(x as: Float) exp].
+
+x@(Number traits) ceiling
+"The smallest greater Integer value."
+[| trunc |
+  trunc: x truncated.
+  x = trunc \/ [x isNegative]
+    ifTrue: [trunc]
+    ifFalse: [trunc + 1]
+].
+
+x@(Number traits) floor
+"The largest lesser Integer value."
+[| trunc |
+  trunc: x truncated.
+  x = trunc \/ [x isPositive]
+    ifTrue: [trunc]
+    ifFalse: [trunc - 1]
+].
+
+x@(Integer traits) ceiling
+"Integers have no fractional part."
+[x].
+
+x@(Integer traits) floor
+"Integers have no fractional part."
+[x].
+
+i@(Integer traits) highBit
+[(i ln / 2 ln) ceiling].
+
+i@(Integer traits) lowBit
+[
+  i = SmallInteger minimumValue
+    ifTrue: [i highBit]
+    ifFalse: [(i bitXor: i - 1) highBit]
+].
+
+x@(Integer traits) << y@(Integer traits)
+"Left-bit-shift by the given amount."
+[
+  x bitShift: y
+].
+
+x@(Integer traits) >> y@(Integer traits)
+"Right-bit-shift by the given amount."
+[
+  x bitShift: y negated
+].
+
+x@(Integer traits) rounded
+"Integers round to themselves."
+[x].
+
+x@(Float traits) rounded
+"Answer the integer nearest to x."
+[(x + 0.5) floor].
+
+x@(Number traits) roundTo: q@(Number traits)
+"Answer the nearest number which is a multiple of q."
+[(x / q) rounded * q].
+
+x@(Number traits) fractionPart
+"Return the difference between the integral part of the number and itself."
+[
+  x - x truncated
+].
+
+x@(Number traits) \\ y@(Number traits)
+"Answer the remainder of dividing x by y."
+[
+  x - (x // y * y)
+].
+
+x@(Number traits) reciprocal
+"Answer the multiplicative inverse."
+[
+  x isZero
+    ifTrue: [x divideByZero]
+    ifFalse: [x unit / x]
+].
+
+x@(CoercibleNumberMixin traits) coerceTo: y@(CoercibleNumberMixin traits)
+"Convert x to the same type as y, only in order of ascending level."
+[
+  x level < y level ifTrue: [x as: y] ifFalse: [x]
+].
+
+"Generic arithmetic methods. These work by catching any arithmetic
+operation with dissimilar types and converting the less generic type to
+the more generic type. They then dispatch the converted arguments to the
+method which handles that operation for matched types.
+E.g. Float + Complex and Complex + Float will both dispatch to
+Complex + Complex"
+x@(CoercibleNumberMixin traits) + y@(CoercibleNumberMixin traits) [(x coerceTo: y) + (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) - y@(CoercibleNumberMixin traits) [(x coerceTo: y) - (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) * y@(CoercibleNumberMixin traits) [(x coerceTo: y) * (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) / y@(CoercibleNumberMixin traits) [(x coerceTo: y) / (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) < y@(CoercibleNumberMixin traits) [(x coerceTo: y) < (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) = y@(CoercibleNumberMixin traits) [(x coerceTo: y) = (y coerceTo: x)].
+
+x@(CoercibleNumberMixin traits) raisedTo: y@(CoercibleNumberMixin traits) [(x coerceTo: y) raisedTo: (y coerceTo: x)].
+
+x@(CoercibleNumberMixin traits) bitAnd: y@(CoercibleNumberMixin traits) [(x coerceTo: y) bitAnd: (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) bitOr: y@(CoercibleNumberMixin traits) [(x coerceTo: y) bitOr: (y coerceTo: x)].
+x@(CoercibleNumberMixin traits) bitXor: y@(CoercibleNumberMixin traits) [(x coerceTo: y) bitXor: (y coerceTo: x)].
+
+x@(Integer traits) bitNot
+[
+  x negated - 1
+].
+
+x@(Integer traits) bitShift: y@(Integer traits)
+[
+  (x * (2 raisedTo: y)) truncated
+].
+
+x@(Integer traits) // y@(Integer traits)
+"Integer division."
+[| q |
+  y isZero ifTrue: [^ x divideByZero].
+  q: (x quo: y).
+  (x isNegative xor: y isNegative) /\ [q * y ~= x]
+    ifTrue: [q - 1]
+    ifFalse: [q]
+].
+
+x@(Integer traits) / y@(Integer traits)
+"This is a provisional stub in case Fraction does not override it."
+[
+  y isZero
+    ifTrue: [x divideByZero]
+    ifFalse:
+      [(x rem: y) isZero
+	 ifTrue: [x quo: y]
+	 ifFalse: [(Fraction newFor: x over: y) reduced]]
+].
+
+x@(Integer traits) lcm: y@(Integer traits)
+"Find the least common multiple of the pair."
+[
+  x // (x gcd: y) * y
+].
+
+n@(Integer traits) taken: r@(Integer traits)
+"Calculates the number of combinations of N elements taken R at a time.
+It's zero outside of Pascal's triangle."
+[| num denom |
+  r isNegative \/ [r > n] ifTrue: [^ 0].
+  num: 1.
+  n above: (r max: n - r)
+    do: [| :factor | num: num * factor].
+  denom: 1.
+  1 to: (r min: n - r)
+    do: [| :factor | denom: denom * factor].
+  num // denom
+].
+
+n@(Integer traits) hashMultiply
+"A copying of Squeak's hash-multiplier. TODO: To Be Replaced."
+[| low28 low14 |
+  low28: (n bitAnd: 268435455).
+  low14: (low28 bitAnd: 16383).
+  9741 * low14 + ((9741 * (low28 bitShift: -14) + (101 * low14)
+		     bitAnd: 16383) * 16384) bitAnd: 268435455
+].
+
+x@(Number traits) raisedTo: y@(Integer traits)
+[
+  y isZero ifTrue: [^ x unit].
+  x isZero \/ [y = 1] ifTrue: [^ x].
+  y isPositive
+    ifTrue:
+      "(x * x raisedTo: y // 2) * (x raisedTo: y \\ 2)"
+      [| count result |
+       count: 1.
+       [(count: (count bitShift: 1)) < y] whileTrue.
+       result: x unit.
+       [count isPositive]
+	 whileTrue:
+	   [result: result squared.
+	    (y bitAnd: count) isZero ifFalse: [result: result * x].
+	    count: (count bitShift: -1)].
+       result]
+    ifFalse: [(x raisedTo: y negated) reciprocal]
+].
+
+numerics define: #UniqueNumber &parents: {Number}.
+
+numerics addSlot: #LargeUnbounded valued: UniqueNumber clone.
+"A quantity which is unbounded but still a Number: as-large-as-you-like. It's
+definitely not an infinity."
+
+x@(Comparable traits) < _@LargeUnbounded
+[True].
+
+_@LargeUnbounded < _@LargeUnbounded
+[False].
+
+numerics define: #Infinity &parents: {UniqueNumber}.
+
+_@(Infinity traits) isInfinite [True].
+
+inf@(Infinity traits) * x
+[
+  x isZero ifTrue: [^ x].
+  x isNegative
+    ifTrue: [inf negated]
+    ifFalse: [inf]
+].
+
+inf@(Infinity traits) + _@(Number traits)
+[inf].
+
+_@(Number traits) + inf@(Infinity traits)
+[inf].
+
+inf@(Infinity traits) - _@(Number traits)
+[inf].
+
+_@(Number traits) - inf@(Infinity traits)
+[inf negated].
+
+numerics addSlot: #PositiveInfinity valued: Infinity clone.
+
+_@PositiveInfinity isInfinite [True].
+
+x@(Comparable traits) < pi@PositiveInfinity
+[
+  pi ~= x
+].
+
+pi@PositiveInfinity < x@(Comparable traits)
+[False].
+
+_@PositiveInfinity printOn: s
+[
+  s ; 'positive infinity'
+].
+
+numerics addSlot: #NegativeInfinity valued: Infinity clone.
+
+ni@NegativeInfinity < x@(Comparable traits)
+[
+  ni ~= x
+].
+
+x@(Comparable traits) < pi@NegativeInfinity
+[False].
+
+_@NegativeInfinity printOn: s
+[
+  s ; 'negative infinity'
+].
+
+_@PositiveInfinity negated
+[NegativeInfinity].
+
+_@NegativeInfinity negated
+[PositiveInfinity].
+
+numerics define: #Epsilon &parents: {UniqueNumber}.
+
+x@(Epsilon traits) = y
+[x == y].
+
+_@(Epsilon traits) isZero
+[False].
+
+x@(Number traits) * y@(Epsilon traits)
+[
+  x isZero
+    ifTrue:
+      [x]
+    ifFalse:
+      [x isNegative
+        ifTrue: [y negated]
+        ifFalse: [y]]
+].
+
+x@(Epsilon traits) / y@(Number traits)
+[
+  y isZero
+    ifTrue: 
+      [x divideByZero]
+    ifFalse:
+      [y isNegative
+        ifTrue: [x negated]
+        ifFalse: [x]]
+].
+
+x@(Number traits) / y@(Epsilon traits)
+[
+  x isNegative
+    ifTrue: [y recriprocal negated]
+    ifFalse: [y recriprocal]
+].
+
+x@(Epsilon traits) * y@(Number traits)
+[y * x].
+
+x@(Number traits) + _@(Epsilon traits)
+[x].
+
+_@(Epsilon traits) + x@(Number traits)
+[x].
+
+x@(Number traits) - _@(Epsilon traits)
+[x].
+
+_@(Epsilon traits) - x@(Number traits) 
+[x negated].
+
+numerics addSlot: #PositiveEpsilon valued: Epsilon clone.
+"The reciprocal of PositiveInfinity."
+
+_@PositiveEpsilon isPositive
+[True].
+
+_@PositiveInfinity reciprocal
+[PositiveEpsilon].
+
+_@PositiveEpsilon reciprocal
+[PositiveInfinity].
+
+_@PositiveEpsilon as: x@(Number traits)
+[0.0 as: x].
+
+x@(Number traits) < _@PositiveEpsilon
+[
+  x isPositive not
+].
+
+_@PositiveEpsilon < x@(Number traits)
+[
+  x isPositive
+].
+
+numerics addSlot: #NegativeEpsilon valued: Epsilon clone.
+"The reciprocal of NegativeInfinity."
+
+x@(Number traits) < _@NegativeEpsilon
+[
+  x isNegative
+].
+
+_@NegativeEpsilon < x@(Number traits)
+[
+  x isNegative not 
+].
+
+_@NegativeEpsilon isNegative
+[True].
+
+_@NegativeInfinity reciprocal
+[NegativeEpsilon].
+
+_@NegativeEpsilon reciprocal
+[NegativeInfinity].
+
+_@NegativeEpsilon as: x@(Number traits)
+[
+  -0.0 as: x
+].
+
+_@PositiveEpsilon negated
+[NegativeEpsilon].
+
+_@NegativeEpsilon negated
+[PositiveEpsilon].
+
+"Yuck! This should be in dimensioned.slate but is here for now"
+"TODO: Move this"
+n@(Number traits) degreesToRadians
+[n * Pi / 180].
+
+n@(Number traits) radiansToDegrees
+[n * 180 / Pi].
+
+n@(Number traits) readFrom: s
+"Reads the first thing in the String (or Stream) as a Number.
+An error is raised if the return type does not match the requested one.
+Use as: if there is already a String whose full contents are exactly the
+digits."
+[| next |
+  next: (Syntax Lexer newOn: s reader) readNumber value.
+  (next is: n)
+    ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
+  next
+].
+
+"A portable way to represent floating point numbers without loss of precision
+http://research.microsoft.com/~hollasch/cgindex/coding/portfloat.html
+Would be useful in #storeOn: #loadFrom: for floats"
+
+n@(Float traits) storeOn: s
+"Stores a float in portable encoding"
+[].
+
+n@(Float traits) loadFrom: s
+"Loads a float in portable encoding"
+[].

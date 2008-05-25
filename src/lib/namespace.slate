@@ -1,0 +1,81 @@
+"Some utility methods for Namespace objects."
+
+ns@(Namespace traits) new
+"Answer a new Namespace with no slots."
+[Namespace clone].
+
+ns@(Namespace traits) newDelegatingTo: parentObj
+[ | newNS |
+  newNS: ns new.
+  newNS _delegates: {parentObj. newNS traitsWindow}.
+  newNS
+].
+
+ns@(Namespace traits) newSubSpace
+[ns newDelegatingTo: ns].
+
+"a hack for now? namespaces were one place where named delegates made more sense"
+"put traitswindow last so it has more priority so ns new doesn't call someone else's new function"
+ns@(Namespace traits) parentNamespace
+[
+  (ns _delegates size > 1) ifTrue: [ns _delegates first] ifFalse: [ns "is this right?"]
+].
+
+ns@(Namespace traits) parentNamespace: parent
+[
+  (ns _delegates size > 1) ifTrue: [ns _delegates at: 0 put: parent]
+                           ifFalse: [ns insertDelegate: parent. parent]
+].
+
+
+ns@(Namespace traits) newSisterSpace
+[
+  (ns _delegates size <= 1)
+    ifTrue: [ns newDelegatingTo: ns parentNamespace]
+    ifFalse: [ns new]
+].
+
+ns@(Namespace traits) flattened
+"Creates a new single Namespace object with all the slot-values and inherited
+slot values of the original Namespace structure."
+[| newNS |
+  newNS: Namespace clone.
+  newNS addSlotsFrom: ns.
+  ns allDelegatesDo:
+    [| :each | (each isSameAs: ns) ifTrue: [newNS addSlotsFrom: each]].
+  newNS
+].
+
+ns@(Namespace traits) here
+"A convenient implicit context handle to the Namespace object."
+[ns].
+
+ns@(Namespace traits) import: objName from: nsParent
+[
+  ns addSlotNamed: objName from: nsParent
+].
+
+
+
+"fix: this needs to be fixed to treat delegates right"
+x@(Root traits) ensureNamespace: name &slots: slotSpecs &delegate: delegate
+"Create and link to a Namespace object by the slot name if it doesn't exist
+or if there is a non-Namespace object there. This also takes specs for
+immutable slot values, and a &delegate flag for delegated-vs-not namespace."
+[| ns |
+  (x hasSlotNamed: name)
+    ifTrue: [| old |
+	     old: (x atSlotNamed: name).
+             (old is: Namespace)
+	       ifTrue: [old]
+	       ifFalse: [x atSlotNamed: name put: Namespace clone]]
+    ifFalse: [(delegate ifNil: [False])
+		ifTrue: [ ns: Namespace clone. x insertDelegate: ns. x addImmutableSlot: name valued: ns. ns]
+		ifFalse: [x addImmutableSlot: name valued: Namespace clone]].
+  ns: (x atSlotNamed: name).
+  (slotSpecs ifNil: [{}]) do:
+    [| :each | (each is: Association)
+	       ifTrue: [ns addImmutableSlot: each key valued: each value]
+	       ifFalse: [ns addImmutableSlot: each]].
+  ns
+].

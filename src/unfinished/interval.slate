@@ -1,0 +1,183 @@
+collections define: #Interval &parents: {NoDuplicatesCollection. Comparable}
+  &slots: {#upperBound. #lowerBound. #bestGuess.
+	   #upperInclusive -> True. #lowerInclusive -> True}.
+"The mathematical concept of an interval, all the points between two bounds and
+possibly including either bound. It is also useful for specifying the possible
+bounds of an unknown but algorithmically bound quantity, with the bestGuess
+value to annotate what the likely possibility is.
+It is non-extensible, non-indexable, and non-enumerable.
+Operations f on intervals should answer new intervals including every result
+of applying the function to every element of the source interval(s)."
+
+i@(Interval traits) newFrom: start to: end
+[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+   to: {start. end. True. True}].
+
+i@(Interval traits) newFrom: start below: end
+[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+   to: {start. end. True. False}].
+
+i@(Interval traits) newAbove: start to: end
+[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+   to: {start. end. False. True}].
+
+i@(Interval traits) newAbove: start below: end
+[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+   to: {start. end. False. False}].
+
+n@(Number traits) as: i@(Interval traits) &tolerance: tol
+[
+  (i newFrom: n - tol to: n + tol) `>> [bestGuess: n. ]
+].
+
+n@(Number traits) +- tol
+[n as: Interval &tolerance: tol].
+
+n@(Number traits) +/- tol
+[n as: Interval &tolerance: tol].
+
+i@(Interval traits) includes: n
+[
+  (n between: i lowerBound and: i upperBound)
+   /\ [i upperInclusive ifFalse: [n ~= i upperBound]]
+   /\ [i lowerInclusive ifFalse: [n ~= i lowerBound]]
+].
+
+i@(Interval traits) isEmpty
+[i upperBound < i lowerBound].
+
+i@(Interval traits) isSingleton
+[i upperBound = i lowerBound].
+
+i@(Interval traits) includesAllOf: c@(Collection traits)
+[c allSatisfy: #includes:`er <- i].
+
+i1@(Interval traits) includesAllOf: i2@(Interval traits)
+[
+  i1 isEmpty not \/ [i2 isEmpty] \/
+   [i1 lowerBound < i2 lowerBound /\ [i2 upperBound < i1 upperBound]]
+].
+
+Interval traits compareAndHashUsingSlots: #(upperBound lowerBound upperInclusive lowerInclusive bestGuess).
+
+i@(Interval traits) < n
+[i upperBound < n \/ [n = i upperBound /\ [i upperInclusive not]]].
+
+n < i@(Interval traits)
+[n < i lowerBound \/ [n = i lowerBound /\ [i lowerInclusive not]]].
+
+i1@(Interval traits) < i2@(Interval traits)
+[
+  (i1 intersects: i2)
+    ifTrue: [i1 upperBound < i2 lowerBound]
+    ifFalse: [TODO]
+].
+
+i1@(Interval traits) union: i2@(Interval traits)
+[
+  (i1 intersects: i2)
+    ifTrue: [i1 cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+		to: {i1 upperBound max: i2 upperBound.
+		     i2 lowerBound min: i2 lowerBound.
+		     i1 upperBound > i2 upperBound ifTrue: [i1 upperInclusive] ifFalse: [i2 upperInclusive].
+		     i2 lowerBound < i2 lowerBound ifTrue: [i1 lowerInclusive] ifFalse: [i2 lowerInclusive]}]
+    ifFalse: [TODO: 'Answer the union of two disjoint intervals.']
+].
+
+i1@(Interval traits) intersect: i2@(Interval traits)
+[
+  (i1 intersects: i2)
+    ifTrue: []
+    ifFalse: [TODO: 'Answer the empty set / Bottom for non-intersecting intervals.']
+].
+
+i1@(Interval traits) includesAnyOf: i2@(Interval traits)
+[
+  (i1 upperBound > i2 lowerBound /\ [i1 lowerBound < i2 upperBound])
+   \/ [i2 upperBound > i1 lowerBound /\ [i2 lowerBound < i1 upperBound]]
+].
+
+i@(Interval traits) + n
+[i cloneSettingSlots: #(upperBound lowerBound)
+   to: {i upperBound + n. i lowerBound + n}].
+
+i@(Interval traits) - n
+[i cloneSettingSlots: #(upperBound lowerBound)
+   to: {i upperBound - n. i lowerBound - n}].
+
+i@(Interval traits) * n
+[i cloneSettingSlots: #(upperBound lowerBound)
+   to: {i upperBound * n. i lowerBound * n}].
+
+i@(Interval traits) / n
+[i cloneSettingSlots: #(upperBound lowerBound)
+   to: {i upperBound / n. i lowerBound / n}].
+
+i1@(Interval traits) + i2@(Interval traits)
+[i1 cloneSettingSlots: #(upperBound lowerBound)
+    to: {i1 upperBound + i2 upperBound. i1 lowerBound + i2 lowerBound}].
+
+i1@(Interval traits) - i2@(Interval traits)
+[i1 cloneSettingSlots: #(upperBound lowerBound)
+    to: {i1 lowerBound - i2 upperBound. i1 upperBound - i2 lowerBound}].
+
+i1@(Interval traits) * i2@(Interval traits)
+[
+  {i1 lowerBound * i2 lowerBound.
+   i1 lowerBound * i2 upperBound.
+   i1 upperBound * i2 lowerBound.
+   i1 upperBound * i2 upperBound} `cacheAs: #products.
+  i1 cloneSettingSlots: #(upperBound lowerBound)
+     to: {products reduce: #min:`er. products reduce: #max:`er}
+].
+
+i1@(Interval traits) / i2@(Interval traits)
+[
+  {i1 lowerBound / i2 lowerBound.
+   i1 lowerBound / i2 upperBound.
+   i1 upperBound / i2 lowerBound.
+   i1 upperBound / i2 upperBound} `cacheAs: #quotients.
+  i1 cloneSettingSlots: #(upperBound lowerBound)
+     to: {quotients reduce: #min:`er. quotients reduce: #max:`er}
+].
+
+i1@(Interval traits) raisedTo: n
+[
+  n isEven
+    ifTrue:
+      []
+    ifFalse:
+      [i1 cloneSettingSlots: #(upperBound lowerBound)
+	  to: {i1 upperBound raisedTo: n. i2 lowerBound raisedTo: n}]
+].
+
+collections define: #IntervalComplement &parents: {NoDuplicatesCollection}
+  &slots: #(basis).
+
+ic@(IntervalComplement traits) newOn: i
+[ic cloneSettingSlots: #(basis) to: {i}].
+
+i@(Interval traits) complement
+[IntervalComplement newOn: i].
+
+ic@(IntervalComplement traits) complement
+[ic basis].
+
+ic@(IntervalComplement traits) lowerInclusive
+[ic basis upperInclusive not].
+
+ic@(IntervalComplement traits) upperInclusive
+[ic basis lowerInclusive not].
+
+ic@(IntervalComplement traits) + n
+[ic cloneSettingSlots: #(basis) to: {ic basis + n}].
+
+ic@(IntervalComplement traits) - n
+[ic cloneSettingSlots: #(basis) to: {ic basis - n}].
+
+ic@(IntervalComplement traits) * n
+[ic cloneSettingSlots: #(basis) to: {ic basis * n}].
+
+ic@(IntervalComplement traits) / n
+[ic cloneSettingSlots: #(basis) to: {ic basis / n}].
+

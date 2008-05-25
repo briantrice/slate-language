@@ -1,0 +1,335 @@
+
+collections define: #Range &parents: {Sequence} &slots: {
+#start -> 0. "The number to start from; this is the first value."
+#end -> PositiveInfinity. "The number to end with; this may not be the last value, but no number in the Range will exceed it."
+#step -> 1  "The interval of stepping. Each successive element will exceed the preceding by exactly this amount."}.
+"A Sequence of Numbers with a regular interval and bounding values."
+
+"TODO: find some way to parametrize this on all Comparable types and ensure
+that all three parameters of the Range are comparable."
+
+r@(Range traits) newFrom: start to: end by: step
+[r cloneSettingSlots: #(start end step) to: {start. end. step}].
+
+r@(Range traits) newFrom: start to: end
+"This method implicitly defines a sensible default stepping value."
+[r newFrom: start to: end by: end <=> start].
+
+s@(Sequence traits) as: r@(Range traits)
+[| newR size |
+  size: s size.
+  size = 0 ifTrue: [^ (r newFrom: 0 to: 0 by: 0)].
+  size = 1 ifTrue: [^ (r newFrom: s first to: s last)].
+  newR: (r newFrom: s first to: s last by: s last - s first // (size - 1)).
+  newR = s
+    ifFalse: [error: 'The Sequence is not an arithmetic progression.'].
+  newR
+].
+
+start@(Number traits) to: end
+[
+  Range newFrom: start to: end
+].
+
+start@(Number traits) to: end by: step
+[
+  Range newFrom: start to: end by: step
+].
+
+start@(Number traits) upTo: end
+[
+  Range newFrom: start to: end
+].
+
+start@(Number traits) below: end
+[
+  Range newFrom: start to: end - 1
+].
+
+start@(Number traits) downTo: end
+[
+  Range newFrom: start to: end
+].
+
+start@(Number traits) above: end
+[
+  Range newFrom: start to: end + 1
+].
+
+start@(Number traits) upTo: end by: step
+[
+  Range newFrom: start to: end by: step
+].
+
+start@(Number traits) below: end by: step
+[
+  Range newFrom: start to: end - 1 by: step
+].
+
+start@(Number traits) downTo: end by: step
+[
+  Range newFrom: start to: end by: step
+].
+
+start@(Number traits) above: end by: step
+[
+  Range newFrom: start to: end + 1 by: step
+].
+
+r1@(Range traits) = r2@(Range traits)
+[
+  r1 start = r2 start
+   /\ [r1 step = r2 step]
+   /\ [r1 size = r2 size]
+].
+
+r@(Range traits) hash
+[
+  (((r start hash bitShift: 2)
+      bitOr: r end hash)
+     bitShift: 1)
+    bitOr: r size
+].
+
+r@(Range traits) copy
+[
+  r newFrom: r start to: r end by: r step
+].
+
+r@(Range traits) at: n@(Integer traits)
+[
+  n isZero ifTrue: [^ r start].
+  n isPositive /\ [n < r size]
+    ifTrue: [r step * n + r start]
+    ifFalse: [n keyNotFoundOn: r]
+].
+
+r@(Range traits) at: n put: _
+[
+  error: 'Ranges are not mutable.'
+].
+
+r@(Range traits) extent
+"Answers the magnitude of the range's extent."
+[
+  r end - r start
+].
+
+r@(Range traits) first
+[
+  r start
+].
+
+r@(Range traits) last
+[
+  r end - (r end - r start \\ r step)
+].
+
+r@(Range traits) rangeIncludes: n
+[
+  r step isNegative
+    ifTrue: [n between: r end and: r start]
+    ifFalse: [n between: r start and: r end]
+].
+
+r@(Range traits) includes: n
+"Answer whether the number is part of the interval defined by the boundaries,
+and then whether it is calculably close to an integer step from the start."
+[
+  (r rangeIncludes: n)
+   /\ [((n - r start as: Float) / r step) fractionPart isCloseTo: 0.0]
+].
+
+r@(Range traits) size
+"Check the 'direction' of the Range to make sure that it's possible to have
+elements at all."
+[
+  r start isInfinite \/ [r end isInfinite]
+    ifTrue: [^ PositiveInfinity].
+  (r step isNegative xor: r start > r end)
+    ifTrue: [0]
+    ifFalse: [r end - r start // r step + 1]
+].
+
+r@(Range traits) collect: block
+"Ensure that an Array is produced of the right size."
+[| each result |
+  result: (r arrayType newSizeOf: r).
+  each: r start.
+  0 below: r size
+    do: [| :i |
+	   result
+	     at: i
+	     put: (block applyWith: each).
+	   each: each + r step].
+  result
+].
+
+r@(Range traits) project: block
+"Answer an Array instead of a Dictionary to map the values."
+[r project: block into: (Array newSizeOf: r)].
+
+r@(Range traits) do: block
+[| each |
+  each: r start.
+  r step isNegative
+    ifTrue: [[r end <= each]
+	       whileTrue: [block applyWith: each. each: each + r step]]
+    ifFalse: [[r end >= each]
+		whileTrue: [block applyWith: each. each: each + r step]].
+  r
+].
+
+r@(Range traits) reverseDo: block
+[| each |
+  each: r start.
+  r step isNegative
+    ifTrue: [[r end >= each]
+	       whileTrue: [block applyWith: each. each: each - step]]
+    ifFalse: [[r end <= each]
+		whileTrue: [block applyWith: each. each: each - step]].
+  r
+].
+
+r1@(Range traits) intersects: r2@(Range traits)
+"Whether the Ranges have overlap in their extents."
+[
+  (r1 start between: r2 start and: r2 end)
+    \/ [r2 start between: r1 start and: r1 end]
+].
+
+"Some very basic range math"
+
+r@(Range traits) + n@(Number traits)
+"Shift r by n"
+[
+  r start + n to: r end + n by: r step
+].
+
+n@(Number traits) + r@(Range traits)
+[
+  r + n
+].
+
+r@(Range traits) - n@(Number traits)
+[
+  r + n negated
+].
+
+collections define: #LogicRange &parents: {Range}.
+"A Range which uses blocks for the end and step aspects."
+LogicRange start: 0.
+"The starting value."
+LogicRange end: [| :x | x > PositiveInfinity].
+"A Block which should halt iteration when reaching True."
+LogicRange step: [| :x | x + 1].
+"A Block returning the next value in the Sequence based on the current one."
+
+r@(LogicRange traits) newFrom: start to: end by: step
+"Coerces any numerical parameters into blocks where necessary."
+[| goesUp |
+  goesUp: ((step is: Number) ifTrue: [step > 0] ifFalse: [(step applyWith: start) > start]).
+  r cloneSettingSlots: #(start end step)
+    to: {start.
+	 (end is: Number)
+	    ifTrue: [goesUp
+		       ifTrue: [[| :x | x >= end]]
+		       ifFalse: [[| :x | x <= end]]]
+	    ifFalse: [end].
+	 (step is: Number)
+	    ifTrue: [goesUp
+		       ifTrue: [[| :x | x + step]]
+		       ifFalse: [[| :x | x - step]]]
+	    ifFalse: [step]}
+].
+
+start@(Number traits) until: end by: step
+"Creates a new LogicRange."
+[
+  LogicRange newFrom: start to: end by: step
+].
+
+start@(Number traits) by: step
+"Creates a new LogicRange with the default end."
+[
+  LogicRange newFrom: start to: LogicRange end by: step
+].
+
+start@(Number traits) until: end
+"Creates a new LogicRange with the default step."
+[
+  LogicRange newFrom: start to: end by: LogicRange step
+].
+
+r@(LogicRange traits) isEmpty
+[
+  r do: [| :_ | ^ False].
+  True
+].
+
+r@(LogicRange traits) size
+"This should obviously be avoided."
+[
+  r end == LogicRange end
+    ifTrue:
+      [PositiveInfinity]
+    ifFalse:
+      [r inject: 0 into: [| :size | size + 1]]
+].
+
+r@(LogicRange traits) at: n
+[| result |
+  result: r start.
+  0 below: n do:
+    [| :each |
+       result: (r step applyWith: result).
+       (r end applyWith: result) ifTrue: [error: 'Subscript out of bounds.']].
+  result
+].
+
+r@(LogicRange traits) do: block
+"Iterates through values from the start until the end-test is satisfied."
+[| each |
+  each: r start.
+  [r end applyWith: each]
+    whileFalse: [block applyWith: each.
+		 each: (r step applyWith: each)].
+  r
+].
+
+r@(LogicRange traits) reverseDo: block
+"Since the end is defined by a test and not a value, this is ambiguous."
+[
+  notImplementable
+].
+
+r@(LogicRange traits) isAscending
+"Whether the Range's progression is positive."
+[
+  (r step applyWith: r start) > r start
+].
+
+r@(LogicRange traits) collect: block
+"Collect the Range's elements into a WriteStream of the arrayType."
+[| result |
+  result: r arrayType writer.
+  r do: [| :each | result nextPut: (block applyWith: each)].
+  result contents
+].
+
+r@(LogicRange traits) rangeIncludes: n
+"Whether the value is in the direction of the Range and between the start
+while not exceeding the end test."
+[
+  (r end applyWith: n) not
+    /\ [r isAscending
+	  ifTrue: [n >= r start]
+	  ifFalse: [n <= r start]]
+].
+
+r@(LogicRange traits) includes: n
+"Simply iterate through the values and compare."
+[
+  r do: [| :each | n = each ifTrue: [^ True]].
+  False
+].

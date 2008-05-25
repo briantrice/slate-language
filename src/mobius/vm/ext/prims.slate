@@ -1,0 +1,462 @@
+includeHeaderNamed: '<stdlib.h>'.
+includeHeaderNamed: '<stdio.h>'.
+includeHeaderNamed: '<assert.h>'.
+includeHeaderNamed: '"slate.h"'.
+
+method@MethodTraits asMethod: selector@SymbolTraits on: roles@ArrayTraits
+"Installs the method with the selector on the given roles. There is some
+handling here of Closure objects so that execution proceeds normally."
+[| def!(MethodDefinition pointer) traitsWindow!UnsignedLongInt |
+  traitsWindow: (method pointer map delegates elements at: 0).
+  traitsWindow = CurrentMemory ClosureWindow
+   ifTrue:
+     [| closure!(Closure pointer) |
+       closure: (CurrentMemory clone: method pointer)!(Closure pointer) cast.
+       closure method: (CurrentMemory clone: closure method)!(CompiledMethod pointer) cast.
+       closure method method: closure method.
+       closure method selector: selector.
+       method: closure!(Object pointer) cast asObject]
+   ifFalse:
+     [traitsWindow = CurrentMemory CompiledMethodWindow
+       ifTrue:
+         [| closure!(CompiledMethod pointer) |
+           closure: (CurrentMemory clone: method pointer)!(CompiledMethod pointer) cast.
+           closure method: closure.
+           closure selector: selector.
+           method: closure!(Object pointer) cast asObject]].
+  def: (method asMethod: selector on: roles pointer arrayElements arity: roles pointer arraySize).
+  def slotAccessor: CurrentMemory NilObject.
+  selector flushMethodCache.
+  interpreter stackPush: method
+] `pidginPrimitive.
+
+method@MethodTraits asAccessor: selector@SymbolTraits for: slot on: roles@ArrayTraits
+"Installs the method on the first of the roles. There is some handling here of
+Closure objects so that execution proceeds normally. The critical part is
+that the #slotAccessor slot on the method is set to the slot name."
+[| def!(MethodDefinition pointer) traitsWindow!UnsignedLongInt |
+  traitsWindow: (method pointer map delegates elements at: 0).
+  traitsWindow = CurrentMemory ClosureWindow
+   ifTrue:
+     [| closure!(Closure pointer) |
+       closure: (CurrentMemory clone: method pointer)!(Closure pointer) cast.
+       closure method: (CurrentMemory clone: closure method)!(CompiledMethod pointer) cast.
+       closure method method: closure method.
+       closure method selector: selector.
+       method: closure!(Object pointer) cast asObject]
+   ifFalse:
+     [traitsWindow = CurrentMemory CompiledMethodWindow
+       ifTrue:
+         [| closure!(CompiledMethod pointer) |
+           closure: (CurrentMemory clone: method pointer)!(CompiledMethod pointer) cast.
+           closure method: closure.
+           closure selector: selector.
+           method: closure!(Object pointer) cast asObject]].
+  def: (method asMethod: selector on: roles pointer arrayElements arity: roles pointer arraySize).
+  def slotAccessor: slot.
+  selector flushMethodCache.
+  interpreter stackPush: method
+] `pidginPrimitive.
+
+obj@RootTraits _map
+"Accessing and returning the map object."
+[
+  obj isSmallInt
+    ifTrue: [interpreter pushNil]
+    ifFalse: [interpreter stackPush: obj pointer map asObject]
+] `pidginPrimitive.
+
+obj@RootTraits _map: map@MapTraits
+"Replacing an object's map with another."
+[
+  obj isSmallInt
+    ifTrue: [interpreter pushNil]
+    ifFalse:
+      [obj pointer isImmutable
+	 ifTrue: [interpreter pushNil]
+	 ifFalse: [obj pointer changeMapTo: map pointer!(Map pointer) cast.
+		   interpreter stackPush: map]]
+] `pidginPrimitive.
+
+dst@RootTraits addRolesFrom: src@RootTraits
+"Iterate over the role entries in the source, adding to the destination, and flush the
+method cache."
+[| map!(Map pointer) |
+  map: src pointer map.
+  dst pointer map = map
+    ifTrue: [^ interpreter pushNil].
+  0 below: map roleTable capacity
+    do: [| :index role!(RoleEntry pointer) |
+      role: (map roleTable roles at: index) address.
+      role name = CurrentMemory NilObject
+        ifFalse:
+          [dst pointer addRoleNamed: role name at: role rolePositions dispatching: role methodDefinition]].
+  CurrentMemory NilObject flushMethodCache.
+  interpreter stackPush: dst
+] `pidginPrimitive.
+
+method@MethodTraits removeFrom: roles@ArrayTraits
+"Removes roles which point to the given method object from the elements of the array,
+and then flush the method cache."
+[| def!(MethodDefinition pointer) selector!UnsignedLongInt traitsWindow!UnsignedLongInt |
+  selector: CurrentMemory NilObject.
+  traitsWindow: (method pointer map delegates elements at: 0).
+  traitsWindow = CurrentMemory ClosureWindow \/
+    [traitsWindow = CurrentMemory CompiledMethodWindow]
+    ifTrue:
+      [selector: method pointer!(Closure pointer) cast method selector]
+    ifFalse:
+      [error: 'May only remove a CompiledMethod or Closure.'].
+
+  def: (method isMethod: selector on: roles pointer arrayElements arity: roles pointer arraySize).
+  def
+    ifNil: [^ (interpreter stackPush: method)].
+  0 below: roles pointer arraySize
+    do: [| :index role!UnsignedLongInt |
+      role: (roles pointer arrayElements at: index).
+      role isSmallInt
+        ifFalse:
+          [| obj!(Object pointer) |
+            obj: role pointer.
+            obj removeRoleNamed: selector dispatching: def]].
+  selector flushMethodCache.
+  interpreter stackPush: method
+] `pidginPrimitive.
+
+obj@CloneableTraits clone
+[
+  interpreter stackPush: (CurrentMemory clone: obj pointer) asObject
+] `pidginPrimitive.
+
+obj@RootTraits cloneSettingSlots: slotArray@ArrayTraits to: 
+valueArray@ArrayTraits
+"Performs the act of cloning the object and taking arrays of slotNames and
+values to set in matching order and performing the atSlotNamed:put: actions
+to set up the new object - this is a convenience for creating instantiator
+methods for immutable objects."
+[| newObj!(Object pointer) map!(Map pointer) |
+  obj isSmallInt
+    ifTrue: [^ (interpreter stackPush: obj)].
+  newObj: (CurrentMemory clone: obj pointer).
+  map: newObj map.
+  0 below: (slotArray pointer arraySize min: valueArray pointer arraySize)
+    do: 
+      [| :index name!ObjectPointer se!(SlotEntry pointer) |
+        name: (slotArray pointer arrayElements at: index).
+        se: (map slotTable hashEntryForName: name).
+        se 
+          ifNil: 
+            [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+          ifNotNil:
+            [| offset |
+              offset: se offset asSmallInt.
+              (offset bitAnd: SlotTypeMask) = SlotTypeData 
+                ifTrue:
+                  [ obj pointer slotValueAtOffset: (offset bitAnd: 
+SlotOffsetMask)
+                                              put: val]
+                ifFalse:
+                  [ map: (CurrentMemory clone: map).
+                    map delegates: 
+                      (CurrentMemory clone: map delegates)!(OopArray pointer) 
+cast.
+                    newObj changeMapTo: map. 
+                    map delegates slotValueAtOffset: (offset bitAnd: 
+SlotOffsetMask) 
+                                                put: val]]].
+  interpreter stackPush: newObj asObject
+] `pidginPrimitive.
+
+obj@RootTraits cloneWithSlot: name@SymbolTraits valued: value
+[
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifFalse: [interpreter stackPush: (obj pointer addSlotNamed: name valued: value) asObject]
+] `pidginPrimitive.
+
+obj@RootTraits cloneWithDelegate: name@SymbolTraits valued: value
+[
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifFalse: [interpreter stackPush: (obj pointer addDelegateNamed: name valued: value) asObject]
+] `pidginPrimitive.
+
+obj@RootTraits cloneWithDelegate: name@SymbolTraits before: succ valued: value
+[
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifFalse: [interpreter stackPush: (obj pointer addDelegateNamed: name before: succ valued: value) asObject]
+] `pidginPrimitive.
+
+obj@RootTraits cloneWithDelegate: name@SymbolTraits after: pred valued: value
+[
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifFalse: [interpreter stackPush: (obj pointer addDelegateNamed: name after: pred valued: value) asObject]
+] `pidginPrimitive.
+
+obj@RootTraits cloneWithoutSlot: name@SymbolTraits
+[
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifFalse: [interpreter stackPush: (obj pointer removeSlotNamed: name) asObject]
+] `pidginPrimitive.
+
+obj@RootTraits atSlotNamed: name@SymbolTraits
+[| se!(SlotEntry pointer) |
+  obj isSmallInt
+    ifTrue: [interpreter signal: SlotNotFoundSymbol with: obj with: name].
+  se: (obj pointer map slotTable hashEntryForName: name).
+  se
+    ifNil:
+      [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifNotNil:
+      [| offset |
+        offset: se offset asSmallInt.
+        interpreter stackPush:
+          ((offset bitAnd: SlotTypeMask) = SlotTypeData
+             ifTrue: [obj pointer slotValueAtOffset: (offset bitAnd: SlotOffsetMask)]
+             ifFalse: [(obj pointer map delegates)!(Object pointer) cast slotValueAtOffset: (offset bitAnd: SlotOffsetMask)])]
+] `pidginPrimitive.
+
+obj@SmallIntegerProto atSlotNamed: name@SymbolTraits
+[| se!(SlotEntry pointer) proto!(Object pointer) |
+  proto: (CurrentMemory specialAt: SmallIntegerProto) pointer.
+  se: (proto map slotTable hashEntryForName: name).
+  se
+    ifNil:
+      [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifNotNil:
+      [| offset |
+        offset: se offset asSmallInt.
+        interpreter stackPush:
+          ((offset bitAnd: SlotTypeMask) = SlotTypeData
+             ifTrue: [proto slotValueAtOffset: (offset bitAnd: SlotOffsetMask)]
+             ifFalse: [(proto map delegates)!(Object pointer) cast slotValueAtOffset: (offset bitAnd: SlotOffsetMask)])]
+] `pidginPrimitive.
+
+obj@RootTraits atSlotNamed: name@SymbolTraits put: val
+[| map!(Map pointer) se!(SlotEntry pointer) |
+  obj isSmallInt
+    ifTrue: [^ (interpreter signal: SlotNotFoundSymbol with: obj with: name)].
+  obj pointer isImmutable
+    ifTrue: [^ (interpreter signal: ImmutableSymbol with: obj)].
+  map: obj pointer map.
+  se: (map slotTable hashEntryForName: name).
+  se
+    ifNil:
+      [interpreter signal: SlotNotFoundSymbol with: obj with: name]
+    ifNotNil:
+      [| offset |
+        offset: se offset asSmallInt.
+        (offset bitAnd: SlotTypeMask) = SlotTypeData
+          ifTrue:
+            [interpreter stackPush: (obj pointer slotValueAtOffset: (offset bitAnd: SlotOffsetMask) put: val)]
+          ifFalse:
+            [| newMap!(Map pointer) |
+              newMap: (CurrentMemory clone: map).
+              newMap delegates: (CurrentMemory clone: newMap delegates)!(OopArray pointer) cast.
+              obj pointer changeMapTo: newMap.
+              interpreter stackPush: ((newMap delegates)!(Object pointer) cast slotValueAtOffset: (offset bitAnd: SlotOffsetMask) put: val)]]
+] `pidginPrimitive.
+
+x@RootTraits forwardTo: y
+"Perform the heap forwarding operation if the objects are not the exact same identity
+or SmallIntegers. Otherwise, just return the second argument and GC."
+[
+  interpreter stackPush: y.
+  (x isSmallInt \/ [y isSmallInt]) not /\ [x ~= y]
+    ifTrue:
+      [CurrentMemory forward: x pointer to: y pointer.
+       CurrentMemory garbageCollect]
+] `pidginPrimitive.
+
+arr@ByteArrayTraits newSize: i
+"Allocate a new ByteArray, but only if the size is a SmallInteger. All the
+payload elements will be zeroed."
+[
+  i isSmallInt ifFalse: [^ interpreter pushNil].
+  interpreter stackPush: (CurrentMemory cloneByteArray: arr pointer sized: (i asSmallInt max: 0)) asObject
+] `pidginPrimitive.
+
+arr@ByteArrayTraits size
+[
+  interpreter stackPush: ((arr pointer)!(Object pointer) cast byteSize - arr pointer arrayOffset) asObject
+] `pidginPrimitive.
+
+arr@ByteArrayTraits byteAt: i
+[| index |
+  index: i asSmallInt.
+  index < ((arr pointer)!(Object pointer) cast byteSize - arr pointer arrayOffset)
+    ifTrue:
+      [interpreter stackPush: (arr pointer arrayElements!(UnsignedChar pointer) cast at: index)!UnsignedLongInt cast asObject]
+    ifFalse:
+      [interpreter signal: KeyNotFoundSymbol with: i with: arr]
+] `pidginPrimitive.
+
+arr@ByteArrayTraits byteAt: i put: val
+[| index |
+  arr pointer isImmutable
+    ifTrue: [^ (interpreter signal: ImmutableSymbol with: arr)].
+  index: i asSmallInt.
+  index < ((arr pointer)!(Object pointer) cast byteSize - arr pointer arrayOffset)
+    ifTrue:
+      [interpreter stackPush: (arr pointer arrayElements!(UnsignedChar pointer) cast at: index put: val asSmallInt)!UnsignedLongInt cast asObject]
+    ifFalse:
+      [interpreter signal: KeyNotFoundSymbol with: i with: arr]
+] `pidginPrimitive.
+
+arr@ArrayTraits newSize: i
+"Allocate a new Array, but only if the size is a SmallInteger."
+[
+  i isSmallInt ifFalse: [^ interpreter pushNil].
+  interpreter stackPush: (CurrentMemory cloneOopArray: arr pointer sized: (i asSmallInt max: 0)) asObject
+] `pidginPrimitive.
+
+arr@ArrayTraits size
+[
+  interpreter stackPush: arr pointer arraySize asObject
+] `pidginPrimitive.
+
+arr@ArrayTraits at: i
+[| index |
+  index: i asSmallInt.
+  index < arr pointer arraySize
+    ifTrue:
+      [interpreter stackPush: (arr pointer arrayElements at: index)]
+    ifFalse:
+      [interpreter signal: KeyNotFoundSymbol with: i with: arr]
+] `pidginPrimitive.
+
+arr@ArrayTraits at: i put: val
+[| index |
+  arr pointer isImmutable
+    ifTrue: [^ (interpreter signal: ImmutableSymbol with: arr)].
+  index: i asSmallInt.
+  index < arr pointer arraySize
+    ifTrue:
+      [interpreter stackPush: (arr pointer arrayElements at: index put: val)]
+    ifFalse:
+      [interpreter signal: KeyNotFoundSymbol with: i with: arr]
+] `pidginPrimitive.
+
+body@MethodTraits ensure: ensureHandler@MethodTraits
+"Run the body method with no arguments, then save the existing ensureHandlers
+pointer onto the stack, and the push the new handler and reset the
+ensureHandlers pointer."
+[
+  interpreter
+    apply: body pointer!(CompiledMethod pointer) cast
+    to: Nil
+    arity: 0
+    withOptionals: Nil.
+  interpreter stackPush: interpreter ensureHandlers.
+  interpreter stackPush: ensureHandler.
+  interpreter ensureHandlers: (interpreter stackPointer - 2) asObject
+] `pidginPrimitive.
+
+method@MethodTraits applyTo: args@ArrayTraits
+"Applies the bytecode method to the arguments array using the internal VM
+API. This also collects the first optional value and treats it as an
+&optionals Array."
+[| opts!(OopArray pointer) |
+  optionals
+    ifNil:
+      [opts: Nil]
+    ifNotNil:
+      [opts: (optionals elements at: 1) pointer!(OopArray pointer) cast.
+        opts = CurrentMemory NilObject!(OopArray pointer) cast
+          ifTrue: [opts: Nil]].
+  interpreter
+    apply: method pointer!(CompiledMethod pointer) cast
+    to: args pointer arrayElements
+    arity: args pointer arraySize
+    withOptionals: opts
+] `pidginPrimitive.
+
+selector@SymbolTraits sendTo: args@ArrayTraits
+[| opts!(OopArray pointer) |
+  optionals
+    ifNil:
+      [opts: Nil]
+    ifNotNil:
+      [opts: (optionals elements at: 1) pointer!(OopArray pointer) cast.
+        opts = CurrentMemory NilObject!(OopArray pointer) cast
+          ifTrue: [opts: Nil]].
+  interpreter
+    send: selector
+    to: args pointer arrayElements
+    arity: args pointer arraySize
+    withOptionals: opts
+] `pidginPrimitive.
+
+selector@SymbolTraits sendTo: args@ArrayTraits through: dispatchers@ArrayTraits
+[| opts!(OopArray pointer) elements!(UnsignedLongInt pointer) elementCount |
+  optionals
+    ifNil:
+      [opts: Nil]
+    ifNotNil:
+      [opts: (optionals elements at: 1) pointer!(OopArray pointer) cast.
+        opts = CurrentMemory NilObject!(OopArray pointer) cast
+          ifTrue: [opts: Nil]].
+  elementCount: args pointer arraySize.
+  elements: args pointer arrayElements.
+  interpreter
+    send: selector
+    to: elements
+    through: dispatchers pointer arrayElements
+    arity: elementCount
+    withOptionals: opts
+] `pidginPrimitive.
+
+selector@SymbolTraits findOn: args@ArrayTraits
+"Performs lookup of a method using the VM's actual internal algorithm."
+[| def!(MethodDefinition pointer) |
+   def: (selector dispatchTo: args pointer arrayElements arity: args pointer arraySize above: 0).
+   interpreter stackPush:
+     (def
+       ifNil: [CurrentMemory NilObject]
+       ifNotNil: [def method])
+] `pidginPrimitive.
+
+selector@SymbolTraits findOn: args@ArrayTraits after: resendMethod
+"Performs lookup of a method using the VM's actual internal algorithm."
+[| def!(MethodDefinition pointer) |
+   def: (selector dispatchTo: args pointer arrayElements arity: args pointer arraySize above: resendMethod).
+   interpreter stackPush:
+     (def
+       ifNil: [CurrentMemory NilObject]
+       ifNotNil: [def method])
+] `pidginPrimitive.
+
+lobby@LobbyObject runArgsInto: args@ByteArrayTraits
+"Fills a Slate ByteArray with the argv contents separated by nul-characters.
+Answers the number of bytes written."
+[
+  interpreter stackPush: (#writeArgsInto applyTo: {args pointer arrayElements!(UnsignedChar pointer) cast. args pointer arraySize}) asObject
+] `pidginPrimitive.
+
+lobby@LobbyObject exit
+"Takes a single optional (which can have any name) and calls the C exit()
+function to quit the Slate program with that optional's value (or success if
+not given)."
+[optionals
+  ifNil: [#exit applyTo: {'EXIT_SUCCESS' directly}]
+  ifNotNil: [#exit applyTo: {(optionals elements at: 1) asSmallInt}]
+] `pidginPrimitive.
+
+x@RootTraits == y@RootTraits
+"Performs identity-comparison using direct pointer/reference equality."
+[
+  interpreter stackPush:
+    (x = y
+      ifTrue: [CurrentMemory TrueObject]
+      ifFalse: [CurrentMemory FalseObject])
+] `pidginPrimitive.
+
+obj@RootTraits identityHash
+"Answers the identity-hash value set when the object is born and embedded into
+the object's header word."
+[
+  interpreter stackPush: obj pointer header idHash asObject
+] `pidginPrimitive.

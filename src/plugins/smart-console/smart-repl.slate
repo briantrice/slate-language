@@ -1,0 +1,74 @@
+prototypes define: #SmartREPL &parents: {REPL} &slots: {#terminal}.
+
+"Create a custom LineEditor that can interact with the repl calling it"
+SmartREPL traits define: #LineEditor &parents: {SmartTerminal LineEditor}
+  &slots: {#repl}.
+
+e@(SmartREPL LineEditor traits) completionsFor: word
+[
+  e repl completionsFor: word
+].
+
+_@(REPL traits) newBasedOn: resource@(SmartConsole traits)
+[
+  SmartREPL clone on: resource
+].
+
+repl@(SmartREPL traits) on: resource
+"Re-target the REPL to the specified resource."
+[
+  resend.
+  repl terminal: (Terminal newBasedOn: resource).
+  "Override the default LineEditor for the Terminal to be our one that can
+   interact with the repl when needed."
+  (repl terminal commandEditor: (repl LineEditor newOn: repl terminal))
+    repl: repl
+].
+
+repl@(SmartREPL traits) enter
+[
+  repl terminal sessionDo: [| :terminal |
+  [| editor |
+    repl installMethods.
+    editor: terminal commandEditor.
+    repl interpretHook: 
+      [| input parser firstRun |
+       parser: repl parser.
+       input: ExtensibleArray new.
+       firstRun: True.
+       [| line |
+        repl lineCount: repl lineCount + 1.
+        repl printer flush.
+        editor prompt: repl prompt.
+	"Catch Stream Exhaustion from this block which means the end
+         of input, issued by Ctrl+d on an empty line"
+        [[line: (editor readLine &echoNewLine: True &showPrompt: firstRun).
+          line isEmpty] whileTrue] on: Stream Exhaustion do: [| :_ | ^ Nil].
+        firstRun: False.
+        input addAll: line.
+        input add: $\n.
+        editor hasInput ifFalse:
+	  [parser on: input reader.
+           parser do:
+	     [| :expr result |
+	      result: (expr evaluateIn: repl namespace).
+              [result printOn: repl printer] on: Error do:
+	        [| :c |
+                 inform: 'Printing failed.'.
+                 #printOn: sendTo: {result. repl printer} through: {Root. repl printer}.
+                 c return: Nil].
+              repl printer newLine.
+              repl printer flush].
+           input: input new.
+           firstRun: True]] loop]] ensure: [repl removeMethods]].
+  repl
+].
+
+repl@(SmartREPL traits) start &resource: r
+"Enter a new REPL instance."
+[
+  r `defaultsTo: Console.
+  (r is: SmartConsole) not /\ [SmartConsole isAvailable]
+    ifTrue: [SmartConsole new sessionDo: [| :c | (repl newBasedOn: c) enter]]
+    ifFalse: [(repl newBasedOn: r) enter]
+].

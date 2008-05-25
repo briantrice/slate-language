@@ -1,0 +1,253 @@
+
+prototypes define: #DecoderStream &parents: {StreamProcessor}.
+prototypes define: #EncoderStream &parents: {WriteStream} &slots: {#target}.
+
+u@(EncoderStream traits) on: target
+[
+ u target: target.
+ u
+].
+
+u@(EncoderStream traits) contents
+[
+  u target
+].
+
+u@(EncoderStream traits) close
+[| result |
+ result: u target.
+ u target: Nil.
+ result
+].
+
+Unicode define: #ReadingNonCharacter &parents: {SeriousCondition}.
+Unicode define: #WritingNonCharacter &parents: {SeriousCondition}.
+
+c@(Unicode ReadingNonCharacter traits) describeOn: out
+[out ; 'Unicode character illegal for exhange in input.'].
+
+c@(Unicode WritingNonCharacter traits) describeOn: out
+[out ; 'Trying to export a Unicode character that is illegal for exchange.'].
+
+
+"UTF-8:"
+
+prototypes ensureNamespace: #UTF8.
+
+UTF8 define: #Malformed &parents: {SeriousCondition}.
+
+c@(UTF8 Malformed traits) describeOn: out
+[out ; 'Malformed UTF-8 encoded data.'].
+
+UTF8 define: #Decoder &parents: {DecoderStream}.
+
+u@(UTF8 Decoder traits) nextCode
+"This was adapted from Squeak m17n package."
+[| character1 value1 character2 value2 unicode character3 value3 codesets char character4 value4 |
+ character1: (u source next ifNil: [^ Nil]).
+ value1: (character1 as: Integer).
+ value1 <= 127 
+    ifTrue: ["1-byte character"
+	     ^ (character1 as: Integer)].
+ (value1 bitAnd: 16rE0) = 192 
+    ifTrue: ["2-byte character"
+	     character2: (u source next ifNil: [UTF8 Malformed signal]).
+	     value2: (character2 as: Integer).
+	     ^ (((value1 bitAnd: 31) bitShift: 6) + (value2 bitAnd: 63))].
+ (value1 bitAnd: 16rF0) = 224 
+    ifTrue: ["3-byte character"
+	     character2: (u source next ifNil: [UTF8 Malformed signal]).
+	     value2: (character2 as: Integer).
+	     character3: (u source next ifNil: [UTF8 Malformed signal]).
+	     value3: (character3 as: Integer).
+	     unicode: ((value1 bitAnd: 15) bitShift: 12) + ((value2 bitAnd: 63) bitShift: 6)
+	               + (value3 bitAnd: 63)].
+ (value1 bitAnd: 16rF8) = 240 
+    ifTrue: ["4-byte character"
+             character2: (u source next ifNil: [UTF8 Malformed signal]).
+	     value2: (character2 as: Integer).
+	     character3: (u source next ifNil: [UTF8 Malformed signal]).
+	     value3: (character3 as: Integer).
+	     character4: (u source next ifNil: [UTF8 Malformed signal]).
+	     value4: (character4 as: Integer).
+	     unicode: ((value1 bitAnd: 16r7) bitShift: 18) +
+	              ((value2 bitAnd: 63) bitShift: 12) + 
+	              ((value3 bitAnd: 63) bitShift: 6) +
+	              (value4 bitAnd: 63)].
+ "unicode ifNil: [^ (16777323)]." "FIXME: what is this?"
+ unicode ifNil: [0]
+].
+
+u@(UTF8 Decoder traits) next
+[| next |
+ next: (u nextCode as: UnicodeCharacter).
+ next isNonCharacter ifTrue: [Unicode ReadingNonCharacter signal].
+ next
+].
+
+UTF8 define: #Encoder &parents: {EncoderStream}.
+
+u@(UTF8 Encoder traits) nextPut: aCharacter
+"This was adapted from Squeak Unicode package."
+[| codePoint rest byteStream  increment mask numberOfMaskBits 
+   sixthBitOn counterBit counterIncrement forbiddenForLeadingOctet |
+  aCharacter isNonCharacter ifTrue: [Unicode WritingNonCharacter signal].
+  byteStream: (Array newSize: 7) writer.
+  codePoint: aCharacter code.
+  (codePoint < 16r80)
+    ifTrue: [byteStream nextPut: codePoint]
+    ifFalse: [mask: 2r111111.
+	      numberOfMaskBits: 6.
+	      counterBit: 2r10000000.
+	      counterIncrement: 2r01000000.
+	      forbiddenForLeadingOctet: 2r11000000.
+	      increment: 2r00100000.
+	      rest: codePoint. 
+	      sixthBitOn: False.
+	      [rest ~= 0 \/ sixthBitOn]
+                 whileTrue:
+                   [rest < 16r100 /\ [(rest bitAnd: forbiddenForLeadingOctet) = 0]
+		      ifTrue:
+			[byteStream nextPut: ((rest bitAnd: mask) bitOr: counterBit).
+                         rest: 0.  
+			 sixthBitOn: False]
+                      ifFalse:
+			[byteStream nextPut: ((rest bitAnd: mask) bitOr: 2r10000000).
+                         sixthBitOn: (rest bitAnd: 2r100000) ~= 0.
+                         rest: (rest bitShift: numberOfMaskBits negated).
+                         forbiddenForLeadingOctet: (forbiddenForLeadingOctet bitOr: increment).
+                         increment: (increment bitShift: -1).
+                         counterBit: (counterBit bitOr: counterIncrement).
+                         counterIncrement: (counterIncrement bitShift: -1)]]].
+  byteStream contents reversed 
+    do: [| :byte | u target nextPut: (byte as: Character)].
+].
+
+"UTF-16:"
+
+prototypes ensureNamespace: #UTF16.
+UTF16 ensureNamespace: #Abstract.
+
+"UTF16 Abstract encoder/decoder uses 16-bit values. The endianness
+issues are handled at lower level."
+
+UTF16 Abstract define: #Malformed &parents: {SeriousCondition}.
+
+c@(UTF16 Abstract Malformed traits) describeOn: out
+[out ; 'Malformed UTF-16 encoded data.'].
+
+UTF16 Abstract define: #Decoder &parents: {DecoderStream}.
+
+u@(UTF16 Abstract Decoder traits) nextCode
+"FIXME: are the bitAnd: 16r3FF's needed? Don't the range 
+checks handle this as a side effect? Endianness?"
+[| character1 character2 result |
+ character1: (u source next ifNil: [^ Nil]).
+ (character1 < 16rD800 or: [character1 > 16rDFFF])
+   ifTrue: [^ (character1 as: Integer)].
+ (character1 between: 16rD800 and: 16rDBFF)
+   ifFalse: [u Malformed signal].
+ character2: (u source next ifNil: [^ Nil]).
+ (character2 between: 16rDC00 and: 16rDFFF)
+   ifFalse: [u Malformed signal].
+ result: (((character1 bitAnd: 16r3FF) bitShift: 10) 
+   bitOr: (character2 bitAnd: 16r3FF)).
+ result + 16r10000
+].
+
+u@(UTF16 Abstract Decoder traits) next
+[| next |
+ next: (u nextCode as: UnicodeCharacter).
+ next isNonCharacter ifTrue: [Unicode ReadingNonCharacter signal].
+ next
+].
+
+UTF16 Abstract define: #Encoder &parents: {EncoderStream}.
+
+u@(UTF16 Abstract Encoder traits) on: target
+[
+ u target: target.
+ u
+].
+
+u@(UTF16 Abstract Encoder traits) nextPut: aCharacter
+[| codePoint U2 half1 half2 |
+ aCharacter isNonCharacter ifTrue: [Unicode WritingNonCharacter signal].
+ codePoint: aCharacter code.
+ codePoint < 16r10000 
+   ifTrue: [u target nextPut: codePoint.
+	    ^ True].
+ U2: codePoint - 16r10000.
+ half1: (16rD800 bitOr: (U2 bitShift: -10)).
+ half2: (16rDC00 bitOr: (U2 bitAnd: 16r3FF)).
+ u target nextPut: half1.
+ u target nextPut: half2.
+].
+
+prototypes ensureNamespace: #UTF16LE.
+
+UTF16LE define: #Malformed &parents: {SeriousCondition}.
+UTF16LE define: #Decoder &parents: {UTF16 Abstract Decoder}.
+UTF16LE define: #Encoder &parents: {UTF16 Abstract Encoder}.
+
+c@(UTF16LE Malformed traits) describeOn: out
+[out ; 'Malformed UTF-16LE encoded data.'].
+
+u@(UTF16LE Decoder traits) newOn: source
+[
+  UTF16 Abstract Decoder newOn: (Int16ReadStream LittleEndian newOn: source)
+].
+
+u@(UTF16LE Encoder traits) newOn: target
+[
+ UTF16 Abstract Encoder newOn: (Int16WriteStream LittleEndian newOn: target)
+].
+
+prototypes ensureNamespace: #UTF16BE.
+
+UTF16BE define: #Malformed &parents: {SeriousCondition}.
+UTF16BE define: #Decoder &parents: {DecoderStream}.
+UTF16BE define: #Encoder &parents: {EncoderStream}.
+
+c@(UTF16BE Malformed traits) describeOn: out
+[out ; 'Malformed UTF-16BE encoded data.'].
+
+u@(UTF16BE Decoder traits) newOn: source
+[
+  UTF16 Abstract Decoder newOn: (Int16ReadStream BigEndian newOn: source)
+].
+
+u@(UTF16BE Encoder traits) newOn: target
+[
+  UTF16 Abstract Encoder newOn: (Int16WriteStream BigEndian newOn: target)
+].
+
+
+"UTF-16 streams (with no BE/LE) start with a byte order mark."
+
+UTF16 define: #Decoder &parents: {DecoderStream}.
+UTF16 define: #Encoder &parents: {EncoderStream}.
+
+UTF16 define: #NoByteOrderMark &parents: {SeriousCondition}.
+
+c@(UTF16 NoByteOrderMark traits) describeOn: out
+[out ; 'UTF-16 stream doesn\'t contain byte order mark. Use UTF-16BE or UTF-16LE.'].
+
+s@(UTF16 Decoder traits) newOn: source
+[| stream byteOrderMark byte1 byte2 c|
+ stream: (Int16ReadStream BigEndian newOn: source).
+ byteOrderMark: stream next.
+ byteOrderMark = 16rFEFF ifTrue: 
+   [^ (UTF16 Abstract Decoder newOn: stream)].
+ byteOrderMark = 16rFFFE ifTrue:
+   [^ (UTF16LE Decoder newOn: source)].
+ UTF16 NoByteOrderMark signal
+].
+
+s@(UTF16 Encoder traits) newOn: target &littleEndian: little
+[| stream |
+ little `defaultsTo: False.
+ stream: ((little ifTrue: [UTF16LE] ifFalse: [UTF16BE]) Encoder newOn: target).
+ stream nextPut: (16rFEFF as: UnicodeCharacter).
+ stream
+].

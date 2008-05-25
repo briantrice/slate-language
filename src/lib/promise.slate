@@ -1,0 +1,69 @@
+prototypes ensureNamespace: #references &delegate: True.
+
+references define: #Reference &parents: {Derivable}.
+
+_@(Reference traits) isSettled [overrideThis].
+
+_ acceptsKey: r@(Reference traits) [r isSettled].
+
+references define: #Eventual &parents: {Reference}.
+
+references define: #Promise &parents: {Eventual}.
+Promise addImmutableSlot: #resolver valued: [].
+
+_@(Promise traits) isSettled [False].
+
+p@(Promise traits) resolve
+"Replace the Promise in-place with the result of evaluating its block."
+"ASSUME: This code strongly assumes that all dependencies have been resolved.
+If not, many errors will result; pretty much the only code which should call
+this is from other parts of the concurrency mechanics."
+[
+  p forwardTo: p resolver do
+].
+
+p1@(Promise traits) join: p2@(Promise traits)
+"Implements an E-join - see http://erights.org/elib/equality/after-both.html."
+"TODO: finish and verify."
+[| has1 has2 obj1 obj2 reduce |
+  has1: (has2: False).
+  obj1 isBroken ifTrue: [done applyWith: obj1].
+  obj2 isBroken ifTrue: [done applyWith: obj2].
+  has1 /\ has2 ifTrue:
+    [obj1 == obj2 ifTrue: [done applyWith: obj1]
+		  ifFalse: [p1 broken: 'No Join found.']]
+  done: [| :obj | promise code applyWith: obj. reduce: Nil].
+  p1 whenResolvedDo: [| :a1 | has1: True. obj1: a1. reduce do].
+  p2 whenResolvedDo: [| :a2 | has2: True. obj2: a2. reduce do].
+  result
+].
+
+references define: #LocalPromise &parents: {Promise}.
+
+references define: #RemotePromise &parents: {Promise}.
+RemotePromise addImmutableSlot: #otherPromise valued: LocalPromise.
+
+references define: #Resolved &parents: {Reference}.
+
+references define: #Fulfilled &parents: {Resolved}.
+
+references define: #Near &parents: {Fulfilled}.
+Near addImmutableSlot: #target valued: Nil.
+
+_@(Unconnected traits) isSettled [True].
+
+references define: #Far &parents: {Fulfilled. Eventual}.
+Far addImmutableSlot: #locator valued: Nil.
+
+_@(Far traits) isSettled [True].
+
+references define: #Broken &parents: {Resolved}.
+Broken addImmutableSlot: #condition valued: Error.
+
+references define: #Unconnected &parents: {Broken}.
+
+_@(Unconnected traits) isSettled [False].
+
+references define: #Disconnected &parents: {Broken}.
+
+_@(Disconnected traits) isSettled [True].

@@ -1,0 +1,150 @@
+
+globals define: #Image &builder: [Oddball clone]
+  &slots: {#filename -> 'slate.image'}.
+
+i@Image save &name: filename &startupREPL: startupREPL
+"Provides a wrapper over the basic primitive facility to save the heap to a
+file. If a filename is not provided, the most recently-used or default
+filename is used. The saveImageNamed: primitive saves the stack, and returns
+False by default - when a saved-heap is started, the False is replaced with
+True, so that a simple boolean check can see if startup actions need to be
+performed."
+[| isRestarted |
+  startupREPL ifNil: [startupREPL: False].
+  filename 
+    ifNil: [filename: i filename].
+    ifNotNil: [i filename: filename].
+  (File newNamed: filename) exists
+    ifTrue: [warn: 'Saving the image over an existing file: ' ; filename printString ; '.'].
+  i handleSave.
+  isRestarted: (lobby saveImageNamed: (i filename as: String)).
+  isRestarted ifTrue:
+    [startupREPL ifTrue: [repl reset. Abort signal].
+     i handleStartup].
+].
+
+i@Image saveNamed: filename
+[i save &name: filename].
+
+i@Image quit
+"Calls the exit primitive after the shutdown hooks."
+[
+  i handleShutdown.
+  lobby exit
+].
+
+_@lobby quit [Image quit].
+
+i@Image die
+[
+  i handleShutdown.
+  lobby exit &value: 1
+].
+
+Image `>>
+  ["Dictionaries holding actions (blocks taking no argument)
+    to be performed under various scenarios. Identified by
+    a descriptive Symbol."
+   define: #startupActions &builder: [Dictionary new].
+   define: #shutdownActions &builder: [Dictionary new].
+   define: #saveActions &builder: [Dictionary new].
+   ].
+
+"these directory functions need image to be defined"
+dir@(LogicalDirectory traits) registerStartupHandler
+[
+  [Image startupActions at: dir put: [dir locator: Nil]]
+    on: Error do: [| :c | c return: Nil]
+].
+
+Directory traits define: #Current &builder:
+  [LogicalDirectory newResolving: [Directory current]].
+
+Directory traits define: #Home &builder:
+  [LogicalDirectory newResolving: [Directory home]].
+
+
+i@Image handleStartup
+"Perform each action/block in the startupActions attribute."
+[
+  i startupActions do: [| :action | action on: Abort do: [| :c | c exit]]
+].
+
+i@Image handleShutdown
+"Perform each action/block in the shutdownActions attribute."
+[
+  i shutdownActions do: [| :action | action on: Abort do: [| :c | c exit]]
+].
+
+i@Image handleSave
+"Perform each action/block in the saveActions attribute."
+[
+  i saveActions do: [| :action | action on: Abort do: [| :c | c exit]]
+].
+
+"Invoke the startup method on all dangling ExternalResources when
+the image starts up."
+Image startupActions at: #ExternalResource put:
+  [ExternalResource schedule do: #startup `er].
+
+"Invoke the shutdown method on all open ExternalResources when
+the image shuts down."
+Image shutdownActions at: #ExternalResource put:
+  [ExternalResource schedule reverseDo: #shutdown `er].
+
+"Refresh the standard LogicalDirectory objects."
+{Directory Home. Directory Current} do:
+  [| :dir | Image startupActions at: dir put: [dir locator: Nil]].
+
+i@Image objectCount
+"The number of heap-allocated objects in the current Image."
+[(i reader >> 0 writer) value].
+
+_@globals executionArguments
+"Answer the arguments that Slate was invoked with, as an Array of Strings."
+[| buffer n |
+  buffer: (ByteArray newSize: 1024).
+  n: (lobby runArgsInto: buffer).
+  ((buffer first: n) as: String) splitWith: $\0
+].
+
+Image startupActions at: #StartupArguments put:
+  [globals define: #StartupArguments -> lobby executionArguments.
+   Image handleStandardCommandOptions].
+
+Image define: #StartupArgumentHandlers &builder: [Dictionary new].
+Image define: #StartupArgumentDocs &builder: [Dictionary new].
+
+i@Image handleArgument: optionString with: handler
+[i StartupArgumentHandlers at: optionString put: handler].
+
+i@Image documentArgument: optionString with: docString
+[i StartupArgumentDocs at: optionString put: docString].
+
+Image handleArgument: '--load' with:
+  [| :index | lobby load: (StartupArguments at: index + 1)].
+Image documentArgument: '--load' with: 'Loads the file named by the following argument'.
+Image handleArgument: '--eval' with:
+  [| :index p |
+   p: (Syntax Parser newOn: (StartupArguments at: index + 1) reader).
+   [p isAtEnd] whileFalse: [p next evaluate]].
+Image documentArgument: '--eval' with: 'Evaluates the following argument. No magic escaping is done.'.
+Image handleArgument: '-c' with:
+  [| :index | [lobby load: (StartupArguments at: index + 1)] unlessCompletes: [exit &value: 1]. quit].
+Image documentArgument: '-c' with: 'Loads the file named by the following argument and then quits.'.
+
+i@Image handleStandardCommandOptions
+"Handles --load and --eval options from the command-line invocation."
+[
+  (StartupArguments includes: '--image-help')
+    ifTrue:
+      [inform: 'This image advertises the following options:'.
+       i StartupArgumentHandlers keysDo:
+	[| :opt | inform: opt ; '\t' ; (i StartupArgumentDocs at: opt ifAbsent: ['(none provided)'])].
+       quit]
+    ifFalse:
+      [StartupArguments doWithIndex:
+	 [| :arg :index |
+	  (i StartupArgumentHandlers at: arg ifAbsent: [])
+	    ifNotNilDo: [| :handler | handler applyWith: index]]].
+].

@@ -1,0 +1,91 @@
+ports ensureNamespace: #X11.
+
+X11 define: #Pointer &parents: {Cloneable}
+ &slots: {#cursorAlignment -> #UpperLeft}.
+
+X11 define: #FontSet &parents: {Cloneable} &slots:
+{#name -> ''.
+ #defaultFont.
+ #ranges -> ExtensibleArray new.
+ #ascent -> 0.
+ #descent -> 0.
+ #height -> 0.
+ #width -> 0}.
+
+"The object representing an X11 server connection."
+X11 define: #Port &parents: {Port} &slots:
+{#display. "The connection's Display."
+ #windows -> ExtensibleArray new. "The connection's Windows."
+ #pointer. "The connection's Cursor."
+ #hostname. "The connections hostname."}.
+
+X11 Port traits define: #Display -> X11_ Display.
+X11 Port traits define: #Screen -> X11_ Screen.
+X11 Port traits define: #Window -> X11_ Window.
+X11 Port traits define: #Colors -> IdentityDictionary new.
+X11 Port traits define: #ModifierCache.
+X11 Port traits define: #Pointer -> X11_ Cursor.
+
+x@(X11 Port traits) serverType
+"The name of the server type."
+['X11'].
+
+x@(X11 Port traits) properties
+"A Mapping from property names to values for the server."
+[].
+
+x@(X11 Port traits) restart
+[].
+
+p@(X11 Port traits) connectToDisplay: h@(String traits) device: n@(Integer traits)
+"Make a connection to an X11 display server"
+[
+  p clone `>>
+    [display: (p traits Display newForHost: h device: n protocol: 0).
+     hostname: h. ]
+].
+
+p@(X11 Port traits) destroy
+[p display destroy].
+
+p@(X11 Port traits) flush
+[p display flush].
+
+p@(X11 Port traits) findPortWithHost: h@(String traits) device: n@(Integer traits)
+[| host |
+  host: (h isEmpty ifTrue: ['localhost'] ifFalse: [h toLowercase]).
+  Portlist
+    detect: [|:each| each ifNotNil: [(each serverType = 'X11') /\ (each hostname = host) /\ (each display displayNumber = n)]]
+    ifNone: [Portlist add: (p connectToDisplay: host device: n)]
+].
+
+d@(X11 Port traits Display traits) port
+"Find the port associated with this display"
+[
+  Portlist detect: [| :each | each isNotNil /\ [each display = d]]
+].
+
+"Window methods"
+
+p@(X11 Port traits) createWindowX: x@(Integer traits) y: y@(Integer traits) width: w@(Integer traits) height: h@(Integer traits)
+[p createChildWindow: p display screens first rootWindow x: x y: y width: w height: h].
+
+p@(X11 Port traits) createChildWindow: parent x: x@(Integer traits) y: y@(Integer traits) width: w@(Integer traits) height: h@(Integer traits)
+[| window |
+  window: (X11 Port traits Window newOn: parent x: x y: y width: w height: h background: p display screens first whitePixel).
+  p windows add: window.
+  window
+].
+
+w@(X11 Port traits Window traits) port
+"Find the port associated with this window"
+[w display port].
+
+w@(X11 Port traits Window traits) destroy
+[
+  w port windows remove: w.
+  w primitiveDestroy
+].
+
+w@(X11 Port traits Window traits) flush
+[w display flush].

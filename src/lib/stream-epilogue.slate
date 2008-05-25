@@ -1,0 +1,318 @@
+streams define: #DummyStream &parents: {ReadWriteStream}.
+"DummyStreams always return Nil's and can't be repositioned or written to,
+but pretend that they can, eating up input and providing no output."
+
+s@(Stream traits) newFrom: _@Nil [DummyStream].
+
+_@Nil iterator [DummyStream].
+_@Nil reader [DummyStream].
+_@Nil writer [DummyStream].
+
+_@(DummyStream traits) next [].
+_@(DummyStream traits) nextPut: _ [].
+_@(DummyStream traits) nextPutAll: _ [].
+_@(DummyStream traits) position [0].
+_@(DummyStream traits) position: _ [].
+_@(DummyStream traits) position: _ [].
+
+Method traits define: #ReadStream &parents: {ReadStream}.
+"Method ReadStreams take their next element from the recalculation of a code
+closure with no arguments. This is effectively a means to poll some condition
+or to generate a sequence."
+Method ReadStream addSlot: #block valued: [].
+"The calculation for generating the Stream elements."
+
+s@(Stream traits) newFrom: block@(Method traits)
+[block ReadStream newOn: block].
+
+m@(Method traits) iterator
+"Mimics the Collection interface for making iterators that target them."
+[m reader].
+
+m@(Method traits) reader
+"Mimics the Collection interface for making ReadStreams that target them."
+[m ReadStream newOn: m].
+
+s@(Method ReadStream traits) on: block
+[
+  s block: block.
+  s
+].
+
+s@(Method ReadStream traits) next
+[
+  s block do
+].
+
+s@(Method ReadStream traits) hasAnEnd [False].
+s@(Method ReadStream traits) isAtEnd [False].
+
+Method traits define: #WriteStream &parents: {WriteStream}.
+"Method WriteStream applies each fed element into the block as its sole
+argument."
+Method WriteStream addSlot: #block valued: [| :_ |].
+"The operation to be performed on each element."
+
+s@(Stream traits) newTo: block@(Method traits)
+[block WriteStream newOn: block].
+
+m@(Method traits) writer
+"Mimics the Collection interface for making ReadStreams that target them."
+[m WriteStream newOn: m].
+
+s@(Method WriteStream traits) on: block
+[
+  s block: block
+].
+
+s@(Method WriteStream traits) nextPut: obj
+[
+  s block applyWith: obj
+].
+
+s@(Method WriteStream traits) hasAnEnd [False].
+s@(Method WriteStream traits) isAtEnd [False].
+
+streams define: #ConcatenatedReadStream
+	   &parents: {PositionableReadStream}.
+"A Stream acting as the result of concatenating all the source streams'
+sources into a single source to be read."
+ConcatenatedReadStream addSlot: #sources valued: ExtensibleArray new.
+"The Streams which are concatenated."
+ConcatenatedReadStream addSlot: #currentSource.
+"The current Stream being read."
+ConcatenatedReadStream addSlot: #position valued: 0.
+"The overall position of the stream, taken by tabulating."
+
+s1@(Stream traits) ; s2@(Stream traits)
+[
+  ConcatenatedReadStream newOn: {s1. s2}
+].
+
+cs@(ConcatenatedReadStream traits) ; s@(Stream traits)
+[
+  cs sources addLast: s.
+  cs
+].
+
+s@(ConcatenatedReadStream traits) on: sources
+[
+  s sources: (sources as: s sources).
+  s currentSource: s sources first.
+  s position: 0.
+  s
+].
+
+s@(ConcatenatedReadStream traits) hasAnEnd [s sources allSatisfy: #hasAnEnd `er].
+
+s@(ConcatenatedReadStream traits) isAtEnd
+[
+  s currentSource = s sources last /\ [s currentSource isAtEnd]
+].
+
+s@(ConcatenatedReadStream traits) next
+[
+  s currentSource isAtEnd ifTrue:
+    [| nextSrcIdx |
+     nextSrcIdx: (s sources indexOf: s currentSource) + 1.
+     nextSrcIdx = s sources size ifTrue: [^ Nil].
+     s currentSource: (s sources at: nextSrcIdx)].
+  s currentSource next
+].
+
+(streams define: #FlattenedReadStream &parents: {ReadStream})
+ `>> [addSlot: #sources valued: Stack new. ].
+"Allows the use of the flatten message to create a recursive traversal of
+all contained ReadStreams."
+
+s@(Stream traits) flatten
+[FlattenedReadStream newOn: s].
+
+s@(FlattenedReadStream traits) flatten
+[s].
+
+s1@(FlattenedReadStream traits) on: s2
+[
+  s1 sources: (s1 sources newWith: s2).
+  s1
+].
+
+s@(FlattenedReadStream traits) hasAnEnd [s sources allSatisfy: #hasAnEnd `er].
+
+s@(FlattenedReadStream traits) isAtEnd
+[s sources size = 1 /\ [s sources top isAtEnd]].
+
+s@(FlattenedReadStream traits) next
+[| obj |
+  [s sources top isAtEnd]
+    whileTrue:
+     [s sources size <= 1
+       ifTrue: [s exhausted]
+       ifFalse: [s sources pop]].
+  obj: s sources top next.
+  obj isSource
+   ifTrue: [s sources push: obj reader.
+            s next]
+   ifFalse: [obj]
+].
+
+(streams define: #GeneratorStream &parents: {ReadStream})
+"A GeneratorStream will generate a stream of values by applying a step
+block to some seed value, and subsequently to what remains of the seed
+value, until the end block is satisfied."
+  `>> [addSlot: #currentValue valued: Nil.
+       addSlot: #step valued: Method Identity.
+       addSlot: #end valued: [| :_ | False]].
+
+seed@(Root traits) generate: step until: end
+[GeneratorStream cloneSettingSlots: #(currentValue step end)
+		 to: {seed. step. end}].
+
+seed@(Root traits) generate: step
+[seed generate: step until: GeneratorStream end].
+
+s@(GeneratorStream traits) hasAnEnd
+"TODO: Change to `maybe`, i.e. the Halting Problem."
+[True].
+
+s@(GeneratorStream traits) isAtEnd
+[s end applyWith: s currentValue].
+
+s@(GeneratorStream traits) next
+[
+  s isAtEnd
+    ifTrue: [s exhausted].
+  s currentValue: (s step applyWith: s currentValue)
+].
+
+Stream traits define: #EchoStream &parents: {ReadWriteStream}.
+"An EchoStream wraps some original stream and duplicates any interaction,
+reading or writing, done on it to another stream. This relies on EchoStream
+having defined all of the stream interaction methods that the client relies
+upon."
+"Inspired by Henry Lieberman's 1986 paper to the first OOPSLA, titled:
+_Using Prototypical Objects to Implement Shared Behavior in Object Oriented Systems_
+and archived at:
+http://lieber.www.media.mit.edu/people/lieber/Lieberary/OOP/Delegation/Delegation.html"
+Stream EchoStream addSlot: #original.
+"The stream to echo."
+Stream EchoStream addSlot: #dribble "valued: Console writer".
+"The target for the echo'ing operation, called dribble after the Lieberman / 
+Lisp terminology."
+
+s@(Stream traits) echoTo: log
+"Creates and returns a new EchoStream from the first to the log Stream."
+[(s EchoStream newOn: s) `>> [dribble: log. ]].
+
+s@(Stream traits) echo
+"Creates and returns a new EchoStream to the console."
+[s echoTo: Console writer].
+
+e@(Stream EchoStream traits) on: s
+[
+  e original: s.
+  e
+].
+
+e@(Stream EchoStream traits) echoTo: s
+"Chooses another Stream to dribble to, ensuring that echoTo: is not repeated."
+[
+  e dribble: s.
+  e
+].
+
+e@(Stream EchoStream traits) next
+[
+  e dribble nextPut: e original next
+].
+
+e@(Stream EchoStream traits) next: n
+[
+  e dribble nextPutAll: (e original next: n)
+].
+
+e@(Stream EchoStream traits) nextPut: obj
+[
+  e dribble nextPut: (e original nextPut: obj)
+].
+
+e@(Stream EchoStream traits) nextPutAll: seq
+[
+  e dribble nextPutAll: (e original nextPutAll: seq)
+].
+
+e@(Stream EchoStream traits) position: n
+[
+  e dribble position: (e original position: n)
+].
+
+streams define: #Counter &parents: {WriteStream}.
+"Provides a Stream-compatible way to accumulate a value - one for each element
+written; this is useful with an EchoStream."
+Counter addSlot: #value valued: 0.
+
+c@(Counter traits) on: n
+[
+  c value: n.
+  c
+].
+
+n@(Number traits) writer
+[Counter newOn: n].
+
+c@(Counter traits) nextPut: _
+[c value: c value + 1].
+
+c@(Counter traits) nextPutAll: col
+[c value: c value + col size].
+
+c@(Counter traits) next: n putAll: _ startingAt: _
+[c value: c value + n].
+
+c@(Counter traits) hasAnEnd [False].
+c@(Counter traits) isAtEnd [False].
+
+c@(Counter traits) contents
+[c value].
+
+ReadStream traits define: #LineStream &parents: {Stream WrapperStream}.
+"A stream that reads lines of text from a wrapped stream, terminated by
+an appropriate line-ending (\r, \n or \r\n)."
+ReadStream LineStream addSlot: #trailingNL valued: False.
+
+l@(ReadStream LineStream traits) on: s
+[
+  l original: s.
+  l trailingNL: False.
+  l
+].
+
+s@(Stream traits) lines [s LineStream newOn: s].
+
+l@(ReadStream LineStream traits) next
+[
+  [| :line |
+    l original `cacheAs: #underlying.
+    [underlying isAtEnd
+        ifTrue: [line collection isEmpty ifTrue: [l exhausted]. False]
+        ifFalse: [| char |
+          (char: underlying next) caseOf: {
+            $\r -> [l trailingNL: True. False].
+            $\n -> [| nl | nl: l trailingNL. l trailingNL: False. nl].
+          } otherwise: [line nextPut: char. True]]
+    ] whileTrue.
+  ] writingAs: String
+].
+
+WriteStream traits define: #LineStream &parents: {Stream WrapperStream}.
+"A Stream that writes Strings of text to a wrapped Stream, interpolated with
+an appropriate line-ending."
+
+l@(WriteStream LineStream traits) nextPut: str@(String traits)
+[l original ; str ; '\n'].
+
+l@(WriteStream LineStream traits) nextPutAll: c
+[c do: [| :each | l nextPut: each]].
+
+ReadWriteStream traits define: #LineStream &parents:
+  {ReadStream LineStream. WriteStream LineStream}.

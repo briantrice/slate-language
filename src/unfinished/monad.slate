@@ -1,0 +1,61 @@
+"http://moonbase.rydia.net/mental/writings/programming/monads-in-ruby/"
+
+"Serially-numbering monad in Slate:"
+
+"Defining a datatype for Integer-tagged values..."
+define: #IntegerTagging &slots: #(tag value).
+
+obj tagWith: i@(Integer traits)
+[IntegerTagging clone `>> [tag: i. value: obj. ]].
+
+"Defining a counting monad with its two operations (global)..."
+_@here return: val
+[[| :currentCounter | currentCounter tagWith: val]].
+
+_@here bind: monad to: m@(Method traits)
+[
+  [| :currentCounter result newM |
+   result: (monad applyWith: currentCounter).
+   newM: (m applyWith: result value).
+   newM applyWith: result tag]
+].
+
+"Verification:"
+
+"return: is the left and right unit of bind:to: ..."
+(bind: (return: v) to: m) === (m applyWith: v)
+(bind: monad to: [| :v | return: v]) === monad
+
+"bind:to: is associative..."
+(bind: monad to: [| :v | bind: (f applyWith: v) to: g])
+  === (bind: (bind: monad to: f) to: g)
+
+"Defining an increment morphism..."
+
+_@here incr [[| :n | n tagWith: n + 1]].
+
+"An operation to run the monad..."
+
+_@here runMonad: monad with: initCounter
+[monad applyWith: initCounter].
+
+"Example..."
+
+define: #Tree &slots: {#value. #children -> {}}.
+
+"Starting over..."
+
+define: #Monad &parents: {Cloneable} &slots: {#value #action}.
+
+m@(Monad traits) newFor: obj
+[m clone `>> [value: obj. ]].
+
+m@(Monad traits) newDoing: action
+[m clone `>> [action: action. ]].
+
+m@(Monad traits) pass
+[m action applyWith: m value].
+
+define: #IdentityMonad -> (Monad newDoing: Method Identity).
+
+

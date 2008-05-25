@@ -1,0 +1,56 @@
+globals define: #Observers &builder: [IdentityDictionary new].
+"Maps observed objects to {Observer. SlotName} pairs."
+
+obj@(Root traits) whenSlot: slotName changesNotify: observer &mutatorName: mutatorName
+"Register an Observer dependency between the object and the observer for the
+give slot name, and then overwrite the mutator for the slot."
+[
+  mutatorName ifNil: [mutatorName: (obj mutatorNameFor: slotName)].
+  "Check that there is both a slot and a mutator for it on the object."
+  (obj hasSlotNamed: slotName)
+    \/ [mutatorName isFoundOn: {obj. NoRole}]
+    ifTrue:
+      [(Observers at: obj ifAbsentPut: [Set new])
+	 include: {observer. slotName}.
+       "Define the mtutator to eventually notify all the observers."
+       obj addMutator:
+	 [| :obj :newValue | here %notifyThat: obj changed: slotName to: newValue.
+	  obj atSlotNamed: slotName put: newValue]
+	   for: slotName &mutatorName: mutatorName.
+       "Send an initial notification to give the observer an initial record."
+       observer %noticeThat: obj changed: slotName to:
+	 (obj atSlotNamed: slotName). ]
+].
+
+obj@(Root traits) removeObserver: observer
+"Remove any notification pairs with the observer object specified. Then delete
+the object's entry if there are no remaining Observers for the object."
+[| observerEntries |
+  observerEntries: Set new.
+  "Remove all observation entries for that observer, and remember them."
+  (Observers at: obj ifPresent:
+    [| :entries |
+     entries select: [| :each | each first == observer] into: observerEntries.
+     entries removeAll: observerEntries]).
+  "Reset the mutator if no other object is watching that slot."
+  observerEntries do:
+    [| :obs :slot |
+     (entries noneSatisfy: [| :each | each second == slot])
+       /\ [(obj mutatorNameFor: slot) isFoundOn: {obj. NoRole}]
+       ifTrue: [obj addMutatorFor: slot]] applier.
+  "Remove the observer set if no other object is watching the observed."
+  (Observers at: obj ifAbsent: [^ Nil])
+    isEmpty ifTrue: [Observers removeKey: obj].
+].
+
+n@(Namespace traits) notifyThat: obj changed: slotName to: newValue
+[
+  n Observers at: obj ifPresent:
+    [| :observerEntries | observerEntries do:
+      [| :obs :slot | slot == slotName ifTrue:
+	[obs %noticeThat: obj changed: slotName to: newValue]] applier]
+].
+
+obj@(Root traits) noticeThat: obj changed: slotName to: newValue
+"This is the hook to override for Observing objects; by default, do nothing."
+[warn: 'Unhandled observation.'].

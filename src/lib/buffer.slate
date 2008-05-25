@@ -1,0 +1,196 @@
+collections define: #RingBuffer &parents: {Queue}.
+"A RingBuffer is an ExtensibleSequence like a Queue in that it uses a gap
+to optimize for adding elements at one end and removing them from another.
+Unlike a Queue, it does not grow when its underlying Array is used up.
+Instead, it starts overwriting elements at the other end.
+It can be grown on request, however."
+
+r@(RingBuffer traits) addLast: obj
+[
+  r contents at: r lastIndex put: obj.
+  r isFull ifTrue: [r firstIndex: r firstIndex + 1 \\ r contents size].
+  r lastIndex: r lastIndex + 1 \\ r contents size.
+  obj
+].
+
+r@(RingBuffer traits) addFirst: obj
+[
+  r isFull ifTrue: [r lastIndex: r lastIndex - 1 \\ r contents size].
+  r firstIndex: r firstIndex - 1 \\ r contents size.
+  r contents at: r firstIndex put: obj.
+  obj
+].
+
+r@(RingBuffer traits) addAllLast: seq
+[| newLastIndex |
+  seq size > r capacity
+    ifTrue: [seq: (seq sliceFrom: seq size - r capacity)].
+  "The new lastIndex after all the elements are added."
+  newLastIndex: r lastIndex + seq size \\ r contents size.
+  "Update the firstIndex if adding the elements will fill up the contents."
+  seq size > r gapSize ifTrue: [r firstIndex: r firstIndex + (seq size - r gapSize) \\ r contents size].
+  "Whether adding the elements to the end will push the lastIndex past the
+   underlying Array's end."
+  newLastIndex < r lastIndex
+    ifTrue:
+      [| split |
+       "The number of elements that will fit before wrap-around."
+       split: r contents size - r lastIndex.
+       r contents replaceFrom: r lastIndex below: r contents size with: seq.
+       r contents replaceFrom: 0 below: seq size - split with: seq &startingAt: split]
+    ifFalse: [r contents replaceFrom: r lastIndex below: newLastIndex with: seq].
+  "Finally, update the lastIndex."
+  r lastIndex: newLastIndex.
+  seq
+].
+
+r@(RingBuffer traits) addAllFirst: seq
+[| newFirstIndex |
+  seq size > r capacity
+    ifTrue: [seq: (seq sliceFrom: seq size - r capacity)].
+  "The new firstIndex after all the elements are added."
+  newFirstIndex: r firstIndex - seq size \\ r contents size.
+  "Update the lastIndex if adding the elements will fill up the contents."
+  seq size > r gapSize ifTrue: [r lastIndex: r lastIndex - (seq size - r gapSize) \\ r contents size].
+  "Whether adding the elements to the end will push the firstIndex past the
+   underlying Array's start."
+  newFirstIndex > r firstIndex
+    ifTrue:
+      [| split |
+       "The number of elements that will need to be added at the end of the Array."
+       split: seq size - r firstIndex.
+       r contents replaceFrom: 0 below: r firstIndex with: seq &startingAt: split.
+       r contents replaceFrom: newFirstIndex below: r contents size with: seq]
+    ifFalse: [r contents replaceFrom: newFirstIndex below: r firstIndex with: seq].
+  "Finally, update the firstIndex."
+  r firstIndex: newFirstIndex.
+  seq
+].
+
+streams define: #BufferStream &parents: {Stream}.
+"A BufferStream is a Stream with a buffer array resizable up to a fixed amount,
+with wrap-around semantics to reduce heavy i/o interaction and avoid stressing
+the memory-manager."
+
+BufferStream addSlot: #stream valued: Stream clone.
+"The stream being wrapped."
+BufferStream addSlot: #buffer valued: RingBuffer new.
+"The buffer used."
+
+b@(BufferStream traits) on: s
+[
+  b stream: s.
+  b buffer: b buffer newSameSize.
+  b
+].
+
+collections define: #WriteBufferStream &parents: {BufferStream. WriteStream}.
+"A BufferStream with semantics for writing."
+
+s@(WriteBufferStream traits) flush
+"Empty the buffer into the stream all at once."
+[| b |
+  b: s buffer.
+  b isSplit
+    ifTrue: [s nextPutAll: b from: b firstIndex to: b size - 1.
+	     s nextPutAll: b from: 0 to: b lastIndex]
+    ifFalse: [s nextPutAll: b from: b firstIndex to: b lastIndex].
+  b clear.
+  s stream flush.
+  s
+].
+
+s@(WriteBufferStream traits) nextPut: obj
+[
+  s buffer isFull ifTrue: [s flush].
+  s buffer addLast: obj
+].
+
+s@(WriteBufferStream traits) nextPutAll: seq
+[
+  s buffer gapSize < seq size ifFalse: [s flush].
+  s buffer isSplit
+    ifTrue: [seq doWithIndex: [| :each :index |
+      s contents at: s buffer firstIndex + index put: each].
+      s firstIndex: s buffer firstIndex + seq size]
+    ifFalse: [| dstIndex |
+      dstIndex: s lastIndex.
+      0 below: seq size do: [| :each |
+	   dstIndex: (dstIndex = s contents size
+		     ifTrue: [0]
+		     ifFalse: [dstIndex + 1]).
+	   s contents at: dstIndex put: each].
+      s lastIndex: dstIndex].
+  seq
+].
+
+s@(WriteBufferStream traits) nextPutAll: seq from: start to: end
+"Overridden to use the optimized BufferStream method nextPutAll:."
+[
+  s nextPutAll: (seq sliceFrom: start to: end)
+].
+
+collections define: #ReadBufferStream &parents: {BufferStream. ReadStream}.
+"A BufferStream designed to be read from."
+
+s@(ReadBufferStream traits) flush
+"Fill the buffer from the stream all at once."
+[| b |
+  b: s buffer.
+  b isSplit
+    ifTrue: [s stream next: b gapSize putInto: b]
+    ifFalse: [s stream next: b capacity - b lastIndex putInto: b.
+	      s stream next: b firstIndex putInto: b].
+  s
+].
+
+s@(ReadBufferStream traits) next
+[
+  s buffer isEmpty
+    ifTrue: 
+      [s buffer firstIndex: 0. 
+        s buffer lastIndex: (s stream next: s buffer capacity putInto: s buffer contents)].
+  s buffer removeFirst
+].
+
+s@(ReadBufferStream traits) peek
+[
+  s buffer isEmpty
+    ifTrue: [s buffer addFirst: s next]
+    ifFalse: [s buffer first]
+].
+
+s@(ReadBufferStream traits) next: n putInto: seq@(Sequence traits)
+[| b oldSize |
+  b: s buffer.
+  oldSize: b size.
+  n > oldSize
+    ifTrue:
+      [b doWithIndex:
+	 [| :each :index | seq at: index put: each].
+       b clear.
+       s stream next: b capacity putInto: b.
+       oldSize below: seq size do:
+	 [| :index | seq at: index put: b removeFirst]]
+    ifFalse:
+      [0 below: n do: [| :index | seq at: index put: b removeFirst]].
+  seq size
+].
+
+s@(ReadBufferStream traits) isAtEnd
+[
+  s buffer isEmpty /\ s stream isAtEnd
+].
+
+prototypes define: #ReadWriteBufferStream &parents: {Cloneable}.
+"This is a rough concept to implement that requires basically two
+BufferStreams and coordination between them."
+"TODO: Implement something workable."
+
+"Return new BufferStreams of the appropriate type wrapping their arguments."
+
+s@(ReadStream traits) buffered [ReadBufferStream newOn: s].
+s@(Stream traits) readBuffered [ReadBufferStream newOn: s].
+
+s@(WriteStream traits) buffered [WriteBufferStream newOn: s].
+s@(Stream traits) writeBuffered [WriteBufferStream newOn: s].

@@ -1,0 +1,565 @@
+prototypes ensureNamespace: #text &delegate: True.
+
+text define: #BufferPointer &parents: {Comparable}.
+text define: #TextBuffer &parents: {Cloneable} &slots: {#lines. #view}. "call view update when changed"
+
+TextBuffer traits define: #Pointer &parents: {BufferPointer}
+ &slots: {#line. #position. #partner}.
+
+p@(TextBuffer Pointer traits) newAtLine: line position: position &partner: partner
+[p cloneSettingSlots: #(line position partner) to: {line. position. partner}].
+
+
+p1@(TextBuffer Pointer traits) < p2@(BufferPointer traits)
+[
+  p1 line < p2 line \/ [p1 line = p2 line /\ [p1 position < p2 position]]
+].
+
+"the following doesn't work.. doesn't specialize on traits:
+
+( #= findOn: {TextBuffer Pointer traits. TextBuffer Pointer traits}) disassemble.
+
+(identity comparison)
+
+
+( #= findOn: {TextBuffer Pointer. TextBuffer Pointer}) disassemble.
+
+(slot per slot comparison)
+
+"
+
+TextBuffer Pointer compareAndHashUsingSlots: #(line position).
+
+
+"so I did this:"
+
+p1@(TextBuffer Pointer traits) = p2@(TextBuffer Pointer traits)
+[
+  p1 line = p2 line /\ [p1 position = p2 position]
+].
+
+
+
+" -- some primitive commands I'm making to help with fundamental mode -- "
+
+
+text define: #TextBufferCommand &parents: {Command} &slots: {#buffer -> Nil.}.
+
+text define: #TextBufferBlockCommand &parents: {BlockCommand. TextBufferCommand} &slots: {}.
+text define: #TextBufferCommandGroup &parents: {CommandGroup. TextBufferCommand} &slots: {}.
+
+
+"define slots for undo information, other stuff is passed in the #arguments"
+text define: #TextBufferPointManipulationCommand &parents: {TextBufferCommand} &slots: {#oldPoint -> Nil.}.
+
+text define: #MovePointCommand &parents: {TextBufferPointManipulationCommand}.
+text define: #MovePointBeginningOfLineCommand &parents: {MovePointCommand}.
+text define: #MovePointEndOfLineCommand &parents: {MovePointCommand}.
+text define: #DropMarkCommand &parents: {TextBufferPointManipulationCommand}.
+
+
+
+text define: #InsertTextCommand &parents: {TextBufferCommand} &slots: {#numCharacters -> 0}.
+
+text define: #CopyRegionCommand &parents: {TextBufferCommand} &slots: {#oldPasteRing -> Nil.}.
+text define: #DeleteRegionCommand &parents: {TextBufferPointManipulationCommand} &slots: 
+{
+  #deletedText -> ''.
+  #oldMark -> Nil
+}.
+
+
+"The following deletes (sucks) from the right like the delete key, the
+first argument is the point, the second is the number of times the
+user would hit delete to accomplish the action. This behaves just like
+InsertText and of course the user defined actions would include
+actions later to move the point after the text is inserted."
+
+text define: #DeleteFromPointCommand &parents: {TextBufferPointManipulationCommand} &slots: {#oldText -> ''.}.
+
+
+
+
+
+
+tbc@(TextBufferCommand traits) name: name arguments: arguments buffer: buffer
+[
+  tbc cloneSettingSlots: #(name arguments buffer) to: {name. arguments. buffer}
+].
+
+
+
+" -- required functions by every buffer implementation -- "
+
+"negative distance is towards the origin -- this should wrap also and is DESTRUCTIVE to p"
+p@(TextBuffer Pointer traits) moveOn: tb@(TextBuffer traits) distance: i@(Integer traits)
+[overrideThis].
+
+
+
+p1@(TextBuffer Pointer traits) isConnectedTo: p2@(TextBuffer Pointer traits)
+[p1 partner == p2 /\ [p2 partner == p1]].
+
+p1@(TextBuffer Pointer traits) connectTo: p2@(TextBuffer Pointer traits)
+[
+  p1 partner: p2.
+  p2 partner: p1.
+  p1
+].
+
+
+p1@(TextBuffer Pointer traits) setTo: p2@(TextBuffer Pointer traits)
+[
+  p1 partner: p2 partner.
+  p1 line: p2 line.
+  p1 position: p2 position.
+  p1
+].
+
+
+p1@(TextBuffer Pointer traits) disconnect
+[
+  p1 partner ifNotNil: [p1 partner partner: Nil.].
+  p1 partner: Nil.
+  p1
+].
+
+
+tb@(TextBuffer traits) makePointActive: p1@(TextBuffer Pointer traits)
+[tb view update. p1].
+
+tb@(TextBuffer traits) ensurePointActive: p1@(TextBuffer Pointer traits)
+"delete the current point if it's not it"
+[tb view update. p1].
+
+tb@(TextBuffer traits) addPoint: p1@(TextBuffer Pointer traits)
+[tb view update. p1].
+
+tb@(TextBuffer traits) deletePoint: p1@(TextBuffer Pointer traits)
+[tb view update. p1].
+
+tb@(TextBuffer traits) allPoints
+[overrideThis].
+
+tb@(TextBuffer traits) activePoint
+[overrideThis].
+
+tb@(TextBuffer traits) at: p1@(TextBuffer Pointer traits) insert: text
+[tb view update. tb].
+
+tb@(TextBuffer traits) at: p1@(TextBuffer Pointer traits) delete: characters@(Integer traits)
+[tb view update. tb].
+
+
+tb@(TextBuffer traits) getContentsFrom: p1@(TextBuffer Pointer traits) to: p2@(TextBuffer Pointer traits)
+[overrideThis].
+
+
+tb@(TextBuffer traits) at: p1@(TextBuffer Pointer traits)
+[overrideThis].
+
+tb@(TextBuffer traits) at: p1@(TextBuffer Pointer traits) ifAbsent: block
+[overrideThis].
+
+
+tb@(TextBuffer traits) beginningOfBuffer
+" return a point "
+[overrideThis].
+
+tb@(TextBuffer traits) endOfBuffer
+" return a point "
+[overrideThis].
+
+tb@(TextBuffer traits) endOfLine: line
+" return a point "
+[overrideThis].
+
+
+" -- some given command interface commands using base functionality
+that need to be overridden per-buffer impl. --"
+
+
+"FIXME unoverride this and make it install the command into a undo/recording place"
+
+action@(TextBufferCommand traits) execute
+[overrideThis].
+
+action@(TextBufferCommand traits) undo
+"do the opposite"
+[overrideThis].
+
+action@(TextBufferCommand traits) pointArgument
+[
+  ((action arguments at: 0) ifNil: [action buffer activePoint])
+].
+
+
+action@(MovePointCommand traits) execute
+[ | point distance |
+  action buffer view update.
+  lobby inform: ('execute: ' ; action printString ; ' args: ' ; action arguments printString).
+  point: action pointArgument.
+  distance: (action arguments at: 1).
+
+  action oldPoint: point copy.
+
+  " the second argument can be an integer or another point's location "
+
+  (distance is: TextBuffer Pointer) 
+          ifTrue: [point setTo: distance]
+          ifFalse: [point moveOn: action buffer distance: distance].
+  action
+].
+
+action@(MovePointCommand traits) undo
+[
+  action buffer view update.
+  action pointArgument setTo: (action oldPoint).
+  action
+].
+
+action@(MovePointBeginningOfLineCommand traits) execute
+[ | point  |
+  action buffer view update.
+  point: action pointArgument.
+
+  action oldPoint: point copy.
+
+  " the second argument can be an integer or another point's location "
+
+  point position: 0.
+  action
+].
+
+action@(MovePointEndOfLineCommand traits) execute
+[ | point  |
+  action buffer view update.
+
+  point: action pointArgument.
+
+  action oldPoint: point copy.
+
+  " the second argument can be an integer or another point's location "
+
+  point position: (action buffer lines at: point line) size.
+  action
+].
+
+
+action@(DropMarkCommand traits) execute
+[ | newPartner |
+ action oldPoint: action buffer activePoint partner.
+ action buffer activePoint partner: Nil.
+
+ newPartner: action buffer activePoint copy.
+ action buffer addPoint: newPartner.
+
+ action buffer activePoint connectTo: newPartner.
+
+ lobby inform: action buffer activePoint printString.
+
+ action
+].
+
+action@(DropMarkCommand traits) undo
+[
+ action buffer deletePoint: action buffer activePoint partner.
+ action buffer activePoint partner: action oldPoint.
+
+ lobby inform: action buffer activePoint printString.
+
+ action
+].
+
+
+action@(InsertTextCommand traits) execute
+[ | point |
+
+  point: action pointArgument.
+  action buffer at: point insert: (action arguments at: 1).
+  action numCharacters: (action arguments at: 1) size.
+  action
+].
+
+action@(InsertTextCommand traits) undo
+[
+  action buffer at: action pointArgument delete: action numCharacters.
+  action
+].
+
+action@(CopyRegionCommand traits) execute
+[
+  "FIXME figure out the pastering thingy #oldPasteRing"
+  action oldPasteRing: (action buffer getContentsFrom: action buffer activePoint
+                             to: (action buffer activePoint partner ifNil: [action buffer activePoint])).
+  action
+].
+
+action@(CopyRegionCommand traits) undo
+[
+  action "FIXME"
+].
+
+
+action@(DeleteRegionCommand traits) execute
+[
+  (action buffer activePoint partner)
+   ifNil: 
+    [
+      action deletedText: ''.
+      action oldPoint: action buffer activePoint.
+      action oldMark: Nil.
+    ]
+   ifNotNil:
+    [
+
+      action oldPoint: action buffer activePoint copy.
+      action oldMark: action buffer activePoint partner copy.
+      action deletedText: (action buffer getContentsFrom: action buffer activePoint
+                                 to: action buffer activePoint partner).
+      action buffer at: (action buffer activePoint min: action buffer activePoint partner)
+                    delete: action deletedText size.
+
+      action buffer activePoint setTo: (action buffer activePoint min: action buffer activePoint partner).
+      action buffer deletePoint: action oldPoint.
+      action buffer activePoint disconnect.
+
+    ]
+    
+].
+
+action@(DeleteRegionCommand traits) undo
+[
+  action oldMark ifNotNil:
+    [
+      action buffer activePoint setTo: action oldPoint.
+      action buffer activePoint partner setTo: action oldMark.
+      action buffer at: (action buffer activePoint min: action buffer activePoint partner)
+                    insert: action deletedText.
+    ]
+].
+
+
+action@(DeleteFromPointCommand traits) execute
+[ | point distance |
+
+  
+  point: action pointArgument.
+  distance: (action arguments at: 1).
+
+  action oldText: (action buffer getContentsFrom: point to: (point copy moveOn: action buffer distance: distance)).
+  action buffer at: point delete: distance.
+
+].
+
+action@(DeleteFromPointCommand traits) undo
+[
+  action buffer at: action pointArgument insert: action oldText.
+  action
+].
+
+
+
+
+
+" -- simple buffer and support functions, override the functions that need overriding  -- "
+
+
+
+text define: #ArrayTextBuffer &parents: {TextBuffer}.
+
+tb@(ArrayTextBuffer traits) beginningOfBuffer
+" return a point "
+[TextBuffer Pointer newAtLine: 0 position: 0].
+
+tb@(ArrayTextBuffer traits) endOfBuffer
+" return a point "
+[TextBuffer Pointer newAtLine: (tb lines size - 1) position: (tb endOfLine: (tb lines size - 1))].
+
+
+ArrayTextBuffer addSlot: #cursors valued: (ExtensibleArray new `>> [add: ArrayTextBuffer beginningOfBuffer.]).
+
+
+
+atb@(ArrayTextBuffer traits) new
+[ | b |
+  b: resend.
+  b lines: (ExtensibleArray new `>> [add: ExtensibleArray new.]).
+  b
+].
+
+
+"negative distance is towards the origin -- this should wrap also and is DESTRUCTIVE to p"
+p@(TextBuffer Pointer traits) moveOn: tb@(TextBuffer traits) distance: i@(Integer traits)
+[ | p i |
+
+
+  tb view update.
+  p assureOn: tb.
+
+  lobby inform: '--'.
+  lobby inform: ('move from: ' ; (p printString) ; ' dist: ' ; i printString).
+
+  (i < 0) ifTrue: [ "move back"
+
+     [tb beginningOfBuffer = p \/ [i = 0]] whileFalse: [
+
+              (p position = 0) ifTrue: [p line: (p line - 1). p position: (tb endOfLine: p line)]
+                               ifFalse: [p position: (p position - 1)].
+              i: i + 1]
+
+    ] ifFalse: [ "move forward"
+
+     [p = tb endOfBuffer \/ [i = 0]] whileFalse: [
+
+              (p position = (tb endOfLine: p line))
+                 ifTrue: [p line: (p line + 1). p position: 0]
+                 ifFalse: [p position: (p position + 1)].
+
+              i: i - 1]
+    ].
+
+  lobby inform: ('move to: ' ; (p printString) ; ' dist: ' ; i printString).
+
+  p
+].
+
+
+tb@(ArrayTextBuffer traits) makePointActive: p1@(TextBuffer Pointer traits)
+[
+
+  resend.
+
+  tb cursors remove: p1 ifAbsent: [].
+  tb cursors addFirst: p1.
+  p1
+].
+
+
+tb@(ArrayTextBuffer traits) ensurePointActive: p1@(TextBuffer Pointer traits)
+[
+
+  resend.
+  (tb activePoint == p1) ifFalse:
+     [
+       tb cursors remove: tb activePoint.
+       tb cursors remove: p1 ifAbsent: [].
+       tb cursors addFirst: p1.
+     ].
+  p1
+].
+
+
+
+tb@(ArrayTextBuffer traits) addPoint: p1@(TextBuffer Pointer traits)
+[
+
+  resend.
+
+  tb cursors addLast: p1.
+].
+
+tb@(ArrayTextBuffer traits) deletePoint: p1@(TextBuffer Pointer traits)
+[
+
+  resend.
+
+  tb cursors remove: p1.
+].
+
+tb@(ArrayTextBuffer traits) allPoints
+[
+  tb cursors
+].
+
+tb@(ArrayTextBuffer traits) activePoint
+[
+  tb cursors at: 0
+].
+
+p1@(TextBuffer Pointer traits) assureOn: tb@(ArrayTextBuffer traits)
+[
+ "if it's off the end of the line, put it on the last character"
+ (p1 position <= ((tb lines at: p1 line) size)) ifFalse: [p1 position: (tb lines at: p1 line) size].
+].
+
+tb@(ArrayTextBuffer traits) at: p1@(TextBuffer Pointer traits) insert: text
+[
+  resend.
+
+ " if you want to insert text but the cursor is off the end of the
+ line (from a previous-line, etc instr), then move the cursor back
+ first."
+
+ p1 assureOn: tb.
+ 
+ (text is: String) ifTrue: [ text reverse do: [ |:char | tb at: p1 insert: char]]
+   ifFalse: [
+     " insert the character "
+     (text = $\n \/ [text = $\r]) ifTrue: [ | chars |
+                            chars: ((tb lines at: p1 line) removeLast: ((tb lines at: p1 line) size - p1 position)).
+                            tb lines at: (p1 line + 1) insert: (chars as: (tb lines at: 0)).
+                          ]
+                  ifFalse: [(tb lines at: p1 line) at: p1 position insert: text]
+
+   ]
+
+].
+
+tb@(ArrayTextBuffer traits) at: p1@(TextBuffer Pointer traits) delete: characters@(Integer traits)
+[
+  p1 assureOn: tb.
+
+  resend.
+
+  lobby inform: ('delete at: ' ; (p1 printString)).
+
+ characters timesRepeat: [(p1 = tb endOfBuffer) ifFalse: [
+ (p1 position = (tb endOfLine: p1 line)) ifTrue: [
+      "cursor at end of line, suck up the next one"
+       (tb lines at: p1 line) addAll: (tb lines at: (p1 line + 1)).
+       tb lines removeAt: (p1 line + 1).
+    ] ifFalse: [
+      "delete a character"
+      (tb lines at: p1 line) removeAt: p1 position
+    ]
+ ]]
+].
+
+
+
+tb@(ArrayTextBuffer traits) getContentsFrom: p1@(TextBuffer Pointer traits) to: p2@(TextBuffer Pointer traits)
+[ | contents min max |
+
+  contents: ''.
+  (p1 < p2) ifTrue: [min: p1 copy. max: p2 copy.] ifFalse: [min: p2 copy. max: p1 copy.].
+
+  "FIXME: handle newlines"
+
+  [min < max] whileTrue: [contents: (contents ; ((tb at: min ifAbsent: ['\n']) as: String)). min moveOn: tb distance: 1.].
+  (contents ; ((tb at: min ifAbsent: ['\n']) as: String)) "capture last character"
+  "contents"
+].
+
+tb@(ArrayTextBuffer traits) at: p1@(TextBuffer Pointer traits)
+[
+  tb at: p1 ifAbsent: [break]
+].
+
+tb@(ArrayTextBuffer traits) at: p1@(TextBuffer Pointer traits) ifAbsent: block
+[
+ p1 assureOn: tb.
+
+ (p1 line >= tb lines size /\ [ p1 position >= (tb lines at: p1 line) size]) ifTrue: [block do]
+    ifFalse: [(tb lines at: p1 line) at: p1 position ifAbsent: [block do]]
+].
+
+
+
+
+
+
+tb@(ArrayTextBuffer traits) endOfLine: line
+" return a point "
+[(tb lines at: line) size].
+

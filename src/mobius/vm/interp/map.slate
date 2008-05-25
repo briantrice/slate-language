@@ -1,0 +1,81 @@
+m@(Map traits) acceptsFlagIndex: n
+"Whether the bit fits into the logical space of the SmallInteger that maps use
+to store flags."
+[n between: 0 and: 30].
+
+m@(Map traits) setFlag: index
+[
+  (m acceptsFlagIndex: index)
+    ifTrue: [m flags: (m flags bitOr: 1 << index)]
+    ifFalse: [error: 'Not a valid Map flag index.']
+].
+
+m@(Map traits) clearFlag: index
+[
+  (m acceptsFlagIndex: index)
+    ifTrue: [m flags: (m flags bitAnd: (0 << index) bitNot)]
+    ifFalse: [error: 'Not a valid Map flag index.']
+].
+
+m@(Map traits) isFlagSetAt: index
+[
+  (m acceptsFlagIndex: index)
+    ifTrue: [(m flags bitAt: index) = 1]
+    ifFalse: [error: 'Not a valid Map flag index.']
+].
+
+x@(Root traits) replaceMap
+"This ensures that updates to the map do not erroneously effect all objects
+with the same map."
+[x _map: x _map clone].
+
+x@(Root traits) restrictDelegation
+"Sets the flag that marks this object->traits relationship as base-to-meta
+and therefore where to stop on method lookup. The map is replaced since we
+do not want to modify siblings in this way."
+[
+  x replaceMap.
+  x _map setFlag: 0.
+].
+
+x@(Root traits) restrictsDelegation
+[x _map isFlagSetAt: 0].
+
+x@(Root traits) isImmutable
+"Whether the object is immutable - VM-protected flag."
+[x _map isFlagSetAt: 1].
+
+x@(Root traits) immutably
+"Answers an immutable version of the given object."
+[
+  x isImmutable
+    ifTrue: [x] ifFalse: [x clone `>> [replaceMap. _map setFlag: 1. ]]
+].
+
+x@(Root traits) mutably
+"Answers a mutable version of the given object."
+[
+  x isImmutable
+    ifTrue: [x clone `>> [replaceMap. _map clearFlag: 1. ]] ifFalse: [x]
+].
+
+x@(Root traits) immutable
+[error: 'An attempt was made to modify an immutable object.'].
+
+x@(Map traits) isDelegateOffset: offset
+"Delegates are marked by the low-bit in the offset. This encapsulates that."
+[(offset bitAnd: 1) = 1].
+
+x@(Map traits) indexForOffset: offset
+"Answers the ordinal index for a given offset, by clearing the low-bit which
+marks delegation, and removing the base offset."
+[(offset bitAnd: #[1 bitNot]) - 8 quo: 4].
+
+x@(Root traits) representative
+"Answers what object the map uses as its representative, which should be the
+source of the clone family."
+[x _map representative].
+
+x@(Root traits) represents: another
+"Answers whether x is the source of the clone family of the other argument."
+[x == another representative].

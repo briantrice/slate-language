@@ -1,0 +1,58 @@
+"NOTE: This entire file is just a sketch and is almost silly in its simplicity.
+Ideas (and patches) are welcome for improvement in idioms and implementation."
+
+"This defines a cheap and easy state-machine library.
+Symbols are used as states, for well-named concepts."
+
+ns@(Namespace traits) defineState: stateName
+"We just make a slot that points to the Symbol used as its own name, therefore
+a very cheap flyweight."
+[ns define: stateName -> stateName].
+
+"TODO: Make less-cheap flyweight states as Conditions or something similar?"
+
+prototypes ensureNamespace: #states &delegate: True.
+
+states defineState: #On.
+states defineState: #Off.
+
+states defineState: #Success.
+states defineState: #Failure.
+
+states defineState: #Start.
+states defineState: #End.
+
+prototypes define: #StateMachine &slots: {#state}.
+
+x@(StateMachine traits) transitionFrom: oldState to: newState
+"Handle a transition to the given state. In the abstract case, throw an
+error if a state is passed that is not explicitly handled. This can be
+overridden per (old, new) individual states."
+[error: 'Unhandled state transition.'].
+
+x@(StateMachine traits) transitionFrom: oldState via: transition
+"Handles a transition from the given state."
+"TODO: re-evaluate."
+[error: 'Unhandled state transition.'].
+
+x@(StateMachine traits) transitionTo: newState
+[x transitionFrom: x state to: newState].
+
+x@(StateMachine traits) handleTransition: assoc with: method
+[method asMethod: #transitionFrom:to: on: {x. assoc key. assoc value}].
+
+x@(StateMachine traits) isTerminal
+"Answers whether #transitionFrom:to: has been defined for leaving the
+particular state that the machine currently has."
+[(#transitionFrom:to: isFoundOn: {x. x state. NoRole}) not].
+
+x@(StateMachine traits) terminate
+"Kind of a silly convenience method to transition to the well-known Terminal
+state."
+[x transitionTo: states Terminal].
+
+prototypes define: #FiniteStateMachine &parents: {StateMachine}
+  &slots: {#graph -> Digraph new}.
+
+"TODO: wrap up labeled directed graphs with a state-machine vocabulary."
+

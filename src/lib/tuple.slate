@@ -1,0 +1,134 @@
+collections define: #Tuple &parents: {Sequence}
+  &slots: { #actualSize. #contents -> {}}.
+"If actualSize isNotNil, then contents size are not taken to be actual size
+and tupling is non-copying. Nilling the size will fix the tuple at that size."
+
+n@(Root traits) , m@(Root traits)
+"Creates a new 2-D Point."
+[Tuple cloneSettingSlots: #(contents actualSize) to: {{n. m}. Nil}].
+
+s@(Sequence traits) as: t@(Tuple traits)
+[| newT |
+  newT: (t new &capacity: s size &immutable: True).
+  newT contents replaceFrom: 0 to: newT actualSize - 1 with: s startingAt: 0.
+  newT
+].
+
+t@(Tuple traits) newWith: array
+"This swallows the array, avoiding unnecessary copying at the caller's
+discretion."
+[t cloneSettingSlots: #(contents actualSize) to: {array. Nil}].
+
+t@(Tuple traits) new &capacity: n &immutable: bool
+"The default setting is immutable, so that tupling is non-copying in general.
+The contents are set up to grow if mutable."
+[
+  t cloneSettingSlots: #(contents)
+    to: {t contents new &capacity:
+      n + ((bool ifNil: [False]) ifTrue: [0] ifFalse: [5])}
+].
+
+t@(Tuple traits) , n@(Root traits)
+"Uses a copy-avoiding variant of tupling if t actualSize isNotNil."
+[
+  t actualSize ifNil:
+    [| newT |
+     newT: (t new &capacity: t contents size + 1 &immutable: True).
+     newT contents replaceFrom: 0 to: t contents indexLast
+		 with: t contents startingAt: 0.
+     newT contents at: t contents size put: n. 
+     newT]
+    ifNotNil: [| newContents |
+      t contents size = t actualSize
+        ifTrue: [
+          newContents: (Array newSize: t actualSize + 4).
+          newContents replaceFrom: 0 to: t actualSize - 1 with: t contents.
+          newContents at: t actualSize put: n.
+          t contents: newContents.
+          t actualSize: t actualSize + 1]
+        ifFalse: [
+          ].
+      t]
+].
+
+t@(Tuple traits) capacity
+[
+  t contents capacity
+].
+
+t@(Tuple traits) size
+"Always returns the intended size of the Tuple, immutable or not."
+[
+  t actualSize ifNil: [t capacity]
+].
+
+t@(Tuple traits) makeImmutable
+"Handle the details of managing the transition to a fixed tuple."
+[
+  t actualSize ifNil: [^ t].
+  t actualSize = t capacity
+    ifFalse: [t contents: (Array newSize: t actualSize) `>>
+		[replaceFrom: 0 to: t actualSize - 1 with: t contents. ]].
+  t actualSize: Nil.
+  t
+].
+
+t@(Tuple traits) freeze
+"Make t and all its sub-Tuples immutable."
+[
+  t makeImmutable.
+  t contents do: [| :each | (each is: Tuple) 
+    ifTrue: [each makeRecursivelyImmutable]].
+  t
+].
+
+t@(Tuple traits) at: n
+[
+  t contents at: n
+].
+
+t@(Tuple traits) at: n put: obj
+[
+  t contents at: n put: obj
+].
+
+t@(Tuple traits) collect: block
+[| newT a |
+  newT: (t new &capacity: t size).
+  a: newT contents.
+  a doWithIndex: [| :_ :index |
+    a at: index put: (block applyWith: (t contents at: index))].
+  newT
+].
+
+t@(Tuple traits) with: u@(Tuple traits) collect: block
+[
+  (t new &capacity: (t size min: u size) &immutable: True) `>>
+    [contents: (t contents with: u contents collect: block). ]
+].
+
+t1@(Tuple traits) , t2@(Tuple traits)
+[
+  t1 size = t2 size ifFalse: [Nil].
+  {t1. t2} as: Tuple
+].
+
+collections define: #Vector &parents: {Tuple. NumericMixin}.
+
+v@(Vector traits) <dot> w@(Vector traits)
+"Dot-product."
+[
+  (0 below: (v size min: w size)) inject: 0 into:
+    [| :sum :index | sum + ((v at: index) * (w at: index))]
+].
+
+v@(Vector traits) <cross> w@(Vector traits)
+[
+  {(v second * w third) - (v third * w second).
+   (v third * w first) - (v first * w third).
+   (v first * w second) - (v second * w first)} as: v
+].
+
+v@(Vector traits) originSized: n
+[(v cloneSettingSlots: #(contents) to: {Array newSize: n}) `>>
+   [contents infect: [| :_ | 0]. ]].

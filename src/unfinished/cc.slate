@@ -1,0 +1,1823 @@
+
+"Slate's Lexer and Parser generators (or 'SlaCC'), adapted and extended
+from SmaCC, see http://www.refactory.com/Software/SmaCC/"
+
+lobby ensureNamespace: #CC.
+
+CC define: #Token &parents: {Cloneable} &slots:
+  { #id -> {}.
+    "The list of possible token types that this represents. There can be
+    overlapping tokens, so we list all id's here. The default parser only looks
+    at the first id, but this can be overridden to scan all values."
+    #start -> 0.
+    "The starting value of the token in the original input."
+    #value
+    "The value of the token. Normally a string, but technically there's no limit."}.
+"Tokens are used as the interface objects between the lexer and parser. They
+hold the string that was scanned and its position information. The token also
+includes its id, which specifies the token's type."
+
+token@(CC Token traits) newValue: value start: start id: id
+[token clone `>> [value: value. start: start. id: id. ]].
+
+token@(CC Token traits) printOn: s
+[
+  s nextPut: ${.
+  s ; token value.
+  s nextPut: $(.
+  token startPosition printOn: s.
+  s nextPut: $,.
+  token stopPosition printOn: s.
+  s nextPut: $,.
+  token id printOn: s.
+  s ; ')}'.
+  token
+].
+
+token@(CC Token traits) startPosition
+[
+  token start + 1
+].
+
+token@(CC Token traits) stopPosition
+[
+  token start + token value size
+].
+
+CC define: #Lexer &parents: {Cloneable} &slots:
+  { #currentChar. "The current character being scanned."
+    #lastMatchWasEmpty -> False.
+    "Whether the last match was empty. Prevent two empty consecutive match
+    occurrences."
+    #lastOutputMatchPosition -> 0.
+    "The position in the output stream of the last match."
+    #matchActions -> {}.
+    "(Array or Symbol) the actions for the last match; a symbol denotes an action
+    to be performed on the scanner."
+    #matchEnd -> 0.
+    "The position of the last match in the input stream."
+    #outputStream -> PositionableStream clone.
+    "The matched characters go into this stream. Making matches results in taking
+    this stream's contents and creating a token object."
+    #returnMatchBlock -> [| :match | match].
+    "Evaluate the token with this block when there is a match; this is a hack to
+    return from multiple levels."
+    #start -> 0.
+    "The starting position of a match in the stream."
+    #stream "The input."}.
+"An abstract traits representing the scanner for the parser. This converts
+string input into CC Token objects that the parser then uses."
+
+lex@(CC Lexer traits) scanForToken
+"This is the main hook to be overridden."
+[
+  overrideThis
+].
+
+lex@(CC Lexer traits) atEnd
+"TODO: Determine whether there should be an UndoBuffer as in Compiler Lexer.
+This could be part of the outputStream, though."
+[
+  lex stream atEnd
+].
+
+lex@(CC Lexer traits) needsLineNumbers
+"Whether line numbering is significant to the grammar of the language."
+[
+  False
+].
+
+lex@(CC Lexer traits) newOn: stream
+[
+  resend `>>
+   [| :newL |
+    stream: newL needsLineNumbers
+      ifTrue: [LineNumberedStream newOn: stream]
+      ifFalse: [stream].
+    start: newL stream position.
+    outputStream: (String new &capacity: lex initialBufferSize) writer.
+    lastMatchWasEmpty: True. ]
+].
+
+lex@(CC Lexer traits) initialBufferSize
+[
+  128
+].
+
+lex@(CC Lexer traits) whitespace
+"Eat whitespace by default."
+[
+  lex resetScanner.
+  lex scanForToken.
+  lex
+].
+
+lex@(CC Lexer traits) resetScanner
+[
+  lex start: lex position + 1.
+  lex outputStream reset.
+  lex lastOutputMatchPosition: 0. 
+].
+
+lex@(CC Lexer traits) comment
+"A hook for recording comments. This default throws it out."
+[
+  lex whitespace
+].
+
+lex@(CC Lexer traits) contents
+[
+  [| :result |
+   [lex atEnd]
+     whileFalse: [lex next ifNotNilDo:
+       [| :token | result nextPut: token]]]
+    writingAs: ExtensibleArray
+].
+
+lex@(CC Lexer traits) emptySymbolTokenId
+[
+  overrideThis
+].
+
+lex@(CC Lexer traits) errorToken
+[
+  overrideThis
+].
+
+lex@(CC Lexer traits) lineNumber
+[
+  lex needsLineNumbers
+    ifFalse: [lex error: 'No line number information provided.'].
+  lex stream lineNumber
+].
+
+lex@(CC Lexer traits) next
+[
+  lex resetScanner.
+  lex returnMatchBlock: CC Lexer returnMatchBlock.
+  lex scanForToken.
+  lex
+].
+
+lex@(CC Lexer traits) position
+[
+  lex stream position
+].
+
+lex@(CC Lexer traits) position: n
+[
+  lex stream position: n
+].
+
+lex@(CC Lexer traits) keywordFor: string
+"Canonicalizes the string for a keyword as necessary."
+[
+  lex ignoresCase ifTrue: [string asLowercase] ifFalse: [string]
+].
+
+lex@(CC Lexer traits) checkForKeyword: string
+[| stateMap action |
+  action: ((lex matchActions is: Symbol)
+	     ifTrue: [lex matchActions]
+	     ifFalse: [lex matchActionsFirst]).
+  stateMap: (lex keywordMap at: action ifAbsent: []).
+  stateMap ifNil: [^ lex].
+  lex matchActions: (stateMap at: (lex keywordFor: string)
+		       ifAbsent: [lex matchActions]).
+  (lex matchActions is: Integer)
+    ifTrue: [lex matchActions: {lex matchActions. action}].
+  lex
+].
+
+lex@(CC Lexer traits) checkForMatch
+[
+  lex matchActions ifNil: [lex lexerError]
+].
+
+lex@(CC Lexer traits) createTokenFor: string
+[| token |
+  token: (CC Token newValue: string start: start id: matchActions).
+  lex output reset.
+  lex matchActions: Nil.
+  lex returnMatchBlock applyWith: token.
+  lex
+].
+
+lex@(CC Lexer traits) recordAndReportMatch: col
+[
+  lex recordMatch: col.
+  lex reportLastMatch
+].
+
+lex@(CC Lexer traits) recordMatch: col
+[
+  lex matchActions: col.
+  lex matchEnd: lex stream position.
+  lex lastOutputMatchPosition: lex output position.
+  lex
+].
+
+lex@(CC Lexer traits) reportLastMatch
+"The Lexer has found the end of the token, and must report it."
+[| string |
+  lex checkForMatch.
+  lex resetOutputToLastMatch.
+  lex stream position: lex matchEnd.
+  string: output contents.
+  lex checkForKeyword: string.
+  (lex matchActions is: Symbol)
+    ifTrue: [lex matchActions sendTo: {lex}]
+    ifFalse: [lex createTokenFor: string].
+  lex
+].
+
+lex@(CC Lexer traits) resetOutputToLastMatch
+[
+  lex output position: lex lastOutputMatchPosition.
+  lex lastOutputMatchPosition == 0
+    ifTrue: [lex lastMatchWasEmpty ifTrue: [lex lexerError].
+	     lex lastMatchWasEmpty: True]
+    ifFalse: [lex lastMatchWasEmpty: False].
+  lex
+].
+
+lex@(CC Lexer traits) reset
+[
+  start: lex stream position.
+  lex output reset.
+  lex lastOutputMatchPosition: 0.
+  lex
+].
+
+lex@(CC Lexer traits) lexerError
+[
+  lex stream atEnd /\ [lex start == lex stream position]
+    ifTrue: [lex returnMatchBlock applyWith:
+	       (CC Token newValue: '' start: lex stream position
+			 id: {lex emptySymbolTokenId})].
+  lex stream position: lex start.
+  lex returnMatchBlock applyWith:
+    (CC Token newValue: (lex stream next as: String) start: lex start
+	      id: {0}).
+  lex
+].
+
+lex@(CC Lexer traits) step
+[
+  lex stream atEnd ifTrue: [^ lex reportLastMatch].
+  lex currentChar: lex stream next.
+  lex output nextPut: lex currentChar.
+  lex
+].
+
+CC define: #Parser &parents: {Cloneable} &slots:
+  {#currentToken.
+    "The toke last returned by the lexer that has not been shifted. Reduce 
+    actions don't affect the current token."
+    #nodeStack -> Stack new.
+    "The parser-specific stack, with objects of arbitrary type."
+    #lexer -> CC Lexer clone. 
+    "The associated lexer."
+    #stateStack -> Stack new
+    "The standard LR state stack of the parser."}.
+"An abstract traits that defines most of the parsing actions. Subtraits define
+methods that specify their transitions and reduction actions. These are
+normally defined automatically when compiling the parser."
+
+par@(CC Parser traits) newOn: stream
+[
+  par clone `>>
+   [scanner: (p scanner newOn: stream).
+    nodeStack: Stack new. ]
+].
+
+par@(CC Parser traits) parse: s &start: state
+[
+  par parse: s startingAt: (state ifNil: [par defaultStartingState])
+].
+
+par@(CC Parser traits) parse: s startingAt: state
+[
+  par parse: s reader startingAt: state
+].
+
+par@(CC Parser traits) parse: s@(Stream traits) startingAt: state
+[(par newOn: s) `>> [setStartingState: state. parse]].
+
+par@(CC Parser traits) parse: s onError: block
+[
+  [par parse: s]
+    on: CC ParserError
+    do: [| :ex | ex return: (block applyTo:
+			       {ex description value. ex tag position})]
+].
+
+par@(CC Parser traits) parse: s startingAt: state onError: block
+[
+  [par parse: s startingAt: state]
+    on: CC ParserError
+    do: [| :ex | ex return: (block applyTo:
+			       {ex description value. ex parameter position})]
+].
+
+par@(CC Parser traits) emptySymbolTokenId
+[
+  par lexer emptySymbolTokenId
+].
+
+par@(CC Parser traits) transitionTable
+[
+  overrideThis
+].
+
+par@(CC Parser traits) reduceTable
+[
+  overrideThis
+].
+
+par@(CC Parser traits) atEOFToken
+[
+  par currentToken id first = par emptySymbolTokenId
+].
+
+par@(CC Parser traits) errorTable
+[
+  {}
+].
+
+par@(CC Parser traits) errorTokenId
+[
+  par lexer errorTokenId
+].
+
+par@(CC Parser traits) parse
+[
+  par setDefaultStartingStateIfNone.
+  par performParsingLoop.
+  par nodeStack top
+].
+
+par@(CC Parser traits) position
+[
+  par currentToken
+    ifNil: [par lexer position]
+    ifNotNil: [par currentToken startPosition]
+].
+
+par@(CC Parser traits) setStartingState: state
+[
+  par stateStack: ({state} as: ExtensibleArray).
+  par
+].
+
+par@(CC Parser traits) defaultStartingState
+[
+  1
+].
+
+par@(CC Parser traits) setDefaultStartingStateIfNone
+[
+  par stateStack ifNil: [par setStartingState: par defaultStartingState]
+].
+
+par@(CC Parser traits) checkForErrors
+"If an error correction is installed, the error might have been handled.
+Otherwise, don't return the result, but raise a final exception that can't
+be proceeded from."
+[
+  par errorToken
+    ifNotNil: [par currentToken: par errorToken.
+	       par reportErrorMessage: 'Token not expected.'].
+  par
+].
+
+par@(CC Parser traits) dismissErrorToken
+[
+  par currentToken: Nil.
+  par getNextToken.
+  par
+].
+
+par@(CC Parser traits) dismissStackTopForErrorRecovery
+[
+  par stateStack pop.
+  par nodeStack pop
+].
+
+par@(CC Parser traits) errorHandlerStates
+[
+  par stateStack
+    collect: [| :each action |
+		action: (par actionForState: each and: par errorTokenId).
+		(action bitAnd: par actionMask) = 1
+		  ifTrue: [action bitShift: -2]
+		  ifFalse: [0]]
+].
+
+par@(CC Parser traits) handleError: n
+[
+  par errorToken ifNil: [par errorToken: par currentToken].
+  par currentToken id first = par emptySymbolTokenId
+    \/ [par hasErrorHandler not]
+      ifTrue: [par reportError: n].
+  par findErrorHandlerIfNoneUseErrorNumber: n.
+  par
+].
+
+par@(CC Parser traits) hasErrorHandler
+[
+  par errorHandlerStates
+    anySatisfy: [| :each | each ~= 0]
+].
+
+par@(CC Parser traits) reportError: n
+[
+  par reportErrorMessage:
+    (n isZero
+       ifTrue: ['Token not expected.']
+       ifFalse: [par errorTable at: n]).
+  par
+].
+
+par@(CC Parser traits) reportErrorMessage: string
+[| error |
+  error: (CC ParserError newTag: par).
+  error signal: string.
+  par
+].
+
+par@(CC Parser traits) willShift: stateStack
+[| action compoundAction reduceEntry size |
+  compoundAction: (par actionForState: stateStack top
+			and: par currentToken id first).
+  action: (compoundAction bitAnd: par actionMask).
+  action == par shiftAction ifTrue: [^ True].
+  action == par reduceAction
+    ifTrue: [reduceEntry: (par reduceTable at: (par compoundAction bitShift: -2)).
+	     size: (reduceEntry at: 2).
+	     size timesRepeat: [stateStack pop].
+	     stateStack push: ((par actionForState: stateStack top
+				    and: (reduceEntry at: 1))
+				 bitShift: -2).
+	     ^ par willShift: stateStack].
+  False
+].
+
+par@(CC Parser traits) binarySearchIn: row for: symbolIndex size: step
+[| start mid length midItem stop |
+  start: 3.
+  stop: row size.
+  length: stop - start // step.
+  [length > 4]
+    whileTrue: [length: (length bitShift: -1).
+		mid: length * step + start.
+		midItem: (row at: mid).
+		midItem <= symbolIndex
+		  ifTrue: [start: mid]
+		  ifFalse: [stop: mid]].
+  [start <= stop]
+    whileTrue: [(row at: start) == symbolIndex
+		  ifTrue: [^ start].
+		start: start + step].
+  0
+].
+
+par@(CC Parser traits) acceptAction
+[
+  0
+].
+
+par@(CC Parser traits) actionMask
+[
+  3
+].
+
+par@(CC Parser traits) actionFor: stateIndex and: symbolIndex
+[| index row |
+  row: (par transitionTable at: stateIndex).
+  (row at: 1) == 2
+    ifTrue: [index: (par binarySearchIn: row for: symbolIndex size: 1).
+	     index isZero
+	       ifTrue: [par errorAction]
+	       ifFalse: [row at: 2]]
+    ifFalse: [index: (par binarySearchIn: row for: symbolIndex size: 2).
+	      index isZero
+		ifTrue: [par errorAction]
+		ifFalse: [row at: index - 1]]
+].
+
+par@(CC Parser traits) actionFor: symbolIndex
+[
+  par actionForState: par currentState and: symbolIndex
+].
+
+par@(CC Parser traits) actionForCurrentToken
+[
+  par actionFor: par currentToken id first
+].
+
+par@(CC Parser traits) currentState
+[
+  par stateStack top
+].
+
+par@(CC Parser traits) errorAction
+[
+  3
+].
+
+par@(CC Parser traits) findErrorHandlerIfNoneUseErrorNumber: n
+[| handlerStates index startingErrorToken newStack|
+  handlerStates: par errorHandlerStates reverse.
+  startingErrorToken: par currentToken.
+  [index: (0 below: handlerStates size)
+     detect: [| :each state |
+		state: (handlerStates at: each).
+		state ~= 0
+		  /\ [newStack: (par stateStack copyFrom: 0
+				     to: handlerStates size - each).
+			newStack push: state.
+			par willShift: newStack]]
+     ifNone: [].
+   index isNil]
+    whileTrue: [par dismissErrorToken.
+		par currentToken id first = par emptySymbolTokenId
+		  ifTrue: [par currentToken: startingErrorToken.
+			   par reportError: n]].
+  index - 1 timesRepeat: [par dismissStackTopForErrorRecovery].
+  par stateStack push: (handlerStates at: index).
+  par nodeStack push: startingErrorToken.
+  par
+].
+
+par@(CC Parser traits) getNextToken
+[
+  par currentToken ifNil: [currentToken: par lexer next]
+].
+
+par@(CC Parser traits) performParsingLoop
+[| action actionType |
+  [par getNextToken.
+   action: par actionForCurrentToken.
+   action = par acceptAction]
+     whileFalse: [actionType: (action bitAnd: par actionMask).
+		  action: (action bitShift: -2).
+		  actionType == par shiftAction
+		    ifTrue: [par shift: action]
+		    ifFalse: [actionType == par reduceAction
+				ifTrue: [par reduce: action]
+				ifFalse: [par handleError: action]]].
+   par checkForErrors.
+   par
+].
+
+par@(CC Parser traits) performReduceMethod: symbol with: items
+[
+  symbol last == $:
+    ifTrue: [symbol sendTo: {par} ; items]
+    ifFalse: [symbol sendTo: {par}]
+].
+
+par@(CC Parser traits) reduce: n
+[| reduceEntry items size |
+  reduceEntry: (par reduceTable at: n).
+  items: (ExtensibleArray new &capacity: (size: (reduceEntry at: 2))).
+  size timesRepeat: [items addFirst: nodeStack pop.
+		     stateStack pop].
+  nodeStack push: (par performReduceMethod: (reduceEntry at: 3)
+		       with: items).
+  stateStack push: ((par actionFor: (reduceEntry at: 1))
+		      bitShift: -2).
+  par
+].
+
+par@(CC Parser traits) reduceAction
+[
+  2
+].
+
+par@(CC Parser traits) reduceFor: seq
+"TODO: Remove the explicit dispatch if possible. This requires determining
+where the Sequences are generated and what they use."
+[| newS item |
+  (seq allSatisfy: [| :each | (each is: Sequence) not])
+     ifTrue: [^ seq].
+  (seq first traits == ExtensibleArray traits)
+    ifTrue: [newS: seq first.
+	     1 below: seq size
+	       do: [| :i |
+		      item: (seq at: i).
+		      (item is: Sequence)
+			ifTrue: [newS addAll: item]
+			ifFalse: [newS add: item]].
+	     ^ newS].
+  newS: ExtensibleArray new.
+  seq do: [| :each | (each is: Sequence)
+	       ifTrue: [newS addAll: each]
+	       ifFalse: [newS add: each]].
+  newS
+].
+
+par@(CC Parser traits) shift: stateIndex
+[
+  par stateStack push: stateIndex.
+  par nodeStack push: currentToken.
+  par currentToken: Nil.
+  par
+].
+
+par@(CC Parser traits) shiftAction
+[
+  1
+].
+
+CC define: #FSM &parents: {KeyedDigraph} &slots:
+  { #action
+    "A Sequence of Integers or a Symbol; it contains the action to be performed
+    when a longest match is obtained."}.
+
+node@(CC FSM Node traits) asDFA
+[
+  node asDFA: IdentitySet new merged: Dictionary new.
+  node removeDuplicateNodes.
+  node
+].
+
+node@(CC FSM Node traits) printOn: s
+[
+  s ; node name.
+  s nextPut: $(.
+  node id printOn: s.
+  s nextPut: $(.
+  node
+].
+
+node@(CC FSM Node traits) simulate: stream
+[| char |
+  stream atEnd ifTrue: [^ node action].
+  char: stream next.
+  node transitions
+    do: [| :each | (each keys includes: char)
+	     ifTrue: [^ each target simulate: stream]].
+  node action
+].
+
+"Compiling"
+
+node@(CC FSM Node traits) asStatement: methodMap usingSelectorMap: dict
+  for: class
+"TODO: [BUGS] Translate the code-generation here to Slate."
+[| stream |
+  stream: (String new &capacity: 128) writer.
+  node hasSimpleLoop ifTrue: [stream nextPut: $[].
+  node writeMatchingCodeOn: stream usingSelectorMap: dict.
+  (node sortedTransitionsFor: class)
+    do: [| :each | each target == node
+	     ifTrue: [stream ; each expression.
+		      stream nextPut: $].
+		      stream ; ' whileTrue.\n']
+	     ifFalse: [stream ; each expression.
+		       stream ; ' ifTrue: ['.
+		       stream ; (methodMap at: each target
+				   ifAbsentPut: [each target
+						   asStatement: methodMap
+						   usingSelectorMap: dict
+						   for: class]).
+		       stream ; '].\n']].
+  node transitions notEmpty \/ [node action isNil]
+    ifTrue: [stream ; '^ node reportLastMatch\n'].
+  stream contents
+].
+
+node@(CC FSM Node traits) compileInto: class usingSelectorMap: dict
+"TODO: [BUGS] translate the code generation here to Slate."
+[| methodNodes methodMap index |
+  methodNodes: node statesToMakeIntoMethods.
+  methodMap: (node methodNameMapFor: methodNodes).
+  index: 0.
+  methodNodes
+    do: [| :each stream |
+	   stream: (String new &capacity: 1000) writer.
+	   stream ; (each == node
+		       ifTrue: ['scanForToken']
+		       ifFalse: ['scan' ; ((index: index + 1) printName)]).
+	   stream nextPut: $\n.
+	   stream ; (each asStatement: methodMap
+			  usingSelectorMap: dict
+			  for: class).
+	   class compile: (node optimizedParseTreeFor: stream contents)
+	     formattedCode classified: #'generated-scanner'].
+  node
+].
+
+node@(CC FSM Node traits) methodNameMapFor: methodNodes
+[| index methodMap |
+  methodMap: (IdentityDictionary new &capacity: methodNodes size).
+  index: 0.
+  methodNodes
+    do: [| :value | methodMap
+	     at: value
+	     put: (value == node
+		     ifTrue: ['^ node scanForToken']
+		     ifFalse: ['^ node scan' ; (index: index + 1) printName])].
+  methodMap
+].
+
+node@(CC FSM Node traits) needsSeparateMethod
+"A simple heuristic."
+[
+  node allStates size > 20
+].
+
+node@(CC FSM Node traits) optimizationRewriter
+"TODO: Port this code using the meta-syntactic framework of Slate macros.
+Otherwise, It requires the full use of the refactoring browser's engine."
+[
+].
+
+node@(CC FSM Node traits) optimizedParseTreeFor: string
+[
+].
+
+node@(CC FSM Node traits) sortedTransitionsFor: class
+[| freqs |
+  freqs: (class ifNil: [CC Scanner]) frequencyTable.
+  transitions
+    sortBy: [| :a :b freqA freq B summer |
+	       summer: [| :sum :each | sum + (freqs at: (each as: Integer)
+						\\ freqs size + 1)].
+	       freqA: (a keys inject: 0 into: summer).
+	       freqB: (b keys inject: 0 into: summer).
+	       freqA > freqB
+		 \/ [freqA = freqB /\ [a keys first < b keys first]]]
+].
+
+node@(CC FSM Node traits) statesToMakeIntoMethods
+[| allStates incoming |
+  allStates: nodes allNodes.
+  incoming: Dictionary new.
+  allStates
+    do: [| :each | each transitions
+	     do: [| :edge | each ~= edge target
+		      ifTrue: [(incoming at: edge target
+					 ifAbsentPut: [Set new])
+				 add: each]]].
+  ((allStates as: ExtensibleArray)
+     select: [| :each | node == each
+		\/ [each isTerminalNode not
+		      /\ [(incoming at: each
+				  ifAbsent: [{}]) size > 1
+			    \/ [each needsSeparateMethod]]]])
+    sortBy: [| :a :b | a id < b id]
+].
+
+node@(CC FSM Node traits) writeMatchingCodeOn: stream usingSelectorMap: dict
+[| matchedItem |
+  node action isNotNil /\ [node action size > 0]
+     ifTrue: [matchedItem: (dict at: node action first
+				 ifAbsent: [node action as: Array]).
+	      stream ; (node transitions isEmpty
+			  ifTrue: ['^ lex recordAndReportMatch:']
+			  ifFalse: ['lex recordMatch:']).
+	      matchedItem traits == Symbol traits
+		ifTrue: [stream ; matchedItem storeString]
+		ifFalse: [stream nextPut: ${.
+			  matchedItem
+			    do: [| :each | stream ; each storeString]
+			    separatedBy: [stream nextPut: $\s].
+			  stream nextPut: $}].
+	      stream ; '.\n'].
+   node transitions isEmpty
+     ifFalse: [stream ; 'lex step.\n'].
+   node
+].
+
+"TODO: Complete this."
+
+CC define: #Action &parents: {Cloneable}.
+"An LR parsing table action."
+
+CC ensureNamespace: #actions.
+
+CC actions define: #Accept &parents: {CC Action}.
+"An accept action: a valid string has been parsed."
+
+act@(CC actions Accept traits) id
+[
+  0
+].
+
+CC actions define: #Shift &parents: {CC Action}.
+"A shift action."
+
+act@(CC actions Shift traits) id
+[
+  1
+].
+
+CC actions define: #Reduce &parents: {CC Action} &slots:
+  { #symbol. "The symbol that has the RHS."
+    #rhs "The RHS being reduced."}.
+"A reduce action."
+
+act@(CC actions Reduce traits) id
+[
+  2
+].
+
+act@(CC actions Reduce traits) size
+[
+  act rhs size
+].
+
+CC actions define: #Reject &parents: {CC Action}.
+"A reject action."
+
+act@(CC actions Reject traits) id
+[
+  3
+].
+
+CC define: #Symbol &parents: {Cloneable} &slots:
+  { #name -> ''. "The symbol's name."
+    #precedence -> 0. "The precedence to resolve shift/reduce conflicts."
+    #firstTerminals -> Set new
+    "The collection of first terminals that can be produced from this."}.
+"Represents a symbol in a grammar."
+
+CC ensureNamespace: #symbols.
+
+s@(CC Symbol traits) newNamed: string
+[s clone `>>
+   [name: string. firstTerminals: s firstTerminals new. ]].
+
+s@(CC Symbol traits) size
+[
+  0
+].
+
+s@(CC Symbol traits) printOn: stream
+[
+  s name printOn: stream
+].
+
+CC symbols define: #NonTerminal &parents: {CC Symbol}.
+"Represents a non-terminal symbol in a grammar."
+
+CC symbols NonTerminal addSlot: #productions 
+  valued: ExtensibleArray new.
+"A Sequence of RHS' for this symbol."
+
+s@(CC symbols NonTerminal traits) newNamed: name
+[resend `>> [productions: s productions new. ]].
+
+s@(CC symbols NonTerminal traits) calculateFirstTerminals
+"Sets up the firstTerminals collection with the productions recursively or the
+empty symbol where there are no productions, and returns whether new
+productions were added (whether the method actually accomplished something)."
+[| initSize |
+  initSize: s firstTerminals size.
+  s productions isEmpty
+    ifTrue: [s firstTerminals add: CC symbols Empty]
+    ifFalse: [s productions
+		do: [| :each | s firstTerminals addAll: each firstTerminals]].
+  initSize ~= s firstTerminals size
+].
+
+s@(CC symbols NonTerminal traits) isTerminal
+[
+  False
+].
+
+CC symbols define: #Starting &parents: {CC symbols NonTerminal}.
+"Represents the starting symbol in a grammar. This is unique per grammar,
+but grammars can have different starting item sets."
+
+s@(CC symbols Starting traits) compileName
+[
+  (s productions first at: 0) name copyReplaceAll: $_ with: $X
+].
+
+CC symbols define: #Terminal &parents: {CC Symbol} &slots:
+  { #regex -> Regex Node clone.
+    "The expression AST that must match for this symbol."
+    #createIDMethod -> False
+    "Whether a symbolNameID method should be created for this symbol."}.
+"Represents a terminal symbol in a grammar."
+
+s@(CC symbols Terminal traits) newNamed: name
+[resend `>> [| :newS | firstTerminals add: newS. createIDMethod: False. ]].
+
+s@(CC symbols Terminal traits) calculateFirstTerminals
+"Return that no new productions were added, since this is a terminal node,
+hence no productions to add."
+[
+  False
+].
+
+s@(CC symbols Terminal traits) isTerminal
+[
+  True
+].
+
+CC symbols addSlot: #Empty
+  valued: (CC symbols Terminal newNamed: 'E O F').
+CC symbols addSlot: #Error
+  valued: (CC symbols Terminal newNamed: 'error').
+CC symbols addSlot: #Sentinel
+  valued: (CC symbols Terminal newNamed: 'S e n t i n e l').
+
+CC define: #SymbolSet &parents: {Set} &slots:
+  { #components -> Set new 
+    "The collection of other SymbolSets that this depends on."}.
+"Represents a set of follow symbols in the LALR(1) ItemSets."
+
+"TODO: This is supposed to use a dependency mechanism to propagate updates."
+
+ss@(CC SymbolSet traits) new &capacity: n
+[resend `>> [components: (ss components new &capacity: n). ]].
+
+ss@(CC SymbolSet traits) newFrom: another
+[(ss new &capacity: another size) `>> [addComponent: another. ]].
+
+ss@(CC SymbolSet traits) addComponentsFrom: another
+[
+  another components
+    do: [| :each | ss add: each]
+].
+
+ss@(CC SymbolSet traits) addComponent: each
+[
+  each = ss \/ [ss components includes: each]
+    ifTrue: [^ ss].
+  components add: each.
+  ss addAll: each
+].
+
+ss@(CC SymbolSet traits) mergeWith: another
+[
+  ss addAll: another.
+  ss addComponentsFrom: another
+].
+
+ss@(CC SymbolSet traits) printOn: s
+[
+  ss do: [| :each | s ; each printName ]
+     separatedBy: [s nextPut: $\s]
+].
+
+CC define: #RHS &parents: {Cloneable} &slots:
+  { #sequence -> ExtensibleArray new.
+    "The collection of CC Symbols that represent the RHS."
+    #reduceAction.
+    "The reduction effect for the production, once made."
+    #names -> Dictionary new
+    "The Mapping from the names of symbols in the RHS to the indices of their
+    values. These can be used in the {} code blocks."}.
+"Represents the right-hand side of a production."
+
+rhs@(CC RHS traits) firstTerminals
+[| items |
+  rhs sequence isEmpty ifTrue: [^ ({CC symbols Empty} as: Set)].
+  items: Set new.
+  0 below: rhs sequence size
+    do: [| :index |
+	   items addAll: (sequence at: index) firstTerminals.
+	   (items includes: CC symbols Empty)
+	     ifTrue: [index < rhs sequence size
+			ifTrue: [items remove: CC symbols Empty]]
+	     ifFalse: [^ items]].
+  items
+].
+
+rhs@(CC RHS traits) defaultReduceAction
+[
+  #reduceFor:
+].
+
+rhs1@(CC RHS traits) = rhs2@(CC RHS traits)
+[
+  rhs1 sequence = rhs2 sequence
+].
+
+rhs@(CC RHS traits) hash
+[
+  rhs sequence hash
+].
+
+rhs@(CC RHS traits) safeMethodNameFor: symbol
+[
+  symbol printName
+    collect: [| :each | each isAlphaNumeric
+		  ifTrue: [each] ifFalse: [$X]]
+].
+
+rhs@(CC RHS traits) nameLastItem: name
+[
+  rhs names at: name put: rhs sequence size
+].
+
+rhs@(CC RHS traits) printOn: s
+[
+  rhs sequence
+    do: [| :each | each printOn: s]
+    separatedBy: [s nextPut: $\s]
+].
+
+rhs@(CC RHS traits) parseTreeRewriter
+"TODO: Remove RB dependency."
+[| rewriter |
+  rewriter: ParseTreeRewriter new.
+  0 below: rhs sequence size
+    do: [| :i | rewriter replace: i printName with: '(nodes at: ' ;
+	     i printName ; ')'].
+  rhs names keysAndValuesDo: [| :key :value |
+    rewriter replace: key with: '(nodes at: ' ; value printName ; ')'].
+  rewriter
+].
+
+rhs@(CC RHS traits) compileSourceFor: sym@(CC Symbol traits) in: obj
+"TODO: Remove Smalltalk and RB dependency."
+[| action rewriter parseTree methodName node |
+  action: rhs reduceAction.
+  action ifNil: [^ rhs defaultReduceAction].
+  parseTree: (Parser parseExpression: action
+		     onError: [| :s :p |
+			CC CompileError raiseRequestWith:
+			  sym name ; ':' ; rhs printName ; '\n\n' ; action
+				   errorString: 'Invalid code in reduction rule.'.
+				 ^ rhs defaultReduceAction]).
+  parseTree isLiteral /\ [parseTree value isSymbol]
+    /\ [parseTree value numArgs <= 1]
+    /\ [obj definesMethod: parseTree value]
+	    ifTrue: [^ parseTree value].
+  rewriter: rhs parseTreeRewriter.
+  rewriter execute: parseTree.
+  parseTree: rewriter tree.
+  methodName: (('reduceActionFor' ; (rhs safeMethodNameFor: sym)
+		 ; (sym productions indexOf: rhs) printName ; ':') as: Symbol).
+  parseTree isSequence
+    ifFalse: [parseTree: Compiler SequenceNode newFrom: {parseTree}].
+  node: Compiler MethodNode clone.
+  node selector: methodName.
+  node arguments: {Compiler variableNode newNamed: 'nodes'}.
+  parseTree: node.
+  parseTree addReturn.
+  Compiler compile: parseTree.
+  methodName
+].
+
+CC define: #LR1Item &parents: {Cloneable} &slots:
+  { #followers -> CC SymbolSet clone.
+    "All possible symbols that can follow this production in this state."
+    #location -> 0.
+    "The position in the RHS of the production."
+    #rhs -> CC RHS clone. "The production's RHS."
+    #symbol -> CC symbols Empty "The production's symbol."}.
+"Represents an item in an ItemSet."
+
+lr1@(CC LR1Item traits) newSymbol: sym rhs: rhs follow: symbolSet
+[lr1 clone `>> [rhs: rhs. location: 0. followers: symbolSet. ]].
+
+lr1@(CC LR1Item traits) = lr2@(CC LR1Item traits)
+[
+  lr1 location == lr2 location
+   /\ [lr1 rhs == lr2 rhs]
+   /\ [lr1 symbol == lr2 symbol]
+].
+
+lr1@(CC LR1Item traits) hash
+[
+  (lr1 symbol identityHash
+     bitXor: (lr1 location bitShift: 14))
+    bitXor: lr1 rhs identityHash
+].
+
+lr1@(CC LR1Item traits) isLR1EqualTo: another
+[
+  lr1 followers size = lr2 followers size
+    /\ [lr1 followers allSatisfy: [| :each | lr2 followers includes: each]]
+].
+
+lr1@(CC LR1Item traits) action: sym
+[
+  lr1 location > lr1 rhs size
+    ifTrue: [(sym isSameAs: CC symbols Starting)
+		/\ [sym = CC symbols Empty]
+	       ifTrue: [^ CC actions Accept clone].
+	     (lr1 followers includes: sym)
+	       ifTrue: [^ CC actions Reduce newSymbol: sym rhs: rhs]]
+    ifFalse: [(lr1 rhs sequence at: location) = sym
+		ifTrue: [^ CC actions Shift clone]].
+  CC actions Reject clone
+].
+
+lr1@(CC LR1Item traits) mergeWith: another
+[
+  lr1 followers mergeWith: another followers
+].
+
+lr1@(CC LR1Item traits) moveNext
+[
+  lr1 clone `>>
+    [followers: (lr1 followers newFrom: lr1 followers).
+     location: lr1 location + 1. ]
+].
+
+lr1@(CC LR1Item traits) nextSymbol
+[
+  lr1 location > lr1 rhs size
+    ifTrue: [CC symbols Sentinel]
+    ifFalse: [lr1 rhs at: lr1 location]
+].
+
+lr1@(CC LR1Item traits) precedence
+"If this does not have a precedence, then assume it has the lowest
+precedence; this will cause a Shift Action."
+[| max |
+  max: -1.
+  lr1 rhs do: [| :each |
+		 max: (max max: (each precedence ifNil: [max]))].
+  max
+].
+
+lr1@(CC LR1Item traits) rest
+[| newRHS |
+  newRHS: CC RHS clone.
+  lr1 location:
+    (0 below: lr1 rhs size
+       do: [| :each | newRHS add: (lr1 rhs at: each)]).
+  newRHS
+].
+
+lr1@(CC LR1Item traits) printOn: s
+[| i |
+  s nextPut: $[.
+  lr1 symbol printOn: s.
+  s nextPut: $:.
+  i: 0.
+  lr1 rhs
+    do: [| :each |
+	   i = lr1 location ifTrue: [s ; ' . '].
+	   s nextPut: $\s.
+	   each printOn: s.
+	   i: i + 1].
+  lr1 location > lr1 rhs size
+    ifTrue: [s ; ' . '].
+  s nextPut: $;.
+  lr1 followers printOn: s.
+  s nextPut: $].
+  lr1
+].
+
+CC define: #ItemSet &parents: {Set} &slots:
+  { #type -> #LALR1 "#LALR1 or #LR1."}.
+"Represents a set of LR(1) and LALR(1) items."
+
+is1@(CC ItemSet traits) = is2@(CC ItemSet traits)
+[
+  is1 type == is2 type
+   /\ [is1 size = is2 size]
+   /\ [is1 type == #LALR1
+	    ifTrue: [is1 allSatisfy: [| :each | is2 includes: each]]
+	    ifFalse: [is1 isLR1EqualTo: is2]]
+].
+
+is1@(CC ItemSet traits) isLR1EqualTo: is2@(CC ItemSet traits)
+"This comparison is separate since it is recursive."
+[
+  is1 size = is2 size
+    /\ [is1 allSatisfy:
+      [| :each item | (item: (is2 scanFor: each)) isNotNil
+	 /\ [each isLR1EqualTo: item]]]
+].
+
+is@(CC ItemSet traits) hash
+"This starts with a traits-identity hash, and then XOR's it with the hash of
+each element of the Set."
+[
+  is inject: is traits hash
+     into: [| :sum :each | sum bitXor: each hash]
+].
+
+is@(CC ItemSet traits) performClosureOn: lr1
+[| nextSymbol first rest followers |
+  nextSymbol: lr1 nextSymbol.
+  nextSymbol isTerminal ifTrue: [^ is].
+  rest: lr1 rest.
+  first: rest firstTerminals.
+  followers: CC SymbolSet new.
+  (first includes: CC symbols Empty)
+    ifTrue: [first remove: CC symbols Empty.
+	     followers addComponent: lr1 followers].
+  followers addAll: first.
+  nextSymbol productions
+    do: [| :each |
+	     is include: (CC LR1Item newSymbol: nextSymbol rhs: each
+				     follow: followers)].
+  is
+].
+
+is@(CC ItemSet traits) include: lr1
+[| index item |
+  lr1 ifNil: [^ lr1].
+  index: (is scanFor: lr1).
+  item: (is array at: index).
+  item
+    ifNil: [is atNewIndex: index put: lr1.
+	    is performClosureOn: lr1]
+    ifNotNil: [item mergeWith: lr1].
+  lr1
+].
+
+is1@(CC ItemSet traits) mergeWith: is2@(CC ItemSet traits)
+[
+  is1 == is2 ifTrue: [^ is1].
+  is2 do: [| :each | is1 include: each]
+].
+
+is@(CC ItemSet traits) moveOn: sym
+[
+  is new `>>
+    [| :newIS |
+     is do: [| :each | each nextSymbol == sym
+		       ifTrue: [newIS include: each moveNext]]. ]
+].
+
+is@(CC ItemSet traits) raiseXReduceNotification: preferred with: other
+  type: type
+"The 'type' is supposed to be a string."
+[| stream condition |
+  stream: (String new &capacity: 200) writer.
+  preferred printOn: stream.
+  stream ; '\t*****\n'.
+  other printOn: stream.
+  condition: (CC CompilationNotification newTag: stream contents).
+  condition signal: type.
+  is
+].
+
+is@(CC ItemSet traits) raiseXReduceNotificationWithNoPreferred: first
+  with: second type: type
+"The 'type' is supposed to be a string."
+[| stream condition |
+  stream: (String new &capacity: 200) writer.
+  first printOn: stream.
+  stream nextPut: $\n.
+  second printOn: stream.
+  condition: (CC CompilationNotification newTag: stream contents).
+  condition signal: type.
+  is
+].
+
+is@(CC ItemSet traits) action: sym prefer: obj
+[| action actionItem eachAction |
+  action: CC actions Reject clone.
+  is do: [| :each |
+	eachAction: (each action: sym).
+	action traits == CC actions Reject traits
+	  ifTrue: [action: eachAction. actionItem: each]
+	  ifFalse: [eachAction = action
+		       \/ [eachAction isSameAs: CC actions Reject]
+		      ifFalse: [eachAction traits == CC actions Shift traits
+				  \/ (action traits == CC actions Shift traits)
+				  ifTrue: ["Shift/reduce conflict; check precedence."
+  sym isNil \/ [each precedence isNil] \/ [actionItem precedence isNil]
+  ifTrue: ["No precedence; choose shift."
+  (eachAction isSameAs: CC actions Shift)
+	       ifTrue: [is raiseXReduceNotification: each
+			  with: actionItem
+			  type: 'Shift/Reduce Conflict'.
+			action: eachAction.
+			actionItem: each]
+	       ifFalse: [is raiseXReduceNotification: actionItem
+			   with: each
+			   type: 'Shift/Reduce Conflict']]
+    ifFalse: [each precedence > actionItem precedence
+		 \/ [each precedence = actionItem precedence
+			/\ [eachAction isSameAs: obj]]
+		ifTrue: [is raiseXReduceNotification: each
+			   with: actionItem
+			   type: 'Shift/Reduce Conflict (handled by precedence rules)'.
+			 obj clone]
+		ifFalse: [each precedence = actionItem precedence
+			     /\ [CC actions Reject == obj traits]
+			    ifTrue: [is raiseXReduceNotification: actionItem
+				       with: each
+				       type: 'Shift/Reduce Conflict (handled by precedence rules)']
+			    ifFalse: [is raiseXReduceNotification: actionItem
+					with: each
+				       type: 'Shift/Reduce Conflict (handled by precedence rules)']]]]
+		      ifFalse: ["Reduce/Reduce conflict; pick one and proceed."
+  is raiseXReduceNotification: actionItem
+       with: each
+       type: 'Reduce/Reduce Conflict']]]].
+  action
+].
+
+is@(CC ItemSet traits) printOn: s
+[
+  is do: [| :each | s nextPut: $\t. each printOn: s. s nextPut: $\n]
+].
+
+s@(CC symbols Starting traits) as: is@(CC ItemSet traits)
+[| newIS |
+  newIS: is new.
+  s productions
+    do: [| :each newSS | newIS
+	     add: (is newSymbol: s rhs: each
+		      follow: (CC symbols as: CC SymbolSet))].
+  newIS
+].
+
+CC define: #Grammar &parents: {Cloneable} &slots:
+  { #type -> #LALR1. "The type of grammar: #LALR1 or #LR1."
+    #shiftReduceTable -> Dictionary new.
+    "Maps CC Symbols to Action (types). This resolves conflicts in the shift/
+    reduce process. It contains left/right associative rules. Left is a Reduce
+    Action and Right is a Shift Action."
+    #symbols -> ExtensibleArray new.
+    "All the symbols in the grammar, including both terminals and
+    non-terminals."
+    #tokens -> Dictionary new.
+    "Maps Strings to Regex Nodes. The tokens for the scanner."
+    #otherStartingSymbols -> Set new
+    "Other starting productions. The first production in the grammar is the
+    default starting position; this lists other starting positions."}.
+"Represents a LR(1) or LALR(1) grammar."
+
+gr@(CC Grammar traits) copy
+[
+  gr clone `>>
+    [shiftReduceTable: gr shiftReduceTable copy.
+     symbols: gr symbols copy.
+     tokens: gr tokens copy.
+     otherStartingSymbols: gr otherStartingSymbols copy. ]
+].
+
+gr@(CC Grammar traits) add: sym@(CC Symbol traits)
+[
+  gr symbols add: sym
+].
+
+gr@(CC Grammar traits) add: empty@(CC symbols Empty)
+[
+  gr symbols add: empty.
+  gr add: CC symbols Error.
+  gr
+].
+
+gr@(CC Grammar traits) addAsStarting: sym
+[
+  (gr otherStartingSymbols includes: sym)
+    ifFalse: [gr otherStartingSymbols add: sym]
+].
+
+gr@(CC Grammar traits) startingSymbols
+"Return all starting symbols with the default starter listed first."
+[| result default |
+  default: gr startSymbol.
+  result: gr otherStartingSymbols copy.
+  result remove: default ifAbsent: [].
+  result: (result collect: [| :each start production |
+				start: (CC symbols Starting newNamed: 'B e g i n' ; each name).
+				production: CC RHS copy.
+				production add: each.
+				start addProduction: production.
+				start]).
+  result addFirst: default.
+  result
+].
+
+gr@(CC Grammar traits) emptySymbols
+[
+  gr symbols select: [| :each | each isTerminal not /\ [each isEmpty]]
+].
+
+gr@(CC Grammar traits) initialItemSetFor: sym
+[(sym as: CC ItemSet) `>> [type: gr type. ]].
+
+gr@(CC Grammar traits) newGroupFor: rhsCol
+[| sym name |
+  name: (rhsCol inject: '' into: [| :sum :each | sum ; '|' ; each printName]).
+  sym: (gr nonTerminalNamed: 'Group: ' ; name).
+  sym isEmpty
+    /\ [(rhsCol allSatisfy: [| :each | each size = 1])
+	    ifTrue: [rhsCol do: [| :each | each reduceAction: '"1"']].
+	  rhsCol do: [| :each | sym addProduction: each]].
+  sym
+].
+
+gr@(CC Grammar traits) newOptionalSymbolFor: sym
+[| result |
+  result: (gr nonTerminalNamed: 'Optional: ' ; sym printName).
+  result isEmpty
+    ifTrue: [| rhs |
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs reduceAction: 'nil'.
+				      rhs).
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs add: sym.
+				      rhs reduceAction: '"1"'.
+				      rhs)].
+  result
+].
+
+gr@(CC Grammar traits) newRepeatMultipleSymbolFor: sym
+"TODO: [BUG] Remove Smalltalk dependencies."
+[| result |
+  result: (gr nonTerminalNamed: 'Repeat Multiple: ' ; sym printName).
+  result isEmpty
+    ifTrue: [| rhs |
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs add: sym.
+				      rhs reduceAction: '({1} as: ExtensibleArray)'.
+				      rhs).
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs add: result.
+				      rhs add: sym.
+				      rhs reduceAction: '"1" add: "2"; yourself'.
+				      rhs)].
+  result
+].
+
+gr@(CC Grammar traits) newRepeatSymbolFor: sym
+"TODO: [BUG] Remove Smalltalk dependencies."
+[| result |
+  result: (gr nonTerminalNamed: 'Repeat: ' ; sym printName).
+  result isEmpty
+    ifTrue: [| rhs |
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs reduceAction: 'ExtensibleArray new'.
+				      rhs).
+	       result addProduction: (rhs: CC RHS clone.
+				      rhs add: result.
+				      rhs add: sym.
+				      rhs reduceAction: '"1" add: "2"; yourself'.
+				      rhs)].
+  result
+].
+
+gr@(CC Grammar traits) newTokenIDMethodFor: name
+[| token |
+     token: ((gr tokens includesKey: name)
+	       ifTrue: [gr terminalNamed: name]
+	       ifFalse: [gr symbols
+			   detect: [| :each | each name = name]
+			   ifNone: [gr symbols add: (CC symbols Terminal newNamed: name)]]).
+  token createIDMethod: True.
+  gr
+].
+
+gr@(CC Grammar traits) preferredActionFor: sym
+[
+  gr shiftReduceTable at: sym ifAbsent: []
+].
+
+gr@(CC Grammar traits) setStartSymbolIfNone: sym
+[| startSymbol production |
+  gr startSymbol ifNotNil: [^ gr].
+  startSymbol: (CC symbols Starting newNamed: 'B e g i n').
+  gr add: startSymbol.
+  startSymbol addProduction: (production: CC RHS clone.
+			      production add: sym.
+			      production).
+  gr
+].
+
+gr@(CC Grammar traits) startSymbol
+[
+  gr symbols detect: [| :each | each traits == CC symbols Starting traits]
+	     ifNone: []
+].
+
+gr@(CC Grammar traits) unusedSymbols
+[| nonTerminals problemSymbols todo start symbol |
+  nonTerminals: (gr symbols reject: [| :each | each isTerminal]).
+  problemSymbols: (nonTerminals as: Set).
+  problemSymbols remove: (start: gr startSymbol).
+  todo: ({gr start} as: ExtensibleArray).
+  [todo isEmpty]
+    whileFalse: [symbol: todo removeFirst.
+	symbol productions
+	  do: [| :rhs | rhs
+		do: [| :each | each isTerminal
+			 ifFalse: [(problemSymbols includes: each)
+				     ifTrue: [todo add: each.
+					      problemSymbols remove: each]]]]].
+  problemSymbols
+].
+
+gr@(CC Grammar traits) leftPrecedenceFor: sym
+"Gives the symbol a left-precedence by make Reduce actions the default."
+[
+  gr shiftReduceTable at: sym put: CC actions Reduce
+].
+
+gr@(CC Grammar traits) leftPrecedenceFor: sym
+"Gives the symbol a right-precedence by make Shift actions the default."
+[
+  gr shiftReduceTable at: sym put: CC actions Shift
+].
+
+gr@(CC Grammar traits) nonAssociativePrecedenceFor: sym
+"Gives the symbol a nonassociative precedence by make Reject actions occur
+on conflict."
+[
+  gr shiftReduceTable at: sym put: CC actions Reject
+].
+
+gr@(CC Grammar traits) setOperatorPrecedenceFor: sym to: n
+[
+  sym precedence: n
+].
+
+gr@(CC Grammar traits) calculateFirstSets
+"Forces the symbols to calculate their first terminals, using the returned
+boolean to control the recursion."
+[| changed |
+  changed: True.
+  [changed]
+    whileTrue: [changed: False.
+		gr symbols do: [| :each | changed: changed \/
+				    each calculateFirstTerminals]].
+  gr
+].
+
+gr@(CC Grammar traits) keywordTerminalNamed: name
+[
+  gr symbols
+    detect: [| :each | each name = name]
+    ifNone: [| sym |
+	       sym: (CC symbols Terminal newNamed: name).
+	       gr symbols addFirst: sym.
+	       sym regex: (((name copyFrom: 1 to: name size - 2)
+			      copyReplaceAll: '""'
+			      with: '"')
+			     inject: Nil
+			     into: [| :sum :each | sum
+				     ifNil: [Regex CharacterNode
+					       newFor: (each as: String)]
+				     ifNotNil: [sum ; (Regex CharacterNode
+					       newFor: (each as: String))]]).
+	       sym]
+].
+
+gr@(CC Grammar traits) nonTerminalNamed: name
+[
+  gr symbols
+    detect: [| :each | each name = name]
+    ifNone: [gr add: (CC symbols NonTerminal newNamed: name)]
+].
+
+gr@(CC Grammar traits) reduceTableIndexFor: sym rhs: rhs
+[| index |
+  index: 0.
+  gr symbols
+    do: [| :each | each = sym
+	     ifTrue: [^ (index + (each positionOf: rhs))].
+	   index: index + each size].
+  0
+].
+
+gr@(CC Grammar traits) terminalNamed: name
+[
+  gr symbols
+    detect: [| :each | each name = name]
+    ifNone: [| sym | sym: (CC symbols NonTerminal newNamed: name).
+	       gr add: sym.
+	       sym regex: (gr tokens at: name).
+	       sym]
+].
+
+gr@(CC Grammar traits) terminalNamed: name ifAbsent: block
+[
+  gr symbols
+    detect: [| :each | each name = name]
+    ifNone: [| sym | sym: (CC symbols NonTerminal newNamed: name).
+	       gr add: sym.
+	       sym regex: (gr tokens at: name ifAbsent: [^ block do]).
+	       sym]
+].
+
+CC define: #ScannerCompiler &parents: {Cloneable} &slots:
+  { #grammar. "The grammar definition of the scanner."
+    #scanner. "The type of scanner used."
+    #definition "The string definition of the scanner."}.
+"Represents the compiler for the scanner part of the parser."
+
+sc@(CC ScannerCompiler traits) symbols
+[
+  sc grammar symbols
+].
+
+sc@(CC ScannerCompiler traits) parseTokens
+[
+  sc grammar tokens: (CC ScannerParser parse: definition)
+].
+
+sc@(CC ScannerCompiler traits) scannerActionFor: string
+"Returns the selector to be used for the given string as a method name
+the method must be defined on the scanner and not a method of Cloneable."
+[| selector |
+  string size > 2 ifFalse: [^ Nil].
+  selector: ((string copyFrom: 1 to: string size - 2) as: Symbol).
+  (selector findOn: {sc scanner traits}) isNotNil
+    /\ [(selector findOn: {Cloneable}) isNil]
+    /\ [selector numArgs = 0]
+    ifTrue: [selector]
+].
+
+sc@(CC ScannerCompiler traits) addActionsForSymbols
+[| selectorMap |
+  selectorMap: Dictionary new.
+  (0 below: sc symbols size)
+    with: sc symbols
+    do: [| :index :each |
+	   each regex
+	     ifNotNil: [| action |
+			 (action: (sc scannerActionFor: each name))
+			    ifNotNil: [selectorMap at: index put: action].
+			  each regex action: index].
+	   each createIDMethod ifTrue: [sc compileTokenIDMethodFor: each]].
+  selectorMap
+].
+
+sc@(CC ScannerCompiler traits) addSpecialSymbols
+[
+  sc grammar tokens
+    keysDo: [| :each | (sc scannerActionFor: each)
+		 ifNotNil: [sc grammar terminalNamed: each]]
+].
+
+sc@(CC ScannerCompiler traits) compileTokenIdMethodFor:
+  empty@(CC symbols Empty)
+[| stream |
+  stream: (String new &capacity: 100) writer.
+  "TODO: Convert to a Slate method."
+  stream ; 'emptySymbolTokenId'.
+  stream ; '\n\t^ '.
+  stream ; (sc symbols indexOf: CC symbols Empty) printName.
+  "TODO: Compile it."
+].
+
+sc@(CC ScannerCompiler traits) compileTokenIdMethodFor:
+  empty@(CC symbols Error)
+[| stream |
+  stream: (String new &capacity: 100) writer.
+  "TODO: Convert to a Slate method."
+  stream ; 'errorTokenId'.
+  stream ; '\n\t^ '.
+  stream ; (sc symbols indexOf: CC symbols Error) printName.
+  "TODO: Compile it."
+].
+
+sc@(CC ScannerCompiler traits) compileTokenIdMethodFor: sym
+[| stream |
+  stream: (String new &capacity: 1000) writer.
+  "TODO: Convert to a Slate method."
+  stream ; (sym name copyFrom: 1 to: sym name size - 1) ; 'Id'.
+  stream ; '\n\t^ '.
+  stream ; (sc symbols indexOf: CC symbols Error) printName.
+  "TODO: Compile it."
+].
+
+sc@(CC ScannerCompiler traits) compileKeywordInitializerUsing: dict
+  selectorMap: selectorMap
+[| stream dataStream |
+  dict isEmpty ifTrue: [^ sc].
+  stream: String new writer.
+  stream ; 'initializeKeywordMap\n\t keywordMap: Dictionary new.'.
+  dataStream: {} writer.
+  dict
+    keysAndValuesDo: [| :key :value | (value keys as: SortedArray)
+			  do: [| :each | dataStream nextPut:
+				   {selectorMap at: key ifAbsent: [key].
+				    each.
+				    selectorMap at: (value at: each)
+				                ifAbsent: [value at: each]}]].
+  stream ; '{\n'.
+  dataStream contents
+    do: [| :each |
+	   stream nextPut: ${.
+	   each do: [| :item | item printOn: stream]
+		separatedBy: [stream ; '. '].
+	   stream nextPut: $}]
+    separatedBy: [stream nextPut: $\r].
+  stream ; '} do: [| :each |
+(keywordMap at: each first ifAbsentPut: [Dictionary new]) at: (each at: 1) put: each last].
+keywordMap'.
+  "TODO: compile it on the scanner here."
+].
+
+sc@(CC ScannerCompiler traits) generalRegexesFrom: regexPartition
+[| regexes combinedRegex |
+  regexes: (regexPartition at: False ifAbsent: [regexPartition at: True]).
+  combinedRegex: regexes first.
+  1 below: regexes size
+    do: [| :i | combinedRegex: combinedRegex \/ (regexes at: i)].
+  combinedRegex
+].
+
+sc@(CC ScannerCompiler traits) regularExpressionsPartitionedByIsKeyword
+[| regexPartition |
+  regexPartition: Dictionary new.
+  sc symbols
+    do: [| :each | each regex
+	     ifNotNil: [(regexPartition
+			   at: each regex isKeywordLiteral
+			   ifAbsentPut: [ExtensibleArray new])
+			  add: each regex]].
+  regexPartition
+].
+
+sc@(CC ScannerCompiler traits) compileScanner
+[| regex selectorMap regexPartition dfa keywordMap |
+  sc addSpecialSymbols.
+  sc grammar
+    symbols: (sc symbols
+		sortBy: [| :a :b aRegex bRegex |
+			   aRegex: a regex.
+			   bRegex: b regex.
+			   bRegex isNil \/ [a regex notNil
+					       /\ [(aRegex position ifNil: [0])
+						       < (bRegex position ifNil: [0])]]]).
+  selectorMap: sc addActionsForSymbols.
+  regexPartition: sc regularExpressionsPartitionedByIsKeyword.
+  regex: (sc generalRegexesFrom: regexPartition).
+  dfa: regex asDFA.
+  keywordMap: Dictionary new.
+  (regexPartitions
+     at: True ifAbsent: [{}])
+    do: [| :each action strings newAction |
+	   strings: each possibleMatches.
+	   0 below: strings size
+	     do: [| :i |
+		    newAction: (dfa simulate: (strings at: i) reader).
+		    i = 1
+		      ifTrue: [action: newAction]
+		      ifFalse: [action = newAction ifFalse: [action: Nil]]].
+	   action
+	     ifNil: [regex: regex \/ each]
+	     ifNotNil: [action
+			  do: [| state | strings
+				   do: [| :string | (keywordMap
+						       at: state ifAbsentPut: [Dictionary new])
+					    at: string put: each action]]]].
+  sc compileKeywordInitializerUsing: keywordMap selectorMap: selectorMap.
+  regex asDFA compileInto: sc scanner usingSelectorMap: selectorMap.
+  sc compileTokenIDMethodFor: CC symbols Empty.
+  sc compileTokenIDMethodFor: CC symbols Error.
+  CC Grammar ignoreCase
+    ifTrue: [[| :sc :string | string asUppercase]
+	       asMethod: #keywordFor: on: {scanner. NoRole}].
+  "TODO: fix this to write out the method."
+  sc
+].
+
+CC define: #GrammarParser &parents: {CC Parser} &slots:
+  { #grammar -> CC Grammar copy "The grammar being produced."}.
+"A parser for grammars."
+
+gp@(CC GrammarParser traits) verify: codeToken for: rhs
+[| code |
+  code: (codeToken value copyFrom: 1 to: codeToken value size - 2).
+  Parser
+    parse: code
+    onError: [| :string :position |
+		currentToken: Nil.
+		gp scanner position: codeToken startPosition + position.
+		reportErrorMessage: string].
+  rhs reduceAction: code.
+  rhs
+].
+
+CC define: #GrammarCompiler &parents: {Cloneable} &slots:
+  { #actions -> {}.
+    "The action table for the parser. It contains the Action for each possible
+    state/symbol pair."
+    #grammar -> CC Grammar copy. "The grammar."
+    #itemSets. "A Sequence of the ItemSets for the Grammar."
+    #parser. "The target for the changes."
+    #parserDefinition -> ''. "The String defining our parser."
+    #scannerCompiler -> CC ScannerCompiler copy.
+    "The compiler for the Scanner."
+    #shiftTable -> Dictionary new.
+    "A Mapping from state/symbol pairs to the new state that shifting the 
+    symbol will lead to."
+    #startingStateMap -> Dictionary new
+    "The states for the Symbol's starting ItemSet (by mapping the symbols to
+    state indices."}.
+
+gc@(CC GrammarCompiler traits) buildScannerFor: scannerString
+  parserFor: parserString
+[| parser |
+  gc scannerCompiler grammar: gc grammar.
+  gc scannerCompiler definition: scannerString.
+  gc parserDefinition: parserString.
+  gc scannerCompiler parseTokens.
+  gc parser: (CC GrammarParser newOn: parserString reader).
+  gc parser grammar: gc grammar.
+  parser parse.
+  gc
+].

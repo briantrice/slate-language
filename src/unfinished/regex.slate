@@ -1,0 +1,1193 @@
+ensureNamespace: #Regex.
+
+Regex define: #Parser
+ &slots: {#input. #lookahead}.
+"Takes a String or Stream whose contents encode a regular expression, and
+and answers a corresponding Regex Syntax tree."
+
+Regex define: #Matcher &slots:
+{#matcher.
+ #ignoreCase.
+ #startOptimizer.
+ #stream.
+ #markerPositions.
+ #markerCount.
+ #lastResult.
+ #lastChar}.
+"Takes a Regex Syntax tree from a Regex Parser and compiles it into matcher -
+a structure made of Regex Match objects. That structure can test whether
+elements of a stream or string matches the original expression. After a match
+is found, it can return a specific match or any parenthesized part of it."
+
+Regex define: #MatchOptimizer &slots:
+{#ignoreCase.
+ #prefixes.
+ #nonPrefixes.
+ #conditions.
+ #methodPredicates.
+ #nonMethodPredicates.
+ #predicates.
+ #nonPredicates}.
+
+Regex ensureNamespace: #Syntax &delegate: True.
+
+Regex Syntax define: #Node.
+
+Regex Syntax define: #Regex &parents: {Regex Syntax Node} &slots:
+{#branch. #regex}.
+
+Regex Syntax define: #Branch &parents: {Regex Syntax Node} &slots:
+{#piece. #branch}.
+
+Regex Syntax define: #Character &parents: {Regex Syntax Node} &slots:
+{#character}.
+
+Regex Syntax define: #Piece &parents: {Regex Syntax Node} &slots:
+{#atom.
+ #min.
+ #max}.
+
+Regex Syntax define: #CharSet &parents: {Regex Syntax Node}.
+{#negated.
+ #elements}.
+
+Regex Syntax CharSet traits define: #Parser &slots:
+{#source.
+ #lookahead.
+ #elements}.
+
+Regex Syntax define: #Range &parents: {Regex Syntax Node} &slots:
+{#first.
+ #last}.
+
+Regex Syntax define: #ContextCondition &parents: {Regex Syntax Node} &slots:
+{#kind}.
+
+Regex Syntax define: #MessagePredicate &parents: {Regex Syntax Node} &slots:
+{#predicate.
+ #selector}.
+
+Regex Syntax define: #Epsilon &parents: {Regex Syntax Node}.
+
+Regex Syntax define: #Predicate &parents: {Regex Syntax Node} &slots:
+{#predicate.
+ #negation}.
+
+Regex ensureNamespace: #Match &delegate: True.
+
+Regex Match define: #Terminator &parents: {Cloneable}.
+
+Regex Match define: #Link &parents: {Cloneable} &slots: {#next}.
+
+Regex Match define: #Marker &parents: {Regex Match Link} &slots: {#index}.
+
+Regex Match define: #Branch &parents: {Regex Match Link} &slots:
+{#loopback.
+ #alternative}.
+
+Regex Match define: #Predicate &parents: {Regex Match Link} &slots:
+{#predicate}.
+
+Regex Match define: #Special &parents: {Regex Match Link} &slots:
+{#matchSelector}.
+
+Regex Match define: #Substring &parents: {Regex Match Link} &slots:
+{#sample.
+ #compare}.
+
+Regex Parser traits define: #BackslashConstants &builder:
+[Dictionary new `>> [at: $e put: $\e.
+                      at: $n put: $\n.
+                      at: $r put: $\r.
+                      at: $f put: $\f.
+                      at: $t put: $\t. ]].
+
+Regex Parser traits define: #BackslashSpecials &builder: [Dictionary new `>> [
+  "Keys are characters that normally follow a \, the values are
+  associations of classes and initialization selectors on the instance side
+  of the classes."
+    at: $w put: (Regex Syntax Predicate ->  #beWordConstituent).
+    at: $W put: (Regex Syntax Predicate ->  #beNotWordConstituent).
+    at: $s put: (Regex Syntax Predicate ->  #beSpace).
+    at: $S put: (Regex Syntax Predicate ->  #beNotSpace).
+    at: $d put: (Regex Syntax Predicate ->  #beDigit).
+    at: $D put: (Regex Syntax Predicate ->  #beNotDigit).
+    at: $b put: (Regex Syntax ContextCondition -> #beWordBoundary).
+    at: $B put: (Regex Syntax ContextCondition -> #beNonWordBoundary).
+    at: $< put: (Regex Syntax ContextCondition -> #beBeginningOfWord).
+    at: $> put: (Regex Syntax ContextCondition -> #beEndOfWord).]].
+
+s@(Regex Match Special traits) matchAgainst: aMatcher
+[
+ (aMatcher perform: s matchSelector) /\ [s next matchAgainst: aMatcher]
+].
+
+m@(Regex Match Marker traits) matchAgainst: aMatcher
+[
+  "If the rest of the link chain matches successfully, report the
+  position of the stream *before* the match started to the matcher."
+  | startPosition |
+  startPosition: aMatcher position.
+  (m next matchAgainst: aMatcher)
+    /\ [aMatcher markerPositionAt: m index maybePut: startPosition. True].
+].
+
+t@(Regex Match Terminator traits) terminateWith: aTerminator
+[
+  "Branch terminators are never supposed to change.
+  Make sure this is the case."
+  aTerminator ~== t
+    ifTrue: [Regex Parser signalCompilationException:
+        'internal matcher build error - wrong terminator']
+].
+
+t@(Regex Match Terminator traits) matchAgainst: s
+[True].
+
+t@(Regex Match Terminator traits) pointTailTo: anRxmLink
+[
+  "Branch tails are never redirected by the build algorithm.
+  Healthy terminators should never receive this."
+  Regex Parser signalCompilationException:
+    'internal matcher build error - redirecting terminator tail'
+].
+
+p@(Regex Match Predicate traits) as: s@(String traits)
+[
+ 'Predicate xxx'
+].
+
+s@(Regex Match Substring traits) new
+[s clone beCaseSensitive].
+
+s@(Regex Match Substring traits) substring: string ignoreCase: bool
+[
+ s sample: string.
+ bool ifTrue: [s beCaseInsensitive].
+ s
+].
+
+s@(Regex Match Substring traits) beCaseInsensitive
+[
+ s compare: #sameAs:`er.
+ s
+].
+
+s@(Regex Match Substring traits) beCaseSensitive
+[
+ s compare: #=`er.
+ s
+].
+
+s@(Regex Match Substring traits) sampleStream
+[
+ s sample reader
+].
+
+s@(Regex Match Substring traits) matchAgainst: aMatcher
+"Match if my sample stream is exactly the current prefix of the matcher
+stream's contents."
+[| originalState sampleStream mismatch |
+  originalState: aMatcher currentState.
+  sampleStream: s sampleStream.
+  mismatch: False.
+  [sampleStream isAtEnd \/ [aMatcher isAtEnd]
+     \/ [mismatch: (s compare applyWith: sampleStream next with: aMatcher next) not]] whileFalse.
+  mismatch not /\ [sampleStream isAtEnd] /\ [s next matchAgainst: aMatcher]
+    ifTrue: [True] ifFalse: [aMatcher restoreState: originalState. False]
+].
+
+p@(Regex Match Predicate traits) matchAgainst: aMatcher
+"Match if the predicate block evaluates to true when given the current stream
+character as the argument."
+[| original |
+  original: aMatcher currentState.
+  aMatcher isAtEnd not /\ [p predicate applyWith: aMatcher next]
+      /\ [p next matchAgainst: aMatcher]
+    ifTrue: [True] ifFalse: [aMatcher restoreState: original. False]
+].
+
+p@(Regex Match Predicate traits) with: block
+[p clone `>> [ predicate: block. ]].
+
+b@(Regex Match Branch traits) new
+[b clone `>> [ loopback: False. alternative: Nil. ]].
+
+b@(Regex Match Branch traits) beLoopback
+[
+ b loopback: True.
+ b
+].
+
+b@(Regex Match Branch traits) matchAgainst: aMatcher
+[
+  "Match either `next' or `alternative'. Fail if the alternative is nil."
+  (b next matchAgainst: aMatcher)
+    \/ [b alternative isNotNil /\ [b alternative matchAgainst: aMatcher]]
+].
+
+b@(Regex Match Branch traits) terminateWith: aNode
+[
+  "See superclass for explanations."
+  b loopback
+    ifTrue: [b alternative
+      ifNil: [b alternative: aNode]
+      ifNotNilDo: [| :alt | alt terminateWith: aNode]]
+    ifFalse: [resend]
+].
+
+l@(Regex Match Link traits) matchAgainst: aMatcher
+[
+ l next matchAgainst: aMatcher
+].
+
+l@(Regex Match Link traits) pointTailTo: anRxmLink "@(Regex Match Link traits) can be Nil"
+[
+  "Propagate this message along the chain of links.
+  Point `next' reference of the last link to <anRxmLink>.
+  If the chain is already terminated, blow up."
+  l next
+    ifNil: [l next: anRxmLink]
+    ifNotNilDo: [| :obj | obj pointTailTo: anRxmLink]
+].
+
+l@(Regex Match Link traits) terminateWith: aTerminator
+[
+  "Propagate this message along the chain of links, and
+  make aTerminator the `next' link of the last link in the chain.
+  If the chain is already reminated with the same terminator,
+  do not blow up."
+  l next
+    ifNil: [l next: aTerminator]
+    ifNotNilDo: [| :obj | obj terminateWith: aTerminator]
+].
+
+b@(Regex Match Branch traits) pointTailTo: aNode
+[
+  b loopback
+    ifTrue: [b alternative
+          ifNil: [b alternative: aNode]
+          ifNotNilDo: [| :alt | alt pointTailTo: aNode]]
+    ifFalse: [resend]
+].
+
+t@(Regex Match Terminator traits) pointTailTo: anRxmLink
+[
+  "Branch tails are never redirected by the build algorithm.
+  Healthy terminators should never receive this."
+  Regex Parser signalCompilationException:
+    'internal matcher build error - redirecting terminator tail'
+].
+
+p@(Regex Syntax Piece traits) isPlus
+[p min = 1 /\ [p max isNil]].
+
+p@(Regex Syntax Piece traits) isOptional
+[p min = 0 /\ [p max = 1]].
+
+p@(Regex Syntax Piece traits) initializeAtom: a
+[
+ p atom: a.
+ p min: 1.
+ p max: 1.
+ p
+].
+
+p@(Regex Syntax Piece traits) initializePlusAtom: anAtom
+[
+ p atom: anAtom.
+ p min: 1.
+ p max: Nil.
+ p
+].
+
+p@(Regex Syntax Piece traits) character
+"If this node is atomic, answer the character it represents.
+It is the caller's responsibility to make sure this node is indeed atomic
+before using this."
+[p atom character].
+
+n@(Regex Syntax Node traits) isNullable [False].
+
+n@(Regex Syntax Node traits) isAtomic [False].
+
+p@(Regex Syntax Predicate traits) isAtomic [False].
+
+p@(Regex Syntax Predicate traits) isEnumerable [False].
+
+p@(Regex Syntax Predicate traits) dispatchTo: obj
+[obj syntaxPredicate: p].
+
+p@(Regex Syntax Piece traits) isNullable
+"A piece is nullable if it allows 0 matches. This is often handy to know
+for optimization."
+[p min = 0 \/ [p atom isNullable]].
+
+p@(Regex Syntax Piece traits) isAtomic
+"A piece is atomic if only it contains exactly one atom which is atomic (sic)."
+[p isSingular /\ [p atom isAtomic]].
+
+p@(Regex Syntax Piece traits) isStar
+[p min = 0 /\ [p max isNil]].
+
+p@(Regex Syntax Piece traits) isSingular
+"A piece with a range is 1 to 1 needs can be compiled as a simple match."
+[p min = 1 /\ [p max = 1]].
+
+p@(Regex Syntax Piece traits) dispatchTo: aMatcher
+"Inform the matcher of the kind of the node, and it will do whatever it has to."
+[| t |
+  t: (aMatcher syntaxPiece: p).
+  t
+].
+
+p@(Regex Syntax Piece traits) initializeStarAtom: a
+[
+ p atom: a.
+ p min: 0.
+ p max: Nil.
+ p
+].
+
+p@(Regex Syntax Piece traits) initializeOptionalAtom: a
+[
+ p atom: a.
+ p min: 0.
+ p max: 1.
+ p
+].
+
+c@(Regex Syntax Character traits) as: s@(String traits)
+[
+ 'Regex Syntax Character ' ; (c character as: s)
+].
+
+c@(Regex Syntax Character traits) with: aCharacter
+[
+ c clone `>> [ character: aCharacter. ]
+].
+
+c@(Regex Syntax Character traits) isAtomic
+[True].
+
+c@(Regex Syntax Character traits) dispatchTo: aMatcher
+"Inform the matcher of the kind of the node, and it
+will do whatever it has to."
+[
+  aMatcher syntaxCharacter: c
+].
+
+c@(Regex Syntax Character traits) isNullable
+[False].
+
+c@(Regex Syntax Character traits) isEnumerable
+[True].
+
+c@(Regex Syntax Character traits) enumerateTo: aCollection
+[
+ aCollection add: c character
+].
+
+p@(Regex Parser traits) new
+[p clone].
+
+p@(Regex Parser traits) parse: s@(String traits)
+[p parse: s reader].
+
+p@(Regex Parser traits) parse: s@(ReadStream traits)
+[| tree |
+ p input: s.
+ p lookahead: Nil.
+ p match: Nil.
+ tree: p regex.
+ p match: #epsilon.
+ tree
+].
+
+r@(Regex Syntax Regex traits) readFrom: s
+[
+  r readFrom: (Regex Parser new parse: s)
+].
+
+r@(Regex Syntax Regex traits) readFrom: p@(Regex Parser traits)
+[
+  r clone `>>
+    [branch: p branch.
+     regex: (p lookahead = #epsilon \/ [p lookahead = $)]
+	ifTrue: [Nil] ifFalse: [p match: $|. p regex]). ]
+].
+
+p@(Regex Parser traits) regex
+"OBSOLETE"
+[| branch regex |
+  branch: p branch.
+  (p lookahead = #epsilon \/ [p lookahead = $)])
+    ifTrue: [regex: Nil]
+    ifFalse:
+      [p match: $|.
+       regex: p regex].
+  Regex Syntax Regex new initializeBranch: branch regex: regex
+].
+
+b@(Regex Syntax Branch traits) readFrom: p@(Regex Parser traits)
+"<branch> ::= e | <piece> <branch>"
+[
+  b clone `>>
+    [piece: p piece.
+     branch: (p lookahead = #epsilon \/ [p lookahead = $| ] \/ [p lookahead = $) ]
+	ifTrue: [Nil] ifFalse: [p branch]). ]
+].
+
+p@(Regex Parser traits) branch
+"OBSOLETE"
+"<branch> ::= e | <piece> <branch>"
+[| piece branch |
+  piece: p piece.
+  branch: (p lookahead = #epsilon \/ [p lookahead = $| ] \/ [p lookahead = $) ]
+    ifTrue: [Nil] ifFalse: [p branch]).
+  Regex Syntax Branch clone initializePiece: piece branch: branch
+].
+
+p@(Regex Parser traits) handleAtom: char
+[
+].
+
+p@(Regex Parser traits) handleAtom: char@$(
+[| atom |
+  p match: $(.
+  atom: p regex.
+  p match: $).
+  atom
+].
+
+p@(Regex Parser traits) atom
+"An atom is one of a lot of possibilities, see below."
+[| char atom |
+ ({#epsilon. $|. $). $*. $+. $?} includes: p lookahead)
+    ifTrue: [^ Regex Syntax Epsilon clone].
+  p lookahead = $( ifTrue:
+      ["<atom> ::= '(' <regex> ')' "
+      p match: $(.
+      atom: p regex.
+      p match: $).
+      ^ atom].
+  p lookahead = $[ ifTrue:
+      ["<atom> ::= '[' <characterSet> ']' "
+      p match: $[.
+      atom: p characterSet.
+      p match: $].
+      ^ atom].
+  p lookahead = $: ifTrue:
+      ["<atom> ::= ':' <messagePredicate> ':' "
+      p match: $:.
+      atom: p messagePredicate.
+      p match: $:.
+      ^ atom].
+  p lookahead = $. ifTrue:
+      ["any non-whitespace character"
+      p next.
+      ^ (Regex Syntax ContextCondition new beAny)].
+  p lookahead = $^ ifTrue:
+      ["beginning of line condition"
+      p next.
+      ^ (Regex Syntax ContextCondition new beBeginningOfLine)].
+  p lookahead = $$ ifTrue:
+      ["end of line condition"
+      p next.
+      ^ (Regex Syntax ContextCondition new beEndOfLine)].
+  p lookahead = $\\ ifTrue:
+      ["<atom> ::= '\' <character>"
+
+      p next.
+      p lookahead = #epsilon ifTrue:
+        [p signalParseError: 'bad quotation'].
+      (p BackslashConstants includesKey: p lookahead) ifTrue:
+        [atom: (Regex Syntax Character with: (p BackslashConstants at: p lookahead)).
+        p next.
+        ^ atom].
+      p ifSpecial: p lookahead
+        then: [|:node | p next. ^ node]].
+  "If passed through the above, the following is a regular character."
+  atom: (Regex Syntax Character with: p lookahead).
+  p next.
+  ^ atom
+].
+
+p@(Regex Parser traits) ifSpecial: aCharacter then: aBlock
+[
+  "If the character is such that it defines a special node when follows a $\,
+  then create that node and evaluate aBlock with the node as the parameter.
+  Otherwise just return."
+  | classAndSelector |
+  classAndSelector: (p BackslashSpecials at: aCharacter ifAbsent: [^ p]).
+  ^ (aBlock applyWith: (classAndSelector key new perform: classAndSelector value))
+].
+
+mp@(Regex Syntax MessagePredicate traits) readFrom: p@(Regex Parser traits)
+"Match a message predicate specification: a selector (presumably
+understood by a Character) enclosed in :'s ."
+[| spec negated |
+  spec: (p inputUpTo: $: errorMessage: ' no terminating ":"').
+  negated: spec first = $^.
+  spec first = $^ ifTrue: [spec: spec allButLast].
+  mp clone `>> [selector: spec intern. negated: negated]
+].
+
+p@(Regex Parser traits) messagePredicate
+"OBSOLETE"
+[
+  "Match a message predicate specification: a selector (presumably
+  understood by a Character) enclosed in :'s ."
+  | spec negated |
+  spec: (p inputUpTo: $: errorMessage: ' no terminating ":"').
+  negated: False.
+  spec first = $^ ifTrue:
+    [ negated: True.
+      spec: (spec copyFrom: 1 to: (spec size - 1))].
+  Regex Syntax MessagePredicate new initializeSelector: spec intern negated: negated
+].
+
+cs@(Regex Syntax CharSet traits) readFrom: p@(Regex Parser traits)
+"Match a range of characters: something between `[\' and `]\'. The opening
+bracket has already been seen, and closing should not be consumed as well.
+Set spec is as usual for sets in regexes."
+[| spec specStream negated |
+  spec: (p inputUpTo: $] nestedOn: $[ errorMessage: ' no terminating ]').
+  (spec isEmpty \/ [spec = '^']) ifTrue:
+    [p next.
+     spec: (spec ; ']' ; (p inputUpTo: $] nestedOn: $[ errorMessage: ' no terminating ]'))].
+  specStream: spec reader.
+  negated: specStream peek = $^.
+  negated ifTrue: [specStream next].
+  cs clone `>> [elements: (cs Parser on: specStream) parse. negated: negated. ]
+].
+
+cs@(Regex Syntax CharSet traits) readFrom: spec
+"OBSOLETE"
+"The spec is what goes between the brackets in a charset regex.
+Make a string containing all characters the spec specifies."
+[| negated src |
+  src: spec reader.
+  src isAtEnd ifTrue: [error: 'Empty CharSet specification.'].
+  negated: (src peek = $^ ifTrue: [src next. True] ifFalse: [False]).
+  cs clone `>> [elements: (cs Parser on: src) parse. negated: negated. ]
+].
+
+p@(Regex Parser traits) characterSet
+"OBSOLETE"
+[
+"Match a range of characters: something between `[\' and `]\'.
+  Opening bracked has already been seen, and closing should
+  not be consumed as well. Set spec is as usual for
+  sets in regexes."
+  | spec errorMessage |
+  errorMessage: ' no terminating ]'.
+  spec: (p inputUpTo: $] nestedOn: $[ errorMessage: errorMessage).
+  (spec isEmpty \/ [spec = '^']) ifTrue:
+    [ p next.
+      spec: (spec ; ']' ; (p inputUpTo: $] nestedOn: $[ errorMessage: errorMessage))].
+  Regex CharSet readFrom: spec
+].
+
+p@(Regex Parser traits) inputUpTo: char errorMessage: aString
+"Accumulate input stream until <char> is encountered
+and answer the accumulated chars up to that point as String, not including
+<char>. Signal error if end of stream is encountered,
+passing <aString> as the error description."
+[
+  [| :result |
+  [p lookahead ~= char /\ [p lookahead ~= #epsilon]]
+    whileTrue:
+      [result nextPut: p lookahead.
+      p next].
+  p lookahead = #epsilon ifTrue: [p signalParseError: aString].
+  ] writingAs: (String new &capacity: 20)
+].
+
+p@(Regex Parser traits) inputUpTo: aCharacter nestedOn: anotherCharacter errorMessage: aString
+"Accumulate input stream until <aCharacter> is encountered
+and answer the accumulated chars as String, not including
+<aCharacter>. Signal error if end of stream is encountered,
+passing <aString> as the error description."
+[| nestLevel |
+  nestLevel: 0.
+  [| :result |
+   [p lookahead ~= aCharacter \/ [nestLevel > 0]] whileTrue:
+     [#epsilon = p lookahead ifTrue: [p signalParseError: aString].
+      result nextPut: p lookahead.
+      p lookahead = anotherCharacter ifTrue: [nestLevel: nestLevel + 1].
+      p lookahead = aCharacter ifTrue: [nestLevel: nestLevel - 1].
+      p next].
+   ] writingAs: (String new &capacity: 20)
+].
+
+r@(Regex Syntax Range traits) from: aCharacter to: anotherCharacter
+[r clone `>> [ first: aCharacter. last: anotherCharacter. ]].
+
+r@(Regex Syntax Range traits) isEnumerable
+[True].
+
+r@(Regex Syntax Range traits) enumerateTo: aCollection
+[
+  "Add all of the elements I represent to the collection."
+  (r first as: Integer) to: (r last as: Integer) do:
+    [| :charCode |
+    aCollection add: (charCode as: Character)]
+].
+
+cc@(Regex Syntax ContextCondition traits) new
+[cc clone].
+
+cc@(Regex Syntax ContextCondition traits) beAny
+[
+ cc kind: #syntaxAny.
+ cc
+].
+
+cc@(Regex Syntax ContextCondition traits) beBeginningOfLine
+[
+ cc kind: #syntaxBeginningOfLine.
+ cc
+].
+
+cc@(Regex Syntax ContextCondition traits) beEndOfLine
+[
+ cc kind: #syntaxEndOfLine.
+ cc
+].
+
+cc@(Regex Syntax ContextCondition traits) dispatchTo: aBuilder
+[
+ aBuilder perform: cc kind
+].
+
+mp@(Regex Syntax MessagePredicate traits) initializeSelector: s negated: n
+[mp clone `>> [ selector: s. negated: n. ]].
+
+csp@(Regex CharSet Parser traits) on: s
+[
+  csp clone `>>
+   [source: s.
+    lookahead: s next.
+    elements: (ExtensibleArray new &capacity: 1). ]
+].
+
+csp@(Regex CharSet Parser traits) parse
+[
+  csp lookahead = $- ifTrue:
+    [csp addChar: $-. csp match: $-].
+  [csp lookahead isNil] whileFalse: [csp parseStep].
+  csp elements
+].
+
+csp@(Regex CharSet Parser traits) parseStep
+[
+  csp lookahead = $[ ifTrue:
+    [^ (csp source peek = $:
+      ifTrue: [csp parseNamedSet]
+      ifFalse: [csp parseCharOrRange])].
+  csp lookahead = $\\ ifTrue:
+    [^ csp parseEscapeChar].
+  csp lookahead = $- ifTrue:
+    [Regex Parser signalSyntaxException: 'invalid range'].
+  csp parseCharOrRange
+].
+
+csp@(Regex CharSet Parser traits) parseCharOrRange
+[| firstChar |
+  firstChar: csp lookahead.
+  csp match: firstChar.
+  csp lookahead = $- ifTrue:
+    [csp match: $-.
+    csp lookahead
+      ifNil: [^(csp addChar: firstChar. csp addChar: $-. csp)]
+      ifNotNilDo:
+        [| :next |
+	 csp addRangeFrom: firstChar to: next.
+         ^ (csp match: next)]].
+  csp addChar: firstChar
+].
+
+csp@(Regex CharSet Parser traits) addChar: aChar
+[
+  csp elements add: (Regex Syntax Character with: aChar)
+].
+
+csp@(Regex CharSet Parser traits) match: aCharacter
+[
+ aCharacter = csp lookahead
+  ifFalse: [Regex Parser signalSyntaxException: ('unexpected character: ' ; (csp lookahead as: String))].
+ csp source isAtEnd
+    ifTrue: [csp lookahead: Nil]
+    ifFalse: [csp lookahead: csp source next]
+].
+
+csp@(Regex CharSet Parser traits) addRangeFrom: firstChar to: lastChar
+[
+  (firstChar as: Integer) > (lastChar as: Integer) ifTrue:
+    [Regex Parser signalSyntaxException: ' bad character range'].
+  csp elements add: (Regex Syntax Range from: firstChar to: lastChar)
+].
+
+cs@(Regex Syntax CharSet traits) dispatchTo: aMatcher
+"Inform the matcher of the kind of the node, and it will do whatever it has to."
+[
+  aMatcher syntaxCharSet: cs
+].
+
+cs@(Regex Syntax CharSet traits) optimalSet
+"Assuming the client with search the `set' using #includes:,
+answer a collection with the contents of `set', of the class
+that will provide the fastest lookup. Strings are faster than
+Sets for short strings."
+[| set |
+  set: cs enumerableSet.
+  set size < 10 ifTrue: [set as: String] ifFalse: [set]
+].
+
+cs@(Regex Syntax CharSet traits) enumerableSet
+"Answer a collection of characters that make up the portion of me
+that can be enumerated."
+[| set |
+  set: Set new.
+  cs elements do:
+    [|:each | each isEnumerable ifTrue: [each enumerateTo: set]].
+  set
+].
+
+cs@(Regex Syntax CharSet traits) predicate
+[| predicate enumerable |
+  enumerable: cs enumerablePartPredicate.
+  cs hasPredicates
+    ifTrue:
+      [predicate: cs predicatePartPredicate.
+       cs negated
+         ifTrue: [[| :char | (enumerable applyWith: char) /\ [predicate applyWith: char]]]
+         ifFalse: [[| :char | (enumerable applyWith: char) \/ [predicate applyWith: char]]]]
+    ifFalse: [enumerable]
+].
+
+cs@(Regex Syntax CharSet traits) hasPredicates
+[
+  cs elements anySatisfy: [| :some | some isEnumerable not]
+].
+
+cs@(Regex Syntax CharSet traits) enumerablePartPredicate
+[| enumeration |
+  enumeration: cs optimalSet.
+  cs negated
+    ifTrue: [[| :char | (enumeration includes: char) not]]
+    ifFalse: [[| :char | enumeration includes: char]]
+].
+
+cs@(Regex Syntax CharSet traits) isEnumerable
+[
+  elements detect: [| :some | some isEnumerable not] ifNone: [^ True].
+  False
+].
+
+p@(Regex Parser traits) piece
+"<piece> ::= <atom> | <atom>* | <atom>+ | <atom>?"
+[| atom errorMessage |
+  errorMessage: ' nullable closure'.
+  atom: p atom.
+  p lookahead = $* ifTrue:
+    [p next.
+    atom isNullable ifTrue: [p signalParseError: errorMessage].
+    ^ (Regex Syntax Piece clone initializeStarAtom: atom)].
+  p lookahead = $+ ifTrue:
+    [p next.
+    atom isNullable ifTrue: [p signalParseError: errorMessage].
+    ^ (Regex Syntax Piece clone initializePlusAtom: atom)].
+  p lookahead = $? ifTrue:
+    [p next.
+    atom isNullable ifTrue: [p signalParseError: errorMessage].
+    ^ ( Regex Syntax Piece clone initializeOptionalAtom: atom)].
+  Regex Syntax Piece clone initializeAtom: atom
+].
+
+b@(Regex Syntax Branch traits) initializePiece: piece branch: branch
+[
+ b piece: piece.
+ b branch: branch.
+ b
+].
+
+b@(Regex Syntax Branch traits) isNullable
+[
+ b piece isNullable /\ [ b branch isNil \/ [b branch isNullable]]
+].
+
+b@(Regex Syntax Branch traits) dispatchTo: aMatcher
+"Inform the matcher of the kind of the node, and it will do whatever it has to."
+[
+  aMatcher syntaxBranch: b
+].
+
+b@(Regex Syntax Branch traits) tryMergingInto: s
+[
+  "Concatenation of a few simple characters can be optimized
+  to be a plain substring match. Answer the node to resume
+  syntax tree traversal at. Epsilon node used to terminate the branch
+  will implement this to answer nil, thus indicating that the branch
+  has ended."
+  b piece isAtomic ifFalse: [^ b].
+  s nextPut: b piece character.
+  b branch ifNotNilDo: [| :branch | branch tryMergingInto: s]
+].
+
+r@(Regex Syntax Regex traits) new
+[r clone].
+
+r@(Regex Syntax Regex traits) isNullable
+[
+ r branch isNullable \/ [r regex isNil not /\ [r regex isNullable]]
+].
+
+r@(Regex Syntax Regex traits) dispatchTo: aMatcher
+"Inform the matcher of the kind of the node, and it will do whatever it has to."
+[
+  aMatcher syntaxRegex: r
+].
+
+r@(Regex Syntax Regex traits) initializeBranch: branch regex: regex
+[
+ r branch: branch.
+ r regex: regex.
+ r
+].
+
+p@(Regex Parser traits) match: aCharacter
+[
+  "<aCharacter> MUST match the current lookeahead.
+  If this is the case, advance the input. Otherwise, blow up."
+  aCharacter ~= p lookahead
+    ifTrue: [^ p signalParseError].
+  p next
+].
+
+p@(Regex Parser traits) next
+[
+ p input isAtEnd
+  ifTrue: [p lookahead: #epsilon] ifFalse: [p lookahead: p input next]
+].
+
+rm@(Regex Matcher traits) subexpression: subIndex
+[| originalPosition start end |
+  originalPosition: rm stream position.
+  start: (rm subBeginning: subIndex).
+  end: (rm subEnd: subIndex).
+  (start isNil \/ [end isNil]) ifTrue: [^ String new].
+  [| :reply |
+   rm stream position: start.
+   start to: end - 1 do: [| :ignored | reply nextPut: rm stream next].
+   rm stream position: originalPosition.
+   ] writingAs: (String new &capacity: end - start)
+].
+
+rm@(Regex Matcher traits) subBeginning: subIndex
+[
+  rm markerPositions at: subIndex * 2 - 1
+].
+
+rm@(Regex Matcher traits) subEnd: subIndex
+[
+  rm markerPositions at: subIndex * 2
+].
+
+rm@(Regex Matcher traits) syntaxBeginningOfLine
+"Double dispatch from the syntax tree.
+Create a matcher for beginning-of-line condition."
+[
+  Regex Match Special clone `>> [ matchSelector: #atBeginningOfLine. ]
+].
+
+rm@(Regex Matcher traits) makeOptional: aMatcher
+[
+  "Private - Wrap this matcher so that the result would match 0 or 1
+  occurrences of the matcher."
+  | dummy branch |
+  dummy: Regex Match Link clone.
+  branch: Regex Match Branch new beLoopback `>> [ next: aMatcher. alternative: dummy. ].
+  aMatcher pointTailTo: dummy.
+  branch
+].
+
+rm@(Regex Matcher traits) isAtEnd
+[
+ rm stream isAtEnd
+].
+
+rm@(Regex Matcher traits) atBeginningOfLine
+[
+  rm position = 0 \/ [rm lastChar = $\r]
+].
+
+rm@(Regex Matcher traits) markerPositionAt: anIndex maybePut: position
+[
+  "Set position of the given marker, if not already set."
+  (rm markerPositions at: anIndex) == Nil
+    ifTrue:  [rm markerPositions at: anIndex put: position]
+].
+
+rm@(Regex Matcher traits) next
+[| result |
+  rm lastChar: (result: rm stream next).
+  result
+].
+
+rm@(Regex Matcher traits) position
+[
+ rm stream position
+].
+
+rm@(Regex Matcher traits) restoreState: block@(Method traits)
+[block do].
+
+rm@(Regex Matcher traits) restoreState: obj
+[obj].
+
+rm@(Regex Matcher traits) currentState
+"Answer an opaque object that can later be used to restore the matcher's state
+(for backtracking)."
+[| origPosition origLastChar |
+  origPosition: rm stream position.
+  origLastChar: rm lastChar.
+  rm stream position: origPosition.
+  rm lastChar: origLastChar
+].
+
+rm@(Regex Matcher traits) for: s &ignoreCase: bool
+[
+ rm for: (Regex Parser new parse: s)
+].
+
+rm@(Regex Matcher traits) for: r@(Regex Syntax Regex traits) &ignoreCase: bool
+[
+  rm clone initialize: r &ignoreCase: bool
+].
+
+m@(Regex Matcher traits) matches: s@(String traits)
+[
+ m matches: s reader
+].
+
+m@(Regex Matcher traits) matches: s@(ReadStream traits)
+[
+ (m matchesStreamPrefix: s) /\ [s isAtEnd]
+].
+
+m@(Regex Matcher traits) matchesStreamPrefix: s
+[
+ m stream: s.
+ m lastChar: Nil.
+ m tryMatch
+].
+
+m@(Regex Matcher traits) tryMatch
+[
+ m markerPositions: (Array new &capacity: m markerCount + 1 ).
+ m startOptimizer == Nil
+   ifTrue: [m lastResult: (m matcher matchAgainst: m)]
+  ifFalse: [m lastResult: ((m startOptimizer canStartMatch: m stream peek in: m) /\ [m matcher matchAgainst: m])].
+ m lastResult
+].
+
+rm@(Regex Matcher traits) makePlus: aMatcher
+[
+  "Private - Wrap this matcher so that the result would match 1 and more
+  occurrences of the matcher."
+  | loopback |
+  loopback: (Regex Match Branch new beLoopback `>> [next: aMatcher.]).
+  aMatcher pointTailTo: loopback.
+  aMatcher
+].
+
+rm@(Regex Matcher traits) initialize: syntaxTreeRoot@(Regex Syntax Regex traits) &ignoreCase: bool
+[
+"Compile thyself for the regex with the specified syntax tree.
+See comment and `building' protocol in this class and
+#dispatchTo: methods in syntax tree components for details
+on double-dispatch building.
+The argument is supposedly a RxsRegex."
+
+  rm ignoreCase: (bool ifNil: [False]).
+  rm buildFrom: syntaxTreeRoot.
+  rm startOptimizer: (Regex MatchOptimizer clone initialize: syntaxTreeRoot &ignoreCase: bool).
+  rm
+].
+
+m@(Regex Matcher traits) syntaxPiece: pieceNode
+[
+  "Double dispatch from the syntax tree.
+  Piece is an atom repeated a few times. Take care of a special
+  case when the atom is repeated just once."
+  | atom |
+  atom: (pieceNode atom dispatchTo: m).
+  pieceNode isSingular
+    ifTrue: [atom]
+    ifFalse: [pieceNode isStar
+      ifTrue: [m makeStar: atom]
+      ifFalse: [pieceNode isPlus
+        ifTrue: [m makePlus: atom]
+        ifFalse: [pieceNode isOptional
+          ifTrue: [m makeOptional: atom]
+          ifFalse: [Regex Parser signalCompilationException:
+            'repetitions are not supported by RxMatcher']]]]
+].
+
+m@(Regex Matcher traits) syntaxAny
+[
+  "Double dispatch from the syntax tree.
+  Create a matcher for any non-whitespace character."
+  Regex Match Predicate clone `>> [ predicate: [| :char | ($\r = char \/ [$\n = char]) not]. ]
+].
+
+m@(Regex Matcher traits) syntaxCharacter: charNode
+[
+  "Double dispatch from the syntax tree.
+  We get here when no merging characters into strings was possible."
+  | wanted |
+  wanted: charNode character.
+  Regex Match Predicate clone `>> [ predicate: (m ignoreCase
+        ifTrue:  [[| :char | char sameAs: wanted]]
+        ifFalse: [[| :char | char = wanted]]). ]
+].
+
+m@(Regex Matcher traits) syntaxCharSet: charSetNode
+[
+  "Double dispatch from the syntax tree.
+  A character set is a few characters, and we either match any of them,
+  or match any that is not one of them."
+  Regex Match Predicate with: charSetNode predicate
+].
+
+m@(Regex Matcher traits) syntaxBranch: branchNode
+[
+  "Double dispatch from the syntax tree.
+  Branch node is a link in a chain of concatenated pieces.
+  First build the matcher for the rest of the chain, then make
+  it for the current piece and hook the rest to it."
+  | result next rest |
+  branchNode branch isNil
+    ifTrue: [^ (branchNode piece dispatchTo: m)].
+  "Optimization: glue a sequence of individual characters into a single string to match."
+  branchNode piece isAtomic ifTrue:
+    [result: ((String new &capacity: 40) writer).
+     next: (branchNode tryMergingInto: result).
+     result: result contents trim.
+     result size > 1 ifTrue: "worth merging"
+      [rest: (next ifNotNil: [next dispatchTo: m]).
+       ^ (Regex Match Substring new `>> [ | :n | substring: result ignoreCase: m ignoreCase. pointTailTo: rest. ]).
+       ]].
+  "No optimization possible or worth it, just concatenate all. "
+  (branchNode piece dispatchTo: m) `>>
+    [pointTailTo: (branchNode branch dispatchTo: m). ]
+].
+
+m@(Regex Matcher traits) syntaxRegex: regexNode
+"Double dispatch from the syntax tree.
+Regex node is a chain of branches to be tried. Should compile this
+into a bundle of parallel branches, between two marker nodes."
+[| startIndex endIndex endNode alternatives |
+  startIndex: m allocateMarker.
+  endIndex: m allocateMarker.
+  endNode: Regex Match Marker clone `>> [index: endIndex. ].
+  alternatives: (m hookBranchOf: regexNode onto: endNode).
+  Regex Match Marker clone `>> [ index: startIndex. pointTailTo: alternatives. ]
+].
+
+m@(Regex Matcher traits) makeStar: aMatcher
+"Private - Wrap this matcher so that the result would match 0 and more
+occurrences of the matcher."
+[| dummy detour loopback |
+  dummy: Regex Match Link clone.
+  detour: Regex Match Branch new `>> [ next: aMatcher. alternative: dummy. ].
+  loopback: Regex Match Branch new beLoopback `>> [ next: aMatcher. alternative: dummy. ].
+  aMatcher pointTailTo: loopback.
+  detour
+].
+
+m@(Regex Matcher traits) hookBranchOf: regexNode onto: endMarker
+"Private - Recurse down the chain of regexes starting at
+regexNode, compiling their branches and hooking their tails
+to the endMarker node."
+[| rest |
+  rest: (regexNode regex ifNotNilDo:
+    [| :regex | m hookBranchOf: regex onto: endMarker]).
+  Regex Match Branch new `>>
+    [next: (regexNode branch dispatchTo: m) `>> [pointTailTo: endMarker. ].
+     alternative: rest. ]
+].
+
+m@(Regex Matcher traits) allocateMarker
+[
+ m markerCount: m markerCount + 1.
+ m markerCount
+].
+
+rm@(Regex Matcher traits) buildFrom: aSyntaxTreeRoot
+"Private - Entry point of matcher build process."
+[
+  rm markerCount: 0.  "must go before #dispatchTo: !"
+  rm matcher: (aSyntaxTreeRoot dispatchTo: rm).
+  rm matcher terminateWith: (Regex Match Terminator clone).
+  rm
+].
+
+mo@(Regex MatchOptimizer traits) syntaxRegex: regexNode
+"All prefixes of the regex's branches should be combined. Therefore, just recurse."
+[
+  regexNode branch dispatchTo: mo.
+  regexNode regex ifNotNilDo: [| :regex | regex dispatchTo: mo]
+].
+
+mo@(Regex MatchOptimizer traits) syntaxBeginningOfLine
+[
+ mo conditions add: #atBeginningOfLine.
+ mo
+].
+
+mo@(Regex MatchOptimizer traits) syntaxPiece: pieceNode
+[
+ pieceNode atom dispatchTo: mo
+].
+
+mo@(Regex MatchOptimizer traits) syntaxCharacter: charNode
+[
+  "This character is the prefix, of one of them."
+  mo prefixes add: charNode character
+].
+
+mo@(Regex MatchOptimizer traits) syntaxBranch: branchNode
+[
+  "If the head piece of the branch is transparent (allows 0 matches),
+  we must recurse down the branch. Otherwise, just the head atom
+  is important."
+  (branchNode piece isNullable /\ [branchNode branch isNil not])
+    ifTrue: [branchNode branch dispatchTo: mo].
+  branchNode piece dispatchTo: mo
+].
+
+mo@(Regex MatchOptimizer traits) initialize: syntaxTreeRoot &ignoreCase: bool
+[
+"Set `testMethod' variable to a can-match predicate block:
+  two-argument block which accepts a lookahead character
+  and a matcher (presumably built from aRegex) and answers
+  a boolean indicating whether a match could start at the given
+  lookahead. "
+  mo ignoreCase: (bool ifNil: [False]).
+  mo prefixes: (Set new &capacity: 10).
+  mo nonPrefixes: (Set new &capacity: 10).
+  mo conditions: (Set new &capacity: 3).
+  mo methodPredicates: (Set new &capacity: 3).
+  mo nonMethodPredicates: (Set new &capacity: 3).
+  mo predicates: (Set new &capacity: 3).
+  mo nonPredicates: (Set new &capacity: 3).
+  syntaxTreeRoot dispatchTo: mo.
+   "If the whole expression is nullable,
+    end-of-line is an implicit can-match condition!"
+  syntaxTreeRoot isNullable ifTrue: [mo conditions add: #atEndOfLine].
+"  mo testBlock: Nil. "
+"mo determineTestMethod"
+].

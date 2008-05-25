@@ -1,0 +1,60 @@
+
+
+Object format (each line is a word): 
+
+(object type = 0, object)
+
+[object header]
+[object size in words]
+[payload size in bytes]
+[pointer to map]
+<<slots (if any) which are pointers to other objects>>
+
+(object type = 1, oop array)
+
+[object header]
+[object size in words]
+[payload size in bytes]
+[pointer to map]
+<<slots (if any) which are pointers to other objects>>
+<<oop array items which are pointers to other objects>>
+
+(object type = 2, byte array)
+
+[object header]
+[object size in words]
+[payload size in bytes]
+[pointer to map]
+<<slots (if any) which are pointers to other objects>>
+<<bytes (padded to word size))>>
+
+
+
+[1] Object size in words has to be a minimum of four
+because it counts the header, obj size, obj payload,
+and map.
+
+
+Object header:
+
+header & 1                    -> is it marked?
+(header>>1) & 0x7FFFFF        -> object hash
+(header>>30) & 0x3            -> object type
+
+
+
+Object types:
+
+0=object
+1=oop array
+2=byte array
+
+
+
+Pointers:
+
+If the least significant bit is 1, it's actually a smallint.
+Otherwise, it points to an object.
+
+The object size and payload size are not smallints because slate
+code cannot access them directly.

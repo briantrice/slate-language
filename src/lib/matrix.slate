@@ -1,0 +1,931 @@
+"A basic linear algebra system."
+
+prototypes define: #AbstractMatrix &parents: {Cloneable} &slots: {
+#elementType -> Float.
+"Could be Number or Integer. This helps when the type has its own Array
+parametrization."
+#height -> 0. #width -> 0}.
+"This defines the basic characteristics of 2D-matrices, without an
+implementation. Rows and columns are addressed from 0 to below the dimension
+of the matrix."
+
+mat@(AbstractMatrix traits) initializeElements
+"Override this for concrete implementations."
+[overrideThis].
+
+mat@(AbstractMatrix traits) newFromArrayOfArrays: array
+"Takes an array of rows"
+[
+  (mat newRows: array size columns: array first size)
+    fillWithArrayOfArrays: array
+].
+
+mat@(AbstractMatrix traits) newType: type fromArrayOfArrays: array
+[
+  (mat newType: type rows: array size columns: array first size)
+    fillWithArrayOfArrays: array
+].
+
+mat@(AbstractMatrix traits) newColumnVectorSize: n
+"Column vectors are just matrices of width 1."
+[
+  mat newRows: n columns: 1
+].
+
+mat@(AbstractMatrix traits) newRowVectorSize: n
+"Row vectors are just matrices of height 1."
+[
+  mat newRows: 1 columns: n
+].
+
+mat@(AbstractMatrix traits) newVectorSize: n
+"New vectors are by default columns."
+[
+  mat newColumnVectorSize: n
+].
+
+mat@(AbstractMatrix traits) newIdentitySize: n
+[
+  mat newIdentityType: mat elementType size: n
+].
+
+mat@(AbstractMatrix traits) newIdentityType: type size: n
+[
+  (mat newType: mat elementType rows: n columns: n)
+    fillDiagonalWithIdentity
+].
+
+mat@(AbstractMatrix traits) newRows: rows columns: columns
+[
+  mat newType: mat elementType rows: rows columns: columns
+].
+
+mat@(AbstractMatrix traits) newType: type rows: height columns: width
+[
+  mat copy `>>
+   [elementType: type.
+    height: height.
+    width: width.
+    initializeElements. ]
+].
+
+mat@(AbstractMatrix traits) newType: type size: point
+[
+  mat copy `>>
+   [elementType: type.
+    height: p y.
+    width: p x.
+    initializeElements. ]
+].
+
+mat@(AbstractMatrix traits) at: col putColumn: vector
+"Replaces the contents of the column with a 1xN matrix."
+[
+  0 below: mat height do: [| :row |
+    mat atRow: row column: col put: (vector atRow: row column: 0)]
+].
+
+mat@(AbstractMatrix traits) at: row putRow: vector
+"Replaces the contents of the row with a Nx1 matrix."
+[
+  0 below: mat height do: [| :col |
+    mat atRow: row column: col put: (vector atRow: 0 column: col)]
+].
+
+mat@(AbstractMatrix traits) columnAt: col
+"Returns a 1xN matrix for the column slice."
+[| slice |
+  slice: (Matrix newRows: mat height columns: 1).
+  0 below: mat height do: [| :row |
+    slice atRow: row column: 0 put: (mat atRow: row column: col)].
+  slice
+].
+
+mat@(AbstractMatrix traits) rowAt: row
+"Returns a Nx1 matrix for the row slice."
+[| slice |
+  slice: (Matrix newRows: 1 columns: mat width).
+  0 below: mat width do: [| :col |
+    slice atRow: 0 column: col put: (mat atRow: row column: col)].
+  slice
+].
+
+mat@(AbstractMatrix traits) diagonal
+"Returns a new 1xN matrix with the diagonal values."
+[| diag |
+  diag: (Matrix newVectorSize: mat height).
+  0 below: mat height do: [| :row |
+    diag atRow: row column: 0 put: (mat atRow: row column: row)].
+  diag
+].
+
+mat@(AbstractMatrix traits) isSquare
+"Square matrices have the same size dimensions."
+[
+  mat height = mat width
+].
+
+mat@(AbstractMatrix traits) squareCheck
+[
+  mat isSquare ifFalse: [error: 'Only applicable to square matrices.']
+].
+
+mat@(AbstractMatrix traits) subMatrixTopLeft: origin bottomRight: corner
+"Create a new matrix representing a rectangular slice from the middle."
+[| slice |
+  slice: (Matrix newRows: corner y - origin y + 1
+    columns: corner x - origin x + 1).
+  0 below: slice height do: [| :row |
+    0 below: slice width do: [| :col |
+      slice atRow: row column: col put:
+      (mat atRow: row + origin y - 1 column: col + origin x - 1)]].
+  slice
+].
+
+a@(AbstractMatrix traits) isSameSizeAs: b@(AbstractMatrix traits)
+[
+  a height = b height /\ [a width = b width]
+].
+
+mat@(AbstractMatrix traits) fillWith: a multipliedBy: b
+[| elem |
+  0 below: mat height do: [| :row |
+    0 below: mat width do: [| :col |
+      elem: 0.
+      0 below: a width do: [| :aCol |
+        elem: elem + ((a atRow: row column: aCol) *
+          (b atRow: aCol column: col))].
+      mat atRow: row column: col put: elem]].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWith: a addedTo: b
+[
+  0 below: mat height do: [| :row |
+    0 below: mat width do: [| :col |
+      mat atRow: row column: col
+        put: (a atRow: row column: col) + (b atRow: row column: col)]].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWith: a minus: b
+[
+  0 below: mat height do: [| :row |
+    0 below: mat width do: [| :col |
+      mat atRow: row column: col
+        put: (a atRow: row column: col) - (b atRow: row column: col)]].
+  mat
+].
+
+a@(AbstractMatrix traits) * b@(AbstractMatrix traits)
+[| result |
+  a width = b height ifFalse: [error: 'Matrix sizes do not match.'].
+  result: (Matrix newRows: a height columns: b width).
+  result fillWith: a multipliedBy: b
+].
+
+mat@(AbstractMatrix traits) * x@(Number traits)
+[
+  mat copy infect: #* `er <-* x
+].
+
+mat@(AbstractMatrix traits) / x@(Number traits)
+[
+  mat copy infect: #/ `er <-* x
+].
+
+x@(Number traits) * mat@(AbstractMatrix traits)
+[
+  mat copy infect: #* `er <-* x
+].
+
+a@(AbstractMatrix traits) + b@(AbstractMatrix traits)
+[| result |
+  (a isSameSizeAs: b) ifFalse: [error: 'Matrix sizes do not match.'].
+  result: (Matrix newRows: a height columns: a width).
+  result fillWith: a addedTo: b
+].
+
+mat@(AbstractMatrix traits) + x@(Number traits)
+[
+  mat copy infect: #+ `er <-* x
+].
+
+x@(Number traits) + mat@(AbstractMatrix traits)
+[
+  mat copy infect: #+ `er <-* x
+].
+
+a@(AbstractMatrix traits) - b@(AbstractMatrix traits)
+[| result |
+  (a isSameSizeAs: b) ifFalse: [error: 'Matrix sizes do not match.'].
+  result: (Matrix newRows: a height columns: a width).
+  result fillWith: a minus: b
+].
+
+mat@(AbstractMatrix traits) - x@(Number traits)
+[
+  mat copy infect: #- `er <-* x
+].
+
+x@(Number traits) - mat@(AbstractMatrix traits)
+[
+  mat copy infect: #- `er <- x
+].
+
+mat@(AbstractMatrix traits) eigenvaluesByQR
+"This only works if all the eigenvalues are real."
+[| h q r iter |
+  h: mat hessenbergSuperior.
+  q: (Matrix newSizeOf: mat).
+  r: (Matrix newSizeOf: mat).
+  iter: 0.
+  [h isFirstSubDiagonalZero] whileFalse: [
+    h storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r.
+    h fillWith: r multipliedBy: q.
+    iter: iter + 1.
+    iter > 1000 ifTrue: [error: 'Could not find real eigenvalues.']].
+  h diagonal
+].
+
+mat@(AbstractMatrix traits) hessenbergSuperior
+"Answers a new matrix that is the Hessenberg Superior transform of the
+receiver. A Hessenberg Superior matrix has zero entries below the first
+subdiagonal. The new matrix has the same eigenvalues as the receiver."
+[| result u |
+  mat squareCheck.
+  result: mat copy.
+  u: (Matrix newSizeOf: mat).
+  0 below: mat width - 2 do: [| :col |
+    (result storeHouseholderTransformOn: u column: col forQR: False)
+      ifTrue: [result: u * result * u]].
+  result
+].
+
+mat@(AbstractMatrix traits) maxEigenvalueAndEigenVectorByPowerMethod
+[| eigenvectorApprox prevApprox swap eigenvalueApprox |
+  mat squareCheck.
+  eigenvectorApprox: (Matrix newColumnVectorSize: mat width).
+  prevApprox: (Matrix newColumnVectorSize: mat width).
+  0 below: mat width do: [| :col |
+    eigenvectorApprox atRow: col column: 0 put: 1].
+  [(eigenvectorApprox - prevApprox) norm2Squared > 0.001]
+    whileTrue: [
+      swap: prevApprox.
+      prevApprox: eigenvectorApprox.
+      eigenvectorApprox: swap.
+      eigenvectorApprox fillWith: mat multipliedBy: prevApprox.
+      eigenvalueApprox: eigenvectorApprox norm2Squared sqrt.
+      eigenvectorApprox infect: #/ `er <-* eigenvalueApprox].
+  {eigenvalueApprox. eigenvectorApprox}
+].
+
+mat@(AbstractMatrix traits) preMultiplyByGivensRotationRowI: i rowK: k
+  titaCosine: c titaSine: s
+"Modify the receiver, doing a premultiplication by a Givens rotation of angle
+tita, affecting rows i and k."
+[| elemI elemK |
+  0 below: mat width do: [| :j |
+    elemI: (mat atRow: i column: j).
+    elemK: (mat atRow: k column: j).
+    mat atRow: i column: j put: c * elemI - (s * elemK).
+    mat atRow: k column: j put: s * elemI + (c * elemK) ].
+  mat
+].
+
+mat@(AbstractMatrix traits) storeHouseholderTransformOn: aMatrix column: j
+  forQR: forQR
+"Modifies entries on aMatrix to make it the Householder transforms
+that puts zeroes at column i of the receiver. If forQR is false, the
+product of aMatrix * mat is Hessenberg superior, otherwise it's a
+triangular matrix."
+[| x xNorm2Squared v vNorm2Squared element i |
+  i: j - (forQR ifTrue: [1] ifFalse: [0]).
+  x: (Matrix newVectorSize: mat height-i).
+  xNorm2Squared: 0.
+  0 below: x height do: [| :ii |
+    element: mat atRow: ii+i column: j.
+    xNorm2Squared: xNorm2Squared + element squared.
+    x atRow: ii column: 0 put: element].
+  v: x.
+  "If column already has zeros, do nothing"
+  xNorm2Squared = 0.0 ifTrue: [^ False].
+  "If column already has zeros, do nothing. If forQR = false, then the first
+  element in x could not be zero, and anyway there's nothing to do."
+  forQR not /\ [xNorm2Squared = (x atRow: 0 column: 0) squared]
+     ifTrue: [^ False].
+  v atRow: 0 column: 0 put: (v atRow: 0 column: 0) + xNorm2Squared sqrt.
+  vNorm2Squared: v norm2Squared.
+  0 below: i do: [| :ii |
+    aMatrix atRow: ii column: ii put: 1.
+    ii below: aMatrix width do: [| :jj |
+      aMatrix atRow: ii column: jj put: 0.
+      aMatrix atRow: jj column: ii put: 0]].
+  0 below: x height do: [| :ii |
+    0 below: x height do: [| :jj |
+      aMatrix atRow: ii+i column: jj+i put:
+        (ii == jj ifTrue: [1] ifFalse: [0]) -
+        (2.0 / vNorm2Squared * (v atRow: ii column: 0) *
+        (v atRow: jj column: 0))]].
+  True
+].
+
+mat@(AbstractMatrix traits) storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r
+"Works only if the receiver is a Hessenberg superior matrix."
+[| elementAtJ elementBelowJ aux c s |
+  q fillWithIdentity.
+  r fillWith: mat.
+  0 below: mat width - 1 do: [| :j |
+    elementAtJ: r atRow: j column: j.
+    elementBelowJ: r atRow: j + 1 column: j.
+    elementBelowJ = 0 ifFalse: [
+      aux: ((elementAtJ * elementAtJ) + (elementBelowJ*elementBelowJ)) sqrt.
+      c: elementAtJ / aux.
+      s: 0 - elementBelowJ / aux.
+      r preMultiplyByGivensRotationRowI: j rowK: j + 1
+        titaCosine: c titaSine: s.
+      q preMultiplyByGivensRotationRowI: j rowK: j + 1
+        titaCosine: c titaSine: s]].
+  q transpose.
+  mat
+].
+
+mat@(AbstractMatrix traits) fillDiagonalWith: vector
+[
+  0 below: (mat width min: mat height) do:
+    [| :col | mat atRow: col column: col put: (vector at: col)].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillDiagonalWithIdentity
+[| one |
+  one: mat zero + 1.
+  0 below: (mat width min: mat height) do:
+    [| :col | mat atRow: col column: col put: one].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWith: matrix
+[
+  0 below: (mat height min: matrix height) do: [| :row |
+    0 below: (mat width min: matrix width) do: [| :col |
+    mat atRow: row column: col put: (matrix atRow: row column: col)]].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWithArrayOfArrays: array
+[
+  0 below: (mat height min: array size) do: [| :row |
+    0 below: (mat width min: array first size) do: [| :col |
+      mat atRow: row column: col put: ((array at: row) at: col)]].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWithIdentity
+[
+  mat fillWithZero.
+  mat fillDiagonalWithIdentity
+].
+
+mat@(AbstractMatrix traits) fillWithIdentityTopAndBottomRows: n
+[| zero one heightPlusOne ii |
+  zero: mat zero.
+  one: zero + 1.
+  heightPlusOne: height + 1.
+  0 below: n do: [| :i |
+    ii: heightPlusOne - i.
+    0 below: width do: [| :j |
+      mat atRow: i column: j put: zero.
+      mat atRow: ii column: j put: zero].
+    mat atRow: i column: i put: one.
+    mat atRow: ii column: ii put: one].
+  mat
+].
+
+mat@(AbstractMatrix traits) fillWithZero
+[| zero |
+  zero: mat zero.
+  0 below: mat height do: [| :row |
+    0 below: mat width do: [| :col |
+      mat atRow: row column: col put: zero]].
+  mat
+].
+
+mat@(AbstractMatrix traits) permuteRow: a withRow: b
+[| ax bx |
+  a = b ifFalse: [
+    0 below: mat width do: [| :col |
+      ax: (mat atRow: a column: col).
+      bx: (mat atRow: b column: col).
+      mat atRow: a column: col put: bx.
+      mat atRow: b column: col put: ax]].
+  mat
+].
+
+mat@(AbstractMatrix traits) rowWithMaxInColumn: j startingAtRow: jStart
+[| rowWithMax |
+  rowWithMax: jStart.
+  jStart below: mat height do: [| :i |
+    (mat atRow: i column: j) abs > (mat atRow: rowWithMax column: j) abs
+      ifTrue: [rowWithMax: i]].
+  rowWithMax
+].
+
+mat@(AbstractMatrix traits) solveLinearSystem
+"Solves the linear system A*x=B where the matrix argument has the form |Ab|.
+The last column of the matrix has the independent term b. This modifies the
+argument."
+[| m n x epsilon |
+  m: mat height.
+  n: mat width.
+  x: (Matrix newVectorSize: n - 1).
+  "Check that enough equations are present."
+  m < (n - 1) ifTrue: [error: 'The system does not have a single solution.'].
+  epsilon: 1.0e-7 .
+  mat triangleWithPartialPivoting.
+  "Performing some checks:"
+  "If the only coefficient of the last equation is zero, we have infinite
+  solutions."
+  (mat atRow: n - 2 column: n - 2) abs < epsilon
+    /\ [(mat atRow: n - 2 column: n - 1) abs < epsilon]
+    ifTrue: [error: 'This system does not have a single solution.'].
+  "If the only coefficient of the last equation is zero, but not the independent
+  term, the system is incompatible."
+  (mat atRow: n - 2 column: n - 2) abs < epsilon
+    ifTrue: [error: 'This system is incompatible.'].
+  "We have too many equations, and they did not go away. Incompatible system."
+  m > (n - 1) /\ [(mat atRow: n - 1 column: n - 2) abs > epsilon]
+    ifTrue: [error: 'This system is incompatible.'].
+  "We have too many equations, and they left their independent terms."
+  ((n - 1 to: m - 1) inject: True into: [| :previousValue :k |
+      previousValue /\ ((mat atRow: k column: n) abs < epsilon)])
+    ifFalse: [error: 'This system is incompatible.'].
+  "Do backward substitution"
+  n - 2 downTo: 0 do: [| :i |
+    sum: mat atRow: i column: n.
+    n - 2 downTo: i + 1 do: [| :k |
+      sum: sum - ((mat atRow: i column: k) * (x atRow: k column: 0))].
+    x atRow: i column: 0 put: sum / (mat atRow: i column: i)].
+  x
+].
+
+mat@(AbstractMatrix traits) triangleWithPartialPivoting
+"Triangle the matrix and answer the row permutation count."
+[| j jdelta rowK factor permCount |
+  permCount: 0.
+  jdelta: 0.
+  0 below: mat height - 1 do: [| :rowI |
+    [j: rowI + jdelta.
+     j < mat width ifFalse: [^ mat].
+     "Look for the pivot for j, from rowI down. Call it rowK."
+     rowK: (mat rowWithMaxInColumn: j startingAtRow: rowI).
+     (mat atRow: k column: j) = 0 /\ [j < self width]]
+      whileTrue: [jdelta: jdelta + 1].
+    "Permute rowI and rowK."
+    rowI = rowK ifFalse: [
+      mat permuteRow: rowI with: rowK.
+      permCount: permCount + 1].
+    "Subtract rowI to all the ones below it."
+    rowI + 1 below: mat height do: [| :ii |
+      (mat atRow: ii column: j) = 0.0 ifFalse: [
+        factor: (mat atRow: ii column: j) / (mat atRow: rowI column: j).
+        "Only after column j."
+        mat atRow: ii column: j put: 0.
+        mat subtractRow: rowI multipliedBy: factor to: ii
+          startingAtColumn: j + 1]]].
+  permCount
+].
+
+mat@(AbstractMatrix traits) determinant
+[| aux rowPermCount result |
+  mat squareCheck.
+  aux: mat copy.
+  rowPermCount: mat triangleWithPartialPivoting.
+  result: (-1 raisedTo: rowPermCount).
+  0 below mat width do: [| :i |
+    result: result * (aux atRow: i column: i)].
+  result
+].
+
+mat@(AbstractMatrix traits) inverse
+"Returns the inverse matrix."
+[| n bigMatrix result epsilon |
+  mat squareCheck.
+  n: mat height.
+  result: (Matrix newRows: n columns: n).
+  bigMatrix: (Matrix newRows: n columns: n * 2).
+  bigMatrix fillWith: mat.
+  0 below: mat width do: [| :i |
+    bigMatrix atRow: i column: n put: 1].
+
+  "We can safely do comparisons with this epsilon for assuring that an
+    element is close to zero, because we first normalize the rows."
+  bigMatrix normalizeRows.
+  epsilon: 1.0e-7.
+  bigMatrix triangleWithPartialPivoting.
+
+  "If the only coefficient of the last equation is zero, but not the
+    independent term, the system is incompatible."
+  (bigMatrix atRow: n - 1 column: n - 1) abs < epsilon
+    ifTrue: [error: 'This matrix does not have an inverse.'].
+  "Go backwards to make the left half be the identity.
+  On the right half, we'll have the inverse."
+  n - 1 downTo: 0 do: [| :i |
+    bigMatrix multiplyRightPartOfRow: i by: 1.0 / (bigMatrix atRow: i column: i).
+    i - 2 downTo: 0 do: [| :ii |
+      (bigMatrix atRow: ii column: i) = 0 ifFalse: [
+        bigMatrix
+          substractRow: i
+          multipliedBy: (bigMatrix atRow: ii column: i)
+          to: ii
+          startingAtColumn: ii]]].
+  "Take the result as a slice."
+  0 below: n do: [| :row |
+    0 below: n do: [| :col |
+      result atRow: row column: col
+        put: (bigMatrix atRow: row column: col + n)]].
+  result
+].
+
+mat@(AbstractMatrix traits) inverse2
+"Returns the inverse matrix."
+[| bigMatrix result |
+  mat squareCheck.
+  result: (Matrix newSizeOf: mat).
+  bigMatrix: (Matrix newRows: mat height columns: mat width + 1).
+  0 below: mat width do: [| :i |
+    bigMatrix fillWith: mat.
+    0 below: mat width do: [| :j |
+      bigMatrix atRow: j column: mat width put: 0].
+    bigMatrix atRow: i column: mat width put: 1.
+    result at: i putColumn: bigMatrix solveLinearSystem].
+  result
+].
+
+mat@(AbstractMatrix traits) isFirstSubdiagonalZero
+"Answer true if the values of the first diagonal are small enough
+(when compared with the diagonal) to be considered zero."
+[| measure float1 float2 |
+  (1 below: mat width) inject: True into: [| :prev :j |
+    prev /\ [
+      measure: (mat atRow: j column: j) * 100.
+      measure = 0.0 ifTrue: [measure: mat diagonal max].
+      float1: (mat atRow: j column: j - 1) + measure.
+      float2: measure.
+      float1 = float2]]
+].
+
+mat@(AbstractMatrix traits) multiplyColumn: col by: factor
+[
+  0 below: mat height do: [| :row |
+    mat atRow: row column: col put: (mat atRow: row column: col) * factor]
+].
+
+mat@(AbstractMatrix traits) multiplyRightPartOfRow: row by: factor
+[
+  row below: mat width do: [| :col |
+    mat atRow: row column: col put: (mat atRow: row column: col) * factor]
+].
+
+mat@(AbstractMatrix traits) multiplyRow: row by: factor
+[
+  0 below: mat width do: [| :col |
+    mat atRow: row column: col put: (mat atRow: row column: col) * factor]
+].
+
+mat@(AbstractMatrix traits) norm2Squared
+[| result |
+  mat height > 1 /\ [mat width > 1]
+    ifTrue: [error: 'Only implemented currently for vectors.'].
+  result: 0.0.
+  mat width = 1
+    ifTrue: [0 below: mat height do: [| :i |
+      result: result + (mat atRow: i column: 0) squared]].
+    ifTrue: [0 below: mat width do: [| :i |
+      result: result + (mat atRow: 0 column: i) squared]].
+  result
+].
+
+mat@(AbstractMatrix traits) normalizeColumns
+"Divide each column by its 2-norm."
+[| normSquared norm |
+  0 below: mat width do: [| :col |
+    normSquared: 0.0.
+    0 below: mat height do: [| :row |
+      normSquared: normSquared + (mat atRow: row column: col) squared].
+    norm: normSquared sqrt.
+    norm > 0 ifTrue: [mat multiplyColumn: col by: 1 / norm]].
+  mat
+].
+
+mat@(AbstractMatrix traits) normalizeRows
+"Divide each row by its 2-norm."
+[| normSquared norm |
+  0 below: mat height do: [| :row |
+    normSquared: 0.0.
+    0 below: mat width do: [| :col |
+      normSquared: normSquared + (mat atRow: row column: col) squared].
+    norm: normSquared sqrt.
+    norm > 0 ifTrue: [mat multiplyColumn: col by: 1 / norm]].
+  mat
+].
+
+mat@(AbstractMatrix traits) orthogonalize
+"Make self an orthonormal matrix, by making columns be linear combinations of
+the original ones. Substract to each column its projection over all the other
+ones, except for column 1 that remains unchanged
+(except that it is normalized)"
+[
+  mat orthogonalizeModifGramSchmidtStartingAtColumn: 0
+].
+
+mat@(AbstractMatrix traits) orthogonalizeModifGramSchmidtStartingAtColumn: jc
+"Make self an orthonormal matrix, by making columns be linear combinations of
+the original ones. Substract to each column its projection over all the other
+ones, except for column jc that remains unchanged.
+
+Use a slightly modified of the Modified Gram-Schmidt method. Instead of
+starting at column 1, can start on any column. (this can be useful to adjust
+which columns should be less affected). The effect is the same as taking the
+columns 0..(jc-1), and moving them to the right of the matrix, placing first
+the jc-1 column, and last the 0 column; performing the regular Modified
+Gram-Schmidt method; and placing again each column where it belongs. If jc = 0,
+it's just the regular method. Besides, each column is normalized."
+[| columnK |
+  jc below: mat width do: [| :k |
+    "Normalize column k"
+    columnK: (mat columnAt: k).
+    columnK normalizeColumns.
+    mat at: k putColumn: columnK.
+    k + 1 below: mat width do: [| :j |
+      "Substract to column j its projection over column k"
+      mat at: j putColumn:
+      (mat columnAt: j) -
+          (columnK *
+            (columnK transposed * (mat columnAt: j) atRow: 0 column: 0))].
+"    0 below: jc do: [| :j |"
+    jc - 1 downTo: 0 do: [| :j |
+    "Substract to column j its projection over column k"
+      mat at: j putColumn:
+        (mat columnAt: j) -
+          (columnK *
+            (columnK transposed * (mat columnAt: j) atRow: 0 column: 0))]].
+"  0 below: jc do: [| :k |"
+  jc - 1 downTo: 0 do: [| :k |
+    "Normalize column k"
+    columnK: mat columnAt: k.
+    columnK normalizeColumns.
+    mat at: k putColumn: columnK.
+
+"    k + 1 below: jc do: [| :j |"
+    k - 1 downTo: 0 do: [| :j |
+      "Substract to column j its projection over column k"
+      mat at: j putColumn:
+        (mat columnAt: j) -
+          (columnK *
+            (columnK transposed * (mat columnAt: j) atRow: 1 column: 1))]].
+  mat
+].
+
+mat@(AbstractMatrix traits) infect: block
+"Replace the values of the matrix with the results of each block application
+on each of the original values."
+[
+  0 below: mat width do: [| :col |
+    0 below: mat height do: [| :row |
+      mat atRow: row column: col
+        put: (block applyWith: (mat atRow: row column: col))]].
+  mat
+].
+
+mat@(AbstractMatrix traits) transpose
+"Transpose the matrix in-place."
+[| aux |
+  mat squareCheck.
+  0 below: mat width do: [| :ii |
+    col + 1 below: mat width do: [| :jj |
+      aux: (mat atRow: ii column: jj).
+      mat atRow: ii column: jj put: (mat atRow: jj column: ii).
+      mat atRow: jj column: ii put: aux]].
+  mat
+].
+
+mat@(AbstractMatrix traits) transposed
+"Returns the result of transposing the matrix."
+[| result |
+  mat squareCheck.
+  0 below: mat width do: [| :ii |
+    col + 1 below: mat width do: [| :jj |
+      result atRow: ii column: jj put: (mat atRow: jj column: ii)]].
+  result
+].
+
+mat@(AbstractMatrix traits) printOn: stream
+"Prints the contents in a series of lines, one per row, with vertical bars
+surrounding each line."
+[
+  0 below: mat height do: [| :row |
+    stream ; '| '.
+    0 below: mat width do: [| :col |
+      (mat atRow: row column: col) printOn: stream.
+      stream ; '  \t'].
+    stream ; '|\n'].
+  mat
+].
+
+mat@(AbstractMatrix traits) zero
+"Answer the zero element for the matrix's element type."
+[
+  mat elementType zero
+].
+
+prototypes define: #Matrix &parents: {AbstractMatrix} &slots: {#elements -> {}}.
+"A single array indexed by row and column."
+
+mat@(Matrix traits) initializeElements
+[
+  mat elements: (mat elements new &capacity: mat height * mat width).
+  mat elements infect: [| :_ | 0].
+].
+
+mat@(Matrix traits) elementType
+[
+  mat elements elementType
+].
+
+mat@(Matrix traits) elementType: obj
+[
+  mat elements: (mat elements newForType: obj from: mat elements)
+].
+
+mat@(Matrix traits) copy
+[resend `>> [elements: mat elements copy. ]].
+
+mat1@(Matrix traits) = mat2@(Matrix traits)
+[
+  (mat1 isSameSizeAs: mat2) /\ [mat1 elements = mat2 elements]
+].
+
+mat@(Matrix traits) hash
+"TODO: Check that this produces decent results"
+"It will fail for matrices whose sizes sum to the same value and have the same contents"
+"e.g. 3x4 & 4x3"
+[
+  (mat elements hash + mat width + mat height) hashMultiply
+].
+
+mat@(Matrix traits) elementsIndexForRow: row column: col
+[
+  col isNegative
+   \/ [row isNegative]
+   \/ [col > mat width]
+   \/ [row > mat height]
+      ifTrue: [error: 'Out of bounds.'].
+  col * mat height + row
+].
+
+mat@(Matrix traits) atRow: row column: col
+[
+  mat elements at: (mat elementsIndexForRow: row column: col)
+].
+
+mat@(Matrix traits) atRow: row column: col put: x
+[
+  mat elements at: (mat elementsIndexForRow: row column: col) put: x
+].
+
+mat@(Matrix traits) max
+[
+  mat elements max
+].
+
+mat@(Matrix traits) infect: block
+[
+  mat elements infect: [| :each | block applyWith: each].
+  mat
+].
+
+r@(Matrix traits) fillWith: a@(Matrix traits) multipliedBy: b@(Matrix traits)
+[| elem |
+  0 below: r height do: [| :rowR |
+    0 below: r width do: [| :colR |
+      elem: 0.
+      0 below: a width do: [| :colA |
+        elem: elem + ((a elements at: colA * a height + rowR)
+          * (b elements at: colR * b height + colA))].
+      r elements at: colR * r height + rowR put: elem]].
+  r
+].
+
+mat@(Matrix traits) substractRow: i multipliedBy: factor to: k
+  startingAtColumn: jStart
+[| jLessOneTimesHeight |
+  jStart below: width do: [| :j |
+    jLessOneTimesHeight: j - 1 * height.
+    elements at: jLessOneTimesHeight + k
+       put: (elements at: jLessOneTimesHeight + k)
+            - ((elements at: jLessOneTimesHeight + i) * factor)].
+  mat
+].
+
+mat@(Matrix traits) triangleWithPartialPivoting
+"Triangle mat, and answer the row permutation count."
+[| j jdelta k factor permutationCount jLessOneTimesHeight pivot |
+  permutationCount: 0.
+  jdelta: 0.
+  0 below: mat height - 1 do: [| :i |
+     [j: i + jdelta.
+      j <= mat width ifFalse: [^ mat].
+      "Look for the pivot for column j, from row i down. Call it row k"
+      k: mat rowWithMaxInColumn: j startingAtRow: i.
+      (mat atRow: k column: j) = 0 /\ (j < mat width)]
+        whileTrue: [jdelta: jdelta + 1].
+      "Permute rows k and i"
+      i = k ifFalse: [mat permuteRow: i withRow: k.
+          permutationCount: permutationCount + 1].
+      "Substract the row i to all the ones below it"
+      jLessOneTimesHeight: j - 1 * mat height.
+      pivot: (mat elements at: jLessOneTimesHeight + i).
+      i + 1 below: mat height do: [| :ii |
+        (mat atRow: ii column: j) = 0.0
+            ifFalse: [factor: (mat elements at: jLessOneTimesHeight + ii)
+                    / pivot.
+              "Only after column j"
+              mat elements at: jLessOneTimesHeight + ii put: 0.
+              mat substractRow: i multipliedBy: factor to: ii
+                startingAtColumn: j + 1]]].
+  permutationCount
+].
+
+prototypes define: #BandMatrix &parents: {AbstractMatrix}
+  &slots: {#elements -> {}. #bandWidth -> 1}.
+"Band Matrices are square matrices whose elements are zero outside a band
+around the diagonal. So, only the band is stored."
+
+mat@(BandMatrix traits) newRowsAndColumns: n bandWidth: bw
+[
+  mat newType: mat elementType rowsAndColumns: n bandWidth: bw
+].
+
+mat@(BandMatrix traits) newType: type rowsAndColumns: n bandWidth: bw
+[
+  bw odd ifFalse: [error: 'The bandwidth must be odd.'].
+  bw >= (2 * n) ifTrue: [error: 'The bandwidth can\'t be that large.'].
+  (mat newType: type rows: n columns: n)
+    `>> [bandwidth: bw. initializeElements. ]
+].
+
+mat@(BandMatrix traits) copy
+[
+  resend `>> [elements: mat elements copy. ]
+].
+
+mat@(BandMatrix traits) initializeElements
+[
+  mat bandwidth ifNil: [mat bandwidth: mat height * 2 - 1].
+  mat elements: (mat elements new &capacity: mat height * mat bandwidth).
+  mat elements keysDo: [| :index | mat elements at: index put: 0].
+].
+
+mat@(BandMatrix traits) elementsIndexForRow: i column: j
+"Band matrices use this special representation. Answer Nil if outside the band.
+For reducing OS's virtual memory page faults when doing column operations on
+huge matrices, the elements of each column are stored together."
+[
+  (i between: 1 and: height)
+      /\ (j between: 1 and: width)
+    ifFalse: [error: 'Attempt to access outside bounds'].
+  (j - i) abs * 2 < bandWidth
+    ifTrue: [j - 1 * (bandWidth - 1) + i]
+].
+
+mat@(BandMatrix traits) atRow: row column: col
+[
+  (mat elementsIndexForRow: row column: col)
+    ifNil: [mat zero]
+    ifNotNilDo: [| :pos | mat elements at: pos]
+].
+
+mat@(BandMatrix traits) atRow: row column: col ifInBandPut: x
+"This does nothing if attempting to store outside the band."
+[
+  (mat elementsIndexForRow: row column: col)
+    ifNotNilDo: [| :pos | mat elements at: pos put: x]
+].
+
+mat@(BandMatrix traits) atRow: row column: col put: x
+[
+  (mat elementsIndexForRow: row column: col)
+    ifNil: [error: 'Cannot store outside the band.']
+    ifNotNilDo: [| :pos | mat elements at: pos put: x]
+].
+
+a@(BandMatrix traits) * b@(BandMatrix traits)
+[
+  a height = b width ifFalse: [error: 'Matrix sizes do not match.'].
+  (a newRowsAndColumns: a height
+     bandWidth: (a bandWidth + b bandWidth - 1 min: 2 * a height - 1)) `>>
+    [fillWith: a multipliedBy: b. ]
+].
+
+"TODO: Complete BandMatrix's arithmetic methods."

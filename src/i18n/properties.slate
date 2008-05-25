@@ -1,0 +1,199 @@
+
+"This file contains routines for handling unicode chacter data.  The
+routines for building the data tables can be found at
+unicodeTable.slate"
+
+Unicode define: #Trie &parents: {ArrayBacked}.
+
+Unicode Trie addPrintName: 'Unicode Trie'.
+
+c@(Unicode Trie traits) new
+[c copy `>> [contents: (c contents newSize: 8704). ]].
+
+c@(Unicode Trie traits) at: n
+[
+  c contents at: n
+].
+
+c@(Unicode Trie traits) at: n put: a
+[
+  c contents at: n put: a
+].
+
+c@(Unicode Trie traits) atCode: n
+[
+  (c contents at: (n bitShift: -7)) at: (n bitAnd: 127)
+].
+
+c@(Unicode Trie traits) atCode: n put: i
+[
+  (c contents at: (n bitShift: -7)) at: (n bitAnd: 127) put: i
+].
+
+c@(UnicodeCharacter traits) ensureExistence
+[
+ (CharacterData Unicode PropertyTable atCode: c code) 
+     ifNil: [error: 'There\'s no character with code point ' ; c code printString].
+ True
+].
+
+c@(UnicodeCharacter traits) exists
+[
+ (CharacterData Unicode PropertyTable atCode: c code) 
+     ifNil: [^ False].
+ True
+].
+
+c@(UnicodeCharacter traits) generalCategory
+[
+ c exists ifTrue:
+   [(CharacterData Unicode PropertyTable atCode: c code) GeneralCategory]
+].
+
+c@(UnicodeCharacter traits) combiningClass
+[
+ c exists ifTrue:
+   [(CharacterData Unicode PropertyTable atCode: c code) CanonicalCombiningClass]
+].
+
+c@(UnicodeCharacter traits) bidiClass
+[
+ c exists ifTrue:
+   [(CharacterData Unicode PropertyTable atCode: c code) BidiClass]
+].
+
+c@(UnicodeCharacter traits) bidiMirrored
+[
+  c exists ifTrue:
+    [(CharacterData Unicode PropertyTable atCode: c code) BidiMirrored]
+].
+
+c@(UnicodeCharacter traits) decompositionType
+[
+  c exists ifTrue:
+    [(CharacterData Unicode PropertyTable atCode: c code) DecompositionType]
+].
+
+"Tests for different character properties. For more properties or more
+narrowly defined properties, check generalCategory, and see
+unicodeTable.slate for possible values."
+
+"Missing:
+isCJK isTerminalPunctuation
+isNonCharacter"
+
+c@(UnicodeCharacter traits) isNonCharacter
+"FIXME: This isn't correct. This is here because UTF import/export use
+it."
+[
+  False
+].
+
+c@(UnicodeCharacter traits) isLetter
+"FIXME: add also test for Other_Alphabetic"
+[#(LowercaseLetter UppercaseLetter TitlecaseLetter ModifierLetter NumberLetter
+   OtherLetter) includes: c generalCategory
+].
+
+c@(UnicodeCharacter traits) isLowercase
+"FIXME: add also test for Other_Lowercase"
+[c generalCategory = #LowercaseLetter].
+
+c@(UnicodeCharacter traits) isUppercase
+"FIXME: add also test for Other_Uppercase"
+[c generalCategory = #UppercaseLetter].
+
+c@(UnicodeCharacter traits) isTitlecase
+[c generalCategory = #TitlecaseLetter].
+
+c@(UnicodeCharacter traits) isPrintable
+[(#(Control Surrogate Format Private) includes: c generalCategory) not].
+
+c@(UnicodeCharacter traits) isDigit
+[c generalCategory = #DecimalDigit].
+
+c@(UnicodeCharacter traits) isNumber
+[#(DecimalDigit NumberOther) includes: c generalCategory].
+
+c@(UnicodeCharacter traits) isNumeric
+[#(DecimalDigit NumberLetter NumberOther) includes: c generalCategory].
+
+c@(UnicodeCharacter traits) isInitialQuote
+[c generalCategory = #InitialQuote].
+
+c@(UnicodeCharacter traits) isFinalQuote
+[c generalCategory = #FinalQuote].
+
+c@(UnicodeCharacter traits) isOpeningPunctuation
+[c generalCategory = #OpenPunctuation].
+
+c@(UnicodeCharacter traits) isClosingPunctuation
+[c generalCategory = #ClosePunctuation].
+
+c@(UnicodeCharacter traits) isPunctuation
+[#(ConnectorPunctuation DashPunctuation OpenPunctuation ClosePunctuation
+   InitialQuote FinalQuote OtherPunctuation) includes: c generalCategory].
+
+c@(UnicodeCharacter traits) isSeparator
+[#(Space LineSeparator ParagraphSeparator) includes: c generalCategory].
+
+c@(UnicodeCharacter traits) isPrivate
+[c generalCategory = #Private].
+
+c@(UnicodeCharacter traits) toDecimalDigit
+[
+  c exists ifTrue:
+    [(CharacterData Unicode PropertyTable atCode: c code) DecimalDigitValue]
+].
+
+c@(UnicodeCharacter traits) toDigit
+[
+  c exists ifTrue:
+    [(CharacterData Unicode PropertyTable atCode: c code) DigitValue]
+].
+
+c@(UnicodeCharacter traits) toNumber
+[
+  c exists ifTrue:
+    [(CharacterData Unicode PropertyTable atCode: c code) NumericValue]
+].
+
+c@(UnicodeCharacter traits) decompose
+[
+ c exists ifTrue:
+   [(CharacterData Unicode PropertyTable atCode: c code) DecompositionMapping
+      ifNotNilDo: [| :mapping | mapping collect:
+	[| :each | each as: UnicodeCharacter]]]
+].
+
+c1@(Integer traits) composeWith: c2
+[
+  ((CharacterData Unicode PropertyTable atCode: c1) Compositions ifNotNilDo: [| :comp | comp at: c2 ifAbsent: [Nil]])
+    ifNotNilDo: [| :result | result as: UnicodeCharacter]
+].
+
+"Case conversions always return strings, because some characters have
+multiple-character upper/lower/titlecase mappings. Only simple case
+mappings have been implemented though, so in practice there's
+currently only one-character mappings."
+
+c@(UnicodeCharacter traits) toUppercase
+[
+  c exists ifTrue:
+    [((CharacterData Unicode PropertyTable atCode: c code) SimpleUppercaseMapping
+      as: UnicodeCharacter) as: UnicodeString]
+].
+
+c@(UnicodeCharacter traits) toLowercase
+[
+  c exists ifTrue:
+    [((CharacterData Unicode PropertyTable atCode: c code) SimpleLowercaseMapping
+      as: UnicodeCharacter) as: UnicodeString]
+].
+
+c@(UnicodeCharacter traits) toTitlecase
+[
+  c exists ifTrue:
+    [((CharacterData Unicode PropertyTable atCode: c code) SimpleTitlecaseMapping
+      as: UnicodeCharacter) as: UnicodeString]
+].

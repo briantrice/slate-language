@@ -1,0 +1,38 @@
+"This file exists so that the build-up of the full standard image may be
+customized without requiring a full bootstrap. This is loaded by post-bootstrap
+code which is compiled in to the kernel image."
+
+(({'src/mobius/vm/interp/map'} ;
+  ({'fraction'. 'complex'. 'numericMixin'.
+   'tuple'. 'linkedlist'. 'cord'.
+   'traversal'. 'lookup'. 'path'. "These require TraversalStream."
+   'stream-epilogue'. 'tokenizer'.
+   'subsequence'. 'bag'. 'queue'. 'repetition'. 'buffer'. 'mapping-epilogue'.
+   'multi-dimensional'.
+   'precedence'.
+   'inspect'. 'directory'.
+   'concurrency'. 'observer'}
+     collect: #; `er <- 'src/lib/') ;
+  {'src/mobius/vm/interp/role'.
+   'src/lib/image'.
+   'src/mobius/vm/interp/memory'.
+   'src/mobius/vm/interp/disassemble'.
+   'src/mobius/c/types'.
+   'src/lib/extlib'.
+   'src/lib/repl' }) collect: #; `er <-* '.slate') do: #load: `er <- here.
+
+"Totally optional, makes for pretty source output and enables C code output."
+load: 'src/mobius/writer.slate'.
+load: 'src/mobius/syntax/writer.slate'.
+
+"Loads AutoLoader definitions from the standard file database."
+load: 'src/lib/module.slate'.
+AutoLoader readStorage.
+
+"Print the greeting banner and start a REPL - or whatever else you want."
+inform: 'Hi, there!'.
+inform: 'Please save your image now, (eg. "Image saveNamed: \'slate.image\'.") to avoid repeating this initialization.'.
+
+"Define the REPL as the primary setup for this image. This is called by the
+bootstrap method."
+_@lobby start [REPL start].

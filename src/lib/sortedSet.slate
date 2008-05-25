@@ -1,0 +1,16 @@
+
+collections define: #SortedSet
+  &parents: {NoDuplicatesCollection. SortedArray}.
+
+s@(Set traits) sort
+[(SortedSet newSizeOf: c) `>> [addAll: c. ]].
+
+s@(Set traits) sortBy: block
+[(SortedSet newSizeOf: c) `>> [sortBlock: block. addAll: c. ]].
+
+sc@(SortedSet traits) add: obj
+[
+  (sc includes: obj)
+    ifFalse: [sc at: (sc indexForInserting: obj) insert: obj].
+  obj
+].

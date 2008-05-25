@@ -1,0 +1,172 @@
+Optimizer IR define: #Instruction &parents: {Link} &slots:
+{#basicBlock. #inputs -> {}. #outputs -> {}}.
+"Instructions contain a Link to their BasicBlock.
+They should probably also contain their position within the BasicBlock;
+the simplest methods are to use a doubly-linked list of instructions
+(previous/next links on the instructions themselves), or use an
+ExtensibleArray of instructions in the BasicBlock and note the current
+index on the instruction.
+Unless otherwise specified no instructions should operate upon free variables."
+
+inst@(Optimizer IR Instruction traits) new
+[inst clone].
+
+inst@(Optimizer IR Instruction traits) newFrom: inputs to: outputs
+[inst cloneSettingSlots: #(inputs outputs) to: {inputs. outputs}].
+
+inst@(Optimizer IR Instruction traits) inputsDo: block
+[
+  inst inputs do: [| :input | input walkInput: block].
+  inst outputs do: [| :output | output walkOutput: block]
+].
+
+inst@(Optimizer IR Instruction traits) outputsDo: block
+[
+  inst outputs do: block
+].
+
+Optimizer IR ensureNamespace: #instructions &delegate: True.
+
+Optimizer IR instructions `>> [| :insts |
+"Side-effect categories."
+define: #Pseudo &parents: {Optimizer IR Instruction}.
+define: #SideEffect &parents: {Optimizer IR Instruction}.
+define: #Exit &parents: {insts SideEffect}.
+
+"Method invocation/definition instructions."
+define: #CurrentNamespace &parents: {Optimizer IR Instruction}.
+define: #CreateArray &parents: {Optimizer IR Instruction}.
+define: #ResendMethod &parents: {Optimizer IR Instruction}.
+define: #InvokeMethod &parents: {Optimizer IR Instruction}.
+define: #DefineMethod &parents: {Optimizer IR Instruction}.
+
+"Closure instructions."
+define: #InstantiateClosure &parents: {Optimizer IR Instruction}.
+define: #CreateEnvironment &parents: {Optimizer IR Instruction}.
+define: #LoadEnvironment &parents: {Optimizer IR Instruction}.
+define: #StoreEnvironment &parents: {Optimizer IR Instruction}.
+define: #UseClosure &parents: {insts Pseudo}.
+define: #EscapeClosure &parents: {insts Pseudo}.
+
+"Allocation instructions."
+define: #HeapAllocate &parents: {insts SideEffect}.
+define: #StackAllocate &parents: {insts SideEffect}.
+define: #StackFree &parents: {insts SideEffect}.
+
+"Variable management instructions."
+define: #Variable &parents: {Optimizer IR Instruction}.
+define: #SetVariable &parents: {insts Variable}.
+define: #FlowVariable &parents: {insts Variable. insts Pseudo. Optimizer IR Operand}.
+define: #MergeVariable &parents: {insts Variable. insts Pseudo}.
+define: #SplitVariable &parents: {insts Variable. insts Pseudo}.
+define: #SpillVariable &parents: {insts Variable}.
+define: #ReloadVariable &parents: {insts Variable}.
+
+"Free variable instructions."
+define: #FreeVariable &parents: {insts Variable}.
+define: #LoadFreeVariable &parents: {insts FreeVariable}.
+define: #StoreFreeVariable &parents: {insts FreeVariable}.
+define: #UseFreeVariable &parents: {insts FreeVariable. insts Pseudo}.
+define: #ClobberFreeVariable &parents: {insts FreeVariable. insts Pseudo}.
+
+"Global variable instructions."
+define: #GlobalVariable &parents: {insts Variable}.
+define: #LoadGlobalVariable &parents: {insts GlobalVariable}.
+define: #StoreGlobalVariable &parents: {insts GlobalVariable}.
+define: #UseGlobalVariable &parents: {insts GlobalVariable. insts Pseudo}.
+define: #ClobberGlobalVariable &parents: {insts GlobalVariable. insts Pseudo}.
+
+"Memory instructions."
+define: #Memory &parents: {Optimizer IR Instruction}.
+define: #FlowMemory &parents: {insts Memory. insts Pseudo. Optimizer IR Operand}.
+define: #MergeMemory &parents: {insts Memory. insts Pseudo}.
+define: #SplitMemory &parents: {insts Memory. insts Pseudo}.
+define: #LoadMemory &parents: {insts Memory}.
+define: #StoreMemory &parents: {insts Memory}.
+define: #UseMemory &parents: {insts Memory. insts Pseudo}.
+define: #ClobberMemory &parents: {insts Memory. insts Pseudo}.
+
+"Arity categories for various arithmetic-like instructions."
+define: #Unary &parents: {Optimizer IR Instruction}.
+define: #Binary &parents: {Optimizer IR Instruction}.
+define: #Commutative &parents: {Optimizer IR Binary}.
+define: #Associative &parents: {Optimizer IR Binary}.
+define: #Distributive &parents: {Optimizer IR Binary}.
+
+"Logical instructions."
+define: #Logic &parents: {Optimizer IR Instruction}.
+define: #And &parents: {insts Logic. insts Commutative. insts Associative. insts Distributive}.
+define: #Xor &parents: {insts Logic. insts Commutative. insts Associative}.
+define: #Or &parents: {insts Logic. insts Commutative. insts Associative. insts Distributive}.
+define: #Not &parents: {insts Logic. insts Unary}.
+define: #Shift &parents: {insts Logic. insts Binary}.
+define: #ShiftRight &parents: {insts Shift}.
+define: #ShiftLeft &parents: {insts Shift}.
+define: #ArithmeticShiftRight &parents: {insts Shift}.
+
+"Arithmetic instructions."
+define: #Arithmetic &parents: {insts Binary}.
+define: #Add &parents: {insts Arithmetic. insts Commutative. insts Associative}.
+define: #Subtract &parents: {insts Arithmetic}.
+define: #Multiply &parents: {insts Arithmetic. insts Commutative. insts Associative. insts Distributive}.
+define: #Division &parents: {insts Arithmetic}.
+define: #Divide &parents: {insts Division}.
+define: #Remainder &parents: {insts Division}.
+
+"Conversion instructions."
+define: #Conversion &parents: {insts Unary}.
+define: #Truncate &parents: {insts Conversion}.
+define: #SignExtend &parents: {insts Conversion}.
+define: #ZeroExtend &parents: {insts Conversion}.
+define: #ToFloat &parents: {insts Conversion}.
+define: #FromFloat &parents: {insts Conversion}.
+define: #ToCondition &parents: {insts Conversion}.
+define: #FromCondition &parents: {insts Conversion}.
+
+"Comparison instructions."
+define: #Comparison &parents: {insts Binary}.
+define: #LessThan &parents: {insts Comparison}.
+define: #LessThanEqual &parents: {insts Comparison}.
+define: #GreaterThan &parents: {insts Comparison}.
+define: #GreaterThanEqual &parents: {insts Comparison}.
+define: #Equal &parents: {insts Comparison}.
+define: #NotEqual &parents: {insts Comparison}.
+
+i@(insts Comparison traits) reversed
+[i inverted].
+
+_@(insts LessThan traits) inverted
+[insts GreaterThanEqual].
+
+_@(insts LessThanEqual traits) inverted
+[insts GreaterThan].
+
+_@(insts GreaterThan traits) inverted
+[insts LessThanEqual].
+
+_@(insts GreaterThanEqual traits) inverted
+[insts LessThan].
+
+_@(insts Equal traits) inverted
+[insts NotEqual].
+
+i@(insts Equal traits) reversed
+[i].
+
+_@(insts NotEqual traits) inverted
+[insts Equal].
+
+i@(insts NotEqual traits) reversed
+[i].
+
+i@(insts Comparison traits) newReversed
+[i reversed cloneSettingSlots: #(inputs outputs) to:
+  {i inputs reversed. i outputs}].
+
+i@(insts Comparison traits) newInverted
+[i inverted cloneSettingSlots: #(inputs outputs) to: {i inputs. i outputs}].
+
+"Linkage instructions."
+define: #Call &parents: {insts SideEffect}.
+
+].

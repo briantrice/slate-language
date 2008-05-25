@@ -1,0 +1,155 @@
+collections define: #SkipList &parents: {ExtensibleCollection} &slots:
+ {#pointers -> #{}.
+  #maxLevel -> 0.
+  #numElements -> 0.
+  #sortBlock -> #< `er.
+  #identityBlock -> #= `er }.
+"SkipLists are probabilistically-balanced trees. This allows insertion and
+deletion to have lower complexity than for balanced trees."
+SkipList traits define: #random &builder: [RandomStream newSeed: 5].
+SkipList traits define: #Node &parents: {Cloneable}
+  &slots: {#pointers -> #{}. #object}.
+
+sl@(SkipList traits) clear
+[
+  0 below: sl maxLevel do: [| :i | sl pointers at: i put: Nil].
+  sl numElements: 0.
+].
+
+sl@(SkipList traits) isEmpty
+[
+  sl pointers first isNil
+].
+
+sl@(SkipList traits) new &level: level
+[sl cloneSettingSlots: #(pointers maxLevel numElements)
+    to: {sl pointers new &capacity: 5. level ifNil: [5]. 0}].
+
+node@(SkipList Node traits) next
+[
+  node pointers first
+].
+
+node@(SkipList Node traits) forward: level
+[
+  node pointers at: level
+].
+
+sl@(SkipList traits) size
+[
+  sl numElements
+].
+
+sl@(SkipList traits) newPointerLength
+"Determines the number of non-Nil elements in the node pointers."
+[
+  ((sl random next / 16rFFFFFFFF) * sl maxLevel) truncated
+].
+
+sl@(SkipList traits) neighboursFor: obj
+"Helper method to create the pointers to the (new) node."
+[| node nextptrs |
+  nextptrs: (sl pointers new &capacity: sl maxLevel).
+  sl maxLevel - 1 downTo: 0 do:
+    [| :level |
+     node ifNil: [node: (sl pointers at: level)].
+     node ifNotNil:
+       [(sl sortBlock applyTo: {node object. obj})
+	  ifTrue:
+	    [[(node forward: level) isNotNil /\
+	      [sl sortBlock applyTo: {(node forward: level) object. obj}]]
+              	whileTrue: [node: (node forward: level)].
+	     nextptrs at: level put: node]
+	  ifFalse: [nextptrs at: level put: (node: Nil)]]].
+  nextptrs
+].
+
+sl@(SkipList traits) add: obj
+[| newNode |
+  newNode: (sl Node cloneSettingSlots: #(object pointers)
+		    to: {obj. sl pointers new &capacity: sl maxLevel}).
+  sl isEmpty
+    ifTrue:
+      [0 below: sl maxLevel do: [| :i | 
+      	  sl pointers at: i put: newNode.
+	  newNode pointers at: i put: Nil]]
+    ifFalse:
+      [| nextptrs |
+       nextptrs: (sl neighboursFor: obj).
+       0 upTo: sl newPointerLength do:
+	 [| :level |
+	  (nextptrs at: level)
+	    ifNil:
+	      [newNode pointers at: level put: (sl pointers at: level).
+	       sl pointers at: level put: newNode]
+	    ifNotNilDo:
+	      [| :nodePtr |
+	       newNode pointers at: level put: (nodePtr pointers at: level).
+	       nodePtr pointers at: level put: newNode]]].
+  sl numElements: sl numElements + 1.
+  obj
+].
+
+sl@(SkipList traits) includes: obj
+[
+  sl isEmpty not /\
+    [(sl neighboursFor: obj) first
+       ifNil: [sl identityBlock applyTo: {sl pointers first object. obj}]
+       ifNotNilDo:
+	 [| :ptr | ptr pointers first
+		   ifNil: [False]
+		   ifNotNilDo:
+		     [| :node | sl identityBlock applyTo: {node object. obj}]]]
+].
+
+sl@(SkipList traits) remove: obj
+[
+  sl isEmpty ifFalse: [| nextptrs |
+    nextptrs: (sl neighboursFor: obj).
+    nextptrs first
+      ifNil: [| node |
+	node: sl pointers first.
+	(sl identityBlock applyTo: {node object. obj}) ifTrue: [
+      	  0 below: sl maxLevel do: [| :i | 
+      	    sl pointers at: i put: (node pointers at: i)].
+	  sl numElements: sl numElements - 1]]
+      ifNotNilDo: [| :neighbour |
+	neighbour pointers first 
+	  ifNotNilDo: [| :candidate |
+	    (sl identityBlock applyTo: {candidate object. obj}) ifTrue: 
+	      [0 below: sl maxLevel do:
+	        [| :i | (nextptrs at: i)
+      	      		ifNotNilDo: [| :node |
+				       node pointers at: i put: 
+					 (candidate pointers at: i)]].
+	       sl numElements: sl numElements - 1]]]]
+].
+
+sl@(SkipList traits) remove: obj ifAbsent: block
+[
+  (sl includes: obj)
+    ifTrue: [sl remove: obj]
+    ifFalse: [block do]
+].
+
+sl@(SkipList traits) do: block
+[| elem |
+  elem: sl pointers first.
+  [elem isNotNil]
+    whileTrue: [
+      block applyWith: elem object.
+      elem: elem pointers first]
+].
+
+sl@(SkipList traits) reverseDo: block
+[| obj elements index |
+  obj: sl pointers first.
+  elements: (sl pointers newSizeOf: sl).
+  index: sl size - 1.
+  [obj isNotNil] 
+    whileTrue: [
+      elements at: index put: obj object.
+      index: index - 1.
+      obj: obj pointers first].
+  elements do: block.
+].

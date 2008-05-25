@@ -1,0 +1,51 @@
+
+" a location for storing visual/audio/size/color/text/etc properties "
+
+Graphics define: #Themeable &parents: {Cloneable}.
+
+
+{
+#foregroundColor -> Colors Black.
+#foregroundAlpha -> 1.0.
+#backgroundColor -> Colors White.
+#backgroundAlpha -> 1.0.
+#borderColor -> Colors Black.
+#borderWidth -> 2.
+#borderAlpha -> 1.0.
+#selectionColor -> Colors Blue.
+#selectionInverseColor -> Colors White. "things drawn over the selection like text"
+#selectionInverseAlpha -> 1.0.
+#selectionAlpha -> 1.0.
+#font -> 'Courier'.
+#bold -> False.
+#italic -> False.
+#underline -> False.
+#strikethrough -> False.
+#fontSize -> 12.
+#textColor -> Colors Black.
+#textAlpha -> 1.0.
+#scrollbarForegroundColor -> Colors LightGray.
+#scrollbarForegroundAlpha -> 1.0.
+#scrollbarBackgroundColor -> Colors DarkGray.
+#scrollbarBackgroundAlpha -> 1.0.
+#vScrollbarWidth -> 10.
+#hScrollbarWidth -> 10
+
+
+} do: [|:each | 
+
+                Themeable addDynamicSlot: each key valued: each value.
+
+      ].
+
+
+se@(Derivable traits) makeThemeable
+"Add the following theme propertie to an object."
+[
+   "Themeable traitsWindow addImmutableDelegate: (se traitsName: Themeable orderTraits size) valued: se traits.
+   se traitsWindow addImmutableDelegate: (se traitsName: se orderTraits size) valued: Themeable traits."
+   se addImmutableDelegate: #theme before: #traitsWindow valued: Themeable.
+   se
+].
+
+

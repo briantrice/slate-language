@@ -1,0 +1,20 @@
+Syntax define: #Mode &parents: {Syntax Annotation} &slots: {#mode}.
+"Modes are nodes that control the interpretation of the expression they annotate."
+Syntax Mode define: #Primitive -> #Primitive.
+"Mode describing code performing primitive operations."
+Syntax Mode define: #Slate -> #Slate.
+"Mode describing standard Slate code."
+Syntax Mode mode: Syntax Mode Slate.
+"The mode of interpretation for the contained node."
+
+node@(Syntax Node traits) inMode: mode
+[Syntax Mode cloneSettingSlots: #(mode value)
+	     to: {Syntax Mode atSlotNamed: mode. node}].
+
+mode@(Syntax Mode traits) inMode: _ [mode].
+
+node@(Syntax Node traits) primitiveMode
+[node inMode: #Primitive ].
+
+node@(Syntax Node traits) slateMode
+[node inMode: #Slate ].

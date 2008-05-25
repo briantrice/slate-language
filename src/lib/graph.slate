@@ -1,0 +1,112 @@
+collections define: #Graph &parents: {LinkedCollection}.
+"An abstract traits for graphs."
+Graph traits define: #Node &parents: {Cloneable}.
+
+g@(Graph traits) nodes
+[
+].
+
+g@(Graph traits) edges
+[
+].
+
+g@(Graph traits) nodesDo: block
+[
+  g nodes do: block
+].
+
+g@(Graph traits) edgesDo: block
+[
+  g edges do: block
+].
+
+collections ensureNamespace: #nodes &slots:
+  {#Node -> Graph Node. #Default -> nodes Node}.
+
+nodes Node addSlot: #value.
+"The abstract traits of nodes that are held in a graph. Each node holds onto
+a corresponding object that is its value. Derivations add state or behavior
+to represent edges in the graph."
+
+nodes Node traits compareAndHashUsingSlots: #(value).
+
+node@(nodes Node traits) markDo: block
+"Visit each node in the graph once, applying the block. A node is only visited
+after at least one of its predecessors, but not necessarily after all of them."
+[| todo visited |
+  todo: ({node} as: Set).
+  visited: Set new.
+  [todo isEmpty]
+    whileFalse: [| each |
+		   each: todo anyOne.
+		   visited include: each.
+		   block applyWith: each.
+		   each
+		     neighborsDo: [| :child | (visited includes: child)
+				       ifFalse: [todo include: child]].
+		   todo remove: node].
+  node
+].
+
+node@(nodes Node traits) walkPre: preBlock post: postBlock
+"Recursively walk the subtree rooted by the node. Apply preBlock to each node,
+then walk the subtree below the node, then apply postBlock to the node."
+[
+  preBlock applyWith: node.
+  node neighborsDo: [| :child | child walkPre: preBlock post: postBlock].
+  postBlock applyWith: node.
+  node
+].
+
+node@(nodes Node traits) isLeaf
+[node degree isZero].
+
+node@(nodes Node traits) printOn: s
+[
+  s nextPut: $[.
+  s value printOn: s.
+  s nextPut: $].
+].
+
+nodes define: #Implicit &parents: {nodes Node}.
+"An Implicit Node has the edge structure represented within the value. It
+forwards messages to access the edges."
+
+nodes define: #Explicit &parents: {nodes Node} &slots:
+  {#neighbors -> Set new}.
+"An Explicit Node stores the edges in a collection in a slot. The type varies
+according to the graph's type."
+
+node@(nodes Explicit traits) copy
+[node cloneSettingSlots: #(neighbors) to: {node neighbors copy}].
+
+node@(nodes Explicit traits) degree
+[
+  node neighbors size
+].
+
+node@(nodes Explicit traits) neighborsDo: block
+"Included to abstract over keyed vs. non-keyed edges."
+[
+  node neighbors do: block
+].
+
+node@(nodes Explicit traits) hasEdgeTo: x
+[
+  node neighbors includes: x
+].
+
+nodes define: #KeyedExplicit &parents: {nodes Node}.
+"Can access neighbors by a label/key."
+
+
+
+
+
+collections define: #ConcreteGraph &parents: {Graph} &slots:
+{#nodes -> Set new. "A (necessarily) hashed Set of Nodes."
+ #nodeCreator -> []. "This is evaluated to create a new Node."
+ #Node -> nodes Default "Parameter for a default Node type."}.
+"Represents a collection of nodes. The various properties of the graph are
+encoded in the type of nodes used: whether the graph is ordered, has a fixed
+arity, or the edges are labelled/keyed."

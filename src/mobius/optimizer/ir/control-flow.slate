@@ -1,0 +1,309 @@
+Optimizer IR define: #ControlFlow &parents: {Cloneable} &slots: #(parent).
+"Node contains at least a link to its parent node, if any, and a link to its
+Closure/Method node."
+
+cf@(Optimizer IR ControlFlow traits) new
+[
+  cf clone
+].
+
+cf@(Optimizer IR ControlFlow traits) makeChild: child
+"Adopts the IR node."
+[
+  cf child: child.
+  child parent: cf.
+  child
+].
+
+cf@(Optimizer IR ControlFlow traits) walk: descend
+[
+  cf walkBeforeDescent: descend afterAscent: [| :cf |]
+].
+
+cf@(Optimizer IR ControlFlow traits) walkBeforeDescent: descend
+[
+  cf walkBeforeDescent: descend afterAscent: [| :cf |]
+].
+
+cf@(Optimizer IR ControlFlow traits) walkAfterAscent: ascend
+[
+  cf walkBeforeDescent: [| :cf |] afterAscent: ascend
+].
+
+cf@(Optimizer IR ControlFlow traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: cf.
+  ascend applyWith: cf
+].
+
+Optimizer IR define: #Sequence &parents: {Optimizer IR ControlFlow}
+ &slots: {#children -> ExtensibleArray new}.
+"A sequence of nodes to be executed sequentially."
+
+seq@(Optimizer IR Sequence traits) new
+[
+  resend `>> [children: seq children new.]
+].
+
+seq@(Optimizer IR Sequence traits) addChild: child
+[
+  seq children addLast: child.
+  child parent: seq.
+  child
+].
+
+seq@(Optimizer IR Sequence traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: seq.
+  seq children do:
+    [| :child | child walkBeforeDescent: descend afterAscent: ascend].
+  ascend applyWith: seq
+].
+
+cf@(Optimizer IR ControlFlow traits) addSibling: sibling
+"Creates an intermediate Sequence IR node to add the sibling to."
+[
+  (cf parent makeChild: Optimizer IR Sequence new) `>>
+    [addChild: cf.
+     addChild: sibling.]
+].
+
+seq@(Optimizer IR Sequence traits) addSibling: sibling
+[
+  seq addChild: sibling
+].
+
+cf@(Optimizer IR ControlFlow traits) addChild: child
+"Initializes the child link or adds it below the parent's existing child."
+[
+  cf child
+    ifNil: [cf makeChild: child]
+    ifNotNilDo: [| :cfc | cfc addSibling: child]
+].
+
+Optimizer IR define: #Module &parents: {Cloneable} &slots:
+{#globalVariables -> ExtensibleArray new.
+ #functions -> ExtensibleArray new.
+ #closures -> ExtensibleArray new}.
+
+mod@(Optimizer IR Module traits) new
+[
+  mod cloneSettingSlots: #(globalVariables functions closures)
+      to: {mod globalVariables new.
+	   mod functions new.
+	   mod closures new}
+].
+
+Optimizer IR define: #Function &parents: {Optimizer IR ControlFlow}
+&slots: {#name.
+ #inputVariables -> ExtensibleArray new.
+ #outputVariables -> ExtensibleArray new.
+ #localVariables -> Set new.
+ #constants -> Set new.
+ #child}.
+
+fun@(Optimizer IR Function traits) new
+[
+  resend `>> [
+    inputVariables: fun inputVariables new.
+    outputVariables: fun outputVariables new.
+    localVariables: fun localVariables new.
+    constants: fun constants new.]
+].
+
+fun@(Optimizer IR Function traits) newNamed: name
+[
+  fun new `>> [name: name.]
+].
+
+fun@(Optimizer IR Function traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: fun.
+  fun child walkBeforeDescent: descend afterAscent: ascend.
+  ascend applyWith: fun
+].
+
+Optimizer IR define: #Closure &parents: {Optimizer IR Function} &slots:
+{#instantiations -> Set new. "All instructions instantiating this Closure."
+ #closures -> Set new "Any embedded Closures."}.
+"Represents a lexical Closure point in control-flow."
+
+cl@(Optimizer IR Closure traits) new
+[
+  resend `>> [
+    instantiations: cl instantiations new.
+    closures: cl closures new.]
+].
+
+Optimizer IR define: #Method &parents: {Optimizer IR Closure}.
+
+Optimizer IR define: #Loop &parents: {Optimizer IR ControlFlow}
+  &slots: {#child}.
+"Repeatedly executes its child node endlessly. Needs to be combined with
+Continuation and Match nodes to terminate."
+
+l@(Optimizer IR Loop traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: l.
+  l child walkBeforeDescent: descend afterAscent: ascend.
+  ascend applyWith: l
+].
+
+Optimizer IR define: #Continuation &parents: {Optimizer IR ControlFlow}
+ &slots: {#child. #returns -> ExtensibleArray new}.
+"Labels a continuation point in control flow. Executes its child node,
+and within that child node, a return-to-label node may be used to exit
+the particular label node and resume execution after it.
+Should note all returns targeting it."
+
+c@(Optimizer IR Continuation traits) new
+[c cloneSettingSlots: #(returns) to: {c returns new}].
+
+c@(Optimizer IR Continuation traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: c.
+  c child walkBeforeDescent: descend afterAscent: ascend.
+  ascend applyWith: c
+].
+
+Optimizer IR define: #ReturnToContinuation &parents: {Optimizer IR ControlFlow}
+  &slots: {#continuation}.
+"Returns to a continuation node. It doesn't contain any child ControlFlow
+nodes. It may locally (in the same Closure) return to a Continuation it is
+contained within. Also, it may non-locally return to a Continuation contained
+in a different Closure, which implies dynamic stack unwinding."
+
+ret@(Optimizer IR ReturnToContinuation traits) newTo: cont
+[ret cloneSettingSlots: #(continuation) to: {cont}].
+
+Optimizer IR define: #Match &parents: {Optimizer IR ControlFlow} &slots:
+{#value.
+ #key.
+ #successChild -> Optimizer IR Sequence new.
+ #failureChild -> Optimizer IR Sequence new}.
+"Contains two alternative child control flow nodes. Compares a variable
+against a constant by identity. If the variable's value matches the constant,
+the first child node (success node) is executed, or otherwise the second
+child node (failure node) is executed."
+
+match@(Optimizer IR Match traits) new
+[
+  match clone `>> [
+    successChild: match successChild new.
+    successChild parent: newMatch.
+    failureChild: match failureChild new.
+    failureChild parent: newMatch.]
+].
+
+match@(Optimizer IR Match traits) walkBeforeDescent: descend afterAscent: ascend
+[
+  descend applyWith: match.
+  match successChild walkBeforeDescent: descend afterAscent: ascend.
+  match failureChild walkBeforeDescent: descend afterAscent: ascend.
+  ascend applyWith: match
+].
+
+Optimizer IR define: #BasicBlock &parents: {Optimizer IR ControlFlow} &slots:
+{#instructions -> LinkedList new.
+ #successors.
+ #predecessors}.
+"Contains a group of contiguous instructions. Also contains successor/
+predecessor edges or any other basic block info needed for compilation.
+It doesn't contain any child control flow nodes, just instructions.
+This makes it a single instruction flow-path unit, a `basic block'."
+
+bb@(Optimizer IR BasicBlock traits) new
+[
+  resend `>> [instructions: bb instructions new.]
+].
+
+bb@(Optimizer IR BasicBlock traits) remove: inst
+[
+  bb instructions remove: inst
+].
+
+bb@(Optimizer IR BasicBlock traits) replace: inst withAll: code
+[
+  bb addAll: code after: inst.
+  bb remove: inst.
+  code
+].
+
+bb@(Optimizer IR BasicBlock traits) add: inst before: position
+[
+  inst basicBlock: bb.
+  bb instructions add: inst before: position
+].
+
+bb@(Optimizer IR BasicBlock traits) add: inst after: position
+[
+  bb add: inst before: position next
+].
+
+bb@(Optimizer IR BasicBlock traits) addAll: code before: position
+[
+  code do: [| :inst | bb add: inst before: position].
+  code
+].
+
+bb@(Optimizer IR BasicBlock traits) addAll: code after: position
+[
+  bb addAll: code before: position next
+].
+
+bb@(Optimizer IR BasicBlock traits) addFirst: code
+[
+  bb add: code before: bb instructions first
+].
+
+bb@(Optimizer IR BasicBlock traits) addLast: code
+[
+  bb add: code after: bb instructions last
+].
+
+bb@(Optimizer IR BasicBlock traits) addAllFirst: code
+[
+  bb addAll: code before: bb instructions first
+].
+
+bb@(Optimizer IR BasicBlock traits) addAllLast: code
+[
+  bb addAll: code after: bb instructions last
+].
+
+bb@(Optimizer IR BasicBlock traits) emit: inst
+[| vars pos |
+  vars: (inst outputs select: [| :output | output is: Optimizer IR Variable]).
+  pos: bb instructions first.
+  [pos = bb instructions \/
+     [pos inputs anySatisfy: [| :input | vars includes: input]]]
+    whileFalse:
+      [pos: pos next].
+  bb add: inst before: pos
+].
+
+label@(Optimizer IR Continuation traits) emit: inst
+[
+  label child emit: inst
+].
+
+fun@(Optimizer IR Function traits) emit: inst
+[
+  fun child emit: inst
+].
+
+seq@(Optimizer IR Sequence traits) emit: inst
+[
+  seq children addFirst:
+    Optimizer IR BasicBlock new `>>
+      [addLast: inst.]
+].
+
+cf@(Optimizer IR ControlFlow traits) emit: inst
+[| bb parent |
+  bb: Optimizer IR BasicBlock new.
+  bb addLast: inst.
+  cf parent makeChild: Optimizer IR Sequence new `>>
+    [addChild: bb.
+     addChild: cf.]
+].

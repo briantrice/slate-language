@@ -1,0 +1,944 @@
+ensureNamespace: #JSON.
+
+"TODO: use a ReadStream on Strings and update StringGenerator to other Streams."
+"TODO: finish escape hex character reading. see readEscapedHexCharacter"
+"TODO: float precision, see writeFloat"
+"TODO: string encoding"
+
+JSON define: #Reader &parents: {Cloneable}
+  &slots: {#stream.
+      	   #generator.
+	   #hexDigits -> (Dictionary newWithAll: {$A -> 10. $B -> 11. $C -> 12. $D -> 13. $E -> 14. $F -> 15})}.
+
+JSON define: #StringGenerator &parents: {Cloneable}
+  &slots: {#string. #index}.
+
+JSON define: #IterationError &parents: {DescriptiveError}.
+
+sg@(JSON StringGenerator traits) newWithContent: aString
+[
+  sg clone `>> [string: aString. index: -1.]
+].
+
+sg@(JSON StringGenerator traits) peek
+[| index |
+  index: sg index + 1.
+  index < sg string size
+    ifTrue: [^ (sg string at: index)]
+    ifFalse: [^ Nil].
+].
+
+sg@(JSON StringGenerator traits) next
+[
+  sg index: sg index + 1.
+  sg index < sg string size
+    ifTrue: [^ (sg string at: sg index)]
+    ifFalse: [JSON IterationError signal].
+].
+
+JSON define: #StreamGenerator &slots: {#stream}.
+
+sg@(JSON StreamGenerator traits) newWithContent: aReadStream
+[
+  sg clone `>> [stream: aReadStream.]
+].
+
+sg@(JSON StreamGenerator traits) peek
+[
+  sg stream isAtEnd
+    ifTrue: [Nil]
+    ifFalse: [sg stream peek]
+].
+
+sg@(JSON StreamGenerator traits) next [ sg stream next ].
+
+json@(JSON traits) read: aString
+[
+  json Reader read: aString
+].
+
+json@(JSON traits) write: obj &escapedForwardSlash: boolean
+[
+  json Writer write: obj &escapedForwardSlash: boolean
+].
+
+JSON define: #WriteError &parents: {DescriptiveError}.
+JSON define: #ReadError &parents: {DescriptiveError}.
+
+r@(JSON Reader traits) read: aString
+[
+  r generator: (JSON StringGenerator newWithContent: aString).
+"  r generator: (JSON StreamGenerator newWithContent: aString reader)."
+  r readItem
+].
+
+r@(JSON Reader traits) next [ r generator next ].
+
+r@(JSON Reader traits) peek [ r generator peek ].
+
+r@(JSON Reader traits) eatWhitespace
+[| peek |
+  peek: r peek.
+  [(peek isNotNil /\ [peek isWhitespace]) \/ [peek = $/]]
+    whileTrue: [
+      peek = $/ ifTrue: [r readComment]
+		ifFalse: [r next ].
+      peek: r peek].
+].
+
+r@(JSON Reader traits) readString
+[| answer |
+  answer: ExtensibleArray new writer.
+  r next.
+  [r peek = $\"]
+    whileFalse: [| ch |
+      ch: r next.
+      ch = $\\ 
+      	ifTrue: [
+      	  ch: r next.
+	  ch caseOf: {
+      	    $b -> [answer nextPut: '\b'].
+      	    $f -> [answer nextPut: '\f'].
+      	    $n -> [answer nextPut: '\n'].
+      	    $r -> [answer nextPut: '\r'].
+      	    $t -> [answer nextPut: '\t'].
+	    $u -> [| n |
+      	      	    n: r hexDigit.
+		    n < 128 ifTrue: [answer nextPut: (n as: ASCIIString Character)]
+			    ifFalse: [answer nextPutAll: ((n as: String) as: Array)]].
+	    $\\ -> [answer nextPut: $\\. answer nextPut: $\\]
+      	  }
+	    otherwise: [
+	      ('"/' includes: ch)
+      	      	ifFalse: [(JSON ReadError newDescription: 'Not a valid escaped character') signal].
+	      answer nextPut: ch]]
+	ifFalse: [answer nextPut: ch]].
+  r next.
+  answer contents as: ASCIIString
+].
+
+r@(JSON Reader traits) nextHexDigitToInt
+[| char |
+  char: r next.
+  char isDigit 
+    ifTrue: [char toDigit]
+    ifFalse: 
+      [r hexDigits at: char ifAbsent: [
+      	(JSON ReadError newDescription: 'Not a valid hex character.') signal]] 
+].
+
+r@(JSON Reader traits) hexDigit
+[ 
+  (4096 * r nextHexDigitToInt) + (256 * r nextHexDigitToInt) + (16 * r nextHexDigitToInt) + r nextHexDigitToInt
+].
+
+r@(JSON Reader traits) readComment
+[| second |
+  r next.
+  second: r next.
+  second = $/
+    ifTrue: [^ r readDoubleSolidusComment]
+    ifFalse: [
+      second = $*
+      	ifTrue: [^ r readCStyleComment]
+      	ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
+].
+
+
+r@(JSON Reader traits) readDoubleSolidusComment
+[| ch |
+  ch: r next.
+  [ch = $\n \/ [ch = $\r]] whileFalse: [ch: r next].
+].
+
+r@(JSON Reader traits) readCStyleComment
+[| ch |
+  ch: r next.
+  [[ch = $* /\ (r peek = $/)]
+    whileFalse: [
+      (ch = $/ /\ [r peek = $*])
+      	ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
+	ifFalse: [ch: r next]].
+    r next] on: JSON IterationError do: [| :c |
+      (JSON ReadError newDescription: 'Not a valid JSON comment. CStyle comment unfinished') signal]
+].
+
+r@(JSON Reader traits) readArray
+[| answer done |
+  r next.
+  answer: ExtensibleArray new.
+  done: r peek = $].
+  [done] whileFalse: [
+    answer add: r readItem.
+    r eatWhitespace.
+    done: r peek = $].
+    done ifFalse: [| ch |
+      ch: r next.
+      ch = $, ifFalse: [
+      	(JSON ReadError newDescription: 'Not a valid JSON array.') signal]]].
+  r next.
+  answer
+].
+
+r@(JSON Reader traits) readObject
+[| answer done |
+  r next.
+  answer: Dictionary new.
+  done: r peek = $}.
+  [done] whileFalse: [| key ch |
+    key: r readItem.
+    (key is: String) ifFalse: [
+      (JSON ReadError newDescription: 'Not a valid JSON object key (key should be string).') signal].
+    r eatWhitespace.
+    r next = $: ifFalse: [
+      (JSON ReadError newDescription: 'Not a valid JSON object. Separate key and value with a colon.') signal].
+    answer at: key put: r readItem.
+    r eatWhitespace.
+    done: r peek = $}.
+    done ifFalse: [
+      r next = $, ifFalse: [
+      	(JSON ReadError newDescription: 'Not a valid JSON object. Due to...') signal]].].
+  r next.
+  answer
+].
+
+r@(JSON Reader traits) readTrue
+[
+  r assertNextIs: $t inWord: 'true'.
+  r assertNextIs: $r inWord: 'true'.
+  r assertNextIs: $u inWord: 'true'.
+  r assertNextIs: $e inWord: 'true'.
+  True
+].
+
+r@(JSON Reader traits) readFalse
+[
+  r assertNextIs: $f inWord: 'false'.
+  r assertNextIs: $a inWord: 'false'.
+  r assertNextIs: $l inWord: 'false'.
+  r assertNextIs: $s inWord: 'false'.
+  r assertNextIs: $e inWord: 'false'.
+  False
+].
+
+r@(JSON Reader traits) readNull
+[
+  r assertNextIs: $n inWord: 'null'.
+  r assertNextIs: $u inWord: 'null'.
+  r assertNextIs: $l inWord: 'null'.
+  r assertNextIs: $l inWord: 'null'.
+  Nil
+].
+
+r@(JSON Reader traits) assertNextIs: aChar inWord: aString
+[
+  r next = aChar ifFalse: [
+    (JSON ReadError newDescription: 'Trying to read...') signal].
+].
+
+r@(JSON Reader traits) readNumber
+[| isFloat result peek negate |
+  isFloat: False.
+  result: 0.
+  peek: r peek.
+  peek = $-
+    ifTrue: [negate: True. r next. peek: r peek]
+    ifFalse: [negate: False].
+  [peek isNotNil /\
+    (peek isDigit \/ (peek = $.))]
+      whileTrue: [
+      	peek = $.
+	  ifTrue: [
+	    isFloat ifTrue: [
+      	      (JSON ReadError newDescription: 'Not a valid JSON number.') signal].
+	    isFloat: True. r next. result: (result as: Float)]
+	  ifFalse: [
+	    negate ifTrue: [
+		      isFloat ifTrue: [result: result - (r next toDigit / 10)]
+			      ifFalse: [result: result * 10 - r next toDigit]]
+		   ifFalse: [
+		      isFloat ifTrue: [result: result + (r next toDigit / 10)]
+			      ifFalse: [result: result * 10 + r next toDigit]]].
+	peek: r peek.].
+  result
+].
+
+r@(JSON Reader traits) readItem
+[| c |
+  r eatWhitespace.
+  c: r peek.
+  c caseOf: {
+    ${ -> [r readObject].
+    $[ -> [r readArray].
+    $\" -> [r readString].
+    $t -> [r readTrue].
+    $f -> [r readFalse].
+    $n -> [r readNull].
+    Nil -> [(JSON ReadError newDescription: 'Not valid JSON.') signal]
+  }
+    otherwise: [
+      (c isDigit \/ (c = $-))
+      	ifTrue: [r readNumber]
+      	ifFalse: [(JSON ReadError newDescription: 'Not valid JSON.') signal]]
+].
+
+JSON define: #Writer &parents: {Cloneable} &slots: {#result. #escapedForwardSlash -> False}.
+ 
+w@(JSON Writer traits) write: obj &escapedForwardSlash: boolean
+[
+  w result: ExtensibleArray new.
+  boolean ifNil: [w escapedForwardSlash: False]
+	  ifNotNil: [w escapedForwardSlash: boolean].
+  w writeObject: obj.
+  w result as: String
+].
+
+w@(JSON Writer traits) writeObject: obj
+[
+  (obj is: Dictionary)
+    ifTrue: [| n |
+      n: obj size.
+      w append: ${.
+      obj keysAndValuesDo: [| :k :v |
+	w writeObject: k.
+	w append: $:.
+	w writeObject: v.
+	n: n - 1.
+	n > 0 ifTrue: [w append: $,]].
+      w append: $}]
+    ifFalse: [
+      (obj is: ExtensibleArray)
+      	ifTrue: [| n |
+      	  w append: $[.
+	  n: obj size - 1.
+	  obj doWithIndex: [| :item :index|
+      	    w writeObject: item.
+	    index < n ifTrue: [w append: $,]].
+	  w append: $]]
+	ifFalse: [
+	  (obj is: String)
+      	    ifTrue: [
+      	      w append: $\".
+	      w append: obj.
+	      w append: $\".]
+	    ifFalse: [
+	      (obj is: Number)
+      	      	ifTrue: [w append: (obj as: String)]
+		ifFalse: [
+		  obj isNil ifTrue: [w append: 'null']
+			    ifFalse: [
+			      obj ifTrue: [w append: 'true']
+				  ifFalse: [w append: 'false']]]]]].
+].
+
+w@(JSON Writer traits) append: aChar@(ASCIIString Character traits)
+[
+  w result add: aChar.
+].
+
+w@(JSON Writer traits) append: aString@(ASCIIString traits)
+[
+  aString do: [| :ch |
+    ch = $\" \/ [ch = $/ /\ w escapedForwardSlash] ifTrue: [w append: $\\].
+    w append: ch].
+].
+
+UnitTests define: #JSON &parents: {TestCase}.
+"For testing the JSON Reader and Writer."
+
+str@(ASCIIString traits) whitespaceRemoved
+[
+  str strip: $\s
+].
+
+tc@(UnitTests JSON traits) readEmptyObject
+[| obj |
+  obj: (JSON read: '{}').
+  tc assert: Dictionary new = obj description: 'Reading empty object failed'.
+].
+
+
+tc@(UnitTests JSON traits) readEscapedQuotationMark
+[| obj |
+  obj: (JSON read: '"\\""').
+  tc assert: '"' = obj description: 'Reading escaped quotation mark failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedSolidus
+[| obj |
+  obj: (JSON read: '"\/"').
+  tc assert: '/' = obj description: 'reading escaped solidus failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedReverseSolidus
+[| obj |
+  obj: (JSON read: '"\\\\"').
+  tc assert: '\\\\' = obj description: 'Reading escaped reverse solidus failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedBackspace
+[| obj |
+  obj: (JSON read: '"\b"').
+  tc assert: '\b' = obj description: 'Reading escaped backspace failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedFormfeed
+[| obj |
+  obj: (JSON read: '"\f"').
+  tc assert: '\f' = obj description: 'Reading escaped formfeed failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedNewline
+[| obj |
+  obj: (JSON read: '"\n"').
+  tc assert: '\n' = obj description: 'Reading escaped newline failed.'.
+].
+
+tc@(UnitTests JSON traits) readEscapedCarriageReturn
+[| obj |
+  obj: (JSON read: '"\r"').
+  tc assert: '\r' = obj description: 'Reading escaped carriage return failed.'.
+].
+
+tc@(UnitTests JSON traits) readEscapedHorizontalTab
+[| obj |
+  obj: (JSON read: '"\t"').
+  tc assert: '\t' = obj description: 'reading escaped horizontal tab failed'.
+].
+
+tc@(UnitTests JSON traits) readEscapedHexCharacter
+[| obj |
+  obj: (JSON read: '"\\u000A"').
+  tc assert: '\n' = obj description: 'Reading escaped hex character failed'.
+"  obj: (JSON read: '\\u1001').  put back quotation marks !!!
+  tc assert: '\\u1001' = obj description: 'Reading escaped hex character failed'."
+].
+
+tc@(UnitTests JSON traits) readBadEscapedHexCharacter
+[
+  tc shouldRaiseReadError: '"\\u10K5"'
+    &description: 'Reading bad escaped hex character failed to raise right error.'.
+].
+
+
+tc@(UnitTests JSON traits) readIntegerValue
+[| obj req |
+  obj: (JSON read: '{ "age" : 33 }').
+  req: Dictionary new.
+  req add: 'age' -> 33.
+  tc assert: obj = req description: 'Reading integer value failed'.
+].
+
+tc@(UnitTests JSON traits) readNegativeIntegerValue
+[| obj req |
+  obj: (JSON read: '{ "key" : -33 }').
+  req: Dictionary new.
+  req at: 'key' put: -33.
+  tc assert: obj = req description: 'Reading negative integer value failed'.
+].
+
+tc@(UnitTests JSON traits) readFloatValue
+[| obj req |
+  obj: (JSON read: '{ "age" : 33.4 }').
+  req: Dictionary new.
+  req at: 'age' put: 33.4.
+  tc assert: obj = req description: 'Reading float value failed'.
+].
+
+tc@(UnitTests JSON traits) readNegativeFloatValue
+[| obj req |
+  obj: (JSON read: '{ "key" : -33.4 }').
+  req: Dictionary new.
+  req at: 'key' put: -33.4.
+  tc assert: obj = req description: 'Reading negative float value failed'.
+].
+
+tc@(UnitTests JSON traits) readStringValue
+[| obj req |
+  obj: (JSON read: '{ "name" : "Marton" }').
+  req: Dictionary new.
+  req add: 'name' -> 'Marton'.
+  tc assert: obj = req description: 'Reading string value failed'.
+].
+
+tc@(UnitTests JSON traits) readEmptyArray
+[| obj |
+  obj: (JSON read: '[]').
+  tc assert: ExtensibleArray new = obj description: 'Reading empty array failed'.
+].
+
+tc@(UnitTests JSON traits) readSmallArray
+[| obj req |
+  obj: (JSON read: '[ "a" , "b", "c" ]').
+  req: (ExtensibleArray new addAll: {'a'. 'b'. 'c'}).
+  tc assert: obj = req description: 'Reading small array failed'.
+].
+
+tc@(UnitTests JSON traits) readSmallObject
+[| obj req |
+  obj: (JSON read: '{ "name" : "Marton", "age":33}').
+  req: Dictionary new.
+  req add: 'name' -> 'Marton'.
+  req add: 'age' -> 33.
+  tc assert: obj = req description: 'Reading small object failed'.
+].
+
+tc@(UnitTests JSON traits) readBooleanValues
+[
+  tc assert: (JSON read: 'true') description: 'Reading true failed'.
+  tc assert: (JSON read: 'false') not description: 'Reading false failed'.
+].
+
+tc@(UnitTests JSON traits) readNull
+[
+  tc assert: (JSON read: 'null') isNil description: 'Reading null failed'.
+].
+
+
+tc@(UnitTests JSON traits) readArrayOfSymbols
+[| obj req |
+  obj: (JSON read: ' [ true, false, null] ').
+  req: (ExtensibleArray new addAll: {True. False. Nil}).
+  tc assert: obj = req description: 'reading array of symbols failed'.
+].
+
+tc@(UnitTests JSON traits) readComplexObject
+[| obj req |
+  obj: (JSON read: '{ "name": "Marton", "age" : 33, "Employed?":true, "Female?" : false, "grandchildren":null }').
+  req: (Dictionary new `>> [at: 'name' put: 'Marton'.
+			    at: 'age' put: 33.
+			    at: 'Employed?' put: True.
+			    at: 'Female?' put: False.
+			    at: 'grandchildren' put: Nil.]).
+  tc assert: obj = req description: 'Reading complex object failed'.
+].
+
+tc@(UnitTests JSON traits) shouldRaiseReadError: toParse &description: description
+[
+  description ifNil: [description: ''].
+  tc should: [JSON read: toParse] raise: JSON ReadError
+    description: description.
+].
+
+tc@(UnitTests JSON traits) readBadObjectKey
+[
+  tc shouldRaiseReadError: '{ 33 : "age" }' &description: 'Invalid onject key not signaled when reading.'.
+].
+
+tc@(UnitTests JSON traits) readBadArray
+[
+  tc shouldRaiseReadError: '[1,2,3,,]' &description: 'Bad array read without right error.'.
+].
+
+tc@(UnitTests JSON traits) readLongArray
+[| obj req |
+  obj: (JSON read: '[ "used",
+		       "abused",
+		       "confused",
+		       true, false, null,
+		       1,
+		       2,
+		       [3, 4, 5]
+]').
+  req: ExtensibleArray new.
+  req addAll: {'used'. 'abused'. 'confused'. True. False. Nil. 1. 2}.
+  req add: (ExtensibleArray new addAll: {3. 4. 5}).
+  tc assert: obj = req description: 'Reading long array failed.'.
+].
+
+tc@(UnitTests JSON traits) readComplexArray
+[| obj  req |
+  obj: (JSON read: '[
+   { "name": "Marton", "age" : 33,
+     "Employed?":true, "Female?" : false, 
+     "grandchildren":null },
+		      "used",
+		      "abused",
+		      "confused", 
+		      1,
+		      2,
+		      [3, 4, 5]
+]').
+  req: ExtensibleArray new.
+  req add: (Dictionary new `>> [add: 'name' -> 'Marton'.
+				add: 'age' -> 33.
+				add: 'Employed?' -> True.
+				add: 'Female?' -> False.
+				add: 'grandchildren' -> Nil.]).
+  req addAll: {'used'. 'abused'. 'confused'. 1. 2}.
+  req add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
+  tc assert: obj = req description: 'Reading complex array failed'.
+].
+
+tc@(UnitTests JSON traits) readDoubleSolidusComment
+[| obj req |
+  obj: (JSON read: '[1, 2, // This is a comment.\n 3]').
+  req: (ExtensibleArray new addAll: {1. 2. 3}).
+  tc assert: obj = req description: 'Reading double solidus comment failed for comment in list'.
+  obj: (JSON read: '[1, 2, // This is a comment.\n{"last":3}]').
+  req: (ExtensibleArray new `>> [add: 1. add: 2.]).
+  req add: (Dictionary new `>> [at: 'last' put: 3.]).
+  tc assert: obj = req description: 'Reading double solidus comment failed for mapping in list'.
+].
+
+tc@(UnitTests JSON traits) readCStyleComment
+[| obj req |
+  obj: (JSON read: '[1, 2, /* This is a comment.\n */ 3]').
+  req: (ExtensibleArray new `>> [add: 1. add: 2. add: 3.]).
+  tc assert: obj = req description: 'Reading C style comment failed for comment in list'.
+  obj: (JSON read: '[1, 2, /* This is a comment. */{"last":3}]').
+  req: (ExtensibleArray new `>> [add: 1. add: 2.]).
+  req add: (Dictionary new `>> [add: 'last' -> 3.]).
+  tc assert: obj = req description: 'Reading C style comment failed for mapping in list'.
+].
+
+tc@(UnitTests JSON traits) readBadDoubleSolidusComment
+[
+  tc shouldRaiseReadError: '[1, 2, / This is not a comment.\n 3]'
+    &description: 'Bad double solidus comment is not signaled.'.
+].
+
+tc@(UnitTests JSON traits) readCStyleCommentWithoutEnd
+[
+  tc shouldRaiseReadError: '[1, 2, /* This is not a comment./ 3]'
+    &description: 'CStyle comment without end is not signaled when reading.'.
+].
+
+tc@(UnitTests JSON traits) readCStyleCommentWithSlashStar
+[
+  tc shouldRaiseReadError: '[1, 2, /* This is not a comment. /*  */ 3]'
+    &description: 'CStyle comment with additional slash-star is not signaled when reading.'.
+].
+
+tc@(UnitTests JSON traits) readIncompleteArray
+[
+  tc shouldRaiseReadError: '[' &description: 'Reading incomplete array did not raise right error.'.
+].
+
+tc@(UnitTests JSON traits) readEmptyObjectAtEndOfArray
+[| req |
+  req: (ExtensibleArray newWithAll: {'a'. 'b'. 'c'. Dictionary new}).
+  tc assert: (JSON read: '["a","b","c",{}]') = req
+    description: 'Reading empty object at end of array failed.'
+].
+
+tc@(UnitTests JSON traits) readEmptyObjectMidArray
+[| req |
+  req: (ExtensibleArray newWithAll: {'a'. 'b'. Dictionary new. 'c'}).
+  tc assert: (JSON read: '["a","b",{},"c"]') = req
+    description: 'Reading empty object mid array failed.'
+].
+
+tc@(UnitTests JSON traits) readClosingObjectBracket
+[| req obj |
+  req: (Dictionary newWithAll: {'a' -> (ExtensibleArray newWithAll: {1. 2. 3})}).
+  obj: (JSON read: '{"a":[1,2,3]}').
+  tc assert: obj = req description: 'Reading closing object bracket failed.'.
+].
+
+tc@(UnitTests JSON traits) readAnotherDoubleSlashComment
+[
+  tc assert: (JSON read: '[1 , // xzy\n2]') = (ExtensibleArray newWithAll: {1. 2})
+    description: 'Reading double slash comment failed.'.
+].
+
+tc@(UnitTests JSON traits) readAnotherSlashStarComment
+[
+  tc assert: (JSON read: '[1 , /* xzy */2]') = (ExtensibleArray newWithAll: {1. 2})
+    description: 'Reading slash star comment failed.'.
+].
+
+tc@(UnitTests JSON traits) readBadNumber
+[
+"  tc should: [JSON read: '-44.4.4'] raise: JSON ReadError
+    description: 'ReadError is not signaled when reading bad number'."
+  tc shouldRaiseReadError: '-44.4.4'
+    &description: 'ReadError is not signaled when reading bad number'.
+].
+
+tc@(UnitTests JSON traits) readBadObjectSyntax
+[
+  tc shouldRaiseReadError: '{"age", 33}'
+    &description: 'ReadError is not signaled for wrong object syntax'.
+].
+
+tc@(UnitTests JSON traits) readEmptyObjectInList
+[
+  tc assert: (JSON read: '[{}]') = (ExtensibleArray newWithAll: {Dictionary new})
+    description: 'Reading empty object in list failed.'.
+].
+
+tc@(UnitTests JSON traits) readObjectInListWithSlashStarComment
+[
+  tc assert: (JSON read: '[{} /*Comment*/]') = (ExtensibleArray newWithAll: {Dictionary new})
+    description: 'Reading empty object in list failed.'.
+].
+
+tc@(UnitTests JSON traits) readObjectWithEmptyList
+[| obj req |
+  obj: (JSON read: '{"test": [] }').
+  req: (Dictionary newWithAll: {'test' -> ExtensibleArray new}).
+  tc assert: obj = req description: 'Reading object with empty list failed.'.
+].
+
+tc@(UnitTests JSON traits) readObjectWithNonEmptyList
+[| obj req |
+  obj: (JSON read: '{"test": [3, 4, 5] }').
+  req: (Dictionary newWithAll: {'test' -> (ExtensibleArray newWithAll: {3. 4. 5})}).
+  tc assert: obj = req description: 'Reading object with non-empty list failed.'.
+].
+
+tc@(UnitTests JSON traits) readCommentInObjectWithListValue
+[| obj req |
+  obj: (JSON read: '{"test": [] /*Comment */}').
+  req: (Dictionary newWithAll: {'test' -> ExtensibleArray new}).
+  tc assert: obj = req description: 'Reading object with comment with list value failed.'.
+].
+
+tc@(UnitTests JSON traits) readWriteCopies
+[| orig json copy |
+  orig: (Dictionary newWithAll: {'a' -> ' " '}).
+  json: (JSON write: orig).
+  copy: (JSON read: json).
+  tc assert: orig = copy description: 'Write-read cycle failed.'.
+  tc assert: orig ~== copy description: 'Write-read messed up equality relation.'.
+].
+
+tc@(UnitTests JSON traits) writeEmptyObject
+[| str |
+  str: (JSON write: Dictionary new).
+  tc assert: str whitespaceRemoved = '{}' description: 'Writing empty object failed'.
+].
+
+tc@(UnitTests JSON traits) writeEmptyArray
+[| obj |
+  obj: ExtensibleArray new.
+  tc assert: '[]' = (JSON write: obj) whitespaceRemoved description: 'Writing empty array failed'.
+].
+
+tc@(UnitTests JSON traits) writeArrayOfSymbols
+[| obj |
+  obj: (ExtensibleArray newWithAll: {True. False. Nil}).
+  tc assert: (JSON write: obj) = '[true,false,null]'
+    description: 'Writing array of symbols failed'.
+].
+
+tc@(UnitTests JSON traits) writeBooleanValues
+[
+  tc assert: (JSON write: True) whitespaceRemoved = 'true' description: 'writing true failed'.
+  tc assert: (JSON write: False) whitespaceRemoved = 'false' description: 'writing false failed'.
+].
+
+tc@(UnitTests JSON traits) writeNull
+[
+  tc assert: (JSON write: Nil) whitespaceRemoved = 'null' description: 'writing null failed'.
+].
+
+tc@(UnitTests JSON traits) writeStringValue
+[| obj |
+  obj: Dictionary new.
+  obj at: 'name' put: 'Marton'.
+  tc assert: (JSON write: obj) = '{"name":"Marton"}'
+    description: 'Writing string value failed.'.
+].
+
+tc@(UnitTests JSON traits) writeSmallObject
+[| obj |
+  obj: Dictionary new.
+  obj at: 'name' put: 'Marton'.
+  obj at: 'age' put: 33.
+  tc assert: (JSON write: obj) whitespaceRemoved = '{"age":33,"name":"Marton"}'
+    description: 'Writing small object failed.'.
+].
+
+tc@(UnitTests JSON traits) writeSmallArray
+[| obj |
+  obj: ExtensibleArray new.
+  obj addAll: {1. 2. 3. 4}.
+  tc assert: (JSON write: obj) whitespaceRemoved = '[1,2,3,4]'
+    description: 'Writing small array failed.'.
+].
+
+tc@(UnitTests JSON traits) writeFloat
+[
+  tc assert: (JSON write: 3.44556677) whitespaceRemoved = '3.445567'
+    description: 'Wrinting float value failed.'.
+].
+
+tc@(UnitTests JSON traits) writeComplexArray
+[| obj req |
+  obj: ExtensibleArray new.
+  obj add: (Dictionary new `>> [add: 'name' -> 'Marton'.
+				add: 'age' -> 33.
+				add: 'Employed?' -> True.
+				add: 'Female?' -> False.
+				add: 'grandchildren' -> Nil.]).
+  obj addAll: {'used'. 'abused'. 'confused'. 1. 2}.
+  obj add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
+  req: '[{"Employed?":true,"grandchildren":null,"Female?":false,"age":33,"name":"Marton"},"used","abused","confused",1,2,[3,4,5]]'.
+  tc assert: (JSON write: obj) whitespaceRemoved = req description: 'Writing complex object failed'.
+].
+
+tc@(UnitTests JSON traits) writeLong
+[
+  tc assert: '12345678901234567890' = (JSON write: 12345678901234567890)
+    description: 'Writing long value failed.'
+].
+
+tc@(UnitTests JSON traits) writeEscapedQuotationMark
+[
+  tc assert: (JSON write: '"') whitespaceRemoved = '"\\""'
+    description: 'Wrinting escaped quotation mark failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedSolidus
+[
+  tc assert: '"\\/"' = (JSON write: '/' &escapedForwardSlash: True) whitespaceRemoved
+    description: 'Writing escaped solidus failed.'.
+].
+
+tc@(UnitTests JSON traits) writeNonEscapedSolidus
+[
+  tc assert: '"/"' = (JSON write: '/') whitespaceRemoved
+    description: 'Writing non-escaped solidus failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedReverseSolidus
+[
+  tc assert: '"\\"' = (JSON write: '\\') whitespaceRemoved
+    description: 'Writing escaped reverse solidus failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedBackspace
+[
+  tc assert: '"\b"' = (JSON write: '\b') whitespaceRemoved
+    description: 'Writing escaped backspace failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedFormfeed
+[
+  tc assert: '"\f"' = (JSON write: '\f') whitespaceRemoved
+    description: 'Writing escaped formfeed failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedNewline
+[
+  tc assert: '"\n"' = (JSON write: '\n') whitespaceRemoved
+    description: 'Writing escaped newline failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedCarriageReturn
+[
+  tc assert: '"\r"' = (JSON write: '\r') whitespaceRemoved
+    description: 'Writing escaped carriage return failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedHorizontalTab
+[
+  tc assert: '"\t"' = (JSON write: '\t') whitespaceRemoved
+    description: 'Writing escaped horizontal tab failed.'.
+].
+
+tc@(UnitTests JSON traits) writeEscapedHexCharacter
+[
+  tc assert: (JSON write: '\\u1001') whitespaceRemoved = '"\\u1001"'
+    description: 'Writing escaped hex character failed.'.
+].
+
+tc@(UnitTests JSON traits) peek
+[| gen |
+  gen: (JSON StringGenerator newWithContent: 'blabla').
+  tc assert: gen peek = $b description: 'StringGenerator simple peek does not work.'
+].
+
+tc@(UnitTests JSON traits) next
+[| gen |
+  gen: (JSON StringGenerator newWithContent: 'blabla').
+  tc assert: gen next = $b description: 'Simple next failed.'.
+  tc assert: gen peek = $l description: 'Second peek failed.'.
+  gen next.
+  gen next.
+  tc assert: gen next = $b description: 'Second next failed.'.
+].
+ 
+tc@(UnitTests JSON traits) whitespaceRemoval
+[
+  tc assert: ' d ' whitespaceRemoved = 'd' description: 'Whitespace not removed 1.'.
+].
+
+tc@(UnitTests JSON traits) suite
+[
+  tc suiteForSelectors:
+    {
+      #peek.
+      #next.
+      #whitespaceRemoval.
+      #readEmptyObject.
+      #readEmptyArray.
+      #readSmallArray.
+      #readEscapedNewline.
+      #readEscapedHorizontalTab.
+      #readEscapedCarriageReturn.
+      #readEscapedFormfeed.
+      #readEscapedBackspace.
+      #readStringValue.
+      #readBooleanValues.
+      #readNull.
+      #readArrayOfSymbols.
+      #readIntegerValue.
+      #readNegativeIntegerValue.
+      #readFloatValue.
+      #readNegativeFloatValue.
+      #readSmallObject.
+      #readLongArray.
+      #readComplexObject.
+      #readComplexArray.
+      #readCStyleComment.
+      #readDoubleSolidusComment.
+      #writeEmptyObject.
+      #writeEmptyArray.
+      #writeBooleanValues.
+      #writeNull.
+      #writeArrayOfSymbols.
+      #writeStringValue.
+      #writeSmallObject.
+      #writeSmallArray.
+      #writeComplexArray.
+      #readBadNumber.
+      #readBadObjectSyntax.
+      #readBadDoubleSolidusComment.
+      #readCStyleCommentWithoutEnd.
+      #readCStyleCommentWithSlashStar.
+      #readEscapedSolidus.
+      #readEscapedReverseSolidus.
+      #readBadObjectKey.
+      #readBadArray.
+      #readIncompleteArray.
+      #readEmptyObjectAtEndOfArray.
+      #readEmptyObjectMidArray.
+      #readClosingObjectBracket.
+      #readAnotherDoubleSlashComment.
+      #readAnotherSlashStarComment.
+      #readEmptyObjectInList.
+      #readObjectInListWithSlashStarComment.
+      #readObjectWithEmptyList.
+      #readObjectWithNonEmptyList.
+      #readCommentInObjectWithListValue.
+      #writeLong.
+      #readEscapedQuotationMark.
+      #writeEscapedQuotationMark.
+      #readWriteCopies.
+      #writeEscapedSolidus.
+      #writeNonEscapedSolidus.
+      #writeEscapedReverseSolidus.
+      #writeEscapedBackspace.
+      #writeEscapedFormfeed.
+      #writeEscapedNewline.
+      #writeEscapedCarriageReturn.
+      #writeEscapedHorizontalTab.
+      #writeEscapedHexCharacter.
+      #readBadEscapedHexCharacter.
+      #readEscapedHexCharacter
+"      #writeFloat"
+    }
+].

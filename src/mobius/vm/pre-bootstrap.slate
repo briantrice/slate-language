@@ -1,0 +1,281 @@
+"Utility methods for bootstrapping that rely solely on primitives:"
+
+Console write: 79 to: 0 from: 'Bootstrapping libraries... (this may take a while. Save the image when done).\n' startingAt: 0.
+
+
+"o@(Root traits) traitsWindow [first delegate]"
+o@((Root _map delegates at: 0) _map delegates at: 1) traitsWindow [o _map delegates at: 0].
+
+"o@(Root traits) traits [o traitsWindow delegates last]"
+o@(Root traitsWindow _map delegates at: 1) traits [o traitsWindow _map delegates at: (o traitsWindow _map delegates size - 1)].
+
+o@(Root traits) _delegates [o _map delegates].
+o@(Root traits) _delegates: x@(Array traits)
+[
+  o _map: o _map clone.
+  o _map delegates: x
+].
+
+b@(ByteArray traits) new &capacity: n
+[b newSize: (n == Nil ifTrue: [0] ifFalse: [n])].
+
+s@(ASCIIString traits) at: i
+[
+  bootstrapCharacters at: (s byteAt: i)
+].
+
+s@(ASCIIString traits) at: i put: c
+[
+  s byteAt: i put: c code
+].
+
+s1@(ASCIIString traits) ; s2@(ASCIIString traits)
+[| result i size size1 |
+  result: (s1 newSize: s1 size + s2 size).
+  i: 0.
+  size: s1 size.
+  size1: size.
+  [i = size] whileFalse:
+    [result byteAt: i put: (s1 byteAt: i). i: i + 1].
+  size: result size.
+  [i = size] whileFalse:
+    [result byteAt: i put: (s2 byteAt: i - size1). i: i + 1].
+  result
+].
+
+block@(Method traits) do
+[
+  block applyTo: {}
+].
+
+
+m@(Method traits) applyWith: x
+[m applyTo: {x}].
+
+
+cond@(Method traits) whileFalse: body
+[
+  [
+    cond do ifTrue: [^ Nil].
+    body do
+  ] loop
+].
+
+cond@(Method traits) whileTrue: body
+[
+  [
+    cond do ifFalse: [^ Nil].
+    body do
+  ] loop
+].
+
+array@(Array traits) new &capacity: n
+[array newSize: (n == Nil ifTrue: [0] ifFalse: [n])].
+
+array@(Array traits) do: block
+[| i size |
+  i: 0.
+  size: array size.
+  [i = size]
+    whileFalse:
+      [block applyTo: {array at: i}.
+        i: i + 1]
+].
+
+array@(Array traits) reverseDo: block
+[| i |
+  i: array size. 
+  [i = 0]
+    whileFalse:
+      [i: i - 1.
+        block applyTo: {array at: i}]
+].
+
+array@(Array traits) doWithIndex: block
+[| i size |
+  i: 0.
+  size: array size.
+  [i = size]
+    whileFalse:
+      [block applyTo: {array at: i. i}.
+        i: i + 1]
+].
+
+array@(Array traits) reversed
+[| i size newArray|
+  i: 0.
+  size: array size.
+  newArray: (Array newSize: size).
+
+  [i = size]
+    whileFalse:
+      [newArray at: size - i - 1 put: (array at: i).
+        i: i + 1].
+  newArray
+].
+
+array@(Array traits) anySatisfy: block
+[
+  array do:
+    [| :each |
+      (block applyTo: {each})
+        ifTrue: [^ True]].
+  False
+].
+
+"using = will invoke coerciblenumbermixin and things will go to hell"
+array@(Array traits) includes: obj
+[
+  array do:
+    [| :each |
+      each == obj
+        ifTrue: [^ True]].
+  False
+].
+
+array@(Array traits) allButFirst: n
+[| i newA |
+  newA: (array newSize: array size - n).
+  i: 0.
+  [i = newA size]
+    whileFalse:
+      [newA at: i put: (array at: i + n).
+        i: i + 1].
+  newA
+].
+
+array@(Array traits) first: n
+[| i newA |
+  newA: (array newSize: n).
+  i: 0.
+  [i = n]
+    whileFalse:
+      [newA at: i put: (array at: i).
+        i: i + 1].
+  newA
+].
+
+array@(Array traits) copyWith: obj
+[| newA |
+  newA: (array newSize: array size + 1).
+  array doWithIndex:
+    [| :each :index |
+      newA at: index put: each].
+  newA at: array size put: obj.
+  newA
+].
+
+s@(Symbol traits) name
+[| i name size |
+  name: (ASCIIString newSize: s size).
+  i: 0.
+  size: s size.
+  [i = size]
+    whileFalse:    
+      [name at: i put: (s at: i).
+        i: i + 1].
+  name
+].
+
+s@(Symbol traits) newNamed: name
+[| newS i size |
+  newS: (s newSize: name size).
+  i: 0.
+  size: name size.
+  [i = size]
+    whileFalse:    
+      [newS at: i put: (name at: i).
+        i: i + 1].
+  newS
+].
+
+"This temporary intern: method will be removed in symbol.slate."
+_@lobby intern: s@(ASCIIString traits) 
+[| i size sym |
+  size: s size.
+  bootstrapSymbols do: 
+    [| :sym | 
+      sym size = size
+        ifTrue:
+          [i: 0.
+            [(sym at: i) = (s at: i)]
+              whileTrue:
+                [i: i + 1.
+                  i = size ifTrue: [^ sym]]]].
+  sym: (Symbol newNamed: s).
+  bootstrapSymbols: (bootstrapSymbols copyWith: sym).
+  sym
+].
+
+_@(Directory traits) current [Nil].
+_@(Directory traits) Current [Nil].
+
+i@SmallInteger _map
+"Prevents a total crash since SmallIntegers are stored directly in references."
+[i: SmallInteger. resend].
+
+"
+obj@(Root traits) delegateNames
+[| map names tableIndex offset |
+  map: obj _map.
+  names: (Array newSize: map delegates size).
+  tableIndex: 0.
+  [tableIndex = map slotTable size]
+    whileFalse:
+      [(map slotTable at: tableIndex) == Nil
+        ifFalse:
+          [offset: (map slotTable at: tableIndex + 1).
+            (offset bitAnd: 1) = 1
+              ifTrue:
+                [names 
+                  at: ((offset bitXor: 1) - 8 quo: 4) 
+                  put: (map slotTable at: tableIndex)]].
+        tableIndex: tableIndex + 2].
+  names
+].
+
+obj@(Root traits) slotNames
+[| map names tableIndex offset |
+  map: obj _map.
+  names: (Array newSize: map slotCount + map delegates size).
+  tableIndex: 0.
+  [tableIndex = map slotTable size]
+    whileFalse:
+      [(map slotTable at: tableIndex) == Nil
+        ifFalse:
+          [offset: (map slotTable at: tableIndex + 1).
+            names
+              at: ((offset bitAnd: 1) = 1
+                    ifTrue:
+                      [(offset bitXor: 1) - 8 quo: 4]
+                    ifFalse:
+                      [map delegates size + (offset - 8 quo: 4)])
+              put: (map slotTable at: tableIndex)].
+        tableIndex: tableIndex + 2].
+  names
+].
+"
+
+obj@(Root traits) slotNames
+[| map names tableIndex namesIndex |
+  map: obj _map.
+  names: (Array newSize: map slotCount).
+  tableIndex: 0.
+  namesIndex: 0.
+  [tableIndex = map slotTable size]
+    whileFalse:
+      [(map slotTable at: tableIndex) == Nil
+        ifFalse:
+          [names at: namesIndex put: (map slotTable at: tableIndex).
+           namesIndex: namesIndex + 1].
+        tableIndex: tableIndex + 2].
+  names
+].
+
+
+x@(Root traits) slotCount
+[x slotNames size" - x delegateNames size"].
+
+x@(Root traits) delegateCount
+[x _delegates size].
+

@@ -1442,6 +1442,7 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
       heap_full_gc(oh);
     } else {
       heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
+      print_backtrace(oh);
       assert(0);
     }
     oh->nextFree = (struct Object*)oh->memoryYoung;
@@ -4393,7 +4394,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     lexicalContext = i->closure->lexicalWindow[n-1];
     framePointer = object_to_smallint(lexicalContext->framePointer);
     /*Attempted to resend without enclosing method definition.*/
-    assert((struct Object*)lexicalContext != i->stack->elements[framePointer-2]);
+    assert((struct Object*)lexicalContext == i->stack->elements[framePointer-2]);
   }
 
   barrier = i->stack->elements[framePointer-3];
@@ -4750,7 +4751,7 @@ int main(int argc, char** argv) {
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * 1024 * 1024;
-  word_t young_limit = 1 * 1024 * 1024;
+  word_t young_limit = 5 * 1024 * 1024;
   size_t res;
 
   heap = calloc(1, sizeof(struct object_heap));

@@ -1,0 +1,36 @@
+includeHeaderNamed: '"extprim.h"'.
+
+p@ExternalLibraryTraits primitiveOpen: libname@ASCIIStringTraits handle: handle@ByteArrayTraits
+[
+  ('openExternalLibrary((struct ByteArray *) libname, (struct ByteArray *) handle)' directly!UnsignedLongInt)
+    ifTrue: [interpreter pushTrue]
+    ifFalse: [interpreter pushFalse].
+] `pidginPrimitive.
+
+p@ExternalLibraryTraits primitiveClose: handle@ByteArrayTraits
+[
+  ('closeExternalLibrary((struct ByteArray *) handle)' directly!UnsignedLongInt)
+    ifTrue: [interpreter pushTrue]
+    ifFalse: [interpreter pushFalse].
+] `pidginPrimitive.
+
+p@ExternalLibraryTraits primitiveLookup: symname@ASCIIStringTraits
+		       handle: handle@ByteArrayTraits
+		       into: ptr@ByteArrayTraits
+[
+  ('lookupExternalLibraryPrimitive((struct ByteArray *) handle, (struct ByteArray *) symname, (struct ByteArray *) ptr)' directly!UnsignedLongInt)
+    ifTrue: [interpreter pushTrue]
+    ifFalse: [interpreter pushFalse].
+] `pidginPrimitive.
+
+p@ExternalLibraryTraits primitiveErrorInto: messageBuffer@ByteArrayTraits
+[
+  interpreter stackPush: 'readExternalLibraryError((struct ByteArray *) messageBuffer)' directly!UnsignedLongInt asObject.
+] `pidginPrimitive.
+
+p@ExternalLibraryTraits primitiveApply: ptr@ByteArrayTraits accepting: argsFormat callFormat: callFormat returning: resultFormat to: args@ArrayTraits
+[
+  interpreter stackPush:
+    ('applyExternalLibraryPrimitive((struct ByteArray *) ptr, (struct OopArray *) argsFormat, callFormat, resultFormat, (struct OopArray *) args)'
+     directly!UnsignedLongInt).
+] `pidginPrimitive.

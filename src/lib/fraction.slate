@@ -1,0 +1,148 @@
+numerics define: #Fraction &parents: {Number. CoercibleNumberMixin} &slots:
+  {#numerator. #denominator}.
+"Fractions represent reduced ratios of Integers. They are not unique
+objects per value, however, and they are lazily reduced."
+
+Fraction traits define: #level -> 2.
+
+x@(Fraction traits) newFor: numer over: denom
+[
+  x cloneSettingSlots: #(numerator denominator) to:
+    (denom isNegative ifTrue: [{numer negated. denom negated}]
+		      ifFalse: [{numer. denom}])
+].
+
+x@(Fraction traits) printOn: s
+"Print out a representation of the Fraction."
+[
+  x numerator printOn: s.
+  s ; ' / '.
+  x denominator printOn: s.
+  x
+].
+
+x@(Fraction traits) truncated
+"The nearest lesser Integer to the Fraction."
+[
+  x numerator quo: x denominator
+].
+
+x@(Fraction traits) * y@(Fraction traits)
+[| xn xd yn yd d1 d2 |
+  d1: ((xn: x numerator) gcd: (yd: y denominator)).
+  d2: ((xd: x denominator) gcd: (yn: y numerator)).
+  d2 = xd /\ [d1 = yd]
+     ifTrue: [xn // d1 * yn // d2]
+     ifFalse: [x newFor: xn // d1 * (yn // d2)
+		    over: xd // d2 * (yd // d1)]
+].
+
+x@(Fraction traits) + y@(Fraction traits)
+[| n d d1 d2 |
+  d: (x denominator gcd: y denominator).
+  n: (x numerator * (d1: y denominator // d) + (y numerator * (d2: x denominator // d))).
+  d1: d1 * d2.
+  n: n // (d2: (n gcd: d)).
+  (d: d1 * (d // d2)) = 1 ifTrue: [^ n].
+  x newFor: n over: d
+].
+
+x@(Fraction traits) - y@(Fraction traits)
+[x + y negated].
+
+x@(Fraction traits) reduced
+[| gcd numer denom |
+  x numerator isZero ifTrue: [^ 0].
+  gcd: (x numerator abs gcd: x denominator).
+  numer: x numerator // gcd.
+  denom: x denominator // gcd.
+  denom = 1 ifTrue: [^ numer].
+  x newFor: numer over: denom
+].
+
+x@(Fraction traits) negated
+[
+  x newFor: x numerator negated over: x denominator
+].
+
+x@(Fraction traits) reciprocal
+[
+  x numerator `cacheAs: #n.
+  x denominator `cacheAs: #d.
+  n caseOf:
+    {0 -> [d divideByZero].
+     1 -> [d].
+     -1 -> [d negated]}
+    otherwise: [x newFor: d over: n]
+].
+
+x@(Fraction traits) < y@(Fraction traits)
+[
+  (x numerator * y denominator) < (y numerator * x denominator)
+].
+
+x@(Fraction traits) = y@(Fraction traits)
+[
+  x numerator = y numerator /\ [x denominator = y denominator]
+].
+
+x@(Fraction traits) / y@(Fraction traits)
+[x * y reciprocal].
+
+x@(Fraction traits) as: y@(Float traits)
+[(x numerator as: y) / (x denominator as: y)].
+
+x@(Float traits) as: y@(Fraction traits) &tolerance: tol
+"Builds a Sequence of Integers to simulate a continued fraction, building up
+an approximation to the answer gradually.
+e.g. (Pi as: Fraction) = 355 / 113 in the default tolerance.
+The continued fraction is then reduce:d to the answer."
+[| xn continued quotient remainder |
+  tol `defaultsTo: x tolerance.
+  xn: x.
+  continued: ExtensibleArray new.
+  [quotient: xn rounded.
+   remainder: xn - quotient.
+   xn: remainder reciprocal.
+   continued addFirst: quotient.
+   remainder > tol] whileTrue.
+  continued reduce: [| :a :b | a reciprocal + b]
+].
+
+x@(Fraction traits) as: _@(Integer traits)
+[x truncated].
+
+x@(Integer traits) as: y@(Fraction traits)
+[y newFor: x over: 1].
+
+f@(Fraction traits) raisedTo: n@(Number traits)
+"Raise a Fraction to a power n"
+[
+  n isZero ifTrue: [^ f unit].
+  n isPositive
+    ifTrue: [(f numerator raisedTo: n) / (f denominator raisedTo: n)]
+    ifFalse: [(f raisedTo: n negated) reciprocal]
+].
+
+n@(Number traits) raisedTo: f@(Fraction traits)
+"Coerces a Fraction exponent to a Float, but avoids this for simple cases."
+[
+  n isUnit ifTrue: [^ n unit].
+  f isUnit ifTrue: [^ n].
+  n raisedTo: (f as: Float)
+].
+
+x@(Fraction traits) rounded
+"Answer the integer nearest to x."
+[(x + (1 / 2)) floor].
+
+x@(Integer traits) / y@(Integer traits)
+"Create and reduce a new Fraction for the pair."
+[
+  y isZero
+    ifTrue: [x divideByZero]
+    ifFalse:
+      [(x rem: y) isZero
+	 ifTrue: [x quo: y]
+	 ifFalse: [(Fraction newFor: x over: y) reduced]]
+].

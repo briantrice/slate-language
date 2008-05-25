@@ -1,0 +1,105 @@
+ar@(Array traits) asInt16Array
+[| tmp |
+  tmp: (ByteArray new &capacity: ar size * 2).
+  ar keysAndValuesDo:
+    [| :index :each | tmp int16At: index put: each ].
+  tmp
+].
+
+sdl@(SDL traits) string1
+[
+  sdl stringX: 20 y: 20 string: 'Hello SDL\0'.
+  sdl stringRGBAx: 20 y: 100 string: 'Hello again SDL\0'.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+SDL traits addSlot: #xPoints1 valued:
+  { 10. 20. 30. 20 } asInt16Array.
+
+SDL traits addSlot: #yPoints1 valued: 
+  { 10. 10. 50. 40 } asInt16Array.
+
+sdl@(SDL traits) bezier1
+"does not show anything"
+[
+  sdl bezierVecX: sdl xPoints1 vecY: sdl yPoints1
+    nbr: 4 s: 127.
+  sdl bezierRGBAvecX: { 10. 20. 30. 20 } asInt16Array
+      vecY: { 10. 10. 50. 40} asInt16Array
+      nbr: 4 s: 1.
+  sdl updateFullSurface: SDL currentSurf.
+].
+sdl@(SDL traits) polygon3
+"does not show anything"
+[
+  sdl filledPolygonVecX: { 10. 20. 30. 20 } asInt16Array
+    vecY: ( { 10. 10. 50. 40} asInt16Array )
+    nbr: 4.
+  sdl filledPolygonRGBAvecX: { 110. 120. 130. 120 } asInt16Array
+    vecY: { 10. 10. 50. 40} asInt16Array
+    nbr: 4.
+  sdl updateFullSurface: SDL currentSurf.
+].
+sdl@(SDL traits) polygon2
+[
+  sdl polygonRGBAvecX: sdl xPoints1 vecY: sdl yPoints1
+    nbr: 4 &r: 255 &g: 255 &b: 0 &a: 255.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) polygon1
+"does not show anything"
+[
+  sdl polygonVecX: sdl xPoints1 vecY: sdl yPoints1 nbr: 4.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) trigon2
+[
+  sdl filledTrigonX1: 15 y1: 115 x2: 60 y2: 115 x3: 40 y3: 150.
+  sdl filledTrigonRGBAx1: 35 y1: 115 x2: 95 y2: 115 x3: 70 y3: 150
+   &r: 127 &g: 128 &b: 240 &a: 244.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) trigon1
+[
+  sdl trigonX1: 15 y1: 15 x2: 60 y2: 15 x3: 40 y3: 50.
+  sdl trigonRGBAx1: 35 y1: 15 x2: 95 y2: 15 x3: 70 y3: 50.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) pie1
+[
+  sdl filledPieX: 45 y: 100 rad: 50 begin: 0 end: 200.
+  sdl filledPieRGBAx: 180 y: 100 rad: 40 begin: 100 end: 255.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) ellipse2
+[
+  sdl filledEllipseX: 150 y: 100 radX: 20 radY: 10.
+  sdl filledEllipseRGBAx: 150 y: 100 radX: 10 radY: 20.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) ellipse1
+[
+  sdl ellipseX: 150 y: 100 radX: 40 radY: 60.
+  sdl ellipseRGBAx: 150 y: 100 radX: 60 radY: 40.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) circle2
+[
+  sdl filledCircleX: 101 y: 100 rad: 80.
+  sdl filledCircleRGBAx: 200 y: 100 rad: 60.
+  sdl updateFullSurface: SDL currentSurf.
+].
+
+sdl@(SDL traits) circle1
+[
+  sdl circleX: 150 y: 100 rad: 80.
+  sdl circleRGBAx: 150 y: 100 rad: 60.
+  sdl updateFullSurface: SDL currentSurf.
+].

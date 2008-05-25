@@ -1,0 +1,378 @@
+se@(SceneElement traits) add: ch@(SceneElement traits)
+"Temporary workaround"
+[
+    resend
+].
+
+Graphics define: #Morph &parents: {DisplayedSceneElement} &slots:
+{
+    #background.
+    #inputCapturedTo.
+    #behaviors -> {}.
+}.
+Morph boundingRect: (Rectangle origin: 0 , 0 extent: 100 , 100).
+Morph pos: 0, 0.
+
+Graphics define: #MorphDefaultState &builder: [Cloneable clone].
+
+MorphDefaultState `>>
+  [addDynamicSlot: #locked valued: False.
+   addDynamicSlot: #visible valued: True.
+   addDynamicSlot: #sticky valued: False. ].
+
+"Morph addDelegate: #defaultState after: #traitsWindow valued: MorphDefaultState."
+
+m@(Morph traits) clips
+"Whether the morph clips its children."
+[
+  True      "TODO: clips depends on which behaviors are installed; is this message even needed?"
+].
+
+m@(Morph traits) delete
+"Morph deletion should involve all clean-up tasks and responsibilities.
+Perform the basic removal task by default."
+[
+  m treeParent ifNotNil: [m treeParent remove: m]
+].
+
+m@(Morph traits) grabTransform
+"Obtains the transform used for correctly withdrawing a Morph from its
+surrounding context (because there may be Transform parents)."
+[
+  m treeParent
+    ifNil: [IdentityTransform]
+    ifNotNil: [m treeParent grabTransform]
+].
+
+morph@(Morph traits) handle: event@(Event traits) for: for@(Morph traits)
+"Morphs can handle events in behalf of (for) other morphs.
+Handler searching continues until something returns not Nil.
+The default action is to forward event to behaviors."
+[
+    morph behaviors do: [|:each r| r: (each morph: morph handle: event for: for). r ifNotNil: [^ r]].
+    Nil
+].
+
+_@Nil handle: _@(Event traits) for: _@(Morph traits)
+[
+].
+
+morph@(Morph traits) repaintSoon
+[
+    morph treeParent ifNotNil: [morph treeParent repaintSoon].
+    morph
+].
+
+morph@(Morph traits) add: child@(Morph traits)
+[
+    morph repaintSoon.
+    resend
+].
+
+morph@(Morph traits) copy
+[|m|
+    m: morph clone.
+    m `>> [
+        background: morph background copy.
+        behaviors: morph behaviors copy.
+        children: morph children new.
+    ].
+    morph children do: [|:each| m add: each copy].
+    m
+].
+
+morph@(Morph traits) captureInputTo: to@(Morph traits)
+[
+    morph inputCapturedTo: to.
+    morph treeParent ifNotNil: [morph treeParent captureInputTo: morph].
+    morph
+].
+
+morph@(Morph traits) releaseCapture
+[
+    morph inputCapturedTo: Nil.
+    morph treeParent ifNotNil: [morph treeParent releaseCapture].
+    morph
+].
+
+morph@(Morph traits) moveBy: offset
+[
+    (offset x ~= 0) \/ (offset y ~= 0) ifTrue: [
+        morph pos: morph pos + offset.
+        morph boundingRect: morph boundingRect + offset.
+        morph repaintSoon].
+    morph
+].
+
+Graphics define: #Behavior.
+
+_@(Behavior traits) morph: morph@(Morph traits) handle: _@(Event traits) for: _@(Morph traits)
+[
+].
+
+Graphics define: #PaintBackgroundBehavior &parents: {Behavior}.
+
+_@(PaintBackgroundBehavior traits) morph: morph@(Morph traits) handle: event@(PaintEvent traits) for: for@(Morph traits)
+[
+    morph background handle: event for: for.
+].
+
+b@(PaintBackgroundBehavior traits) copy
+[
+    b
+].
+
+Graphics define: #ClipBackgroundToPathBehavior &parents: {Behavior}.
+
+_@(ClipBackgroundToPathBehavior traits) morph: morph@(Morph traits) handle: event@(PaintEvent traits) for: for@(Morph traits)
+[
+    event context save.
+    morph getPath: event context for: for.
+    event context clip.
+    morph background handle: event for: for.
+    event context restore.
+].
+
+b@(ClipBackgroundToPathBehavior traits) copy
+[
+    b
+].
+
+Graphics define: #StrokePathBehavior &parents: {Behavior}.
+
+_@(StrokePathBehavior traits) morph: morph@(Morph traits) handle: event@(PaintEvent traits) for: for@(Morph traits)
+[
+    event context save.
+    morph getPath: event context for: for.
+    event context lineWidth: morph strokeWidth.
+    event context sourceRGB: morph strokeColor alpha: morph strokeAlpha.
+    event context stroke.
+    event context restore.
+].
+
+b@(StrokePathBehavior traits) copy
+[
+    b
+].
+
+Graphics define: #PaintChildrenBehavior &parents: {Behavior}.
+
+_@(PaintChildrenBehavior traits) morph: morph@(Morph traits) handle: event@(PaintEvent traits) for: for@(Morph traits)
+[
+    "inform: 'PaintChildrenBehavior'."
+    event context save.
+    event context rectangle: for boundingRect.
+    event context clip.
+    event context translate: for boundingRect origin.
+    morph children reverseDo: [|:each| each handle: event for: each].
+    event context restore.
+    "inform: 'PaintChildrenBehavior end'."
+].
+
+b@(PaintChildrenBehavior traits) copy
+[
+    b
+].
+
+Graphics define: #PassPointerToChildrenBehavior &parents: {Behavior}.
+
+_@(PassPointerToChildrenBehavior traits) morph: morph@(Morph traits) handle: event@(PointerEvent traits) for: _@(Morph traits)
+[|newEvent|
+    newEvent: (event copyOffset: (0 , 0) - morph boundingRect origin).
+    morph inputCapturedTo
+        ifNil: [
+            morph children do: [|:each|
+                (each contains: newEvent position) ifTrue: [|result|
+                    result: (each handle: newEvent for: each).
+                    result ifNotNil: [^ result]]]]
+        ifNotNil: [
+            morph inputCapturedTo == morph ifFalse: [
+                ^ (morph inputCapturedTo handle: newEvent for: morph inputCapturedTo)]].
+    Nil
+].
+
+b@(PassPointerToChildrenBehavior traits) copy
+[
+    b
+].
+
+Graphics define: #DragBehavior &parents: {Behavior} &slots: {#dragging -> False. #offset}.
+
+b@(DragBehavior traits) morph: morph@(Morph traits) handle: event@(LeftMouseButtonPressEvent traits) for: _@(Morph traits)
+[
+    b dragging: True.
+    b offset: morph boundingRect origin - event position.
+    morph captureInputTo: morph.
+    True
+].
+
+b@(DragBehavior traits) morph: morph@(Morph traits) handle: event@(MouseMotionEvent traits) for: _@(Morph traits)
+[
+    b dragging ifTrue: [
+        morph moveBy: event position + b offset - morph boundingRect origin.
+        True]
+].
+
+b@(DragBehavior traits) morph: morph@(Morph traits) handle: event@(PointerEvent traits) for: _@(Morph traits)
+[
+    b dragging ifTrue: [
+        morph moveBy: event position + b offset - morph boundingRect origin.
+        morph releaseCapture.
+        b dragging: False.
+        True]
+].
+
+Morph behaviors: {PaintBackgroundBehavior. PaintChildrenBehavior. PassPointerToChildrenBehavior. DragBehavior.}.
+
+Graphics define: #SolidRectangleMorph &parents: {Morph} &slots: {#color -> Colors White. #alpha -> 1.}.
+
+m@(SolidRectangleMorph traits) newColor: color alpha: alpha
+[m cloneSettingSlots: #(color alpha) to: {color. alpha}].
+
+morph@(SolidRectangleMorph traits) handle: event@(PaintEvent traits) for: for@(Morph traits)
+[
+    resend.
+    event context `>> [
+        save.
+        sourceRGB: morph color alpha: morph alpha.
+        rectangle: for boundingRect.
+        fill.
+        restore.
+    ].
+].
+
+Morph background: SolidRectangleMorph copy.
+
+Graphics define: #PathMorph &parents: {Morph} 
+    &slots: {#strokeWidth -> 1. #strokeColor -> Colors Black. #strokeAlpha -> 1.}.
+PathMorph behaviors: {ClipBackgroundToPathBehavior. StrokePathBehavior. DragBehavior.}.
+
+morph@(PathMorph traits) getPath: context
+[
+    context rectangle: (Rectangle origin: 0 , 0 extent: 1 , 1). 
+].
+
+morph@(PathMorph traits) getPath: context for: for
+[
+    context save.
+    context translate: for boundingRect origin.
+    context scale: for boundingRect extent.
+    morph getPath: context.
+    context restore.
+].
+
+Graphics define: #StarMorph &parents: {PathMorph}.
+
+morph@(StarMorph traits) getPath: context
+[
+    context `>> [
+        moveTo: 0, 1. lineTo: 0.5, 0. lineTo: 1, 1.
+        lineTo: 0, 0.25. lineTo: 1, 0.25. closePath. 
+    ].
+].
+
+Graphics define: #Sheet &parents: {Morph} &slots: {#enabled -> True}.
+
+sm@(Sheet traits) viewable
+"Return whether the sheet will be viewable. This requires all of the parent
+Sheets to be enabled."
+[
+  sm enabled /\ [sm treeParent viewable]
+].
+
+Graphics define: #Transform &parents: {Morph}
+  &slots: {#transform -> IdentityTransform}.
+
+tm@(Transform traits) grabTransform
+[
+  m treeParent
+    ifNil: [IdentityTransform]
+    ifNotNil: [m treeParent grabTransform ++ m transform]
+].
+
+Graphics define: #Hand &parents: {Morph}.
+
+
+Graphics define: #DropEvent &parents: {PointerEvent} &slots: {#contents}.
+
+de@(DropEvent traits) newAt: p contents: m from: h
+[de cloneSettingSlots: #(position contents pointer) to: {p. m. h}].
+
+m@(Morph traits) reject: de@(DropEvent traits)
+"The drop event has been rejected, and the morph must be put back somewhere."
+[
+  "Originally uses #formerOwner and #formerPosition, and then tries for the
+  Trash."
+].
+
+h@(Hand traits) attach: m@(Morph traits)
+"Position the center of the morph under the hand, and then grab it.
+This grabs far away or created morphs."
+[| delta |
+  h releasePointerFocus.
+  delta: m bounds extent // 2.
+  m position: h position - delta.
+  m lastPos: m position.
+  h targetOffset: m position - h position.
+  h addLast: m.
+  h
+].
+
+h@(Hand traits) drop: m@(Morph traits) on: e@(Event)
+[| event |
+  event: (DropEvent newAt: h position contents: m from: h).
+  "Send the event to the hand WRT the focus."
+  event handled ifFalse: [m reject: e].
+  m owner == h ifTrue: [m delete].
+  "TODO: process the event as a mouse-over here?"
+].
+
+h@(Hand traits) dropAll
+"Drop all submorphs at this position, maintaining z-order."
+[
+  h children reverseDo: [| :each | h drop: each on: e]
+].
+
+h@(Hand traits) grab: m@(Morph traits) from: src@(Morph traits)
+[| grabbed offset targetPos grabTransform fullTransform |
+  h releaseFocus.
+  grabbed: m.
+  grabTransform: src grabTransform.
+  fullTransform: (src transformFrom: h owner).
+  "the point in m's reference frame."
+  targetPos: (fullTransform actOn: h position).
+  "compute the offset due to using grabTransform to find the current position"
+  offset: targetPos - (grabTransform actOn: h position).
+  "apply the transform needed"
+  grabbed: (grabbed transformedBy: grabTransform).
+  "short for grabTransform isIdentity"
+  grabbed == m ifFalse: ["Set FlexAtGrab On"].
+  "apply the offset needed"
+  grabbed position: grabbed position - offset truncated.
+  "TODO: find out if targetOffset is needed."
+  h targetOffset: grabbed position - h position.
+  h addBack: grabbed.
+  h
+].
+
+h@(Hand traits) grab: m@(Morph traits) from: src@Nil
+"This is a simplified version of the general method."
+"TODO: factor out the common method from both."
+[
+  h releaseFocus.
+  h targetOffset: m position - h position.
+  h addBack: grabbed.
+].
+
+h@(Hand traits) grab: m@(Morph traits)
+"Grab the morph without changing its position, as distinguished from attach:
+which can move the morph (to the hand)."
+[| grabbed |
+  h releaseFocus.
+  (m morphForGrabbingBy: h)
+    ifNil: [h]
+    ifNotNilDo:
+      [| :grabbed |
+       grabbed: grabbed leastTopRenderer.
+       h grab: grabbed from: grabbed owner]
+].

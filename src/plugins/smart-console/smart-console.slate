@@ -1,0 +1,647 @@
+"Smart console that uses a plugin to read/write in a structured way to the
+console. It keeps a buffer of the data on screen so that it's possible to
+switch between consoles when needed. On some platforms the plugin may open new
+terminal windows, whereas on other platforms it may use a shared console window.
+
+Possible improvements:
+ - keep a buffer of data written to terminals and support switching between
+   multiple instances
+"
+
+prototypes ensureNamespace: #terminals &delegate: True.
+
+terminals define: #SmartConsole &parents: {ExternalResource} &slots:
+{#screenData.
+ "TODO: update data in this, or use the ncurses screen dumping feature?"
+ #cursorRow -> 0.
+ #cursorColumn -> 0.
+ #currentMode -> 0.
+ #autoScrollsAtBottom -> True. "Does the console automatically scroll when a char is put at the bottom-right?"
+ #singleCharBuffer -> (ByteArray newSize: 1).
+}.
+
+SmartConsole traits `>> [
+  define: #Stream &parents: {SmartConsole Stream}.
+  define: #Event &parents: {Cloneable}.
+  define: #ResizeEvent &parents: {SmartConsole Event}.
+  define: #EventStream &parents: {ReadStream} &slots: {#console}.
+  "TODO: there should be one EventStream per Console instance,
+   and when switching between console windows,
+   the event readers should be managed properly."
+
+  define: #KeyEvent &parents: {SmartConsole Event}
+    &slots: {#keyCode.  "A raw and potentially platform specific (basically ncurses/windoze) key code"
+	     #keyName.  "Key name (e.g. LeftArrow) interned as a symbol"
+	     #char.     "A Character or Nil if special key"
+	     #controls -> (BitArray new &capacity: 5) "Internal BitArray of control chars"}.
+  define: #KeyDownEvent &parents: {SmartConsole KeyEvent}.
+].
+
+e@(SmartConsole ResizeEvent traits) new
+[
+  e clone
+].
+
+e@(SmartConsole KeyEvent traits) new
+[
+  e clone `>> [| :event | controls: event controls clone. ]
+].
+
+e@(SmartConsole KeyEvent traits) newForKeyCode: code@(Integer traits)
+[
+  e new `>> [keyCode: code. ]
+].
+
+e@(SmartConsole KeyEvent traits) controlState
+[
+  e leftControlState \/ [e rightControlState]
+].
+
+e@(SmartConsole KeyEvent traits) altState
+[
+  e leftAltState \/ [e rightAltState]
+].
+
+{
+  'leftControl'.
+  'rightControl'.
+  'leftAlt'.
+  'rightAlt'.
+  'shift'.
+} doWithIndex: [| :name :index |
+  [| :e | e controls at: index]
+    asMethod: ((name ; 'State') as: Symbol)
+    on: {SmartConsole KeyEvent traits}.
+  [| :e :value | e controls at: index put: value]
+    asMethod: ((name ; 'State:') as: Symbol)
+    on: {SmartConsole KeyEvent traits. Boolean traits}.
+].
+
+"TODO: these are basically ncurses specific, move them"
+SmartConsole traits ensureNamespace: #modes &slots:
+{#Normal    -> 0.
+ #Standout  -> 1.
+ #Underline -> 2.
+ #Reverse   -> 3.
+ #Blink     -> 4.
+ #Dim       -> 5.
+ #Bold      -> 6.
+ #Invisible -> 8}.
+
+SmartConsole traits ensureNamespace: #colors &slots:
+{#Black   -> 0.
+ #Red     -> 1.
+ #Green   -> 2.
+ #Yellow  -> 3.
+ #Blue    -> 4.
+ #Magenta -> 5.
+ #Cyan    -> 6.
+ #White   -> 7}.
+
+SmartConsole addLazySlot: #events initializer: [| :c | c EventStream newOn: c].
+SmartConsole addLazySlot: #keyEvents initializer: [| :c | c events select: [| :event | event is: c KeyEvent]].
+
+s@(SmartConsole EventStream traits) on: console
+[
+  s console: console.
+  s
+].
+
+_@(SmartConsole EventStream traits) eventType
+[SmartConsole Event].
+
+s@(SmartConsole EventStream traits) isAtEnd
+[s console reader isAtEnd].
+
+s@(SmartConsole EventStream traits) next
+"Emulates simple SmartConsole events, SmartConsole implementations should
+provide specialized versions for next and isAtEnd."
+[| char code event |
+  event: SmartConsole KeyDownEvent new.
+  char: s console reader next.
+  code: (char as: Integer).
+  code >= 32 /\ [code <= 255] ifTrue: [event char: char].
+  event keyCode: code.
+  s console resolveEvent: event.
+  event
+].
+
+s@(SmartConsole EventStream traits) hasNext
+"Answer wether an event is available. TODO: factor out into AsyncStream or something"
+[overrideThis].
+
+SmartConsole `>> [
+  addSlot: #defaultForegroundColor valued: SmartConsole colors White.
+  addSlot: #defaultBackgroundColor valued: SmartConsole colors Black.
+  addSlot: #currentFgColor valued: SmartConsole colors White.
+  addSlot: #currentBgColor valued: SmartConsole colors Black.
+  addSlot: #singleCharBuffer valued: (ByteArray newSize: 1).
+].
+
+c@(SmartConsole traits) new
+[
+  Platform current name = 'Windows'
+    ifTrue: [WindowsConsole isAvailable ifTrue: [^ WindowsConsole clone]]
+    ifFalse: [CursesConsole isAvailable ifTrue: [^ CursesConsole clone]].
+
+  error: 'No SmartConsole plugin was found'.
+].
+
+c@(SmartConsole traits) isAvailable
+[
+  Platform current name = 'Windows'
+    ifTrue: [[WindowsConsole isAvailable] on: SeriousCondition do: [| :_ | ^ False]]
+    ifFalse: [CursesConsole isAvailable]
+].
+
+c@(SmartConsole traits) enable
+[
+].
+
+c@(SmartConsole traits) open
+[
+  resend.
+  c handle: 'foo'. "Something else then Nil for now"
+].
+
+c@(SmartConsole traits) resized
+[
+].
+
+c@(SmartConsole traits) close
+[
+  resend.
+  c handle: Nil.
+].
+
+c@(SmartConsole traits) width
+[c columns].
+
+c@(SmartConsole traits) columnLast
+[c columns - 1].
+
+_@(SmartConsole traits) columns
+[overrideThis].
+
+c@(SmartConsole traits) height
+[c rows].
+
+c@(SmartConsole traits) rowLast
+[c rows - 1].
+
+_@(SmartConsole traits) rows
+[overrideThis].
+
+_@(SmartConsole traits) clear
+[overrideThis].
+
+_@(SmartConsole traits) clearToEOS
+[overrideThis].
+
+_@(SmartConsole traits) clearToEOL
+[overrideThis].
+
+_@(SmartConsole traits) elementType
+[overrideThis].
+
+_@(SmartConsole traits) collectionType
+[overrideThis].
+
+c@(SmartConsole traits) cursorPosition
+[
+  {c cursorColumn. c cursorRow}
+].
+
+c@(SmartConsole traits) isCursorAtLastRow
+[
+  c cursorRow = c rowLast
+].
+
+c@(SmartConsole traits) isCursorAtLastColumn
+[
+  c cursorColumn = c columnLast
+].
+
+c@(SmartConsole traits) moveCursorTo: pos
+[| oldpos |
+  oldpos: c cursorPosition.
+  c cursorColumn: pos first.
+  c cursorRow: pos second.
+  oldpos
+].
+
+c@(SmartConsole traits) moveCursorWithOffset: offset
+[| oldpos newpos newcol newrow |
+  oldpos: c cursorPosition.
+  newcol: (c cursorColumn + offset first min: c columnLast max: 0).
+  newrow: (c cursorRow + offset second min: c rowLast max: 0).
+  newpos: {newcol. newrow}.
+  oldpos = newpos ifFalse: [c moveCursorTo: newpos].
+  newpos
+].
+
+c@(SmartConsole traits) writePosition: data
+[
+  c writePosition: data at: c cursorPosition
+].
+
+c@(SmartConsole traits) writePosition: data at: pos
+[| oldpos |
+  oldpos: (c moveCursorTo: pos).
+  c ; '(' ; (data first as: String) ; ',' ; (data second as: String) ; ')'.
+  c moveCursorTo: oldpos.
+].
+
+c@(SmartConsole traits) writeCursorPositionAt: pos
+[
+  c writePosition: c cursorPosition at: pos
+].
+
+c@(SmartConsole traits) moveCursorToEOL
+[
+  c moveCursorTo: {c columnLast. c cursorRow}
+].
+
+c@(SmartConsole traits) moveCursorToBOL
+[
+  c moveCursorTo: {0. c cursorRow}
+].
+
+c@(SmartConsole traits) moveCursorToBONL
+[
+  c moveCursorTo: {0. (c cursorRow + 1 min: c rowLast)}
+].
+
+c@(SmartConsole traits) moveCursorLeft
+[
+  c moveCursorWithOffset: {-1. 0}
+].
+
+c@(SmartConsole traits) moveCursorRight
+[
+  c moveCursorWithOffset: {1. 0}
+].
+
+c@(SmartConsole traits) moveCursorUp
+[
+  c moveCursorWithOffset: {0. -1}
+].
+
+c@(SmartConsole traits) moveCursorDown
+[
+  c moveCursorWithOffset: {0. 1}
+].
+
+c@(SmartConsole traits) scroll &lines: lines
+[overrideThis].
+
+c@(SmartConsole traits) updateCursorPositionFrom: col@(Collection traits)
+[
+  col do: [| :char | c updateCursorPositionFrom: char].
+].
+
+c@(SmartConsole traits) updateCursorPositionFrom: char
+[
+  char caseOf: {
+    $\n -> [c cursorRow < c rowLast ifTrue: [
+              c cursorRow: c cursorRow + 1].
+            c cursorColumn: 0].
+    $\b -> [c cursorColumn > 0 ifTrue: [c cursorColumn: c cursorColumn - 1]].
+    $\t -> [c cursorColumn: ((c cursorColumn + 8) min: c columnLast)].
+  } otherwise: [
+    c cursorColumn < c columnLast
+      ifTrue: [c cursorColumn: c cursorColumn + 1]
+      ifFalse: [c cursorColumn: 0. c cursorRow: (c cursorRow + 1 min: c rowLast)]].
+].
+
+c@(SmartConsole traits) read: n from: handle into: array@(ByteArray traits) startingAt: start
+[| index |
+  index: 0.
+  [index < n]
+    whileTrue:
+      [| event |
+        event: c keyEvents next.
+        event char
+          ifNotNil: [
+            array at: start + index put: (event char as: Integer).
+            index: index + 1].
+      ].
+  n
+].
+
+_@(SmartConsole traits) flush
+[overrideThis].
+
+_@(SmartConsole traits) deleteChar
+[overrideThis].
+
+c@(SmartConsole traits) deleteLine
+[c deleteLines: 1].
+
+_@(SmartConsole traits) deleteLines: n
+[overrideThis].
+
+c@(SmartConsole traits) insertLine
+[c insertLines: 1].
+
+_@(SmartConsole traits) insertLines: n
+[overrideThis].
+
+_@(SmartConsole traits) hideCursor
+[overrideThis].
+
+_@(SmartConsole traits) showCursor
+[overrideThis].
+
+c@(SmartConsole traits) attributeMode: mode
+[| old |
+  old: c currentMode.
+  c currentMode: mode.
+  old
+].
+
+c@(SmartConsole traits) foregroundColor: color
+[| old |
+  old: c currentFgColor.
+  c currentFgColor: color.
+  old
+].
+
+c@(SmartConsole traits) backgroundColor: color
+[| old |
+  old: c currentBgColor.
+  c currentBgColor: color.
+  old
+].
+
+c@(SmartConsole traits) withAttributesDo: block &mode: mode &foreground: fg &background: bg
+[| oldmode oldfg oldbg |
+  mode       ifNotNil: [oldmode: (c attributeMode: mode)].
+  foregound  ifNotNil: [oldfg: (c foregroundColor: fg)].
+  background ifNotNil: [oldbg: (c backgroundColor: bg)].
+
+  [block do]
+    ensure: [
+      oldmode ifNotNil: [c attributeMode: oldmode].
+      oldfg   ifNotNil: [c foregroundColor: oldfg].
+      oldbg   ifNotNil: [c backgroundColor: oldbg].
+    ]
+].
+
+"SmartConsole Streaming"
+
+SmartConsole traits `>> [
+  define: #ReadStream &parents: {ExternalResource ReadStream. SmartConsole Stream}.
+  define: #WriteStream &parents:
+    {PrettyPrinterMixin. ExternalResource WriteStream. SmartConsole Stream}.
+  define: #ReadWriteStream &parents: {SmartConsole ReadStream. SmartConsole WriteStream}.
+].
+
+SmartConsole ReadStream `>> [
+  isBinary: False.
+].
+
+SmartConsole WriteStream `>> [
+  isBinary: False.
+].
+
+c@(SmartConsole traits) ; seq
+"A convenience method for the Console as a Stream resource; do NOT repeat this
+pattern without determining that ; can have no other meaning for the resource."
+[c writer ; seq].
+
+"TODO support encoding"
+s@(SmartConsole Stream traits) elementType
+[s resource elementType].
+
+s@(SmartConsole Stream traits) collectionType
+[s resource collectionType].
+
+_@(SmartConsole Stream traits) isAtEnd
+[False].
+
+s@(SmartConsole Stream traits) flush
+[s resource flush].
+
+r@(SmartConsole ReadStream traits) nextLine
+[
+  (Terminal newBasedOn: r resource) commandEditor readLine &echoNewLine: True
+].
+
+w@(SmartConsole WriteStream traits) next: n putAll: seq startingAt: start
+[
+  w resource updateCursorPositionFrom: (seq sliceFrom: start below: start + n).
+  resend
+].
+
+terminals define: #StructuredConsole &parents: {SmartConsole} &slots:
+{#originalConsole "TODO: this is a hack"}.
+
+c@(StructuredConsole traits) derive &mixins: others &rejects: rejectSlots
+"When derive is used, add some slots to the new traits. We need
+these slots on each derived traits object."
+[| result |
+  result: resend.
+  result traits `>> [
+    define: #instances &builder: [ExtensibleArray new].
+    define: #sequenceToKeyName &builder: [Dictionary new].
+    define: #keyCodeToKeyName &builder: [Dictionary new].
+    addSlot: #columns.
+    addSlot: #rows.
+  ].
+  result
+].
+
+c@(StructuredConsole traits) isAvailable
+[overrideThis].
+
+c@(StructuredConsole traits) isInStructuredMode
+[c instances isEmpty not].
+
+c@(StructuredConsole traits) assumeStructuredMode
+[
+  c isInStructuredMode ifFalse:
+    [error: 'This call requires the console to be in structured mode'].
+].
+
+c@(StructuredConsole traits) enterStructuredMode
+[overrideThis].
+
+c@(StructuredConsole traits) enteredStructuredMode
+"This method is called after entering structured mode. At the time it is called
+it's safe to call other methods that require the console to be in structured mode."
+[
+  c initKeyMappings.
+  c attributeMode: c modes Normal.
+  c foregroundColor: c defaultForegroundColor.
+  c backgroundColor: c defaultBackgroundColor.
+].
+
+c@(StructuredConsole traits) leaveStructuredMode
+[overrideThis].
+
+c@(StructuredConsole traits) leftStructuredMode
+"This method is called after structured mode is left and console mode is
+restored to its original state."
+[].
+
+c@(StructuredConsole traits) open
+[| result |
+  result: resend.
+  c isInStructuredMode
+    ifTrue: [c instances add: c]
+    ifFalse: [
+      c enterStructuredMode ifFalse: [^ Nil].
+      c instances add: c.
+      c enteredStructuredMode.
+      "TODO this is a hack"
+      conditions define: #DebugConsole -> c.
+      c originalConsole: lobby Console.
+      lobby addSlot: #Console valued: c].
+  c resized.
+  result
+].
+
+c@(StructuredConsole traits) close
+[
+  c instances remove: c ifAbsent:
+    [error: 'Tried to close a console that is not open'. ^ Nil].
+
+  c isInStructuredMode ifFalse: [
+    c leaveStructuredMode.
+    "TODO this is a hack"
+    lobby addSlot: #Console valued: c originalConsole.
+    conditions define: #DebugConsole -> c originalConsole.
+    c leftStructuredMode].
+  resend
+].
+
+_@(StructuredConsole traits) actualColumns
+[overrideThis].
+
+_@(StructuredConsole traits) actualRows
+[overrideThis].
+
+c@(StructuredConsole traits) resized
+[
+  "Actualize width/height slots and resend"
+  c columns: c actualColumns.
+  c rows: c actualRows.
+  resend
+].
+
+StructuredConsole traits define: #DefaultKeyMappings &builder:
+  [#(
+    (10     (Enter $\n))
+    (27     Escape)
+    (9      (Tab $\t))
+    (8      Backspace)
+
+    ('[1~'  Home)
+    ('[2~'  Insert)
+    ('[3~'  Delete)
+    ('[4~'  End)
+    ('[5~'  PageUp)
+    ('[6~'  PageDown)
+    ('[A'   UpArrow)
+    ('[B'   DownArrow)
+    ('[C'   RightArrow)
+    ('[D'   LeftArrow)
+
+    ('[[A'  Function1)
+    ('[[B'  Function2)
+    ('[[C'  Function3)
+    ('[[D'  Function4)
+    ('[[E'  Function5)
+    ('[17~' Function6)
+    ('[18~' Function7)
+    ('[19~' Function8)
+    ('[20~' Function9)
+    ('[21~' Function10)
+    ('[23~' Function11)
+    ('[24~' Function12)
+    ('[25~' Function13)
+    ('[26~' Function14)
+    ('[28~' Function15)
+    ('[29~' Function16)
+    ('[31~' Function17)
+    ('[32~' Function18)
+    ('[33~' Function19)
+    ('[34~' Function20)
+  )].
+
+c@(StructuredConsole traits) initKeyMappings
+"Add some defaults if they are not already defined"
+[
+  c DefaultKeyMappings do:
+    [| :key :value |
+     (key is: String)
+      ifTrue: [| sequence |
+        sequence: key.
+        (c sequenceToKeyName includesKey: sequence)
+          ifFalse: [c sequenceToKeyName at: sequence put: value]]
+      ifFalse: [| keyCode keyName |
+        keyCode: key.
+        (value is: Collection)
+          ifTrue: [keyName: value first]
+          ifFalse: [keyName: value. value: {keyName. Nil}].
+        (c keyCodeToKeyName includesKey: keyCode) not
+          /\ [(c keyCodeToKeyName detect: [| :each | each first = keyName]) isNil]
+            ifTrue: [c keyCodeToKeyName at: keyCode put: value]].
+  ] applier.
+].
+
+c@(StructuredConsole traits) printKeyMappings
+"This method prints the key mappings to the console for debug purposes"
+[
+  c sequenceToKeyName keysAndValuesDo: [| :key :value|
+    c ; ((key as: String) ; '->' ; (value as: String)) ; '\n'].
+  c keyCodeToKeyName keysAndValuesDo: [| :key :value |
+    c ; ((key as: String) ; '->' ; (value first as: String)) ; '\n'].
+].
+
+c@(StructuredConsole traits) resolveEvent: e
+[| nameFromTable |
+  "TODO: handle encoding"
+  c keyCodeToKeyName at: e keyCode
+    ifPresent: [| :value |
+      e keyName: value first.
+      value second ifNotNil: [e char: value second]]
+    ifAbsent: [
+      e keyCode < 32
+        ifTrue: [
+          e leftControlState: True.
+          e char: ((e keyCode bitOr: 2r01100000) as: ASCIICharacter)]
+        ifFalse: [
+          e keyCode <= 255
+            ifTrue: [e char: (e keyCode as: Character)]]].
+  e
+].
+
+c@(StructuredConsole traits) translateEscapedSequence: seq into: event
+[
+  seq size = 1 /\ [seq first ~= $[ ]
+    ifTrue: [| escapedName |
+      c keyCodeToKeyName at: (seq first as: Integer)
+        ifPresent: [| :value |
+          event keyName: value first.
+          ^ True]
+        ifAbsent: [| name |
+          event leftAltState: True.
+          event char: (seq first as: ASCIICharacter).
+          ^ True]]
+    ifFalse: [
+      event keyName: (c sequenceToKeyName at: seq
+        ifAbsent: [^ False])].
+  True
+].
+
+c@(StructuredConsole traits) encode: n into: bytes@(ByteArray traits) from: seq &startingAt: start
+"Filter out control chars except \n and \t and put ^ instead of them."
+[
+  0 below: resend do: [| :index byte |
+    byte: (bytes at: index).
+    byte < 32 /\ [byte ~= 10] /\ [byte ~= 9] /\ [byte ~= 13]
+      ifTrue: [bytes at: index put: #[$^ as: Integer]]].
+  n
+].

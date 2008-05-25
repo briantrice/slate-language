@@ -1,0 +1,38 @@
+
+Setup
+-----
+
+'make vm' for debugging vm
+'make vm.fast' for non-debugging vm
+
+
+Command Line
+------------
+
+vm [image-file]
+
+This starts slate using [image-file]. If omitted, it uses
+slate.image by default.
+
+
+Bootstrapping
+-------------
+
+Run vm to get a repl.
+
+load: 'src/mobius/init.slate'.
+Image littleEndian: True bitSize: 64. "I may change the name of this function soon."
+
+
+Debugging
+---------
+gdb vm
+r <image-file>
+(on crash or Ctrl-c)
+bt
+f <n> (change frame to one with an 'oh' object (struct object_heap*))
+
+See the slate backtrace -> print print_backtrace(oh)
+Inspect an object       -> print print_detail(oh, struct Object*)
+See the stack           -> print print_stack_types(oh, 200)
+

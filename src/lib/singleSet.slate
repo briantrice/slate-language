@@ -1,0 +1,35 @@
+collections define: #SingleSet &parents: {NoDuplicatesCollection}
+  &slots: {#element -> Nil}.
+"SingleSets are collections which are only supposed to contain exactly one
+elements or be empty."
+
+ss@(SingleSet traits) accepts: _@Nil
+[False].
+
+ss@(SingleSet traits) new
+[ss cloneSettingSlots: #(element) to: {Nil}].
+
+ss@(SingleSet traits) do: block
+[
+  block applyWith: ss element
+].
+
+ss@(SingleSet traits) reverseDo: block
+[
+  block applyWith: ss element
+].
+
+ss@(SingleSet traits) isEmpty
+[
+  ss element isNil
+].
+
+ss@(SingleSet traits) add: obj
+[
+  ss element ifNil: [ss element: obj]
+].
+
+ss@(SingleSet traits) remove: obj
+[
+  ss element = obj ifTrue: [ss element: Nil]
+].

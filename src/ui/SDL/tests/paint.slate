@@ -1,0 +1,41 @@
+Graphics define: #Painter
+  &slots: {#state -> #init}.
+
+Painter traits define: #states -> {#init. #up. #down. #quit}.
+
+paint@(Painter traits) start
+[| event |
+  [paint state = #quit]
+    whileFalse:
+      [event: SDL Port next.
+       paint handle: event].
+].
+
+paint@(Painter traits) handle: otherEvent
+[].
+
+paint@(Painter traits) handle: event@(KeyboardPressEvent traits)
+[| sdlkey modifiers unicode |
+  sdlkey: event key.
+  "modifiers: event ..."
+  sdlkey
+    caseOf:
+      {27 -> [paint state: #quit]}.
+].
+
+paint@(Painter traits) handle: event@(MouseButtonPressEvent traits)
+[paint state: #up. ].
+
+paint@(Painter traits) handle: event@(MouseButtonReleaseEvent traits)
+[paint state: #down. ].
+
+paint@(Painter traits) handle: event@(MouseMotionEvent traits)
+[
+  paint state = #down ifTrue:
+    [event position drawOn: SDL Medium.
+     SDL Port flush]
+].
+
+inform: 'Press Esc in the drawing window (be sure it is active) to stop'.
+
+Painter start.

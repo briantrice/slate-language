@@ -1,0 +1,104 @@
+Graphics define: #UserPath &parents: {Trace} &slots:
+{#currentPoint -> Point origin.
+ #startPoint -> Point origin.
+ #segments -> ExtensibleArray new.
+ #closed -> False}.
+
+up@(UserPath traits) copy
+[up cloneSettingSlots: #(segments closed currentPoint startPoint)
+    to: {up segments copy. up closed. up currentPoint. up startPoint}].
+
+up@(UserPath traits) penFlatness
+[up context penFlatness].
+
+up@(UserPath traits) curveFlatness
+[up context curveFlatness].
+
+up@(UserPath traits) penTo: p@(Point traits)
+"Sets the starting point"
+[
+  up `>> [currentPoint: p. startPoint: p. ]
+].
+
+up@(UserPath traits) lineTo: p@(Point traits)
+"Add a LineSegment to an absolute Point"
+[
+  up `>> [segments add: (LineSegment newFrom: up currentPoint to: p).
+	  currentPoint: p. ]
+].
+
+up@(UserPath traits) relativeLineTo: p@(Point traits)
+"Add a LineSegment to a relative Point"
+[
+  up lineTo: p + up currentPoint
+].
+
+up@(UserPath traits) curveTo: p@(Point traits) via: v1@(Point traits) via: v2@(Point traits)
+"Add a cubic bezier to the path."
+[
+  up `>>
+   [segments add: (CubicBezierSegment newFrom: up currentPoint to: p via: v1 via: v2).
+    currentPoint: p. ]
+].
+
+up@(UserPath traits) curveTo: p@(Point traits) via: v@(Point traits)
+"Add a quadratic bezier to the path."
+[
+  up `>>
+   [segments add: (QuadraticBezierSegment newFrom: up currentPoint to: p via: v).
+    currentPoint: p. ]
+].
+
+up@(UserPath traits) closePath
+"Draws a line from the current point to the start point"
+[
+"TODO: Check if the current and endpoints are the same first"
+  up segments add: (LineSegment newFrom: up currentPoint to: up startPoint).
+  up currentPoint: up startPoint.
+  up closed: True.  
+  up
+].
+
+up@(UserPath traits) end
+"Ends this path"
+[].
+
+up@(UserPath traits) stroke
+"Strokes the current path"
+"Converts the UserPath into one or more PolyLines, strokes, caps
+and joins them, then passes them as polygons to the tessilator"
+[|newP pen|
+  pen: (Pen newWidth: up penWidth flatness: up penFlatness).
+  newP: up segments collect: [|:each| each strokeWithPen: pen flatness: up curveFlatness].
+  newP doAllButLast: [|:each| each joinToNext].
+  up closed
+    ifTrue: [newP joinLastToFirst]
+    ifFalse: [newP cap].
+  newP: (newP as: Polygon).
+  newP renderOn: up medium.
+].
+
+up@(UserPath traits) fill
+"Turns the path into a filled polygon"
+"TODO: Beware of gaps"
+[|poly|
+  poly: (up segments as: Polygon).
+  poly renderOn: up medium.
+  up
+].
+
+"Draw Shapes on a Surface using a Medium"
+"Shape = geometric object"
+"Surface = anything you can draw on"
+"Medium = the drawing context"
+
+"A Surface can provide an appropriate Medium"
+
+"
+shape renderOn: medium &pen: aWeirdConvexPolygon &ink: aFunkyPattern.
+shape renderFilledOn: medium &ink: Color red.
+
+StandardMedium - a platform independent medium which is converted to platform specific ones when used
+X11Medium - a medium which knows how to draw on X11 Drawables
+
+"

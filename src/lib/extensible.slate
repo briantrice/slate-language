@@ -1,0 +1,97 @@
+collections define: #ExtensibleCollection &parents: {Collection}.
+"Defines the protocol for inserting into and removing from Collections."
+
+e@(ExtensibleCollection traits) add: obj
+"Insert the object into the Collection, returning the object."
+[overrideThis].
+
+c@(ExtensibleCollection traits) newWith: obj
+"Answer a new collection with the one element added."
+[c new `>> [add: obj. ]].
+
+c@(ExtensibleCollection traits) newWithAll: d@(Collection traits)
+"Answer a new collection of kind c and stuff in all of d's elements."
+[(c newSizeOf: d) `>> [addAll: d. ]].
+
+e@(ExtensibleCollection traits) add: obj ifPresent: block
+"Add the object only if it doesn't already occur in c. If it already does
+occur, perform the alternative given."
+[
+  (e includes: obj)
+    ifTrue: [block do]
+    ifFalse: [e add: obj]
+].
+
+e@(ExtensibleCollection traits) include: obj
+"Add the object only if it doesn't already occur in c."
+[
+  e add: obj ifPresent: [obj]
+].
+
+e@(ExtensibleCollection traits) add: obj withOccurrences: n@(Integer traits)
+"Add n occurrences of an object."
+[
+  n timesRepeat: [e add: obj].
+  obj
+].
+
+e@(ExtensibleCollection traits) addAll: c
+"Add each element of c to e."
+[
+  c do: [| :each | e add: each].
+  c
+].
+
+e@(ExtensibleCollection traits) removeAll: c
+"Remove all elements of d from c. Removing all from itself has to be
+separately handled."
+[
+  (e == c ifTrue: [c copy] ifFalse: [c])
+   `>> [do: [| :each | e remove: each]. ]
+].
+
+e@(ExtensibleCollection traits) removeAll
+"Remove every element from the collection, leaving it empty."
+[e removeAll: c].
+
+e@(ExtensibleCollection traits) clear
+"Make the collection empty. By default, use remove calls.
+Override this for efficiency."
+[e removeAll].
+
+e@(ExtensibleCollection traits) removeAllSuchThat: test
+"Remove all elements that satisfy the test.
+Copy the collection since some subclasses re-order their elements on removal."
+[
+  e copy do: [| :each | (test applyWith: each) ifTrue: [e remove: each]].
+  e
+].
+
+e@(ExtensibleCollection traits) remove: obj ifAbsent: block
+[overrideThis].
+
+e@(ExtensibleCollection traits) remove: obj
+[e remove: obj ifAbsent: []].
+
+e@(ExtensibleCollection traits) copyWith: obj
+[| newC |
+  newC: e copy.
+  newC add: obj.
+  newC
+].
+
+c@(Collection traits) collect: block into: result@(ExtensibleCollection traits)
+"Similar to collect:, but answers the given collection with the results of
+applying the block to each element added."
+[
+  c do: [| :each | result add: (block applyWith: each)].
+  result
+].
+
+c@(Collection traits) select: test into: result@(ExtensibleCollection traits)
+"Answer a subset of c containing those elements causing the input block to
+return True."
+[
+  c do: [| :each | (test applyWith: each) ifTrue: [result add: each]].
+  result
+].

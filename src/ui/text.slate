@@ -1,0 +1,158 @@
+"Libraries for basic text display."
+
+Graphics define: #Font &parents: {Cloneable}.
+"This is a template for Font types."
+
+_@(Font traits) widthOf: _@(Character traits)
+"The width per the character."
+[overrideThis].
+
+f@(Font traits) widthOf: s@(Sequence traits) from: start to: stop
+"The width for a Range within a Sequence of Characters.
+NOTE: this works when one element of a String is another String."
+[
+  (s sliceFrom: start to: stop) inject: 0 into:
+    [| :total :each | total + (f widthOf: each)]
+].
+
+f@(Font traits) widthOf: s@(Sequence traits)
+"The width for a Sequence of Characters."
+[
+  f widthOf: s from: 0 to: s indexLast
+].
+
+_@(Font traits) widthOf: _
+"The width for nonsense inputs."
+[0].
+
+f@(Font traits) charMap
+"The mapping from Characters to glyphs."
+[].
+
+Graphics define: #BitmapFont &parents: {Font} &slots:
+{#charmap.
+ #xTable. "An array of the left x-coordinates of characters
+  within #glyphs, per ASCII code."
+ #xOffset.
+ #glyphs. "The Form containing the bits of all the glyphs."
+ #raster. "An Integer specifying the layout of #glyphs."
+ #family.
+ #name valued: ''.
+ #type.
+ #minCode. "The first ASCII code of the Font."
+ #maxCode. "The last ASCII code of the Font."
+ #maxWidth. "The widest width of the Font's glyphs."
+ #strikeLength.
+ #ascent. "The maximum extent of glyphs above baseline."
+ #descent. "The maximum extent of glyphs below baseline."
+ #subscript. "The further vertical offset relative to the
+  baseline for positioning characters as subscripts."
+ #superscript. "The further vertical offset relative to the
+  baseline for positioning characters as superscripts."
+ #emphasis valued: 0 "The Integer code for synthesized
+  bold (1), italic (2), underlined (4), and struck-out (8) styles."}.
+
+"BitmapFonts compactly encode a set of Forms corresponding to characters in
+the ASCII character set. All the forms are placed side by side in a large form
+whose height is the font height, and whose width is the sum of all the
+character widths."
+
+f@(BitmapFont traits) initCharmap
+"Lazily initialize the map from Characters to Glyphs."
+"TODO: remove the two + 1 expressions in put: arguments?"
+[| map |
+  map: (Array new &capacity: 256).
+  0 below: f minCode do: [| :index | map at: i put: f maxCode + 1].
+  f minCode to: f maxCode do: [| :index | map at: i put: i].
+  f maxCode + 1 below: map size do: [| :index | map at: i put: f maxCode + 1].
+  map
+].
+
+f@(BitmapFont traits) ascentKern
+"Return the kern delta for ascenders."
+[
+  (f emphasis noMask: 2)
+    ifTrue: [^ 0].
+  f ascent - 5 + 4 // 4 max: 0
+].
+
+f@(BitmapFont traits) baseKern
+"Return the base kern value to be used for all characters."
+[
+  (f emphasis noMask: 2)
+    ifTrue: [^ 0].
+  (f height - 1 - f ascent + 4 // 4 max: 0)
+    + (f ascent - 5 + 4 // 4 max: 0)
+].
+
+f@(BitmapFont traits) descentKern
+"Return the kern delta for descenders."
+[
+  (f emphasis noMask: 2)
+    ifTrue: [^ 0].
+  f height - 1 - f ascent + 4 // 4 max: 0
+].
+
+f@(BitmapFont traits) height
+"Answer the height as the total extent of the Font above and below the
+baseline."
+[
+  f ascent + f descent
+].
+
+f@(BitmapFont traits) widthOf: c@(Character traits)
+"The width of the Character in the Font."
+[| ascii |
+  ascii: c asciiValue.
+  ascii >= f minCode /\ [ascii <= f maxCode]
+    ifFalse: [ascii: f maxCode + 1].
+  (xTable at: ascii + 2) - (xTable at: ascii + 1)
+].
+
+f@(BitmapFont traits) isMonospaced
+"A Font is mono-spaced if only 3(??) Character widths exist."
+"TODO: make this more generic."
+[| widths |
+  widths: (((0 to: 255) collect: [| :index |
+      f widthOf: (index as: ASCIICharacter)])
+    as: Bag).
+  (widths sortedElements reject: [| :assoc | assoc key == 0]) size < 3
+].
+
+"TODO: insert display methods here."
+
+"TODO: insert emphasis-synthesizing methods here."
+
+f@(BitmapFont traits) characterFormAt: c@(Character traits)
+"Copy the right Form out of #glyphs for the argument."
+[| ascii leftX rightX |
+  ascii: c code.
+  (ascii between: f minCode and: f maxCode) ifFalse: [ascii: f maxCode + 1].
+  leftX: (f xTable at: ascii + 1).
+  rightX: (f xTable at: ascii + 2).
+  f glyphs copy:
+    (Rectangle origin: (Point x: leftX y: 0)
+               corner: (Point x: rightX y: f height))
+].
+
+f@(BitmapFont traits)
+  characterFormAt: c@(Character traits) put: glyph@(Form traits)
+"Copy the glyph into the right area of the Form #glyphs for the argument."
+[| ascii leftX rightX widthDif newGlyphs |
+  ascii: c code.
+  (ascii between: f minCode and: f maxCode)
+    ifFalse: [f error:
+      'Extending the character set isn\'t dynamically supported yet.'].
+  leftX: (f xTable at: ascii + 1).
+  rightX: (f xTable at: ascii + 2).
+  widthDif: (glyph width - (rightX - leftX)).
+  f glyphs copy:
+    (Rectangle origin: (Point x: leftX y: 0)
+               corner: (Point x: rightX y: f height))
+].
+
+Graphics define: #FontFamily &parents: {Cloneable} &slots: {#name -> ''}.
+
+Graphics define: #Text &parents: {SceneElement}
+"Graphics Text includes all of the display-oriented state and behavior."
+  &slots: {#contents}. "The actual character Sequence."

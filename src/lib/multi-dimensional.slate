@@ -1,0 +1,243 @@
+collections define: #ArrayMD &parents: {Collection. Mapping}
+"Multi-dimensional arrays don't readily admit to sequencing or mutation."
+&slots: {#dimensions -> {1}.
+"Default is a scalar: one dimension, of extent 1."
+#contents -> (Array newSize: 1)
+"Store the contents in an array of exactly the right size."}.
+
+mda@(ArrayMD traits) new &capacity: n &dimensions: seq
+"&capacity is deprecated for this method. It is meant for compatibility
+with Collection methods that require it, particularly select:-type methods.
+The alternative is to return a new array of the same dimensions and sparsely
+populate it.
+If dimensions are given, set up the array to hold enough elements as
+specified by an array or vector of dimension sizes. Dimension size 0 is
+coerced to 1."
+[
+  n ifNil:
+    [| size | size: (seq ifNil: [mda size]
+	 ifNotNil:
+	   [seq inject: 1 into: [| :product :each | product * each]]).
+     mda cloneSettingSlots: #(dimensions contents)
+	 to: {seq ifNil: [mda dimensions]. mda contents new &capacity: size}]
+    ifNotNil: [Bag newSized: n]
+].
+
+mda@(ArrayMD traits) newWithDimensions: seq defaultElement: x
+[
+  (mda new &dimensions: seq) `>> [contents infect: [| :_ | x]. ]
+].
+
+mda@(ArrayMD traits) size
+[
+  mda contents size
+].
+
+mda@(ArrayMD traits) numDimensions
+"Dimensions of size 0 or 1 don't introduce actual variations."
+[
+  mda dimensions count: [| :each | each > 1]
+].
+
+mda@(ArrayMD traits) at: n@(Integer traits)
+"Return a slice of the mda using an index of the first dimension."
+[
+
+].
+
+mda@(ArrayMD traits) indexOf: sc@(Sequence traits)
+"Returns the place in the contents where the given sequence of coordinates
+maps to. This should not be called repetitively, as it would duplicate
+a lot of calculation."
+[| final offset |
+  sc size = mda dimensions size ifFalse: [mda notYetImplemented].
+  final: 0.
+  offset: 1.
+  sc with: mda dimensions do: [| :index :dimSize |
+    final: final + (index * offset).
+    offset: offset * dimSize].
+  final
+].
+
+mda@(ArrayMD traits) at: sc@(Sequence traits)
+[
+  mda contents at: (mda indexOf: sc)
+].
+
+mda@(ArrayMD traits) at: sc@(Sequence traits) put: obj
+[
+  mda contents at: (mda indexOf: sc) put: obj
+].
+
+mda@(ArrayMD traits) do: block
+[
+  mda contents do: block
+].
+
+mda@(ArrayMD traits) sliceAt: m in: n
+"Return an array slice, defined by the array of all addresses having
+value m in position n. This works lazily."
+[
+  MDArraySlice for: mda at: m in: n
+].
+
+mda@(ArrayMD traits) sliceAt: m in: n do: block
+"Act on all elements having index m in dimension n, in order. This has
+a dimension of one less than mda's."
+[| firstIndex stepIndex |
+  firstIndex: (mda indexOf:
+    ((Array newSize: mda numDimensions) at: n put: m)).
+  stepIndex: (mda dimensions inject: 1 into: [| :step :each |
+    ]).
+  firstIndex below: mda size by: stepIndex do: block.
+].
+
+ArrayMD traits define: #Slice &parents: {Collection} &slots: {
+#array -> {}. "The source array."
+#dimension. "Which dimension is the slice through?"
+#start. "The starting index value."
+#end "The ending value, or Nil for thin slices."
+}.
+"A Slice of a multi-dimensional Array."
+"TODO: handle multi-dimensional Slices (use Range #, to construct keysets)."
+
+as@(ArrayMD Slice traits) for: mda@(ArrayMD traits) at: m in: n
+[
+  n > mda numDimensions \/ [m >= (mda dimensions at: n)] ifFalse:
+    [as cloneSettingSlots: #(array dimension start end) to: {mda. n. m. Nil}]
+].
+
+as@(ArrayMD Slice traits) for: mda@(ArrayMD traits) from: m to: l in: n
+[
+  n > mda numDimensions ifTrue: [^ Nil].
+  m >= (mda dimensions at: n) ifTrue: [^ Nil].
+  as cloneSettingSlots: #(array dimension start end)
+     to: {mda. n. (m min: l). (l max: m)}
+].
+
+"
+collections define: #NumericArrayMD &parents: {ArrayMD}.
+NumericArrayMD contents: (NumericArray newSize: 1).
+
+a1@(NumericArrayMD traits) + a2@(NumericArrayMD traits)
+[
+  a1 dimensions = a2 dimensions ifTrue:
+    [a1 cloneSettingSlots: #(contents) to: {a1 contents + a2 contents}]
+].
+
+mda@(NumericArrayMD traits) negated
+[mda cloneSettingSlots: #(contents) to: {mda contents negated}].
+
+a1@(NumericArrayMD traits) - a2@(NumericArrayMD traits)
+[
+  a1 + a2 negated
+].
+"
+
+mda@(ArrayMD traits) printDimension: d reader: reader dimensions: dims indentLevel: indent
+isLast: isLast on: o separatedBy: block
+"Luckily the elements are in the preferred printing order in the
+container-array, so there's no need to fiddle with indexing etc."
+[
+  d = dims indexLast
+    ifTrue:
+      [o ; '{'.
+       0 to: (dims last - 2)
+	 do: [|:_|
+	      reader next printOn: o.
+	      block do].
+       reader next printOn: o.
+       o ; '}'.
+       isLast ifFalse: [block do]]
+    ifFalse:
+      [0 to: ((dims at: d) - 2)
+	 do: [| :i |
+	      d = (dims indexLast - 1) ifFalse: [o ; '{'].
+	      mda printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
+		  isLast: False on: o separatedBy: block.
+	      d = (dims indexLast - 1) ifFalse: [o ; '}'.  isLast ifFalse: [block do]].
+	      o newLine.
+	      indent timesRepeat: [o ; ' ']].
+       d = (dims indexLast - 1) ifFalse: [o ; '{'].
+       mda printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
+	   isLast: True on: o separatedBy: block.
+       d = (dims indexLast - 1) ifFalse: [o ; '}']].
+].
+
+mda@(ArrayMD traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"ArrayMD prettyPrinting uses its own indention and not the pretty-printers one,
+is because it indents only one character per indentation-level, whereas the
+pretty printer could be set to indent something else. So, changing the
+indentation level of the pretty printer temporarily would mess up the printing
+of the elements."
+[| reader |
+ o newLine.
+ reader: mda contents reader.
+ mda printDimension: 0
+     reader: reader
+     dimensions: mda dimensions reversed
+     indentLevel: 0
+     isLast: False
+     on: o
+     separatedBy: block
+].
+
+ArrayMD traits define: #Stream &parents: {PositionableStream} &slots:
+  {#collection -> ArrayMD new}.
+
+ArrayMD traits define: #ReadStream
+	       &parents: {ArrayMD Stream. ReadStream}.
+
+s@(ArrayMD ReadStream traits) on: c
+"Target the stream to the specific collection, and reset the indices."
+[s `>> [reset. collection: c. readLimit: c contents size. ]].
+
+rs@(ArrayMD ReadStream traits) next
+[| pos |
+  pos: rs position.
+  pos < rs readLimit
+    ifTrue:
+      [rs position: pos + 1.
+       rs collection contents at: pos]
+].
+
+rs@(ArrayMD ReadStream traits) peekAt: offset
+[
+  rs collection contents at: rs position + offset
+].
+
+rs@(ArrayMD ReadStream traits) peek
+[rs peekAt: 0].
+
+rs@(ArrayMD ReadStream traits) size
+"The limit is effectively the number of elements that can be collected."
+[
+  rs readLimit
+].
+
+mda@(ArrayMD traits) reduce: binBlock ifEmpty: emptyBlock
+"The order of elements should not be depended on."
+[
+  mda contents reduce: binBlock ifEmpty: emptyBlock
+].
+
+mda@(ArrayMD traits) newSameSize
+[
+  mda new
+].
+
+ArrayMD traits define: #WriteStream &parents: {Collection Stream. WriteStream}
+  &slots: {#writeLimit. #position}.
+
+s@(ArrayMD WriteStream traits) on: c
+"Target the stream to the specific collection, and reset the indices."
+[s `>> [reset. collection: c. writeLimit: c contents size. ]].
+
+ws@(ArrayMD WriteStream traits) nextPut: obj
+[| pos |
+  pos: ws position.
+  pos >= ws writeLimit
+    ifTrue: [ws pastEndPut: obj]
+    ifFalse: [ws position: pos + 1.
+	      ws collection contents at: pos put: obj]
+].

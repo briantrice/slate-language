@@ -1,0 +1,163 @@
+prototypes ensureNamespace: #concurrency &delegate: True.
+
+concurrency define: #Promise &parents: {Cloneable}
+ &slots: {#value -> Nil.
+	  #dependents -> {}.
+	  #dependencies -> {}}.
+
+Promise aliasSlotNamed: #value as: #fulfilledBlock.
+
+p@(Promise traits) new
+[p clone].
+
+p@(Promise traits) isFulfilled
+"Checks the dependencies list as a status flag if it has been marked True."
+[p dependencies == True].
+
+p@(Promise traits) isBroken
+"Checks the dependencies list as a status flag if it has been marked False."
+[p dependencies == False].
+
+p@(Promise traits) isResolved
+"Once a Promise resolves, it is either fulfilled or broken. This means that
+an error must be handled or that the value is ready to use."
+[p isFulfilled \/ [p isBroken]].
+
+p@(Promise traits) isReady
+"A Promise is ready once all of its dependencies are resolved."
+[p dependencies allSatisfy: #isResolved `er].
+
+x@(Root traits) as: p@(Promise traits)
+"Making any old object into a Promise just sets up a reference to it, and
+states zero dependencies, so it can resolve as soon as scheduled."
+[p new `>> [value: x. dependencies: True. ]].
+
+p@(Promise traits) as: _@(Promise traits)
+[p].
+
+p@(Promise traits) waitOn: deps
+"Coerces the objects listed as dependents into Promises. Then check to see
+if those are already resolved, and mark it ready in the current process.
+Otherwise, add this Promise to the dependents of the unresolved dependencies
+(which makes them wake this Promise up."
+[
+  p dependencies: (deps collect: #as: `er <-* Promise into: Array).
+  p isReady
+    ifTrue: [currentProcess readyPromises add: p]
+    ifFalse: [p dependencies do:
+      [| :dep | dep isResolved
+		ifFalse: [dep dependents: (dep dependents copyWith: p)]]].
+  p
+].
+
+deps@(Sequence traits) whenFulfilled: m
+"Sets up the Method to run in a future turn with the given Sequence as its
+dependencies."
+[Promise new `>> [fulfilledBlock: m. ] waitOn: deps].
+
+p@(Promise traits) whenFulfilled: m
+"Sets up the Method to run in a future turn with the given Promise resolution
+as its sole dependency."
+[{p} whenFulfilled: m].
+
+m@(Method traits) eventually
+"Schedules the Method to run in a turn, with no dependencies.
+This is the expansion of %(expr). The expression is converted to a Block."
+[{} whenFulfilled: m].
+
+p@(Promise traits) resolve
+"When a promise resolves, all the dependents should check to see if they are
+ready and be scheduled if possible. Then, the Promise clears out its
+dependents."
+[
+  currentProcess readyPromises addAll: (p dependents select: #isReady `er).
+  p dependents: {}.
+].
+
+p@(Promise traits) fulfillWith: value
+"Fulfill the Promise by assigning the value, replacing the dependencies list
+with a True success-flag, marking it resolved, and answering the value."
+[
+  p value: value.
+  p dependencies: True.
+  p resolve.
+  value
+].
+
+p@(Promise traits) break
+"Fulfill the Promise by marking it broken, by replacing the dependencies list
+with a False failure-flag, marking it resolved, and answering Nil."
+[
+  p dependencies: False.
+  p resolve.
+].
+
+p@(Promise traits) run
+"Executes the per-turn attempt to resolve a Promise."
+[
+  p isResolved ifTrue: [^ False].
+  p fulfillWith: 
+    (p fulfilledBlock applyTo: 
+      (p dependencies collect:
+	[| :dep | dep isBroken ifTrue: [p break. ^ False].
+         dep value])).
+  True
+].
+
+concurrency define: #RecoverablePromise &parents: {Promise}
+  &slots: {#brokenBlock -> []}.
+
+deps@(Sequence traits) whenFulfilled: fulfilledBlock whenBroken: brokenBlock
+[
+  RecoverablePromise new 
+    `>> [fulfilledBlock: fulfilledBlock.
+         brokenBlock: brokenBlock. ]
+    waitOn: deps
+].
+
+p@(Promise traits) whenFulfilled: fulfilledBlock whenBroken: brokenBlock
+[{p} whenFulfilled: fulfilledBlock whenBroken: brokenBlock].
+
+deps@(Sequence traits) whenBroken: brokenBlock
+[deps whenFulfilled: [| *_ |] whenBroken: brokenBlock].
+
+p@(Promise traits) whenBroken: brokenBlock
+[{p} whenBroken: brokenBlock].
+
+p@(RecoverablePromise traits) run
+[
+  p isResolved ifTrue: [^ False].
+  p fulfillWith:
+    (p fulfilledBlock applyTo:
+      (p dependencies collect: [| :dep |
+        dep isBroken 
+          ifTrue: 
+            [p brokenBlock do. 
+              p break. 
+              ^ False].
+        dep value])).
+  True 
+].
+
+concurrency define: #Process &parents: {Cloneable}
+  &slots: {#readyPromises -> Queue new}.
+
+p@(Process traits) new
+[p cloneSettingSlots: #(readyPromises) to: {p readyPromises new}].
+
+p@(Process traits) run &limit: limit
+"Runs a single step of the Process, resolving all ready Promises up to a given
+limit (no limit if not given)."
+[
+  limit ifNil: [limit: PositiveInfinity].
+  [p readyPromises isEmpty /\ [limit isPositive]]
+    whileFalse:
+      [| promise |
+        limit: limit - 1.
+        promise: p readyPromises pop.
+        [promise run]
+          unlessCompletes:
+            [promise break]]
+].
+
+concurrency addSlot: #currentProcess valued: Process new.

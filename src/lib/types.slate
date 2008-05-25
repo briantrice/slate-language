@@ -1,0 +1,509 @@
+lobby ensureNamespace: #Types.
+Types addDelegate: lobby.
+"This ensures that type annotation expressions can occur in this namespace and
+be arbitrary."
+
+Types define: #Type &parents: {Cloneable}.
+"Types are Slate's basic type system for minimal inference purposes.
+A type's rules object delegates to its supertypes' rules objects."
+
+"Older versions of slate used some rules delegate slot
+and overrode derive. It seemed broken and overly complicated.
+I think we can just use traits here instead -- Timmy"
+
+
+"
+I can't bootstrap so i need to redefine this for now
+
+ type@(Types Type traits) clone
+[
+resend ].
+
+type@(Types Type traits) derive &mixins: types &rejects: rejectSlots
+[ resend ].
+"
+
+selector@(Symbol traits) asInferenceRule
+[
+  ('__' ; selector name) intern
+].
+
+selector@(Symbol traits) inferOn: types
+"Take the selector and argument types and locate an inference rule,
+and then return a type based on that as possible."
+[
+"inform: (selector printString ; ' on:')."
+"types do: [|:type| inform: ('    ' ; type printString) ]."
+  (selector asInferenceRule findOn: types)
+    ifNil: [Types Any]
+    ifNotNilDo: [| :rule | rule applyTo: types]
+].
+
+x@(Types Type traits) union: y@(Types Type traits)
+"Returns the type-theoretic union of the two types. Everything satisfying
+either of the component types should satisfy the union."
+[
+  x = y
+    ifTrue: [x]
+    ifFalse: [Types Any]
+].
+
+x@(Types Type traits) intersection: y@(Types Type traits)
+"Returns the type-theoretic intersection of the two types. Everything
+satisfying both of the component types should satisfy the intersection."
+[
+  x = y
+    ifTrue: [x]
+    ifFalse: [Types None]
+].
+
+supertype@(Types Type traits) subsumes: subtype
+"Returns whether the first type subsumes the second, by type-intersection."
+[
+  (supertype intersection: subtype) = subtype
+].
+
+_@(Types Type traits) representative
+"Return some representative object satisfying the Type."
+[
+  Nil
+].
+
+_ satisfies: _@(Types Type traits)
+"The default (safe) answer to whether an object satisfies, or belongs to,
+a Type."
+[False].
+
+Types define: #Any &parents: {Types Type}.
+"Objects of type Any can be any value."
+
+_ satisfies: _@(Types Any traits)
+"Any object belongs to this type."
+[
+  True
+].
+
+_@(Types Any traits) intersection: type
+[type].
+
+type intersection: _@(Types Any traits)
+[type].
+
+any@(Types Any traits) union: _
+[any].
+
+_ union: any@(Types Any traits)
+[any].
+
+Types define: #None &parents: {Types Any}.
+"Objects of type None have no value (Nil) or represent an error."
+
+_@Nil satisfies: _@(Types None traits)
+[True].
+
+_@(Types None traits) complement
+[Types Any].
+
+_@(Types None traits) union: type
+[type].
+
+type union: _@(Types None traits)
+[type].
+
+none@(Types None traits) intersection: _
+[none].
+
+_ intersection: none@(Types None traits)
+[none].
+
+Types define: #Not &parents: {Types Any}.
+"A complement of a type, which may reduce itself automatically."
+Types Not addSlot: #argument valued: Types Any clone.
+"The complemented type."
+
+type@(Types Any traits) complement
+"The most generic type-complementation."
+[
+  type == Types Any
+    ifTrue: [Types None]
+    ifFalse: [Types Not clone `>> [argument: type. ]]
+].
+
+type@(Types Not traits) complement
+"A simple reduction: the complement of a complement is the original."
+[
+  type argument
+].
+
+not@(Types Not traits) union: type
+[
+  not argument = type
+    ifTrue: [Types Any]
+    ifFalse: [resend]
+].
+
+not@(Types Not traits) intersection: type
+[
+  not argument = type
+    ifTrue: [Types None]
+    ifFalse: [resend]
+].
+
+Types define: #Union &parents: {Types Any}.
+"A union of types, which may reduce itself automatically."
+Types Union addSlot: #args valued: ExtensibleArray new.
+"The arguments of the Union."
+
+union@(Types Union traits) copy
+[union clone `>> [args: union args copy. ]].
+
+union@(Types Union traits) representative
+"Pick a representative from a random argument."
+[
+  (union args atRandom) representative
+].
+
+type1@(Types Any traits) union: type2@(Types Any traits)
+"The most generic method for union."
+[
+  type1 == Types Any \/ [type2 == Types Any]
+    ifTrue: [^ Types Any].
+  Types Union clone `>> [| :newU | args: ({type1. type2} as: newU args). ]
+].
+
+union@(Types Union traits) union: type
+[union copy `>> [args add: type. ]].
+
+union1@(Types Union traits) union: union2@(Types Union traits)
+[union1 copy `>> [args addAll: union2 args. ]].
+
+union@(Types Union traits) subsumes: type
+"Unions subsume their arguments."
+[
+  (union args anySatisfy: [| :arg | arg subsumes: type])
+    \/ [resend]
+].
+
+type subsumes: union@(Types Union traits)
+[
+  union args allSatisfy: [| :arg | type subsumes: arg]
+].
+
+Types define: #Intersection &parents: {Types Any}.
+"An intersection of types, which may reduce itself automatically."
+Types Intersection addSlot: #args valued: ExtensibleArray new.
+"The arguments of the Intersection."
+
+intersection@(Types Intersection traits) copy
+[intersection clone `>> [args: intersection args copy. ]].
+
+type1@(Types Any traits) intersection: type2@(Types Any traits)
+"The most generic method for intersection."
+[
+  type1 == Types Any
+    ifTrue: [^ type2].
+  type2 == Types Any
+    ifTrue: [^ type1].
+  Types Intersection clone `>>
+    [| :newT | args: ({type1. type2} as: newT args). ]
+].
+
+intersection@(Types Intersection traits) intersection: type
+[intersection copy `>> [args add: type. ]].
+
+int1@(Types Intersection traits) intersection: int2@(Types Intersection traits)
+[intersection copy `>> [args addAll: int2 args. ]].
+
+type subsumes: intersection@(Types Intersection traits)
+"Each argument of an intersection subsumes it."
+[
+  (intersection args anySatisfy: [| :arg | type subsumes: arg])
+    \/ [resend]
+].
+
+intersection@(Types Intersection traits) subsumes: type
+[
+  intersection args allSatisfy: [| :arg | arg subsumes: type]
+].
+
+Types define: #Clone &parents: {Types Any}.
+Types Clone addSlot: #prototype.
+
+"The Clone type represents clone families, tracking some original prototype."
+
+x@(Types Clone traits) = y@(Types Clone traits)
+[
+  x prototype == y prototype
+].
+
+c@(Types Clone traits) of: prototype
+"Create a new Clone type using the given object as a prototype."
+[c clone `>> [prototype: prototype. ]].
+
+c@(Types Clone traits) representative
+"Use the prototype as a representative of the Clone family."
+[
+  c prototype
+].
+
+Types define: #Range &parents: {Types Any}.
+"Ranges are parametrizable types over linearly-ordered domains (Magnitudes,
+such as Numbers, Integers, and Characters(?)). They express a range of values."
+Types Range addSlot: #type.
+Types Range addSlot: #start.
+Types Range addSlot: #end.
+
+range@(Types Range traits) representative
+"Use the range's start, coerced to be of the same prototype as the base type's representative."
+[
+  range start as: range type representative
+].
+
+x@(Types Range traits) = y@(Types Range traits)
+"Equal Range types must have a same basis and boundaries."
+[
+  x type = y type
+    /\ [x start = y start]
+    /\ [x end = y end]
+].
+
+range@(Types Range traits) of: type from: start to: end
+"Create a new Range type for the type, between the given boundaries."
+[range clone `>> [type: type. start: start. end: end. ]].
+
+x@(Types Range traits) union: y@(Types Range traits)
+"Create a new Range type over the base Types' union if applicable."
+"TODO: this depends on x and y's boundaries being comparable. Fixing this
+may be necessary."
+[x of: (x type union: y type)
+   from: (x start min: y start)
+   to: (x end max: y end)
+].
+
+x@(Types Range traits) intersection: y@(Types Range traits)
+"Create a new Range type over the base Types' intersection if applicable."
+"TODO: this depends on x and y's boundaries being comparable. Fix this."
+[| type start end |
+  type: (x type intersection: y type).
+  type == Types None ifTrue: [^ Types None].
+  start: (x start min: y start).
+  end: (x end max: y end).
+  start > end ifTrue: [^ Types None].
+  x of: type from: start to: end
+].
+
+Types define: #Member &parents: {Types Any}.
+"The Member type represents the elements of some finite set."
+Types Member addSlot: #elements valued: Set new.
+
+member@(Types Member traits) representative
+"Take any element and call it a representative."
+[
+  member elements anyOne
+].
+
+x@(Types Member traits) = y@(Types Member traits)
+"Equality as a collection."
+[
+  x elements = y elements
+].
+
+member@(Types Member traits) of: elements
+"Create a new Member type over the given collection, implicitly copying it
+with as:-conversion."
+[member clone `>> [elements: (elements as: member elements). ]].
+
+x@(Types Member traits) union: y@(Types Member traits)
+[
+  (x elements anyOne isSameAs: y elements anyOne)
+    ifTrue: [x of: (x elements \/ y elements)]
+    ifFalse: [resend]
+].
+
+x@(Types Member traits) intersection: y@(Types Member traits)
+[
+  (x elements anyOne isSameAs: y elements anyOne)
+    ifTrue: [x of: (x elements /\ y elements)]
+    ifFalse: [Types None]
+].
+
+Types define: #Singleton &parents: {Types Any}.
+Types Singleton addSlot: #identity.
+
+"The singleton type, representing single objects only."
+
+singleton@(Types Singleton traits) representative
+"Answer the only possible element."
+[
+  singleton identity
+].
+
+x@(Types Singleton traits) = y@(Types Singleton traits)
+"Equality by the one element's unique identity."
+[
+  x identity == y identity
+].
+
+singleton@(Types Singleton traits) of: identity
+"Create a new Singleton type over the given object."
+[singleton clone `>> [identity: identity. ]].
+
+member@(Types Member traits) union: singleton@(Types Singleton traits)
+"Create a new type between a Member and a Singleton type, a new Member type
+or the existing one if the Member type is a supertype of the singleton."
+[
+  (member elements includes: singleton identity) 
+    ifTrue: [member]
+    ifFalse: [(member elements anyOne isSameAs: singleton identity)
+		ifTrue: [member clone `>>
+			   [elements: (member elements copyWith: singleton identity). ]]
+		ifFalse: [resend]]
+].
+
+c@(Types Clone traits) union: s@(Types Singleton traits)
+[
+  (c prototype isSameAs: s identity)
+    ifTrue: [c]
+    ifFalse: [resend]
+].
+
+singleton@(Types Singleton traits) union: type
+"Commutation."
+[
+  type union: singleton
+].
+
+x@(Types Singleton traits) union: y@(Types Singleton traits)
+"Create a new Member type of the two as necessary."
+[
+  x identity == y identity 
+    ifTrue: [x]
+    ifFalse: 
+      [(x identity isSameAs: y identity)
+         ifTrue: [Types Member of: {x identity. y identity}]
+         ifFalse: [resend]]
+].
+
+member@(Types Member traits) intersection: singleton@(Types Singleton traits)
+"Based on inclusion of the Singleton in the Member, return the Singleton or
+None type as intersection."
+[
+  (member elements includes: singleton identity) 
+    ifTrue: [singleton] 
+    ifFalse: [Types None]
+].
+
+c@(Types Clone traits) intersection: s@(Types Singleton traits)
+[
+  (c prototype isSameAs: s identity)
+    ifTrue: [s]
+    ifFalse: [Types None]
+].
+
+singleton@(Types Singleton traits) intersection: type
+"Commutation."
+[ 
+  type intersection: singleton 
+]. 
+
+x@(Types Singleton traits) intersection: y@(Types Singleton traits)
+"Return the intersection, None if not equal, either one if equal."
+[ 
+  x identity == y identity 
+    ifTrue: [x]
+    ifFalse: [Types None] 
+].
+
+Types define: #Array &parents: {Types Any}.
+"Array types are parametrized by their element types, and cover arrays of all
+lengths with that element type."
+Types Array addSlot: #type.
+
+array@(Types Array traits) representative
+"Answer an empty Array literal."
+"TODO: parametrize even the empty array?"
+[
+  {}
+].
+
+array@(Types Array traits) of: type
+"Answer a new Array type over the given element type."
+[array clone `>> [type: type. ]].
+
+x@(Types Array traits) = y@(Types Array traits)
+"Array types are equal simple on their underlying types."
+[
+  x type = y type
+].
+
+x@(Types Array traits) union: y@(Types Array traits)
+"The union of Array types is the Array type of the union of the element types."
+[
+  x of: (x type union: y type)
+].
+
+x@(Types Array traits) intersection: y@(Types Array traits)
+"The intersection of Array types is the Array type of the intersection of the
+element types, or None if the intersection is None."
+[| type | 
+  type: (x type intersection: y type).
+  type = Types None ifTrue: [^ Types None].
+  x of: type
+].
+
+Types define: #Block &parents: {Types Any}.
+"The Block type represents code closures, with input types and a return type,
+optionally."
+Types Block addSlot: #argumentTypes.
+Types Block addSlot: #resultType.
+
+block@(Types Block traits) representative
+"The representative block is the do-nothing block."
+[
+  []
+].
+
+block@(Types Block traits) from: argumentTypes to: resultType
+"Return a new Block type with the given type-signature."
+[
+  block clone `>>
+   [argumentTypes: (argumentTypes as: Array).
+    resultType: resultType. ]
+].
+
+x@(Types Block traits) = y@(Types Block traits)
+"Equal Block types must have equal type-signatures."
+[
+  x resultType = y resultType /\ [x argumentTypes = y argumentTypes]
+].
+
+x@(Types Block traits) union: y@(Types Block traits)
+"x and y must have the same number of arguments. This returns a Block type
+with a union of their signature types."
+[
+  x argumentTypes size = y argumentTypes size ifFalse: [^ resend].
+  x 
+    from:
+      (x argumentTypes
+        with: y argumentTypes
+        collect:
+          [| :t :u | t union: u])
+    to: (x resultType union: y resultType)
+].
+
+x@(Types Block traits) intersection: y@(Types Block traits)
+"x and y must have the same number of arguments. This returns a Block type
+with an intersection of their signature types."
+[| resultType |
+  x argumentTypes size = y argumentTypes size ifFalse: [^ Types None].
+  resultType: (x resultType intersection: y resultType).
+  resultType == Types None ifTrue: [^ Types None].
+  x 
+    from:
+      (x argumentTypes
+        with: y argumentTypes
+        collect:
+          [| :t :u | t intersection: u])
+    to: resultType
+].
+

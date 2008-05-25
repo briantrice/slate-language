@@ -1,0 +1,268 @@
+prototypes ensureNamespace: #SDL.
+
+SDL ensureNamespace: #Lib.
+
+SDL Lib define: #EM -> ExternalMethod.
+SDL Lib define: #EM_AF -> SDL Lib EM ArgumentFormat.
+
+CObject parseDefinitionsFrom:
+#(
+  ('INT'        LongInt)
+  ('UINT8'      UnsignedChar)
+  ('UINT16'     UnsignedShortInt)
+  ('UINT32'     UnsignedLongInt)
+  ('SINT16'     ShortInt)
+  ('SINT32'     LongInt)
+  ('VoidPtr'    Pointer)
+  ('SDLKEY'     UINT32 "Should be a big enumeration of all keys and their code")
+  ('KEYSYM' (Structure
+    ('scancode' UINT8)
+    ('sdlkey'   SDLKEY)
+    ('mod'      UINT32 "Supposed to be an enumeration too")
+    ('unicode'  UINT16)))
+  ('SDL_INPUT' (Union
+      ('TypeEvt'  UINT8)
+      ('ActiveEvent' (Structure
+        ('type'   UINT8)
+        ('gain'   UINT8)
+        ('state'  UINT8)))
+      ('KeyEvent' (Structure
+        ('type'    UINT8)
+        ('whichk'  UINT8)
+        ('state'  UINT8)
+        ('keysym' KEYSYM)))
+      ('MouseMotionEvent' (Structure
+        ('type'    UINT8)
+        ('whichmm'   UINT8)
+        ('button'    UINT8)
+        ('state'     UINT8)
+        ('x'         UINT16)
+        ('y'         UINT16)
+        ('xrel'      SINT16)
+        ('yrel'      SINT16)))
+      ('MouseButtonEvent' (Structure
+        ('type'    UINT8)
+        ('whichmb'     UINT8)
+        ('button'    UINT8)
+        ('state'     UINT8)
+        ('x'         UINT16)
+        ('y'         UINT16)))
+      ('JoyAxisEvent' (Structure
+        ('type'    UINT8)
+        ('which'     UINT8)
+        ('axis'      UINT8)
+        ('value'     SINT16)))
+      ('JoyBallEvent' (Structure
+        ('type'    UINT8)
+        ('which'     UINT8)
+        ('ball'      UINT8)
+        ('xrel'      SINT16)
+        ('yrel'      SINT16)))
+      ('JoyHatEvent'  (Structure
+        ('type'    UINT8)
+        ('which'     UINT8)
+        ('hat'       UINT8)
+        ('value'     UINT8)))
+      ('JoyButtonEvent'  (Structure
+        ('type'    UINT8)
+        ('which'     UINT8)
+        ('button'    UINT8)
+        ('state'     UINT8)))
+      ('ResizeEvent'    (Structure
+        ('type'    UINT8)
+        ('w'          INT)
+        ('h'          INT))))
+"
+      ('ExposeEvent'    (Structure
+        ('type'    UINT8)
+        ))
+
+      ('QuitEvent'      (Structure
+        ('type'    UINT8)
+        ))
+      ('UserEvent'      (Structure
+        ('type'     UINT8)
+        ('code'       INT)
+        ('data1'      VoidPtr)
+        ('data2'      #VoidPtr)))").
+) into: SDL Lib.
+
+CObject parseDefinitionsFrom:
+{
+  {'PSDL_INPUT'.       (SDL Lib _SDL_INPUT pointer)}.
+} into: SDL Lib.
+
+_@(SDL Lib) initPrimitives
+[
+  (ExternalLibrary newNamed: 'libSDL') installMethodsForDefs:
+    #(
+      (Int     'SDL_Init'                (Int))
+      (Void    'SDL_Quit'                ())
+      (Pointer 'SDL_GetVideoSurface'     ())
+      (Int     'SDL_VideoModeOK'         (Int Int Int Int))
+      (Pointer 'SDL_SetVideoMode'        (Int Int Int Int))
+      (Void    'SDL_UpdateRect'          (Pointer Int Int Int    Int))
+      (Int     'SDL_Flip'                (Pointer))
+      (Int     'SDL_UpperBlit'           (Pointer Pointer Pointer Pointer))
+      (Pointer 'SDL_RWFromFile'          (CString CString))
+      (Pointer 'SDL_LoadBMP_RW'          (Pointer Int))
+      (Void    'SDL_PumpEvents'          ())
+      (Int     'SDL_PeepEvents'          (PSDL_INPUT Int Int Int))
+      (Int     'SDL_PollEvent'           (PSDL_INPUT))
+      (Int     'SDL_WaitEvent'           (PSDL_INPUT))
+      (Int     'SDL_PushEvent'           (PSDL_INPUT))
+      (Int     'SDL_EventState'          (Int Int))
+    ) on: SDL Lib &nameTransformer: [| :name | name allButFirst: 4].
+].
+
+SDL Lib initPrimitives.
+
+SDL ensureNamespace: #initCodes &delegate: True &slots:
+{#INIT_TIMER -> 16r1.
+#INIT_AUDIO -> 16r10.
+#INIT_VIDEO -> 16r20.
+#INIT_CDROM -> 16r100.
+#INIT_JOYSTICK -> 16r200.
+#INIT_NOPARACHUTE -> 16r100000. "Don't catch fatal signals "
+#INIT_EVENTTHREAD -> 16r1000000. "Not supported on all OS's "
+#INIT_EVERYTHING -> 16r0000FFFF
+}.
+
+SDL ensureNamespace: #otherCodes &delegate: True &slots:
+{#SWSURFACE -> 16r00000000. "Surface is in system memory."
+#HWSURFACE -> 16r00000001. "Surface is in video memory."
+#ASYNCBLIT -> 16r00000004 "Use asynchronous blits if possible, good for SMP systems."
+}.
+
+SDL ensureNamespace: #videoCodes &delegate: True "SDL_SetVideoMode() flags." &slots:
+{#ANYFORMAT -> 16r10000000. "Allow any video depth/pixel-format."
+#HWPALETTE -> 16r20000000. "Surface has exclusive palette."
+#DOUBLEBUF -> 16r40000000. "Double-buffered video mode (so you can use Flip())."
+#FULLSCREEN -> 16r80000000. "Surface is a full-screen display."
+#OPENGL -> 16r00000002. "Create an OpenGL rendering context."
+#OPENGLBLIT -> 16r0000000A. "Create/use an OpenGL rendering context for blitting."
+#RESIZABLE -> 16r00000010. "This video mode may be resized."
+#NOFRAME -> 16r00000020 "No window caption or edge frame."
+}.
+
+x@SDL initModules: modules
+[x Lib Init applyWith: modules].
+
+x@SDL quit
+[x Lib Quit do].
+
+x@SDL getVideoSurface
+[x Lib GetVideoSurface do].
+
+SDL define: #nearestBPP.
+
+x@SDL isModeAvailableWithWidth: w height: h bpp: bpp flags: flags
+"FIXME returns Nil, rather than a numeric value"
+[ | tmp |
+  tmp: (x Lib VideoModeOK applyTo: {w. h. bpp. flags}).
+  x nearestBPP: tmp.
+  tmp ~= 0
+].
+
+x@SDL setVideoModeWithWidth: w height: h bpp: bpp flags: flags
+[x Lib SetVideoMode applyTo: {w. h. bpp. flags}].
+
+x@SDL updateFullSurface: surf
+[x Lib UpdateRect applyTo: {surf. 0. 0. 0. 0}].
+
+x@SDL updateRectOn: surf x: x y: y width: w height: h
+[x Lib UpdateRect applyTo: {surf. x. y. w. h}].
+
+x@SDL flip
+[x Lib Flip do].
+
+x@SDL blitSurface: srcSurf rect: srcRect on: dstSurf at: dstRect
+"width and height of dstRect are ignored"
+"return value of 0 is success, -1 is error and -2 is special, read SDL doc"
+"if srcRect is NULL, all src will be blitted"
+"if dstRect is NULL, destination position will be upper left of dstSurf"
+[x Lib UpperBlit applyTo: {scrSurf. srcRect. dstSurf. dstRect}].
+
+x@SDL loadBMP: filename
+[
+  x Lib LoadBMP_RW applyTo: {
+    x Lib RWFromFile applyTo: {filename. 'rb' as: String}. 
+  1} "1=free the Surface returned on SDL_Quit"
+].
+
+SDL ensureNamespace: #eventTypeCodes &delegate: True
+"List of event types" &slots:
+{#NO_EVENT -> 0.
+ #ACTIVE -> 1.
+ #KEYDOWN -> 2.
+ #KEYUP -> 3.
+ #MOUSEMOTION -> 4.
+ #MOUSEBUTTONDOWN -> 5.
+ #MOUSEBUTTONUP -> 6.
+ #JOYAXISMOTION -> 7.
+ #JOYBALLMOTION -> 8.
+ #JOYHATMOTION -> 9.
+ #JOYBUTTONDOWN -> 10.
+ #JOYBUTTONUP -> 11.
+ #QUIT -> 12.
+ #SYSWMEVENT -> 13.
+ "14, 15 are reserved."
+ #VIDEORESIZE -> 16.
+ #VIDEOEXPOSE -> 17.
+ "The screen needs to be redrawn."
+ "18, 19, 20, 21, 22, 23 are reserved"
+ #USEREVENT -> 24}.
+
+SDL ensureNamespace: #eventMasks &delegate: True
+"List of event masks, based on the type codes." &slots:
+{#ACTIVE_MSK -> (1 << SDL ACTIVE).
+ #KEYDOWN_MSK -> (1 << SDL KEYDOWN).
+ #KEYUP_MSK -> (1 << SDL KEYUP).
+ #MOUSEMOTION_MSK -> (1 << SDL MOUSEMOTION).
+ #JOYAXISMOTION_MSK -> (1 << SDL JOYAXISMOTION).
+ #JOYBUTTONDOWN_MSK -> (1 << SDL JOYBUTTONDOWN).
+ #JOYBUTTONUP_MSK -> (1 << SDL JOYBUTTONUP).
+ #QUIT_MSK -> (1 << SDL QUIT).
+ #SYSWMEVENT_MSK -> (1 << SDL SYSWMEVENT).
+ #VIDEORESIZE_MSK -> (1 << SDL VIDEORESIZE).
+ #VIDEOEXPOSE_MSK -> (1 << SDL VIDEOEXPOSE).
+ #USEREVENT_MSK -> (1 << SDL USEREVENT).
+ #ALLEVENTS_MSK -> 16rFFFFFFFF}.
+
+x@SDL pumpEvents
+[x Lib PumpEvents do].
+
+x@SDL peekEvent: sdl_input mask: evt_mask
+"Maybe should create a new sdl_input and return it"
+[x Lib PeepEvents applyTo: {sdl_input. 1. 1. evt_mask}].
+
+x@SDL getEvent: sdl_input mask: evt_mask
+"Maybe shoud create a new sdl_input and return it"
+[x Lib PeepEvents applyTo: {sdl_input. 1. 2. evt_mask}].
+
+x@SDL addEvent: sdl_input
+[x Lib PeepEvents applyTo: {sdl_input. 1. 0. 0}].
+
+x@SDL pollEvent: sdl_input
+[x Lib PollEvent applyTo: {sdl_input}].
+
+x@SDL waitEvent: sdl_input
+[x Lib WaitEvent applyTo: {sdl_input}].
+
+x@SDL pushEvent: sdl_input
+[x Lib PushEvent applyTo: {sdl_input}].
+
+SDL define: #DISABLE_EVT -> 0.
+SDL define: #ENABLE_EVT -> 1.
+
+x@SDL ignoreEventType: type
+[x Lib EventState applyTo: {x DISABLE_EVT. type}].
+
+x@SDL disableEventType: type
+[x ignoreEventType: type].
+
+x@SDL enableEventType: type
+[x Lib EventState applyTo: {x ENABLE_EVT. type}].
+
+x@SDL currentStateEventType: type
+[x Lib EventState applyTo: {-1. type}].

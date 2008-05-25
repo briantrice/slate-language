@@ -1,0 +1,278 @@
+prototypes define: #Path &parents: {Cloneable}
+  &slots: {#names -> ExtensibleArray new}.
+"A Path represents a sequence of slot-name traversals which can be used to
+reach a destination.  Nil represents impossible path."
+
+s@(Sequence traits) as: path@(Path traits)
+[path cloneSettingSlots: #(names) to: {s as: path names}].
+
+Path traits compareAndHashUsingSlots: #(names).
+
+path@(Path traits) hash
+[path names hash bitXor: path traits identityHash].
+
+path@(Path traits) from: root into: names foundBlock: foundBlock
+		   &filterBlock: filterBlock
+"Core of the path-searching functionality, contains the algorithm for
+breadth-first search of path between objects through slots. 
+
+'root' is the object where the search begins.
+'names' is WriteStream into which are symbols specifying found path added.
+'foundBlock' - predicate block for termination on {source. name. target}.
+'filterBlock' - predicate block to pre-filter the queue on {src. name. tgt}.
+
+Answers the target object where the found path leads to, or Nil if requested
+path does not exist."
+[| pathLookupQueue seen |
+  (foundBlock applyTo: {root. Nil. root}) ifTrue: [^ root].
+  seen: (IdentitySet newWith: root).
+  filterBlock ifNil: [filterBlock: [| :src :name :tgt | True]].
+  pathLookupQueue:
+    (ExtensibleArray newWith: ExtensibleArray new -> root).
+  [pathLookupQueue isEmpty] whileFalse:
+    [| pathLookup lookupObject |
+      pathLookup: pathLookupQueue removeFirst.
+      lookupObject: pathLookup value.
+      "Check named slots."
+      lookupObject slotNames do:
+        [| :slotName slotValue |
+          slotValue: (lookupObject atSlotNamed: slotName).
+	  [(seen accepts: slotValue) /\ [(seen includes: slotValue) not] 
+	    ifTrue:
+	      [| newPath |
+	        seen include: slotValue.
+	        newPath: pathLookup key copy.
+	        newPath addLast: slotName.
+		(foundBlock applyTo: {lookupObject. slotName. slotValue})
+		  ifTrue: [names ; newPath. ^ slotValue].
+		(filterBlock applyTo: {lookupObject. slotName. slotValue})
+		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]
+	  ] breakOn: MethodNotFound].
+      "Check indexed slots."
+      lookupObject hasIndexedSlots ifTrue:
+	[lookupObject keysDo:
+	  [| :index slotValue |
+	   slotValue: (lookupObject at: index).
+	   (seen accepts: slotValue) /\ [(seen includes: slotValue) not]
+	     ifTrue:
+	       [| newPath |
+		seen include: slotValue.
+		newPath: pathLookup key copy.
+	        newPath addLast: index.
+		(foundBlock applyTo: {lookupObject. index. slotValue})
+		  ifTrue: [names ; newPath. ^ slotValue].
+		(filterBlock applyTo: {lookupObject. index. slotValue})
+		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]]]].
+  Nil
+].
+
+path@(Path traits) from: root to: target
+"Answer a Path between the given objects, using a raw breadth-first search
+through all slot paths, avoiding duplicate visits.  Answers Nil when no path
+can be found."
+[| names |
+  names: path names new writer.
+  (path from: root into: names foundBlock: [| :_ :_ :value | value == target])
+    ifNotNil: [names contents as: RootedPath]
+].
+
+path@(Path traits) to: obj
+"Answer a path from the current namespace to the given object."
+[path from: here to: obj].
+
+path1@(Path traits) ; path2@(Path traits)
+[
+  path1 names ; path2 names as: path1
+].
+
+path@(Path traits) childNamed: name
+[
+  (path expanded names copyWith: name) as: path
+].
+
+path@(Path traits) parent
+[
+  path names allButLast as: path
+].
+
+path1@(Path traits) isPrefixOf: path2@(Path traits)
+[
+  path1 names isPrefixOf: path2 names
+].
+
+path@(Path traits) targetFrom: root
+"Answer the target object that the Path points to, starting from the given
+object and following each name/index."
+[
+  [path names inject: root into:
+    [| :obj :eachName |
+     "Is the name for a named or indexed slot?"
+     (eachName isSameAs: Symbol)
+       ifTrue: [obj atSlotNamed: eachName]
+       ifFalse: [obj at: eachName]]]
+   on: SlotNotFound do: [| :c | ^ Nil]
+].
+
+path@(Path traits) target
+"Assume that the the current namespace is the root of the path."
+[path targetFrom: here].
+
+path@(Path traits) printOn: s &root: root
+[
+  s ; '("' ; path printName ; '" '.
+  path names
+    do: [| :slotName | s ; slotName printString]
+    separatedBy: [s nextPut: $\s].
+  root ifNotNil: [s ; ' root: '. root printOn: s].
+  s ; ')'
+].
+
+prototypes define: #RootedPath &parents: {Path} &slots: {#root -> lobby}.
+"A Path that is based on a particular root object."
+
+rooted@(RootedPath traits) as: path@(Path traits)
+"Answer a path with the root object forgotten."
+[rooted names as: path].
+
+p1@(RootedPath traits) = p2@(RootedPath traits)
+[(p1 root = p2 root) /\ [p1 names = p2 names]].
+
+path@(RootedPath traits) unrooted
+[path as: Path].
+
+path@(RootedPath traits) from: root to: target
+[| newP |
+  (newP: resend) ifNotNil: [newP: (newP names as: path &root: root)].
+  newP
+].
+
+s@(Sequence traits) as: path@(RootedPath traits) &root: root
+[
+  path cloneSettingSlots: #(names root)
+       to: {(s collect: [| :each | (each is: Integer)
+				   ifTrue: [each] ifFalse: [each intern]])
+		as: path names.
+	    root ifNil: [here]}
+].
+
+m@(Syntax UnaryMessage traits) as: path@(Path traits) &root: root
+[| names node |
+  names: ExtensibleArray new.
+  node: m.
+  [names addFirst: node selector.
+   node: node argument.
+   node isSameAs: m] whileTrue.
+  names as: path &root: root
+].
+
+m@(Syntax ImplicitArgument traits) as: path@(Path traits) &root: root
+[path from: (root ifNil: [here]) to: here].
+
+m@(Syntax Parenthesis traits) as: path@(Path traits) &root: root
+[m statements size = 1 ifTrue: [m statements first as: path &root: root]].
+
+path@(Path traits) as: _@(Syntax Node traits)
+[
+  path expanded names inject: Syntax ImplicitArgument into:
+    [| :result :each |
+     (each is: Integer)
+       ifTrue: [Syntax KeywordMessage sending: #at: to:
+	 {result. Syntax Literal for: each}]
+       ifFalse: [Syntax UnaryMessage sending: each intern to: {result}]]
+].
+
+path@(RootedPath traits) unrooted [path as: Path].
+
+path@(RootedPath traits) target
+[
+  path expanded targetFrom: path root
+].
+
+path@(RootedPath traits) isDefined
+"Answer whether following the path from the root yields something."
+[path target isNotNil].
+
+path@(RootedPath traits) isOneSlotFromDefinition
+"Answer whether the path is not defined but the immediate parent is."
+[path isDefined not /\ [path parent isDefined]].
+
+path@(RootedPath traits) reduced
+"Answer a path consisting of the minimum set of accessor method lookups to
+reach the same object."
+[| names this |
+  names: path names new writer.
+  this: path root.
+  path names do: [| :each |
+		  (each is: Integer)
+		    ifTrue: [this hasIndexedSlots /\ [this acceptsKey: each]
+			       ifTrue: [names nextPut: each]
+			       ifFalse: [each keyNotFoundOn: this]]
+		    ifFalse:
+		      [(this hasSlotNamed: each)
+			ifTrue: [(this hasDelegateNamed: each)
+				   ifFalse: [names nextPut: each].
+				 this: (this atSlotNamed: each)]
+			ifFalse: [this slotNotFoundNamed: each]]].
+  names contents isEmpty /\ [path names isEmpty not]
+    ifTrue: [names nextPut: path names last].
+  names contents as: path
+].
+
+path@(RootedPath traits) expanded
+"Answer a path consisting of the full set (through all delegations) of
+accessor method lookups to reach the same object. This performs a search and
+returns the shortest delegation path compatible with the original path's slot
+names. If the path doesn't work, then those lookups are added unconditionally
+(we can't be smart about error-handling here - let the client deal with the
+data unfiltered)."
+[| names this |
+  names: path names new writer.
+  this: path root.
+  path names do: 
+    [| :each target |
+     (path from: this into: names
+           foundBlock: [| :_ :name :_ | name == each]
+           &filterBlock: [| :obj :name :_ | obj hasDelegateNamed: name])
+       ifNil: [names nextPut: each]
+       ifNotNilDo: [| :target | this: target]].
+  names contents as: path &root: path root
+].
+
+path@(RootedPath traits) printOn: s &root: root
+[
+  root `defaultsTo: path root.
+  resend
+].
+
+x@(Root traits) knows: obj
+[(Path from: x to: obj) isNotNil].
+
+x@(Root traits) isWellKnown
+[lobby knows: x].
+
+x@(Root traits) whereIs: obj
+"Answers a path from the first argument to the second."
+[RootedPath from: x to: obj].
+
+prototypes define: #PathFinder &parents: {ReadStream} &slots:
+  {#source -> (TraversalStream newOn: lobby &traversal: DepthFirst &childrenVia: [| :x | x slotValues]).
+   #filterBlock -> [| :src :name :tgt | True]. "predicate for avoidance on {source. name. target}."
+   #foundBlock -> [| :src :name :tgt | x == Nil] "predicate for selection on {source. name. target}."}.
+
+pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock: filterBlock
+[| newPF |
+  newPF: (pf cloneSettingSlots: #(source foundBlock)
+	     to: {pf source newOn: root. foundBlock}).
+  filterBlock ifNotNil: [newPF filterBlock: filterBlock].
+  newPF
+].
+
+pf@(PathFinder traits) on: obj
+[pf root: obj].
+
+pf@(PathFinder traits) reset
+[pf source reset. ].
+
+pf@(PathFinder traits) next
+[
+].

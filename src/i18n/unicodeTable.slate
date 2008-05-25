@@ -1,0 +1,308 @@
+
+"This file contains routines for building the Unicode data table."
+
+Unicode define: #CharacterProperties &parents: {Cloneable} &slots:
+  {#GeneralCategory.
+   #CanonicalCombiningClass.
+   #BidiClass.
+   #DecimalDigitValue.
+   #DigitValue.
+   #NumericValue.
+   #BidiMirrored.
+   #DecompositionType.
+   #DecompositionMapping.
+   #Compositions.
+   #SimpleUppercaseMapping.
+   #SimpleLowercaseMapping.
+   #SimpleTitlecaseMapping}.
+
+CharacterData Unicode define: #EmptyTable &builder: [Nil repeatedTimes: 128].
+
+CharacterData Unicode define: #GeneralCategories &builder: [Dictionary new].
+{'Lu' -> #UppercaseLetter.
+ 'Ll' -> #LowercaseLetter.
+ 'Lt' -> #TitlecaseLetter.
+ 'Lm' -> #ModifierLetter.
+ 'Lo' -> #OtherLetter.
+ 'Mn' -> #NonspacingMark.
+ 'Mc' -> #SpacingCombiningMark.
+ 'Me' -> #EnclosingMark.
+ 'Nd' -> #DecimalDigit.
+ 'Nl' -> #NumberLetter.
+ 'No' -> #NumberOther.
+ 'Pc' -> #ConnectorPunctuation.
+ 'Pd' -> #DashPunctuation.
+ 'Ps' -> #OpenPunctuation.
+ 'Pe' -> #ClosePunctuation.
+ 'Pi' -> #InitialQuote.
+ 'Pf' -> #FinalQuote.
+ 'Po' -> #OtherPunctuation.
+ 'Sm' -> #MathSymbol.
+ 'Sc' -> #CurrencySymbol.
+ 'Sk' -> #ModifierSymbol.
+ 'So' -> #OtherSymbol.
+ 'Zs' -> #Space.
+ 'Zl' -> #LineSeparator.
+ 'Zp' -> #ParagraphSeparator.
+ 'Cc' -> #Control.
+ 'Cf' -> #Format.
+ 'Cs' -> #Surrogate.
+ 'Co' -> #Private}
+do: [| :each | CharacterData Unicode GeneralCategories add: each].
+
+CharacterData Unicode define: #BidiClasses &builder: [Dictionary new].
+{'L'   -> #LeftToRight.
+ 'LRE' -> #LeftToRightEmbedding.
+ 'LRO' -> #LeftToRightOverride.
+ 'R'   -> #RightToLeft.
+ 'AL'  -> #RightToLeftArabic.
+ 'RLE' -> #RightToLeftEmbedding.
+ 'RLO' -> #RightToLeftOverride.
+ 'PDF' -> #PopDirectionalFormat.
+ 'EN'  -> #EuropeanNumber.
+ 'ES'  -> #EuropeanNumberSeparator.
+ 'ET'  -> #EuropeanNumberTerminator.
+ 'AN'  -> #ArabicNumber.
+ 'CS'  -> #CommonNumberSeparator.
+ 'NSM' -> #NonSpacingMark.
+ 'BN'  -> #BoundaryNeutral.
+ 'B'   -> #ParagraphSeparator.
+ 'S'   -> #SegmentSeparator.
+ 'WS'  -> #WhiteSpace.
+ 'ON'  -> #OtherNeutrals}
+do: [| :each | CharacterData Unicode BidiClasses add: each].
+
+CharacterData Unicode define: #CompositionExclusions &builder:
+[#(16r0958. 16r0959. 16r095A. 16r095B. 16r095C. 16r095D. 16r095E. 16r095F.
+  16r09DC. 16r09DD. 16r09DF. 16r0A33. 16r0A36. 16r0A59. 16r0A5A. 16r0A5B.
+  16r0A5E. 16r0B5C. 16r0B5D. 16r0F43. 16r0F4D. 16r0F52. 16r0F57. 16r0F5C.
+  16r0F69. 16r0F76. 16r0F78. 16r0F93. 16r0F9D. 16r0FA2. 16r0FA7. 16r0FAC.
+  16r0FB9. 16rFB1D. 16rFB1F. 16rFB2A. 16rFB2B. 16rFB2C. 16rFB2D. 16rFB2E.
+  16rFB2F. 16rFB30. 16rFB31. 16rFB32. 16rFB33. 16rFB34. 16rFB35. 16rFB36.
+  16rFB38. 16rFB39. 16rFB3A. 16rFB3B. 16rFB3C. 16rFB3E. 16rFB40. 16rFB41.
+  16rFB43. 16rFB44. 16rFB46. 16rFB47. 16rFB48. 16rFB49. 16rFB4A. 16rFB4B.
+  16rFB4C. 16rFB4D. 16rFB4E. 16r2ADC. 16r1D15E. 16r1D15F. 16r1D160. 16r1D161.
+  16r1D162. 16r1D163. 16r1D164. 16r1D1BB. 16r1D1BC. 16r1D1BD. 16r1D1BE. 16r1D1BF.
+  16r1D1C0)].
+
+code@(Integer traits) isExcludedFromComposition
+[
+  CharacterData Unicode CompositionExclusions includes: code
+].
+
+_@Unicode readCrosslinksFrom: sourceFileName
+[| sourceStream s part1 part2 part3 key value acc |
+ acc: (ExtensibleArray newSize: 2048).
+ File withOpenNamed: sourceFileName
+   do: [| :source |
+	sourceStream: source reader.
+	[sourceStream isAtEnd] whileFalse: [
+	  part1: (sourceStream next as: Integer).
+	  part2: ((sourceStream next as: Integer) bitShift: 8).
+	  part3: ((sourceStream next as: Integer) bitShift: 16).
+	  key: ((part1 bitOr: part2) bitOr: part3).
+	  part1: (sourceStream next as: Integer).
+	  part2: ((sourceStream next as: Integer) bitShift: 8).
+	  part3: ((sourceStream next as: Integer) bitShift: 16).
+	  value: ((part1 bitOr: part2) bitOr: part3).
+	  acc addLast: key -> value].
+	].
+ acc
+].
+
+s@(Sequence traits) parseDecompositionType
+[
+ s isEmpty ifFalse:
+   [s first = $< ifTrue: [#Compatibility] ifFalse: [#Canonical]]
+].
+
+s@(Sequence traits) parseDecompositionMapping
+[
+ s isEmpty ifFalse:
+   [((s parseDecompositionType = #Compatibility
+     ifTrue: [s sliceFrom: (s indexOf: $\s)] ifFalse: [s])
+    splitWith: $\s) collect: [| :each | (each as: String) as: Integer &radix: 16]]
+].
+
+s@(Sequence traits) parseNumber
+[| sign str |
+ s isEmpty ifTrue: [^ Nil].
+ sign: (s first = $- ifTrue: [1] ifFalse: [-1]).
+ str: (sign isNegative ifTrue: [s allButFirst] ifFalse: [s copy]).
+ ((str includes: $/) ifTrue:
+   [| reader numerator denominator |
+    reader: str reader.
+    numerator: (reader upTo: $/).
+    denominator: reader upToEnd.
+    (numerator as: Integer &radix: 10) / (denominator as: Integer &radix: 10)]
+   ifFalse: [str as: Integer &radix: 10]) * sign
+].
+
+tokens@(Sequence traits) parseProperties
+[
+  Unicode CharacterProperties cloneSettingSlots:
+    #(GeneralCategory CanonicalCombiningClass BidiClass DecimalDigitValue
+      DigitValue NumericValue BidiMirrored
+      DecompositionType DecompositionMapping
+      SimpleUppercaseMapping SimpleLowercaseMapping SimpleTitlecaseMapping)
+     to:
+       {CharacterData Unicode GeneralCategories
+          at: (tokens at: 2)
+          ifAbsent: [error: 'Could not parse general category in Unicode data.'].
+	(tokens at: 3) as: Integer.
+	CharacterData Unicode BidiClasses
+          at: (tokens at: 4)
+          ifAbsent: [error: 'Could not parse bidi class in Unicode data.'].
+	(tokens at: 6) as: Integer.
+	(tokens at: 7) parseNumber.
+	(tokens at: 8) as: Integer.
+	(tokens at: 9) = 'Y'.
+	(tokens at: 5) parseDecompositionType.
+	(tokens at: 5) parseDecompositionMapping.
+	(tokens at: 12) as: Integer &radix: 16.
+	(tokens at: 13) as: Integer &radix: 16.
+	(tokens at: 14) as: Integer &radix: 16}
+].
+
+table@(Unicode Trie traits) addItem: item toCodePoint: codePoint withCrosslink: cl
+"If given crosslink contains the current codepoint, perform crosslink.
+Otherwise add item to the table.
+Answer whether a crosslink was performed."
+[| condition |
+  condition: cl key = codePoint.
+  table atCode: codePoint put:
+    (condition ifTrue: [table atCode: cl value] ifFalse: [item]).
+  condition
+].
+
+compositions@(Sequence traits) addComposition: decomp toCodePoint: codePoint decompositionType: decompType
+"Add composition to compositions, iff it's canonical and exactly of
+size 2."
+[| condition |
+  condition: codePoint isExcludedFromComposition not /\ [decomp isNotNil]
+   /\ [decompType = #Canonical] /\ [decomp size = 2].
+  condition ifTrue:
+    [compositions add: (decomp first , decomp second) -> codePoint].
+  condition
+].
+
+table@(Unicode Trie traits) buildTableWithLinks: cl compositions: compositions
+"This is the main method for building the Unicode character data
+table. It reads it's data from UnicodeData.txt, and uses cross-link
+data to link duplicate items to one. The actual data structure is a
+two-phase-table (a kind of trie)."
+[| ucdReader line properties links currentLink tableIndex tokens codePoint highBits |
+ links: cl reader.
+ currentLink: links next.
+ currentLink ifNil: [currentLink: Nil -> Nil].
+ tableIndex: 0.
+ codePoint: 0.
+ table at: tableIndex put: (Array newSize: 128).
+ inform: 'Filling tables.. There are 8703 total. Most are jumped over.'.
+ File withOpenNamed: 'src/i18n/UnicodeData.txt'
+   do: [| :ucd |
+	ucdReader: ucd reader.
+	[ucdReader isAtEnd] whileFalse: [
+	   line: (ucdReader upTo: (16rA as: ASCIICharacter)).
+           tokens: (line splitPreservingEmptys: (16r3B as: ASCIICharacter)).
+	   properties: (tokens parseProperties).
+	   codePoint: (tokens first as: Integer &radix: 16).
+	   highBits: (codePoint bitShift: -7).
+           highBits > tableIndex
+                   ifTrue: [tableIndex + 1 below: highBits
+                                            do: [| :index |
+                                                 table at: index
+                                                       put: CharacterData Unicode EmptyTable].
+                            tableIndex: highBits.
+			    Console ; '\r' ; (highBits as: String).
+			    Console writer flush.
+                            table at: tableIndex put: (Array newSize: 128)].
+	   (table addItem: properties toCodePoint: codePoint withCrosslink: currentLink)
+	     ifTrue: [currentLink: links next.
+		      currentLink ifNil: [currentLink: Nil -> Nil]].
+	   compositions addComposition: properties DecompositionMapping
+			toCodePoint: codePoint
+	                decompositionType: properties DecompositionType.
+	  ]].
+  Console ; '\r'.
+].
+
+table@(Unicode Trie traits) addCompositionsFrom: compositions
+"Add compositions to the table. The reason they can't be added when
+building the table is some might go to code points that don't exist
+yet."
+[
+  compositions do:
+    [| :each |
+     (table atCode: each key first) Compositions
+	 ifNil: [(table atCode: each key first)
+                    Compositions: Dictionary new `>> [hashBlock: [| :obj | obj]. ]].
+      (table atCode: each key first) Compositions add: each key second -> each value]
+].
+
+table@(Unicode Trie traits) fillTableGaps
+"Not every single character is listed in UnicodeData.txt, there are
+some ranges too. Every character in those ranges have same
+properties. Fill the ranges with links to the first character of the
+range."
+[
+  table fillRangeFrom: 16r3400 to: 16r4DB5.
+  table fillRangeFrom: 16r4E00 to: 16r9FA5.
+  table fillRangeFrom: 16rAC00 to: 16rD7A3.
+  table fillRangeFrom: 16rD800 to: 16rDB7F.
+  table fillRangeFrom: 16rDB80 to: 16rDBFF.
+  table fillRangeFrom: 16r4E00 to: 16r9FA5.
+  table fillRangeFrom: 16rDC00 to: 16rDFFF.
+  table fillRangeFrom: 16rE000 to: 16rF8FF.
+  table fillRangeFrom: 16r20000 to: 16r2A6D6.
+  table fillRangeFrom: 16rF0000 to: 16rFFFFD.
+  table fillRangeFrom: 16r100000 to: 16r10FFFD.
+].
+
+table@(Unicode Trie traits) fillRangeFrom: start to: end
+[| highBits |
+  start + 1 upTo: end
+   do: [| :index |
+	  highBits: (index bitShift: -7).
+	  ((table at: highBits) == CharacterData Unicode EmptyTable)
+	      ifTrue: [table at: highBits put: (Array newSize: 128)].
+	  table atCode: index put: (table atCode: start)]
+].
+
+table@(Unicode Trie traits) crosslinkPhase1From: crosslinks
+"Link duplicates in phase 1 of the trie to one according to the given
+cross-links."
+[
+  crosslinks do:
+    [| :each |
+     table at: each key put: (table at: each value)]
+].
+
+u@Unicode buildTable
+[| links2 links1 compositions |
+ inform: 'Building Unicode tables.'.
+ CharacterData Unicode define: #PropertyTable &builder: [Unicode Trie new].
+ compositions: ExtensibleArray new.
+
+ inform: 'Reading phase 2 cross-links.'.
+ links2: (u readCrosslinksFrom: 'src/i18n/Links2.data').
+
+ inform: 'Reading Unicode data.'.
+ CharacterData Unicode PropertyTable
+   buildTableWithLinks: links2
+   compositions: compositions.
+
+ inform: 'Adding compositions.'.
+ CharacterData Unicode PropertyTable addCompositionsFrom: compositions.
+
+ inform: 'Reading phase 1 cross-links.'.
+ links1: (u readCrosslinksFrom: 'src/i18n/Links1.data').
+
+ inform: 'Performing phase 1 linking.'.
+ CharacterData Unicode PropertyTable crosslinkPhase1From: links1.
+
+ inform: 'Filling ranges.'.
+ CharacterData Unicode PropertyTable fillTableGaps.
+
+ inform: 'Ready.'.
+].

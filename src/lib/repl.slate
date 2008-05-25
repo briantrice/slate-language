@@ -1,0 +1,194 @@
+prototypes define: #REPL &parents: {Cloneable} &slots:
+  {#parser -> Syntax Parser clone.
+   #printer -> String writer.
+   #resource -> Console.
+   #namespace -> lobby newSubSpace.
+   #lineCount -> 0.
+   #basePrompt -> '> '.
+   #noviceMode -> False.
+   #results -> (RingBuffer new &capacity: 10)}.
+
+REPL traits define: #Workspace &parents: {Namespace}.
+"A separate Namespace type for REPL usage."
+
+repl@(REPL traits) refreshWorkspace
+[repl namespace: (repl Workspace newDelegatingTo: lobby). repl installMethods].
+
+repl@(REPL traits) prompt
+[
+  'Slate ' ; repl lineCount printString ; repl basePrompt
+].
+
+repl@(REPL traits) newBasedOn: resource@(ExternalResource traits)
+"Answer a new REPL targetting the specified resource and reset it."
+[repl clone `>> [on: resource. reset. ]].
+
+repl@(REPL traits) on: resource
+"Re-target the REPL to the specified resource."
+[
+  repl parser: (repl parser newOn: resource reader).
+  repl printer: resource writer.
+  repl resource: resource.
+  repl
+].
+
+repl@(REPL traits) reset
+"Clear out the line number and the evaluation result Collection."
+[
+  repl lineCount: 0.
+  repl results clear.
+].
+
+_@here interpretHook: block
+"The default set of restarts for any errors in a block of code."
+[
+  block
+    handlingCases:
+      {
+        Abort -> [| :_ | ^ Nil].
+        Quit -> [| :_ |]
+      }
+].
+
+repl@(REPL traits) installMethods
+"This defines a number of namespace methods for convenient REPL access
+and control."
+[
+  _@(repl namespace) repl "Answer the currently used REPL." [repl].
+  "Set/clear the editting mode of the Parser."
+  _@(repl namespace) pasteMode [repl parser parseInteractively: False].
+  _@(repl namespace) interactiveMode [repl parser parseInteractively: True].
+  (#repl findOn: {repl namespace})
+    ifNotNilDo: [| :m | repl namespace addSlot: #previousREPLMethod valued: m].
+  "Define quick methods for the last 5 evaluation results."
+  _@(repl namespace) it "The last evaluation result."
+  [repl results first].
+  x@(repl namespace) it1 [x it].
+  _@(repl namespace) it2 [repl results second].
+  _@(repl namespace) it3 [repl results third].
+  _@(repl namespace) it4 [repl results fourth].
+  _@(repl namespace) it5 [repl results fifth].
+
+  x@(repl namespace) in: ns [x atSlotNamed: #parentNamespace put: ns].
+
+  _@(repl namespace) inform: message &target: r
+  "A simple way to print a message onto an ExternalResource (by default the Console)."
+  [r `defaultsTo: repl resource.
+   r writer ; message ; '\n'.
+   r writer flush. ].
+
+  _@(repl namespace) query: message &target: r
+  "A simple way to ask input of the user on an ExternalResource (by default
+the Console) and return a Slate String response."
+  [| response |
+   r `defaultsTo: repl resource.
+   r writer ; message.
+   r writer flush.
+   [response: (r interactor upTo: $\n).
+    response isEmpty] whileTrue. "Grabs the next line when it's available."
+   r writer flush.
+   response].
+
+  ns@(repl namespace) confirm: message &target: r
+  "A simple way to ask a Boolean question of the user on an ExternalResource
+(by default the Console) and return a Slate Boolean answer."
+  [| response |
+   response: (ns query: message ; ' (y/n) ') toLowercase.
+   {'y'. 'yes'} anySatisfy: [| :option | option = response]].
+
+  ns@(repl namespace) doubleConfirm: message &target: r
+  [| response |
+   response: (ns confirm: message &target: r).
+   response /\ [ns confirm: 'Are you sure?' &target: r]
+  ].
+
+  ns@(repl namespace) help &target: r
+  [
+    r `defaultsTo: repl resource.
+    r writer ; 'The REPL is an interactive evaluator that parses expressions and prints their results back. It also keeps a return-value history and interaction messages:\n'
+      ; 'it - Answers the last result.\n'
+      ; 'itN - Answers the result from N (1..5) expressions ago in the history.\n'
+      ; 'repl - Answers the current REPL and its properties.\n'
+      ; 'pasteMode - (Default) Evaluate only when a finished expression is followed by a period and newline.\n'
+      ; 'interactiveMode - Evaluate when newline is entered and the expression is complete.\n'
+      ; 'inspect: obj - Starts the interactive travelling inspector.\n'
+      ; 'inform: \'message\' - Prints a message on a single line.\n'
+      ; 'query: \'message\' - Prints a message, waiting on and answering a user response.\n'
+      ; 'confirm: \'message\' - Prints a question on a single line and answering a user boolean response.\n'
+      ; 'resetOnStartup - Clears the history and line number on fresh runs of the VM.\n'
+      ; 'help - Prints this helpful message.\n'.
+  ].
+
+].
+
+repl@(REPL traits) removeMethods
+"This removes methods defined in installMethods."
+[
+  {#repl. #pasteMode. #interactiveMode. #it. #it1. #it2. #it3. #it4. #it5.
+   #inform:. #query:. #confirm:. #help}
+    do: [| :sel | 
+      (sel findOn: {repl namespace})
+        ifNotNilDo:
+          [| :m | m removeFrom: {repl namespace}]]
+].
+
+repl@(REPL traits) enter
+"Sets up the convenient namespace methods and runs the interactive loop.
+This does not normally exit unless there is a serious error."
+[
+  [repl refreshWorkspace.
+   repl parser parseInteractively: True.
+   [repl on: repl resource.
+    repl lineCount: repl lineCount + 1.
+    repl printer ; repl prompt.
+    repl printer flush.
+    repl namespace
+      interpretHook:
+	[| expr result |
+         [expr: repl parser next]
+	   on: Stream Exhaustion
+           do: [| :c | 
+             c stream == repl resource reader
+               ifTrue:
+                 [repl printer ; '\n'. 
+                   ^ Nil]].
+	 result: ([expr evaluateIn: repl namespace] on: SeriousCondition do:
+	   [| :c |
+	    repl noviceMode ifTrue:
+	     [c describeOn: repl printer.
+	      c exit: Nil]]).
+         repl results addFirst: result.
+         [result printOn: repl printer] on: SeriousCondition do:
+	   [| :c |
+ 	    repl printer newLine.
+	    warn: result printName ; ' (Printing failed)'.
+	    c exit: Nil]].
+    repl printer newLine.
+    repl printer flush.
+    repl namespace interpretHook: [currentProcess run &limit: 1000]]
+     loop] ensure: [repl removeMethods].
+  repl
+].
+
+repl@(REPL traits) completionsFor: word
+"Answers an Array of all the possible complete Symbols defined in the system
+which the given word is a valid prefix of.
+TODO: Consult the recent literal frames for names.
+TODO: sort the results by some suitable precedence."
+[
+  [| :result |
+  globals Symbols keysDo:
+    [| :key | (word isPrefixOf: key) ifTrue: [result nextPut: key]]]
+   writingAs: {}
+].
+
+repl@(REPL traits) start &resource: r
+"Enter a new REPL instance on the resource."
+[
+  r `defaultsTo: repl resource.
+  (repl newBasedOn: r) enter
+].
+
+repl@(REPL traits) resetOnStartup
+"Adds a handler for Image startup to reset the REPL."
+[Image startupActions at: repl put: [repl reset]].

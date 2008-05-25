@@ -1,0 +1,78 @@
+Graphics define: #ScrollpaneElement &parents: {SceneElement} &slots:
+{
+  #innerBounds -> Nil.
+  #vScrollbar -> Nil.
+  #vScrollbarVisible -> True.
+  #hScrollbar -> Nil.
+  #hScrollbarVisible -> True
+}.
+
+se@(ScrollpaneElement traits) newInnerBounds: rect@(Rectangle traits)
+[ | obj |
+  obj: (se cloneSettingSlots: #(innerBounds vScrollbar hScrollbar)
+                          to: {rect. Nil. Nil.}).
+
+  obj vScrollbar: (ScrollbarElement newVerticalOnObject: obj itemSize: obj fontSize).
+  obj hScrollbar: (ScrollbarElement newHorizontalOnObject: obj itemSize: obj fontSize).
+  obj
+
+].
+
+
+se@(ScrollpaneElement traits) innerArea
+[
+ ((se boundingRect) right: (se boundingRect right - se vScrollbarWidth))
+                    bottom: (se boundingRect bottom - se hScrollbarWidth)
+
+].
+
+
+se@(ScrollpaneElement traits) handle: event@(PaintEvent traits)
+[ 
+
+    resend.
+
+    se getPath: event context.
+    event context `>> [
+        save.
+        clip.
+    ].
+
+    se vScrollbar position: (se boundingRect topRight - (se vScrollbarWidth , 0)).
+    se vScrollbar extent: (se vScrollbarWidth , (se boundingRect height)).
+
+    se hScrollbar position: (se boundingRect bottomLeft - (0 , se hScrollbarWidth)).
+    se hScrollbar extent: ((se boundingRect width - se vScrollbarWidth) , se hScrollbarWidth).
+
+
+    se vScrollbarVisible ifTrue: [se vScrollbar handle: event.].
+    se hScrollbarVisible ifTrue: [se hScrollbar handle: event.].
+
+    event context `>> [
+        restore.
+    ]
+
+].
+
+se@(ScrollpaneElement traits) offset
+[
+  ( se hScrollbar value ceiling ,  se vScrollbar value ceiling)
+].
+
+
+se@(ScrollpaneElement traits) handle: event@(MouseButtonPressEvent traits)
+[
+ (se vScrollbar boundingRect contains: event position) ifTrue: [se repaintSoon. se vScrollbar handle: event].
+ (se hScrollbar boundingRect contains: event position) ifTrue: [se repaintSoon. se hScrollbar handle: event].
+].
+
+
+se@(ScrollpaneElement traits) handle: event@(X1MouseButtonPressEvent traits)
+[
+  se vScrollbar handle: event
+].
+
+se@(ScrollpaneElement traits) handle: event@(X2MouseButtonPressEvent traits)
+[
+  se vScrollbar handle: event
+].

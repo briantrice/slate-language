@@ -1,0 +1,216 @@
+"Many functions that deal with cairo_surface_t* are problematic.
+ Ex: cairo_set_source_surface.  Do not attempt to add additional 
+ bindings to this code if you don't understand why, otherwise 
+ Cairo will write into freed memory."
+
+lobby ensureNamespace: #Cairo &delegate: True.
+
+Cairo define: #Lib
+  &builder: [ExternalInterface newForLibrary: 'slate-cairo' primitives:
+    #(
+        "Construction / Destruction"
+		(Pointer image_surface_create_for_data(Pointer Int Int Int Int))
+		(Void surface_destroy(Pointer))
+		(Pointer create(Pointer))
+		(Void destroy(Pointer))
+		
+		"Context"
+		(Void clip(Pointer))
+		(Void clip_preserve(Pointer))
+		(Void fill(Pointer))
+		(Void fill_preserve(Pointer))
+		(Void restore(Pointer))
+		(Void save(Pointer))
+		(Float get_line_width(Pointer))
+		(Void set_line_width(Pointer Float))
+		(Void set_source_rgb(Pointer Float Float Float))
+		(Void set_source_rgba(Pointer Float Float Float Float))
+		(Void stroke(Pointer))
+		(Void stroke_preserve(Pointer))
+
+        "Path"		
+		(Void close_path(Pointer))
+		(Void line_to(Pointer Float Float))
+		(Void move_to(Pointer Float Float))
+		(Void new_path(Pointer))
+		(Void rectangle(Pointer Float Float Float Float))
+		
+		"Transformation"
+		(Void translate(Pointer Float Float))
+		(Void scale(Pointer Float Float))
+		
+		"Text"
+		(Void select_font_face(Pointer CString Int Int))
+		(Void set_font_size(Pointer Float))
+		(Void show_text(Pointer CString))
+      ) "&leader: 'cairo_'"].
+      
+Cairo Lib enable.
+
+Cairo ensureNamespace: #formats.
+{
+    #argb32 -> 0.
+    #rgb24 -> 1.
+    #a8 -> 2.
+    #a1 -> 3.
+} do: [| :entry | Cairo formats addSlot: entry key valued: entry value].
+
+Cairo define: #Context &slots: {#surfacePointer. #contextPointer. #bitmapAddress. #bitmapHandle}.
+
+Cairo define: #FormContext &slots: {#form} &parents: {Cairo Context}.
+
+_@(Cairo FormContext traits) newForm: form@(Form traits)
+[ |surface|
+    (form depth == 32) ifFalse: [onlyDepth32CurrentlySupported].
+    surface: Cairo FormContext clone.
+    surface form: form.
+    surface bitmapAddress: form bits bytes address.
+    surface bitmapHandle: form bits bytes handle.
+    ByteArray noteNewReferenceTo: surface bitmapHandle.
+    surface surfacePointer: (Cairo Lib primitives image_surface_create_for_data applyTo: 
+        {surface bitmapAddress. Cairo formats argb32. form width. form height. form width * 4.}).
+    surface surfacePointer ifNil: [image_surface_create_for_data_failed].
+    surface contextPointer: (Cairo Lib primitives create applyTo: {surface surfacePointer.}).
+    surface contextPointer ifNil: [create_failed].
+    surface
+].
+
+surface@(Cairo Context traits) destroy
+[
+    surface contextPointer ifNil: [ContextIsInvalid].
+    surface surfacePointer ifNil: [ContextIsInvalid].
+    Cairo Lib primitives destroy applyTo: {surface contextPointer.}.
+    Cairo Lib primitives surface_destroy applyTo: {surface surfacePointer}.
+    ByteArray close: surface bitmapHandle.
+    surface contextPointer: Nil.
+    surface surfacePointer: Nil.
+].
+
+"Context"
+"============================================================================"
+
+surface@(Cairo Context traits) clip
+[
+    Cairo Lib primitives clip applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) clip_preserve
+[
+    Cairo Lib primitives clip_preserve applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) fill
+[
+    Cairo Lib primitives fill applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) fill_preserve
+[
+    Cairo Lib primitives fill_preserve applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) restore
+[
+    Cairo Lib primitives restore applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) save
+[
+    Cairo Lib primitives save applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) lineWidth
+[
+    Cairo Lib primitives get_line_width applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) lineWidth: width
+[
+    Cairo Lib primitives set_line_width applyTo: {surface contextPointer. width.}.
+].
+
+surface@(Cairo Context traits) sourceRGB: color@(RGBColor traits)
+[
+    Cairo Lib primitives set_source_rgb applyTo: {surface contextPointer. color red. color green. color blue.}.
+].
+
+surface@(Cairo Context traits) sourceRGB: color@(RGBColor traits) alpha: alpha
+[
+    Cairo Lib primitives set_source_rgba applyTo: {surface contextPointer. color red. color green. color blue. alpha.}.
+].
+
+surface@(Cairo Context traits) stroke
+[
+    Cairo Lib primitives stroke applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) stroke_preserve
+[
+    Cairo Lib primitives stroke_preserve applyTo: {surface contextPointer.}.
+].
+
+"Path"
+"============================================================================"
+
+surface@(Cairo Context traits) closePath
+[
+    Cairo Lib primitives close_path applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) lineTo: point@(Point traits)
+[
+    Cairo Lib primitives line_to applyTo: {surface contextPointer. point x. point y.}.
+].
+
+surface@(Cairo Context traits) moveTo: point@(Point traits)
+[
+    Cairo Lib primitives move_to applyTo: {surface contextPointer. point x. point y.}.
+].
+
+surface@(Cairo Context traits) newPath
+[
+    Cairo Lib primitives new_path applyTo: {surface contextPointer.}.
+].
+
+surface@(Cairo Context traits) rectangle: rectangle@(Rectangle traits)
+[
+    Cairo Lib primitives rectangle applyTo: {surface contextPointer. rectangle left. rectangle top. rectangle width. rectangle height.}.
+].
+
+"Transformation"
+"============================================================================"
+
+surface@(Cairo Context traits) translate: offset@(Point traits)
+[
+    Cairo Lib primitives translate applyTo: {surface contextPointer. offset x. offset y.}.
+].
+
+surface@(Cairo Context traits) scale: offset@(Point traits)
+[
+    Cairo Lib primitives scale applyTo: {surface contextPointer. offset x. offset y.}.
+].
+
+"Text"
+"============================================================================"
+
+surface@(Cairo Context traits) font: font &italic: italic &bold: bold
+[
+    italic `defaultsTo: False.
+    bold `defaultsTo: False.
+    Cairo Lib primitives select_font_face applyTo: {
+        surface contextPointer. 
+        font. 
+        italic ifTrue: [1] ifFalse: [0]. 
+        bold ifTrue: [1] ifFalse: [0]}.
+].
+
+surface@(Cairo Context traits) fontSize: size
+[
+    Cairo Lib primitives set_font_size applyTo: {surface contextPointer. size}.
+].
+
+surface@(Cairo Context traits) showText: text
+[
+    Cairo Lib primitives show_text applyTo: {surface contextPointer. text}.
+].
+

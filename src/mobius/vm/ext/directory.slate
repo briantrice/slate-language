@@ -1,0 +1,32 @@
+includeHeaderNamed: '"directory.h"'.
+
+d@DirectoryTraits primitiveOpen: dname
+[| handle!LongInt |
+  handle: 'openDirectory((struct ByteArray *) dname)' directly!LongInt.
+  interpreter stackPush: handle asObject.
+] `pidginPrimitive.
+
+d@DirectoryTraits primitiveClose: dirHandle
+[| result!LongInt |
+  result: 'closeDirectory(dirHandle >> 1)' directly!LongInt.
+  interpreter stackPush: result asObject.
+] `pidginPrimitive.
+
+d@DirectoryTraits primitiveRead: dirHandle into: entryName
+[| entryNameLen!LongInt |
+  entryNameLen: 'readDirectory(dirHandle >> 1, (struct ByteArray *) entryName)'
+			directly!LongInt.
+  interpreter stackPush: entryNameLen asObject.
+] `pidginPrimitive.
+
+d@DirectoryTraits primitiveGetCurrentDirectory: buffer
+[| len!LongInt |
+  len: 'getCurrentDirectory((struct ByteArray *) buffer)' directly!LongInt.
+  interpreter stackPush: len asObject.
+] `pidginPrimitive.
+
+d@DirectoryTraits primitiveSetCurrentDirectory: wd
+[| result!LongInt |
+  result: 'setCurrentDirectory((struct ByteArray *) wd)' directly!LongInt.
+  interpreter stackPush: result asObject.
+] `pidginPrimitive.

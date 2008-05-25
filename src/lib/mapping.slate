@@ -1,0 +1,265 @@
+prototypes ensureNamespace: #mappings &delegate: True.
+
+mappings define: #Mapping &parents: {Cloneable}.
+"Mappings provide the abstract protocols for all collections that provide
+keyed storage, e.g. #at: and #at:put:."
+
+_@(Mapping traits) size
+"Returns the number of key and value pairs contained in the Mapping."
+[
+  overrideThis
+].
+
+_@(Mapping traits) capacity
+"Returns the maximum size of the Mapping before additional
+space will have to be allocated."
+[
+  overrideThis
+].
+
+_@(Mapping traits) acceptsKey: _@(Root traits)
+"This method is defined whenever indices are explicit in the Mapping's
+interface, and meaningless otherwise."
+[
+  True
+].
+
+_@(Mapping traits) acceptsKey: _@Nil
+"This method is defined whenever indices are explicit in the Mapping's
+interface, and meaningless otherwise. Nil is generally a useless key."
+[
+  False
+].
+
+m@(Mapping traits) accepts: assoc
+"This tests what add: will accept or not accept, as opposed to values or keys
+arbitrarily."
+[
+  d acceptsKey: assoc key
+].
+
+m@(Mapping traits) includesKey: key
+"This returns true if the Mapping includes the argument as a key value."
+[
+  m at: key ifAbsent: [^ False].
+  True
+].
+
+m@(Mapping traits) at: key ifAbsent: block
+"The fundamental method to override for accessing; answer the value for the given
+key or the result of the block if the key is not present."
+[
+  overrideThis
+].
+
+m@(Mapping traits) at: key
+"Answer the value stored for the given key. If it's not present, raise an error."
+[
+  m at: key ifAbsent: [key keyNotFoundOn: m]
+].
+
+m@(Mapping traits) at: key ifAbsentPut: block
+"Answer the value stored for the given key, or if there is none, store and answer
+the result of the block for the key. Override this for efficiency concerns."
+[
+  m at: key ifAbsent: [m at: key put: block do]
+].
+
+m@(Mapping traits) at: key ifPresent: block
+"Answer the result of applying the block to the value stored with the given key,
+or Nil if there is none."
+[
+  block applyWith: (m at: key ifAbsent: [^ Nil])
+].
+
+m@(Mapping traits) at: key ifPresent: presentBlock ifAbsent: absentBlock
+"Answer the result of applying presentBlock to the value stored with the given key,
+or the result of absentBlock if there is none."
+[
+  presentBlock applyWith: (m at: key ifAbsent: [^ absentBlock do])
+].
+
+m@(Mapping traits) at: key put: obj
+"Store an object for the given key; the fundamental mutation for a Mapping."
+[
+  overrideThis
+].
+
+m@(Mapping traits) add: assoc@(Association traits)
+"Adds a new key value pair to the Mapping from an assocation.
+For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
+[
+  m at: assoc key put: assoc value.
+  assoc
+].
+
+m@(Mapping traits) removeKey: key ifAbsent: block
+"Remove the definition of the key and its value from the Mapping, and answer
+the object that was stored there, or answer the result of the block if there
+is no such definition."
+[
+  overrideThis
+].
+
+m@(Mapping traits) removeKey: key
+"Remove the key and its value from the Mapping, or answer Nil if the key is
+not present."
+[
+  m removeKey: key ifAbsent: []
+].
+
+m@(Mapping traits) keyAtValue: obj ifAbsent: block
+"Answer a key at which the given object is stored, or the result of the block
+if the object is not stored for any key."
+[
+  overrideThis
+].
+
+m@(Mapping traits) keyAtValue: obj
+"Answer a key at which the given object is stored, or Nil if the object is not
+stored for any key."
+[
+  m keyAtValue: obj ifAbsent: [Nil]
+].
+
+m@(Mapping traits) keysAndValuesDo: block
+"Applies a two-argument block to each key and value pair that the Mapping contains.
+The first argument will be the key and the second the value.  The order of
+traversal of the Mapping is undefined."
+[
+  overrideThis
+].
+
+m@(Mapping traits) keysDo: block
+"Applies a single-argument block to each key in the Mapping.
+This is the default safe implementation which should be overridden for efficiency."
+[
+  m keysAndValuesDo: [| :key :value | block applyWith: key]
+].
+
+m@(Mapping traits) valuesDo: block
+"Applies a single-argument block to each keyed value in the Mapping.
+This is the default safe implementation which should be overridden for efficiency."
+[
+  m keysAndValuesDo: [| :key :value | block applyWith: value]
+].
+
+m@(Mapping traits) do: block
+"Applies a single-argument block to each keyed value in the Mapping.
+Equivalent to valuesDo:."
+[m valuesDo: block].
+
+m@(Mapping traits) infect: block
+"Applies the block to each key from the Mapping replacing the value mapped to
+that key with the result."
+[
+  m keysAndValuesDo:
+    [| :key :value |
+     m at: key put: (block applyWith: value)].
+  m
+].
+
+m@(Mapping traits) at: key infect: block
+"Applies the block to the value at key replacing the value in the Mapping
+with the result."
+[
+  m at: key put: (block applyWith: (m at: key)).
+  m
+].
+
+m@(Mapping traits) mapSelect: block into: result
+"Applies the block to each key and value pair in the Mapping and replaces
+the value in the provided Mapping at the key with the result.  The first
+argument of the block is key and the second is the value."
+[
+  m keysAndValuesDo:
+    [| :key :value |
+      (block applyWith: key with: value)
+        ifTrue: [result at: key put: value]].
+  result
+].
+
+m@(Mapping traits) mapSelect: block
+"Applies the block to each key and value pair in the Mapping and replaces
+the value at the key with the result.  The first argument of the block is
+key and the second is the value."
+[
+  m mapSelect: block into: m new
+].
+
+m@(Mapping traits) mapReject: block
+"Applies the block to each key and value pair in the Mapping and replaces
+the value at the key with the result.  The first argument of the block is
+key and the second is the value."
+[
+  m mapSelect: [| :key :value | (block applyTo: {key. value}) not] into: m new
+].
+
+m@(Mapping traits) perfect: block
+"Iterates repeatedly through the Mapping applying the provided
+block to each value and replacing the value in place with the
+new value until none of the values change.
+
+Idea envisioned by Travis Griggs."
+[| perfected newValue |
+  perfected: (m copy infect: [| :_ | False]).
+  "Perfected records whether each element has reached a fixed point."
+  [ m keysAndValuesDo:
+      [| :key :value |
+	(perfected at: key)
+	  ifFalse: [ newValue: (block applyWith: (m at: key)).
+		      m at: key put: newValue.
+		      perfected at: key put: value = newValue]].
+    perfected allSatisfy: [| :each | each]] whileFalse.
+  m
+].
+
+m@(Mapping traits) allSatisfy: block
+"Tests each value in the Mapping.  If applying the block to any
+value returns False then returns False, otherwise returns True."
+[
+  overrideThis
+].
+
+d@(Mapping traits) atSatisfying: block
+"Iterates over the Mapping applying the block to each key and
+returns the value associated with the first key for which the
+block returns True.  If the block does not return True for any
+of the keys then Nil is returned.  Note that since the order
+of traversal for a Mapping is not defined, the value returned
+is not guaranteed to be the same from one call of this function
+to the next."
+[
+  d keysAndValuesDo:
+    [| :key :value | (block applyWith: key) ifTrue: [^ value]].
+].
+
+keys@(Collection traits) project: valueBlock into: map@(Mapping traits)
+"Iterates over the Collection of keys applying the block
+to each key and setting the value of the Mapping at the
+key to the value returned by the block."
+[
+  keys do: [| :key | map at: key put: (valueBlock applyWith: key)].
+  map
+].
+
+keys@(Collection traits) project: valueBlock
+"Iterates over the Collection of keys creating a new entry
+in the Mapping for each key and setting the value to the
+result of applying the block to each key."
+[keys project: valueBlock into: (Dictionary newSizeOf: keys)].
+
+values@(Collection traits) reverseProject: keyBlock into: map@(Mapping traits)
+"Iterates over the Collection of values creating a new entry
+in the Mapping for each key returned by the block, with the value
+stored there."
+[
+  values do: [| :value | map at: (keyBlock applyWith: value) put: value].
+  map
+].
+
+values@(Collection traits) reverseProject: keyBlock
+"Iterates over the Collection of values creating a new entry
+in the Mapping for each key returned by the block, with the value
+stored there."
+[values reverseProject: keyBlock into: (Dictionary newSizeOf: values)].

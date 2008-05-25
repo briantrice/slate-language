@@ -1,0 +1,395 @@
+"A port of OmniBrowser, the generic Squeak browser framework by Colin Putney."
+
+prototypes ensureNamespace: #browsing &delegate: True.
+
+browsing define: #MetaNode &parents: {Cloneable}
+  &slots: {#filter. "The object type used to filter children."
+	   #column. "The object type of the column to display children."
+	   #edges -> ExtensibleArray new.
+	   "Messages that could be sent to the node to obtain children."
+	   #actors -> ExtensibleArray new.
+	   "Providers of functionality to manipulate the node."
+	   #displaySelector -> #name "The message used to retrieve the display name."}.
+"A hypothetical BrowseNode in the browser's domain graph."
+
+n@(MetaNode traits) new &name: name
+[| newN |
+  newN: (n cloneSettingSlots: #(edges actors) to: {n edges new. n actors new}).
+  name ifNotNil: [newN name: name].
+  newN
+].
+
+n@(MetaNode traits) childAt: selector put: metaNode &label: label
+[n edges add: (MetaEdge newNamed: label selector: selector metaNode: metaNode)].
+
+n@(MetaNode traits) children [n edges collect: #metaNode`er].
+
+n@(MetaNode traits) hasChildren [n edges isEmpty not].
+
+n@(MetaNode traits) nodesFollowing: node
+[
+  [| :result |
+   n edges do: [| :edge | result ; (edge nodesFollowing: node)]] writingAs: #{}
+].
+
+n@(MetaNode traits) columnInPanel: panel node: node
+[
+  n Column inPanel: panel metaNode: n node: node
+].
+
+browsing define: #MetaEdge &parents: {Cloneable}
+  &slots: {#label -> ''. "A String describing the metaNode, for filters which allow the user to choose which edges to follow."
+	   #selector -> #children. "The message to send to obtain children when a BrowseNode is selected by the user."
+	   #metaNode -> MetaNode "A MetaNode corresponding to the BrowseNodes answered by the selector."}.
+"An edge in the browser's metagraph. It represents a message sent to a
+BrowseNode to obtain further Nodes. It is referred to by the parent MetaNode,
+and refers to the child MetaNode."
+
+e@(MetaEdge traits) newNamed: label selector: selector metaNode: metaNode
+[e cloneSettingSlots: #(label selector metaNode) to: {label. selector. metaNode}].
+
+e@(MetaEdge traits) nodesFollowing: node
+[(node perform: e selector) `>> [do: [| :each | each metaNode: e metaNode]. ]].
+
+browsing define: #BrowseNode &slots: {#metaNode "The producer of this node."}.
+"A wrapper for an object in the browser's domain graph. Derive from this to
+specialize for different kinds of concrete nodes."
+
+n@(BrowseNode traits) isAncestorOf: another@(BrowseNode traits)
+"Whether one node subsumes another in the domain in question."
+[overrideThis].
+
+browsing define: #Panel &parents: {Cloneable} &slots: {#browser}.
+"Manages part of the browser window. It provides a protocol for receiving
+notifications when the current domain BrowseNode changes, and reacts to the changes."
+
+browsing define: #Browser &parents: {Cloneable}
+  &slots: {#panels -> ExtensibleArray new ""}.
+"The root object for each browsing session. It manages the Panel objects, mainly
+passing update messages between them."
+"TODO: add forking tree behavior? Use a continuation?"
+
+Browser traits define: #MetaGraphs &builder: [Dictionary new].
+"Maps names to metagraphs."
+
+b@(Browser traits) addPanel: p@(Panel traits)
+[
+  b panels add: p.
+  p browser: b.
+].
+
+browsing define: #Column &parents: {Cloneable} &slots:
+  {#panel. "The controlling Panel."
+   #filter. "The Filter managing the related MetaNode."
+   #previousNode. "The BrowseNode selected in the Column to the left of this."
+   #children -> {}. "The BrowseNodes which make up this list."
+   #selection -> Nil "The index of the node selected by the user."}.
+"TODO: handle multiple selections?"
+
+MetaNode column: Column.
+
+Column addMutator:
+  [| :c :node | c atSlotNamed: #previousNode put: node.
+   c getChildren.
+   c clearSelection.
+   node] for: #previousNode.
+
+c@(Column traits) getChildren
+[c children: (c filter nodesFollowing: c previousNode)].
+
+c@(Column traits) nextMetaNode
+[c selectedNode metaNode].
+
+c@(Column traits) selectedNode
+"Answer the child at the selection."
+[c children at: c selection ifAbsent: []].
+
+c@(Column traits) hasSelection [c selection isNotNil].
+
+c@(Column traits) clearSelection [c selection: Nil].
+
+c@(Column traits) refresh
+[| node oldChildren |
+  c isEmpty ifTrue: [^ c].
+  node: c selectedNode.
+  oldChildren: c children.
+  c getChildren.
+  c children = oldChildren
+    ifFalse:
+      [c chooseSilently: node.
+       c hasSelection
+	 ifFalse:
+	   [c clearNext.
+	    c panel nodeChanged]].
+].
+
+c@(Column traits) choose: n@(BrowseNode traits)
+[c selection: (c children indexOf: n ifAbsent: [])].
+
+c@(Column traits) shouldBeLast
+[c hasSelection not \/ [c nextMetaNode hasChildren not]].
+
+c@(Column traits) isEmpty
+[c previousNode isNil].
+
+c@(Column traits) metaNode
+[c filter metaNode].
+
+c@(Column traits) basicNext
+[c panel columns after: c].
+
+c@(Column traits) selected
+[
+  c next ifNotNilDo:
+    [| :next | next metaNode: c nextMetaNode parent: c selectedNode]
+].
+
+c@(Column traits) selectAncestorOf: node
+[| ancestor |
+  ancestor: (c filter selectAncestorOf: node after: c previousNode).
+  ancestor
+    ifNotNil:
+      [c getChildren.
+       c choose: ancestor.
+       c selected]
+].
+
+c@(Column traits) createNext
+[
+  c panel columns push:
+    (c nextMetaNode columnInPanel: c panel node: c selectedNode)
+].
+
+c@(Column traits) next
+[
+  c basicNext ifNil: [c hasSelection /\ [c shouldBeLast not]
+			ifTrue: [c createNext]]
+].
+
+c@(Column traits) clearNext
+[c basicNext ifNotNilDo: #clear`er].
+
+c@(Column traits) clear
+[
+  c clearNext.
+  c filter: Nil.
+  c previousNode: Nil.
+  c children: c children new.
+  c clearSelection.
+].
+
+c@(Column traits) metaNode: meta parent: node
+[
+  c filter: meta filter.
+  c previousNode: node.
+  c clearNext.
+].
+
+browsing define: #BrowseChain &parents: {Panel} &slots:
+  {#columns -> Stack new.
+   #minColumns -> 1. "The minimum number of columns that should be visible."
+   #maxColumns -> 1 "The maximum number of columns that should be visible."}.
+"Handles navigation around the Nodes of the object graph. It maintains a list
+of Columns, which track the user path through the node tree. As nodes are
+selected, additional columns are added to the list."
+"TODO: add forking tree behavior? Use a continuation/linked-list setup?"
+
+b@(BrowseChain traits) emptyColumn
+[Column new `>> [panel: b. ]].
+
+b@(BrowseChain traits) node: n@(BrowseNode traits)
+[
+  b columns push: (n metaNode columnInPanel: b node: n).
+  b minColumns - m columns size
+    timesRepeat: [m columns push: m emptyColumn].
+].
+
+b@(BrowseChain traits) root
+[b columns first parent].
+
+b@(BrowseChain traits) jumpTo: n@(BrowseNode traits)
+[| column ancestor |
+  column: b columns first.
+  [ancestor: (column selectAncestorOf: n).
+   ancestor = n \/ [ancestor isNil]]
+    whileFalse:
+      [column: (b columns after: column ifAbsent: [^ Nil])].
+].
+
+b@(BrowseChain traits) hopTo: n@(BrowseNode traits)
+[| column |
+  column: b columns last.
+  [column refresh. column children includes: n]
+    whileFalse:
+      [column: (columns before: column ifAbsent: [^ (b jumpTo: n)])].
+  column choose: n.
+].
+
+b@(BrowseChain traits) jumpToRoot
+[b columns first selection: Nil].
+
+b@(BrowseChain traits) sizing
+[b columns size min: b maxColumns max: b minColumns].
+
+b@(BrowseChain traits) canTrimColumn
+[
+  b columns size <= b minColumns
+    /\ [b columns last isEmpty \/
+	  [(b columns at: b columns indexLast - 1) shouldBeLast]]
+].
+
+b@(BrowseChain traits) trimColumns
+[| oldSize |
+  oldSize: b columns size.
+  [b canTrimColumn] whileTrue: [b columns removeLast].
+  oldSize - b columns size
+].
+
+b@(BrowseChain traits) currentColumn
+"Answer the last column with an actual selection made."
+[b columns reversed detect: #hasSelection`er ifNone: []].
+
+b@(BrowseChain traits) currentNode
+"Answer the furthest Node selected along the path."
+[b currentColumn ifNotNilDo: #selectedNode`er].
+
+b@(BrowseChain traits) currentNodeOrRoot
+[(b columns reversed detect: #hasSelection`er ifNone: [^ b root]) selectedNode].
+
+browsing define: #Filter &parents: {Cloneable} &slots:
+  {#metaNode. ""
+   #monitor ""}.
+"A Browser's metagraph defines the way in which the user may traverse the graph
+of objects which make up the Browser's domain. Since it is not always desirable
+to have all the nodes made available by the metagraph to be visible in the
+browser, a Filter provides a strategy to filter out some of the nodes from the
+display. The default Filter does not filter anything."
+
+MetaNode filter: Filter.
+
+f@(Filter traits) children [f metaNode children].
+
+f@(Filter traits) nodesAfter: previous
+[f metaNode nodesFollowing: previous].
+
+f@(Filter traits) selectAncestorOf: node after: previous
+[
+  (f metaNode nodesFollowing: previous)
+    detect: [| :child | child isAncestorOf: node]
+].
+
+browsing define: #ModalFilter &parents: {Filter} &slots: {#selection}.
+"This filters the Nodes of Column according to the edge of the metagraph that
+they correspond to. Only Nodes whose edge is currently in the selection are
+allowed in the Column."
+
+f@(ModalFilter traits) list
+"Answer the list of edge names that are relevant."
+[f metaNode edges collect: #label`er].
+
+browsing define: #CodeNode &parents: {BrowseNode}.
+"A type of BrowseNode for program/in-image elements as such. This simply
+categorizes and doesn't provide behavior."
+
+Root traits define: #BrowseNode &parents: {CodeNode} &slots:
+  {#object -> Nil. "The object represented."}.
+"Generic object browsing facilities."
+
+n@(Root BrowseNode traits) newOn: obj
+[n cloneSettingSlots: #(object) to: {obj}].
+
+x@(Root traits) browseNode
+[x BrowseNode newOn: x].
+
+n@(Root BrowseNode traits) users
+"Find methods that send the name of this object."
+"TODO: Answer a more sophisticated node that can tell the signature or some
+other identification?"
+[n printName intern senders collect: #browseNode`er].
+
+n@(Root BrowseNode traits) traitsSlots
+[n traits slotNames collect: #browseNode`er].
+
+n@(Root BrowseNode traits) isAncestorOf: another@(Root BrowseNode traits)
+[n object isReally: another object].
+
+Method traits define: #BrowseNode &parents: {Root BrowseNode}.
+
+n@(Method BrowseNode traits) senders &in: namespace
+[
+  n object selector ifNil: [{}] ifNotNilDo:
+    [| :sel | (sel senders &in: namespace) collect:
+      [| :sender | sender browseNode]]
+].
+
+n@(Method BrowseNode traits) implementations &in: namespace
+[
+  n object selector ifNil: [{}] ifNotNilDo:
+    [| :sel | (sel implementations &in: namespace) collect:
+      [| :m | m browseNode]]
+].
+
+n@(Method BrowseNode traits) inheritance &limit: limit
+[
+].
+
+browsing define: #SlotNode &parents: {CodeNode} &slots:
+  {#object -> Nil. #slotName -> #''}.
+
+n@(SlotNode traits) newOn: obj named: slotName
+[
+  (obj hasSlotNamed: slotName)
+    ifTrue: [n cloneSettingSlots: #(object slotName) to: {obj. slotName}]
+].
+
+n@(Root BrowseNode traits) slots
+[
+  n object slotNames collect:
+    [| :slotName | SlotNode newOn: n object named: slotName]
+].
+
+Namespace traits define: #BrowseNode &parents: {Root BrowseNode}.
+
+browsing define: #WellKnownNode &parents: {CodeNode} &slots:
+  {#path -> Path new}.
+"A BrowseNode representing something canonically reachable from the lobby."
+
+n@(WellKnownNode traits) newOn: path
+[n cloneSettingSlots: #(path) to: (path as: n path)].
+
+_@lobby browseNode
+"Have the lobby represented by a no-Path WellKnownNode."
+[WellKnownNode newOn: {}].
+
+n@(WellKnownNode traits) slots
+"Have WellKnownNodes answer new WellKnownNodes for their slot values."
+[
+  n path target slotNames collect:
+    [| :slotName | n newOn: (n path childNamed: slotName)]
+].
+
+browsing define: #PrototypeNode &parents: {WellKnownNode}.
+"For objects which are the well-known representatives of their type."
+
+n@(PrototypeNode traits) parents
+[
+  n object traitsWindow slotValues collect: #browseNode`er
+].
+
+browsing define: #RoleNode &parents: {CodeNode} &slots:
+  {}.
+
+browsing define: #SelectorNode &parents: {CodeNode} &slots:
+  {#selector -> #''}.
+
+n@(SelectorNode traits) newOn: selector
+[n cloneSettingSlots: #(selector) to: {selector}].
+
+Sequence traits define: #BrowseNode &parents: {Root BrowseNode}.
+
+n@(Sequence traits) indexedSlots
+[n object collect: #browseNode`er].
+
+browsing define: #FileSystemNode &parents: {BrowseNode} &slots: {#locator}.
+
+browsing define: #DirectoryNode &parents: {FileSystemNode}.

@@ -1,0 +1,276 @@
+obj@(Root traits) notABoolean
+[error: obj printString ; ' is not a Boolean.'].
+
+(conditions define: #SlotError &parents: {Error})
+  `>> [addSlot: #object. addSlot: #slotName. ].
+"Errors related to slot manipulations."
+
+conditions define: #SlotNotFound &parents: {SlotError}.
+
+obj@(Root traits) slotNotFoundNamed: name
+[(SlotNotFound new `>> [object: obj. slotName: name. ]) signal].
+
+snf@(SlotNotFound traits) describeOn: out
+[
+  out ; 'The object ' ; snf object printString ;
+   ' does not have a slot named ' ; snf slotName printString ; '.\n'
+].
+
+(conditions define: #SlotTypeError &parents: {SlotError})
+  `>> [addSlot: #type. ].
+"Results from attempting to assign a value to a slot that is incompatible with
+a specified type for the slot."
+
+conditions define: #ProtocolError &parents: {Error}.
+"A ProtocolError is an Error from not complying with an object's reuse protocol."
+
+(conditions define: #LexicalContextExpired &parents: {ProtocolError})
+  `>> [addSlot: #method. addSlot: #lexicalContext].
+
+method@(Method traits) mayNotReturnTo: lexicalContext
+[(LexicalContextExpired new `>> [method: method. lexicalContext: lexicalContext. ]) signal].
+
+lce@(LexicalContextExpired traits) describeOn: out
+[
+  out ; 'The method ' ; lce method printString ; ' attempted to access an expired lexical context.\n'
+].
+
+(conditions define: #WrongInputs &parents: {ProtocolError})
+  `>> [addSlot: #method. addSlot: #arguments. ].
+"A WrongInputs is a ProtocolError signaled when the wrong number of arguments are applied to a Method."
+
+args wrongInputsTo: method@(Method traits)
+[(WrongInputs new `>> [method: method. arguments: args. ]) signal].
+
+wi@(WrongInputs traits) describeOn: out
+[
+  out ; 'The arguments:\n' ; wi arguments printString ;
+    '\ndo not apply to:\n' ; wi method printString ;
+    '\nwhich has an arity of: ' ; wi method arity printString ; '\n'
+].
+
+(conditions define: #Message &parents: {Cloneable})
+  `>> [addSlot: #selector. addSlot: #arguments.
+       addSlot: #optionals valued: {}. ].
+"A Message describes a message-send at runtime, and usually only exists for
+debugging packaging."
+
+m@(Message traits) sending: selector to: args &optionals: optionals
+[
+  optionals `defaultsTo: #{}.
+  m cloneSettingSlots: #(selector arguments optionals)
+    to: {selector. args. optionals}
+].
+
+m@(Message traits) send
+"Try to send the message."
+[m selector sendTo: m arguments &optionals: m optionals].
+
+(conditions define: #MethodNotFound &parents: {ProtocolError})
+  `>> [addSlot: #message valued: Message.
+       "The Message describing what send failed."].
+
+"A MethodNotFound is a ProtocolError signaled when dispatch fails."
+
+selector@(Symbol traits) notFoundOn: arguments &optionals: optionals
+"Query the arguments for an abnormal handler before signalling MethodNotFound."
+[| message |
+  message: (Message sending: selector to: arguments &optionals: optionals).
+  arguments doWithIndex:
+    [| :arg :index | (arg didNotUnderstand: message at: index) ifNotNilDo:
+      [| :result | ^ result do]].
+  (MethodNotFound new `>> [message: message. ]) signal
+].
+
+x@(Root traits) didNotUnderstand: message at: index
+"This should return a Method which is deemed suitable for responding to the
+message.
+By default, do nothing and answer Nil, signalling that it was not handled."
+[].
+
+mnf@(MethodNotFound traits) describeOn: out
+[| message |
+  message: mnf message.
+  out ; 'The method ' ; message selector printString
+   ; ' was not found for the following arguments:\n' ; message arguments printString.
+  message optionals isEmpty ifFalse:
+    [out ; '\nwith optionals:\n' ; message optionals printString].
+  out ; '\n'
+].
+
+(conditions define: #MethodResentNotFound &parents: {MethodNotFound})
+  `>> [addSlot: #method valued: []. ].
+"A MethodNotFound when a resend is performed."
+
+selector@(Symbol traits) notFoundOn: arguments after: method &optionals: optionals
+[
+  (MethodResentNotFound new `>>
+    [message: (Message sending: selector to: arguments &optionals: optionals).
+     method: method. ]) signal
+].
+
+mnf@(MethodResentNotFound traits) describeOn: out
+[
+  out ; 'The method ' ; mnf message selector printString
+   ; ' was not found for the following arguments:\n' ; mnf message arguments printString
+   ; '\nafter method:\n' ; mnf method printString.
+  mnf message optionals isEmpty ifFalse:
+    [out ; '\nwith optionals:\n' ; mnf message optionals printString].
+  out ; '\n'
+].
+
+conditions define: #OverrideThis &parents: {ProtocolError}.
+"An OverrideThis is an Error signaled when a method was not properly overridden."
+
+_@(OverrideThis traits) describeOn: out
+[
+  out ; 'The method was not defined by a child object as required.\n'
+].
+
+_@lobby overrideThis
+[
+  OverrideThis signal
+].
+
+_@lobby TODO
+[error: 'This method should be implemented but is not.'].
+
+_@lobby TODO: message
+[error: 'This method should be implemented but is not.\nNote: ' ; message].
+
+conditions define: #ShouldNotImplement &parents: {ProtocolError}.
+"An ShouldNotImplement is an Error signaled when a method that shouldn't be defined is defined."
+
+_@(ShouldNotImplement traits) describeOn: out
+[
+  out ; 'The method should not be implemented on a child object.\n'
+].
+
+_@lobby shouldNotImplement
+[
+  ShouldNotImplement signal
+].
+
+(conditions define: #ConversionNotFound &parents: {Error})
+  `>> [addSlot: #source. addSlot: #target. ].
+"A ConversionNotFound is an Error signaled when the use of as: is on arguments
+for which no reasonable conversion exists."
+
+x@(Root traits) conversionNotFoundTo: y
+[(ConversionNotFound new `>> [source: x. target: y. ]) signal].
+
+c@(ConversionNotFound traits) describeOn: out
+[
+  out ; 'A suitable conversion method could not be found to convert between these two objects:\n'
+   ; c source printString ; '\n' ; c target printString ; '\n'.
+].
+
+numerics define: #OperationError &parents: {Error}.
+"A numeric operation error. This offers the ability to continue with some
+value."
+(numerics OperationError define: #ReturnInput &parents: {Restart})
+  `>> [addSlot: #newValue valued: 0. "The value to return from the operation."].
+
+r@(OperationError ReturnInput traits) queryFrom: d
+[
+  d console ; 'Select a value to return: '.
+  r newValue: (d evaluate: d parser next).
+].
+
+_@(OperationError ReturnInput traits) describeOn: out
+[
+  out ; 'Select a new value to return\n'
+].
+
+r@(OperationError ReturnInput traits) defaultHandler
+[
+  r condition return: r newValue
+].
+
+_@(OperationError traits) describeOn: out
+[
+  out ; 'Numeric operation error.\n'
+].
+
+"[| :restart | restart condition return: restart newValue]"
+
+(numerics define: #DivideByZero &parents: {numerics OperationError})
+  `>> [addSlot: #dividend valued: 0. "The number which division was taken on."].
+"A division by zero error."
+
+e@(DivideByZero traits) describeOn: out
+[
+  out ; 'Divide by zero of ' ; e dividend printString ; '.\n'
+].
+
+e@(DivideByZero traits) of: x
+[e new `>> [dividend: x. ]].
+
+(Collection traits define: #Condition &parents: {Condition})
+ `>> [addSlot: #collection.
+      "The collection that is the subject of this condition."].
+
+cond@(Collection Condition traits) newFor: coll
+[cond new `>> [collection: coll. ]].
+
+cond@(Collection Condition traits) describeOn: out
+[
+  out ; 'Collection ' ; cond collection printString
+   ; ' signaled: ' ; cond name ; '\n'.
+].
+
+(Collection traits define: #ElementNotFound &parents: {Error. Collection Condition})
+  `>> [addSlot: #element. ].
+
+enf@(Collection ElementNotFound traits) describeOn: out
+[
+  out ; enf collection printString ; ' does not contain: '
+   ; enf element printString ; '\n'.
+].
+
+element elementNotFoundOn: c@(Collection traits)
+[
+  (c ElementNotFound newFor: c) `>> [element: element. signal]
+].
+
+Collection traits define: #IsEmpty &parents: {Error. Collection Condition}.
+
+ie@(Collection IsEmpty traits) describeOn: out
+[
+  out ; ie collection printString ; ' is empty.\n'
+].
+
+c@(Collection traits) emptyCheck
+[
+  c isEmpty ifTrue: [(c IsEmpty newFor: c) signal]
+].
+
+Collection traits define: #IsFull &parents: {Error. Collection Condition}.
+
+if@(Collection IsFull traits) describeOn: out
+[
+  out ; if collection printString ; ' is full.\n'
+].
+
+if@(Collection IsFull traits) defaultHandler
+[
+  if collection grow
+].
+
+c@(Collection traits) fullCheck
+[
+  c isFull ifTrue: [(c IsFull newFor: c) signal]
+].
+
+(Mapping traits define: #KeyNotFound &parents: {Error. Collection Condition})
+  `>> [addSlot: #key. ].
+"A key which was not found in the specified collection."
+
+knf@(Mapping KeyNotFound traits) describeOn: out
+[
+  out ; knf key printString ; ' is not a key in '
+   ; knf collection printString ; '\n'.
+].
+
+key keyNotFoundOn: m@(Mapping traits)
+[((m KeyNotFound newFor: m) `>> [key: key. ]) signal].

@@ -1,0 +1,218 @@
+"The low-level types and their word-sizes:"
+
+Types ensureNamespace: #primitive &delegate: True.
+
+Types primitive define: #_Primitive &parents: {Types Any}.
+Types primitive define: #_Condition &parents: {Types _Primitive}.
+Types primitive define: #_Address &parents: {Types _Primitive}.
+Types primitive define: #_Address32 &parents: {Types _Address}.
+Types primitive define: #_Address64 &parents: {Types _Address}.
+Types primitive define: #_Integer &parents: {Types _Primitive}.
+Types primitive define: #_Signed &parents: {Types _Integer}.
+Types primitive define: #_Signed8 &parents: {Types _Signed}.
+Types primitive define: #_Signed16 &parents: {Types _Signed}.
+Types primitive define: #_Signed32 &parents: {Types _Signed}.
+Types primitive define: #_Signed64 &parents: {Types _Signed}.
+Types primitive define: #_Unsigned &parents: {Types _Integer}.
+Types primitive define: #_Unsigned8 &parents: {Types _Unsigned}.
+Types primitive define: #_Unsigned16 &parents: {Types _Unsigned}.
+Types primitive define: #_Unsigned32 &parents: {Types _Unsigned}.
+Types primitive define: #_Unsigned64 &parents: {Types _Unsigned}.
+Types primitive define: #_Float &parents: {Types _Primitive}.
+Types primitive define: #_Float32 &parents: {Types _Float}.
+Types primitive define: #_Float64 &parents: {Types _Float}.
+
+t@(Types _Primitive traits) byteSize 
+[(t bitSize + 7) // 8].
+
+t@(Types _Primitive traits) byteAlignment 
+[t byteSize].
+
+t@(Types _Primitive traits) alignedSize
+[
+  t byteAlignment `cache.
+  (t byteSize / t byteAlignment) ceiling * t byteAlignment
+].
+
+(Types primitive define: #_Array &parents: {Types _Primitive. Types Array})
+  `>> [addSlot: #size valued: 0. ].
+
+t@(Types _Array traits) of: element size: size
+[t clone `>> [type: element. size: size. ]].
+
+t@(Types _Array traits) bitSize 
+[t size * t alignedSize * 8].
+
+t@(Types _Array traits) byteAlignment
+[t type byteAlignment].
+
+_@(Types _Primitive traits) bitSize [Nil].
+_@(Types _Condition traits) bitSize [1].
+_@(Types _Address32 traits) bitSize [32].
+_@(Types _Address64 traits) bitSize [64].
+_@(Types _Signed8 traits) bitSize [8].
+_@(Types _Signed16 traits) bitSize [16].
+_@(Types _Signed32 traits) bitSize [32].
+_@(Types _Signed64 traits) bitSize [64].
+_@(Types _Unsigned8 traits) bitSize [8].
+_@(Types _Unsigned16 traits) bitSize [16].
+_@(Types _Unsigned32 traits) bitSize [32].
+_@(Types _Unsigned64 traits) bitSize [64].
+_@(Types _Float32 traits) bitSize [32].
+_@(Types _Float64 traits) bitSize [64].
+
+x@(Types _Address traits) union: y@(Types _Address traits)
+[
+  (x bitSize max: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Address traits) union: y@(Types _Unsigned traits)
+[
+  (x bitSize max: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Unsigned traits) union: y@(Types _Address traits)
+[
+  (x bitSize max: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Address traits) intersection: y@(Types _Address traits)
+[
+  (x bitSize min: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Address traits) intersection: y@(Types _Unsigned traits)
+[
+  (x bitSize min: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Unsigned traits) intersection: y@(Types _Address traits)
+[
+  (x bitSize min: y bitSize) = 32
+    ifTrue: [Types _Address32]
+    ifFalse: [Types _Address64]
+].
+
+x@(Types _Float traits) union: y@(Types _Float traits)
+[
+  (x bitSize max: y bitSize) = 32 
+    ifTrue: [Types _Float32]
+    ifFalse: [Types _Float64]
+].
+
+x@(Types _Float traits) intersection: y@(Types _Float64 traits)
+[
+  (x bitSize min: y bitSize) = 32
+    ifTrue: [Types _Float32]
+    ifFalse: [Types _Float64]
+].
+
+x@(Types _Unsigned traits) union: y@(Types _Unsigned traits)
+[
+  (x bitSize max: y bitSize)
+    caseOf:
+      {8 -> [Types _Unsigned8].
+       16 -> [Types _Unsigned16].
+       32 -> [Types _Unsigned32]}
+    otherwise: [Types _Unsigned64]
+].
+
+x@(Types _Unsigned traits) intersection: y@(Types _Integer traits)
+[
+  (x bitSize min: y bitSize)
+    caseOf:
+      {8 -> [Types _Unsigned8].
+       16 -> [Types _Unsigned16].
+       32 -> [Types _Unsigned32]}
+    otherwise: [Types _Unsigned64]
+].
+
+x@(Types _Integer traits) intersection: y@(Types _Unsigned traits)
+[
+  y intersection: x
+].
+
+x@(Types _Signed traits) union: y@(Types _Integer traits)
+[
+  (x bitSize max: y bitSize)
+    caseOf:
+      {8 -> [Types _Signed8].
+       16 -> [Types _Signed16].
+       32 -> [Types _Signed32]}
+    otherwise: [Types _Signed64]
+].
+
+x@(Types _Integer traits) union: y@(Types _Signed traits)
+[
+  y union: x
+].
+
+x@(Types _Signed traits) intersection: y@(Types _Signed traits)
+[
+  (x bitSize min: y bitSize)
+    caseOf:
+      {8 -> [Types _Signed8].
+       16 -> [Types _Signed16].
+       32 -> [Types _Signed32]}
+    otherwise: [Types _Signed64]
+].
+
+_@(Root traits) primitiveType
+[
+  Types Any
+].
+
+_@(SingleFloat traits) primitiveType
+[
+  Types _Float32
+].
+
+"
+_@(DoubleFloat traits) primitiveType
+[
+  Types _Float64
+].
+"
+
+integer@(Integer traits) primitiveType
+[
+  integer >= 0
+    ifTrue:
+      [
+        integer <= 16rFF
+          ifTrue:
+            [^ Types _Unsigned8].
+        integer <= 16rFFFF
+          ifTrue:
+            [^ Types _Unsigned16].
+        integer <= 16rFFFFFFFF
+          ifTrue:
+            [^ Types _Unsigned32].
+        Types _Unsigned64
+      ]
+    ifFalse:
+      [
+        integer >= -16r80
+          ifTrue:
+            [^ Types _Signed8].
+        integer >= -16r8000
+          ifTrue:
+            [^ Types _Signed16].
+        integer >= -16r80000000
+          ifTrue:
+            [^ Types _Signed32].
+        Types _Signed64
+      ]
+].
+
+            

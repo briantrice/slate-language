@@ -1,0 +1,459 @@
+ExternalLibrary traitsWindow _map delegates at: ExternalLibrary traitsWindow _map delegates size - 2 put: ExternalResource traits.
+ExternalLibrary addSlotsFrom: ExternalResource.
+ExternalLibrary addSlot: #name valued: Nil.
+
+prototypes define: #ExternalMethod &parents: {Method. ExternalResource}
+  &slots: {#name. #argumentsFormat -> {}. #callFormat. #resultFormat}.
+
+m@(ExternalMethod traits) selector [m name ifNotNilDo: [| :name | name intern]].
+m@(ExternalMethod traits) arity [m argumentsFormat size].
+m@(ExternalMethod traits) allSelectorsSent [#{}].
+m@(ExternalMethod traits) optionalKeywords [#{}].
+
+ExternalLibrary traits define: #ConnectionFailed
+		       &parents: {ExternalResource ConnectionFailed}.
+
+l@(ExternalLibrary ConnectionFailed traits) describeOn: out
+[
+  out ; 'Could not open DLL \'' ; (l resource name as: String) ; '\''.
+].
+
+l@(ExternalLibrary traits) currentErrorString
+[| buffer |
+  buffer: (String newSize: 256).
+  buffer first: (l primitiveErrorInto: buffer)
+].
+
+ExternalMethod traits define: #ConnectionFailed
+  &parents: {DescriptiveConditionMixin. ExternalResource ConnectionFailed}.
+
+m@(ExternalMethod ConnectionFailed traits) describeOn: out
+[
+  out ; 'Could not look up symbol \'' ; (m resource locator as: String) ; '\' in DLL \'' ;
+    (m resource parentResource name as: String) ; '\''.
+  out ; 'The error was: ' ; m description.
+].
+
+r@(ExternalMethod traits) connectionFailure
+[
+  (r ConnectionFailed cloneSettingSlots: #(resource description) to:
+    {r. ExternalLibrary currentErrorString}) signal
+].
+
+ExternalMethod traits ensureNamespace: #ArgumentFormat
+  &slots: {#Void -> 0. #Int -> 1. #Float -> 2. #Pointer -> 3. #Bytes -> 4.
+	  #Boolean -> 5. #CString -> 6. #CStructValue -> 7. #Double -> 8}.
+
+ExternalMethod traits ensureNamespace: #CallFormat
+  &slots: {#C -> 0. #Std -> 1}.
+
+ExternalLibrary traits define: #cTypeToExtlibType -> Dictionary new.
+ExternalLibrary cTypeToExtlibType addAll: {
+  Types C Void             -> ExternalMethod ArgumentFormat Void.
+  Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Int.
+  Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Int.
+  Types C UnsignedChar     -> ExternalMethod ArgumentFormat Int.
+  Types C LongInt          -> ExternalMethod ArgumentFormat Int.
+  Types C ShortInt         -> ExternalMethod ArgumentFormat Int.
+  Types C Char             -> ExternalMethod ArgumentFormat Int.
+}.
+
+ExternalLibrary traits define: #pointedCTypeToExtlibType -> Dictionary new.
+ExternalLibrary pointedCTypeToExtlibType addAll: {
+  Types C Void             -> ExternalMethod ArgumentFormat Bytes.
+  Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Bytes.
+  Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Bytes.
+  Types C LongInt          -> ExternalMethod ArgumentFormat Bytes.
+  Types C ShortInt         -> ExternalMethod ArgumentFormat Bytes.
+
+  Types C UnsignedChar     -> ExternalMethod ArgumentFormat CString.
+  Types C Char             -> ExternalMethod ArgumentFormat CString.
+}.
+
+ExternalMethod `>> [
+  callFormat: ExternalMethod CallFormat C.
+  resultFormat: ExternalMethod ArgumentFormat Void.
+].
+
+d@(ExternalLibrary traits) newNamed: libName
+[
+  [[(d cloneSettingSlots: #(name) to: {libName}) open]
+    on: d ConnectionFailed do:
+      [| :c |
+       (c resource name beginsWith: 'lib/')
+         ifTrue: [c defaultHandler]
+         ifFalse: [c resource name: 'lib/' ; c resource name.
+		   c return: c resource open]]]
+   ifCompletes: [inform: 'Library ' ; libName ; ' was successfully loaded.']
+].
+
+d@(ExternalLibrary traits) enable
+"Prevent using the ExternalLibrary as much as possible if opening fails."
+[
+  d handle: (ByteArray newSize: bytesPerWord).
+  (d primitiveOpen: d name handle: d handle)
+    ifFalse: [d handle: Nil. d connectionFailure]
+].
+
+d@(ExternalLibrary traits) disable
+[
+  d primitiveClose: d handle.
+].
+
+d@(ExternalLibrary traits) functionNamed: symname
+[
+  (ExternalMethod cloneSettingSlots:
+    #(parentResource locator name) to: {d. symname. symname}) open
+].
+
+e@(ExternalLibrary traits) functionNamed: symname returning: returnType &callFormat: format
+[
+  e functionNamed: symname returning: returnType from: {} &callFormat: format
+].
+
+e@(ExternalLibrary traits) functionNamed: symname returning: returnType from: argTypes &callFormat: format
+[
+  (e functionNamed: symname) `>> [| :method |
+    resultFormat: returnType. argumentsFormat: argTypes.
+    callFormat: (format ifNil: [method callFormat]). ]
+].
+
+e@(ExternalLibrary traits) externalTypeFor: ctype@(Number traits) in: ns
+"This method is responsible to resolve types in the method specifications into
+an ExternalMethod ArgumentFormat."
+[ctype].
+
+e@(ExternalLibrary traits) externalTypeFor: sym@(Symbol traits) in: ns &argumentFormats: af
+"Look up a type defined by sym; tries these in ordfer:
+ - optional af map, which is a Symbol -> ExternalMethod ArgumentFormat * map
+ - the provided namespace ns
+ - any ExternalMethod ArgumentFormat"
+[| result structName |
+  structName: ('_' ; sym as: Symbol).
+  af ifNotNil: [result: (af at: sym ifAbsent: [Nil])].
+  result isNil /\ [structName isFoundOn: {ns}] ifTrue: [result: (structName sendWith: ns)].
+  result isNil /\ [sym isFoundOn: {ns}] ifTrue: [result: (sym sendWith: ns)].
+  result isNil /\ [ns ~== Types C] /\ [sym isFoundOn: {Types C}] 
+    ifTrue: [result: (sym sendWith: Types C)].
+  result isNil /\ [sym isFoundOn: {ExternalMethod ArgumentFormat}]
+    ifTrue: [result: (sym sendWith: ExternalMethod ArgumentFormat)].
+  result ifNil: [error: 'No type translation found for ' ; sym printString].
+  "Call itself again to resolve the type that was looked up if necessary"
+  e externalTypeFor: result in: ns
+].
+
+e@(ExternalLibrary traits) externalTypeFor: ctype@(Types C Type traits) in: ns
+[
+  e cTypeToExtlibType at: ctype ifAbsent: [error: 'No type translation found for ' ; ctype cName printString]
+].
+
+e@(ExternalLibrary traits) externalTypeFor: _@(Types C Structure traits) in: _
+[ExternalMethod ArgumentFormat CStructValue].
+
+e@(ExternalLibrary traits) externalTypeFor: ctype@(Types C Pointer traits) in: ns
+[
+  "Structures are not singletons, we must spacial-case them here"
+  (ctype targetType is: Types C Structure) ifTrue: [^ ExternalMethod ArgumentFormat Bytes].
+  e pointedCTypeToExtlibType at: ctype targetType ifAbsent: [ExternalMethod ArgumentFormat Pointer]
+].
+
+ExternalMethod traits define: #Signature
+  &slots: {#name -> ''. #returnType. #argTypes -> {}}.
+
+s@(ExternalMethod Signature traits) named: name returning: returnType from: argTypes
+[s cloneSettingSlots: #(name returnType argTypes) to: {name. returnType. argTypes}].
+
+e@(ExternalLibrary traits) signatureNamed: name returning: returnType from: argTypes
+[ExternalMethod Signature named: name returning: returnType from: argTypes].
+
+e@(ExternalLibrary traits) functionFor: sig@(ExternalMethod Signature traits)
+[e functionNamed: sig name returning: sig returnType from: sig argTypes].
+
+e@(ExternalLibrary traits) signaturesForDefs: defs &typesIn: ns &argumentFormats: af
+"Answers ExternalMethod Signature objects for each size-3 sequence in the
+input collection.
+Format:1 - return type as symbol,  2 - String name, 3 - array of argument types
+as symbols (can be empty).
+ - &typesIn: is an optional namespace to use for type lookup
+ - &argumentFormats: is a map that directly defines
+    Symbol -> ExternalMethod ArgumentFormat mappings
+    TODO: argumentFormats is a bad name."
+[
+  ns ifNil: [ns: Types C].
+  defs collect:
+    [| :return :fname :args |
+     e signatureNamed: fname
+       returning: (e externalTypeFor: return in: ns &argumentFormats: af)
+       from: ((args ifNil: [{}]) collect: [| :ctype | e externalTypeFor: ctype in: ns &argumentFormats: af])] applier
+].
+
+e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
+  &nameTransformer: nameTransformer &argumentFormats: af
+[
+  sigs
+    do: [| :sig functionName method |
+         functionName: (nameTransformer applyWith: sig name).
+	 target addSlot: (intern: sig name) valued:
+	   (e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af)].
+].
+
+e@(ExternalLibrary traits) installMethodsForDefs: defs on: target
+  &typesIn: ns &callFormat: cf &nameTransformer: nameTransformer &argumentFormats: af
+"Installs all signatures specified as blocks in slots on the target;
+defs must be an array of size-3 sequences. See signaturesForDefs: for format details.
+ - &callFormat: is the extlib call format to use
+ - &nameTransformer: is applied to the method name to get the slot name
+"
+[
+  nameTransformer ifNil: [nameTransformer: Method Identity].
+  (e signaturesForDefs: defs &typesIn: (ns ifNil: [target]) &argumentFormats: af)
+    do: [| :sig slotName method |
+         slotName: (intern: (nameTransformer applyWith: sig name)).
+	 target addSlot: slotName valued:
+	   (e functionNamed: sig name returning: sig returnType from: sig argTypes &callFormat: cf)].
+].
+
+m@(ExternalMethod traits) enable
+[| d |
+  d: m parentResource.
+  m handle: (ByteArray newSize: bytesPerWord).
+  (d primitiveLookup: m name handle: d handle into: m handle)
+    ifTrue: [m]
+    ifFalse: [m handle: Nil. m connectionFailure]
+].
+
+m@(ExternalMethod traits) applyTo: args
+[| answer |
+  args size = m arity ifFalse: [args wrongInputsTo: m].
+  answer: (m parentResource primitiveApply: m handle accepting: m argumentsFormat callFormat: m callFormat returning: m resultFormat to: args).
+  (m resultFormat = m ArgumentFormat Int) /\ [answer is: ByteArray]
+    ifTrue: [answer as: BigInteger]
+    ifFalse: [answer]
+].
+
+prototypes define: #CObject &parents: {ByteArray}
+  &slots: {#specification -> Types C Structure clone.
+	   #storage -> ByteArray new "Where the data is stored; could also be a MemoryArea or a slice thereof."}.
+"CObject uses a ByteArray to hold the payload contents of an actual or
+potential C struct value. It can automatically generate accessor methods based
+on a struct definition."
+
+s@(CObject traits) newBasedOn: spec@(Types C Structure traits)
+"This creates a new CObject with accessor methods as defined by the supplied
+Types C Structure spec. Call this method once, and clone the result,
+because this call is relatively expensive."
+[
+  (s cloneSettingSlots: #(storage specification) to:
+    {s storage newSize: spec byteSize. spec}) `>> [addAccessors. ]
+].
+
+s@(CObject traits) addAccessors
+[
+  s specification walkElements:
+    [| :path :offset elementType methodName |
+      elementType: path top type.
+      methodName: ((path collect: [| :part | part cName name]) join &separator: '_') intern.
+      (elementType accessorForOffset: offset // 8) ifNotNilDo:
+	[| :block | block asMethod: (s accessorNameFor: methodName) on: {s}].
+      (elementType mutatorForOffset: offset // 8) ifNotNilDo:
+	[| :block | block asMethod: (s mutatorNameFor: methodName) on: {s. NoRole}]]
+].
+
+"Various accessor blocks:" (
+
+type@(Types C Type traits) accessorForOffset: offset
+"Answers a Method appropriate for getting the data value stored in an object
+of this C Type at the given offset."
+[overrideThis].
+
+type@(Types C Type traits) mutatorForOffset: offset
+"Answers a Method appropriate for setting a new data value in an object of
+this C Type at the given offset."
+[overrideThis].
+
+type@(Types C Structure traits) accessorForOffset: offset [Nil].
+type@(Types C Structure traits) mutatorForOffset: offset [Nil].
+
+type@(Types C Char traits) accessorForOffset: offset
+[
+  [| :s value | (value: (s storage at: offset)) > 16r7f
+		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+].
+
+type@(Types C UnsignedChar traits) accessorForOffset: offset
+[[| :s | s storage at: offset]].
+
+type@(Types C Char traits) mutatorForOffset: offset
+[[| :s :value | s storage at: offset put: value]].
+
+type@(Types C UnsignedChar traits) mutatorForOffset: offset
+[[| :s :value | s storage at: offset put: value]].
+
+"ShortInt"
+
+type@(Types C ShortInt traits) accessorForOffset: offset
+[
+  [| :s value | (value: (s storage int16At: offset / 2)) > 16r7fff
+		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+].
+
+type@(Types C UnsignedShortInt traits) accessorForOffset: offset
+[[| :s | s storage int16At: offset / 2]].
+
+type@(Types C ShortInt traits) mutatorForOffset: offset
+[[| :s :value | s storage int16At: offset / 2 put: value]].
+
+type@(Types C UnsignedShortInt traits) mutatorForOffset: offset
+[[| :s :value | s storage int16At: offset / 2 put: value]].
+
+"LongInt"
+
+type@(Types C LongInt traits) accessorForOffset: offset
+[
+  [| :s value | (value: (s storage int32At: offset / 4)) > 16r7fffffff
+		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+].
+
+type@(Types C UnsignedLongInt traits) accessorForOffset: offset
+[[| :s | s storage int32At: offset / 4]].
+
+type@(Types C LongInt traits) mutatorForOffset: offset
+[[| :s :value | s storage int32At: offset / 4 put: value]].
+
+type@(Types C UnsignedLongInt traits) mutatorForOffset: offset
+[[| :s :value | s storage int32At: offset / 4 put: value]].
+
+).
+
+"Parsing from array
+TODO these have not much to do with CObject, should go somewhere else, probably under src/mobius/c/
+But unfortunately there are CObject references here below, so I don't know"
+
+s@(CObject traits) parseDefinition: def named: name in: ns
+[
+  def
+].
+
+s@(CObject traits) parseDefinition: type@(Types C Type traits) named: name in: ns
+[
+  Types C StructureElement newNamed: name type: type
+].
+
+_@(CObject traits) parseDefinition: typeName@(Symbol traits) named: name in: ns
+"Try to find a struct prefixed by '_' then look for a defined type in ns. If
+neither was found try Types C"
+[| structName |
+  structName: ('_' ; typeName as: Symbol).
+  Types C StructureElement newNamed: name type:
+    ((structName isFoundOn: {ns})
+      ifTrue: [structName sendWith: ns]
+      ifFalse: [typeName sendWith: ((typeName isFoundOn: {ns})
+        ifTrue: [ns] ifFalse: [Types C])])
+].
+
+s@(CObject traits) parseDefinition: col@(Collection traits) named: name in: ns
+[| type |
+  type: ((col first sendWith: Types C) newNamed: name).
+  col allButFirst do:
+    [| :name :def |
+     type addElement: (s parseDefinition: def named: name intern in: ns)]
+    applier.
+  Types C StructureElement newNamed: name type: type
+].
+
+s@(CObject traits) parseDefinitionsFrom: col@(Collection traits) into: ns@(Namespace traits)
+"Expects a 2*n sized collection. First element is a name, second is a definition. A definition
+can be either a symbol or a collection. Symbols are tried to be looked up first in the
+provided namespace, then in Types C. In case the definition is a collection the first element
+defines its type (#Structure/#Union), rest is the same recursively. Successfully
+processed definitions are added as slot values to the namespace. Structure names are
+prefixed by '_' and a CObject is created from them which is then added by the name
+without any prefix. This CObject is to be cloned later."
+[
+  col do: [| :name :def |
+    name: (name as: Symbol).
+    s addDefinition: (s parseDefinition: def named: name in: ns) named: name into: ns] applier.
+].
+
+_@(CObject traits) addDefinition: def@(Types C Structure traits) named: name into: ns
+"Add the specification prefixed by '_' and create a CObject which is added by the name.
+Later on this CObject should be clone'd"
+[| baseName |
+  baseName: name.
+  name: ('_' ; name) intern.
+  resend.
+  ns addSlot: baseName valued: (CObject newBasedOn: def)
+].
+
+s@(CObject traits) addDefinition: def@(Types C StructureElement traits) named: name into: ns
+"Strip off top level StructureElement and add the type itself"
+[
+  s addDefinition: def type named: name into: ns
+].
+
+_@(CObject traits) addDefinition: def named: name into: ns
+[
+  ns addSlot: name valued: def
+].
+
+prototypes define: #ExternalInterface
+  &parents: {Cloneable}
+  &slots: {#primitives -> Namespace clone.
+	   #library -> ExternalLibrary. #specs -> {}. #leader -> ''}.
+"This facade manages ExternalLibrary objects, by also setting up and
+holding their ExternalMethods and specs to re-generate them.  The leader
+is a prefix for all the function names, but not the generated method
+names.
+
+The primitives specifications should be a collection of three-element
+sequences.  The elements:  The first element should be the return type
+of the primitive as a symbol naming one of the types under External
+ArgumentFormat.  The second element specifies the desired name of the
+primitive as well as the function name in the library minus the leader.
+The third element should be a collection specifying the argument types
+as symbols naming elements of ExternalMethod ArgumentFormat; this can be
+an empty array ({}) if the function takes no arguments.
+
+To call a primitive use it's name as a slot name on the #primitives
+slot and use it as a block, e.g. via #applyTo:.
+
+Generally you would use this primitive by deriving from it a primitive
+that represents the external library.  And then adding methods to it
+that do any work to marshall the arguments and then call the external
+functions with them."
+
+h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader: leader
+[| newH |
+  newH: (h cloneSettingSlots: #(library primitives specs) to:
+    {(h library newNamed: libName). h primitives new.
+     h library signaturesForDefs: primSpecs &typesIn: ExternalMethod ArgumentFormat}).
+  leader ifNotNil: [newH leader: leader].
+  newH
+].
+
+h@(ExternalInterface traits) enable
+[
+  h library enable.
+  h library installMethodsForSigs: h specs on: (h primitives) &nameTransformer: #; `er <- h leader.
+  h
+].
+
+h@(ExternalInterface traits) disable
+[
+  h library disable.
+  h
+].
+
+n@(Namespace traits) loadPlugin: pluginName
+"A convenience method to load a plugin Slate wrapper."
+"TODO: Build the plugin if there is an error or quick detection result."
+[
+  [n load: 'src/plugins/' ; pluginName ; '/' ; pluginName escaped ; '.slate']
+    on: File NotFound do:
+      [| :c | error: 'A standard plugin of that name could not be found.'.
+       c return: Nil]
+].
+
+n@(Namespace traits) buildPlugin: pluginName
+"A convenience method to build a Slate FFI plugin."
+[Platform run: 'make -C ./src/plugins/' ; pluginName escaped ; '/'].

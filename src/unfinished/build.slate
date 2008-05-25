@@ -1,0 +1,74 @@
+
+define: #Builder &slots: {#tasks -> Dictionary new}.
+
+Builder traits define: #Task
+  &slots: {#name -> #''. #prerequisites -> Set new. #lastUpdated}.
+
+t@(Task traits) action
+[overrideThis].
+
+t@(Task traits) update
+"Execute the task if it is needed."
+[
+  t isUpToDate ifTrue:
+    [t prerequisites do: #update `er.
+     t execute].
+].
+
+t@(Task traits) execute
+[
+  t action.
+  
+].
+
+t@(Task traits) newNamed: name dependingOn: prerequisites doing: block
+[t clone `>>
+   [| :newT | name: name. lastUpdated: Nil.
+    prerequisites: t prerequisites new. dependOn: prerequisites.
+    (block asMethod: #action on: {newT}). ]
+].
+
+t@(Task traits) isUpToDate
+[
+  t prerequisites inject: True into:
+    [| :result :each | result /\ each isUpToDate]
+].
+
+t@(Task traits) dependOn: dep@(Task traits)
+[t prerequisites include: dep].
+
+t@(Task traits) dependOn: deps@(Collection traits)
+[t prerequisites includeAll: deps].
+
+Builder traits define: #FileTask &parents: {Task} &slots: {#file}.
+
+t@(FileTask traits) newNamed: name dependingOn: prerequisites doing: block
+[resend `>> [| :newT | file: (File newNamed: newT name). ]].
+
+t@(Task traits) newNamed: name@(File Locator traits) dependingOn: prerequisites doing: block
+[FileTask newNamed: name dependingOn: prerequisites doing: block].
+
+t@(FileTask traits) isUpToDate
+"A File-based Task is up to date if the file exists and is newer than all
+of its prerequisites."
+[
+  t file exists /\ [t file lastModifiedTime `cache <= t lastUpdated]
+   /\ [t prerequisites allSatisfy:
+	[| :each | each exists /\
+	   [each lastModifiedTime < file lastModifiedTime]]]
+].
+
+b@(Builder traits) taskNamed: name
+[b tasks at: name ifAbsentPut: [b Task newNamed: name dependingOn: {}]].
+
+obj@(Builder traits) defineTask: assoc@(Association traits)
+[
+  assoc `withSlotsDo:
+    [| :key :value |
+     (obj hasSlotNamed: key)
+       ifTrue: [| :old | old: (obj atSlotNamed: key).
+		(old is: Task) ifTrue: [old dependOn: dep]].
+     obj define: (Task newNamed: key dependingOn: value).
+].
+
+defineTask: #taskName dependingOn: {prerequisites} doing: block.

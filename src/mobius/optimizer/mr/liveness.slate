@@ -1,0 +1,156 @@
+fun@(Optimizer MR Function traits) computeAnticipated
+"Compute whether a variable is used at any successor of a basic block."
+[
+  fun
+    doBackwardDataflow:
+      [| :bb oldSize |
+        oldSize: (bb liveIn ifNil: [0] ifNotNil: [bb liveIn size]).
+        bb liveIn: IdentitySet new.
+        bb successors isEmpty
+          ifTrue:
+            [bb liveIn includeAll: fun outputVariables].
+        bb successors
+          do:
+            [| :succ used |
+              succ liveIn ifNotNil: [bb liveIn includeAll: succ liveIn]
+            ].
+        bb instructions
+          reverseDo:
+            [| :inst |
+              inst
+                outputsDo:
+                  [| :var :mode |
+                    (var is: Optimizer MR LocalVariable)
+                      ifTrue: [bb liveIn remove: var]
+                  ].
+              inst
+                inputsDo:
+                  [| :var :mode |
+                    (var is: Optimizer MR LocalVariable)
+                      ifTrue: [bb liveIn include: var]
+                  ]
+            ].
+        bb liveIn size ~= oldSize
+      ]
+].
+
+fun@(Optimizer MR Function traits) computeAvailable
+"Compute whether a variable is defined at all predecessors of a basic block."
+[
+  fun
+    doForwardDataflow:
+      [| :bb oldSize |
+        oldSize: (bb liveOut ifNil: [0] ifNotNil: [bb liveOut size]).
+        bb predecessors isEmpty
+          ifTrue:
+            [bb liveOut: (IdentitySet newWithAll: (fun inputVariables select: [| :var | var register isNotNil]))]
+          ifFalse:
+            [bb liveOut: Nil.
+              bb predecessors
+                do:
+                  [| :pred |
+                    pred liveOut
+                      ifNotNil:
+                        [bb liveOut
+                          ifNil:
+                            [bb liveOut: pred liveOut copy]
+                          ifNotNil:
+                            [bb liveOut
+                              removeAllSuchThat:
+                                [| :var | (pred liveOut includes: var) not]]]
+                  ].
+              bb liveOut ifNil: [bb liveOut: IdentitySet new]    
+            ].      
+        bb instructions
+          do:
+            [| :inst |
+              inst
+                outputsDo:
+                  [| :var :mode |
+                    (var is: Optimizer MR LocalVariable)
+                      ifTrue:
+                        [bb liveOut include: var]
+                  ]
+            ].
+        bb liveOut size ~= oldSize   
+      ]
+].
+
+fun@(Optimizer MR Function traits) computeIntervals
+[| position |
+  position: 0.
+  fun basicBlocks 
+    do:
+      [| :bb |
+        bb liveIn
+          do:
+            [| :var |
+              var intervalStart
+                ifNil:
+                  [var intervalStart: position]
+            ].
+        bb instructions
+          do:
+            [| :inst | 
+              inst
+                inputsDo:
+                  [| :var :mode |
+                    (var is: Optimizer MR LocalVariable)
+                      ifTrue:
+                        [var intervalStart
+                          ifNil: 
+                            [var intervalStart: position].
+                          var intervalEnd: position]
+                  ].
+              inst
+                outputsDo:
+                  [| :var :mode |
+                    (var is: Optimizer MR LocalVariable)
+                      ifTrue:
+                        [var intervalStart
+                          ifNil:
+                            [var intervalStart: position].
+                          var intervalEnd: position]
+                  ].
+              position: position + 1  
+            ].
+        bb liveOut
+          do:
+            [| :var |
+              var intervalEnd: position
+            ]
+      ].
+  fun localVariables:
+    ((fun localVariables select: [| :var | var intervalStart isNotNil])
+      destructiveSortBy:
+        [| :x :y |
+          x intervalStart < y intervalStart
+        ])
+].
+
+        
+fun@(Optimizer MR Function traits) computeLiveness
+[
+  fun computeAvailable.
+  fun computeAnticipated.
+  fun basicBlocks 
+    do:
+      [| :bb |
+        "Compute live on incoming from the anticipated set."
+        "A variable is not live on incoming if it's not defined at all predecessors." 
+        bb liveIn
+          removeAllSuchThat:
+            [| :var |
+              bb predecessors noneSatisfy: [| :pred | pred liveOut includes: var]
+            ].
+        "Compute live on outgoing from the available set."
+        "A variable is not live on outgoing if it's not used at any successor."
+        bb liveOut
+          removeAllSuchThat:
+            [| :var |
+              bb successors noneSatisfy: [| :succ | succ liveIn includes: var]
+            ]
+      ].
+  fun computeIntervals
+].
+

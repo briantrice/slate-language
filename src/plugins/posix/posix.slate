@@ -1,0 +1,65 @@
+
+prototypes ensureNamespace: #POSIX.
+
+POSIX define: #Lib
+  &builder: [ExternalInterface newForLibrary: 'posix' primitives:
+    #(
+      (Boolean CreateDirectory (CString))
+      (Boolean DeleteDirectory (CString))
+      (Boolean LinkFile (CString CString))
+      (Boolean UnlinkFile (CString))
+      (Boolean SymbolicLinkFile (CString CString))
+      (Int ReadSymbolicLinkInto (CString Bytes Int))
+      (Boolean RenameFile (CString CString))
+      (Boolean RemoveFile (CString))
+      (Boolean CreateFIFO (CString))
+      "(Boolean CreateFSNode (CString Int Int))??"
+      "(Boolean ChangeFileModes (CString Int))??"
+      "(Boolean GetFileInfo (CString))??"
+      ) &leader: 'slate_'].
+
+POSIX Lib enable.
+
+d@(Directory traits) ensureExists
+[POSIX Lib primitives CreateDirectory applyTo: {d locator as: String}].
+
+d@(Directory traits) delete
+[POSIX Lib primitives DeleteDirectory applyTo: {d locator as: String}].
+
+l@(File Locator traits) hardLinkTo: target
+[POSIX Lib primitives LinkFile applyTo: {l as: String. target locator as: String}].
+
+l@(File Locator traits) symbolicLinkTo: target
+[POSIX Lib primitives SymbolicLinkFile applyTo: {l as: String. target locator as: String}].
+
+l@(File Locator traits) linkTo: target &static: static
+[
+  (static ifNil: [False])
+    ifTrue: [l hardLinkTo: target] ifFalse: [l symbolicLinkTo: target]
+].
+
+l@(File Locator traits) unlink
+[POSIX Lib primitives Unlink applyTo: {l as: String}].
+
+l@(File Locator traits) symbolicTarget
+[| buffer bufSize |
+  buffer: (ByteArray newSize: 1024).
+  bufSize: (POSIX Lib primitives ReadSymbolicLinkInto applyTo:
+    {l as: String. buffer. 1024}).
+  ((buffer first: bufSize) as: String) as: l
+].
+
+f@(File traits) renameTo: newName
+[
+  (POSIX Lib primitives RenameFile applyTo:
+    {f locator as: String. newName as: String})
+      ifTrue: [f locator: (newName as: f locator)].
+  f
+].
+
+f@(File traits) delete
+[POSIX Lib primitives RemoveFile applyTo: {f locator as: String}].
+
+l@(File Locator traits) createFIFO
+"TODO: Make a FIFO ExternalResource type?"
+[POSIX Lib primitives CreateFIFO applyTo: {l as: String}].

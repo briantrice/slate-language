@@ -1,0 +1,242 @@
+"This is a port of Stephen Pair's VersionNumber package for Squeak."
+
+prototypes define: #Version &parents: {Comparable} &slots:
+  {#numbers -> #() "The numbers forming it; default first, prototype version."}.
+"Represents a branchable, numeric version number."
+
+v@(Version traits) newFor: s@(Sequence traits)
+[v cloneSettingSlots: #(numbers) to: {s as: v numbers}].
+
+s@(Sequence traits) as: v@(Version traits)
+[v newFor: s].
+
+str@(String traits) as: v@(Version traits)
+"Reads a string with number-strings separated by periods... a version name."
+[
+  ((str splitWith: $.) collect: [| :each | each as: Number]) as: v
+].
+
+Version traits compareAndHashUsingSlots: #(numbers).
+
+v1@(Version traits) < v2@(Version traits)
+[
+  (v1 isInSameBranchAs: v2) ifFalse: [error: 'Incomparable versions.'].
+  v1 numbers size = v2 numbers size
+     ifTrue: [v1 numbers with: v2 numbers
+			 do: [| :n1 :n2 | n1 < n2 ifTrue: [^ True]].
+	      False]
+     ifFalse: [v1 numbers size < v2 numbers size]
+].
+
+v1@(Version traits) isInSameBranchAs: v2@(Version traits)
+[| short long |
+  v1 numbers size <= v2 numbers size
+     ifTrue: [short: v1 numbers. long: v2 numbers]
+     ifFalse: [long: v1 numbers. short: v2 numbers].
+  0 below: short size - 1
+    do: [| :index | (short at: index) = (long at: index) ifFalse: [^ False]].
+  short size = long size \/ [short last <= long last]
+].
+
+v1@(Version traits) commonVersionWith: v2@(Version traits)
+[| short long threshold |
+  v1 numbers size <= v2 numbers size
+     ifTrue: [short: v1 numbers. long: v2 numbers]
+     ifFalse: [long: v1 numbers. short: v2 numbers].
+  threshold: ((0 below: short size)
+         detect: [| :index | (short at: index) ~= (long at: index)]
+	 ifNone: [^ (v1 newFrom: short)]).
+  v1 newFrom: (v1 numbers copyFrom: 0 to: threshold - 2)
+    ;; {short at: threshold. long at: threshold}
+].
+
+v@(Version traits) previous
+[| nums |
+  v numbers last <= 1 ifTrue: [^ (v newFrom: v numbers allButLast)].
+  nums: v numbers copy.
+  nums at: nums size - 1 put: nums last - 1.
+  v newFrom: nums
+].
+
+v@(Version traits) next
+[| nums |
+  nums: v numbers copy.
+  nums at: nums size - 1 put: nums last + 1.
+  v newFrom: nums
+].
+
+v@(Version traits) branchNext
+[
+  v newFrom: v numbers ;; {1}
+].
+
+v@(Version traits) versionStringOn: s
+[
+  v numbers
+    do: [| :each | each printOn: s]
+    separatedBy: [s nextPut: $.].
+  v
+].
+
+v@(Version traits) printOn: s
+[
+  s nextPut: $\'.
+  v versionStringOn: s.
+  s ; '\' as: Version'.
+  v
+].
+
+prototypes define: #VersionHistory &parents: {Cloneable} &slots:
+  {#versions valued: Set new}.
+"A collection of VersionNumbers forming a version tree. This enforces rules
+about adding and removing versions from the history."
+"TODO: replace #versions value with an appropriate Tree collection structure."
+
+h@(VersionHistory traits) newFor: v@(Version traits)
+[h cloneSettingSlots: #(versions) to: {h versions newWith: v}].
+
+h@(VersionHistory traits) firstVersion
+[
+  h versions
+    inject: h versions anyOne
+    into: [| :result :each |
+	(result isInSameBranchAs: each)
+	  ifTrue: [result < each ifTrue: [result] ifFalse: [each]]
+	  ifFalse: [each]]
+].
+
+h@(VersionHistory traits) versionsAfter: v
+[| result |
+  result: h versions new.
+  h versions
+    do: [| :each | (each isInSameBranchAs: v) /\ [each > v]
+	  ifTrue: [result include: each]].
+  result
+].
+
+h@(VersionHistory traits) versionsBefore: v
+[| result |
+  result: h versions new.
+  h versions
+    do: [| :each | (each isInSameBranchAs: v) /\ [each < v]
+	  ifTrue: [result include: each]].
+  result
+].
+
+h@(VersionHistory traits) mainLineStartingAt: v
+"Answer all versions based on the given one that are not branches (they have  
+the same number of digits with the same values, except the last value is
+greater than the last value of the given version)."
+[| tmp |
+  [| :result |
+   tmp: v.
+   [h versions includes: tmp]
+     whileTrue: [result nextPut: tmp. tmp: tmp next]]
+       writingAs: ExtensibleArray
+].
+
+h@(VersionHistory traits) versionBefore: v
+"Answer the immediately preceding version unless it is invalid or the version
+history doesn't contain it."
+[| tmp |
+  v > Version ifFalse: [^ Nil].
+  tmp: v previous.
+  (h versions includes: tmp) ifTrue: [tmp]
+].
+
+h@(VersionHistory traits) versionsAfter: v
+"Answer all the versions immediately following the given one."
+[| result tmp |
+  result: h versions new.
+  tmp: v next.
+  (h versions includes: tmp)
+    ifTrue: [result include: tmp].
+  tmp: v.
+  [h versions includes: (tmp: tmp branchNext)]
+    whileTrue: [result include: tmp].
+  result
+].
+
+h@(VersionHistory traits) canRemove: v
+[| hasPriors followers |
+  (h versions includes: v)
+   /\ [hasPriors: (h versionBefore: v) isNotNil.
+       followers: (h versionsAfter: v).
+       "Prevent versions in the middle from extraction."
+       (hasPriors /\ [followers isEmpty not]) not
+       "Prevent versions with more than one follower from extraction."
+	 /\ [(hasPriors not /\ [followers size > 1]) not]]
+].
+
+h@(VersionHistory traits) includes: v
+[h versions includes: v].
+
+h@(VersionHistory traits) addNewVersionBasedOn: v
+[| tmp |
+  (h versions includes: v)
+    ifFalse: [error: 'Version is not in the history.'].
+  tmp: v next.
+  (h versions includes: tmp)
+    ifFalse: [h versions include: tmp. ^ tmp].
+  tmp: v.
+  [h versions includes: (tmp: tmp branchNext)] whileTrue.
+  h versions include: tmp.
+  tmp
+].
+
+h@(VersionHistory traits) remove: v
+[
+  h remove: v ifAbsent: [error: 'Version not found.']
+].
+
+h@(VersionHistory traits) remove: v ifAbsent: block
+[
+  (h versions includes: v) ifFalse: [^ block do].
+  (h canRemove: v) ifFalse: [error: 'Only versions at the beginning or end with at most one follower can be removed.'].
+  h versions remove: v.
+  h
+].
+
+h@(VersionHistory traits) removeBranch: v
+"Remove the version and all its successors, as long as it is not the first."
+[
+  (h versionBefore: v)
+    ifNil: [error: 'This is the first version in the history.'].
+  h versions removeAll: (h allVersionsAfter: v).
+  h versions remove: v.
+  h
+].
+
+h@(VersionHistory traits) removeTrunk: v
+"Remove the version and all of its predecessors, unless there are branches.
+The trunk is defined as all versions starting with the first which have only
+one successor."
+[| tmp |
+  (h versionsAfter: v) size > 1 ifTrue: [error: 'The version is at a fork.'].
+  tmp: (h allVersionsBefore: v).
+  (tmp detect: [| :each | (h versionsAfter: each) size > 1]
+       ifNone: [])
+    ifNotNil: [error: 'Not a trunk. Other branches detected.'].
+  h versions removeAll: tmp.
+  h versions remove: v.
+  h
+].
+
+h@(VersionHistory traits) treeStringOn: s startingAt: v
+[| line |
+  line: (h mainLineStartingAt: v).
+  line do: [| :each | each versionStringOn: s.
+		s ; '  '].
+  s nextPut: $\n.
+  line do: [| :each | (h versions includes: each branchNext)
+		ifTrue: [h treeStringOn: s startingAt: each branchNext]].
+  h
+].
+
+h@(VersionHistory traits) treeString &start: v
+"Answer a string showing everything up to a given version (or the entire
+history), with each branch on a new line."
+[
+  [| :str | h treeStringOn: str startingAt: (v ifNil: [h firstVersion])]
+   writingAs: ''
+].

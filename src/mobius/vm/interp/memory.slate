@@ -1,0 +1,96 @@
+Image define: #AllObjectsReadStream &parents: {ReadStream}
+  &slots: {#currentObject -> Nil}.
+"Iterates over all objects in the image, in memory order."
+
+s@(Image AllObjectsReadStream traits) newOn: x
+[
+  error: 'This must be called on the Image object.'
+].
+
+s@(Image AllObjectsReadStream traits) newOn: _@Image
+[
+  s clone `>> [reset. ]
+].
+
+s@(Image AllObjectsReadStream traits) reset
+[
+  s currentObject: lobby firstObject.
+].
+
+i@Image reader
+[i AllObjectsReadStream newOn: i].
+
+s@(Image AllObjectsReadStream traits) isAtEnd
+[
+  lobby isLastObject: s currentObject
+].
+
+s@(Image AllObjectsReadStream traits) peek
+[
+  lobby nextObjectAfter: s currentObject
+].
+
+s@(Image AllObjectsReadStream traits) next
+[
+  s currentObject: s peek
+].
+
+Image define: #DelegatesToReadStream &parents: {Image AllObjectsReadStream}
+  &slots: {#target -> Nil}.
+"Yields all objects in the Image delegating to the particular target object."
+
+s@(Image DelegatesToReadStream traits) reset
+[
+  s currentObject: (lobby firstObjectDelegatingTo: s target).
+].
+
+s@(Image DelegatesToReadStream traits) newOn: _@Image &target: x
+[
+  s clone `>> [target: x. reset. ]
+].
+
+s@(Image DelegatesToReadStream traits) peek
+[
+  lobby nextObjectAfter: s currentObject delegatingTo: s target
+].
+
+s@(Image DelegatesToReadStream traits) isAtEnd
+[
+  lobby isLastObject: s currentObject delegatingTo: s target
+].
+
+x@(Root traits) childStream
+[
+  Image DelegatesToReadStream newOn: Image &target: x
+].
+
+Image define: #ReferrersToReadStream &parents: {Image AllObjectsReadStream}
+  &slots: {#target -> Nil}.
+"Yields all objects in the Image referring to the particular target object."
+
+s@(Image ReferrersToReadStream traits) reset
+[
+  s currentObject: (lobby firstObjectReferringTo: s target).
+].
+
+s@(Image ReferrersToReadStream traits) newOn: _@Image &target: x
+[
+  s clone `>> [target: x. reset. ]
+].
+
+s@(Image ReferrersToReadStream traits) peek
+"Avoids the stream itself appearing in the stream. Hopefully activations won't
+show up in it as well..."
+[
+  lobby nextObjectAfter: s currentObject referringTo: s target
+].
+
+s@(Image ReferrersToReadStream traits) isAtEnd
+[
+  lobby isLastObject: s currentObject referringTo: s target
+].
+
+x@(Root traits) referrerStream
+[
+  Image ReferrersToReadStream newOn: Image &target: x
+].

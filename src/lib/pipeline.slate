@@ -1,0 +1,37 @@
+streams define: #Pipeline &slots:
+{#components -> Set new "DiGraph?"}.
+
+"Pseudo-code derived from GStreamer, http://gstreamer.freedesktop.org."
+
+Pipeline traits define: #Element &slots: {#pads -> Dictionary new}.
+
+e1@(Pipeline Element traits) linkTo: e2@(Pipeline Element traits)
+[overrideThis].
+
+e@(Pipeline Element traits) linkToAll: c
+[overrideThis].
+
+e1@(Pipeline Element traits) unlink: e2@(Pipeline Element traits)
+[overrideThis].
+
+e1@(Pipeline Element traits) linkPad: p1 toPad: p2 of: e2
+[overrideThis].
+
+e1@(Pipeline Element traits) unlinkPad: p1 toPad: p2 of: e2
+[overrideThis].
+
+e@(Pipeline Element traits) state
+[overrideThis].
+
+e@(Pipeline Element traits) state: x
+[overrideThis].
+
+Pipeline traits define: #Bin &parents: {OrderedTree}.
+"An aggregate of other Pipeline Elements."
+
+streams define: #Pad.
+
+streams define: #OutputPad &parents: {Pad}.
+streams define: #InputPad &parents: {Pad}.
+
+

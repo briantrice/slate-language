@@ -1,0 +1,187 @@
+Graphics define: #CubicBezierSegment &parents: {Trace}
+ &slots: {#vector -> (Matrix newColumnVectorSize: 4)}.
+"A cubic bezier curve"
+CubicBezierSegment traits define: #firstSubdivisionMatrix &builder: [Matrix newFromArrayOfArrays: 
+    {{ 1      .  0      .  0      .  0     }.
+     {(1 / 2) . (1 / 2) .  0      .  0     }.
+     {(1 / 4) . (1 / 2) . (1 / 4) .  0     }.
+     {(1 / 8) . (3 / 8) . (3 / 8) . (1 / 8)}}].
+CubicBezierSegment traits define: #secondSubdivisionMatrix &builder: [Matrix newFromArrayOfArrays:
+    {{(1 / 8) . (3 / 8) . (3 / 8) . (1 / 8)}.
+     { 0      . (1 / 4) . (1 / 2) . (1 / 4)}.
+     { 0      .  0      . (1 / 2) . (1 / 2)}.
+     { 0      .  0      .  0      .  1     }}].
+
+cb@(CubicBezierSegment traits) start
+[cb vector atRow: 0 column: 0].
+
+cb@(CubicBezierSegment traits) via1
+[cb vector atRow: 1 column: 0].
+
+cb@(CubicBezierSegment traits) via2
+[cb vector atRow: 2 column: 0].
+
+cb@(CubicBezierSegment traits) end
+[cb vector atRow: 3 column: 0].
+
+cb@(CubicBezierSegment traits) copy
+[resend `>> [vector: cb vector copy. ]].
+
+cb@(CubicBezierSegment traits) newFrom: start to: end via: a via: b
+[cb copy `>>
+   [vector `>>
+     [atRow: 0 column: 0 put: start.
+      atRow: 1 column: 0 put: a.
+      atRow: 2 column: 0 put: b.
+      atRow: 3 column: 0 put: end. ].
+    ]
+].
+
+cb@(CubicBezierSegment traits) newFromMatrix: m
+[cb copy `>> [vector: m. ]].
+
+cb@(CubicBezierSegment traits) subdivideWithFlatness: flatness into: path
+"Splits cb and converts it to a PolyLine."
+"TODO: See if this is quicker using the de Casteljau midpoint: algorithm"
+"TODO: Use iterators on the path and curve"
+[|l r|
+  cb flatness < (1 + flatness)
+    ifTrue: [path segments add: (LineSegment newFrom: cb start to: cb end)]
+    ifFalse: [l: cb firstSubdivision.
+              l subdivideWithFlatness: flatness into: path.
+              r: cb secondSubdivision.
+              r subdivideWithFlatness: flatness into: path].
+].
+
+cb@(CubicBezierSegment traits) flatness
+"Returns the difference between the length of the bezier
+polygon and the straight line between the end points"
+[|poly line f|
+  line: (cb start distanceTo: cb end) abs.
+  poly: (cb via1 distanceTo: cb start) abs
+      + (cb via2 distanceTo: cb via1) abs
+      + (cb end distanceTo: cb via2) abs.
+  f: (poly / line).
+  f
+].
+
+cb@(CubicBezierSegment traits) firstSubdivision
+"Splits cb in two and returns first curve"
+[
+  cb newFromMatrix: cb traits firstSubdivisionMatrix * cb vector
+].
+
+cb@(CubicBezierSegment traits) secondSubdivision
+"Splits cb in two and returns second curve"
+[
+  cb newFromMatrix: cb traits secondSubdivisionMatrix * cb vector
+].
+
+cb@(CubicBezierSegment traits) dimensions
+[1].
+
+cb@(CubicBezierSegment traits) calcBoundingRect
+[|x1 y1 x2 y2|
+  x1: (((cb start x min: cb via1 x) min: cb via2 x) min: cb end x).
+  y1: (((cb start y min: cb via1 y) min: cb via2 y) min: cb end y).
+  x2: (((cb start x max: cb via1 x) max: cb via2 x) max: cb end x).
+  y2: (((cb start y max: cb via1 y) max: cb via2 y) max: cb end y).
+  Rectangle origin: (x1 , y1) corner: (x2 , y2)
+].
+
+cb@(CubicBezierSegment traits) iterator &flatness: f
+"Flatten and return a stream on the resulting PolyLine"
+"TODO: Set up a Namespace of defaults"
+[|path it|
+  f ifNil: [f: 0.01].
+  path: ExtensibleArray new.
+  cb subdivideWithFlatness: f into: path.
+  it: path iterator.
+  it
+].
+
+cb@(CubicBezierSegment traits) contains: p@(Point traits)
+"TODO: maybe implement this as polyline contains: point"
+[].
+
+cb1@(CubicBezierSegment traits) = cb2@(CubicBezierSegment traits)
+[cb1 vector = cb2 vector].
+
+cb@(CubicBezierSegment traits) hash
+"TODO: Check this."
+[cb vector hash].
+
+Graphics define: #QuadraticBezierSegment &parents: {Trace} &slots:
+{#start valued: Point origin.
+ #via valued: Point origin.
+ #end valued: Point origin}.
+
+qb@(QuadraticBezierSegment traits) newFrom: start to: end via: via
+[qb copy `>> [start: start. end: end. via: via. ]].
+
+qb@(QuadraticBezierSegment traits) flatness
+[|poly line f|
+  line: (qb start distanceTo: qb end) abs.
+  poly: (qb start distanceTo: qb via) abs
+      + (qb via distanceTo: qb end) abs.
+  f: (poly / line).
+  f
+].
+
+qb@(QuadraticBezierSegment traits) subdivideWithFlatness: flatness into: path
+"Converts qb into a PolyLine"
+[|l r|
+  qb flatness < (1 + flatness)
+    ifTrue: [path segments add: (LineSegment newFrom: qb start to: qb end)]
+    ifFalse: [|m1 m2 m3|
+      m1: (qb start midpoint: qb via).
+      m2: (qb via midpoint: qb end).
+      m3: (m1 midpoint: m2).
+      l: (QuadraticBezierSegment newFrom: qb start to: m3 via: m1).
+      l subdivideWithFlatness: flatness into: path.
+      r: (QuadraticBezierSegment newFrom: m3 to: qb end via: m2).
+      r subdivideWithFlatness: flatness into: path].
+].
+
+qb@(QuadraticBezierSegment traits) dimensions
+[1].
+
+qb@(QuadraticBezierSegment traits) calcBoundingRect
+[|x1 y1 x2 y2|
+  x1: ((qb start x min: qb via x) min: qb end x).
+  y1: ((qb start y min: qb via y) min: qb end y).
+  x2: ((qb start x max: qb via x) max: qb end x).
+  y2: ((qb start y max: qb via y) max: qb end y).
+  Rectangle origin: (x1 , y1) corner: (x2 , y2)
+].
+
+qb@(QuadraticBezierSegment traits) contains: p@(Point traits)
+[].
+
+qb1@(QuadraticBezierSegment traits) = qb2@(QuadraticBezierSegment traits)
+[
+  qb1 start = qb2 start
+   /\ [qb1 via = qb2 via]
+   /\ [qb1 end = qb2 end]
+].
+
+qb@(QuadraticBezierSegment traits) hash
+"TODO: Check this"
+"Inspired by Point>>hash"
+[((qb start hash hashMultiply + qb via hash) hashMultiply + qb end hash) hashMultiply].
+
+qb@(QuadraticBezierSegment traits) iterator &flatness: f
+"Flatten and return a stream on the resulting PolyLine"
+"TODO: Set up a Namespace of defaults"
+[|path it|
+  f ifNil: [f: 0.01].
+  path: ExtensibleArray new.
+  cb subdivideWithFlatness: f into: path.
+  it: path iterator.
+  it
+].
+
+"Graphics define: #CubicCurve &parents: {SceneElement. CubicBezierSegment}."
+"Graphics define: #QuadCurve &parents: {SceneElement. QuadraticBezierSegment}."
+
+"Add (Natural, Interpolating) CubicSplines as described in http://mathworld.wolfram.com/CubicSpline.html"

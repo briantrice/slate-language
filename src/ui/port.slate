@@ -1,0 +1,58 @@
+Graphics define: #Port &parents: {Cloneable} &slots: {#scene}.
+"The type of object representing a particular display system hosting the Slate
+interface."
+
+p@(Port traits) findForType: serverType properties: properties
+"Returns a new or existing port for a given type with some specified
+properties."
+[overrideThis].
+
+p@(Port traits) serverType
+"The name of the server type."
+[overrideThis].
+
+p@(Port traits) name
+"The name of the server; defaults to serverType."
+[p serverType].
+
+p@(Port traits) properties
+"A Mapping from property names to values for the server."
+[overrideThis].
+
+p@(Port traits) restart
+[overrideThis].
+
+p@(Port traits) destroy
+[overrideThis].
+
+p@(Port traits) next
+"Answer the next input event."
+[overrideThis].
+
+se@(SceneElement traits) port
+[
+  se treeParent port
+].
+
+Port traits define: #SceneRoot &parents: {SceneElement}.
+Port SceneRoot removeSlot: #boundingRect.
+
+se@(Port SceneRoot traits) boundingRect
+[Rectangle origin: Point origin corner: se treeParent width , se treeParent height].
+
+se@(Port SceneRoot traits) port
+[se treeParent].
+
+Graphics ensureNamespace: #ports &delegate: True.
+"The namespace for the various ports supported."
+
+Graphics define: #Portlist &builder: [ExtensibleArray new].
+
+Graphics define: #NullPort &parents: {Port}.
+"The Port that renders nothing."
+
+_@(NullPort traits) name ['Null'].
+_@(NullPort traits) serverType ['Null'].
+_@(NullPort traits) restart [].
+_@(NullPort traits) destroy [].
+_ renderOn: _@(NullPort traits) [].

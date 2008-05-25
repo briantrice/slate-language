@@ -1,0 +1,207 @@
+Graphics define: #MenuElement &parents: {SceneElement. Activator}.
+
+"FIXME change Item's Activator parent to CommandActivator, define
+CommandActivator in activator.slate to just execute a command
+(and file it in the appropriate undo/recording location?)"
+
+Graphics define: #MenuItemElement &parents: {Activator. Text}.
+
+
+Graphics define: #ListboxMenuElement &parents: {SceneElement. PaintBorder. Activator} &slots:
+{
+  #morph -> Nil.
+  #selection -> #().
+  #hasBeenClicked -> False
+}.
+
+se@(ListboxMenuElement traits) menuItemBlock: block
+[ | lb | 
+ lb: (se newTarget: block).
+ lb `>> [
+  morph: (ListboxElement newTarget: lb getList: #getMenuItems getSelection: #getSelection setSelection: #setSelection:).
+  selection: #().
+  hasBeenClicked: False.
+  ]
+].
+
+se@(ListboxMenuElement traits) openIn: parent@(SceneElement traits) near: point@(Point traits)
+[ | diff |
+
+  se boundingRect: (Rectangle origin: point extent: (se approximateWidth , se approximateHeight)).
+
+
+  "
+    if the user opens the menu in the bottom right corner,
+    push the menu up and to the left to make room
+  "
+
+  
+
+  diff: (parent boundingRect corner x - se boundingRect corner x).
+
+  (diff < 0) ifTrue: [ se left: se left + diff.
+                       se right: se right + diff].
+
+
+  diff: (parent boundingRect corner y - se boundingRect corner y).
+
+  (diff < 0) ifTrue: [ se top: se top + diff.
+                       se bottom: se bottom + diff].
+
+                                 
+  parent addFirst: se.
+  parent repaintSoon.
+  se
+].
+
+
+se@(ListboxMenuElement traits) getMenuItems
+[
+  se activate
+].
+
+se@(ListboxMenuElement traits) approximateHeight
+[
+  se getMenuItems size + 1 * se fontSize
+].
+
+se@(ListboxMenuElement traits) approximateWidth
+[
+  150
+].
+
+
+
+se@(ListboxMenuElement traits) getSelection
+[
+ se selection
+].
+
+se@(ListboxMenuElement traits) activateSelection
+[
+  (se getSelection < se getMenuItems size)
+    ifTrue: [(se getMenuItems at: se getSelection) activate]
+].
+
+se@(ListboxMenuElement traits) close
+[
+  resend
+].
+
+se@(ListboxMenuElement traits) setSelection: item
+[
+ se hasBeenClicked: True.
+ se selection: item
+].
+
+se@(ListboxMenuElement traits) handle: event@(PaintEvent traits)
+[ 
+  resend.
+  se morph boundingRect: se boundingRect.
+  se morph handle: event.
+].
+
+
+se@(ListboxMenuElement traits) handle: event@(LeftMouseButtonPressEvent traits)
+"user selects a menu item so we close the menu"
+[
+
+    (event is: LeftMouseButtonPressEvent) not ifTrue: [break].
+    se hasBeenClicked: False.
+
+    "This should set hasBeenClicked if the user doesn't hit a scrollbar.. maybe
+     this should be executed within some sort of semaphore locking thingy and 
+     later tell the mouseover to set the selection changed to false also?"
+    se morph handle: event.
+
+
+    (se hasBeenClicked) ifTrue: [se `>> [activateSelection. close.]]
+    
+].
+
+"
+    150 -> #(MouseMotionEvent                   (osWindow mouseMotionPosition)).
+    151 -> #(MouseEnterEvent                    (osWindow mouseMotionPosition)).
+    152 -> #(MouseLeaveEvent                    (osWindow mouseMotionPosition)).
+"
+
+se@(ListboxMenuElement traits) handle: event@(MouseMotionEvent traits)
+[
+  se morph setSelectionFromPosition: event position.
+  se repaintSoon.
+].
+
+
+
+se@(MenuItemElement traits) as: str@(String traits)
+[
+  se text
+].
+
+se@(MenuItemElement traits) action: block text: text@(String traits)
+[
+  (se newTarget: block) `>> [text: text.]
+].
+
+
+
+
+
+
+
+"   Accelerators     "
+
+
+ "FIXME modifiers is an integer now (same as sdl)"
+
+Graphics define: #Accelerator &parents: {Cloneable} &slots: {#modifiers}.
+
+
+Graphics define: #KeyboardAccelerator &parents: {Accelerator} &slots: {#key}.
+Graphics define: #PointerAccelerator &parents: {Accelerator} &slots: {#region}.
+
+KeyboardAccelerator compareAndHashUsingSlots: #(key modifiers).
+PointerAccelerator compareAndHashUsingSlots: #(region modifiers).
+
+"
+
+
+typedef enum {
+  KMOD_NONE  = 0x0000,
+  KMOD_LSHIFT= 0x0001,
+  KMOD_RSHIFT= 0x0002,
+  KMOD_LCTRL = 0x0040,
+  KMOD_RCTRL = 0x0080,
+  KMOD_LALT  = 0x0100,
+  KMOD_RALT  = 0x0200,
+  KMOD_LMETA = 0x0400,
+  KMOD_RMETA = 0x0800,
+  KMOD_NUM   = 0x1000,
+  KMOD_CAPS  = 0x2000,
+  KMOD_MODE  = 0x4000,
+} SDLMod;
+
+
+
+
+"
+
+
+accelerator@(KeyboardAccelerator traits) newKey: key &modifiers: modifiers
+[ 
+
+ modifiers `defaultsTo: 0.
+
+ (accelerator cloneSettingSlots: #(key modifiers)
+               to: {key. modifiers})
+].
+
+
+accelerator@(PointerAccelerator traits) newRegion: region@(Rectangle traits) &modifiers: modifiers
+[ 
+
+ modifiers `defaultsTo: 0.
+
+ (accelerator cloneSettingSlots: #(region modifiers)
+               to: {region. modifiers})
+].

@@ -1,0 +1,577 @@
+Graphics define: #DisplayTransform &parents: {Cloneable}.
+
+dt@(DisplayTransform traits) = et@(DisplayTransform traits)
+[
+  dt scale = et scale
+   /\ [dt offset = et offset]
+   /\ [dt angle = et angle]
+].
+
+dt@(DisplayTransform traits) ++ et@(DisplayTransform traits)
+"Composes global transform dt with local et."
+[
+  CompositeTransform global: dt local: et
+].
+
+dt@(DisplayTransform traits) actOn: c@(Collection traits)
+"Transform some global coordinates to local ones."
+[
+  c collect: [| :point | dt actOn: point]
+].
+
+_@(DisplayTransform traits) actOn: e@Everywhere
+[e].
+
+_@(DisplayTransform traits) actOn: n@Nowhere
+[n].
+
+_@(DisplayTransform traits) inverseActOn: e@Everywhere
+[e].
+
+_@(DisplayTransform traits)  inverseActOn: n@Nowhere
+[n].
+
+dt@(DisplayTransform traits) inverseActOn: c@(Collection traits)
+"Transform some global coordinates to local ones."
+[
+  c collect: [| :point | dt inverseActOn: point]
+].
+
+dt@(DisplayTransform traits) actOn: r@(Rectangle traits)
+[
+  r newEncompassing: (dt actOn: r corners)
+].
+
+dt@(DisplayTransform traits) inverseActOn: r@(Rectangle traits)
+[
+  r newEncompassing: (dt inverseActOn: r corners)
+].
+
+Graphics define: #IdentityTransform &parents: {DisplayTransform}.
+"The Transform that doesn't alter anything, returning the appropriate
+argument itself."
+
+it@(IdentityTransform traits) clone
+[it].
+
+_@(IdentityTransform traits) angle
+[0.0].
+
+_@(IdentityTransform traits) offset
+[Point origin].
+
+_@(IdentityTransform traits) scale
+[1.0].
+
+it@(IdentityTransform traits) invert
+[it].
+
+_@(IdentityTransform traits) isIdentity
+[True].
+
+_@(IdentityTransform traits) isPureTranslation
+[True].
+
+_@(IdentityTransform traits) ++ dt@(DisplayTransform traits)
+[dt].
+
+dt@(DisplayTransform traits) ++ _@(IdentityTransform traits)
+[dt].
+
+_@(IdentityTransform traits) actOn: p@(Point traits)
+[p].
+
+_@(IdentityTransform traits) actOn: c@(Collection traits)
+[c].
+
+_@(IdentityTransform traits) inverseActOn: p@(Point traits)
+[p].
+
+_@(IdentityTransform traits) inverseActOn: c@(Collection traits)
+[c].
+
+Graphics define: #Translation &parents: {DisplayTransform}
+  &slots: {#offset -> Point origin}.
+"This just moves things around without scaling or rotation."
+
+t@(Translation traits) newFor: point
+[t cloneSettingSlots: #(offset) to: {point as: t offset}].
+
+_@(DisplayTransform traits) newWithOffset: offset
+[Translation newFor: offset].
+
+dt@(DisplayTransform traits) offset: offset
+[dt newWithOffset: offset].
+
+_@(Translation traits) angle
+[0.0].
+
+_@(Translation traits) scale
+[1.0].
+
+_@(Translation traits) isPureTranslation
+[True].
+
+t@(Translation traits) isIdentity
+[
+  t offset = Point origin
+].
+
+t@(Translation traits) invert
+[
+  t newFor: t offset negated
+].
+
+t@(Translation traits) actOn: obj@(Point traits)
+[
+  t isIdentity ifTrue: [obj] ifFalse: [obj + t offset]
+].
+
+t@(Translation traits) inverseActOn: obj@(Point traits)
+[
+  t isIdentity ifTrue: [obj] ifFalse: [obj - t offset]
+].
+
+Graphics define: #Rotation &parents: {DisplayTransform}
+  &slots: {#angle -> 0.0 "The angle in radians."}.
+"This just rotates things around without scaling or translation."
+
+r@(Rotation traits) newFor: angle
+[r cloneSettingSlots: #(angle) to: {angle}].
+
+_@(DisplayTransform traits) newWithAngle: angle
+[Rotation newFor: angle].
+
+dt@(DisplayTransform traits) angle: angle
+[dt newWithAngle: angle].
+
+_@(Rotation traits) offset
+[Point origin].
+
+_@(Rotation traits) scale
+[1.0].
+
+_@(Rotation traits) isPureTranslation
+[False].
+
+r@(Rotation traits) isIdentity
+[
+  r angle isZero
+].
+
+r@(Rotation traits) invert
+[
+  r newFor: r angle negated
+].
+
+r@(Rotation traits) actOn: obj@(Point traits)
+[
+  r isIdentity
+    ifTrue: [obj]
+    ifFalse: [obj clone x: (obj x * r angle cos) - (obj y * r angle sin)
+			y: (obj x * r angle sin) + (obj y * r angle cos)]
+].
+
+r@(Rotation traits) inverseActOn: obj@(Point traits)
+[
+  r isIdentity
+    ifTrue: [obj]
+    ifFalse: [obj clone x: (obj x * r angle cos) + (obj y * r angle sin)
+			y: (obj x * r angle sin) - (obj y * r angle cos)]
+].
+
+Graphics define: #Scaling &parents: {DisplayTransform} &slots: {#scale -> 1.0}.
+"This just scales things without translation or rotation."
+"#scale can be a Point in which case the scaling on each axis will be according
+to the x and y values of the Point. A simple number will scale along both axes
+by the same amount"
+
+s@(Scaling traits) newFor: scale
+[s cloneSettingSlots: #(scale) to: {scale}].
+
+_@(DisplayTransform traits) newWithScale: scale
+[Scaling newFor: scale].
+
+dt@(DisplayTransform traits) scale: scale
+[dt newWithScale: scale].
+
+_@(Scaling traits) angle
+[0.0].
+
+_@(Scaling traits) offset
+[Point origin].
+
+_@(Scaling traits) isPureTranslation
+[False].
+
+s@(Scaling traits) isIdentity
+[
+  s scale = 1.0 or: [s scale = (1.0 , 1.0)]
+].
+
+s@(Scaling traits) invert
+[
+  s newFor: s scale reciprocal
+].
+
+s@(Scaling traits) actOn: obj@(Point traits)
+[
+  s isIdentity ifTrue: [obj] ifFalse: [obj * s scale]
+].
+
+s@(Scaling traits) inverseActOn: obj@(Point traits)
+[
+  s isIdentity ifTrue: [obj] ifFalse: [obj / s scale]
+].
+
+Graphics define: #Shearing &parents: {DisplayTransform}
+  &slots: {#shear -> (0.0 , 0.0)}.
+
+sh@(Shearing traits) newFor: shear
+[sh copy `>> [shear: shear. ]].
+
+_@(DisplayTransform traits) newWithShear: shear
+[Shearing newFor: shear].
+
+dt@(DisplayTransform traits) shear: shear
+[dt newWithShear: shear].
+
+_@(Shearing traits) isPureTranslation
+[False].
+
+sh@(Shearing traits) isIdentity
+[sh shear = (1.0 , 1.0)].
+
+sh@(Shearing traits) invert
+[sh newFor: sh shear reciprocal].
+
+sh@(Shearing traits) actOn: obj@(Point traits)
+[
+  sh isIdentity
+    ifTrue: [obj]
+    ifFalse: [obj clone x: obj x + (sh shear x * obj y)
+			y: obj y + (sh shear y * obj x)]
+].
+
+sh@(Shearing traits) inverseActOn: obj@(Point traits)
+[| div |
+  div: 1 - (sh shear x * sh shear y).
+  sh isIdentity
+    ifTrue: [obj]
+    ifFalse:
+      [obj clone x: obj x * (1 / div) + (obj y * (sh shear x negated / div))
+		 y: obj y * (1 / div) + (obj x * (sh shear y negated / div))]
+].
+
+sh@(Shearing traits) asMatrix
+"TODO: Is this right?"
+[Matrix newIdentity: 3 `>>
+   [atRow: 1 column: 2 put: shear x.
+    atRow: 2 column: 1 put: shear y. ]
+].
+
+Graphics define: #LogicalTransform &parents: {DisplayTransform}
+  &slots: {#offset -> Point origin. #angle -> 1.0. #scale -> 1}.
+"Combines a Rotation, Scaling, and Translation into one object directly
+expressing those as a logical composition. The first two may appear in any
+order, while the Translation must be last in order to preserve the logic."
+
+_@(DisplayTransform traits) offset: p angle: a scale: x
+[LogicalTransform cloneSettingSlots: #(offset angle scale) to: {p. a. x}].
+
+lt@(LogicalTransform traits) isPureTranslation
+[
+  lt angle = 0.0 /\ [lt scale = 1.0]
+].
+
+lt@(LogicalTransform traits) isIdentity
+[
+  lt isPureTranslation /\ [lt offset = Point origin]
+].
+
+lt@(LogicalTransform traits) invert
+[
+  lt
+    offset: (lt actOn: Point origin) -
+         (lt actOn: lt offset)
+    angle: lt angle negated
+    scale: lt scale reciprocal
+].
+
+lt@(LogicalTransform traits) actOn: p@(Point traits)
+[
+  lt isPureTranslation ifTrue: [^ p + lt offset].
+  ((p x: p x * lt angle cos - (p y * lt angle sin)
+      y: p y * lt angle cos + (p x * lt angle sin))
+    * lt scale) + lt offset
+].
+
+lt@(LogicalTransform traits) actOn: r@(Rectangle traits)
+[
+  lt isPureTranslation
+    ifTrue: [r origin: (lt actOn: r topLeft)
+               corner: (lt actOn: r bottomRight)]
+    ifFalse: [| outerR |
+      outerR: (r newEncompassing:
+        (r innerCorners collect: [| :point | lt actOn: point])).
+      r origin: outerR topLeft - 1
+	corner: outerR bottomRight + 2]
+].
+
+lt@(LogicalTransform traits) inverseActOn: p@(Point traits)
+[| tempP |
+  lt isPureTranslation ifTrue: [^ p - lt offset].
+  tempP: p - lt offset / lt scale.
+  (p x: tempP x * lt angle cos + (tempP y * lt angle sin)
+     y: tempP y * lt angle cos - (tempP x * lt angle sin))
+].
+
+lt@(LogicalTransform traits) inverseActOn: r@(Rectangle traits)
+[
+  lt isPureTranslation
+    ifTrue: [r origin: (lt inverseActOn: r topLeft)
+               corner: (lt inverseActOn: r bottomRight)]
+    ifFalse: [| outerR |
+      outerR: (r newEncompassing:
+        (r innerCorners
+          collect: [| :point | lt inverseActOn: point])).
+      r origin: outerR topLeft - 1
+        corner: outerR bottomRight + 2]
+].
+
+Graphics define: #CompositeTransform &parents: {DisplayTransform}
+  &slots: {#global. #local}.
+"Represents a composition of two Transforms, one local embedded in a global
+Transform."
+
+ct@(CompositeTransform traits) global: gt local: lt
+[ct cloneSettingSlots: #(global local) to: {gt. lt}].
+
+ct@(CompositeTransform traits) angle
+[
+  ct local angle + ct global angle
+].
+
+ct@(CompositeTransform traits) offset
+[
+  (ct actOn: Point origin) negated
+].
+
+ct@(CompositeTransform traits) scale
+[
+  ct local scale * ct global scale
+].
+
+ct@(CompositeTransform traits) invert
+[
+  ct local invert ++ ct global invert
+].
+
+ct@(CompositeTransform traits) as: lt@(LogicalTransform traits)
+[lt cloneSettingSlots: #(offset angle scale) to: {ct offset. ct angle. ct scale}].
+
+ct@(CompositeTransform traits) isIdentity
+[
+  ct global isIdentity /\ [ct local isIdentity]
+].
+
+ct@(CompositeTransform traits) isPureTranslation
+[
+  ct global isPureTranslation /\ [ct local isPureTranslation]
+].
+
+dt@(DisplayTransform traits) as: ct@(CompositeTransform traits)
+[
+  ct global: dt local: IdentityTransform
+].
+
+ct@(CompositeTransform traits) actOn: p@(Point traits)
+[
+  ct local actOn: (ct global actOn: p)
+].
+
+ct@(CompositeTransform traits) inverseActOn: p@(Point traits)
+[
+  ct global inverseActOn: (ct local inverseActOn: p)
+].
+
+Graphics define: #AffineTransform &parents: {DisplayTransform}"
+&slots: {#matrix -> (Matrix newIdentitySize: 3)}".
+"An AffineTransform is a general transform consisting of any combination
+of any number of the other transforms in any order"
+"Default is the IdentityTransform"
+
+at@(AffineTransform traits) copy
+[resend `>> [matrix: at matrix copy. ]].
+
+at1@(AffineTransform traits) ++ at2@(AffineTransform traits)
+"Compose two affine transforms"
+[at1 copy `>> [matrix: (at1 matrix * at2 matrix). ]].
+
+"MatrixTransform2x3 may not be needed anymore"
+"Try using general 3x3 matrices instead"
+
+Graphics define: #MatrixTransform2x3 &parents: {Graphics DisplayTransform}
+  &slots: {#contents -> {0.0. 0.0. 0.0. 0.0. 0.0. 0.0}.
+           "The default prototype starts with zeros."}.
+"A 2-by-3 matrix for 2-dimensional affine Transforms."
+_@(MatrixTransform2x3 traits) zero [MatrixTransform2x3].
+"A convenient polymorphic accessor for the zero-filled transform."
+
+mt@(MatrixTransform2x3 traits) copy
+[mt cloneSettingSlots: #(contents) to: {mt contents copy}].
+
+mt@(MatrixTransform2x3 traits) newWithOffset: p
+[mt zero copy `>> [offset: p. ]].
+
+mt@(MatrixTransform2x3 traits) newWithScale: x
+[mt zero copy `>> [scale: x. ]].
+
+mt@(MatrixTransform2x3 traits) newWithAngle: a
+[mt zero copy `>> [angle: a. ]].
+
+mt@(MatrixTransform2x3 traits) at: p@(Tuple traits)
+"Overridden to make the contents seem multi-dimensional."
+[
+  mt contents at: (p at: 0) * 3 + (p at: 1)
+].
+
+mt@(MatrixTransform2x3 traits) at: p@(Tuple traits) put: x
+[
+  mt contents at: (p at: 0) * 3 + (p at: 1) put: x
+].
+
+mt@(MatrixTransform2x3 traits) offset
+"(MT[1,3],MT[2,3])"
+[
+  Point x: (mt contents at: 2) y: (mt contents at: 5)
+].
+
+mt@(MatrixTransform2x3 traits) offset: p
+[
+  mt contents at: 2 put: (p x as: Float).
+  mt contents at: 5 put: (p y as: Float).
+  mt
+].
+
+mt@(MatrixTransform2x3 traits) angle: a
+[| s c |
+  s: a sin.
+  c: a cos.
+  mt contents at: 0 put: c.
+  mt contents at: 1 put: s negated.
+  mt contents at: 3 put: s.
+  mt contents at: 4 put: c.
+  mt
+].
+
+mt@(MatrixTransform2x3 traits) scale: x@(Number traits)
+[| f |
+  f: (x as: Float).
+  mt contents at: 0 put: f.
+  mt contents at: 4 put: f.
+  mt
+].
+
+mt@(MatrixTransform2x3 traits) scale: p@(Point traits)
+[
+  mt contents at: 0 put: (p x as: Float).
+  mt contents at: 4 put: (p y as: Float).
+  mt
+].
+
+mt@(MatrixTransform2x3 traits) isPureTranslation
+"Whether mt has no rotation or scaling."
+[
+  (mt contents at: 0) = 1.0
+    /\ [(mt contents at: 1) = 0.0]
+    /\ [(mt contents at: 3) = 0.0]
+    /\ [(mt contents at: 4) = 1.0]
+].
+
+mt@(MatrixTransform2x3 traits) isIdentity
+[
+  mt isPureTranslation
+   /\ [(mt contents at: 2) = 0.0]
+   /\ [(mt contents at: 5) = 0.0]
+].
+
+mt1@(MatrixTransform2x3 traits) = mt2@(MatrixTransform2x3 traits)
+[
+  mt1 contents = mt2 contents
+].
+
+mt@(MatrixTransform2x3 traits) actOn: p@(Point traits)
+[| mtc |
+  mtc: mt contents.
+  p x: p x * (mtc at: 0) + (p y * (mtc at: 1)) + (mtc at: 2)
+    y: p x * (mtc at: 3) + (p y * (mtc at: 4)) + (mtc at: 5)
+].
+
+mt@(MatrixTransform2x3 traits) inverseActOn: p@(Point traits)
+[| x y det a11 a12 a21 a22 detX detY |
+  x: ((p x as: Float) - mt contents at: 2).
+  y: ((p y as: Float) - mt contents at: 5).
+  a11: (mt contents at: 0).
+  a12: (mt contents at: 1).
+  a21: (mt contents at: 3).
+  a22: (mt contents at: 4).
+  det: a11 * a22 - (a12 * a21).
+  det = 0.0 ifTrue: [^ p origin].
+  det: det reciprocal.
+  (p x: x * a22 - (a12 * y)
+     y: a11 * y - (x * a21))
+    * det
+].
+
+mt@(MatrixTransform2x3 traits) actOnDirection: p@(Point traits)
+[
+  (mt actOn: p) + (p x: (mt contents at: 2) y: (mt contents at: 5))
+].
+
+a@(MatrixTransform2x3 traits) ++ b@(MatrixTransform2x3 traits)
+"Directly generates a specialized composed MatrixTransform."
+[| ac bc a11 a12 a13 a21 a22 a23 b11 b12 b13 b21 b22 b23 c |
+  ac: a contents.
+  bc: b contents.
+  "Makes lots of locals in the shape of the contents for clarity."
+  a11: (ac at: 0). a12: (ac at: 1). a13: (ac at: 2).
+  a21: (ac at: 3). a22: (ac at: 4). a23: (ac at: 5).
+  b11: (bc at: 0). b12: (bc at: 1). b13: (bc at: 2).
+  b21: (bc at: 3). b22: (bc at: 4). b23: (bc at: 5).
+  c: a copy.
+  c contents at: 0 put: a11 * b11 + (a12 * b21).
+  c contents at: 1 put: a11 * b12 + (a12 * b22).
+  c contents at: 2 put: a13 + (a11 * b13) + (a12 * b23).
+  c contents at: 3 put: a21 * b11 + (a22 * b21).
+  c contents at: 4 put: a21 * b12 + (a22 * b22).
+  c contents at: 5 put: a23 + (a21 * b13) + (a22 * b23).
+  c
+].
+
+ct@(CompositeTransform traits) as: mt@(MatrixTransform2x3 traits)
+"Delegates the coercion to each component of the Composition and composes
+them, relying on that operation performing straight matrix math."
+[
+  (ct global as: mt) ++ (ct local as: mt)
+].
+
+lt@(LogicalTransform traits) as: mt@(MatrixTransform2x3 traits)
+[
+  ((mt forRotation:
+    lt angle radiansToDegrees negated)
+   ++ (mt forScale: lt scale))
+    offset: lt offset negated
+].
+
+mt@(MatrixTransform2x3 traits) invert
+"Compute the inverse by first calculating the offset and then
+finding the transforms for the identity vectors 1,0 and 0,1."
+[| r1 r2 r3 newMT |
+  r3: (mt inverseActOn: Point origin).
+  r1: (mt inverseActOn: (r3 x: 1 y: 0)) - r3.
+  r2: (mt inverseActOn: (r3 x: 0 y: 1)) - r3.
+  mt copy `>> [contents:
+    {r1 x. r2 x. r3 x.
+     r1 y. r2 y. r3 y}. ]
+].

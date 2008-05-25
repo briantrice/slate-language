@@ -1,0 +1,73 @@
+Information for the Smart Console Plugin
+----------------------------------------
+
+The smart console plugin is a Slate VM plugin in form of a DLL. It provides
+access to the console in a structured way, allowing Slate code to move the
+cursor, display styled text, scroll the console window and update parts of the
+console.
+
+Building
+--------
+
+The console plugin can be compiled independently from the VM. For unix-like
+systems there's an ncurses based implementation. It can be compiled with
+'make plugins' and works on Cygwin, too.
+
+There's also a windows native plugin (in the works). You can find an included
+VisualStudio project to compile the plugin; this project is part of the windows
+solution (.sln), too.
+
+Running
+-------
+
+To use SmartConsole features you must
+load: 'src/plugins/smart-console/init.slate'.
+After loading it successfully, typing
+SmartREPL start.
+should open a new repl using the plugin and providing command history and
+line editing with its help. You can close repl's with the CTRL+d key
+(on Windows the root repl can be closed with CTRL+Z).
+
+Testing
+-------
+
+You can also try some interactive tests found in
+tests/SmartConsole.slate. Here are some lines for copy/paste.
+UnitTests SmartConsole draw.
+UnitTests SmartConsole echoKeyCodes.
+UnitTests SmartConsole echoEvents.
+UnitTests SmartConsole commandProcessor.
+UnitTests SmartConsole dimensionInfo.
+UnitTests SmartConsole streamedCommandProcessor.
+
+Running on Unix-like systems
+----------------------------
+
+You must make sure the DLL or shared object can be found by the system calls.
+For that the 'LD_LIBRARY_PATH' env variable must contain the path where the
+plugin dll is. The simplest way is to add either your slate root to the library
+path or simply add '.', the current directory - depending on how you use slate.
+Later we may provide a VM startup script that will handle this automatically. 
+
+Running on Windows
+------------------
+
+Windows looks for DLL's on the 'PATH' env variable and in the directory where
+the exe file resides. After compiling the plugin the resulting DLL should be
+automatically put to the Slate root, so it should work fine. (When using cygwin
+make sure the VC compiled native VM can not see the cygwin ncurses dll because
+trying to load it results in the VM to silently quit.)
+
+Issues and known bugs
+---------------------
+
+There's no infrastructure yet for image startup/shutdown hooks. Because of this
+saving an image after the structured console plugin was used will save the
+DLL reference, too. Starting the image next time and using the console plugin
+will end up in a crash. To avoid this you can:
+CursesConsole traits lib: Nil.
+WindowsConsole traits lib: Nil.
+for now to force the VM to freshly open the dlls.
+
+There are probably other issues left, fixes and reports of bugs not in this
+list are welcome.

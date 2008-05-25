@@ -1,0 +1,16 @@
+prototypes define: #User &parents: {Cloneable}
+  &slots: {#id -> 0.
+	   #convenientName -> '' "The user's common name."}.
+
+User traits define: #lastID -> 0.
+
+u@(User traits) new &name: convenientName
+[
+  convenientName `defaultsTo: 'Slate Admin'.
+  u clone `>> [lastID: u lastID + 1. id: u lastID. convenientName: convenientName. ]
+].
+
+globals define: #CurrentUser -> User new.
+
+u@(User traits) current
+[globals CurrentUser].

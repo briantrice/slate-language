@@ -1,0 +1,134 @@
+Windows libary
+==============
+The windows library provides basic framebuffer (BitBLT) support and event 
+translation.  It doesn't provide any other drawing primatives; that is left
+to other libraries, such as Cairo.  Window events inherit from Event and 
+are sent to morphs.
+
+The windows library has 2 backends under development.  The first is SDL; 
+this is intended as a temporary filler for porting to new platforms.  The
+second is a Win32 adaptor; this includes features that SDL is missing, such
+as multiple windows, partial window redraw, a large set of mouse messages
+(enter, leave, double-click, hover, ...), and the X1 and X2 mouse buttons.
+The SDL backend is partially working and is included in this patch set; 
+I tested it with both Linux and Windows XP.  The Win32 backend isn't 
+ready, so I'm not including it yet.
+
+The windows library works but is incomplete; I still have to add support for
+additional state information and events.  For example, keyboard support 
+isn't in yet.  I also need to integrate its message loop with other message 
+loops.
+
+Cairo
+=====
+The Cairo interface is in its infancy; Cairo has a lot more functionality
+than what I provided here.  Luckily, most of the remaining work is 
+boiler-plate work; the hard part is tracking bitmap lifetimes.
+I compared several libraries before deciding to port 
+Cairo; its primary contender was Libart.  I have a strong preference 
+toward stateless renderers such as Libart, but porting it would have 
+required a whole lot more work.  Cairo operates at a higher level than 
+Libart does; this allows it to provide some nifty features, such as 
+rendering to Postscript or PDF.  The SDL extension libraries I found 
+come no where near what Cairo and Libart do.
+
+http://cairographics.org/releases/cairo-1.0.2.tar.gz
+
+Caution
+=======
+Neither the windows library nor the Cairo interface have suffecient error
+checking yet.  For example, window blit will clobber memory if you pass
+it bad values.
+
+Building for Linux
+==================
+make sdl-windows
+make cairo
+
+Building for OS X
+=================
+make sdl-windows
+make cairo
+make sdlvm
+
+Building for Windows
+====================
+You need:
+   http://cairographics.org/releases/cairo-1.0.2.tar.gz
+   http://www.libsdl.org/release/SDL-1.2.9.tar.gz
+
+Your directory structure should look like this:
+    Some folder or drive (name doesn't matter)
+        slate (name doesn't matter)
+            main (name doesn't matter)
+        cairo-1.0.2
+        SDL-1.2.9
+
+Patch cairo-1.0.2 using slate/main/src/plugins/cairo/cairo_patch
+
+Make sure Visual Studio's header and library directories include both the
+Platform SDK and the DirectX SDK.
+
+Build the following projects:
+    src\plugins\cairo\cairo.sln
+    src\plugins\cairo\slate-cairo.sln
+    src\plugins\sdl-windows\SDL.sln
+    src\plugins\sdl-windows\slate-windows.sln
+
+Running the demo
+================
+Linux: add lib to your LD_LIBRARY_PATH
+OS X: add lib to your LD_LIBRARY_PATH.
+      use sdlvm instead of vm (regular vm will crash)
+Windows: add lib to your PATH
+
+Start Slate.
+[
+   ExternalMethod. 
+   lobby ensureNamespace: #Graphics &delegate: True. 
+   load: 'src/ui/region.slate'. 
+   load: 'src/ui/transform.slate'. 
+   load: 'src/ui/color.slate'. 
+   load: 'src/ui/colors.slate'. 
+   load: 'src/ui/event.slate'. 
+   load: 'src/lib/memoryarea.slate'.
+   load: 'src/ui/form.slate'. 
+   load: 'src/lib/print.slate'.
+   load: 'src/ui/spacerequirement.slate'.
+   load: 'src/ui/theme.slate'.
+   prototypes Graphics.
+   load: 'src/ui/graphics.slate'. 
+   load: 'src/ui/layout.slate'. 
+   load: 'src/ui/frame.slate'.
+   load: 'src/ui/inspector.slate'.
+   load: 'src/ui/contextsceneelement.slate'. 
+   load: 'src/ui/activator.slate'.
+   load: 'src/ui/button.slate'.
+   load: 'src/ui/scrollbar.slate'.
+   load: 'src/ui/scrollpane.slate'.
+   load: 'src/ui/listbox.slate'.
+   load: 'src/ui/menu.slate'.
+   load: 'src/ui/command.slate'.
+   load: 'src/lib/text.slate'.
+   load: 'src/ui/focus.slate'.
+   load: 'src/ui/fundamental-mode.slate'.
+   load: 'src/ui/textbox.slate'.
+] do.
+
+"You probably want to save your image at this point."
+Image saveNamed: 'sdl.image'.
+
+[
+   load: 'src/plugins/sdl-windows/windows.slate'. 
+   load: 'src/plugins/cairo/cairo.slate'. 
+   load: 'demo/ui.slate'. 
+] do.
+
+
+mainWindow eventLoop.
+
+Running the Inspector demo
+==========================
+Do the same thing as above, but instead of loading demo/ui.slate:
+
+load: 'demo/inspector.slate'. 

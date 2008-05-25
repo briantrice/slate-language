@@ -1,0 +1,237 @@
+Graphics define: #Pen &parents: {Cloneable}
+"A Pen is a convex polygon"
+&slots: {#path -> PolyLine copy.
+	 #angles -> Array new.
+	 #active -> 0}.
+
+p@(Pen traits) activeVertex
+"Return the active vertex as a Point"
+[(p path segments at: p active) start].
+
+p@(Pen traits) opposingVertex
+"Return the vertex opposite the active vertex"
+[|size v|
+  size: p path segments size.
+  v: (p path segments at: (p active + (size / 2) mod: size)).
+  v start
+].
+
+p@(Pen traits) nextVertex
+"Step anticlockwise around pen vertices"
+[p active: (p active + 1 mod: p path segments size)].
+
+p@(Pen traits) previousVertex
+"Step clockwise around pen vertices"
+[p active: (p active - 1 mod: p path segments size)].
+
+"PenStroke holds the parts of a stroked PolyLine"
+Graphics define: #PenStroke &parents: {Cloneable}
+"These are the edged traced out by the pen"
+&slots: {#firstEdge. "Righthand edge"
+	 #secondEdge. "Lefthand edge"
+	 #pen "The pen used to stroke this path"}.
+
+ps@(PenStroke traits) copy
+[resend `>> [firstEdge: ps firstEdge copy. secondEdge: ps secondEdge copy.
+	     pen: ps pen copy. ]].
+
+ps@(PenStroke traits) newFrom: firstP@(PolyLine traits) and: secondP@(PolyLine traits)  withPen: pen@(Pen traits)
+"Create a PenStroke from two PolyLines"
+[ps copy `>> [firstEdge: firstP. secondEdge: secondP. pen: pen. ]].
+
+ps@(PenStroke traits) startPoints
+[(Tuple new &capacity: 2) `>>
+   [first: ps firstEdge segments first start.
+    second: ps secondEdge segments last end. ]].
+
+ps@(PenStroke traits) endPoints
+[(Tuple new &capacity: 2) `>>
+   [first: ps firstEdge segments last end.
+    second: ps secondEdge segments first start. ]].
+
+ps@(PenStroke traits) startWidth
+[ps firstEdge segments first start distanceTo: ps secondEdge segments last end].
+
+ps@(PenStroke traits) endWidth
+[ps firstEdge segments last end distanceTo: ps secondEdge segments first start].
+
+ps@(PenStroke traits) startAngle
+[ps firstEdge segments first angle].
+
+ps@(PenStroke traits) endAngle
+[ps firstEdge segments last angle].
+
+Graphics ensureNamespace: #Caps.
+Graphics Caps define: #Pen &parents: {Cloneable}.
+Graphics Caps define: #Butt &parents: {Cloneable}.
+Graphics Caps define: #Projecting &parents: {Cloneable}.
+
+Graphics ensureNamespace: #Joins.
+Graphics Joins define: #Mitre &parents: {Cloneable}.
+"According to the Quartz documents, mitres should be replaced by
+bevels if the angle between the lines is less than 11 degrees"
+Graphics Joins define: #Pen &parents: {Cloneable}.
+Graphics Joins define: #Bevel &parents: {Cloneable}.
+
+ps@(PenStroke traits) capStartWithStyle: s@(Graphics Caps Butt traits)
+"Return a PenStroke which has the starting end with a butt cap."
+[|newPS line p|
+  newPS: ps copy.
+  p: ps startPoints.
+  line: (LineSegment newFrom: p second to: p first).
+  newPS secondEdge segments add: line.
+  newPS
+].
+
+ps@(PenStroke traits) capStartWithStyle: s@(Graphics Caps Pen traits)
+"Cut the pen in half and use it as the cap"
+[|pen newPS start end seg pl|
+  seg: ExtensibleArray new.
+  pen: ps pen.
+  pen setInitialVertexFor: ps secondEdge last.
+  start: pen activeVertex.
+  end: pen opposingVertex.
+  start < end
+    ifTrue: [pen path collect: [|:each| seg add: each] from: start to: end]
+    ifFalse: [pen path collect: [|:each| seg add: each] from: end to: path size.
+              pen path collect: [|:each| seg add: each] from: 0 to: start].
+  newPS: (ps newFrom: ps firstEdge and: (ps secondEdge add: seg)).
+  newPS
+].
+
+ps@(PenStroke traits) capStartWithStyle: s@(Graphics Caps Projecting traits)
+"Add a square cap of half the lines width"
+[|l p a newPS pl v1 v2|
+  p: ps startPoints.
+  l: ps width.
+  a: ps startAngle.
+  v1: (((l / 2) * (a + 180 degreesToRadians) cos + p second x),
+    ((l / 2) * (a + 180 degreesToRadians) sin + p second y)).
+  v2: ((l * (a + 270 degreesToRadians) cos + v1 x),
+    (l * (a + 270 degreesToRadians) sin + v1 y)).
+  pl: (PolyLine newFromArray: {p second. v1. v2. p first}).
+  newPS: (ps newFrom: ps firstEdge and: (ps secondEdge add: pl)).
+  newPS
+].
+
+ps@(PenStroke traits) capEndWithStyle: s@(Graphics Caps Butt traits)
+"Return a PenStroke which has the end capped with a butt."
+[|newPS line p|
+  newPS: ps copy.
+  p: ps endPoints.
+  line: (LineSegment newFrom: p first to: p second).
+  newPS firstEdge segments add: line.
+  newPS
+].
+
+ps@(PenStroke traits) capEndWithStyle: s@(Graphics Caps Pen traits)
+"Cut the pen in half and use it as the cap"
+[|pen newPS start end seg pl|
+  seg: ExtensibleArray new.
+  pen: ps pen.
+  pen setInitialVertexFor: ps firstEdge first.
+  start: pen activeVertex.
+  end: pen opposingVertex.
+  start < end
+    ifTrue: [pen path collect: [|:each| seg add: each] from: start to: end]
+    ifFalse: [pen path collect: [|:each| seg add: each] from: end to: path size.
+              pen path collect: [|:each| seg add: each] from: 0 to: start].
+  newPS: (ps newFrom: (ps firstEdge add: seg) and: ps secondEdge).
+  newPS
+].
+
+ps@(PenStroke traits) capEndWithStyle: s@(Graphics Caps Projecting traits)
+"Add a square cap of half the lines width"
+[|l p a newPS pl v1 v2|
+  p: ps endPoints.
+  l: ps width.
+  a: ps endAngle.
+  v1: (l / 2 * a cos + p first x), (l / 2 * a sin + p first y).
+  v2: (l * (a + 90 degreesToRadians) cos + v1 x), (l * (a + 90 degreesToRadians) sin + v1 y).
+  pl: (PolyLine newFromArray: {p first. v1. v2. p second}).
+  newPS: (ps newFrom: (ps firstEdge add: pl) and: ps secondEdge).
+  newPS
+].
+
+p1@(PenStroke traits) joinStartToEndOf: p2@(PenStroke traits) withJoinStyle: j@(Joins traits)
+"Returns a PenStroke which is p1 and p2 joined together"
+[j splice: p1 to: p2].
+
+j@(Graphics Joins Mitre traits) splice: p2@(PenStroke traits) to: p1@(PenStroke traits)
+"Adds p2 to the end of p1 and return a new PenStroke"
+[|newPS s1 s2|
+  newPS: PenStroke copy.
+  s2: p2 startPoints at: 0
+].
+
+pen@(Pen traits) entryAngle
+[pen angles at: (pen active - 1 mod: pen angles size)].
+
+pen@(Pen traits) exitAngle
+[pen angles at: pen active].
+
+p@(Pen traits) setInitialVertexFor: ls@(LineSegment traits)
+[
+  [ls angleBetween: p entryAngle and: pen exitAngle]
+     whileFalse: [p turnTowards: ls].
+].
+
+p@(Pen traits) turnTowards: ls
+[|angle|
+  angle: ls angle.
+  (angle - p entryAngle) abs < (angle - p exitAngle) abs
+    ifTrue: [p previousVertex]
+    ifFalse: [p nextVertex]
+].
+
+ls@(LineSegment traits) convolveWithPen: pen@(Pen traits)
+"Strokes a LineSegment with a Pen"
+[|newPS newP1 newP2|
+  newP1: (Array new &capacity: 2).
+  newP2: (Array new &capacity: 2).
+  pen setInitialVertexFor: ls.
+  newP1 at: 0 put: ls start + pen activeVertex.
+  newP2 at: 0 put: ls start + pen opposingVertex.
+  newP1 at: 1 put: ls end + pen activeVertex.
+  newP2 at: 1 put: ls end + pen opposingVertex.
+"TODO: Fix this ickiness"
+  newPS: (PenStroke newFrom: ((newP1 as: Path) as: PolyLine) and: ((newP2 reversed as: Path) as: PolyLine) withPen: pen).
+  newPS
+].
+
+p@(Pen traits) copy
+[resend `>> [path: p path copy. angles: p angles copy. ]].
+
+p@(Pen traits) newWidth: width flatness: flatness
+"Returns a Pen which is within flatness of a circle"
+[Pen copy `>>
+   [path: ((Polygon newForWidth: width flatness: flatness) as: PolyLine).
+    angles: (newP path segments collect: #angle `er). ]].
+
+ls@(LineSegment traits) strokeWithPen: pen@(Pen traits) flatness: _
+[ls convolveWithPen: pen].
+
+pl@(PolyLine traits) convolveWithPen: pen@(Pen traits)
+"Strokes pl with a pen"
+"See 'A Realistic 2D Drawing System' at
+http://freedesktop.org/%7Ekeithp/tutorials/cairo/siggraph.pdf"
+"TODO: Use an iterator instead so that objects are not *required*
+to have a #segments slot containing LineSegments."
+[| newPS newP1 newP2 v index |
+  newP1: ExtensibleArray new.
+  newP2: ExtensibleArray new.
+  pen setInitialVertexFor: pl segments first.
+  v: pl segments first.
+  index: 0.
+  [v = pl segments last] whileFalse: [
+    newP1 add: v start + pen activeVertex.
+    newP2 add: v start + pen opposingVertex.
+    (v angleBetween: pen entryAngle and: pen exitAngle)
+      ifTrue: [index: index + 1. v: (pl segments at: index)]
+      ifFalse: [pen turnTowards: v]].
+  newP1 add: pl segments last end + pen activeVertex.
+  newP2 add: pl segments last end + pen opposingVertex.
+"TODO: Fix this ickiness"
+  newPS: (PenStroke newFrom: ((newP1 as: Path) as: PolyLine) and: ((newP2 reversed as: Path) as: PolyLine) withPen: pen).
+  newPS
+].

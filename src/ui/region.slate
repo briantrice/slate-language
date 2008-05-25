@@ -1,0 +1,729 @@
+prototypes define: #PointND &parents: {Vector}.
+
+"N-dimensional points are vectors which don't accept further tupling."
+
+p@(PointND traits) , _
+[
+  p
+].
+
+p@(PointND traits) origin
+"Return a 0-filled point for my size."
+[p clone `>> [contents infect: [| :_ | 0]. ]].
+
+t@(Tuple traits) as: p@(PointND traits)
+[| newP |
+  newP: p newSameSize.
+  p keysDo: [| :each | newP at: each put: (t at: each)].
+  newP
+].
+
+p@(PointND traits) x
+[p contents at: 0].
+
+p@(PointND traits) y
+[p contents at: 1].
+
+p@(PointND traits) z
+[p contents at: 2].
+
+_@(PointND traits) deriveForSize: n
+"Creates and returns a new prototype of size n with appropriate traits and
+creation methods defined."
+[| newT |
+  newT: PointND derive.
+  _@(newT traits) size [n].
+  t@(newT traits) new &capacity: m &immutable: i
+  [m: n. i: True. resend].
+  newT traits define: #origin -> newT origin.
+  newT
+].
+
+prototypes define: #Point2D &builder: [PointND deriveForSize: 2].
+
+p@(Point2D traits) x: x y: y
+[p new `>> [at: 0 put: x. at: 1 put: y. ]].
+
+p@(Point2D traits) negated
+[
+  p x: p x negated y: p y negated
+].
+
+p@(Point2D traits) cross: q@(Point2D traits)
+[
+  p x * q y - (p y * q x)
+].
+
+p@(Point2D traits) distanceTo: q@(Point2D traits)
+"The naive Euclidean method."
+[
+  ((p x - q x) squared + (p y - q y) squared) sqrt
+].
+
+p@(Point2D traits) between: a and: b
+"This should be called once the point is determined to be within the bounding
+box for the other two points. This measures by perpendicular distance from
+the line instead of slope and intercept, avoiding divide-by-zero errors and
+being robust in case of round-off."
+[| dx dy |
+  dx: b x - a x.
+  dy: b y - a y.
+  dx isZero /\ [dy isZero]
+    \/ [((p y * dx - p x * dy) - (a y * b x - a x * b y)) squared
+	   <= (epsilon squared * (dx squared + dy squared))]
+].
+
+prototypes define: #Point3D &builder: [PointND deriveForSize: 3].
+
+p@(Point3D traits) x: x y: y z: z
+[p clone `>> [at: 0 put: x. at: 1 put: y. at: 2 put: z. ]].
+
+p@(Point3D traits) negated
+[
+  p x: p x negated y: p y negated z: p z negated
+].
+
+Graphics define: #Region &parents: {Cloneable}.
+
+_@(Region traits) isEmpty
+[False].
+
+r@(Region traits) xor: s@(Region traits)
+[
+  (r - s) \/ (s - r)
+].
+
+Graphics define: #BoundRegion &parents: {Region} &slots: {#boundingRect}.
+"A region fitting into a bound (rectangular) area of space."
+
+Graphics define: #Everywhere &builder: [Region clone].
+
+_@Everywhere contains: _@(Region traits)
+[True].
+
+r@(Region traits) contains: e@Everywhere
+[e = r].
+
+_@Everywhere = _@Everywhere
+[True].
+
+_@Everywhere = _@(Region traits)
+[False].
+
+_@Everywhere /\ r@(Region traits)
+[r].
+
+e@Everywhere \/ _@(Region traits)
+[e].
+
+Graphics define: #Nowhere &builder: [Region clone].
+"The Region with no inside and that contains nothing."
+
+r@(Region traits) intersects: s@(Region traits)
+[
+  (r /\ s = Nowhere) not
+].
+
+_@Nowhere isEmpty
+[True].
+
+n@Nowhere contains: r@(Region traits)
+[n = r].
+
+_@(Region traits) contains: _@Nowhere
+[True].
+
+_@Nowhere = _@Nowhere
+[True].
+
+_@Nowhere = _@(Region traits)
+[False].
+
+_@Nowhere \/ r@(Region traits)
+[r].
+
+n@Nowhere /\ _@(Region traits)
+[n].
+
+r@(Region traits) = s@(Region traits)
+[
+  (r xor: s) = Nowhere.
+].
+
+Graphics define: #RegionSet &parents: {BoundRegion}
+  &slots: {#regions -> Set new}.
+"A set of many regions."
+
+rs@(RegionSet traits) new &capacity: n
+[rs cloneSettingSlots: #(regions) to: {rs regions new &capacity: n}].
+
+rs@(RegionSet traits) do: block
+"Recursively apply the block to all regions and sub-regions of those."
+[
+  rs regions do: [| :each | each do: block]
+].
+
+r@(Region traits) do: block
+"Termination handler for RegionSet do:."
+[block applyWith: r].
+
+Graphics define: #RegionUnion &parents: {RegionSet}.
+"The union of many regions."
+
+r@(Region traits) \/ s@(Region traits)
+[(RegionUnion new &capacity: 2) `>> [regions add: r. regions add: s. ]].
+
+ru@(RegionUnion traits) \/ r@(Region traits)
+[ru cloneSettingSlots: #(regions) to: {ru regions copyWith: r}].
+
+ru1@(RegionUnion traits) \/ ru2@(RegionUnion traits)
+[ru1 cloneSettingSlots: #(regions) to: {ru1 regions union: ru2 regions}].
+
+ru@(RegionUnion traits) contains: r@(Region traits)
+[
+  ru regions anySatisfy: [| :each | each contains: r]
+].
+
+ru@(RegionUnion traits) dimensions
+[
+  ru regions inject: 0 into: [| :dims :each | dims max: each dimensions]
+].
+
+Graphics define: #RegionIntersection &parents: {RegionSet}.
+"The intersection of many regions."
+
+r@(Region traits) /\ s@(Region traits)
+[(RegionIntersection new &capacity: 2) `>> [regions addAll: {r. s}. ]].
+
+ri@(RegionIntersection traits) /\ r@(Region traits)
+[ri cloneSettingSlots: #(regions) to: {ri regions copyWith: r}].
+
+ri1@(RegionIntersection traits) /\ ri2@(RegionIntersection traits)
+[ri1 cloneSettingSlots: #(regions) to: {ri1 regions union: ri2 regions}].
+
+ri@(RegionIntersection traits) contains: r@(Region traits)
+[
+  ri regions allSatisfy: [| :each | each contains: r]
+].
+
+ru@(RegionUnion traits) dimensions
+[
+  ru regions inject: 0 into: [| :dims :each | dims max: each dimensions]
+].
+
+Graphics define: #RegionComplement &parents: {Region}
+"The Region outside-of another region."
+  &slots: {#region -> Everywhere}.
+
+rc@(RegionComplement traits) newFor: r@(Region traits)
+[rc cloneSettingSlots: #(region) to: {r}].
+
+r@(Region traits) complement
+[
+  RegionComplement newFor: r
+].
+
+r@(RegionComplement traits) complement
+"Double negation."
+[
+  r region
+].
+
+rc@(RegionComplement traits) contains: r@(Region traits)
+[
+  (rc region contains: r) not
+].
+
+rc1@(RegionComplement traits) /\ rc2@(RegionComplement traits)
+"De Morgan's laws."
+[
+  (rc1 region \/ rc2 region) complement
+].
+
+rc1@(RegionComplement traits) \/ rc2@(RegionComplement traits)
+"De Morgan's laws."
+[
+  (rc1 region /\ rc2 region) complement
+].
+
+r@(Region traits) - q@(Region traits)
+[
+  r /\ q complement
+].
+
+Graphics define: #Area &parents: {Region}.
+"Any 2-dimensional Region."
+
+_@(Area traits) dimensions
+[2].
+
+Graphics define: #BoundArea &parents: {Area. BoundRegion}.
+"Any bounded Area."
+
+Graphics define: #Rectangle &parents: {BoundArea}
+"This is essentially just a coordinate-aligned bounding box, but with
+transformations can be any Rectangle."
+  &slots: {#origin. #corner}.
+
+r@(Rectangle traits) boundingRect
+[r].
+
+_@(Rectangle traits) boundingRect: s@(Rectangle traits)
+[s].
+
+Graphics define: #Point &parents: {Area} &slots: {#x -> 0. #y -> 0}.
+
+p@(Point traits) printOn: s
+[
+  p == Point traits ifTrue: [^ resend].
+  s nextPut: $(.
+  p x printOn: s.
+  s ; ', '.
+  p y printOn: s.
+  s nextPut: $).
+  s
+].
+
+x@(Number traits) , y@(Number traits)
+[Point x: x y: y].
+
+_@(Point traits) x: x y: y
+[Point cloneSettingSlots: #(x y) to: {x. y}].
+
+Point traits define: #origin &builder: [0 , 0].
+
+_@(Point traits) dimensions
+[0].
+
+p@(Point traits) contains: r@(Region traits)
+[p = r].
+
+n@(Number traits) as: p@(Point traits)
+[p cloneSettingSlots: #(x y) to: {n. n}].
+
+p@(Point traits) distanceTo: q@(Point traits)
+"The naive Euclidean method."
+[((p x - q x) squared + (p y - q y) squared) sqrt].
+
+p@(Point traits) midpoint: q@(Point traits)
+"The Point halfway between p and q"
+[(p x + q x / 2) , (p y + q y / 2)].
+
+"TODO: simplify this like the numeric coercions"
+p@(Point traits) + q@(Point traits)
+[p cloneSettingSlots: #(x y) to: {p x + q x. p y + q y}].
+
+p@(Point traits) - q@(Point traits)
+[p cloneSettingSlots: #(x y) to: {p x - q x. p y - q y}].
+
+p@(Point traits) * q@(Point traits)
+[p cloneSettingSlots: #(x y) to: {p x * q x. p y * q y}].
+
+p@(Point traits) / q@(Point traits)
+[p cloneSettingSlots: #(x y) to: {p x / q x. p y / q y}].
+
+p@(Point traits) + n@(Number traits)
+[p + (n as: p)].
+
+p@(Point traits) - n@(Number traits)
+[p - (n as: p)].
+
+n@(Number traits) + p@(Point traits)
+[(n as: p) + p].
+
+n@(Number traits) - p@(Point traits)
+[(n as: p) - p].
+
+p@(Point traits) * n@(Number traits)
+[p * (n as: p)].
+
+p@(Point traits) / n@(Number traits)
+[p / (n as: p)].
+
+n@(Number traits) * p@(Point traits)
+[(n as: p) * p].
+
+n@(Number traits) / p@(Point traits)
+[(n as: p) / p].
+
+p@(Point traits) reciprocal
+[p x reciprocal , p y reciprocal].
+
+p@(Point traits) = q@(Point traits)
+[p x = q x /\ [p y = q y]].
+
+p@(Point traits) hash
+"TODO: Replace this code"
+"Taken from Squeak"
+[(p x hash hashMultiply + p y hash) hashMultiply].
+
+"Point is the graphics-specific traits for 2D points."
+
+r@(Rectangle traits) origin: p@(Point traits) corner: q@(Point traits)
+[r cloneSettingSlots: #(origin corner) to: {p. q}].
+
+r@(Rectangle traits) origin: p@(Point traits) extent: q@(Point traits)
+[r cloneSettingSlots: #(origin corner) to: {p. q + p}].
+
+r@(Rectangle traits) newEncompassing: c
+"Return a new Rectangle containing all the points of c."
+[| newO newC |
+  c do: [| :point |
+    newO ifNil: [newO: (newC: point)]
+         ifNotNil: [newO: (newO min: point).
+           newC: (newC max: point)]].
+  r origin: newO corner: newC
+].
+
+r@(Rectangle traits) left: v
+[
+  r origin: (v , r origin y) corner: r corner
+].
+
+r@(Rectangle traits) right: v
+[
+  r origin: r origin corner: (v , r corner y)
+].
+
+r@(Rectangle traits) top: v
+[
+  r origin: (r origin x , v) corner: r corner
+].
+
+r@(Rectangle traits) bottom: v
+[
+  r origin: r origin corner: (r corner x , v)
+].
+
+r@(Rectangle traits) height
+[
+  r corner y - r origin y
+].
+
+r@(Rectangle traits) width
+[
+  r corner x - r origin x
+].
+
+r@(Rectangle traits) extent
+[
+  r width , r height
+].
+
+r@(Rectangle traits) area
+[
+  (r height max: 0) * (r width max: 0)
+].
+
+r@(Rectangle traits) bottom
+[
+  r corner y
+].
+
+r@(Rectangle traits) top
+[
+  r origin y
+].
+
+r@(Rectangle traits) left
+[
+  r origin x
+].
+
+r@(Rectangle traits) right
+[
+  r corner x
+].
+
+r@(Rectangle traits) = q@(Rectangle traits)
+[
+  r origin = q origin /\ [r corner = q corner]
+].
+
+r@(Rectangle traits) hash
+[
+  r origin hash bitXor: r corner hash
+].
+
+r@(Rectangle traits) topLeft
+[
+  r left , r top
+].
+
+r@(Rectangle traits) topCenter
+[
+  (r right + r left // 2) , r top
+].
+
+r@(Rectangle traits) topRight
+[
+  r right , r top
+].
+
+r@(Rectangle traits) bottomLeft
+[
+  r left , r bottom
+].
+
+r@(Rectangle traits) bottomCenter
+[
+  (r right + r left // 2) , r bottom
+].
+
+r@(Rectangle traits) bottomRight
+[
+  r right , r bottom
+].
+
+r@(Rectangle traits) leftCenter
+[
+  r left , (r bottom + r top // 2)
+].
+
+r@(Rectangle traits) rightCenter
+[
+  r right , (r bottom + r top // 2)
+].
+
+r@(Rectangle traits) center
+[
+  (r top + r bottom // 2) , (r left + r right // 2)
+].
+
+r@(Rectangle traits) corners
+[
+  {r topLeft. r bottomLeft. r bottomRight. r topRight}
+    as: ExtensibleArray
+].
+
+r@(Rectangle traits) innerCorners
+[
+  (r origin: r topLeft
+     corner: r bottomRight - 1) corners
+].
+
+r@(Rectangle traits) boundingBox
+[r].
+
+r@(Rectangle traits) areasOutside: q@(Rectangle traits)
+"Return a collection of rectangles not intersecting q."
+[| areas oy cy |
+  r origin <= q corner /\ [q origin <= r corner]
+    ifFalse: [^ ({r} as: ExtensibleArray)].
+  areas: (ExtensibleArray new &capacity: 3).
+  q origin y > r origin y
+    ifTrue: [areas addLast:
+      (r origin: r origin
+	 corner: (r origin x , (oy: q origin y)))]
+    ifFalse: [oy: r origin y].
+  q corner y < r corner y
+    ifTrue: [areas addLast:
+      (r origin: (r origin x , (cy: q corner y))
+	 corner: q corner)]
+    ifFalse: [cy: r corner y].
+  q origin x > r origin x
+    ifTrue: [areas addLast:
+      (r origin: (r origin x , yo)
+	 corner: (q origin x , yc))].
+  q corner x < r corner x
+    ifTrue: [areas addLast:
+      (r origin: (q corner x , yo)
+	 corner: (r corner x , yc))].
+  areas
+].
+
+r@(Rectangle traits) + p@(Point traits)
+[
+  r origin: r origin + p corner: r corner + p
+].
+
+r@(Rectangle traits) + p@(Point2D traits)
+[
+  r origin: r origin + p corner: r corner + p
+].
+
+r@(Rectangle traits) - q@(Rectangle traits)
+[RegionUnion cloneSettingSlots: #(regions) to: {r areasOutside: q}].
+
+r@(Rectangle traits) /\ q@(Rectangle traits)
+[| left right top bottom |
+  left: (q origin x max: r origin x).
+  top: (q origin y max: r origin y).
+  right: (q corner x min: r corner x).
+  bottom: (q corner y min: r corner y).
+  left > right \/ [top > bottom] ifTrue: [^ Nowhere]
+  r origin: left , top corner: right , bottom
+].
+
+r@(Rectangle traits) encompass: p@(Point traits)
+"Grow the Rectangle the amount necessary to ensure the point is contained
+in it."
+[
+  r origin: (r origin min: p) corner: (r corner max: p)
+].
+
+r@(Rectangle traits) merge: q@(Rectangle traits)
+"Returns the smallest bounding rectangle which encompasses the two arguments."
+[
+  r origin: (r origin min: q origin)
+    corner: (r corner max: q corner)
+].
+
+r@(Rectangle traits) mergeWithAll: col
+"An optimized (non-allocating) method for merging many rectangles at once.
+Use this over merge: whenever possible."
+[| minX maxX minY maxY |
+  minX: r origin x. minY: r origin y.
+  maxX: r corner x. maxY: r corner y.
+  col do: [| :each |
+	     minX: (each origin x min: minX).
+	     minY: (each origin y min: minY).
+	     maxX: (each corner x max: maxX).
+	     maxY: (each corner y max: maxY)].
+  r origin: (minX , minY) corner: (maxX , maxY)
+].
+
+r@(Rectangle traits) contains: p@(Point traits)
+[
+  p x >= r origin x /\ [p y >= r origin y] /\ [p x <= r corner x] /\ [p y <= r corner y]
+].
+
+r@(Rectangle traits) contains: q@(Rectangle traits)
+[
+  q origin >= r origin /\ [q corner <= r corner]
+].
+
+r@(Rectangle traits) intersects: q@(Rectangle traits)
+[
+  (r origin max: q origin) < (r corner min: q corner)
+].
+
+Graphics define: #Trace &parents: {Region}.
+"A single-dimensioned Region."
+
+_@(Trace traits) dimensions
+[1].
+
+p@(Trace traits) isClosed
+"A closed trace starts and ends at the same place."
+[
+  p start = p end
+].
+
+Graphics define: #Path &parents: {Trace}
+"Paths are Sequences of Points marking LineSegment endings."
+  &slots: {#points -> ExtensibleArray new}.
+
+p@(Path traits) copy
+[resend `>> [points: p points copy. ]].
+
+s@(Sequence traits) as: p@(Path traits)
+[p copy `>> [points: (s collect: [| :each | each as: Point]). ]].
+
+p@(Path traits) newFrom: start to: end
+[p copy `>> [points: ({start. end} as: p points). ]].
+
+p@(Path traits) start
+[
+  p points first
+].
+
+p@(Path traits) end
+[
+  p points last
+].
+
+Graphics define: #LineSegment &parents: {Trace} &slots: {#start. #end}.
+"A straight path between two Points."
+
+line1@(LineSegment traits) = line2@(LineSegment traits)
+[| s1 s2 e1 e2 |
+  s1: line1 start.
+  s2: line2 start.
+  e1: line1 end.
+  e2: line2 end.
+  (s1 = s2 /\ [e1 = e2]) \/
+    [s1 = e2 /\ [e1 = s2]]
+].
+
+line@(LineSegment traits) newFrom: start to: end
+[line cloneSettingSlots: #(start end) to: {start. end}].
+
+p@(Path traits) segments
+"Answer the LineSegments that compose the Path."
+[| newOC ps |
+  ps: p points size.
+  newOC: (ExtensibleArray new &capacity: ps - 1).
+  1 below: ps do: [| :each |
+    newOC add: (LineSegment newFrom: (p points at: each - 1) to: (p points at: each))].
+  newOC
+].
+
+line@(LineSegment traits) contains: p@(Point traits)
+[
+  line `withSlotsDo:
+    [| :start :end |
+     (line boundingRect contains: p)
+       /\ [(p y - start y) * (end x - start x) =
+	     ((p x - start x) * (end y - start y))]]
+].
+
+line@(LineSegment traits) calcBoundingRect
+[
+  line `withSlotsDo:
+    [| :start :end |
+     Rectangle origin: (start x min: end x) , (start y min: end y)
+               corner: (start x max: end x) , (start y max: end y)]
+].
+
+line@(LineSegment traits) clipTo: r@(Rectangle traits)
+"Returns a new LineSegment or Nil if the line is gone."
+[| x0 x1 y0 y1 interp |
+  "TODO: import from Dylan's DUIM extended-geometry/lines.dylan"
+].
+
+Graphics define: #Polygon &parents: {Path}.
+"A Polygon is a closed Path, as an Area."
+
+_@(Polygon traits) dimensions
+[2].
+
+path@(Path traits) as: poly@(Polygon traits)
+"Coerce the path to be closed while converting."
+[| newP |
+  newP: (poly cloneSettingSlots: #(points)
+	      to: {path points as: (poly points new &capacity: path points size + 1)}).
+  path isClosed
+    ifFalse: [newP points add: path points first].
+  newP
+].
+
+path@(Path traits) close
+"Return a new Polygon if needed, otherwise do nothing."
+[
+  path isClosed
+    ifTrue: [path]
+    ifFalse: [path as: Polygon]
+].
+
+poly@(Polygon traits) contains: p@(Point traits)
+"This algorithm counts the number of edge segments that intersect the ray
+from (X,Y) to (+infinity,Y).  If there are an odd number of crossings,
+(X,Y) is considered to be inside the Polygon."
+[| crossings lastPoint testBlock |
+  crossings: 0.
+  lastPoint: poly first.
+  testBlock: [| :a :b |
+		(p x <= a y eqv: p y > b y) "The segment crosses the ray."
+		  /\ [a y ~= b y]
+		  /\ [(p x - a x) -
+			  ((p y - a y) * (b x - a x)) / (b y - a y) < 0]
+		"The point is to the left."
+		   ifTrue: [crossings: crossings + 1]].
+  1 below: poly size
+    do: [| :index thisPoint |
+	 thisPoint: (poly at: index)
+	 testBlock applyWith: thisPoint with: lastPoint.
+	 lastPoint: thisPoint].
+  crossings isOdd
+].

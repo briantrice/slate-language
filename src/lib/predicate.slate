@@ -1,0 +1,115 @@
+
+collections define: #PredicateCollection &parents: {Collection}.
+"A collection for which includes: is defined, but iteration and so forth are
+lazy, allowing for infinite elements. In principle, there should be no
+duplicates, but this does not make a NoDuplicatesCollection derivation
+sensible."
+
+collections addImmutableSlot: #Everything valued: PredicateCollection clone.
+
+e@Everything new [e].
+_@Everything includes: _ [True].
+
+collections addImmutableSlot: #Nothing valued: PredicateCollection clone.
+
+n@Nothing new [n].
+_@Nothing includes: _ [False].
+
+"TODO: add a protocol for determining the basis context for iteration, such
+as a collection reification of the image, and some means to override it,
+structurally, or using subjectively."
+
+collections define: #Aggregate &parents: {PredicateCollection}.
+Aggregate addSlot: #constituents valued: ExtensibleArray new.
+"The collections aggregated."
+
+a@(Aggregate traits) flattened
+[| collector |
+  collector: a constituents new writer.
+  a constituents do:
+    [| :each |
+     (each is: a)
+       ifTrue: [collector nextPutAll: each constituents]
+       ifFalse: [collector nextPut: each]].
+  a cloneSettingSlots: #(constituents) to: {collector contents}
+].
+
+a@(Aggregate traits) of: collections
+[a cloneSettingSlots: #(constituents) to: {collections as: a constituents}].
+
+collections define: #Union &parents: {Aggregate}.
+
+u@(Union traits) includes: obj
+[u constituents anySatisfy: [| :each | each includes: obj]].
+
+p@(PredicateCollection traits) \/ c@(Collection traits)
+[Union of: {p. c}].
+
+c@(Collection traits) \/ p@(PredicateCollection traits)
+[Union of: {c. p}].
+
+u@(Union traits) \/ p@(PredicateCollection)
+[Union of: {u. p}].
+
+p@(PredicateCollection) \/ u@(Union traits)
+[Union of: {p. u}].
+
+collections define: #Intersection &parents: {Aggregate}.
+
+i@(Intersection traits) includes: obj
+[i constituents allSatisfy: [| :each | each includes: obj]].
+
+p@(PredicateCollection traits) /\ c@(Collection traits)
+[Intersection of: {p. c}].
+
+c@(Collection traits) /\ p@(PredicateCollection traits)
+[Intersection of: {c. p}].
+
+i@(Intersection traits) /\ p@(PredicateCollection)
+[i of: {i. p}].
+
+p@(PredicateCollection traits) /\ u@(Intersection traits)
+[Intersection of: {p. u}].
+
+collections define: #TestCollection &parents: {PredicateCollection}.
+"A PredicateCollection based on applying a block to the value being tested."
+TestCollection addSlot: #test valued: [| :_ | True].
+"Accept everything by default."
+
+t@(TestCollection traits) newFor: block
+[t cloneSettingSlots: #(test) to: {block}].
+
+t@(TestCollection traits) includes: obj
+[t test applyWith: obj].
+
+c@(PredicateCollection traits) select: block
+[
+  TestCollection newFor:
+    [| :x | (c includes: x) /\ [block applyWith: c]]
+].
+
+t@(TestCollection traits) select: block
+[
+  t newFor: [| :x | (t includes: x) /\ [block applyWith: x]]
+].
+
+t1@(TestCollection traits) /\ t2@(TestCollection traits)
+[t1 select: t2 test].
+
+t@(TestCollection traits) /\ c@(Collection traits)
+[c select: t test].
+
+m@(Method traits) satisfiers
+"Answer a new TestCollection for the block."
+[TestCollection newFor: m].
+
+collections define: #Complement &parents: {PredicateCollection}.
+"A PredicateCollection based on the negation of the tests for another."
+Complement addSlot: #basis valued: TestCollection clone.
+"Contain nothing by default."
+
+c@(Complement traits) of: c@(Collection traits)
+[c cloneSettingSlots: #(basis) to: {c}].
+
+c@(Complement traits) includes: obj
+[(c basis includes: obj) not].

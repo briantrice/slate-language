@@ -1,0 +1,339 @@
+prototypes define: #Trait &parents: {Cloneable}
+  &slots: {#users -> IdentitySet new "The Trait or Traits object that use this one."
+	   }.
+"A Trait object is an individual protocol that exists for compile-time
+composition into Traits objects. In this way we can divide up protocols as many
+ways as conceptually appropriate without run-time overhead, and compile-time
+checks can verify completeness of the compositions.
+
+The methods defined for traits are arbitrary multi-methods and can dispatch
+on anything. However, use of the traits object itself in such a method
+definition does not add a role to that object but just creates a place in the
+signature where it is indicated that the future composition result will have
+a role."
+
+t@(Trait traits) new
+[t cloneSettingSlots: #(users) to: {t users new}].
+
+t@(Trait traits) noteUseBy: user@(Trait traits)
+[t users include: user].
+
+t@(Trait traits) noteUseEndedBy: user@(Trait traits)
+[
+  t users exclude: user.
+  t users isEmpty ifTrue: [t finalize].
+].
+
+t@(Trait traits) notifyUsersOfChange
+[t users do: [| :user | user handleChangedComponent]].
+
+t@(Trait traits) handleChangedComponent
+[
+  t users do:
+    [| :user | (user is: Trait) ifTrue: [user notifyUsersOfChange]
+				ifFalse: [error: 'Recompilating concrete Trait users is not yet implemented.']]
+].
+
+t@(Trait traits) addMutatorForTraitSlot: name
+"Allow changes for slots whose type will always be Trait to automatically
+update the usage Set for that Trait and the old Trait, if any."
+[
+  t addMutator:
+  [| :user :trait |
+   user trait ifNotNilDo: [| :oldTrait | oldTrait noteUseEndedBy: user].
+   user atSlotNamed: name put: trait.
+   trait ifNotNil: [trait noteUseBy: user].
+   trait] for: name
+].
+
+x@(Root traits) finalize [].
+
+t@(Trait traits) services [overrideThis].
+"Answer the methods that are held for installation on composed results."
+
+t@(Trait traits) flattened
+"Take the services that this Trait has, and turn them into a single concrete
+component Trait, thus flattening any compositions."
+[TraitComponent newFrom: t services].
+
+t@(Trait traits) signatures [t services keySet].
+"The keys of the services are the relevant Signature objects."
+t@(Trait traits) methods [t services valueSet].
+"The values of the services are the actual methods to install."
+
+t@(Trait traits) hasValidSignatures
+"Answers whether all of the signatures in the provided services actually
+dispatch at least in some way on the Trait(?)."
+"TODO: evaluate/improve the query for the role test"
+[
+  t signatures allSatisfy:
+    [| :sig | sig roles anySatisfy: [| :role | t is: role]]
+].
+
+t@(Trait traits) hasValidServices
+[
+  t hasValidSignatures /\
+    [| check | check: True.
+     t services keysAndValuesDo:
+       [| :sig :m | check: check /\ [sig arity = m arity]].
+     check]
+].
+
+t@(Trait traits) conflicts [overrideThis].
+"Answers those service associations which are inconsistent /and/ are not
+resolved here in an unambiguous way (say, by an override)."
+t@(Trait traits) hasConflicts [t conficts isEmpty not].
+"Answer whether there are any service definition conflicts."
+
+t@(Trait traits) providedSelectors
+"Answers a set of all the selectors used in the service signatures."
+[t signatures collect: #selector `er].
+
+t@(Trait traits) requiredSelectors
+"Answer all the selectors sent which should be defined on users of the Trait,
+but is not in the services selector set."
+[| requirements |
+  requirements: Set new.
+  t providedSelectors `cacheAs: #provisions.
+  t services valuesDo:
+    [| :m |
+     (0 below: m arity) do:
+       [| :index | requirements addAll:
+	 ((m allSelectorsSentToInputAt: index) difference: provisions)]].
+  requirements
+].
+
+t@(Trait traits) isConcrete [t requiredSelectors isEmpty].
+t@(Trait traits) isAbstract [t isConcrete not].
+
+t1@(Trait traits) conflictsWith: t2@(Trait traits)
+"Detects those Signatures which are bound to different Method objects in
+the two Trait objects."
+[| allServices |
+  allServices: Dictionary new.
+  {t1. t2} do:
+    [| :base | base services keysAndValuesDo:
+      [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].
+  allServices mapSelect: [| :sig :methods | methods size > 1]
+].
+
+t1@(Trait traits) = t2@(Trait traits)
+"Compare Trait objects by their services Mappings."
+[t1 services = t2 services].
+
+t@(Trait traits) translate: sig for: target
+"This translates the convention of using the Trait object as place holder for
+the target installation object into the actual target intended Signature."
+[sig cloneSettingSlots: #(roles) to: {sig roles copyReplace: t with: target}].
+
+t@(Trait traits) installServicesOn: target
+[
+  t services keysAndValuesDo:
+    [| :sig :m | (t translate: sig for: target) defineAs: m]
+].
+
+x@(Root traits) speaks: t@(Trait traits)
+"Answer whether the given object has all of the services defined by the
+Trait object."
+[
+  t services keysAndValuesDo:
+    [| :sig :m targetSig | targetSig: (t translate: sig for: target).
+     targetSig isDefined /\ [targetSig nearestMethod = m] ifFalse: [^ False]].
+  True
+].
+
+t@(Trait traits) hasSubTrait: sub@(Trait traits)
+[overrideThis].
+
+"TODO: this extension of is: to consider Trait composition is too conflating.
+x@(Root traits) is: t@(Trait traits)
+[x traits hasSubTrait: t].
+"
+
+def@(Syntax MethodDefinition traits) asServiceOf: tr
+"A macro to transform a method definition into a service entry on the Trait
+object that the second argument should evaluate to (or be, if not a piece
+of syntax). It expands into a literal of the method object that became a
+service of the Trait."
+[| roles service |
+  (tr is: Syntax Node) ifTrue: [tr: tr evaluate].
+  (tr is: Trait) ifFalse: [error: 'The target for installation was not a Trait.'].
+  roles: (def roles collect: #evaluate `er).
+  (roles includes: tr) ifFalse: [error: 'The Trait is not dispatched upon.'].
+  service: (tr services at: (Method Signature newNamed: def selector over: roles)
+		        put: (def deepCopy as: Syntax Block) compile) unquoted.
+  tr notifyUsersOfChange.
+  service
+].
+
+prototypes define: #TraitComponent &parents: {Trait}
+  &slots: {#services -> Dictionary new "Maps Signatures to Method objects."
+	   }.
+
+t@(TraitComponent traits) newFrom: map@(Mapping traits)
+"Create a TraitComponent from valid signature->method associations."
+"TODO: check roles in the signatures?"
+[
+  map: (map mapSelect:
+    [| :key :value | (key is: Method Signature) /\ [value is: Method]]).
+  t new `>> [services: (map as: t services). ]
+].
+
+TraitComponent traits compareAndHashUsingSlots: #(services).
+
+t@(TraitComponent traits) conflicts
+"A component cannot conflict with itself because of the Dictionary basis."
+[Set new &capacity: 0].
+
+t@(TraitComponent traits) hasSubTrait: sub@(Trait traits)
+[False].
+
+t@(TraitComponent traits) flattened [t].
+
+prototypes define: #TraitSum &parents: {Trait} &slots: {#bases -> Set new}.
+"A symmetric sum, where no precedence is given to any of the bases."
+
+t@(TraitSum traits) newFor: bases
+[t new `>> [bases: (bases as: t bases).
+	    bases do: [| :each | each noteUseBy: self]. ]].
+
+TraitSum traits compareAndHashUsingSlots: #(bases).
+
+t1@(Trait traits) + t2@(Trait traits)
+[TraitSum newFor: {t1. t2}].
+
+ts@(TraitSum traits) + t@(Trait traits)
+[ts newFor: (ts bases copyWith: t)].
+
+t@(Trait traits) + ts@(TraitSum traits)
+[ts newFor: (ts bases copyWith: t)].
+
+ts@(TraitSum traits) conflicts
+"Detects those Signatures which are bound to different Method objects in
+different bases."
+[| allServices |
+  allServices: Dictionary new.
+  ts bases do:
+    [| :base | base services keysAndValuesDo:
+      [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].
+  allServices mapSelect: [| :sig :methods | methods size > 1]
+].
+
+ts@(TraitSum traits) services
+[ts bases reduce: [| :b1 :b2 | b1 services union: b2 services]].
+
+ts@(TraitSum traits) hasSubTrait: t@(Trait traits)
+[(ts bases includes: t) \/ [ts bases anySatisfy: [| :base | base hasSubTrait: t]]].
+
+prototypes define: #TraitModifier &parents: {Trait} &slots: {#base -> Trait}.
+TraitModifier addMutatorForTraitSlot: #base.
+
+tm@(TraitModifier traits) finalize
+[tm base: Nil. ].
+
+TraitModifier traits compareAndHashUsingSlots: #(base).
+
+tm@(TraitModifier traits) hasSubTrait: t@(Trait traits)
+[tm base = t \/ [tm base hasSubTrait: t]].
+
+prototypes define: #TraitOverride &parents: {TraitModifier}
+  &slots: {#layer -> Trait}.
+"A linear overlay composition of other Trait objects."
+
+TraitOverride addMutatorForTraitSlot: #overlay.
+
+TraitOverride traits compareAndHashUsingSlots: #(base overlay).
+
+to@(TraitOverride traits) newBasedOn: base layering: overlay
+[to new `>> [base: base. overlay: overlay. ]].
+
+t@(Trait traits) as: to@(TraitOverride traits)
+[to new `>> [overlay: overlay. ]].
+
+to@(TraitOverride traits) newFrom: map@(Mapping traits)
+[(TraitComponent newFrom: map) as: to].
+
+base@(Trait traits) ** layer@(Trait traits)
+[TraitOverride newBasedOn: base layering: layer].
+
+to@(TraitOverride traits) finalize
+[
+  resend.
+  to overlay: Nil.
+].
+
+to@(TraitOverride traits) services
+"Apply the overlay to the underlying Trait."
+[to overlay services over: to base services].
+
+to@(TraitOverride traits) conflicts
+"Count the conflicts remaining after applying the overlay."
+[(to services as: TraitComponent) conflicts].
+
+to@(TraitOverride traits) hasSubTrait: t@(Trait traits)
+[to overlay = t \/ [to overlay hasSubTrait: t] \/ [resend]].
+
+prototypes define: #TraitExclusion &parents: {TraitModifier}
+  &slots: {#exclusion -> Trait}.
+TraitExclusion addMutatorForTraitSlot: #exclusion.
+
+te@(TraitExclusion traits) newBasedOn: base excluding: exclusion
+[te new `>> [base: base. exclusion: exclusion. ]].
+
+TraitExclusion traits compareAndHashUsingSlots: #(base exclusion).
+
+t@(Trait traits) as: te@(TraitExclusion traits)
+[te new `>> [exclusion: exclusion. ]].
+
+te@(TraitExclusion traits) newFrom: map@(Mapping traits)
+[(TraitComponent newFrom: map) as: te].
+
+base@(Trait traits) - exclusion@(Trait traits)
+[TraitExclusion newBasedOn: base excluding: exclusion].
+
+te@(TraitExclusion traits) services
+[
+  te base services mapReject:
+    [| :sig :m | (te exclusion services) includesKey: sig]
+].
+
+te@(TraitExclusion traits) finalize
+[
+  resend.
+  te exclusion: Nil.
+].
+
+te@(TraitExclusion traits) hasSubTrait: t@(Trait traits)
+[te exclusion = t \/ [te exclusion hasSubTrait: t] \/ [resend]].
+
+prototypes define: #TraitWithAlias &parents: {TraitModifier}
+  &slots: {#aliases -> Dictionary new "Map from alias Signatures to original."}.
+
+TraitWithAlias traits compareAndHashUsingSlots: #(base aliases).
+
+ta@(TraitWithAlias traits) newBasedOn: base aliasing: map
+[ta new `>> [base: base. aliases: (map as: ta aliases). ]].
+
+base@(Trait traits) aliasing: map
+[TraitWithAlias newBasedOn: base aliasing: map].
+
+prototypes define: #TraitWrapper &parents: {Trait}
+  &slots: {#basis. #cachedServices}.
+"A TraitWrapper allows non-Trait objects to participate in Trait compositions."
+
+tw@(TraitWrapper traits) newFor: obj
+[tw new `>> [basis: obj. cachedServices: Nil. ]].
+
+obj as: tw@(TraitWrapper traits)
+[tw newFor: obj].
+
+tw@(TraitWrapper traits) services
+"TODO: speed this up by not looking up signatures for methods stored in
+other trait objects that the basis object uses."
+[
+  tw cachedServices ifNil:
+    [tw cachedServices: (tw basis methods reverseProject: #signature`er)]
+].
+
+tw@(TraitWrapper traits) hasSubTrait: t@(Trait traits)
+[tw basis is: t].

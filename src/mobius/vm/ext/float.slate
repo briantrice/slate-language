@@ -1,0 +1,153 @@
+includeHeaderNamed: '<math.h>'.
+includeHeaderNamed: '<assert.h>'.
+includeHeaderNamed: '"slate.h"'.
+
+x@FloatTraits significand
+[
+  interpreter stackPush:
+    (x pointer arrayElements!(UnsignedLongInt pointer) cast load bitAnd: 16r7F_FF_FF) asObject
+] `pidginPrimitive.
+
+x@FloatTraits exponent
+[
+  interpreter stackPush:
+    (x pointer arrayElements!(UnsignedLongInt pointer) cast load >> 23 bitAnd: 16rFF) asObject
+] `pidginPrimitive.
+
+x@FloatTraits withSignificand: significand exponent: exponent
+[| f!(Object pointer) |
+  f: (CurrentMemory cloneSpecial: FloatProto).
+  f arrayElements!(UnsignedLongInt pointer) cast
+    store: (significand asSmallInt bitOr: exponent asSmallInt << 23).
+  interpreter stackPush: f asObject
+] `pidginPrimitive.
+
+x@FloatTraits = y@FloatTraits
+[
+  interpreter stackPush:
+    (x pointer arrayElements!(Float pointer) cast load = y pointer arrayElements!(Float pointer) cast load
+      ifTrue:
+        [CurrentMemory TrueObject]
+      ifFalse:
+        [CurrentMemory FalseObject])
+] `pidginPrimitive.
+
+x@FloatTraits < y@FloatTraits
+[
+  interpreter stackPush:
+    (x pointer arrayElements!(Float pointer) cast load < y pointer arrayElements!(Float pointer) cast load
+      ifTrue:
+        [CurrentMemory TrueObject]
+      ifFalse:
+        [CurrentMemory FalseObject])
+] `pidginPrimitive.
+
+x@FloatTraits + y@FloatTraits
+[| z!(Object pointer) |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  z arrayElements!(Float pointer) cast store: x pointer arrayElements!(Float pointer) cast load + y pointer arrayElements!(Float pointer) cast load.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits - y@FloatTraits
+[| z!(Object pointer) |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  z arrayElements!(Float pointer) cast store: x pointer arrayElements!(Float pointer) cast load - y pointer arrayElements!(Float pointer) cast load.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits * y@FloatTraits
+[| z!(Object pointer) |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  z arrayElements!(Float pointer) cast store: x pointer arrayElements!(Float pointer) cast load * y pointer arrayElements!(Float pointer) cast load.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits / y@FloatTraits
+[| z!(Object pointer) |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  z arrayElements!(Float pointer) cast store: x pointer arrayElements!(Float pointer) cast load / y pointer arrayElements!(Float pointer) cast load.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits raisedTo: y@FloatTraits
+[| z!(Object pointer) a!Float b!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  b: y pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'pow (a, b)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits ln
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'log (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits exp
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'exp (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits sin
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'sin (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits cos
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'cos (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits tan
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'tan (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits arcsin
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'asin (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits arccos
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'acos (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits arctan
+[| z!(Object pointer) a!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'atan (a)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.
+
+x@FloatTraits arctan: y@FloatTraits
+[| z!(Object pointer) a!Float b!Float |
+  z: (CurrentMemory cloneSpecial: FloatProto).
+  a: x pointer arrayElements!(Float pointer) cast load.
+  b: y pointer arrayElements!(Float pointer) cast load.
+  z arrayElements!(Float pointer) cast store: 'atan2 (a, b)' directly!Float.
+  interpreter stackPush: z asObject
+] `pidginPrimitive.

@@ -1,0 +1,282 @@
+"Array traitsWindow atSlotNamed: #traits1 put: Sequence traits.
+Array traitsWindow atSlotNamed: #traits2 put: Collection traits.
+Array traitsWindow atSlotNamed: #traits3 put: Mapping traits.
+"
+
+Array traitsWindow _delegates: {Mapping traits. Collection traits. Sequence traits. Array traits}.
+
+"Ensures that the primitive Array type has the behaviors and features of a
+Sequence."
+
+a@(Array traits) new &capacity: n
+"Array capacity is its size, and newSize: is a primitive."
+[a newSize: (n ifNil: [0])].
+
+a@(Array traits) copy [a clone].
+
+a@(Array traits) arrayType [a].
+
+_@(Array traits) elementType [Root].
+
+a@(Array traits) hasIndexedSlots [a ~== Array traits].
+
+_@(Root traits) hasIndexedSlots [False].
+
+"ByteArray traitsWindow atSlotNamed: #traits1 put: Sequence traits.
+ByteArray traitsWindow atSlotNamed: #traits2 put: Collection traits.
+ByteArray traitsWindow atSlotNamed: #traits3 put: Mapping traits."
+
+ByteArray traitsWindow _delegates: {Mapping traits. Collection traits. Sequence traits. ByteArray traits}.
+
+"Ensures that the primitive ByteArray type has the behaviors and features of
+a Sequence."
+
+a@(ByteArray traits) new &capacity: n
+"Array capacity is its size, and newSize: is a primitive."
+[a newSize: (n ifNil: [0])].
+
+a@(ByteArray traits) copy [a clone].
+
+a@(ByteArray traits) arrayType [a].
+
+_@(ByteArray traits) elementType [SmallInteger].
+
+_@(ByteArray traits) hasIndexedSlots
+"TODO: This is done since hasIndexedSlots callers cannot reliably handle a
+BitArray and/or ByteArray yet."
+[False].
+
+_@(ByteArray traits) defaultElement [16r00].
+
+_@(ByteArray traits) accepts: i@(SmallInteger traits)
+[i between: 16r00 and: 16rFF].
+
+a@(ByteArray traits) at: i
+[a byteAt: i].
+
+a@(ByteArray traits) at: i put: byte
+[a byteAt: i put: byte].
+
+a@(ByteArray traits) isLittleEndian
+"TODO: factor this out, maybe use Platform current endianness?"
+[-1.0 first isZero].
+
+a@(ByteArray traits) int16At: offset
+[
+  a isLittleEndian ifTrue: [a littleEndianInt16At: offset] ifFalse: [a bigEndianInt16At: offset]
+].
+
+a@(ByteArray traits) int32At: offset
+[
+  a isLittleEndian ifTrue: [a littleEndianInt32At: offset] ifFalse: [a bigEndianInt32At: offset]
+].
+
+a@(ByteArray traits) int64At: offset
+[
+  a isLittleEndian ifTrue: [a littleEndianInt64At: offset] ifFalse: [a bigEndianInt64At: offset]
+].
+
+a@(ByteArray traits) int16At: offset put: value
+[
+  a isLittleEndian ifTrue: [a littleEndianInt16At: offset put: value] ifFalse: [a bigEndianInt16At: offset put: value]
+].
+
+a@(ByteArray traits) int32At: offset put: value
+[
+  a isLittleEndian ifTrue: [a littleEndianInt32At: offset put: value] ifFalse: [a bigEndianInt32At: offset put: value]
+].
+
+a@(ByteArray traits) int64At: offset put: value
+[
+  a isLittleEndian ifTrue: [a littleEndianInt64At: offset put: value] ifFalse: [a bigEndianInt64At: offset put: value]
+].
+
+a@(ByteArray traits) bigEndianInt16At: offset
+[
+  offset: offset * 2.
+  ((a byteAt: offset    ) byteShift: 1 ) +
+   (a byteAt: offset + 1)
+].
+
+a@(ByteArray traits) bigEndianInt32At: offset
+[
+  offset: offset * 4.
+  ((a byteAt: offset    ) byteShift: 3) +
+  ((a byteAt: offset + 1) byteShift: 2) +
+  ((a byteAt: offset + 2) byteShift: 1) +
+   (a byteAt: offset + 3)
+].
+
+a@(ByteArray traits) bigEndianInt64At: offset
+[
+  offset: offset * 8.
+  ((a byteAt: offset    ) byteShift: 7) +
+  ((a byteAt: offset + 1) byteShift: 6) +
+  ((a byteAt: offset + 2) byteShift: 5) +
+  ((a byteAt: offset + 3) byteShift: 4) +
+  ((a byteAt: offset + 4) byteShift: 3) +
+  ((a byteAt: offset + 5) byteShift: 2) +
+  ((a byteAt: offset + 6) byteShift: 1) +
+   (a byteAt: offset + 7)
+].
+
+a@(ByteArray traits) bigEndianInt16At: offset put: word
+[
+  offset: offset * 2.
+  a byteAt: offset     put: (word byteAt: 1).
+  a byteAt: offset + 1 put: (word byteAt: 0).
+  word
+].
+
+a@(ByteArray traits) bigEndianInt32At: offset put: word
+[
+  offset: offset * 4.
+  a byteAt: offset     put: (word byteAt: 3).
+  a byteAt: offset + 1 put: (word byteAt: 2).
+  a byteAt: offset + 2 put: (word byteAt: 1).
+  a byteAt: offset + 3 put: (word byteAt: 0).
+  word
+].
+
+a@(ByteArray traits) bigEndianInt64At: offset put: word
+[
+  offset: offset * 8.
+  a byteAt: offset     put: (word byteAt: 7).
+  a byteAt: offset + 1 put: (word byteAt: 6).
+  a byteAt: offset + 2 put: (word byteAt: 5).
+  a byteAt: offset + 3 put: (word byteAt: 4).
+  a byteAt: offset + 4 put: (word byteAt: 3).
+  a byteAt: offset + 5 put: (word byteAt: 2).
+  a byteAt: offset + 6 put: (word byteAt: 1).
+  a byteAt: offset + 7 put: (word byteAt: 0).
+  word
+].
+
+a@(ByteArray traits) littleEndianInt16At: offset
+[
+  offset: offset * 2.
+   (a byteAt: offset    )               +
+  ((a byteAt: offset + 1) byteShift: 1)
+].
+
+a@(ByteArray traits) littleEndianInt32At: offset
+[
+  offset: offset * 4.
+   (a byteAt: offset    )               +
+  ((a byteAt: offset + 1) byteShift: 1) +
+  ((a byteAt: offset + 2) byteShift: 2) +
+  ((a byteAt: offset + 3) byteShift: 3)
+].
+
+a@(ByteArray traits) littleEndianInt64At: offset
+[
+  offset: offset * 8.
+   (a byteAt: offset    )               +
+  ((a byteAt: offset + 1) byteShift: 1) +
+  ((a byteAt: offset + 2) byteShift: 2) +
+  ((a byteAt: offset + 3) byteShift: 3) +
+  ((a byteAt: offset + 4) byteShift: 4) +
+  ((a byteAt: offset + 5) byteShift: 5) +
+  ((a byteAt: offset + 6) byteShift: 6) +
+  ((a byteAt: offset + 7) byteShift: 7)
+].
+
+a@(ByteArray traits) littleEndianInt16At: offset put: word
+[
+  offset: offset * 2.
+  a byteAt: offset     put: (word byteAt: 0).
+  a byteAt: offset + 1 put: (word byteAt: 1).
+  word
+].
+
+a@(ByteArray traits) littleEndianInt32At: offset put: word
+[
+  offset: offset * 4.
+  a byteAt: offset     put: (word byteAt: 0).
+  a byteAt: offset + 1 put: (word byteAt: 1).
+  a byteAt: offset + 2 put: (word byteAt: 2).
+  a byteAt: offset + 3 put: (word byteAt: 3).
+  word
+].
+
+a@(ByteArray traits) littleEndianInt64At: offset put: word
+[
+  offset: offset * 8.
+  a byteAt: offset     put: (word byteAt: 0).
+  a byteAt: offset + 1 put: (word byteAt: 1).
+  a byteAt: offset + 2 put: (word byteAt: 2).
+  a byteAt: offset + 3 put: (word byteAt: 3).
+  a byteAt: offset + 4 put: (word byteAt: 4).
+  a byteAt: offset + 5 put: (word byteAt: 5).
+  a byteAt: offset + 6 put: (word byteAt: 6).
+  a byteAt: offset + 7 put: (word byteAt: 7).
+  word
+].
+
+collections define: #BitArray &parents: {ByteArray} &slots: {#bitSize -> 0}.
+"Uses byte-contents to implement an array of direct binary values (Booleans)."
+
+a@(BitArray traits) new &capacity: n
+[| bitSize byteSize |
+  bitSize: (n ifNil: [0] ifNotNil: [n]).
+  byteSize: (n + 7) // 8.
+  (a newSize: byteSize) `>> [bitSize: bitSize. ]
+].
+
+a@(BitArray traits) size [a bitSize].
+a@(BitArray traits) arrayType [a].
+_@(BitArray traits) elementType [Boolean].
+_@(BitArray traits) defaultElement [False].
+_@(BitArray traits) accepts: _ [False].
+_@(BitArray traits) accepts: _@(Boolean traits) [True].
+
+a@(BitArray traits) includesKey: i
+[
+  i < a bitSize
+].
+
+a@(BitArray traits) at: i
+[
+  (a includesKey: i) ifFalse: [^ (i keyNotFoundOn: a)].
+  ((a byteAt: i // 8) bitAnd: 1 << (i \\ 8)) isZero not
+].
+
+a@(BitArray traits) at: i put: bool
+[| byteOffset byte bitMask |
+  (a includesKey: i) ifFalse: [^ (i keyNotFoundOn: a)].
+  byteOffset: i // 8.
+  bitMask: (1 << (i \\ 8)).
+  byte: (a byteAt: byteOffset).
+  a byteAt: byteOffset put:
+    (bool
+      ifTrue: [byte bitOr: bitMask]
+      ifFalse: [byte bitAnd: bitMask bitNot]).
+  bool
+].
+"
+LexicalContext traitsWindow atSlotNamed: #traits2 put: Sequence traits.
+LexicalContext traitsWindow atSlotNamed: #traits3 put: Collection traits.
+LexicalContext traitsWindow atSlotNamed: #traits4 put: Mapping traits.
+
+Closure traitsWindow atSlotNamed: #traits3 put: Sequence traits.
+Closure traitsWindow atSlotNamed: #traits4 put: Collection traits.
+Closure traitsWindow atSlotNamed: #traits5 put: Mapping traits.
+
+SingleFloat traitsWindow atSlotNamed: #traits6 put: Sequence traits.
+SingleFloat traitsWindow atSlotNamed: #traits7 put: Collection traits.
+SingleFloat traitsWindow atSlotNamed: #traits8 put: Mapping traits.
+"
+
+
+LexicalContext traitsWindow _delegates:
+ {Cloneable. Root traits. Derivable traits. Cloneable traits. Mapping traits. Collection traits. Sequence traits. Array traits. LexicalContext traits}.
+
+Closure traitsWindow _delegates:
+ {Cloneable. Root traits. Derivable traits. Cloneable traits. Mapping traits. Collection traits. Sequence traits. Array traits. Method traits. Closure traits}.
+
+"a float is a byte array, and we need to be able to call #newWithSize: to create floats in the bootstrapper."
+SingleFloat traitsWindow _delegates:
+ {ByteArray traits. Sequence traits. CoercibleNumberMixin traits. Comparable traits. Number traits. Float traits. SingleFloat traits}.
+
+
+

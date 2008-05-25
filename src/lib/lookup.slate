@@ -1,0 +1,21 @@
+prototypes define: #LookupSequence &parents: {Cloneable}
+  &slots: {#source. #parents -> ExtensibleArray new}.
+"Describes the objects that the VM will consult in order when a method lookup
+happens. This allows introspection and interactive debugging of lookup issues.
+It also provides a reference implementation in Slate of the lookup algorithm
+without being obscured in underlying VM details and optimizations."
+
+s@(LookupSequence traits) newOn: obj
+[(s cloneSettingSlots: #(source parents) to: {obj. s parents new}) refresh].
+
+obj@(Root traits) lookupSequence
+[LookupSequence newOn: obj].
+
+s@(LookupSequence traits) refresh
+[
+  s parents clear.
+  (s source walker &traversal: DepthFirst &childrenVia:
+    [| :obj | obj restrictsDelegation ifTrue: [obj delegateValues] ifFalse: [#{}]]) >>
+    s parents writer.
+  s
+].

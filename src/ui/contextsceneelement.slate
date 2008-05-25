@@ -1,0 +1,75 @@
+Graphics define: #ContextSceneElement &parents: {SceneElement} &slots: {#context.}.
+"A ContextSceneElement manages a Cairo context"
+
+se@(ContextSceneElement traits) paint
+[
+    se composeSpaceRequirement.
+    se allocateSpace.
+    se handle: (PaintEvent newContext: se context).
+    se
+].
+
+Graphics define: #FormContextSceneElement &parents: {ContextSceneElement} &slots: {#form.}.
+"A FormContextSceneElement manages a Cairo context which is backed by a form"
+
+Graphics define: #WindowSceneElement &parents: {FormContextSceneElement} &slots: {#window. #needRepaint -> True. #exitRequested -> False.}.
+"A WindowSceneElement is a FormContextSceneElement that is also an OS window"
+
+_@(WindowSceneElement traits) newWidth: width height: height
+"Create a new WindowSceneElement"
+[|se|
+    se: WindowSceneElement new.
+    se window: (Window newWidth: width height: height sceneElement: se).
+    se form: (Form extent: width , height depth: 32).
+    se context: (FormContext newForm: se form).
+    se boundingRect: (Rectangle origin: 0 , 0 extent: se form extent).
+    se
+].
+
+se@(WindowSceneElement traits) paint
+[ |r|
+    resend.
+    se needRepaint: False.
+    r: (Rectangle origin: 0 , 0 extent: se form extent).
+    se window blit: se form dest: r src: r.
+    se
+].
+
+se@(WindowSceneElement traits) repaintSoon
+[
+    se needRepaint: True.
+    se
+].
+
+se@(WindowSceneElement traits) handle: event@(MiddleMouseButtonPressEvent traits)
+"Temporary"
+[
+    inform: '* Requesting exit'.
+    (event is: MiddleMouseButtonPressEvent) not ifTrue: [break].
+    se exitRequested: True.
+    True
+].
+
+se@(WindowSceneElement traits) handle: event@(Event traits)
+"This is only here to catch a missed dispatch on (MiddleMouseButtonPressEvent traits)."
+[
+    (se is: WindowSceneElement) not ifTrue: [break].
+    (event is: MiddleMouseButtonPressEvent) ifTrue: [
+        break.
+        se exitRequested: True.
+        ^ True.
+    ].
+    resend
+].
+
+se@(WindowSceneElement traits) eventLoop
+"Temporary event loop"
+[
+    se exitRequested: False.
+    inform: '**** Press middle mouse button to exit loop ****'.
+    [se exitRequested] whileFalse: 
+        [|event|
+            se needRepaint ifTrue: [se paint].
+            Windows waitForEvent dispatchEvent.
+        ].
+].

@@ -1,0 +1,50 @@
+prototypes define: #Semaphore &parents: {Cloneable}
+  &slots: {#count -> 0.
+	   #waiters -> Queue new}.
+"Counting semaphore implementation. Use Semaphore new for a fresh
+empty semaphore, and Semaphore newMutex for a fresh semaphore for
+mutual-exclusion (with an initial signal)."
+
+s@(Semaphore traits) new
+[resend `>> [waiters: Queue new.]].
+
+s@(Semaphore traits) newMutex
+[s new `>> [signal.]].
+
+s@(Semaphore traits) signal
+[
+  Scheduler criticalSection: [
+    s count isZero ifTrue: [s waiters isEmpty ifFalse: [
+			      Scheduler unblock: s waiters pop. ^ 0]].
+    s count: s count + 1]
+].
+
+s@(Semaphore traits) wait
+[
+  Scheduler criticalSection: [
+    s count isZero
+      ifTrue: [SuspendedProcess createAndDo: [|:proc| s waiters push: proc]]
+      ifFalse: [s count: s count - 1]].
+  Nil
+].
+
+s@(Semaphore traits) critical: aBlock
+[
+  s wait.
+  aBlock ensure: [s signal]
+].
+
+"Simple example."
+"
+load: 'src/lib/process.slate'.
+load: 'src/lib/semaphore.slate'.
+[| sem |
+  sem: Semaphore new.
+  [ 'Hello!' print. sem signal. sem signal. ] spawn.
+  'Pre-first-wait.' print.
+  sem wait.
+  'First!' print.
+  sem wait.
+  'Second!' print.
+] do.
+"

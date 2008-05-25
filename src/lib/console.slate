@@ -1,0 +1,64 @@
+Console addSlotsFrom: ExternalResource.
+Console _map delegates at: 0 put: ExternalResource traitsWindow.
+"The Console as an ExternalResource object."
+Console atSlotNamed: #handle put: 0.
+
+co@Console ; seq
+"A convenience method for the Console as a Stream resource; do NOT repeat this
+pattern without determining that ; can have no other meaning for the resource."
+[co writer ; seq].
+
+co@(Console writer) skip: n
+[
+  n isPositive ifTrue:
+    [n timesRepeat: (co nextPut: $\s)].
+  n isNegative ifTrue: [n timesRepeat: [co nextPut: $\b]].
+  co
+].
+
+_@Console isOpen [True].
+
+_@(Console writer) elementType
+[ASCIIString Character].
+
+_@(Console writer) collectionType
+[ASCIIString].
+
+_@(Console reader) elementType
+[ASCIIString Character].
+
+_@(Console reader) collectionType
+[ASCIIString].
+
+_@(Console reader) isAtEnd [False].
+_@(Console writer) isAtEnd [False].
+
+c@Console flush [c writer flush. c reader flush].
+_@(Console reader) flush [].
+w@(Console writer) flush [w resource flushOutput].
+
+Console addImmutableSlot: #interactor valued: ReadWriteStream clone.
+"A singleton which delegates to ConsoleInput and ConsoleOutput in order to
+provide ReadWriteStream access for the Console."
+
+_@(Console interactor) elementType
+[ASCIIString Character].
+
+_@(Console interactor) collectionType
+[ASCIIString].
+
+_@(Console interactor) isAtEnd [False].
+_@(Console interactor) next [Console reader next].
+_@(Console interactor) next: n [Console reader next: n].
+_@(Console interactor) nextPut: obj [Console writer nextPut: obj].
+_@(Console interactor) nextPutAll: c [Console writer nextPutAll: c].
+_@(Console interactor) flush [Console reader flush. Console writer flush].
+_@(Console interactor) nextLine [Console reader nextLine].
+
+conditions define: #DebugConsole &builder: [Console clone].
+DebugConsole addDelegate: Console.
+"The interaction to which Error messages are sent and handler input is
+received. This should be StdErr and overridable."
+DebugConsole atSlotNamed: #handle put: 1.
+DebugConsole atSlotNamed: #writeStream put:
+  (DebugConsole writeStream cloneSettingSlots: #(resource) to: {DebugConsole}).

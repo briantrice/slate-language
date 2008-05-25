@@ -1,0 +1,125 @@
+Optimizer ensureNamespace: #Assembly.
+
+Optimizer Assembly define: #Label
+  &slots: #(type).
+
+Optimizer Assembly Label traits define: #Internal &parents: {Optimizer Assembly Label}
+  &slots: #(name offset).
+
+label@(Optimizer Assembly Label Internal traits) isExported [label name isNotNil].
+
+Optimizer Assembly Label traits define: #External &parents: {Optimizer Assembly Label}
+  &slots: #(machineCode label).
+
+_@(Optimizer Assembly Label External traits) isExported [False].
+
+Optimizer Assembly define: #Relocation
+  &slots: #(target offset).
+  
+_@(Optimizer Assembly Relocation traits) byteSize
+[
+  overrideThis
+].
+
+Optimizer Assembly Relocation traits define: #Absolute &parents: {Optimizer Assembly Relocation}.
+Optimizer Assembly Relocation traits define: #Relative &parents: {Optimizer Assembly Relocation}.
+Optimizer Assembly Relocation traits define: #LittleEndian &parents: {Optimizer Assembly Relocation}.
+Optimizer Assembly Relocation traits define: #BigEndian &parents: {Optimizer Assembly Relocation}.
+
+Optimizer Assembly define: #MachineCode &parents: {Cloneable}
+{#code -> ByteArray new.
+ #labels -> {}.
+ #relocations -> {}}.
+
+mc@(Optimizer Assembly MachineCode traits) new
+[mc clone].
+
+_@(Optimizer Assembly MachineCode traits) name 
+[Nil].
+
+mc@(Optimizer Assembly MachineCode traits) locationOf: label@(Optimizer Assembly Label Internal traits)
+[mc code address + label offset].
+
+mc@(Optimizer Assembly MachineCode traits) locationOf: label@(Optimizer Assembly Label External traits)
+[
+  label machineCode locationOf: label label
+].
+
+mc@(Optimizer Assembly MachineCode traits) locationOf: reloc@(Optimizer Assembly Relocation traits)
+[mc code address + reloc offset].
+
+mc@(Optimizer Assembly MachineCode traits) locationOf: _@(Optimizer Assembly MachineCode traits)
+[mc code address].
+
+mc@(Optimizer Assembly MachineCode traits) valueOf: reloc@(Optimizer Assembly Relocation Absolute traits)
+[mc locationOf: reloc target].    
+
+mc@(Optimizer Assembly MachineCode traits) valueOf: reloc@(Optimizer Assembly Relocation Relative traits)
+[(mc locationOf: reloc target) - (mc locationOf: reloc)].
+
+mc@(Optimizer Assembly MachineCode traits) relocate: reloc@(Optimizer Assembly Relocation traits)
+[
+  mc relocate: reloc by: (mc valueOf: reloc)
+].
+
+mc@(Optimizer Assembly MachineCode traits) relocate: reloc@(Optimizer Assembly Relocation traits) by: value
+[
+  overrideThis
+].
+
+mc@(Optimizer Assembly MachineCode traits) relocate: reloc@(Optimizer Assembly Relocation LittleEndian traits) by: value
+[| carry |
+  carry: 0.
+  reloc offset below: reloc offset + reloc byteSize
+    do: [| :offset |
+      carry: (mc code at: offset) + (value bitAnd: 16rFF).
+      mc code at: offset put: carry.
+      value: value >> 8.
+      carry: carry >> 8].
+].
+
+mc@(Optimizer Assembly MachineCode traits) relocate: reloc@(Optimizer Assembly Relocation BigEndian traits) by: value
+[| carry |
+  carry: 0.
+  reloc offset + reloc byteSize - 1 downTo: reloc offset
+    do: [| :offset |
+      carry: (mc code at: offset) + (value bitAnd: 16rFF).
+      mc code at: offset put: carry.
+      value: value >> 8.
+      carry: carry >> 8].
+].
+
+mc@(Optimizer Assembly MachineCode traits) relocate
+[
+  mc relocations do: #relocate: `er <- mc
+].
+
+mc@(Optimizer Assembly MachineCode traits) locallyRelocate: reloc against: label
+[
+  False
+].
+
+mc@(Optimizer Assembly MachineCode traits) locallyRelocate: reloc@(Optimizer Assembly Relocation Relative traits) against: label@(Optimizer Assembly Label Internal traits)
+[
+  mc relocate: reloc by: label offset - reloc offset.
+  True
+].
+
+mc@(Optimizer Assembly MachineCode traits) locallyRelocate: reloc@(Optimizer Assembly Relocation Absolute traits) against: label@(Optimizer Assembly Label Internal traits)
+[
+  mc relocate: reloc by: label offset - reloc offset.
+  reloc target: mc.
+  False
+].
+
+mc@(Optimizer Assembly MachineCode traits) locallyRelocate
+[| usedLabels |
+  mc relocations: (mc relocations reject: [| :r | mc locallyRelocate: r against: r target]).
+  usedLabels: IdentitySet new.
+  mc relocations do: [| :reloc |
+    reloc target isExported
+      ifFalse:
+        [usedLabels include: reloc target]].
+  mc labels: (mc labels select: [| :label | label isExported \/ [usedLabels includes: label]])
+].
+

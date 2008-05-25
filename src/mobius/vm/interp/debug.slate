@@ -1,0 +1,185 @@
+
+Interpreter traits define: #Frame &parents: {Cloneable} &slots:
+{#interpreter -> globals bootstrapInterpreter.
+ #stackIndex -> 0.
+ #nextFrame -> Nil "A breadcrumb method of crawling back up the stack."}.
+"A frame on an interpreter's stack."
+
+interp@(Interpreter traits) frameAtIndex: index
+[| frame |
+  (interp stack acceptsKey: index)
+    ifFalse: [error: 'Invalid stack address: ' ; index printString].
+  frame: interp Frame clone `>> [interpreter: interp. stackIndex: index. ].
+  [frame method isNil /\ [frame stackIndex >= 0]]
+    whileTrue: [frame stackIndex: frame stackIndex - 1].
+  frame stackIndex < 4 ifTrue: [Nil] ifFalse: [frame]
+].
+
+_@lobby thisContext
+[
+  (bootstrapInterpreter framePointerOf: #thisContext)
+    ifNotNilDo: [| :frame | bootstrapInterpreter frameAtIndex: frame]
+].
+
+m@(Method traits) thisContext
+[lobby thisContext].
+
+f@(Interpreter Frame traits) codeIndex
+[f interpreter stack at: f stackIndex - 4].
+
+f@(Interpreter Frame traits) method
+[f interpreter stack at: f stackIndex - 3].
+
+f@(Interpreter Frame traits) context
+[
+  f method heapAllocate
+    ifTrue: [f interpreter stack at: f stackIndex - 2]
+    ifFalse: [f interpreter stack sliceFrom: f stackIndex
+				  below: f stackIndex + f method localVariables]
+].
+
+f@(Interpreter Frame traits) previousFrameIndex
+[f interpreter stack at: f stackIndex - 1].
+
+f@(Interpreter Frame traits) codeIndex: index
+[f interpreter stack at: f stackIndex - 4 put: index].
+
+f@(Interpreter Frame traits) method: method
+[f interpreter stack at: f stackIndex - 3 put: method].
+
+f@(Interpreter Frame traits) context: context
+[f interpreter stack at: f stackIndex - 2 put: context].
+
+f@(Interpreter Frame traits) previous
+"Answer the frame that preceded the current one in call order."
+[
+  [(f interpreter frameAtIndex: f previousFrameIndex)
+      ifNotNilDo: [| :fp | fp nextFrame: f. fp]]
+    on: Error do: [| :e | ^ Nil]
+].
+
+f@(Interpreter Frame traits) next
+[f nextFrame].
+
+f@(Interpreter Frame traits) sender
+[f previous].
+
+f@(Interpreter Frame traits) stackOfSize: limit
+"Answer a copy of the stack of the frames on the sender chain up to the
+given limit."
+[| each |
+  each: f.
+  [| :result |
+   [(each: each previous) isNotNil /\ [result size < limit]]
+     whileTrue:
+       [result nextPut: each]] writingAs: {}
+].
+
+f1@(Interpreter Frame traits) replaceWith: f2@(Interpreter Frame traits)
+"Place the values of the replacement in the slots of the first. Answer the
+replaced frame."
+[
+  f1 codeIndex: f2 codeIndex.
+  f1 context: f2 context.
+  f1 method: f2 method.
+  f1
+].
+
+f1@(Interpreter Frame traits) replaceSenderWith: f2@(Interpreter Frame traits)
+"Replace the Frame's sender with the given coroutine context and answer
+the previous sender. For use in coroutining."
+[| oldSender |
+  oldSender: f1 sender extracted.
+  f1 sender `>>
+    [codeIndex: f2 codeIndex.
+     context: f2 context.
+     method: f2 method].
+  oldSender
+].
+
+f1@(Interpreter Frame traits) swapWith: f2@(Interpreter Frame traits)
+"Totally exchange the values of the arguments."
+[| temp |
+  temp: f2 extracted.
+  f2 replaceWith: f1.
+  f1 replaceWith: temp.
+].
+
+f@(Interpreter Frame traits) clients
+"Analogous to #sender. TODO"
+[
+  f previous method
+   ifNil: [{}]
+   ifNotNilDo: #variables`er
+].
+
+Interpreter traits define: #FrameMirror &parents: {Interpreter Frame} &slots:
+{#codeIndex. #context. #method}.
+"A frame representation that is separated from the stack."
+
+f@(Interpreter Frame traits) extracted
+[
+  (Interpreter FrameMirror cloneSettingSlots: #(interpreter stackIndex)
+			  to: {f interpreter. f stackIndex})
+   `>> [replaceWith: f. ]
+].
+
+Interpreter traits define: #Debug &parents: {Restart}.
+ #interpreter -> globals bootstrapInterpreter.
+
+d@(Interpreter Debug traits) in: interp
+[d cloneSettingSlots: #(interpreter) to: {interp}].
+
+Interpreter traits define: #InspectFrame &parents: {Interpreter Debug}
+ &slots: {#targetFrame -> 0}.
+
+r@(Interpreter InspectFrame traits) describeOn: out
+[out ; 'Inspect a stack frame\n'].
+
+r@(Interpreter InspectFrame traits) queryFrom: d
+[| offset |
+   [d console ; 'Select a stack frame [0..' ;
+      ']: '.
+    offset: (d console interactor upTo: $\n).
+    offset isEmpty not /\ [offset allSatisfy: #isDigit`er ]
+      ifTrue:
+	[offset: (Integer readFrom: (offset as: String)).
+         offset >= 0
+	   ifTrue:
+             [r targetFrame: offset.
+              ^ Nil]]
+      ifFalse: [d console ; 'Please select a numbered option.\n']] loop
+].
+
+r@(Interpreter InspectFrame traits) defaultHandler
+[| framesLeft f method lexicalContext codePointer out |
+  out: DebugConsole writer.
+  f: (r interpreter framePointerOf: #invokeDebugger).
+  f ifNil:
+    [out ; 'The debugger must be invoked to inspect stack frames!\n'. ^ Nil].
+  f: (r interpreter frameAtIndex: f).
+  framesLeft: r targetFrame.
+  [f: f previous.
+   f ifNil: [out ; 'That stack frame does not exist!\n'. ^ Nil].
+   framesLeft: framesLeft - 1.
+   framesLeft >= 0 /\ [f method isNotNil]] whileTrue.
+   f method sourceTree
+     ifNil:
+       [out ; f method printString ; '\n\n'.
+        f context
+          doWithIndex:
+            [| :val :index |
+	     out ; index printString ; ': ' ; val printString ; '\n'].
+        out ; '\n'.
+        ^ Nil].
+   f method sourceTree printOn: out.
+   out ; '\n\n'.
+   (f method sourceTreeOf: f codeIndex - 1) printOn: out.
+   out ; '\n\n'.
+   f method sourceTree localVariables
+     doWithIndex:
+       [| :var :index |
+        out ; var name name ; ': ' ; (f context at: index) printString ; '\n'
+       ].
+   out ; '\n'.
+].

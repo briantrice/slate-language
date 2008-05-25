@@ -1,0 +1,108 @@
+
+streams addPrototype: #RandomStream derivedFrom: {PositionableReadStream}.
+"Answers a series of pseudo-random positive SmallIntegers across the entire
+value range. It is very fast and has an extremely long period (2^19937-1).
+Based off the Mersenne Twister code in C at:
+ http://www.math.keio.ac.jp/~matumoto/emt.html"
+RandomStream addSlot: #state valued: (Array newSize: 624).
+"This array is used for the calculations and works as a kind of history buffer.
+The particular size of the array corresponds to / is determined by the
+desired range of the outputs. See the website for particulars when porting."
+
+rs@(RandomStream traits) collectionType
+[
+  rs state
+].
+
+rs@(RandomStream traits) newSeed: seed
+[(rs cloneSettingSlots: #(state readLimit)
+     to: {rs state newSameSize. rs state size}) `>> [seed: seed. ]].
+
+rs@(RandomStream traits) next
+[| tmp pos |
+  pos: rs position.
+  pos >= rs readLimit
+    ifTrue: 
+      [rs refill.
+       pos: 0].
+  rs position: pos + 1.
+  tmp: (rs state at: pos).
+  tmp
+    bitXor:
+      ((tmp bitShift: -11)
+	 bitXor:
+	   (((tmp bitShift: 7) bitAnd: 16r9D2C5680)
+	      bitXor:
+		(((tmp bitShift: 15) bitAnd: 16rEFC60000)
+		   bitXor:
+		     (tmp bitShift: -18))))
+].
+
+rs@(RandomStream traits) seed: seed
+[| state |
+  state: rs state.
+  seed: (seed bitAnd: 16rFFFFFFFF).
+  state at: 0 put: seed.
+  1 below: state size
+    do: [| :index |
+	     seed: ((69069 * seed) bitAnd: 16rFFFFFFFF).
+	   state at: index put: seed].
+  rs position: rs readLimit
+].
+
+rs@(RandomStream traits) refill
+[| state tmp |
+  state: rs state.
+  0 below: state size - 397
+    do: [| :index |
+	     tmp: 
+	       (((state at: index) bitAnd: 16r80000000) 
+		  bitOr:
+		    ((state at: index + 1) bitAnd: 16r7FFFFFFF)).
+	   state at: index put: 
+	     ((state at: index + 397)
+		bitXor:
+		  ((tmp bitShift: -1)
+		     bitXor: 
+		       ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))
+	     ].
+  state size - 397
+    below: state size - 1
+    do: [| :index |
+	     tmp: 
+	       (((state at: index) bitAnd: 16r80000000)
+		  bitOr:
+		    ((state at: index + 1) bitAnd: 16r7FFFFFFF)).
+	   state at: index put:  
+	     ((state at: index + 397 - state size)
+		bitXor:
+		  ((tmp bitShift: -1)
+		     bitXor:
+		       ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))].
+  tmp:
+    (((state at: 0) bitAnd: 16r80000000)
+       bitOr:
+	 ((state at: 1) bitAnd: 16r7FFFFFFF)).
+  state at: state size - 1 put:
+    ((state at: 397 - 1)
+       bitXor:
+	 ((tmp bitShift: -1)
+	    bitXor:
+	      ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))).
+  rs position: 0
+].
+
+SmallInteger traits addImmutableSlot: #Randomizer valued:
+  (RandomStream newSeed: Cloneable clone hash).
+"TODO: seed with an actual random source, e.g. time values."
+"TODO: make this non-global and yet persistable."
+
+i@(SmallInteger traits) atRandom
+[
+  i Randomizer next mod: i
+].
+
+i@(Integer traits) atRandom
+[
+  i Randomizer next
+].

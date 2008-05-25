@@ -1,0 +1,445 @@
+
+"This defines a basic testing framework in the absence of proper condition-
+handling and other features needed for a full unit-test suite.
+
+TODO
+  - print assertion failure descriptions
+"
+
+prototypes ensureNamespace: #testing &delegate: True.
+"The category for testing-related functionality."	
+
+testing ensureNamespace: #UnitTests.
+"Where the actual test data is stored."
+
+testing ensureNamespace: #RegressionTests.
+"Where regression tests are stored."
+
+testing ensureNamespace: #BenchmarkTests.
+"Where timed benchmark tests are stored."
+
+testing@(testing) runAllTests
+"Run all tests in any namespace down from here. (With a strange recursion)"
+[| runnerBlock |
+  runnerBlock:
+    [| :ns |
+      ns slotValuesDo:
+        [| :value |
+          (value is: Namespace)
+            ifTrue: [runnerBlock applyWith: value]
+            ifFalse:
+	      [
+	        (value is: TestCase) ifTrue:
+		  [| result |
+		    Console writer print: ('Running test \'' ; value printName ; '\'') paddingUntil: 40.
+                    Console writer flush.
+                    "Console writer ensureColumnAtLeast: 20."
+		    "Console writer print: ('Running test \'' ; 'xxx' ; '\'') paddingUntil: 30."
+		    Console writer ; (value runSuite printString).
+                    Console writer newLine.
+                  ].
+	      ].
+        ].
+    ].
+  runnerBlock applyWith: UnitTests.
+  runnerBlock applyWith: RegressionTests.
+].
+
+_@(testing) runAllBenchmarks
+[| runnerBlock |
+  runnerBlock: [| :ns |
+    ns slotValuesDo: [| :value |
+      (value is: Namespace)
+        ifTrue: [runnerBlock applyWith: value]
+        ifFalse: [(value is: TestCase) ifTrue: [value benchmark].
+        ].
+      ].
+  ].
+  runnerBlock applyWith: BenchmarkTests.
+].
+
+testing define: #TestFailure &parents: {Warning}.
+"TestFailure traits define: #Foo &parents: {Restart}."
+
+testing define: #TestCase &parents: {Cloneable} &slots:
+ {#selector.
+  #logErrors -> True}.
+"A TestCase is a Command representing the future running of a test case.
+Create one with the method #selector: aSymbol, passing the name of the method
+to be run when the test case runs.
+When you discover a new fixture, derive from TestCase, adding slots for the
+objects in the fixture, override #setUp to initialize the variables, and
+possibly override #tearDown to deallocate any external resources allocated
+in #setUp.
+When you are writing a test case method, send #assert: aBoolean when you want
+to check for an expected value. For example, you might say
+`case assert: socket isOpen' to test whether or not a socket is open at a
+point in a test."
+
+t@(TestCase traits) benchmark
+[| pp |
+  Console writer print: ('Running benchmark \'' ; t printName ; '\'') paddingUntil: 40.
+  Console writer `>> [newLine. flush.].
+  t suite tests do: [| :tc |
+    Console writer ; '  '.
+    Console writer print: ((tc selector) as: String) paddingUntil: 38.
+    Console writer flush.
+    collectGarbage.
+    Console writer ; (([tc run] timeToRun) printString &precision: 2) ; ' seconds.'.
+    Console writer newLine.
+  ].
+].
+
+tc1@(TestCase traits) <= tc2@(TestCase traits)
+"Enable sorting of test cases based on their selector names."
+[
+  ((tc2 selector as: String) lexicographicallyCompare: (tc1 selector as: String)) >= 0
+].
+
+tc@(TestCase traits) copy
+[
+  resend `>> [selector: tc selector copy. ]
+].
+
+tc@(TestCase traits) newForSelector: selector
+[
+  tc copy `>> [selector: selector. ]
+].
+
+tc@(TestCase traits) suiteForSelectors: selectors
+[| suite |
+  suite: TestSuite new.
+  suite tests
+    addAll: (selectors collect: [| :sel |
+      tc newForSelector: sel]).
+  suite
+].
+
+tc@(TestCase traits) suite
+[
+  overrideThis
+].
+
+tc@(TestCase traits) runSuite
+[| suite |
+  suite: tc suite.
+  suite run
+].
+
+tc@(TestCase traits) assert: _@True
+[tc].
+
+tc@(TestCase traits) assert: _@False
+[
+  tc signalFailureDescription: 'Assertion failed.'
+].
+
+tc@(TestCase traits) assert: bool description: descr
+[
+  bool ifFalse: [tc signalFailureDescription: descr]
+].
+
+tc@(TestCase traits) deny: bool description: descr
+[
+  tc assert: bool not description: descr
+].
+
+tc@(TestCase traits) deny: bool
+[
+  tc assert: bool not
+].
+
+tc@(TestCase traits) should: block
+[
+  tc assert: block do
+].
+
+tc@(TestCase traits) executionOf: block raises: cond
+"Answers whether executing the block raises the given condition."
+[
+  [block on: cond do: [| :c | ^ True]] 
+    on: Condition 
+    do: [| :c | ^ False].
+  False
+].
+
+tc@(TestCase traits) should: block raise: cond
+[
+  tc assert: (tc executionOf: block raises: cond)
+].
+
+tc@(TestCase traits) should: block raise: cond description: descr
+[
+  tc assert: (tc executionOf: block raises: cond) description: descr
+].
+
+tc@(TestCase traits) should: block description: descr
+[
+  tc assert: block do description: descr
+].
+
+tc@(TestCase traits) shouldnt: block
+[
+  tc deny: block do
+].
+
+tc@(TestCase traits) shouldnt: block raise: cond
+[
+  tc deny: (tc executionOf: block raises: cond)
+].
+
+tc@(TestCase traits) shouldnt: block description: descr
+[
+  tc deny: block do description: descr
+].
+
+tc@(TestCase traits) signalFailureDescription: descr
+[
+  (TestFailure newDescription: descr) signal
+].
+
+tc@(TestCase traits) defaultResources
+[{}].
+
+tc@(TestCase traits) resources
+[| result queue |
+  result: SortedSet new.
+  queue: ExtensibleArray new.
+  queue addAll: tc defaultResources.
+  [queue isEmpty] whileFalse:
+    [| next |
+     next: queue removeFirst.
+     result include: next.
+     queue addAll: next resources].
+  result
+].
+
+tc@(TestCase traits) areResourcesAvailable
+[
+  tc resources inject: True into:
+    [| :total :each | each isAvailable /\ total]
+].
+
+"TODO
+tc@(TestCase traits) printOn: s
+[
+  tc selector printOn: s.
+  tc ; ' findOn: {'.
+  
+  s nextPut: $}.
+].
+"
+
+tc@(TestCase traits) setUp
+[tc].
+
+tc@(TestCase traits) tearDown
+[tc].
+
+tc@(TestCase traits) performTest
+[
+  tc perform: tc selector
+].
+
+tc@(TestCase traits) runCase
+"TODO: separate tearDown into an ensure: clause."
+[
+  [tc setUp.
+   tc performTest]
+     ensure: [tc tearDown]
+].
+
+tc@(TestCase traits) failureLog
+"The WriteStream to send output information to."
+[Console writer].
+
+testing define: #TestResource &parents: {Cloneable}
+  &slots: {#testName -> 'a Resource'.
+	   #description -> 'a Resource'}.
+
+tr@(TestResource traits) defaultResources
+[{}].
+
+tr@(TestResource traits) resources
+[tr defaultResources].
+
+tr@(TestResource traits) isAvailable
+"Whether the resource is available. Override this as necessary."
+[True].
+
+tr@(TestResource traits) isUnavailable
+"Whether the resource is not available."
+[tr isAvailable not].
+
+tr@(TestResource traits) setUp
+[tr].
+
+tr@(TestResource traits) tearDown
+[tr].
+
+testing define: #TestResult &parents: {Cloneable} &slots:
+{#failures -> Set new.
+ #errors -> ExtensibleArray new.
+ #passed -> ExtensibleArray new}.
+"A TestResult collects the tallies for a group of tests. This can be
+overridden and re-specialized as the second argument to run: in order to
+extend the reporting facilities."
+
+tr@(TestResult traits) new
+[
+  tr copy `>> [
+    failures: tr failures new.
+    errors: tr errors new.
+    passed: tr passed new. ]
+].
+
+tr@(TestResult traits) failureCount
+[tr failures size].
+
+tr@(TestResult traits) errorCount
+[tr errors size].
+
+tr@(TestResult traits) passedCount
+[tr passed size].
+
+tr@(TestResult traits) runCount
+[tr failureCount + tr passedCount + tr errorCount].
+
+tr@(TestResult traits) tests
+[
+  (tr errors new &capacity: tr runCount) `>> [
+    addAll: tr passed.
+    addAll: tr errors.
+    addAll: tr failures. ]
+].
+
+tr@(TestResult traits) defects
+[
+  (tr errors new &capacity: tr runCount - tr passedCount) `>> [
+    addAll: tr errors.
+    addAll: tr failures. ]
+].
+
+tr@(TestResult traits) hasFailures
+[
+  tr failures isNotEmpty
+].
+
+tr@(TestResult traits) hasErrors
+[
+  tr errors isNotEmpty
+].
+
+tr@(TestResult traits) hasPassed
+[
+  tr hasErrors not /\ [tr hasFailures not]
+].
+
+tr@(TestResult traits) hasAsError: case
+[
+  tr errors includes: case
+].
+
+tr@(TestResult traits) hasAsFailure: case
+[
+  tr failures includes: case
+].
+
+tr@(TestResult traits) hasAsPassed: case
+[
+  tr passed includes: case
+].
+
+tr@(TestResult traits) printOn: s
+[
+  tr runCount printOn: s.
+  s ; ' run,\t'.
+  tr passedCount printOn: s.
+  s ; ' passed,\t'.
+  tr failureCount printOn: s.
+  s ; ' failed,\t'.
+  tr errorCount printOn: s.
+  s ; ' error'.
+  tr
+].
+
+tc@(TestCase traits) run: result
+"Override this for specialized result types in order to handle reporting."
+[| passed |
+  passed: ([[tc runCase. True]
+       on: TestFailure
+       do: [| :failure |
+            tc logErrors ifTrue: [failure describeOn: (tc failureLog)].
+	    result failures include: tc.
+	    failure exit: False]]
+    on: Error do: [| :error |
+		   result errors include: tc.
+                   tc logErrors ifTrue: [error describeOn: (tc failureLog)].
+		   error exit: False]).
+  passed ifTrue: [result passed include: tc]
+].
+
+tc@(TestCase traits) run
+[| result |
+  result: TestResult new.
+  tc run: result.
+  result
+].
+
+testing define: #TestSuite &parents: {Cloneable} &slots:
+{#tests -> SortedSet new.
+ #resources -> Set new.
+ #testName -> 'a TestSuite'}.
+"A TestSuite is a composite of TestCases and/or other TestSuites. The common
+entrance protocol is `suite run: result' and dependencies."
+
+ts@(TestSuite traits) new
+"This sets up the collections as necessary. Note that calculating the resources
+is non-trivial but important."
+[ts cloneSettingSlots: #(tests resources)
+    to: {ts tests new. ts defaultResources}].
+
+ts@(TestSuite traits) newNamed: name
+[
+  ts new `>> [testName: name. ]
+].
+
+ts@(TestSuite traits) defaultResources
+[
+  ts tests
+    inject: ts resources new
+    into: [| :set :case | set addAll: case resources. set]
+].
+
+ts@(TestSuite traits) isAvailable
+"Whether all resources are available."
+[
+  ts resources
+    inject: True
+    into: [| :result :each | each isAvailable /\ result]
+].
+
+ts@(TestSuite traits) run: result
+[
+  ts tests
+    do: [| :each |
+	 "ts changed: each. TODO: include with dependency-support."
+	 each run: result]
+].
+
+ts@(TestSuite traits) run
+[| result |
+  result: TestResult new.
+  ts resources
+    do: [| :each | each isAvailable
+		ifFalse: [error: 'Resource not available: ' ; each]].
+  [ts run: result]
+    ensure: [ts resources do: [| :each | each tearDown]].
+  result
+].
+
+ts@(TestSuite traits) printSummaryOn: s
+[
+  
+].
+

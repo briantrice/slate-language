@@ -1,0 +1,959 @@
+Optimizer Platform x86 define: #Instruction &parents: {Optimizer MR Instruction}.
+
+_@(Optimizer Platform x86 Instruction) memoryUseLimit
+[
+  1
+].
+
+Optimizer Platform x86 ensureNamespace: #instructions &delegate: True.
+[| insts inst |
+  insts: Optimizer Platform x86 instructions.
+  inst: Optimizer Platform x86 Instruction.
+
+insts define: #nop &parents: {inst}.
+
+_@(insts nop traits) operandModes
+[
+  #{}
+].
+
+insts define: #hlt &parents: {inst}.
+
+_@(insts hlt traits) operandModes
+[
+  #{}
+].
+
+insts define: #lock &parents: {inst}.
+
+_@(insts lock traits) operandModes
+[
+  #{}
+].
+
+"MSR instructions."
+insts define: #rdtsc &parents: {inst}.
+
+_@(insts rdtsc traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerWrite}
+].
+
+"I/O instructions."
+insts define: #out &parents: {inst}.
+
+_@(insts out traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8). 
+    Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #out8 &parents: {insts out}.
+insts define: #out16 &parents: {insts out}.
+insts define: #out32 &parents: {insts out}.
+
+insts define: #in &parents: {inst}.
+
+_@(insts in traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite.
+    Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8)}
+].
+
+insts define: #in8 &parents: {insts in}.
+insts define: #in16 &parents: {insts in}.
+insts define: #in32 &parents: {insts in}.
+
+"Interrupt instructions."
+
+insts define: #Interrupt &parents: {inst}.
+ 
+_@(insts Interrupt traits) operandModes
+[ 
+  #{}
+].
+
+insts define: #int3 &parents: {insts Interrupt}.
+insts define: #into &parents: {insts Interrupt}.
+insts define: #ud2 &parents: {insts Interrupt}.
+
+insts define: #int &parents: {inst}.
+
+_@(insts int traits) operandModes
+[
+  #{Optimizer MR OperandMode Constant newType: Types _Unsigned8}
+].
+
+"MMU/cache instructions."
+insts define: #invlpg &parents: {inst}.
+
+_@(insts invlpg traits) operandModes
+[
+  #{Optimizer MR OperandMode Memory}
+].
+
+insts define: #invd &parents: {inst}.
+
+_@(insts invd traits) operandModes
+[
+  #{}
+].
+
+"String instructions."
+insts define: #Loop &parents: {Optimizer MR Branch. inst}.
+
+_@(insts Loop traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead. Optimizer MR OperandMode Label}
+].
+
+insts define: #loop &parents: {insts Loop}.
+insts define: #loope &parents: {insts Loop}.
+insts define: #loopz &parents: {insts Loop}.
+insts define: #loopne &parents: {insts Loop}.
+insts define: #loopnz &parents: {insts Loop}.
+
+insts define: #rep &parents: {inst}.
+
+_@(insts rep traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #ConditionalRepeat &parents: {inst}.
+
+_@(insts ConditionalRepeat traits) operandModes
+[
+  #{}
+].
+
+insts define: #repe &parents: {insts ConditionalRepeat}.
+insts define: #repne &parents: {insts ConditionalRepeat}.
+
+insts define: #cmps &parents: {inst}.
+
+_@(insts cmps traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #cmps8 &parents: {insts cmps}.
+insts define: #cmps16 &parents: {insts cmps}.
+insts define: #cmps32 &parents: {insts cmps}.
+
+insts define: #ins &parents: {inst}.
+
+_@(insts ins traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #ins8 &parents: {insts ins}.
+insts define: #ins16 &parents: {insts ins}.
+insts define: #ins32 &parents: {insts ins}.
+
+insts define: #lods &parents: {inst}.
+
+_@(insts lods traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #lods8 &parents: {insts lods}.
+insts define: #lods16 &parents: {insts lods}.
+insts define: #lods32 &parents: {insts lods}.
+
+insts define: #movs &parents: {inst}.
+
+_@(insts movs traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #movs8 &parents: {insts movs}.
+insts define: #movs16 &parents: {insts movs}.
+insts define: #movs32 &parents: {insts movs}.
+
+insts define: #outs &parents: {inst}.
+
+_@(insts outs traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #outs8 &parents: {insts outs}.
+insts define: #outs16 &parents: {insts outs}.
+insts define: #outs32 &parents: {insts outs}.
+
+insts define: #scas &parents: {inst}.
+
+_@(insts scas traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #scas8 &parents: {insts scas}.
+insts define: #scas16 &parents: {insts scas}.
+insts define: #scas32 &parents: {insts scas}.
+
+insts define: #stos &parents: {inst}.
+
+_@(insts stos traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #stos8 &parents: {insts stos}.
+insts define: #stos16 &parents: {insts stos}.
+insts define: #stos32 &parents: {insts stos}.
+
+"Branching instructions."
+insts define: #ConditionalBranch &parents: {Optimizer MR Branch. inst}.
+
+_@(insts ConditionalBranch traits) operandModes
+[
+  #{Optimizer MR OperandMode Label}
+].
+
+#(ja jae jb jbe jc je jg jge jl jle jna jnae jnb jnbe jnc jne jng jnge jnl jnle jno jnp jns jnz jo jp jpe jpo js jz)
+  do: [| :name |
+    insts define: name &parents: {insts ConditionalBranch}].
+
+insts define: #jmp &parents: {Optimizer MR Jump. inst}.
+
+_@(insts jmp traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ Optimizer MR OperandMode Label}
+].
+
+"Movement instructions."
+insts define: #lea &parents: {inst}.
+
+_@(insts lea traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer MR OperandMode Load}
+].
+
+insts define: #mov &parents: {Optimizer MR Move. inst}.
+
+_@(insts mov traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite \/ Optimizer MR OperandMode Store. 
+    Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ (Optimizer MR OperandMode Constant newType: Types _Signed32)}
+].
+
+insts define: #mov8 &parents: {insts mov}.
+insts define: #mov16 &parents: {insts mov}.
+
+insts define: #movsx &parents: {inst}.
+ 
+_@(insts movsx traits) operandModes
+[ 
+  #{Optimizer Platform x86 OperandMode IntegerWrite. 
+    Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+]. 
+ 
+insts define: #movsx8 &parents: {insts movsx}.
+insts define: #movsx16 &parents: {insts movsx}.
+
+insts define: #movzx &parents: {inst}. 
+  
+_@(insts movzx traits) operandModes
+[  
+  #{Optimizer Platform x86 OperandMode IntegerWrite.                                  
+    Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].  
+ 
+insts define: #movzx8 &parents: {insts movzx}.
+insts define: #movzx16 &parents: {insts movzx}.
+
+insts define: #ConditionalMove &parents: {inst}.
+
+_@(insts ConditionalMove traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+#(cmova cmovae cmovb cmovbe cmovc cmove cmovg cmovge cmovl cmovle cmovna cmovnae cmovnb cmovnbe cmovnc cmovne cmovng cmovnge cmovnl cmovnle cmovno cmovnp cmovns cmovnz cmovo cmovp cmovpe cmovpo cmovs cmovz)
+  do: [| :name |
+    insts define: name &parents: {insts ConditionalMove}].
+
+"Exchange instructions."
+
+insts define: #bswap &parents: {inst}.
+
+_@(insts bswap traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #cmpxchg &parents: {inst}.
+
+_@(insts cmpxchg traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead. Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore. Optimizer Platform x86 OperandMode IntegerRead}
+].
+
+insts define: #xadd &parents: {inst}.
+
+_@(insts xadd traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore. Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #xchg &parents: {inst}.
+
+_@(insts xchg traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore.
+    Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore}
+].
+
+"Condition setting instructions."
+
+insts define: #ModifyCondition &parents: {inst}.
+
+_@(insts ModifyCondition traits) operandModes
+[
+  #{}
+].
+
+insts define: #clc &parents: {insts ModifyCondition}.
+insts define: #cld &parents: {insts ModifyCondition}.
+insts define: #cli &parents: {insts ModifyCondition}.
+insts define: #clts &parents: {insts ModifyCondition}.
+insts define: #cmc &parents: {insts ModifyCondition}.
+insts define: #stc &parents: {insts ModifyCondition}.
+insts define: #std &parents: {insts ModifyCondition}.
+insts define: #sti &parents: {insts ModifyCondition}.
+
+"Condition checking instructions."
+
+insts define: #ConditionalSet &parents: {inst}.
+
+_@(insts ConditionalSet traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite \/ Optimizer MR OperandMode Store}
+].
+
+#(seta setae setb setbe setc sete setg setge setl setle setna setnae setnb setnbe setnc setne setng setnge setnl setnle setno setnp setns setnz seto setp setpe setpo sets setz)
+  do: [| :name |
+      insts define: name &parents: {insts ConditionalSet}].
+      
+"Comparison instructions."
+
+insts define: #cmp &parents: {inst}.
+
+_@(insts cmp traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load.
+    Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ (Optimizer MR OperandMode Constant newType: Types _Signed32)}
+].
+
+insts define: #test &parents: {inst}.
+
+_@(insts test traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load.
+    Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Signed32)}
+].
+
+insts define: #bound &parents: {inst}.
+
+_@(insts bound traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead. Optimizer MR OperandMode Load}
+].
+
+"Arithmetic/logical instructions taking one operand."
+insts define: #UnaryArithmetic &parents: {inst}.
+ 
+_@(insts UnaryArithmetic traits) operandModes 
+[ 
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore}
+]. 
+
+insts define: #neg &parents: {insts UnaryArithmetic}.
+insts define: #not &parents: {insts UnaryArithmetic}.
+insts define: #inc &parents: {insts UnaryArithmetic}.
+insts define: #dec &parents: {insts UnaryArithmetic}.
+
+"Arithmetic/logical instructions taking two operands."
+insts define: #BinaryArithmetic &parents: {inst}.
+
+_@(insts BinaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore.
+    Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ (Optimizer MR OperandMode Constant newType: Types _Signed32)}
+].
+
+insts define: #add &parents: {insts BinaryArithmetic}.
+insts define: #adc &parents: {insts BinaryArithmetic}.
+insts define: #sub &parents: {insts BinaryArithmetic}.
+insts define: #sbb &parents: {insts BinaryArithmetic}.
+
+insts define: #and &parents: {insts BinaryArithmetic}.
+insts define: #or &parents: {insts BinaryArithmetic}.
+insts define: #xor &parents: {insts BinaryArithmetic}.
+
+"Multiplication/division instructions."
+insts define: #cdq &parents: {inst}.
+
+_@(insts cdq traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerReadWrite}
+].
+
+insts define: #Division &parents: {inst}.
+
+_@(insts Division traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #div &parents: {insts Division}.
+insts define: #idiv &parents: {insts Division}.
+
+insts define: #mul &parents: {inst}.
+
+_@(insts mul traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #imulhi &parents: {inst}.
+
+_@(insts imulhi traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #imullo &parents: {inst}.
+
+_@(insts imullo traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #imulc &parents: {inst}.
+
+_@(insts imulc traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load. Optimizer MR OperandMode Constant newType: Types _Signed32}
+].
+
+"Bit shifting instructions."
+insts define: #BitShift &parents: {inst}.
+
+_@(insts BitShift traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore. Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8)}
+].
+
+insts define: #rcl &parents: {insts BitShift}.
+insts define: #rcr &parents: {insts BitShift}.
+insts define: #rol &parents: {insts BitShift}.
+insts define: #ror &parents: {insts BitShift}.
+insts define: #sal &parents: {insts BitShift}.
+insts define: #sar &parents: {insts BitShift}.
+insts define: #shl &parents: {insts BitShift}.
+insts define: #shr &parents: {insts BitShift}.
+
+insts define: #BitReplace &parents: {inst}.
+
+_@(insts BitReplace traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore. 
+    Optimizer Platform x86 OperandMode IntegerRead. 
+    Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8)}
+].
+
+insts define: #shld &parents: {insts BitReplace}.
+insts define: #shrd &parents: {insts BitReplace}.
+
+"Bit manipulation instructions."
+insts define: #BitScan &parents: {inst}.
+
+_@(insts BitScan traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite. Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #bsf &parents: {insts BitScan}.
+insts define: #bsr &parents: {insts BitScan}.
+
+insts define: #bt &parents: {inst}.
+
+_@(insts bt traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load. Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8)}
+].
+
+insts define: #BitSet &parents: {inst}.
+
+_@(insts BitSet traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerReadWrite \/ Optimizer MR OperandMode LoadStore. Optimizer Platform x86 OperandMode IntegerRead \/ (Optimizer MR OperandMode Constant newType: Types _Unsigned8)}
+].
+
+insts define: #btc &parents: {insts BitSet}.
+insts define: #btr &parents: {insts BitSet}.
+insts define: #bts &parents: {insts BitSet}.
+
+"Linkage instructions."
+insts define: #call &parents: {Optimizer MR Call. inst}. 
+
+_@(insts call traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ Optimizer MR OperandMode Label}
+].
+
+insts define: #ret &parents: {inst}.
+
+_@(insts ret traits) operandModes
+[
+  #{}
+].
+
+insts define: #enter &parents: {inst}.
+
+_@(insts enter traits) operandModes
+[
+  #{Optimizer MR OperandMode Constant newType: Types _Unsigned16.
+    Optimizer MR OperandMode Constant newType: Types _Unsigned8}
+].
+
+insts define: #leave &parents: {inst}.
+
+_@(insts leave traits) operandModes
+[
+  #{}
+].
+
+insts define: #push &parents: {inst}.
+
+_@(insts push traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerRead \/ Optimizer MR OperandMode Load \/ (Optimizer MR OperandMode Constant newType: Types _Signed32)}
+].
+
+insts define: #pop &parents: {inst}.
+
+_@(insts pop traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode IntegerWrite \/ Optimizer MR OperandMode Store}
+].
+
+insts define: #pushad &parents: {inst}.
+
+_@(insts pushad traits) operandModes
+[
+  #{}
+].
+
+insts define: #popad &parents: {inst}.
+
+_@(insts popad traits) operandModes
+[
+  #{}
+].
+
+insts define: #popfd &parents: {inst}.
+
+_@(insts popfd traits) operandModes
+[
+  #{}
+].
+
+insts define: #pushfd &parents: {inst}.
+
+_@(insts pushfd traits) operandModes
+[
+  #{}
+].
+
+insts define: #popfd &parents: {inst}.
+
+_@(insts popfd traits) operandModes
+[
+  #{}
+].
+
+"Floating-point unary arithmetic instructions."
+insts define: #FPImplicitArithmetic &parents: {inst}.
+
+_@(insts FPImplicitArithmetic traits) operandModes
+[
+  #{}
+].
+
+insts define: #f2xm1 &parents: {insts FPImplicitArithmetic}.
+insts define: #fabs &parents: {insts FPImplicitArithmetic}.
+insts define: #fchs &parents: {insts FPImplicitArithmetic}.
+insts define: #fcos &parents: {insts FPImplicitArithmetic}.
+insts define: #fpatan &parents: {insts FPImplicitArithmetic}.
+insts define: #fprem &parents: {insts FPImplicitArithmetic}.
+insts define: #fprem1 &parents: {insts FPImplicitArithmetic}.
+insts define: #fptan &parents: {insts FPImplicitArithmetic}.
+insts define: #frndint &parents: {insts FPImplicitArithmetic}.
+insts define: #fscale &parents: {insts FPImplicitArithmetic}.
+insts define: #fsin &parents: {insts FPImplicitArithmetic}.
+insts define: #fsincos &parents: {insts FPImplicitArithmetic}.
+insts define: #fsqrt &parents: {insts FPImplicitArithmetic}.
+insts define: #fxtract &parents: {insts FPImplicitArithmetic}.
+insts define: #fyl2x &parents: {insts FPImplicitArithmetic}.
+insts define: #fyl2xp1 &parents: {insts FPImplicitArithmetic}.
+
+"Floating-point binary arithmetic instructions."
+
+insts define: #FPBinaryArithmetic &parents: {inst}.
+
+_@(insts FPBinaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatReadWrite. Optimizer Platform x86 OperandMode FloatRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #fadd &parents: {insts FPBinaryArithmetic}.
+insts define: #fdiv &parents: {insts FPBinaryArithmetic}.
+insts define: #fdivr &parents: {insts FPBinaryArithmetic}.
+insts define: #fmul &parents: {insts FPBinaryArithmetic}.
+insts define: #fsub &parents: {insts FPBinaryArithmetic}.
+insts define: #fsubr &parents: {insts FPBinaryArithmetic}.
+
+insts define: #FPBinaryArithmeticWithPop &parents: {inst}.
+
+_@(insts FPBinaryArithmeticWithPop traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatReadWrite}
+].
+
+insts define: #faddp &parents: {insts FPBinaryArithmeticWithPop}.
+insts define: #fdivp &parents: {insts FPBinaryArithmeticWithPop}.
+insts define: #fdivrp &parents: {insts FPBinaryArithmeticWithPop}.
+insts define: #fmulp &parents: {insts FPBinaryArithmeticWithPop}.
+insts define: #fsubp &parents: {insts FPBinaryArithmeticWithPop}.
+insts define: #fsubrp &parents: {insts FPBinaryArithmeticWithPop}.
+
+insts define: #FPBinaryIntegerArithmetic &parents: {inst}.
+
+_@(insts FPBinaryIntegerArithmetic traits) operandModes
+[
+  #{Optimizer MR OperandMode Load}
+].
+
+insts define: #fiadd &parents: {insts FPBinaryIntegerArithmetic}.
+insts define: #fidiv &parents: {insts FPBinaryIntegerArithmetic}.
+insts define: #fidivr &parents: {insts FPBinaryIntegerArithmetic}.
+insts define: #fimul &parents: {insts FPBinaryIntegerArithmetic}.
+insts define: #fisub &parents: {insts FPBinaryIntegerArithmetic}.
+insts define: #fisubr &parents: {insts FPBinaryIntegerArithmetic}.
+
+"Floating-point constant instructions."
+insts define: #FPLoadConstant &parents: {inst}.
+
+_@(insts FPLoadConstant traits) operandModes
+[
+  #{}
+].
+
+insts define: #fld1 &parents: {insts FPLoadConstant}.
+insts define: #fldl2t &parents: {insts FPLoadConstant}.
+insts define: #fldl2e &parents: {insts FPLoadConstant}.
+insts define: #fldpi &parents: {insts FPLoadConstant}.
+insts define: #fldlg2 &parents: {insts FPLoadConstant}.
+insts define: #fldln2 &parents: {insts FPLoadConstant}.
+insts define: #fldz &parents: {insts FPLoadConstant}.
+
+"Floating-point comparison instructions."
+insts define: #FPEflagsComparison &parents: {inst}.
+
+_@(insts FPEflagsComparison traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatRead}
+].
+
+insts define: #fcomi &parents: {insts FPEflagsComparison}.
+insts define: #fcomip &parents: {insts FPEflagsComparison}.
+insts define: #fucomi &parents: {insts FPEflagsComparison}.
+insts define: #fucomip &parents: {insts FPEflagsComparison}.
+
+insts define: #FPIntegerComparison &parents: {inst}.
+
+_@(insts FPIntegerComparison traits) operandModes
+[
+  #{Optimizer MR OperandMode Load}
+].
+
+insts define: #ficom &parents: {insts FPIntegerComparison}.
+insts define: #ficomp &parents: {insts FPIntegerComparison}.
+
+insts define: #FPComparison &parents: {inst}.
+
+_@(insts FPComparison traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #fcom &parents: {insts FPComparison}.
+insts define: #fcomp &parents: {insts FPComparison}.
+
+insts define: #FPUnorderedComparison &parents: {inst}.
+
+_@(insts FPUnorderedComparison traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatRead}
+].
+
+insts define: #fucom &parents: {insts FPUnorderedComparison}.
+insts define: #fucomp &parents: {insts FPUnorderedComparison}.
+
+insts define: #FPImplicitComparison &parents: {inst}.
+
+_@(insts FPImplicitComparison traits) operandModes
+[
+  #{}
+].
+
+insts define: #fcompp &parents: {insts FPImplicitComparison}.
+insts define: #ftst &parents: {insts FPImplicitComparison}.
+insts define: #fucompp &parents: {insts FPImplicitComparison}.
+insts define: #fxam &parents: {insts FPImplicitComparison}.
+ 
+"Floating-point movement instructions."
+insts define: #FPConditionalMove &parents: {inst}.
+
+_@(insts FPConditionalMove traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatRead}
+].
+
+#(fcmovb fcmove fcmovbe fcmovu fcmovnb fcmovne fcmovnbe fcmovnu)
+  do: [| :name |
+    insts define: name &parents: {insts FPConditionalMove}].
+
+insts define: #fxch &parents: {inst}.
+
+_@(insts fxch traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatReadWrite}
+].
+
+"Floating-point load/store instructions."
+
+insts define: #fild &parents: {inst}.
+
+_@(insts fild traits) operandModes
+[
+  #{Optimizer MR OperandMode Load}
+].
+
+insts define: #FPIntegerStore &parents: {inst}.
+
+_@(insts FPIntegerStore traits) operandModes
+[
+  #{Optimizer MR OperandMode Store}
+].
+
+insts define: #fist &parents: {insts FPIntegerStore}.
+insts define: #fistp &parents: {insts FPIntegerStore}.
+
+insts define: #fld &parents: {inst}.
+
+_@(insts fld traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #FPStore &parents: {inst}.
+
+_@(insts FPStore traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatWrite \/ Optimizer MR OperandMode Store}
+].
+
+insts define: #fst &parents: {insts FPStore}.
+insts define: #fstp &parents: {insts FPStore}.
+
+"Floating-point stack management instructions."
+
+insts define: #fnop &parents: {inst}.
+
+_@(insts fnop traits) operandModes
+[
+  #{}
+].
+
+insts define: #FPModifyStackPointer &parents: {inst}.
+
+_@(insts FPModifyStackPointer traits) operandModes
+[
+  #{}
+].
+
+insts define: #fdecstp &parents: {insts FPModifyStackPointer}.
+insts define: #fincstp &parents: {insts FPModifyStackPointer}.
+
+insts define: #ffree &parents: {inst}.
+
+_@(insts ffree traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode FloatWrite}
+].
+
+insts define: #finit &parents: {inst}.
+
+_@(insts finit traits) operandModes
+[
+  #{}
+].
+
+insts define: #FPSynchronize &parents: {inst}.
+
+_@(insts FPSynchronize traits) operandModes
+[
+  #{}
+].
+
+insts define: #fwait &parents: {insts FPSynchronize}.
+insts define: #fclex &parents: {insts FPSynchronize}.
+insts define: #fnclex &parents: {insts FPSynchronize}.
+
+insts define: #FPLoadState &parents: {inst}.
+
+_@(insts FPLoadState traits) operandModes
+[
+  #{Optimizer MR OperandMode Load}
+].
+
+insts define: #fldcw &parents: {insts FPLoadState}.
+insts define: #fldenv &parents: {insts FPLoadState}.
+insts define: #frstor &parents: {insts FPLoadState}.
+
+insts define: #FPStoreState &parents: {inst}.
+
+_@(insts FPStoreState traits) operandModes
+[
+  #{Optimizer MR OperandMode Store}
+].
+
+insts define: #fsave &parents: {insts FPStoreState}.
+insts define: #fnsave &parents: {insts FPStoreState}.
+insts define: #fstcw &parents: {insts FPStoreState}.
+insts define: #fnstcw &parents: {insts FPStoreState}.
+insts define: #fstenv &parents: {insts FPStoreState}.
+insts define: #fnstenv &parents: {insts FPStoreState}.
+insts define: #fstsw &parents: {insts FPStoreState}.
+insts define: #fnstsw &parents: {insts FPStoreState}.
+
+"Virtual floating-point instruction set."
+
+insts define: #vfmov &parents: {Optimizer MR Move. inst}.
+
+_@(insts vfmov traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite \/ Optimizer MR OperandMode Store. Optimizer Platform x86 OperandMode VirtualFloatRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #VFPConditionalMove &parents: {inst}.
+
+_@(insts VFPConditionalMove traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfcmovb &parents: {insts VFPConditionalMove}.
+insts define: #vfcmovbe &parents: {insts VFPConditionalMove}.
+insts define: #vfcmova &parents: {insts VFPConditionalMove}.
+insts define: #vfcmovae &parents: {insts VFPConditionalMove}.
+insts define: #vfcmove &parents: {insts VFPConditionalMove}.
+insts define: #vfcmovne &parents: {insts VFPConditionalMove}.
+insts define: #vfcmovu &parents: {insts VFPConditionalMove}.
+insts define: #vfcmovnu &parents: {insts VFPConditionalMove}.
+
+insts define: #VFPLoadConstant &parents: {inst}.
+
+_@(insts VFPLoadConstant traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite}
+].
+
+insts define: #vfld1 &parents: {insts VFPLoadConstant}.
+insts define: #vfldl2t &parents: {insts VFPLoadConstant}.
+insts define: #vfldl2e &parents: {insts VFPLoadConstant}.
+insts define: #vfldpi &parents: {insts VFPLoadConstant}.
+insts define: #vfldlg2 &parents: {insts VFPLoadConstant}.
+insts define: #vfldln2 &parents: {insts VFPLoadConstant}.
+insts define: #vfldz &parents: {insts VFPLoadConstant}.
+
+insts define: #VFPUnaryArithmetic &parents: {inst}.
+
+_@(insts VFPUnaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfabs &parents: {insts VFPUnaryArithmetic}.
+insts define: #vfchs &parents: {insts VFPUnaryArithmetic}.
+insts define: #vfcos &parents: {insts VFPUnaryArithmetic}.
+insts define: #vfsin &parents: {insts VFPUnaryArithmetic}.
+insts define: #vfrndint &parents: {insts VFPUnaryArithmetic}.
+insts define: #vfsqrt &parents: {insts VFPUnaryArithmetic}.
+insts define: #vf2xm1 &parents: {insts VFPUnaryArithmetic}.
+
+insts define: #VFPUnaryArithmeticWithExtraResult &parents: {inst}.
+
+_@(insts VFPUnaryArithmeticWithExtraResult traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite. Optimizer Platform x86 OperandMode VirtualFloatWrite. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfsincos &parents: {insts VFPUnaryArithmeticWithExtraResult}.
+insts define: #vfptan &parents: {insts VFPUnaryArithmeticWithExtraResult}.
+insts define: #vfxtract &parents: {insts VFPUnaryArithmeticWithExtraResult}.
+
+insts define: #VFPBinaryArithmetic &parents: {inst}.
+
+_@(insts VFPBinaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatWrite. Optimizer Platform x86 OperandMode VirtualFloatRead \/ Optimizer MR OperandMode Load. Optimizer Platform x86 OperandMode VirtualFloatRead \/ Optimizer MR OperandMode Load}
+].
+
+insts define: #vfadd &parents: {insts VFPBinaryArithmetic}.
+insts define: #vfdiv &parents: {insts VFPBinaryArithmetic}.
+insts define: #vfmul &parents: {insts VFPBinaryArithmetic}.
+insts define: #vfsub &parents: {insts VFPBinaryArithmetic}.
+
+insts define: #VFPImplicitBinaryArithmetic &parents: {inst}.
+
+_@(insts VFPImplicitBinaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatReadWrite. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfprem &parents: {insts VFPImplicitBinaryArithmetic}.
+insts define: #vfprem1 &parents: {insts VFPImplicitBinaryArithmetic}.
+insts define: #vfscale &parents: {insts VFPImplicitBinaryArithmetic}.
+
+insts define: #VFPImplicitBinaryArithmeticWithPop &parents: {inst}.
+
+_@(insts VFPImplicitBinaryArithmetic traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatReadWrite. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfpatan &parents: {insts VFPImplicitBinaryArithmeticWithPop}.
+insts define: #vfyl2x &parents: {insts VFPImplicitBinaryArithmeticWithPop}.
+insts define: #vfyl2xp1 &parents: {insts VFPImplicitBinaryArithmeticWithPop}.
+
+insts define: #VFPComparison &parents: {inst}.
+
+_@(insts VFPComparison traits) operandModes
+[
+  #{Optimizer Platform x86 OperandMode VirtualFloatRead. Optimizer Platform x86 OperandMode VirtualFloatRead}
+].
+
+insts define: #vfcomi &parents: {insts VFPComparison}.
+insts define: #vfucomi &parents: {insts VFPComparison}.
+
+] do.
+

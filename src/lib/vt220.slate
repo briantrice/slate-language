@@ -1,0 +1,204 @@
+prototypes define: #VT220 &parents: {SmartTerminal}
+ &slots: {#extent -> #(80 24). "Terminal dimensions."
+	  #cursorPos -> #(0. 0) "Cursor block position."}.
+"TODO: Use 80 , 24 and Point origin for slot initial values."
+
+VT220 traits ensureNamespace: #mode &slots:
+{#normal -> 0.
+ #bold -> 1.
+ #underline -> 4. "for monochrome only"
+ #blink -> 5.
+ #reverse -> 7.
+ #invisible -> 8}.
+
+VT220 traits ensureNamespace: #colorFG &slots:
+{#black   -> 30.
+ #red     -> 31.
+ #green   -> 32.
+ #yellow  -> 33.
+ #blue    -> 34.
+ #magenta -> 35.
+ #cyan    -> 36.
+ #white   -> 37}.
+
+VT220 traits ensureNamespace: #colorBG &slots:
+{#black   -> 40.
+ #red     -> 41.
+ #green   -> 42.
+ #yellow  -> 43.
+ #blue    -> 44.
+ #magenta -> 45.
+ #cyan    -> 46.
+ #white   -> 47}.
+
+vt@(VT220 traits) formatFrom: sc
+"Take an array or tuple of codes and set the display by them."
+[
+  vt sendEscape.
+  sc do: [| :each | vt writer ; each printString]
+     separatedBy: [vt writer nextPut: $;].
+  vt writer nextPut: $m
+].
+
+VT220 traits ensureNamespace: #scrMode &slots:
+{#40x25bw -> 0.
+ #40x25c  -> 1.
+ #80x25bw -> 2.
+ #80x25c  -> 3.
+ #320x200cg  -> 4.
+ #320x200bwg -> 5.
+ #640x200bwg -> 6.
+ #linewrap   -> 7}.
+
+vt@(VT220 traits) setScreenMode: modeCode
+"Set the screen to the specified mode."
+[
+  vt sendEscape.
+  vt writer ; '=' ; modeCode printString ; 'h'
+].
+
+vt@(VT220 traits) resetScreenMode: modeCode
+"Reset the specified screen mode."
+[
+  vt sendEscape.
+  vt writer ; '=' ; modeCode printString ; '1'
+].
+
+VT220 traits ensureNamespace: #status &slots:
+{#defaultResponse -> 0.
+ #retryResponse   -> 3.
+ #report    -> 5.
+ #cursorPos -> 6}.
+
+vt@(VT220 traits) statusOf: statusCode
+"Report terminal status relevant to the code."
+[
+  vt sendEscape.
+  vt writer ; statusCode printString ; 'n'
+].
+
+vt@(VT220 traits) status
+"Report the terminal status for the default code."
+[
+  vt statusOf: vt status default
+].
+
+"ANSI Escape Sequences"
+
+vt@(VT220 traits) sendEscape
+"Start an escape sequence."
+[
+  vt writer ; '\e['
+].
+
+vt@(VT220 traits) cursorSave
+"Save the cursor's current position in the register."
+[
+  vt sendEscape.
+  vt writer nextPut: $s
+].
+
+vt@(VT220 traits) cursorRecall
+"Recall the cursor to the position in the register."
+[
+  vt sendEscape.
+  vt writer nextPut: $u
+].
+
+"
+vt@(VT220 traits) cursorTo: p@(Point traits)
+[
+  vt sendEscape.
+  vt writer ; p y printString ; ';' ; p x printString ; 'H'.
+  vt cursorPos: p.
+  vt
+].
+"
+
+vt@(VT220 traits) cursorToX: x y: y
+[
+  vt sendEscape.
+  vt writer ; y printString ; ';' ; x printString ; 'H'. " or $f"
+  vt cursorPos: {x. y}.
+  vt
+].
+
+vt@(VT220 traits) cursorUp: n
+[
+  vt sendEscape.
+  vt writer ; n printString ; 'A'.
+].
+
+vt@(VT220 traits) cursorDown: n
+[
+  vt sendEscape.
+  vt writer ; n printString ; 'B'.
+].
+
+vt@(VT220 traits) cursorRight: n
+[
+  vt sendEscape.
+  vt writer ; n printString ; 'C'.
+].
+
+vt@(VT220 traits) cursorLeft: n
+[
+  vt sendEscape.
+  vt writer ; n printString ; 'D'.
+].
+
+vt@(VT220 traits) clearRest
+"Erase from the cursor to the end of the screen."
+[
+  vt sendEscape.
+  vt writer ; '0J'.
+  vt
+].
+
+vt@(VT220 traits) eraseFirst
+"Erase to the cursor from the start of the screen."
+[
+  vt sendEscape.
+  vt writer ; '1J'.
+  vt
+].
+
+vt@(VT220 traits) clearAndHome
+"Clear the terminal, home the cursor."
+[
+  vt sendEscape.
+  vt writer ; '2J'.
+  vt
+].
+
+vt@(VT220 traits) eraseToEOL
+"Erase the line the cursor is on from cursor to end."
+[
+  vt sendEscape.
+  vt writer ; '0K'
+].
+
+vt@(VT220 traits) eraseFromBOL
+"Erase the line the cursor is on from beginning to cursor."
+[
+  vt sendEscape.
+  vt writer ; '1K'
+].
+
+vt@(VT220 traits) eraseLine
+"Erase the whole line the cursor is on."
+[
+  vt sendEscape.
+  vt writer ; '2K'
+].
+
+vt@(VT220 traits) setHTab
+[
+  vt writer ; '\eH'
+].
+
+vt@(VT220 traits) newLine
+"Send a new-line, possibly scrolling."
+[
+  vt writer ; '\eE'
+].

@@ -1,0 +1,68 @@
+prototypes addPrototype: #EventTest derivedFrom: {Cloneable}.
+
+EventTest addSlot: #fini valued: False.
+
+et@(EventTest traits) showEvents
+[| evt evt_type |
+  evt: SDLLib SDL_INPUT clone.
+  inform: 'Press F4 when tired of looking at events'.
+  [et fini] whileFalse:[
+    SDL waitEvent: evt.
+    evt TypeEvt caseOf:
+    {SDL KEYDOWN -> [et showKeyDown: evt].
+      SDL KEYUP -> [et showKeyUp: evt].
+      SDL MOUSEBUTTONDOWN -> [et showMouseButtonDown: evt].
+      SDL MOUSEMOTION -> [et showMouseMove: evt]
+    } otherwise: [et showOther: evt].
+  ]
+].
+
+_@(EventTest traits) showKeyUp: event
+[
+  Console ; 'Key '.
+  Console ; (event KeyEvent_keysym_sdlkey as: String).
+  Console ; ' was released\n'.
+].
+
+et@(EventTest traits) showKeyDown: event
+[
+  Console ; 'scancode='.
+  Console ; (event KeyEvent_keysym_scancode as: String).
+  Console ; ' sdlkey='.
+  Console ; (event KeyEvent_keysym_sdlkey as: String).
+  Console ; ' mod='.
+  Console ; (event KeyEvent_keysym_mod as: String).
+  Console ; ' unicode='.
+  Console ; (event KeyEvent_keysym_unicode as: String).
+  Console ; '\n'.
+  event KeyEvent_keysym_sdlkey == 285 "F4"  ifTrue: (et fini: True).
+].
+
+_@(EventTest traits) showMouseButtonDown: event
+[
+  Console ; 'Button #'.
+  Console ; (event MouseButtonEvent_button as: String).
+  Console ; 'was clicked at ('.
+  Console ; (event MouseButtonEvent_x as: String).
+  Console ; ','.
+  Console ; (event MouseButtonEvent_y as: String).
+  Console ; ')\n'.
+].
+
+_@(EventTest traits) showMouseMove: event
+[
+  Console ; 'Moving #'.
+  Console ; (event MouseMotionEvent_button as: String).
+  Console ; ' now at ('.
+  Console ; (event MouseMotionEvent_x as: String).
+  Console ; ','.
+  Console ; (event MouseMotionEvent_y as: String).
+  Console ; ')\n'.
+].
+
+_@(EventTest traits) showOther: event
+[
+  inform: 'Some other event going on'.
+].
+
+EventTest showEvents.

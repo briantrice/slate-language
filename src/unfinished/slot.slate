@@ -1,0 +1,31 @@
+prototypes define: #Slot &parents: {Cloneable} &slots: {#name -> Nil}.
+
+s@(Slot traits) newNamed: name
+[s cloneSettingSlots: #(name) to: {name}].
+
+x addSlot: s@(Slot traits) named: name
+[overrideThis].
+
+x addSlot: s@(Slot traits)
+[s name ifNil: [error: 'A slot name is required.']
+	ifNotNilDo: [| :name | x addSlot: s named: name]].
+
+x removeSlot: s@(Slot traits)
+[s name ifNil: [error: 'A slot name is required.']
+	ifNotNilDo: [| :name | x removeSlotNamed: name]].
+
+prototypes define: #ValueSlot &parents: {Slot} &slots: {#value -> Nil}.
+
+x addSlot: s@(ValueSlot traits) named: name
+[
+  x addInvisibleSlot: name valued: s.
+  x addAccessor: [| :obj | (obj atSlotNamed: name) value] for: name.
+  x addMutator: [| :obj :newval | (obj atSlotNamed: name) value: newval] for: name.
+  s value
+].
+
+prototypes define: #LazySlot &parents: {Slot} &slots: {#value -> Suspension}.
+
+x addSlot: s@(LazySlot traits) named: name
+[
+].

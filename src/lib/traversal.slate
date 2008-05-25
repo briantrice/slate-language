@@ -1,0 +1,122 @@
+
+Stream traits define: #Order.
+
+streams define: #Priority &parents: {Stream Order}.
+"A Stream Priority order specifies the order in which siblings are visited
+relative to each other."
+
+streams define: #Forward &builder: [Priority clone].
+"Standard left-to-right, increasing index traversal of siblings."
+
+streams define: #Reverse &builder: [Priority clone].
+"Right-to-left, decreasing index reverse traversal of siblings."
+
+streams define: #LeastToGreatest &builder: [Priority clone].
+streams define: #GreatestToLeast &builder: [Priority clone].
+
+streams define: #Traversal &parents: {Stream Order}.
+"A Stream Traversal order specifies when the parent-child boundary is crossed,
+e.g. before other siblings or after all siblings."
+
+streams define: #DepthFirst &builder: [Traversal clone].
+"Recurse through the next element encountered before proceeding on to
+following siblings of it."
+
+streams define: #BreadthFirst &builder: [Traversal clone].
+"Recurse across all siblings at the current level before recursing through
+each sibling's children in the same way."
+
+streams define: #Topological &builder: [Traversal clone].
+
+streams define: #Direction &parents: {Stream Order}.
+""
+
+streams define: #PreOrder &builder: [Direction clone].
+streams define: #PostOrder &builder: [Direction clone].
+
+c@(Collection traits) readerTest &priority: priority &direction: direction &traversal: traversal
+[
+  c readerWithDirection: direction priority: priority traversal: traversal
+].
+
+c@(Collection traits) readerWithDirection: _ priority: _ traversal: _
+"By default, ignore arguments and use the default ReadStream."
+[c ReadStream newOn: c].
+
+seq@(Sequence traits) readerWithDirection: _ priority: priority@Reverse traversal: _
+"TODO: expand on this.
+Don't do explicit reversal, just build it into the Stream type."
+[seq ReadStream newOn: seq reversed].
+
+streams define: #TraversalStream &parents: {ReadStream} &slots:
+{#seen -> IdentitySet new. "Remembers seen objects."
+ #todo -> Stack new. "Should be a LIFO or FIFO."
+ #childrenBlock -> #reader `er
+   "Answers a Stream or Collection of the children of each element."}.
+
+s@(TraversalStream traits) on: x &traversal: traversal &childrenVia: childrenBlock
+"Target the object by making it the contents of the todo Collection.
+Set up the traversal order parameters as needed."
+[
+  traversal ifNotNil:
+    [s todo: (s todo as: (traversal caseOf:
+	{BreadthFirst -> [Queue].
+         DepthFirst -> [Stack]} otherwise: [s todo]))].
+  s todo push: x.
+  s seen: s seen new.
+  childrenBlock ifNotNil: [s childrenBlock: childrenBlock].
+  s
+].
+
+s@(TraversalStream traits) reset
+[s seen: s seen new. s todo: s todo new. ].
+
+s@(TraversalStream traits) newOn: x &traversal: traversal &childrenVia: childrenBlock
+[s clone `>> [reset. on: x &traversal: traversal &childrenVia: childrenBlock. ]].
+
+x@(Root traits) walker &traversal: traversal &childrenVia: childrenBlock
+"Answers a new TraversalStream targetted to the argument with the given
+order and recursion method."
+[TraversalStream newOn: x &traversal: traversal &childrenVia: childrenBlock].
+
+s@(TraversalStream traits) traversalOrder
+[
+  (s todo isSameAs: Queue)
+    ifTrue: [BreadthFirst]
+    ifFalse: [(s todo isSameAs: Stack) ifTrue: [DepthFirst]]
+].
+
+s@(TraversalStream traits) hasAnEnd [True].
+
+s@(TraversalStream traits) isAtEnd
+"The end is reached when the todo list is emptied."
+[s todo isEmpty].
+
+s@(TraversalStream traits) cannotVisit: obj
+"Whether the particular object should be entirely avoided. TODO: remove?"
+[False].
+
+s@(TraversalStream traits) visit: obj
+"Mark the object as seen/visited."
+[s seen include: obj].
+
+s@(TraversalStream traits) alreadyVisited: obj
+"Whether the object has been seen/visited."
+[s seen includes: obj].
+
+s@(TraversalStream traits) childrenOf: obj
+"Grabs the children of the object according to the Stream's intended use,
+specified by a block that acts on the object."
+[s childrenBlock applyWith: obj].
+
+s@(TraversalStream traits) next
+"Pop the todo list, mark it visited, and use the childrenBlock to push onto
+the todo list unseen elements from it."
+[| result |
+  result: s todo pop.
+  s visit: result.
+  ((s childrenOf: result) reader
+    reject: [| :c | (s alreadyVisited: c) \/ [s cannotVisit: c]])
+    >> s todo appender.
+  result
+].

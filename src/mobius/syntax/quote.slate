@@ -1,0 +1,144 @@
+Syntax define: #Unquote &parents: {Syntax Node}.
+
+"Unquoted expressions must be treated specially since they are not simply
+unboxed."
+
+node@(Syntax Node traits) unquoted
+[node].
+
+val@(Root traits) unquoted
+[Syntax Literal for: val].
+
+node@(Syntax Node traits) instantiateWith: unquoteValues
+"Transforms the Syntax tree by replacing Unquote nodes in the default traversal
+order with the provided unquoteValues. This method is only intended to be called
+implicitly by the quote macro."
+[| index |
+  unquoteValues infect: [| :node | node unquoted].
+  index: -1.
+  node deepCopy
+    transformBy:
+      [| :node |
+        (node isSameAs: Syntax Unquote)
+          ifTrue:
+            [index: index + 1.
+             unquoteValues at: index]
+          ifFalse: [node]]
+].
+
+_@(Syntax Node traits) isQuotedBy: _
+"Controls the default quotation semantics of Syntax Nodes.
+By default, all Syntax Nodes are quoted."
+[True].
+
+macro@(Syntax Macro traits) isQuotedBy: label
+"Defers the quotation decision to the message sending:isQuotedBy:
+so that specific macros may choose whether or not they are captured
+by quotation."
+[macro sending: macro selector isQuotedBy: label].
+
+node@(Syntax Node traits) quote: label
+"This is the main quotation method, taking a label object to pair quote/unquote
+actions as needed. "
+[| unquotes literal |
+  unquotes: {} writer.
+  literal:
+    (Syntax Literal for:
+      (node deepCopy
+        transformBy:
+          [| :node |
+           (node isQuotedBy: label)
+              ifTrue: [node]
+              ifFalse:
+                [unquotes nextPut: node.
+                 Syntax Unquote]])).
+  unquotes position > 0
+    ifTrue:
+      [Syntax KeywordMessage sending: #instantiateWith:
+        to: {literal. unquotes contents as: Syntax Array}]
+    ifFalse: [literal]
+].
+
+paren@(Syntax Parenthesis traits) quote: label
+[
+  paren statements size = 1
+    ifTrue: [paren statements first quote: label]
+    ifFalse: [resend]
+].
+
+node@(Syntax Node traits) quote
+"Quote the Syntax Node, providing direct syntax representation to the source
+code. This goes through labelled-quote: using Nil as a label."
+[node quote: #[Syntax Literal for: Nil]].
+
+"The following are sending:isQuotedBy: methods for allowing specific
+macros to work even within the body of a quotation, effectively
+serving as unquotes which may also transform supplied expressions. 
+They just have to specialize on the selector and may optionally
+work only in the context of specific quotation labels." 
+_@(Syntax Macro traits) sending: _@(Symbol traits) isQuotedBy: _
+[True].
+
+_@(Syntax Macro traits) sending: _@#unquote isQuotedBy: label
+"`unquote only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+node@(Syntax Node traits) unquote
+"Unquoting simply substitutes the expression unchanged."
+[node].
+
+macro@(Syntax Macro traits) sending: _@#unquote: isQuotedBy: label
+[macro arguments second ~= label].
+
+node@(Syntax Node traits) unquote: _
+"Labeled unquoting simply substitutes the expression unchanged."
+[node].
+
+_@(Syntax Macro traits) sending: _@#literal isQuotedBy: label
+"`literal only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+value@(Syntax Node traits) literal
+"An unquote macro that wraps the supplied value expression with a Literal."
+[`(Syntax Literal for: value `unquote)].
+
+_@(Syntax Macro traits) sending: _@#load isQuotedBy: label
+"`load only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+var@(Syntax Node traits) load
+"An unquote macro that wraps the supplied Variable expression with a LoadVariable."
+[`(Syntax LoadVariable from: var `unquote)].
+
+_@(Syntax Macro traits) sending: _@#store: isQuotedBy: label
+"`store: only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+var@(Syntax Node traits) store: value
+"An unquote macro that wraps the supplied Variable expression and value expression with a StoreVariable."
+[`(Syntax StoreVariable of: value `unquote into: var `unquote)].
+
+_@(Syntax Macro traits) sending: _@#sendTo: isQuotedBy: label
+"`sendTo: only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+selector@(Syntax Node traits) sendTo: arguments
+"An unquote macro that generates a Message sending the Symbol expression as a message selector to the arguments Array expression."
+[`(Syntax Message sending: selector `unquote to: arguments `unquote)].
+
+_@(Syntax Macro traits) sending: _@#array isQuotedBy: label
+"`array only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+vals@(Syntax Node traits) array
+"An unquote macro that stuffs the supplied collection into an Array."
+[`(vals `unquote as: Syntax Array)].
+
+_@(Syntax Macro traits) sending: _@#block isQuotedBy: label
+"`block only works with the default label."
+[label ~= #[Syntax Literal for: Nil]].
+
+expr@(Syntax Node traits) block
+"An unquote macro that wraps the supplied expression into a Block."
+[`(Syntax Block newFor: expr `unquote)].
+

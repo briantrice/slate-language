@@ -1,0 +1,98 @@
+Created, january 2005, last updated mars 26, 2005
+
+
+README SDL for Slate
+--------------------
+This directory contains Slate code to interconnect with the SDL
+library on your Operating System (up to now, mostly Linux).
+SDL stands for Simple DirectMedia Layer, and have been mostly
+used to write games, independantly of the OS.
+
+The main site for SDL is:
+http://www.libsdl.org
+
+I do use version 1.2 of SDL, which is the latest that is
+packaged for Ubunty 4.10 (Oct. 2004).
+
+This code also use the SDL_gfx library.
+You can download it from:
+http://www.ferzkopp.net/~aschiffler/Software/SDL_gfx-2.0/
+
+Before using:
+It is expected that you did install SDL and SDL_gfx libraries.
+
+The name expected for the SDL lib is libSDL.so or libSDL.dll
+The name expected for the SDL_gfx library is libSDL_gfx.so or
+libSDL_gfx.dll
+
+So suppose your SDL file is called /usr/lib/libSDL-1.2.so.0, then
+you should add a symlink with:
+sudo ln -s /usr/lib/libSDL-1.2.so.0 /usr/lib/libSDL.so
+
+Now, you also have to set environmental variable LD_LIBRARY_PATH.
+On my system, I have added in my .basrc file:
+export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
+
+Use and tests:
+load: 'src/ui/SDL/preinit.slate'.
+load: 'src/ui/SDL/init.slate'.
+From there, you could load: 'src/ui/SDL/tests/test1.slate'.
+and/or:
+load: 'src/ui/SDL/tests/test2.slate'.
+And try to execute the functions defined in there by doing something like:
+SDL ellipse1.
+Keep the window under view, while you do it! (It will gone black, if you
+change of virtual window, or...).
+
+
+Code organisation:
+Although the code is mostly intended to be used in Slate as a
+CLIM port, I try to organize the code independantly of this
+intended use. So that someone, that would wish to use SDL
+directly in Slate, could do it fine.
+
+I tend to separate my code, by libraries.
+There is the generic SDL library, that let you create and
+directly access Surfaces in memory, but have no direct
+functions to draw on them. Except maybe LoadBMP, that create
+a surface based on a .bmp image file.
+
+And up to now, the only sub-library I intend to use: libSDL_gfx.
+This one have all the common drawing routines defined for pixels,
+lines, curves, ellipses, polygons, etc.
+
+I could maybe use libSDL_sge, but this seems to be more about
+sprites, and collision detection. And it seems to be much bigger too.
+So I came to the conclusion, that this is not what Slate needs for now.
+The idea being to have some simple drawings to be able to define our
+own gadgets (known also as widgets in other than CLIM gui).
+
+So, I use Slate's ExternalLibrary to dynamically load and use the SDL
+library. ExternalLibrary let you create normal Slate blocks, with
+input parameters representing the input parameters of the SDL functions.
+So, when you want to call them, you have to apply your arguments to it.
+This is well documented in Slate manual.
+
+Since this is a bit unfunny to use, I create normal Slate methods, as
+a front end for this blocks. This let you pass parameters by keyword
+messages, which is more programmer-friendly. I did keep these frontend
+methods, in different files than the blocks defined to access the
+libraries.
+
+So up to now, I have mainly 4 files:
+-SDLLib.slate containing the extlib's blocks to the plain SDL lib
+-SDL.slate containing the methods frontend to the blocks in SDLLib.slate
+-SDLgfxLib.slate, containing the extlib's blocks for the gfx (drawing
+routines) for the sublibrary of SDL.
+-SDLgfx.slate, containing the methods frontend to stuff in SDLgfxLib.slate
+
+There is maybe place to define namespaces, which I am not well used to
+in Slate.
+
+So let's say it's enough to let you begin to use this stuff. Euh, is it?
+let me define an init.slate, to load all this files. Euh, maybe not,
+since I am not sure where these files will be in the slate hierarchy.
+
+Paul Dufresne
+dufrp@hotmail.com
+
