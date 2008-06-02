@@ -20,6 +20,8 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
   immaturely
 
 
+- edit mobius/c/types.slate to get the correct wordsize
+
 ***************************/
 
 #include <stdio.h>
@@ -1838,7 +1840,7 @@ void heap_full_gc(struct object_heap* oh) {
 }
 
 void heap_gc(struct object_heap* oh) {
-#if 0
+#if 1
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
   heap_pin_c_stack(oh);
@@ -3111,6 +3113,10 @@ void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity
   interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(retval));
 }
 
+void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(sizeof(word_t)));
+}
+
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
   word_t handle = object_to_smallint(args[1]);
@@ -4160,7 +4166,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_ensure, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
  /*30-9*/ prim_fixme, prim_run_args_into, prim_exit, prim_fixme, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
- /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_bytesPerWord, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 

@@ -16,7 +16,7 @@ OBJECTS=
 all: vm
 
 backup: superclean
-	cd .. && tar  '--exclude=*.git*' -zcvf cslatevm-backup.tar.gz cslatevm
+	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
 
 vm: vm.c $(OBJECTS)
 	gcc $(CFLAGS) $(LIBRARIES) -o vm vm.c $(OBJECTS)

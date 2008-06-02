@@ -28,6 +28,15 @@ t@(Types C Type traits) alignment
     ifFalse: [bits]
 ].
 
+t@(Types C Type traits) byteSize
+[
+  (t bitSize + Types C Char bitSize - 1) // Types C Char bitSize
+].
+
+t@(Types C Type traits) wordSize
+[
+  (t bitSize + Types C LongInt bitSize - 1) // Types C LongInt bitSize
+].
 
 Types C define: #NamedType &parents: {Types C Type} &slots: {#cName}.
 
@@ -67,7 +76,7 @@ c addDependency: p@(Types C Pointer traits) withVisited: visited
           ifTrue: [c addDependency: p targetType withVisited: visited]]
 ].
 
-n@(Types C) defineType: slotName &parents: parents
+n@(Types C) define: slotName bitSize: size &parents: parents
 "Automatically adds a method #cName which returns the lower-cased version of
 the given name, as well as the parent Types C Type."
 [| type pointer printName |
@@ -76,23 +85,27 @@ the given name, as well as the parent Types C Type."
   _@(type traits) cName [printName].
   _@(type traits) slateName [slotName].
 "C Syntax SizeOf of: (g generateCFor: args first)"
-  _@(type traits) bitSize [55555555]. "easy to find first digits if added or subtracted from"
+  _@(type traits) bitSize [size]. "easy to find first digits if added or subtracted from"
   pointer: (Types C Pointer to: type).
   _@(type traits) pointer [pointer]
 ].
 
-Types C defineType: #Integer &parents: {Types C Type}.
-Types C defineType: #Signed &parents: {Types C Integer}.
-Types C defineType: #Unsigned &parents: {Types C Integer}.
-Types C defineType: #Char &parents: {Types C Signed}.
-Types C defineType: #UnsignedChar &parents: {Types C Unsigned}.
-Types C defineType: #ShortInt &parents: {Types C Signed}.
-Types C defineType: #UnsignedShortInt &parents: {Types C Unsigned}.
-Types C defineType: #LongInt &parents: {Types C Signed}.
-Types C defineType: #UnsignedLongInt &parents: {Types C Unsigned}.
-Types C defineType: #Float &parents: {Types C Type}.
-Types C defineType: #Double &parents: {Types C Float}.
-Types C defineType: #Void &parents: {Types C Type}.
+"*****fix these to get a primitive saying the wordsize*****"
+
+Types C define: #Integer &parents: {Types C Type}.
+Types C define: #Signed &parents: {Types C Integer}.
+Types C define: #Unsigned &parents: {Types C Integer}.
+Types C define: #Char bitSize: 8 &parents: {Types C Signed}.
+Types C define: #UnsignedChar bitSize: 8 &parents: {Types C Unsigned}.
+Types C define: #ShortInt bitSize: 16 &parents: {Types C Signed}.
+Types C define: #UnsignedShortInt bitSize: 16 &parents: {Types C Unsigned}.
+Types C define: #LongInt bitSize: 32 &parents: {Types C Signed}.
+Types C define: #UnsignedLongInt bitSize: 32 &parents: {Types C Unsigned}.
+Types C define: #LongLongInt bitSize: 64 &parents: {Types C Signed}.
+Types C define: #UnsignedLongLongInt bitSize: 64 &parents: {Types C Unsigned}.
+Types C define: #Float bitSize: 32 &parents: {Types C Type}.
+Types C define: #Double bitSize: 64 &parents: {Types C Float}.
+Types C define: #Void bitSize: 0 &parents: {Types C Type}.
 
 Types C define: #Modifier &parents: {Types C Type}
   &slots: {#baseType -> Types C Type}.
@@ -287,6 +300,7 @@ t@(Types C Structure traits) bitSize
   maxAlign: t alignment.
   (t unpaddedSize / maxAlign) ceiling * maxAlign
 ].
+
 
 Types C define: #Union &parents: {Types C Structure}.
 
