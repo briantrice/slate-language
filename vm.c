@@ -33,6 +33,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <assert.h>
 #include <math.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
@@ -230,6 +231,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
 #define PINNED_CARD_SIZE (sizeof(word_t) * 8)
+#define SLATE_MEMS_MAXIMUM		1024
 
 /*these things never exist in slate land (so word_t types are their actual value)*/
 struct object_heap
@@ -253,6 +255,11 @@ struct object_heap
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
   struct Object* fixedObjects[MAX_FIXEDS];
+
+  void* memory_areas [SLATE_MEMS_MAXIMUM];
+  int memory_sizes [SLATE_MEMS_MAXIMUM];
+  int memory_num_refs [SLATE_MEMS_MAXIMUM];
+
 
   int argcSaved;
   char** argvSaved;
@@ -1013,6 +1020,224 @@ void print_backtrace(struct object_heap* oh) {
 
 }
 
+/***************** MEMORY *************************/
+
+void initMemoryModule (struct object_heap* oh)
+{
+  memset (oh->memory_areas, 0, sizeof (oh->memory_areas));
+  memset (oh->memory_sizes, 0, sizeof (oh->memory_sizes));
+  memset (oh->memory_num_refs, 0, sizeof (oh->memory_num_refs));
+}
+
+int validMemoryHandle (struct object_heap* oh, int memory) {
+  return (oh->memory_areas [memory] != NULL);
+}
+
+int allocateMemory(struct object_heap* oh)
+{
+  int memory;
+  for (memory = 0; memory < SLATE_MEMS_MAXIMUM; ++ memory) {
+    if (!(validMemoryHandle(oh, memory)))
+      return memory;
+  }
+  return SLATE_ERROR_RETURN;
+}
+
+void closeMemory (struct object_heap* oh, int memory)
+{
+  if (validMemoryHandle(oh, memory)) {
+    if (!--oh->memory_num_refs [memory]) {
+      free (oh->memory_areas [memory]);
+      oh->memory_areas [memory] = NULL;
+      oh->memory_sizes [memory] = 0;
+    }
+  }
+}
+
+void addRefMemory (struct object_heap* oh, int memory)
+{
+  if (validMemoryHandle(oh, memory))
+      ++oh->memory_num_refs [memory];
+}
+      
+int openMemory (struct object_heap* oh, int size)
+{
+  void* area;
+  int memory;
+  memory = allocateMemory (oh);
+  if (memory < 0)
+    return SLATE_ERROR_RETURN;
+  area = malloc (size);
+  if (area == NULL) {
+    closeMemory (oh, memory);
+    return SLATE_ERROR_RETURN;
+  } else {
+    oh->memory_areas [memory] = area;
+    oh->memory_sizes [memory] = size;
+    oh->memory_num_refs [memory] = 1;
+    return memory;
+  }
+}
+
+int writeMemory (struct object_heap* oh, int memory, int memStart, int n, char* bytes)
+{
+  void* area;
+  int nDelimited;
+  if (!(validMemoryHandle(oh, memory)))
+    return SLATE_ERROR_RETURN;
+  area = oh->memory_areas [memory];
+  nDelimited = oh->memory_sizes [memory] - memStart;
+  if (nDelimited > n)
+    nDelimited = n; // We're just taking the max of N and the amount left.
+  if (nDelimited > 0)
+    memcpy (bytes, area, nDelimited);
+  return nDelimited;
+}
+
+int readMemory (struct object_heap* oh, int memory, int memStart, int n, char* bytes)
+{
+  void* area;
+  int nDelimited;
+  if (!(validMemoryHandle(oh, memory)))
+    return SLATE_ERROR_RETURN;
+  area = oh->memory_areas [memory];
+  nDelimited = oh->memory_sizes [memory] - memStart;
+  if (nDelimited > n)
+    nDelimited = n; // We're just taking the max of N and the amount left.
+  if (nDelimited > 0)
+    memcpy (area, bytes, nDelimited);
+  return nDelimited;
+}
+
+int sizeOfMemory (struct object_heap* oh, int memory)
+{
+  return (validMemoryHandle(oh, memory) ? oh->memory_sizes [memory] : SLATE_ERROR_RETURN);
+}
+
+int resizeMemory (struct object_heap* oh, int memory, int size)
+{
+  void* result;
+  if (!(validMemoryHandle(oh, memory)))
+    return SLATE_ERROR_RETURN;
+  if (oh->memory_num_refs [memory] != 1)
+    return SLATE_ERROR_RETURN;
+  if (oh->memory_sizes [memory] == size)
+    return size;
+  result = realloc (oh->memory_areas [memory], size);
+  if (result == NULL)
+    return SLATE_ERROR_RETURN;
+  oh->memory_areas [memory] = result;
+  oh->memory_sizes [memory] = size;
+  return size;
+}
+
+int addressOfMemory (struct object_heap* oh, int memory, int offset, byte_t* addressBuffer)
+{
+  void* result;
+  result = ((validMemoryHandle(oh, memory)
+             && 0 <= offset && offset < oh->memory_sizes [memory])
+            ? (char *) oh->memory_areas [memory] + offset : NULL);
+  memcpy (addressBuffer, (char *) &result, sizeof (&result));
+  return sizeof (result);
+}
+
+
+
+/***************** EXTLIB *************************/
+
+#if defined(__CYGWIN__)
+#define DLL_FILE_NAME_EXTENSION ".dll"
+#else
+#define DLL_FILE_NAME_EXTENSION ".so"
+#endif 
+
+
+
+static char *safe_string(struct ByteArray *s, char const *suffix) {
+  size_t len = byte_array_size(s);
+  char *result = malloc(strlen(suffix) + len + 1);
+  if (result == NULL)
+    return NULL;
+  memcpy(result, s->elements, len);
+  strcpy(result + len, suffix);
+  return result;
+}
+
+bool openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle)
+{
+  char *fullname;
+  void *h;
+
+  assert(byte_array_size(handle) >= sizeof(h));
+
+  fullname = safe_string(libname, DLL_FILE_NAME_EXTENSION);
+  if (fullname == NULL)
+    return FALSE;
+
+  h = dlopen(fullname, RTLD_NOW);
+
+  char *message = dlerror();
+  if (message != NULL) {
+    fprintf (stderr, "openExternalLibrary '%s' error: %s\n", fullname, message);
+  }
+  free(fullname);
+
+  if (h == NULL) {
+    return FALSE;
+  } else {
+    memcpy(handle->elements, &h, sizeof(h));
+    return TRUE;
+  }
+}
+
+bool closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
+  void *h;
+
+  assert(byte_array_size(handle) >= sizeof(h));
+  memcpy(&h, handle->elements, sizeof(h));
+
+  return (dlclose(h) == 0) ? TRUE : FALSE;
+}
+
+bool lookupExternalLibraryPrimitive(struct object_heap* oh, 
+                                    struct ByteArray *handle,
+				   struct ByteArray *symname,
+				   struct ByteArray *ptr)
+{
+  void *h;
+  void *fn;
+  char *symbol;
+
+  assert(byte_array_size(handle) >= sizeof(h));
+  assert(byte_array_size(ptr) >= sizeof(fn));
+
+  symbol = safe_string(symname, "");
+  if (symbol == NULL)
+    return FALSE;
+
+  memcpy(&h, handle->elements, sizeof(h));
+  fn = (void *) dlsym(h, symbol);
+  free(symbol);
+
+  if (fn == NULL) {
+    return FALSE;
+  } else {
+    memcpy(ptr->elements, &fn, sizeof(fn));
+    return TRUE;
+  }
+}
+
+int readExternalLibraryError(struct ByteArray *messageBuffer) {
+  char *message = dlerror();
+  if (message == NULL)
+    return 0;
+  int len = strlen(message);
+  assert(byte_array_size(messageBuffer) >= len);
+  memcpy(messageBuffer->elements, message, len);
+  return len;
+}
+
+
 
 /***************** FILES *************************/
 
@@ -1330,6 +1555,7 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t y
   oh->markStackPosition = 0;
   oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
   assert(oh->markStack != NULL);
+  initMemoryModule(oh);
   return 1;
 }
 
@@ -3183,6 +3409,58 @@ void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t
 }
 
 
+void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  struct Object *handle=args[1], *offset=args[2];
+  struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
+
+  if (object_is_smallint(handle) && object_is_smallint(offset)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, 
+                           smallint_to_object(addressOfMemory(oh,
+                                                              object_to_smallint(handle), 
+                                                              object_to_smallint(offset),
+                                                              byte_array_elements(addressBuffer))));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+void prim_loadLibrary(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  struct Object *libname=args[1], *handle = args[2];
+
+  if (openExternalLibrary(oh, (struct ByteArray*)libname, (struct ByteArray*)handle)) {
+    interpreter_push_true(oh, oh->cached.interpreter);
+  } else {
+    interpreter_push_false(oh, oh->cached.interpreter);
+  }
+
+}
+
+void prim_closeLibrary(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  struct Object *handle=args[1];
+
+  if (closeExternalLibrary(oh, (struct ByteArray*) handle)) {
+    interpreter_push_true(oh, oh->cached.interpreter);
+  } else {
+    interpreter_push_false(oh, oh->cached.interpreter);
+  }
+
+}
+
+
+void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  struct Object *handle=args[2], *symname=args[1];
+  struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
+
+  if (lookupExternalLibraryPrimitive(oh, (struct ByteArray*) handle, (struct ByteArray *) symname, addressBuffer)) {
+    interpreter_push_true(oh, oh->cached.interpreter);
+  } else {
+    interpreter_push_false(oh, oh->cached.interpreter);
+  }
+
+}
+
+
 void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj;
   struct Object* name;
@@ -4171,9 +4449,12 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*10-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
 };
 
