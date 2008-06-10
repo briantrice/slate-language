@@ -151,7 +151,7 @@ struct Symbol
 {
   struct Object base;
   struct Object* cacheMask;
-  unsigned char elements[];
+  byte_t elements[];
 };
 struct CompiledMethod
 {
@@ -200,7 +200,7 @@ struct MethodDefinition
 struct ByteArray
 {
   struct Object base;
-  unsigned char elements[];
+  byte_t elements[];
 };
 struct Closure
 {
@@ -595,8 +595,8 @@ byte_t byte_array_get_element(struct Object* o, word_t i) {
   return byte_array_elements((struct ByteArray*)o)[i];
 }
 
-byte_t byte_array_set_element(struct Object* o, word_t i, byte_t val) {
-  return byte_array_elements((struct ByteArray*)o)[i] = val;
+byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val) {
+  return byte_array_elements(o)[i] = val;
 }
 
 
@@ -1236,6 +1236,7 @@ int readExternalLibraryError(struct ByteArray *messageBuffer) {
   memcpy(messageBuffer->elements, message, len);
   return len;
 }
+
 
 
 
@@ -2231,6 +2232,26 @@ struct ByteArray* heap_clone_byte_array_sized(struct object_heap* oh, struct Obj
   return (struct ByteArray*) newObj;
 }
 
+
+struct ByteArray* heap_new_byte_array_with(struct object_heap* oh, word_t byte_size, byte_t* bytes) {
+  struct ByteArray* arr = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), byte_size);
+  word_t i;
+  for (i = 0; i < byte_size; i++) {
+    byte_array_set_element(arr, i, bytes[i]);
+  }
+  return arr;
+}
+
+
+struct ByteArray* heap_new_string_with(struct object_heap* oh, word_t byte_size, byte_t* bytes) {
+  struct ByteArray* arr = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_ASCII_PROTO), byte_size);
+  word_t i;
+  for (i = 0; i < byte_size; i++) {
+    byte_array_set_element(arr, i, bytes[i]);
+  }
+  return arr;
+}
+
 void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i) {
 
   struct OopArray * newStack;
@@ -3019,6 +3040,350 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   return dispatch;
 }
 
+/********************** EXTLIB ****************************/
+
+#ifndef WINDOWS
+#  define __stdcall
+#endif
+
+enum ArgFormat
+{
+  ARG_FORMAT_VOID = (0 << 1) | 1,
+  ARG_FORMAT_INT = (1 << 1) | 1,
+  ARG_FORMAT_FLOAT = (2 << 1) | 1,
+  ARG_FORMAT_POINTER = (3 << 1) | 1,
+  ARG_FORMAT_BYTES = (4 << 1) | 1,
+  ARG_FORMAT_BOOLEAN = (5 << 1) | 1,
+  ARG_FORMAT_CSTRING = (6 << 1) | 1,
+  ARG_FORMAT_C_STRUCT_VALUE = (7 << 1) | 1,
+  ARG_FORMAT_DOUBLE = (8 << 1) | 1,
+};
+
+enum CallFormat
+{
+  CALL_FORMAT_C = (0 << 1) | 1,
+  CALL_FORMAT_STD = (1 << 1) | 1,
+};
+
+typedef word_t (* ext_fn0_t) (void);
+typedef word_t (* ext_fn1_t) (word_t);
+typedef word_t (* ext_fn2_t) (word_t, word_t);
+typedef word_t (* ext_fn3_t) (word_t, word_t, word_t);
+typedef word_t (* ext_fn4_t) (word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn5_t) (word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn6_t) (word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn7_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn8_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn9_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn10_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn11_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn12_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn13_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn14_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn15_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (* ext_fn16_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+
+typedef word_t (__stdcall * ext_std_fn0_t) (void);
+typedef word_t (__stdcall * ext_std_fn1_t) (word_t);
+typedef word_t (__stdcall * ext_std_fn2_t) (word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn3_t) (word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn4_t) (word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn5_t) (word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn6_t) (word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn7_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn8_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn9_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn10_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn11_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn12_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn13_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn14_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn15_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+typedef word_t (__stdcall * ext_std_fn16_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
+
+/* BigIntegers are stored little-end-low in Slate. */
+/* (If there's some #define for endianness, now is a good time to use it.) */
+/* TODO 32 bit dependency */
+word_t extractBigInteger(struct ByteArray* bigInt) {
+  byte_t *bytes = (byte_t *) byte_array_elements(bigInt);
+  assert(payload_size((struct Object*)bigInt));
+  return ((word_t) bytes[0]) |
+    (((word_t) bytes[1]) << 8) |
+    (((word_t) bytes[2]) << 16) |
+    (((word_t) bytes[3]) << 24);
+}
+
+/* TODO 32 bit dependency */
+struct Object* injectBigInteger(struct object_heap* oh, word_t value) {
+  byte_t bytes[4];
+  bytes[0] = (byte_t) (value & 0xFF);
+  bytes[1] = (byte_t) ((value >> 8) & 0xFF);
+  bytes[2] = (byte_t) ((value >> 16) & 0xFF);
+  bytes[3] = (byte_t) ((value >> 24) & 0xFF);
+  assert(0);
+  return (struct Object*)heap_new_byte_array_with(oh, sizeof(bytes), bytes);
+
+}
+
+#define MAX_ARG_COUNT 16
+
+struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input) {
+  return (input ? (struct Object*)heap_new_string_with(oh, strlen((char*)input), (byte_t*) input) : oh->cached.nil);
+}
+
+struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
+   struct ByteArray * fnHandle, 
+   struct OopArray * argsFormat, 
+   struct Object* callFormat,
+   struct Object* resultFormat, 
+   struct OopArray * argsArr)
+{
+  ext_fn0_t fn;
+  word_t args [MAX_ARG_COUNT];
+  word_t result;
+  word_t arg, argCount, outArgIndex = 0, outArgCount;
+
+  assert (payload_size((struct Object *) fnHandle) >= sizeof (fn));
+  memcpy (& fn, fnHandle -> elements, sizeof (fn));
+
+  argCount = object_array_size((struct Object *) argsArr);
+  outArgCount = argCount;
+  if (argCount > MAX_ARG_COUNT || argCount != object_array_size((struct Object *) argsFormat))
+    return oh->cached.nil;
+
+  for (arg = 0; arg < argCount; ++arg) {
+    struct Object* element = argsArr -> elements [arg];
+
+    switch ((word_t)argsFormat->elements [arg]) { /*smallint conversion already done in enum values*/
+    case ARG_FORMAT_INT:
+      if (object_is_smallint(element))
+        args[outArgIndex++] = object_to_smallint(element);
+      else
+        args[outArgIndex++] = extractBigInteger((struct ByteArray*) element);
+      break;
+    case ARG_FORMAT_BOOLEAN:
+      if (element == oh->cached.true) {
+        args[outArgIndex++] = TRUE;
+      } else if (element == oh->cached.false) {
+        args[outArgIndex++] = FALSE;
+      } else {
+        /*fix assert(0)?*/
+        args[outArgIndex++] = -1;
+      }
+      break;
+    case ARG_FORMAT_FLOAT:
+      if (object_is_smallint(element)) {
+        union {
+          float f;
+          word_t u;
+        } convert;
+        convert.f = (float) object_to_smallint(element);
+        args[outArgIndex++] = convert.u;
+      } else
+        args[outArgIndex++] = * (word_t *) byte_array_elements((struct ByteArray*)element);
+      break;
+    case ARG_FORMAT_DOUBLE:
+      {
+	union {
+	  double d;
+	  word_t u[2];
+	} convert;
+	if (object_is_smallint(element)) {
+	  convert.d = (double) object_to_smallint(element);
+        } else {
+          /*TODO, support for real doubles*/
+	  convert.d = (double) * (float *) byte_array_elements((struct ByteArray*)element);
+        }
+	args[outArgIndex++] = convert.u[0];
+	args[outArgIndex++] = convert.u[1];
+	outArgCount++;
+      }
+      break;
+    case ARG_FORMAT_POINTER:
+      if (element == oh->cached.nil)
+        args[outArgIndex++] = 0;
+      else
+        args[outArgIndex++] = * (word_t*) object_array_elements(element);
+      break;
+    case ARG_FORMAT_CSTRING:
+      if (element == oh->cached.nil)
+        args[outArgIndex++] = 0;
+      else {
+        word_t len = payload_size(element) + 1;
+        struct ByteArray *bufferObject = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), len);
+        char *buffer = (char *) byte_array_elements(bufferObject);
+        memcpy(buffer, (char *) byte_array_elements((struct ByteArray*) element), len-1);
+        buffer[len-1] = '\0';
+        args[outArgIndex++] = (word_t) buffer;
+      }
+      break;
+    case ARG_FORMAT_BYTES:
+      if (element == oh->cached.nil) {
+        args[outArgIndex++] = 0;
+      } else {
+        args[outArgIndex++] = (word_t) object_array_elements(element);
+      }
+      break;
+    case ARG_FORMAT_C_STRUCT_VALUE:
+      {
+        word_t length = payload_size(element) / sizeof(word_t);
+        word_t *source = (word_t *) object_array_elements(element);
+        int i;
+        //make sure we have enough space
+        if (argCount - arg + length > MAX_ARG_COUNT)
+          return oh->cached.nil;
+        for(i = 0; i < length; ++i)
+          args[outArgIndex++] = source[i];
+        outArgCount += length - 1;
+      }
+      break;
+    default:
+      return oh->cached.nil;
+    }
+  }
+
+  if (callFormat == (struct Object*)CALL_FORMAT_C) {
+    switch(outArgCount) {
+    case 0:
+      result = (* (ext_fn0_t) fn) ();
+      break;
+    case 1:
+      result = (* (ext_fn1_t) fn) (args [0]);
+      break;
+    case 2:
+      result = (* (ext_fn2_t) fn) (args [0], args [1]);
+      break;
+    case 3:
+      result = (* (ext_fn3_t) fn) (args [0], args [1], args [2]);
+      break;
+    case 4:
+      result = (* (ext_fn4_t) fn) (args [0], args [1], args [2], args [3]);
+      break;
+    case 5:
+      result = (* (ext_fn5_t) fn) (args [0], args [1], args [2], args [3], args [4]);
+      break;
+    case 6:
+      result = (* (ext_fn6_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5]);
+      break;
+    case 7:
+      result = (* (ext_fn7_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6]);
+      break;
+    case 8:
+      result = (* (ext_fn8_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7]);
+      break;
+    case 9:
+      result = (* (ext_fn9_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8]);
+      break;
+    case 10:
+      result = (* (ext_fn10_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9]);
+      break;
+    case 11:
+      result = (* (ext_fn11_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10]);
+      break;
+    case 12:
+      result = (* (ext_fn12_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11]);
+      break;
+    case 13:
+      result = (* (ext_fn13_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12]);
+      break;
+    case 14:
+      result = (* (ext_fn14_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13]);
+      break;
+    case 15:
+      result = (* (ext_fn15_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13], args [14]);
+      break;
+    case 16:
+      result = (* (ext_fn16_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13], args [14], args [15]);
+      break;
+    default:
+      return oh->cached.nil;
+    }
+  } else if (callFormat == (struct Object*)CALL_FORMAT_STD) {
+    switch(outArgCount) {
+    case 0:
+      result = (* (ext_std_fn0_t) fn) ();
+      break;
+    case 1:
+      result = (* (ext_std_fn1_t) fn) (args [0]);
+      break;
+    case 2:
+      result = (* (ext_std_fn2_t) fn) (args [0], args [1]);
+      break;
+    case 3:
+      result = (* (ext_std_fn3_t) fn) (args [0], args [1], args [2]);
+      break;
+    case 4:
+      result = (* (ext_std_fn4_t) fn) (args [0], args [1], args [2], args [3]);
+      break;
+    case 5:
+      result = (* (ext_std_fn5_t) fn) (args [0], args [1], args [2], args [3], args [4]);
+      break;
+    case 6:
+      result = (* (ext_std_fn6_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5]);
+      break;
+    case 7:
+      result = (* (ext_std_fn7_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6]);
+      break;
+    case 8:
+      result = (* (ext_std_fn8_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7]);
+      break;
+    case 9:
+      result = (* (ext_std_fn9_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8]);
+      break;
+    case 10:
+      result = (* (ext_std_fn10_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9]);
+      break;
+    case 11:
+      result = (* (ext_std_fn11_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10]);
+      break;
+    case 12:
+      result = (* (ext_std_fn12_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11]);
+      break;
+    case 13:
+      result = (* (ext_std_fn13_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12]);
+    case 14:
+      result = (* (ext_std_fn14_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13]);
+    case 15:
+      result = (* (ext_std_fn15_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13], args [14]);
+    case 16:
+      result = (* (ext_std_fn16_t) fn) (args [0], args [1], args [2], args [3], args [4], args [5], args [6], args [7], args [8], args [9], args [10], args [11], args [12], args [13], args [14], args [15]);
+      break;
+    default:
+      return oh->cached.nil;
+    }
+  } else {
+    return oh->cached.nil;
+  }
+
+  switch ((word_t)resultFormat) { /*preconverted smallint*/
+  case ARG_FORMAT_INT:
+    if (smallint_fits_object(result))
+      return smallint_to_object(result);
+    else
+      return injectBigInteger(oh, (word_t)result);
+  case ARG_FORMAT_BOOLEAN:
+    if (result)
+      return oh->cached.true;
+    else
+      return oh->cached.false;
+  case ARG_FORMAT_POINTER:
+    if (result == 0)
+      return oh->cached.nil;
+    else
+      return (struct Object *) heap_new_byte_array_with(oh, sizeof(result), (byte_t*) &result);
+  case ARG_FORMAT_CSTRING:
+    return heap_new_cstring(oh, (byte_t*) result);
+  default:
+    return oh->cached.nil;
+  }
+}
+
+
+
+
+
+/********************** SIGNAL ****************************/
+
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* args[], word_t n, struct OopArray* opts);
 
@@ -3461,6 +3826,19 @@ void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t ar
 }
 
 
+void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+
+  interpreter_stack_push(oh, oh->cached.interpreter, 
+                         applyExternalLibraryPrimitive(oh, (struct ByteArray*)args[1], 
+                                                       (struct OopArray*)args[2],
+                                                       args[3],
+                                                       args[4],
+                                                       (struct OopArray*)args[5]));
+
+}
+
+
+
 void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj;
   struct Object* name;
@@ -3563,7 +3941,7 @@ void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t n, st
   }
   
   if (index < object_byte_size(obj)) {
-    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(byte_array_set_element(obj, index, object_to_smallint(val))));
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(byte_array_set_element((struct ByteArray*)obj, index, object_to_smallint(val))));
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL);
   }
@@ -4450,7 +4828,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
- /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,

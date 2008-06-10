@@ -1,16 +1,17 @@
 CFLAGS=-fPIC
 DLLEXT=.so
-LIBS=libtime.so
+LIBS=time.so socket.so pipe.so posix.so
 
 
 all: $(LIBS)
+	mkdir -p ../../lib && cp $(LIBS) ../../lib/
 
-lib%$(DLLEXT): %.o
+%$(DLLEXT): %.o
 	gcc -shared $(CFLAGS) -o $@ $<
 
 
 clean:
-	rm -f *.o *.so
+	rm -f *.o *.so ../../lib/*.so
 
 
 
