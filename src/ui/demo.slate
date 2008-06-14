@@ -1,0 +1,159 @@
+"Demonstration of Windows + Cairo + SceneElement"
+
+lobby define: #BecomeStar &parents: {SceneElement}.
+se@(BecomeStar traits) handle: event@(RightMouseButtonPressEvent traits)
+[
+    se parents: starParents.
+].
+
+lobby define: #BecomeRect &parents: {SceneElement}.
+se@(BecomeRect traits) handle: event@(RightMouseButtonPressEvent traits)
+[
+    se parents: rectParents.
+].
+
+lobby addSlot: #containerParents valued: {
+    PaintSolidBackground. 
+    PaintChildren. 
+    PaintHandles. 
+    Text.
+    PassInputToInputHandler. 
+    PassPointerToHandles. 
+    PassPointerToChildren.
+    Drag}.
+
+lobby addSlot: #childParents valued: {
+    PaintSolidBackground. 
+    Text}.
+
+lobby addSlot: #rectParents valued: childParents ; {BecomeStar}.
+lobby addSlot: #starParents valued: childParents ; {Star. BecomeRect}.
+
+
+
+lobby addSlot: #numberList valued: (ListboxElement newTarget: Nil getList: #getList getSelection: #getSelection setSelection: #setSelection:).
+
+lobby addSlot: #numberListSelected valued: 0.
+
+lb@numberList getList [ Colors slotNames ].
+lb@numberList getSelection [ lobby numberListSelected ].
+
+
+lb@numberList setSelection: value@(Integer traits)
+[ | color |
+
+  color: (Colors atSlotNamed: (Colors slotNames at: value)).
+  (color is: Color) ifTrue:[ Graphics Themeable backgroundColor: color].
+  lobby numberListSelected: value
+].
+
+
+lobby addSlot: #buttonMenuOptions valued: {
+
+   MenuItemElement action: [lobby inform: 'hello']  text: 'Say hello to console'.
+   MenuItemElement action: [lobby inform: 'bye']    text: 'Say bye to console'.
+}.
+
+
+lobby addSlot: #button valued:
+  (SimpleBorderedButtonElement
+     newTarget: [(ListboxMenuElement menuItemBlock: [lobby buttonMenuOptions])
+                         openIn: (lobby atSlotNamed: #mainWindow)
+                         near: (lobby atSlotNamed: #button) position]).
+
+
+lobby addSlot: #textbox valued:
+  (TextboxElement newModel: ArrayTextBuffer view: SimpleTextView inputHandler: FundamentalMode).
+
+
+(lobby addSlot: #mainWindow valued: (WindowSceneElement newWidth: 640 height: 480)) `>> [
+    parents: {
+        WindowSceneElement.
+        PaintSolidBackground.
+        PaintChildren.
+        Text.
+        PassInputToInputHandler.
+        PassKeyboardToChildren.
+        PassPointerToChildren}.
+    text: '#mainWindow'.
+    bold: True.
+    textColor: Colors Red.
+    addAll: {
+        numberList `>> [
+            position: (400, 50).
+            extent: (200, 100).
+            update.
+            backgroundColor: Colors Grey.
+        ].
+        textbox `>> [
+            position: (50, 300).
+            extent: (200, 140).
+            view update.
+            backgroundColor: Colors Grey.
+        ].
+        button `>> [
+            position: (300, 50).
+            extent: (80, 20).
+            text: 'Click me'.
+            backgroundColor: Colors Honeydew.
+        ].
+        (addSlot: #container1 valued: SceneElement new) `>> [
+            parents: containerParents ; {HBox}.
+            position: (50, 50).
+            extent: (200, 200).
+            backgroundColor: Colors Grey.
+            text: '#container1'.
+            bold: True.
+            addAll: {
+                SceneElement new `>> [
+                    parents: starParents.
+                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 320, 320 min: 10, 10).
+                    position: (90, 30).
+                    extent: (20, 20).
+                    text: 'child 1'.
+                    italic: True.
+                    textColor: Colors Green.
+                    backgroundColor: Colors Red.].
+                SceneElement new `>> [
+                    parents: starParents.
+                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 160, 160 min: 20, 20).
+                    position: (50, 50).
+                    extent: (50, 50).
+                    text: 'child 2'.
+                    fontSize: 20.
+                    textColor: Colors Beige.
+                    backgroundColor: Colors Green.].
+                SceneElement new `>> [
+                    parents: starParents.
+                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 80, 80 min: 40, 40).
+                    position: (100, 100).
+                    extent: (100, 100).
+                    text: 'child 3'.
+                    backgroundColor: Colors Blue.]}.].
+        (addSlot: #container2 valued: SceneElement new) `>> [
+            parents: {
+                PaintSolidBackground. 
+                PaintChildren. 
+                PassInputToInputHandler. 
+                PassPointerToChildren.
+                ResizableSpacing}.
+            position: (300, 200).
+            extent: (200, 200).
+            backgroundColor: Colors Grey.
+            leftMargin: 6.
+            rightMargin: 6.
+            topMargin: 6.
+            bottomMargin: 6.
+            add: SceneElement new `>> [
+                parents: {PaintSolidBackground. PaintChildren. PassInputToInputHandler. PassPointerToChildren}.
+                spaceRequirement: (SpaceRequirement newPreferred: 200, 200 max: 400, 400 min: 16, 16).
+                addAll: (container1 children collect: #copy`er).
+                children do: [|:each| each parents: {PaintSolidBackground. Drag. Star}].].
+            composeSpaceRequirement.]}].
+
+container1 showHandles.
+
+inform: '***********************************************'.
+inform: '** To start the event loop, do the following:'.
+inform: '** mainWindow eventLoop.'.
+inform: '***********************************************'.

@@ -1,4 +1,3 @@
-prototypes ensureNamespace: #Graphics &delegate: True.
 Graphics define: #SceneElement &parents: {OrderedTree}.
 "SceneElements are the basis of the Slate graphical visual element system.
 They can be Morphs or Presentations or both, but those aspects are optional
@@ -21,7 +20,7 @@ SceneElement addImmutableSlot: #needToComposeSpaceRequirement valued: False.
 
 SceneElement addImmutableSlot: #needToAllocateSpace valued: False.
 
-SceneElement makeThemeable.
+SceneElement useTheme: BaseTheme.
 
 se1@(SceneElement traits) = se2@(SceneElement traits)
 [
@@ -63,30 +62,14 @@ se@(SceneElement traits) position: p
 ].
 
 se@(SceneElement traits) parents: parents
-"Replace se's parents. If the new ancestry tree contains
-se traits, then create a new se traits and a new name."
-[|newWindow order index name traits|
-    newWindow: Cloneable clone.
-    newWindow restrictDelegation.
-    order: (parents first orderTraits &mixins: parents allButFirst).
-    (order identityIncludes: se traits)
-        ifTrue: [
-            traits: Cloneable clone.
-            name: se printName ; ' Descendant']
-        ifFalse: [
-            traits: se traits.
-            name: se printName].
-    index: order size.
-    order reverseDo: [|:traits|
-        newWindow addImmutableDelegate: (se traitsName: index) valued: traits.
-        index: index - 1].
-    newWindow addImmutableDelegate: (se traitsName: 0) valued: traits.
-    parents do: [|:each| se addSlotsFrom: each].
-    se atSlotNamed: #traitsWindow put: newWindow.
-    se addPrintName: name.
-    se cleanup.
-    se treeParent ifNil: [se repaintSoon] ifNotNil: [se treeParent repaintSoon].
-    se
+[| newObj |
+  newObj: (se derive &mixins: parents).
+  newObj addPrintName: se printName ; ' instance'.
+  se _delegates: {newObj traitsWindow}.
+  se addSlotsFrom: newObj.
+  se cleanup.
+  se treeParent ifNil: [se repaintSoon] ifNotNil: [se treeParent repaintSoon].
+  se
 ].
 
 se@(SceneElement traits) boundingRect: r

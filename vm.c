@@ -3101,28 +3101,48 @@ typedef word_t (__stdcall * ext_std_fn14_t) (word_t, word_t, word_t, word_t, wor
 typedef word_t (__stdcall * ext_std_fn15_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
 typedef word_t (__stdcall * ext_std_fn16_t) (word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t, word_t);
 
-/* BigIntegers are stored little-end-low in Slate. */
-/* (If there's some #define for endianness, now is a good time to use it.) */
-/* TODO 32 bit dependency */
 word_t extractBigInteger(struct ByteArray* bigInt) {
   byte_t *bytes = (byte_t *) byte_array_elements(bigInt);
-  assert(payload_size((struct Object*)bigInt));
+#if __WORDSIZE == 64
+  assert(payload_size((struct Object*)bigInt) >= 8);
+  return ((word_t) bytes[0]) |
+    (((word_t) bytes[1]) << 8) |
+    (((word_t) bytes[2]) << 16) |
+    (((word_t) bytes[3]) << 24) |
+    (((word_t) bytes[4]) << 32) |
+    (((word_t) bytes[5]) << 40) |
+    (((word_t) bytes[6]) << 48) |
+    (((word_t) bytes[7]) << 56);
+#else
+  assert(payload_size((struct Object*)bigInt) >= 4);
   return ((word_t) bytes[0]) |
     (((word_t) bytes[1]) << 8) |
     (((word_t) bytes[2]) << 16) |
     (((word_t) bytes[3]) << 24);
+#endif
+
 }
 
-/* TODO 32 bit dependency */
 struct Object* injectBigInteger(struct object_heap* oh, word_t value) {
+#if __WORDSIZE == 64
+  byte_t bytes[8];
+  bytes[0] = (byte_t) (value & 0xFF);
+  bytes[1] = (byte_t) ((value >> 8) & 0xFF);
+  bytes[2] = (byte_t) ((value >> 16) & 0xFF);
+  bytes[3] = (byte_t) ((value >> 24) & 0xFF);
+  bytes[4] = (byte_t) ((value >> 32) & 0xFF);
+  bytes[5] = (byte_t) ((value >> 40) & 0xFF);
+  bytes[6] = (byte_t) ((value >> 48) & 0xFF);
+  bytes[7] = (byte_t) ((value >> 56) & 0xFF);
+  return (struct Object*)heap_new_byte_array_with(oh, sizeof(bytes), bytes);
+#else
   byte_t bytes[4];
   bytes[0] = (byte_t) (value & 0xFF);
   bytes[1] = (byte_t) ((value >> 8) & 0xFF);
   bytes[2] = (byte_t) ((value >> 16) & 0xFF);
   bytes[3] = (byte_t) ((value >> 24) & 0xFF);
-  assert(0);
   return (struct Object*)heap_new_byte_array_with(oh, sizeof(bytes), bytes);
-
+#endif
 }
 
 #define MAX_ARG_COUNT 16
@@ -3837,7 +3857,68 @@ void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
+void prim_newFixedArea(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+  struct Object *size=args[1];
+  word_t handle;
 
+  if (!object_is_smallint(size)) {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+    return;
+  }
+
+  handle = openMemory(oh, object_to_smallint(size));
+  if (handle >= 0) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(handle));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+void prim_closeFixedArea(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+
+  struct Object* handle = args[1];
+  if (object_is_smallint(handle)) {
+    closeMemory(oh, object_to_smallint(handle));
+  }
+  interpreter_push_nil(oh, oh->cached.interpreter);
+
+}
+
+void prim_fixedAreaSize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+
+  struct Object* handle = args[1];
+  if (object_is_smallint(handle)) {
+    interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(sizeOfMemory(oh, object_to_smallint(handle))));
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
+
+void prim_fixedAreaAddRef(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+
+  struct Object* handle = args[1];
+  if (object_is_smallint(handle)) {
+    addRefMemory(oh, object_to_smallint(handle));
+  }
+
+  interpreter_push_nil(oh, oh->cached.interpreter);
+
+}
+
+void prim_fixedAreaResize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts) {
+
+  struct Object* handle = args[1], *size = args[2];
+  if (object_is_smallint(handle) && object_is_smallint(size)) {
+    interpreter_stack_push(oh, oh->cached.interpreter,
+                           smallint_to_object(resizeMemory(oh, object_to_smallint(handle), object_to_smallint(size))));
+
+  } else {
+    interpreter_push_nil(oh, oh->cached.interpreter);
+  }
+
+}
 
 void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct Object* obj;
@@ -4827,7 +4908,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
- /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixme, prim_fixme, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,

@@ -3,7 +3,10 @@ prototypes define: #MemoryArea &parents: {Sequence. ExternalResource} &slots:
 "Represents the result of a malloc() call as a ByteArray, while supporting all
 of the ExternalResource protocol."
 
-MemoryArea traitsWindow addImmutableDelegate: #ByteArray after: #traits1 valued: ByteArray traits.
+"MemoryArea traitsWindow addImmutableDelegate: #ByteArray after: #traits1 valued: ByteArray traits."
+MemoryArea traitsWindow _delegates: {Root traits. Derivable traits. Cloneable traits. Mapping traits.
+  Collection traits. ExternalResource traits. ByteArray traits. Sequence traits. MemoryArea traits}.
+
 
 m@(MemoryArea traits) printOn: o
 [m isOpen ifTrue: [resend] ifFalse: [#printOn: sendTo: {m. o} through: {ExternalResource traits. o}]].

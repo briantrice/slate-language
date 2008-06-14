@@ -10,7 +10,8 @@ PRINT_DEBUG=$(PRINT_DEBUG_1)
 LIBRARIES_=-lefence -lm -ldl
 LIBRARIES=-lm -ldl
 #LIBRARIES=
-CFLAGS=-std=c99 -Wall -pedantic-errors -g  $(PRINT_DEBUG) $(INCLUDES)
+CFLAGS=-std=c99 -Wall -pedantic-errors -pthread $(PRINT_DEBUG)  $(INCLUDES)
+DEBUGFLAGS= -g  
 OBJECTS=
 
 all: vm
@@ -18,23 +19,29 @@ all: vm
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
 
+plugins:
+	make -C src/plugins
+
 vm: vm.c $(OBJECTS)
-	gcc $(CFLAGS) $(LIBRARIES) -o vm vm.c $(OBJECTS)
+	gcc $(DEBUGFLAGS) $(CFLAGS) $(LIBRARIES) -o vm vm.c $(OBJECTS)
 
 #fix needs pg on every arg
 vm.prof: vm.c $(OBJECTS)
-	gcc -std=c99 -Wall -lm -pedantic-errors -pg -o vm.prof vm.c
+	gcc $(CFLAGS) $(LIBRARIES) -pg -o vm.prof vm.c $(OBJECTS)
 
 
 #fix cflags
 vm.fast: vm.c $(OBJECTS)
-	gcc -std=c99 -Wall -lm -pedantic-errors -DPRINT_DEBUG_DEFUN -O3 -o vm.fast vm.c
+	gcc $(CFLAGS) $(LIBRARIES) -O2 -o vm.fast vm.c $(OBJECTS)
+
 
 superclean: clean
 	rm -f core vm vm.fast vm.prof
 
-clean:
+pluginsclean:
+	make -C src/plugins clean
+clean: pluginsclean
 	rm -f *.o
 
 
-.PHONY: clean superclean backup
+.PHONY: clean superclean backup plugins pluginsclean

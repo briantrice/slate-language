@@ -1,3 +1,5 @@
+
+
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
@@ -30,7 +32,7 @@ char* slate_GetCalendarTimeStringInSeconds () {
 }
 
 char* slate_GetStandardTimeZoneName () {
-  return tzname[0];
+  return __tzname[0];
 }
 
 char* slate_GetDSTTimeZoneName () {
@@ -39,7 +41,7 @@ char* slate_GetDSTTimeZoneName () {
   struct tm * local_time = localtime(&current_time);
   return local_time->tm_zone;
 #endif   /* ANSI */
-  return tzname[1];
+  return __tzname[1];
 }
 
 long int slate_GetTimeZoneOffsetInSeconds () {
@@ -49,7 +51,11 @@ long int slate_GetTimeZoneOffsetInSeconds () {
 #else
   const time_t current_time = time(NULL);
   struct tm * local_time = localtime(&current_time);
+#ifdef  __USE_BSD
   return local_time->tm_gmtoff;
+#else
+  return local_time->__tm_gmtoff;
+#endif
 #endif
 }
 

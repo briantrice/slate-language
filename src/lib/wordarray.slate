@@ -1,6 +1,5 @@
 collections define: #WordArray &parents: {Array}
-  &slots: {#bytes -> ByteArray new. #wordSize -> 4}.
-"TODO 32 bit word length dependency"
+  &slots: {#bytes -> ByteArray new. #wordSize -> bytesPerWord}.
 
 WordArray traits define: #LittleEndian &parents: {WordArray}.
 WordArray LittleEndian traitsWindow atSlotNamed: #printName put: 'WordArray LittleEndian'.
@@ -12,14 +11,15 @@ w@(WordArray traits) new &capacity: size &wordSize: wordSize
 "TODO: Change this to use the image startup code to create a platform endian WordArray. Maybe. Would need to be careful about passing them to external code after an image restart (we may be on a different endian platform)"
 [
   size `defaultsTo: 0.
-  wordSize `defaultsTo: 4.
+  wordSize `defaultsTo: bytesPerWord.
   w traits == WordArray traits
     ifTrue: [WordArray BigEndian newSized: size wordSize: wordSize]
     ifFalse: [w clone newSized: size wordSize: wordSize]
 ].
 
-w@(WordArray traits) newFrom: a wordSize: wordSize
-[w cloneSettingSlots: #(bytes wordSize) to: {a. wordSize}].
+w@(WordArray traits) newFrom: a &wordSize: wordSize
+[ wordSize `defaultsTo: bytesPerWord.
+  w cloneSettingSlots: #(bytes wordSize) to: {a. wordSize}].
 
 w@(WordArray traits) newSized: size wordSize: wordSize
 [w cloneSettingSlots: #(bytes wordSize) to: {w bytes newSize: (size * wordSize) abs. wordSize}].
@@ -34,7 +34,7 @@ _@(WordArray traits) defaultElement [0].
 w@(WordArray traits) accepts: i@(Integer traits) "Should be fixed 32bits"
 [(0 below: (1 << (w wordSize * 8))) includes: i].
 
-
+"fix 32bits"
 a@(WordArray BigEndian traits) at: offset
 [
   a bytes bigEndianInt32At: offset

@@ -1,7 +1,9 @@
 
 " a location for storing visual/audio/size/color/text/etc properties "
 
-Graphics define: #Themeable &parents: {Cloneable}.
+Graphics define: #Theme &parents: {Cloneable}.
+
+Graphics define: #BaseTheme &parents: {Theme}.
 
 
 {
@@ -34,18 +36,22 @@ Graphics define: #Themeable &parents: {Cloneable}.
 
 } do: [|:each | 
 
-                Themeable addDynamicSlot: each key valued: each value.
+                BaseTheme addDynamicSlot: each key valued: each value.
 
       ].
 
 
-se@(Derivable traits) makeThemeable
+se@(Cloneable traits) useTheme: theme@(Theme traits)
 "Add the following theme propertie to an object."
 [
-   "Themeable traitsWindow addImmutableDelegate: (se traitsName: Themeable orderTraits size) valued: se traits.
-   se traitsWindow addImmutableDelegate: (se traitsName: se orderTraits size) valued: Themeable traits."
-   se addImmutableDelegate: #theme before: #traitsWindow valued: Themeable.
-   se
+  (se hasSlotNamed: #theme)
+   ifTrue:
+     [se traitsWindow _delegates replaceAll: se theme with: theme.
+      se atSlotNamed: #theme put: theme]
+   ifFalse:
+     [se addSlot: #theme valued: theme.
+      se traitsWindow _delegates: {theme} ; se traitsWindow _delegates].
+  se
 ].
 
 

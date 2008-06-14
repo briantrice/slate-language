@@ -54,12 +54,12 @@ enum ButtonStates
     rightCtrlKeyDown =      0x00000008,
     leftAltKeyDown =        0x00000010,
     rightAltKeyDown =       0x00000020,
-
-    leftButtonDown =        0x10000000,
-    middleButtonDown =      0x20000000,
-    rightButtonDown =       0x40000000,
-    x1ButtonDown =          0x80000000,
-    x2ButtonDown =          0x01000000,
+    /*fixme.. i changed this because ISO C restricts enum to int values*/
+    leftButtonDown =        0x01000000,
+    middleButtonDown =      0x02000000,
+    rightButtonDown =       0x04000000,
+    x1ButtonDown =          0x08000000,
+    x2ButtonDown =          0x09000000,
 };
 
 EXPORT void init();
