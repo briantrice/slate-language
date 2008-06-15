@@ -169,6 +169,9 @@ struct CompiledMethod
   struct ByteArray * code;
   word_t sourceTree;
   word_t debugMap;
+  struct Object* isInlined;
+  struct ByteArray* oldCode;
+  struct Object* callCount;
 };
 struct LexicalContext
 {
@@ -3561,6 +3564,17 @@ void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter *
 
 }
 
+void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
+
+  /* only optimize old objects because they don't move in memory and
+   * we don't want to have to update our method cache every gc */
+  if (object_is_young(oh, (struct Object*)method)) return;
+
+  method->oldCode = method->code;
+  method->isInlined = oh->cached.true;
+  
+}
+
 
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* argsNotStack[], word_t n, struct OopArray* opts) {
@@ -3579,6 +3593,12 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
+
+  method->callCount = smallint_to_object(object_to_smallint(method->callCount) + 1);
+
+  if (method->callCount > (struct Object*)100 && method->isInlined == oh->cached.false) {
+    method_optimize(oh, method);
+  }
 
   /*make sure they are pinned*/
   assert(n <= 16);

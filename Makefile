@@ -27,7 +27,7 @@ vm: vm.c $(OBJECTS)
 
 #fix needs pg on every arg
 vm.prof: vm.c $(OBJECTS)
-	gcc $(CFLAGS) $(LIBRARIES) -pg -o vm.prof vm.c $(OBJECTS)
+	gcc $(CFLAGS) $(LIBRARIES) -O2 -pg -o vm.prof vm.c $(OBJECTS)
 
 
 #fix cflags
