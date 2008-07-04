@@ -172,6 +172,14 @@ struct CompiledMethod
   struct Object* isInlined;
   struct ByteArray* oldCode;
   struct Object* callCount;
+  /* calleeCount is the polymorphic inline cache (PIC), see #defines/method_pic_add_callee below for details */
+  struct OopArray* calleeCount;
+  struct Object* reserved1;
+  struct Object* reserved2;
+  struct Object* reserved3;
+  struct Object* reserved4;
+  struct Object* reserved5;
+  struct Object* reserved6;
 };
 struct LexicalContext
 {
@@ -259,6 +267,11 @@ struct object_heap
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
   struct Object* fixedObjects[MAX_FIXEDS];
 
+  struct CompiledMethod** optimizedMethods;
+  word_t optimizedMethodsSize;
+  word_t optimizedMethodsLimit;
+
+
   void* memory_areas [SLATE_MEMS_MAXIMUM];
   int memory_sizes [SLATE_MEMS_MAXIMUM];
   int memory_num_refs [SLATE_MEMS_MAXIMUM];
@@ -322,6 +335,15 @@ typedef float float_t;
 #define TYPE_OBJECT 0
 #define TYPE_OOP_ARRAY  1
 #define TYPE_BYTE_ARRAY 2
+
+#define CALLER_PIC_SETUP_AFTER 500
+#define CALLEE_OPTIMIZE_AFTER 1000
+#define CALLER_PIC_SIZE 64
+#define CALLER_PIC_ENTRY_SIZE 4 /*calleeCompiledMethod, calleeArity, oopArrayOfMaps, count*/
+#define PIC_CALLEE 0 
+#define PIC_CALLEE_ARITY 1
+#define PIC_CALLEE_MAPS 2
+#define PIC_CALLEE_COUNT 3
 
 word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
 struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
@@ -721,6 +743,39 @@ word_t interpreter_decode_immediate(struct Interpreter* i) {
   return val;
 }
 
+
+word_t method_code_decode_immediate(struct ByteArray* codearray, word_t* pos) {
+
+  word_t code;
+  word_t val;
+  word_t n;
+  
+  n = *pos;
+  code = codearray->elements[n];
+  printf("%ld ", code);
+  val = code & 127;
+  while (code >= 128)
+  {
+    n = n + 1;
+    code = codearray->elements[n];
+    printf("%ld ", code);
+    val = (val << 7) | (code & 127);
+  }
+  *pos = n + 1;
+  
+  return val;
+}
+
+short int method_decode_short(struct ByteArray* codearray, word_t* pos) {
+
+  word_t n;
+  
+  n = *pos;
+  *pos += 2;
+
+  printf("%d %d ", codearray->elements[n], codearray->elements[n+1]);
+  return (short int) (codearray->elements[n] | (codearray->elements[n + 1] << 8));
+}
 
 short int interpreter_decode_short(struct Interpreter* i) {
 
@@ -1448,17 +1503,6 @@ void heap_full_gc(struct object_heap* oh);
 
 
 
-void method_flush_cache(struct object_heap* oh, struct Symbol* selector) {
-  struct MethodCacheEntry* cacheEntry;
-  if (selector == (struct Symbol*)oh->cached.nil || selector == NULL) {
-    fill_bytes_with((byte_t*)oh->methodCache, METHOD_CACHE_SIZE*sizeof(struct MethodCacheEntry), 0);
-  } else {
-    word_t i;
-    for (i = 0; i < METHOD_CACHE_SIZE; i++) {
-      if ((cacheEntry = &oh->methodCache[i])->selector == selector) cacheEntry->selector = (struct Symbol*)oh->cached.nil;
-    }
-  }
-}
 
 
 bool object_is_old(struct object_heap* oh, struct Object* oop) {
@@ -1493,6 +1537,33 @@ bool object_is_free(struct Object* o) {
   return (object_hash(o) >= ID_HASH_RESERVED);
 }
 
+void method_flush_cache(struct object_heap* oh, struct Symbol* selector) {
+  struct MethodCacheEntry* cacheEntry;
+  if (selector == (struct Symbol*)oh->cached.nil || selector == NULL) {
+#if 1
+    fill_bytes_with((byte_t*)oh->methodCache, METHOD_CACHE_SIZE*sizeof(struct MethodCacheEntry), 0);
+#else
+    /*flush only things that pointed to young memory*/
+    word_t i, j;
+    for (i = 0; i < METHOD_CACHE_SIZE; i++) {
+      cacheEntry = &oh->methodCache[i];
+      if (object_is_young(oh, (struct Object*)cacheEntry->selector) || object_is_young(oh, (struct Object*)cacheEntry->method)) goto zero;
+      for (j = 0; j < METHOD_CACHE_ARITY; j++) {
+        if (object_is_young(oh, (struct Object*)cacheEntry->maps[j])) goto zero;
+      }
+      /*it only points to old (same addressed) memory so leave it*/
+      return;
+    zero:
+      fill_bytes_with((byte_t*)oh->methodCache, METHOD_CACHE_SIZE*sizeof(struct MethodCacheEntry), 0);
+    }
+#endif
+  } else {
+    word_t i;
+    for (i = 0; i < METHOD_CACHE_SIZE; i++) {
+      if ((cacheEntry = &oh->methodCache[i])->selector == selector) cacheEntry->selector = (struct Symbol*)oh->cached.nil;
+    }
+  }
+}
 
 struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, word_t words) {
 
@@ -1558,6 +1629,11 @@ bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t y
   oh->markStackSize = 1024*1024*4;
   oh->markStackPosition = 0;
   oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
+  
+  oh->optimizedMethodsSize = 0;
+  oh->optimizedMethodsLimit = 1024;
+  oh->optimizedMethods = malloc(oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
+
   assert(oh->markStack != NULL);
   initMemoryModule(oh);
   return 1;
@@ -3402,8 +3478,277 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
 }
 
 
+/********************** OPTIMIZER ****************************/
 
 
+void method_disassemble(struct object_heap* oh, struct ByteArray* code) {
+  word_t size = byte_array_size(code);
+  word_t pos = 0;
+  word_t op, val;
+
+  static char* ops[] = {
+    "send %ld\n",
+    "load var %ld\n",
+    "store var %ld\n",
+    "load free %ld\n",
+    "store free %ld\n",
+    "load literal %ld\n",
+    "load selector %ld\n",
+    "pop %ld\n",
+    "new array %ld\n",
+    "new closure %ld\n",
+    "branch keyed %ld\n",
+    "send with opts/pop %ld\n",
+    "return result %ld\n",
+    "push int %ld\n",
+    "resend message %ld\n"
+  };
+
+
+  /* NOTE: this code should match up with the interpret() function */
+  while (pos < size) {
+    printf("(%ld) ", pos);
+    op = code->elements[pos++];
+    printf("%ld ", op);
+    val = op >> 4;
+    if (val == 15) {
+      val = method_code_decode_immediate(code, &pos);
+    }
+
+    if ((op & 15) < 15) {
+      printf(ops[op&15], val);
+    } else {
+      switch (op)
+        {
+        case 15:
+          printf("jump offset %d\n", method_decode_short(code, &pos));
+          break;
+        case 31:
+          printf("branch if true offset %d\n", method_decode_short(code, &pos));
+          break;
+        case 47:
+          printf("branch if false offset %d\n", method_decode_short(code, &pos));
+          break;
+        case 63:
+          printf("push env\n");
+          break;
+        case 79:
+          printf("push nil\n");
+          break;
+        case 95:
+          printf("is identical to\n");
+          break;
+        case 111:
+          printf("push true\n");
+          break;
+        case 127:
+          printf("push false\n");
+          break;
+        case 143:
+          printf("return result\n");
+          break;
+        default:
+          printf("ERROR\n");
+          return;
+        }
+    }
+    
+  }
+}
+
+
+
+void method_print_debug_info(struct object_heap* oh, struct CompiledMethod* method) {
+  word_t i;
+
+  printf("\n\nMethod: '"); print_symbol(method->selector);
+  printf("'\n");
+
+  if (array_size(method->optionalKeywords) > 0) {
+    printf("optional keywords:\n");
+    
+    for (i = 0; i < array_size(method->optionalKeywords); i++) {
+      printf("%ld: ", i);
+      print_type(oh, array_elements(method->optionalKeywords)[i]);
+    }
+  }
+
+  if (array_size(method->selectors) > 0) {
+
+    printf("selectors:\n");
+    for (i = 0; i < array_size(method->selectors); i++) {
+      printf("%ld: ", i);
+      print_type(oh, array_elements(method->selectors)[i]);
+    }
+  }
+
+  if (array_size(method->literals) > 0) {
+
+    printf("literals:\n");
+    
+    for (i = 0; i < array_size(method->literals); i++) {
+      printf("%ld: ", i);
+      print_type(oh, array_elements(method->literals)[i]);
+    }
+  }
+
+  printf("code:\n");
+
+  method_disassemble(oh, method->code);
+}
+
+
+void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method) {
+
+  if (oh->optimizedMethodsSize + 1 >= oh->optimizedMethodsLimit) {
+    oh->optimizedMethodsLimit *= 2;
+    oh->optimizedMethods = realloc(oh->optimizedMethods, oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
+    assert(oh->optimizedMethods != NULL);
+
+  }
+  oh->optimizedMethods[oh->optimizedMethodsSize++] = method;
+
+}
+
+void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
+#ifdef PRINT_DEBUG_OPTIMIZER
+  printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
+#endif
+  method->code = method->oldCode;
+  method->isInlined = oh->cached.false;
+  method->calleeCount = (struct OopArray*)oh->cached.nil;
+  method->callCount = smallint_to_object(0);
+
+}
+
+
+void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symbol) {
+  word_t i, j;
+  for (i = 0; i < oh->optimizedMethodsSize; i++) {
+    struct CompiledMethod* method = oh->optimizedMethods[i];
+    /*resend?*/
+    if (method->selector == symbol) {
+      method_unoptimize(oh, method);
+      continue;
+    }
+    for (j = 0; j < array_size(method->selectors); j++) {
+      if (array_elements(method->selectors)[j] == (struct Object*)symbol) {
+        method_unoptimize(oh, method);
+        break;
+      }
+    }
+  }
+
+}
+
+
+void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
+#ifdef PRINT_DEBUG_OPTIMIZER
+  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
+#endif
+
+  /* only optimize old objects because they don't move in memory and
+   * we don't want to have to update our method cache every gc */
+  if (object_is_young(oh, (struct Object*)method)) return;
+  /*method_print_debug_info(oh, method);*/
+  method->oldCode = method->code;
+  method->isInlined = oh->cached.true;
+  method_add_optimized(oh, method);
+  
+}
+
+void method_pic_setup(struct object_heap* oh, struct CompiledMethod* caller) {
+
+  caller->calleeCount = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), CALLER_PIC_SIZE*CALLER_PIC_ENTRY_SIZE);
+
+}
+
+struct MethodDefinition* method_pic_match_selector(struct object_heap* oh, struct Object* picEntry[],
+                                                 struct Symbol* selector,
+                        word_t arity, struct Object* args[], word_t incrementWhenFound) {
+  struct Closure* closure = (struct Closure*) ((struct MethodDefinition*)picEntry[PIC_CALLEE])->method;
+  struct Symbol* methodSelector;
+  /*primitive methods store their selector in a different place*/
+  if (closure->base.map->delegates->elements[0] == oh->cached.primitive_method_window) {
+    methodSelector = (struct Symbol*)((struct PrimitiveMethod*)closure)->selector;
+  } else {
+    methodSelector = closure->method->selector;
+  }
+
+  if (methodSelector == selector 
+      && object_to_smallint(picEntry[PIC_CALLEE_ARITY]) == arity) {
+    /*callee method and arity work out, check the maps*/
+    word_t j, success = 1;
+    for (j = 0; j < arity; j++) {
+      if ((struct Map*)((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j] != object_get_map(oh, args[j])) {
+        success = 0;
+        break;
+      }
+    }
+    if (success) {
+      if (incrementWhenFound) {
+        picEntry[PIC_CALLEE_COUNT] = smallint_to_object(object_to_smallint(picEntry[PIC_CALLEE_COUNT]) + 1);
+      }
+      return (struct MethodDefinition*)picEntry[PIC_CALLEE];
+    }
+  }
+  return NULL;
+}
+
+
+void method_pic_insert(struct object_heap* oh, struct Object* picEntry[], struct MethodDefinition* def,
+                         word_t arity, struct Object* args[]) {
+
+  word_t j;
+  picEntry[PIC_CALLEE] = (struct Object*)def;
+  picEntry[PIC_CALLEE_ARITY] = smallint_to_object(arity);
+  picEntry[PIC_CALLEE_COUNT] = smallint_to_object(1);
+  picEntry[PIC_CALLEE_MAPS] = 
+    (struct Object*)heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
+  
+  for (j = 0; j < arity; j++) {
+    ((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j] = (struct Object*)object_get_map(oh, args[j]);
+  }
+
+}
+
+void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
+                           word_t arity, struct Object* args[]) {
+  word_t i;
+  word_t entryStart = (hash_selector(oh, NULL, args, arity) % CALLER_PIC_SIZE) * CALLER_PIC_ENTRY_SIZE;
+  for (i = entryStart; i < CALLER_PIC_SIZE * CALLER_PIC_ENTRY_SIZE; i+= CALLER_PIC_ENTRY_SIZE) {
+    /* if it's nil, we need to insert it*/
+    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
+      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      return;
+    }
+  }
+  for (i = 0; i < entryStart; i+= CALLER_PIC_ENTRY_SIZE) {
+    /*MUST be same as first loop*/
+    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
+      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      return;
+    }
+  }
+}
+
+struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
+                                              struct Symbol* selector, word_t arity, struct Object* args[]) {
+  word_t i;
+  word_t entryStart = (hash_selector(oh, NULL, args, arity) % CALLER_PIC_SIZE) * CALLER_PIC_ENTRY_SIZE;
+  struct MethodDefinition* retval;
+  for (i = entryStart; i < CALLER_PIC_SIZE * CALLER_PIC_ENTRY_SIZE; i+= CALLER_PIC_ENTRY_SIZE) {
+   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
+   if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
+  }
+  for (i = 0; i < entryStart; i+= CALLER_PIC_ENTRY_SIZE) {
+    /*MUST be same as first loop*/
+   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
+   if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
+
+  }
+  return NULL;
+}
 
 /********************** SIGNAL ****************************/
 
@@ -3496,7 +3841,8 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
     }
   }
 
-
+  /* any methods that call the same symbol must be decompiled because they might call an old version */
+  method_remove_optimized_sending(oh, selector);
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
   copy_words_into((word_t*)args, n, (word_t*)argBuffer); /*for pinning i presume */
@@ -3564,17 +3910,6 @@ void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter *
 
 }
 
-void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
-
-  /* only optimize old objects because they don't move in memory and
-   * we don't want to have to update our method cache every gc */
-  if (object_is_young(oh, (struct Object*)method)) return;
-
-  method->oldCode = method->code;
-  method->isInlined = oh->cached.true;
-  
-}
-
 
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* argsNotStack[], word_t n, struct OopArray* opts) {
@@ -3596,13 +3931,17 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   method->callCount = smallint_to_object(object_to_smallint(method->callCount) + 1);
 
-  if (method->callCount > (struct Object*)100 && method->isInlined == oh->cached.false) {
-    method_optimize(oh, method);
-  }
 
   /*make sure they are pinned*/
   assert(n <= 16);
   copy_words_into((word_t*)argsNotStack, n, (word_t*)args);
+
+
+  /* optimize the callee function after a set number of calls*/
+  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false) {
+    method_optimize(oh, method);
+  }
+
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true)) {
     struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
@@ -4610,13 +4949,31 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   struct Object* traitsWindow;
   struct Object* argsStack[16];
   struct Object* dispatchersStack[16];
+  struct MethodDefinition* def;
+  struct CompiledMethod* callerMethod;
+  word_t addToPic = FALSE;
+  callerMethod = oh->cached.interpreter->method;
+
   /*make sure they are pinned*/
   assert(arity <= 16);
   /*for gc*/
   copy_words_into((word_t*)args, arity, (word_t*)argsStack);
   copy_words_into((word_t*)dispatchers, arity, (word_t*)dispatchersStack);
 
-  struct MethodDefinition* def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
+  /* set up a PIC for the caller if it has been called a lot */
+  if (object_is_old(oh, (struct Object*)callerMethod)
+      && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
+    if ((struct Object*)callerMethod->calleeCount == oh->cached.nil) {
+      method_pic_setup(oh, callerMethod);
+      addToPic = TRUE;
+    } else {
+      def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
+      if (def==NULL) addToPic = TRUE;
+    }
+    
+  }
+
+  def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
 
   if (def == NULL) {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
@@ -4626,7 +4983,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     heap_fixed_remove(oh, (struct Object*)argsArray);
     return;
   }
-
+  /*PIC add here*/
+  if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
