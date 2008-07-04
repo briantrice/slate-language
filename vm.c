@@ -4960,6 +4960,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   copy_words_into((word_t*)args, arity, (word_t*)argsStack);
   copy_words_into((word_t*)dispatchers, arity, (word_t*)dispatchersStack);
 
+  def = NULL;
+
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
       && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
@@ -4968,12 +4970,29 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       addToPic = TRUE;
     } else {
       def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
-      if (def==NULL) addToPic = TRUE;
+      if (def==NULL) {
+        addToPic = TRUE;
+#ifdef PRINT_DEBUG_PIC_HITS
+        printf("pic miss\n");
+#endif
+
+      }
+      else {
+#ifdef PRINT_DEBUG_PIC_HITS
+        printf("pic hit\n");
+#endif
+      }
     }
     
   }
 
-  def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
+  if (def == NULL) {
+    def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
+  } else {
+#ifdef PRINT_DEBUG_PIC_HITS
+    printf("using pic over dispatch\n");
+#endif
+  }
 
   if (def == NULL) {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
