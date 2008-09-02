@@ -714,15 +714,17 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   
   method: (compiler generate: method result: Nil &topLevel: True) `>> [heapAllocate: False. ].
 
-  compiler decompile: method code.
+  "compiler decompile: method code."
 
   methodObj: (gen generateLiteral: method).
 
   stackSize: 16.
+  "fixme add result stack pointer item in bootstrap stack"
   stackObj: (gen cloneOf: gen ArrayProto sized: stackSize) `>>
     [elements at: 0 put: 0.
-     elements at: 1 put: methodObj.
-     elements at: 3 put: 0. ].
+     elements at: 2 put: methodObj.
+     elements at: 3 put: 0.
+     elements at: 4 put: 0. ].
 
   codeSize: method code size.
 
@@ -730,10 +732,10 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   gen InterpreterObject setSlot: #stack to: stackObj.
   gen InterpreterObject setSlot: #method to: methodObj.
   gen InterpreterObject setSlot: #closure to: methodObj.
-  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 4. " frame pointer (framesize=4)"
-  "long at 1 is code pointer -- I guess this gets filled later"
+  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 5. " frame pointer (framesize=4)"
+  "long at 1 is code pointer -- I guess this gets filled later or is zero"
   gen longAt: 2 * gen bytesPerWord in: gen InterpreterObject put: codeSize.
-  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 4. "stack pointer (framesize=4)"
+  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 5. "stack pointer (framesize=4)"
   gen longAt: 4 * gen bytesPerWord in: gen InterpreterObject put: stackSize
 ].
 

@@ -4514,7 +4514,7 @@ void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct Oop
   array = args[0];
   i = object_to_smallint(args[1]);
   
-  if (i < object_array_size(array)) {
+  if (i < object_array_size(array) && i >= 0) {
     interpreter_stack_push(oh, oh->cached.interpreter, ((struct OopArray*)array)->elements[i]);
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[1], args[0], NULL);
@@ -4633,13 +4633,13 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t n, st
 
 void prim_exponent(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct ByteArray* x = (struct ByteArray*)args[0];
-  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(((word_t)*float_part(x) >> FLOAT_EXPONENT_OFFSET) & 0xFF));
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object((*(word_t*)float_part(x) >> FLOAT_EXPONENT_OFFSET) & 0xFF));
 
 }
 
 void prim_significand(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts) {
   struct ByteArray* x = (struct ByteArray*)args[0];
-  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object((word_t)(*float_part(x)) & FLOAT_SIGNIFICAND));
+  interpreter_stack_push(oh, oh->cached.interpreter, smallint_to_object(*(word_t*)float_part(x) & FLOAT_SIGNIFICAND));
 
 }
 
