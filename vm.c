@@ -5125,6 +5125,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
      from via lexical offset. Returns a success Boolean. */
   word_t framePointer;
   word_t ensureHandlers;
+  word_t resultStackPointer;
 
 #ifdef PRINT_DEBUG_FUNCALL
       printf("interpreter_return_result BEFORE\n");
@@ -5140,17 +5141,20 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
     struct LexicalContext* targetContext = i->closure->lexicalWindow[context_depth-1];
     framePointer = object_to_smallint(targetContext->framePointer);
     if (framePointer > i->stackPointer || (struct Object*)targetContext != i->stack->elements[framePointer-2]) {
-      word_t resultStackPointer = (word_t)i->stack->elements[i->framePointer - 5]>>1;
 
       interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_MAY_NOT_RETURN_TO),
                                    (struct Object*)i->closure, (struct Object*) targetContext, NULL, resultStackPointer);
       return 1;
     }
   }
+
+  resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
+
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
     struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
     i->ensureHandlers = i->stack->elements[ensureHandlers];
+    interpreter_stack_push(oh, i, smallint_to_object(resultStackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(i->codePointer));
     interpreter_stack_push(oh, i, get_special(oh, SPECIAL_OOP_ENSURE_MARKER));
     interpreter_stack_push(oh, i, oh->cached.nil);
@@ -5159,14 +5163,13 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
     i->framePointer = i->stackPointer;
     assert(0);
     {
-      word_t resultStackPointer = (word_t)i->stack->elements[i->framePointer - 5]>>1;
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
     }
     return 1;
   }
   if (result != NULL) {
-    word_t resultStackPointer = (word_t)i->stack->elements[i->framePointer - 5]>>1;
     i->stack->elements[resultStackPointer] = result;
+    heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
   }
   i->stackPointer = framePointer - FUNCTION_FRAME_SIZE;
   i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
@@ -5661,12 +5664,12 @@ void interpret(struct object_heap* oh) {
         }
       case OP_BRANCH_KEYED:
         {
-          word_t tableReg, keyReg, offset;
+          word_t tableReg, keyReg;
           keyReg = SSA_NEXT_PARAM_SMALLINT;
           tableReg = SSA_NEXT_PARAM_SMALLINT;
           assert(0);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch keyed: %ld/%ld, offset: %ld\n", tableReg, keyReg, offset);
+          printf("branch keyed: %ld/%ld\n", tableReg, keyReg);
 #endif
           interpreter_branch_keyed(oh, i, (struct OopArray*)SSA_REGISTER(tableReg), SSA_REGISTER(keyReg));
           break;
@@ -5762,6 +5765,10 @@ void interpret(struct object_heap* oh) {
           PRINTOP("op: return from\n");
           reg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT;
+#ifdef PRINT_DEBUG_OPCODES
+          printf("return result reg: %ld, offset: %ld, value: ", reg, offset);
+          print_type(oh, SSA_REGISTER(reg));
+#endif
           interpreter_return_result(oh, i, offset, SSA_REGISTER(reg));
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");

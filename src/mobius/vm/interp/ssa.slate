@@ -35,7 +35,7 @@ list to use to increment the whole count"
 
   5 -> (#sendMessageWithOptionals -> {4. 2}).  "result register, selector register, arity, optsArrayRegister, parameters...."
 
-  7 -> (#newClosure -> {2}). "register, block register"
+  7 -> (#newClosure -> {2}). "register, block"
   8 -> (#newArrayWith -> {2. 1}). "result register, size, parameters..."
   9 -> (#resendMessage -> {2}). "result register, lexical offset"
   10 -> (#returnFrom -> {2}). "result register, lexical offset"
@@ -272,8 +272,9 @@ and push it onto the stack."
     ifFalse: [gen currentMethod environment]).
   newBlock sourceTree: block.
   gen contexts push: (gen Context newOn: newBlock).
+"  inform: block inputVariables size printString.
+  inform: block localVariables size printString."
   gen currentContext currentRegister: block localVariables size. "input variables might not be needed"
-  result `defaultsTo: gen newRegister. "asking for a register requires a context"
   gen codeWriter nextPut: gen allocateRegisters.
   numRegisters: gen codeWriter position.
   gen codeWriter nextPut: 0.
@@ -292,9 +293,11 @@ and push it onto the stack."
   gen codeWriter contents at: numRegisters put: gen currentContext currentRegister.
   gen contexts pop flush.
   "Forces the newBlock to record all the remaining stream input correctly."
+
   gen contexts isEmpty \/ [topLevel]
     ifFalse:
-      [isClosure
+      [result `defaultsTo: gen newRegister. "asking for a register requires a context"
+       isClosure
         ifTrue:
           [gen emitInstruction: gen newClosure withParameters: {result. newBlock} from: block]
         ifFalse:
