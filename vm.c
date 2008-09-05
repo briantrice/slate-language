@@ -4914,6 +4914,20 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
   method_flush_cache(oh, selector);
   oh->cached.interpreter->stack->elements[resultStackPointer] = method;
 
+#ifdef PRINT_DEBUG_DEFUN
+  printf("Defining accessor '"); print_symbol(selector);
+  printf("' on: ");
+  if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
+  {
+    word_t i;
+    for (i = 1; i < array_size(roles); i++) {
+      printf(", ");
+      if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+    }
+  }
+  printf("\n");
+#endif
+
 }
 
 struct ForwardPointerEntry* forward_pointer_hash_get(struct ForwardPointerEntry* table,

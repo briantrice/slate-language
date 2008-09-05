@@ -504,7 +504,8 @@ gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj
     (gen cloneOf: gen ArrayProto
       elements:
         {
-          VM SSACode allocateRegisters. 1.
+          VM SSACode allocateRegisters. 3.
+          VM SSACode loadVariable. 0.
           VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
           VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
           VM SSACode returnRegister. 0
@@ -527,7 +528,9 @@ gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj
     (gen cloneOf: gen ArrayProto
       elements:
         {
-          VM SSACode allocateRegisters. 1.
+          VM SSACode allocateRegisters. 4.
+          VM SSACode loadVariable. 0.
+          VM SSACode loadVariable. 1.
           VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
           VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
           VM SSACode returnRegister. 0
@@ -732,10 +735,10 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   gen InterpreterObject setSlot: #stack to: stackObj.
   gen InterpreterObject setSlot: #method to: methodObj.
   gen InterpreterObject setSlot: #closure to: methodObj.
-  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 5. " frame pointer (framesize=4)"
+  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 5. " frame pointer (framesize=5)"
   "long at 1 is code pointer -- I guess this gets filled later or is zero"
   gen longAt: 2 * gen bytesPerWord in: gen InterpreterObject put: codeSize.
-  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 5. "stack pointer (framesize=4)"
+  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 5. "stack pointer (framesize=5)"
   gen longAt: 4 * gen bytesPerWord in: gen InterpreterObject put: stackSize
 ].
 
