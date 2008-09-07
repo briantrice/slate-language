@@ -174,7 +174,7 @@ struct CompiledMethod
   struct Object* callCount;
   /* calleeCount is the polymorphic inline cache (PIC), see #defines/method_pic_add_callee below for details */
   struct OopArray* calleeCount;
-  struct Object* reserved1;
+  struct Object* registerCount;
   struct Object* reserved2;
   struct Object* reserved3;
   struct Object* reserved4;
@@ -327,7 +327,7 @@ typedef float float_t;
 #define WORD_BYTES_MINUS_ONE (sizeof(word_t)-1)
 #define ROLE_ENTRY_WORD_SIZE ((sizeof(struct RoleEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
 #define SLOT_ENTRY_WORD_SIZE ((sizeof(struct SlotEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
-#define FUNCTION_FRAME_SIZE 5
+#define FUNCTION_FRAME_SIZE 6
 
 #define TRUE 1
 #define FALSE 0
@@ -3775,7 +3775,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   if (method->heapAllocate == oh->cached.true) {
     lexicalContext = (struct LexicalContext*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_LEXICAL_CONTEXT_PROTO), object_to_smallint(method->localVariables));
     lexicalContext->framePointer = smallint_to_object(framePointer);
-    interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE);
+    interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE + object_to_smallint(method->registerCount));
     vars = &lexicalContext->variables[0];
     for (j = 0; j < inputs; j++) {
       heap_store_into(oh, (struct Object*)lexicalContext, args[j]);
@@ -3783,7 +3783,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   } else {
     lexicalContext = (struct LexicalContext*) oh->cached.nil;
-    interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE /*frame size in words*/ + object_to_smallint(method->localVariables));
+    interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE /*frame size in words*/ + object_to_smallint(method->localVariables) + object_to_smallint(method->registerCount));
     vars = &i->stack->elements[framePointer];
     for (j = 0; j < inputs; j++) {
       heap_store_into(oh, (struct Object*)i->stack, args[j]);
@@ -3792,6 +3792,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
   copy_words_into((word_t*) args, inputs, (word_t*) vars);
+  i->stack->elements[framePointer - 6] = smallint_to_object(i->stackPointer);
   i->stack->elements[framePointer - 5] = smallint_to_object(resultStackPointer);
   i->stack->elements[framePointer - 4] = smallint_to_object(i->codePointer);
   i->stack->elements[framePointer - 3] = (struct Object*) closure;
@@ -3839,7 +3840,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   if (opts != NULL) {
     interpreter_dispatch_optionals(oh, i, opts);
   }
-
 }
 
 
@@ -4144,7 +4144,7 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct
   struct Closure* body = (struct Closure*) args[0];
   struct Object* ensureHandler = args[1];
   interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL, resultStackPointer);
-  assert(0);
+  /*the registers are already allocated on the stack so we don't worry about overwriting them*/
   interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
   interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
   oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
@@ -4835,7 +4835,6 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #ifdef PRINT_DEBUG
     printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
-    /*fix me to pass result register*/
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
@@ -4866,8 +4865,7 @@ void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struc
     opts = (struct OopArray*)optionals->elements[1];
     if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
   }
-  assert(0);
-  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts, 0/*fixme stack*/); 
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts, resultStackPointer); 
 }
 
 void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {
@@ -4881,8 +4879,7 @@ void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t 
     if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
   }
   /*fix check array sizes are the same*/
-  assert(0);
-  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts, 0/*fixme stack*/); 
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts, resultStackPointer); 
 }
 
 
@@ -5155,7 +5152,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
     struct LexicalContext* targetContext = i->closure->lexicalWindow[context_depth-1];
     framePointer = object_to_smallint(targetContext->framePointer);
     if (framePointer > i->stackPointer || (struct Object*)targetContext != i->stack->elements[framePointer-2]) {
-
+      resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
       interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_MAY_NOT_RETURN_TO),
                                    (struct Object*)i->closure, (struct Object*) targetContext, NULL, resultStackPointer);
       return 1;
@@ -5168,6 +5165,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
   if (framePointer <= ensureHandlers) {
     struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
     i->ensureHandlers = i->stack->elements[ensureHandlers];
+    interpreter_stack_push(oh, i, smallint_to_object(i->stackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(resultStackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(i->codePointer));
     interpreter_stack_push(oh, i, get_special(oh, SPECIAL_OOP_ENSURE_MARKER));
@@ -5175,7 +5173,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
     i->codePointer = 0;
     i->framePointer = i->stackPointer;
-    assert(0);
+    /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
     }
@@ -5185,7 +5183,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
     i->stack->elements[resultStackPointer] = result;
     heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
   }
-  i->stackPointer = framePointer - FUNCTION_FRAME_SIZE;
+  i->stackPointer = object_to_smallint(i->stack->elements[framePointer - 6]);
   i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
   if (i->framePointer < FUNCTION_FRAME_SIZE) {
     assert(0);
@@ -5377,7 +5375,7 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
 #define OP_INDIRECT_SEND                ((1 << 1) | SMALLINT_MASK) /*unused now*/
-#define OP_ALLOCATE_REGISTERS           ((2 << 1) | SMALLINT_MASK)
+/*#define OP_ALLOCATE_REGISTERS           ((2 << 1) | SMALLINT_MASK)*/
 #define OP_LOAD_LITERAL                 ((3 << 1) | SMALLINT_MASK)
 #define OP_STORE_LITERAL                ((4 << 1) | SMALLINT_MASK)
 #define OP_SEND_MESSAGE_WITH_OPTS       ((5 << 1) | SMALLINT_MASK)
@@ -5425,9 +5423,16 @@ void interpret(struct object_heap* oh) {
   printf("Interpreter stack pointer: %ld\n", oh->cached.interpreter->stackPointer);
   printf("Interpreter frame pointer: %ld\n", oh->cached.interpreter->framePointer);
 #endif 
+  /*fixme this should only be called in the initial bootstrap because
+    the stack doesn't have enough room for the registers */
+  if (oh->cached.interpreter->framePointer == FUNCTION_FRAME_SIZE 
+      && oh->cached.interpreter->stackPointer == FUNCTION_FRAME_SIZE
+      && oh->cached.interpreter->stackSize == 16) {
+    interpreter_stack_allocate(oh, oh->cached.interpreter, object_to_smallint(oh->cached.interpreter->method->registerCount));
+  }
 
   do {
-    word_t op, prevPointer;
+    word_t op;
     struct Interpreter* i = oh->cached.interpreter; /*it won't move while we are in here */
 
     /*while (oh->cached.interpreter->codePointer < oh->cached.interpreter->codeSize) {*/
@@ -5443,7 +5448,6 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_CODE_POINTER
       printf("(%ld/%ld) %ld ", i->codePointer, i->codeSize, op>>1);
 #endif
-      prevPointer = i->codePointer;
       i->codePointer++;
 
       switch (op) {
@@ -5802,6 +5806,7 @@ void interpret(struct object_heap* oh) {
 #endif
           break;
         }
+#if 0
       case OP_ALLOCATE_REGISTERS:
         {
           word_t reg;
@@ -5816,7 +5821,7 @@ void interpret(struct object_heap* oh) {
           
           break;
         }
-
+#endif
       default:
         printf("error bad opcode... %ld\n", op>>1);
         assert(0);

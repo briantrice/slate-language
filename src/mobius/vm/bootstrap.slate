@@ -498,13 +498,13 @@ gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj
   accessor setSlot: #selector to: (gen generateLiteral: selector).
   accessor setSlot: #inputVariables to: 1.
   accessor setSlot: #localVariables to: 1.
+  accessor setSlot: #registerCount to: 3.
   accessor setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
   accessor setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:}).
   accessor setSlot: #code to:
     (gen cloneOf: gen ArrayProto
       elements:
         {
-          VM SSACode allocateRegisters. 3.
           VM SSACode loadVariable. 0.
           VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
           VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
@@ -522,13 +522,13 @@ gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj
   mutator setSlot: #selector to: (gen generateLiteral: selector).
   mutator setSlot: #inputVariables to: 2.
   mutator setSlot: #localVariables to: 1.
+  mutator setSlot: #registerCount to: 4.
   mutator setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
   mutator setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:put:}).
   mutator setSlot: #code to:
     (gen cloneOf: gen ArrayProto
       elements:
         {
-          VM SSACode allocateRegisters. 4.
           VM SSACode loadVariable. 0.
           VM SSACode loadVariable. 1.
           VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
@@ -659,7 +659,7 @@ gen@(Image Bootstrap Generator traits) generateKernel
         #oldCode -> gen NilObject.
         #callCount -> 0.
         #calleeCount -> gen NilObject.
-        #reserved1 -> gen NilObject.
+        #registerCount -> 0.
         #reserved2 -> gen NilObject.
         #reserved3 -> gen NilObject.
         #reserved4 -> gen NilObject.
@@ -721,13 +721,16 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
 
   methodObj: (gen generateLiteral: method).
 
-  stackSize: 16.
-  "fixme add result stack pointer item in bootstrap stack"
+  stackSize: 16. "if you change this, change vm.c which has it hard-coded in the beginning of interpret()"
+
   stackObj: (gen cloneOf: gen ArrayProto sized: stackSize) `>>
-    [elements at: 0 put: 0.
-     elements at: 2 put: methodObj.
-     elements at: 3 put: 0.
-     elements at: 4 put: 0. ].
+    [elements at: 0 put: 0. "-6: prev sp"
+     elements at: 1 put: -1. "-5: resultStackPointer"
+     elements at: 2 put: 0. "-4: code pointer"
+     elements at: 3 put: methodObj. "-3: closure"
+     elements at: 4 put: 0. "-2: lexical context"
+     elements at: 5 put: 0. "-1: prev fp"
+     elements at: 6 put: 0. ].
 
   codeSize: method code size.
 
@@ -735,10 +738,10 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   gen InterpreterObject setSlot: #stack to: stackObj.
   gen InterpreterObject setSlot: #method to: methodObj.
   gen InterpreterObject setSlot: #closure to: methodObj.
-  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 5. " frame pointer (framesize=5)"
+  gen longAt: 0 * gen bytesPerWord in: gen InterpreterObject put: 6. " frame pointer (framesize=6)"
   "long at 1 is code pointer -- I guess this gets filled later or is zero"
   gen longAt: 2 * gen bytesPerWord in: gen InterpreterObject put: codeSize.
-  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 5. "stack pointer (framesize=5)"
+  gen longAt: 3 * gen bytesPerWord in: gen InterpreterObject put: 6. "stack pointer (framesize=6)"
   gen longAt: 4 * gen bytesPerWord in: gen InterpreterObject put: stackSize
 ].
 
@@ -951,6 +954,7 @@ gen@(Image Bootstrap Generator traits) generateLiteral: block@(CompiledMethod tr
     setSlot: #restVariable to: (gen generateLiteral: block restVariable).
     setSlot: #heapAllocate to: (gen generateLiteral: block heapAllocate).
     setSlot: #literals to: (gen generateLiteral: block literals).
+    setSlot: #registerCount to: (gen generateLiteral: block reserved1). "fixme"
     setSlot: #selectors to: (gen generateLiteral: block selectors).
     setSlot: #code to: (gen generateLiteral: block code). ].
   obj setSlot: #method to: obj.

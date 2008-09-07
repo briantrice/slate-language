@@ -29,7 +29,7 @@ list to use to increment the whole count"
   0 -> (#directSendMessage -> {3. 2}). "result register, selector, arity, parameters..."
   1 -> (#indirectSendMessage -> {3. 2}).  "result register, selector register, arity, parameters...."
 
-  2 -> (#allocateRegisters -> {1}).  "count"
+  "2 -> (#allocateRegisters -> {1})."  "this should be in the function definition now"
   3 -> (#loadLiteral -> {2}). "dest register, literal"
   4 -> (#storeLiteral -> {2}). "dest literal index, src register"
 
@@ -122,7 +122,6 @@ placed in the jump fields with actual offsets."
 c@(VM SSACompiler Context traits) flush
 [
   c method code: c codeWriter contents.
-  c method code at: 1 put: c currentRegister.
   c method debugMap: (c debugMap as: Array).
   c resolveLabels.
   c
@@ -138,7 +137,7 @@ gen@(VM SSACompiler traits) newRegister
 ].
 
 gen@(VM SSACompiler traits) registerFor: obj from: def result: result
-[
+[ | saveRegister |
   gen contexts top registerValues do: 
     [ | :val | val value = obj
                  ifTrue: 
@@ -147,9 +146,12 @@ gen@(VM SSACompiler traits) registerFor: obj from: def result: result
                         ifFalse: [result `defaultsTo: gen newRegister.
                                    gen emitInstruction: gen moveRegister withParameters: {result. val key} from: def.
                                   ^ result]]].
+ 
+  "we don't want result to be a local variable and have it overwritten later"
+  result ifNil: [saveRegister: True] ifNotNil: [saveRegister: False].
   result `defaultsTo: gen newRegister.
   gen emitInstruction: gen loadLiteral withParameters: {result. obj} from: def.
-  gen setRegister: result to: obj.
+  saveRegister ifTrue: [gen setRegister: result to: obj].
   result
 ].
 
@@ -264,7 +266,7 @@ gen@(VM SSACompiler traits) generate: block@(Syntax Block traits) result: result
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
-[| newBlock isClosure numRegisters |
+[| newBlock isClosure statements |
   topLevel `defaultsTo: False.
   newBlock: CompiledMethod new.
   newBlock environment: (gen contexts isEmpty
@@ -272,15 +274,12 @@ and push it onto the stack."
     ifFalse: [gen currentMethod environment]).
   newBlock sourceTree: block.
   gen contexts push: (gen Context newOn: newBlock).
-"  inform: block inputVariables size printString.
-  inform: block localVariables size printString."
+  "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
+  statements: (block statements collect: [| :statement | statement macroExpand &environment: gen currentMethod sourceTree]).
   gen currentContext currentRegister: block localVariables size. "input variables might not be needed"
-  gen codeWriter nextPut: gen allocateRegisters.
-  numRegisters: gen codeWriter position.
-  gen codeWriter nextPut: 0.
-  block statements allButLastDo: [| :node | gen generate: node result: Nil].
-  block statements size > 0
-    ifTrue: [gen emitInstruction: gen returnRegister withParameters: {gen generate: block statements last result: Nil} from: block]
+  statements allButLastDo: [| :node | gen generate: node result: Nil].
+  statements size > 0
+    ifTrue: [gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} from: block]
     ifFalse: [gen emitInstruction: gen returnValue withParameters: {Nil} from: block].
 
   "Set the variable information after generation, just in case it was modified."
@@ -288,9 +287,11 @@ and push it onto the stack."
    [inputVariables: block inputVariables size.
     localVariables: block localVariables size.
     restVariable: block restVariable isNotNil.
+    "registerCount: gen currentContext currentRegister."
+    reserved1: gen currentContext currentRegister + 1.
     optionalKeywords: block optionalKeywords.].
   isClosure: gen currentContext isClosure.
-  gen codeWriter contents at: numRegisters put: gen currentContext currentRegister.
+
   gen contexts pop flush.
   "Forces the newBlock to record all the remaining stream input correctly."
 
@@ -485,7 +486,8 @@ gen@(VM SSACompiler traits) generate: msg@(Syntax Message traits) result: result
 
 gen@(VM SSACompiler traits) generate: macro@(Syntax Macro traits) result: result &optionals: opts
 [
-  gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree) result: result
+  "gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree) result: result"
+  error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
 gen@(VM SSACompiler traits) generate: def@(Syntax Deferred traits) result: result &optionals: opts

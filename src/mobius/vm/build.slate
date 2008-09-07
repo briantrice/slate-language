@@ -8,6 +8,7 @@ load-order."
      'lib/root'.
      'lib/nil'.
      'lib/boolean'.
+     'lib/namespace'.
      'lib/derivable'.
      'lib/numeric'.
      'lib/method'.
@@ -58,7 +59,8 @@ load-order."
     #littleEndian -> True "Whether to have a little-endian byte-word format."
   }.
 
-Image define: #BareDefinition -> (Image Definition cloneSettingSlots: #(bootstrapFilenames) to: {{'path/to/file'}}).
+Image define: #BareDefinition -> (Image Definition cloneSettingSlots: #(bootstrapFilenames)
+ to: {{'src/mobius/vm/pre-bootstrap.slate'}}).
 "An Image Definition consisting of the bare minimum to run some primitive call,
 like adding 3 + 4, say."
 "TODO: refactor Image Definition so that we can just supply a block here."
@@ -109,5 +111,10 @@ based on the new VM Definition."
                (i Definition newNamed: 'kernel.new' littleEndian: False bitSize: bitSize).
              i newBig generate ]
 
+].
+
+i@Image generateAmd64
+[
+  (i BareDefinition newNamed: 'k64' littleEndian: True bitSize: 64) generate.
 ].
 
