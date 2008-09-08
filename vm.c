@@ -3586,7 +3586,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
 void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-
+  
   struct Closure* method;
   struct Symbol* selector = (struct Symbol*)signal;
   struct MethodDefinition* def = method_dispatch_on(oh, selector, args, n, NULL);
@@ -3594,7 +3594,8 @@ void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Ob
     unhandled_signal(oh, selector, n, args);
   }
   /*take this out when the debugger is mature*/
-  /*assert(0);*/
+  /*  print_backtrace(oh);
+      assert(0);*/
   method = (struct Closure*)def->method;
   interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, opts, resultStackPointer);
 }
@@ -5161,6 +5162,12 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
 
   resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
 
+  /*store the result before we get interrupted for a possible finalizer*/
+  if (result != NULL) {
+    i->stack->elements[resultStackPointer] = result;
+    heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
+  }
+
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
     struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
@@ -5178,10 +5185,6 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
     }
     return 1;
-  }
-  if (result != NULL) {
-    i->stack->elements[resultStackPointer] = result;
-    heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
   }
   i->stackPointer = object_to_smallint(i->stack->elements[framePointer - 6]);
   i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
@@ -5685,7 +5688,7 @@ void interpret(struct object_heap* oh) {
           word_t tableReg, keyReg;
           keyReg = SSA_NEXT_PARAM_SMALLINT;
           tableReg = SSA_NEXT_PARAM_SMALLINT;
-          assert(0);
+          /*assert(0);*/
 #ifdef PRINT_DEBUG_OPCODES
           printf("branch keyed: %ld/%ld\n", tableReg, keyReg);
 #endif
@@ -5777,6 +5780,19 @@ void interpret(struct object_heap* oh) {
 #endif
           break;
         }
+      case OP_RESUME: /*returning the result (or lack of) from the finalizer of a prim_ensure*/
+        {
+          PRINTOP("op: resume\n");
+          /*one for the resume and one for the function that we
+            interrupted the return from to run the finalizer*/
+          interpreter_return_result(oh, i, 0, NULL);
+          interpreter_return_result(oh, i, 0, NULL);
+#ifdef PRINT_DEBUG_OPCODES
+          printf("in function: \n");
+          print_type(oh, (struct Object*)i->method);
+#endif
+          break;
+        }
       case OP_RETURN_FROM:
         {
           word_t reg, offset;
@@ -5843,7 +5859,7 @@ int main(int argc, char** argv) {
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * 1024 * 1024;
-  word_t young_limit = 5 * 1024 * 1024;
+  word_t young_limit = 10 * 1024 * 1024;
   size_t res;
 
   heap = calloc(1, sizeof(struct object_heap));

@@ -138,7 +138,10 @@ gen@(VM SSACompiler traits) newRegister
 
 gen@(VM SSACompiler traits) registerFor: obj from: def result: result
 [ | saveRegister |
-  gen contexts top registerValues do: 
+   "the whole problem with this function is that we could cache a literal that
+ is only loaded in a loop which may not always be executed. remove this code
+until we have it figured out."
+"  gen contexts top registerValues do: 
     [ | :val | val value = obj
                  ifTrue: 
                    [val key = result \/ [result isNil]
@@ -146,9 +149,10 @@ gen@(VM SSACompiler traits) registerFor: obj from: def result: result
                         ifFalse: [result `defaultsTo: gen newRegister.
                                    gen emitInstruction: gen moveRegister withParameters: {result. val key} from: def.
                                   ^ result]]].
- 
+ "
   "we don't want result to be a local variable and have it overwritten later"
-  result ifNil: [saveRegister: True] ifNotNil: [saveRegister: False].
+  "result ifNil: [saveRegister: True] ifNotNil: [saveRegister: False]."
+   saveRegister: False.
   result `defaultsTo: gen newRegister.
   gen emitInstruction: gen loadLiteral withParameters: {result. obj} from: def.
   saveRegister ifTrue: [gen setRegister: result to: obj].
@@ -218,7 +222,7 @@ gen@(VM SSACompiler traits) emitObject: value from: node
 gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameters: values from: node
 "this gets called before the real function"
 [
-  values do: [|:value| (value is: Syntax Node) ifTrue: [error: 'bad code']].
+  "values do: [|:value| (value is: Syntax Node) ifTrue: [error: 'bad code']]." "commented out because we could actually load node literals in compiler code"
   resend
 ].
 
@@ -287,8 +291,8 @@ and push it onto the stack."
    [inputVariables: block inputVariables size.
     localVariables: block localVariables size.
     restVariable: block restVariable isNotNil.
-    "registerCount: gen currentContext currentRegister."
-    reserved1: gen currentContext currentRegister + 1.
+    registerCount: gen currentContext currentRegister.
+    "reserved1: gen currentContext currentRegister + 1."
     optionalKeywords: block optionalKeywords.].
   isClosure: gen currentContext isClosure.
 
