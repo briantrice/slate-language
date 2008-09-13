@@ -962,20 +962,30 @@ void print_stack_types(struct object_heap* oh, word_t last_count) {
 void print_backtrace(struct object_heap* oh) {
   word_t depth = 0, detail_depth = -1 /*raise this to print verbose args in stack longer*/;
   struct Interpreter* i = oh->cached.interpreter;
+  struct Closure* closure = (struct Closure*)i->method;
+  word_t codePointer = i->codePointer;
   word_t fp = i->framePointer;
-  printf("backtrace: fp=%ld, sp=%ld\n", fp, i->stackPointer);
-  while (fp > FUNCTION_FRAME_SIZE) {
+  word_t sp = i->stackPointer;
+  word_t codeSize = i->codeSize;
+  word_t resultStackPointer = object_to_smallint(i->stack->elements[fp-5]);
+  struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];;
+  printf("printing backtrace from fp=%ld, sp=%ld\n", fp, i->stackPointer);
+  do {
     word_t j;
     struct Object** vars;
-    struct Closure* closure = (struct Closure*)i->stack->elements[fp-3];
-    struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];
     word_t input_count = object_to_smallint(closure->method->inputVariables);
+#if 0
     word_t local_count = object_to_smallint(closure->method->localVariables);
-
+#endif
     vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
     printf("fp: %ld\n", fp);
+    printf("sp: %ld\n", sp);
+    printf("ip: %ld/%ld\n", codePointer, codeSize);
+    printf("result: %ld\n", resultStackPointer);
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
+    printf("regs: %ld\n", object_to_smallint(closure->method->registerCount));
+    printf("heap alloc: %s\n", (closure->method->heapAllocate == oh->cached.true)? "true" : "false");
 
     for (j = 0; j < input_count; j++) {
       printf("arg[%ld] (%p) = ", j, (void*)vars[j]);
@@ -985,7 +995,7 @@ void print_backtrace(struct object_heap* oh) {
         print_detail(oh, vars[j]);
       }
     }
-
+#if 0
     if (closure->method->heapAllocate == oh->cached.true) {
       for (j = 0; j < local_count; j++) {
         printf("var[%ld] (%p)= ", j, (void*)lc->variables[j]);
@@ -1005,12 +1015,19 @@ void print_backtrace(struct object_heap* oh) {
         }
       }
     }
+#endif
 
-
-
+    /*order matters here*/
+    codePointer = object_to_smallint(i->stack->elements[fp-4]);
     fp = object_to_smallint(i->stack->elements[fp-1]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    sp = object_to_smallint(i->stack->elements[fp-6]);
+    resultStackPointer = object_to_smallint(i->stack->elements[fp-5]);
+    closure = (struct Closure*)i->stack->elements[fp-3];
+    lc = (struct LexicalContext*)i->stack->elements[fp-2];
+    codeSize = array_size(closure->method->code);
     depth++;
-  }
+  } while (fp >= FUNCTION_FRAME_SIZE);
 
 }
 
@@ -4149,6 +4166,9 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct
   interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
   interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
   oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
+#ifdef PRINT_DEBUG_ENSURE
+  printf("ensure handlers at %ld\n", oh->cached.interpreter->stackPointer - 2);
+#endif
 
 }
 
@@ -5164,6 +5184,10 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
 
   /*store the result before we get interrupted for a possible finalizer*/
   if (result != NULL) {
+#ifdef PRINT_DEBUG_STACK
+    printf("setting stack[%ld] = ", resultStackPointer); print_object(result);
+#endif
+
     i->stack->elements[resultStackPointer] = result;
     heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
   }
@@ -5171,7 +5195,15 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
     struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
+#ifdef PRINT_DEBUG_ENSURE
+  printf("current ensure handlers at %ld\n", object_to_smallint(i->ensureHandlers));
+#endif
+    assert(object_to_smallint(i->stack->elements[ensureHandlers]) < 0x1000000); /*sanity check*/
     i->ensureHandlers = i->stack->elements[ensureHandlers];
+#ifdef PRINT_DEBUG_ENSURE
+  printf("reset ensure handlers at %ld\n", object_to_smallint(i->ensureHandlers));
+#endif
+
     interpreter_stack_push(oh, i, smallint_to_object(i->stackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(resultStackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(i->codePointer));
@@ -5404,6 +5436,7 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
 #define OP_                             ((25 << 1) | SMALLINT_MASK)
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
+#define REG_STACK_POINTER(X)            (i->framePointer + (X))
 #define SSA_NEXT_PARAM_SMALLINT         ((word_t)i->method->code->elements[i->codePointer++]>>1)
 #define SSA_NEXT_PARAM_OBJECT           (i->method->code->elements[i->codePointer++])
 
@@ -5528,6 +5561,9 @@ void interpret(struct object_heap* oh) {
             array->elements[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
           }
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)array);
+#ifdef PRINT_DEBUG_STACK
+    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
+#endif
           SSA_REGISTER(result) = (struct Object*) array;
           break;
         }
@@ -5556,6 +5592,9 @@ void interpret(struct object_heap* oh) {
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)i->lexicalContext);
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)block);
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)newClosure);
+#ifdef PRINT_DEBUG_STACK
+    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
+#endif
           SSA_REGISTER(result) = (struct Object*) newClosure;
           break;
         }
@@ -5570,6 +5609,9 @@ void interpret(struct object_heap* oh) {
           print_type(oh, literal);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, literal);
+#ifdef PRINT_DEBUG_STACK
+    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
+#endif
           SSA_REGISTER(destReg) = literal;
           break;
         }
@@ -5593,6 +5635,9 @@ void interpret(struct object_heap* oh) {
 #endif
           if (i->method->heapAllocate == oh->cached.true) {
             heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->lexicalContext);
+#ifdef PRINT_DEBUG_STACK
+            printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
+#endif
             SSA_REGISTER(var) = i->lexicalContext->variables[var];
           }
 #ifdef PRINT_DEBUG_OPCODES
@@ -5630,6 +5675,9 @@ void interpret(struct object_heap* oh) {
           printf("load free var to: %ld, lexoffset: %ld, index: %ld\n", destReg, lexOffset, varIndex);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->closure->lexicalWindow[lexOffset-1]);
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
+#endif
           SSA_REGISTER(destReg) = i->closure->lexicalWindow[lexOffset-1]->variables[varIndex];
 
 #ifdef PRINT_DEBUG_OPCODES
@@ -5666,6 +5714,9 @@ void interpret(struct object_heap* oh) {
           printf("move reg %ld, %ld\n", destReg, srcReg);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, SSA_REGISTER(srcReg));
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
+#endif
           SSA_REGISTER(destReg) = SSA_REGISTER(srcReg);
           break;
         }
@@ -5681,6 +5732,9 @@ void interpret(struct object_heap* oh) {
 #endif
           
           SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true : oh->cached.false;
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
+#endif
           break;
         }
       case OP_BRANCH_KEYED:
@@ -5763,6 +5817,9 @@ void interpret(struct object_heap* oh) {
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->method->environment);
           SSA_REGISTER(next_param) = i->method->environment;
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
+#endif
           break;
         }
       case OP_RETURN_REGISTER:
@@ -5772,6 +5829,9 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_OPCODES
           printf("return reg %ld, value: ", reg);
           print_type(oh, SSA_REGISTER(reg));
+#endif
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: ", instruction_counter);
 #endif
           interpreter_return_result(oh, i, 0, SSA_REGISTER(reg));
 #ifdef PRINT_DEBUG_OPCODES
@@ -5803,6 +5863,9 @@ void interpret(struct object_heap* oh) {
           printf("return result reg: %ld, offset: %ld, value: ", reg, offset);
           print_type(oh, SSA_REGISTER(reg));
 #endif
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: ", instruction_counter);
+#endif
           interpreter_return_result(oh, i, offset, SSA_REGISTER(reg));
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
@@ -5815,6 +5878,9 @@ void interpret(struct object_heap* oh) {
           struct Object* obj;
           PRINTOP("op: return obj\n");
           obj = SSA_NEXT_PARAM_OBJECT;
+#ifdef PRINT_DEBUG_STACK
+          printf("%lu: ", instruction_counter);
+#endif
           interpreter_return_result(oh, i, 0, obj);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
