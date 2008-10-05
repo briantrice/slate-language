@@ -5955,11 +5955,14 @@ int main(int argc, char** argv) {
   word_t memory_limit = 400 * 1024 * 1024;
   word_t young_limit = 10 * 1024 * 1024;
   size_t res;
+  word_t le_test_ = 1;
+  char* le_test = (char*)&le_test_;
 
   heap = calloc(1, sizeof(struct object_heap));
 
   if (argc > 2) {
     fprintf(stderr, "You must supply an image file as an argument\n");
+    fprintf(stderr, "Your platform is %d bit, %s\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little endian" : "big endian");
     return 1;
   }
   if (argc == 1) {
