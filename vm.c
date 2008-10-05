@@ -37,7 +37,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
-typedef word_t bool;
+typedef word_t bool_t;
 
 #define WORDT_MAX INTPTR_MAX
 
@@ -256,7 +256,7 @@ struct object_heap
   word_t memoryYoungLimit;
   struct OopArray* special_objects_oop; /*root for gc*/
   word_t current_dispatch_id;
-  bool interrupt_flag;
+  bool_t interrupt_flag;
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
   FILE** file_index;
@@ -296,8 +296,8 @@ struct object_heap
 
   struct {
     struct Interpreter* interpreter;
-    struct Object* true;
-    struct Object* false;
+    struct Object* true_object;
+    struct Object* false_object;
     struct Object* nil;
     struct Object* primitive_method_window;
     struct Object* compiled_method_window;
@@ -356,9 +356,9 @@ word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
 struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
 
 
-bool oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
-bool oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-bool object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
+bool_t oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
+bool_t oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
+bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
 word_t object_markbit(struct Object* xxx)      { return  (((xxx)->header)&MARK_MASK); }
 word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header)>>1)&ID_HASH_MAX);}
 word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
@@ -581,8 +581,8 @@ struct Map* object_get_map(struct object_heap* oh, struct Object* o) {
 void cache_specials(struct object_heap* heap) {
 
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);
- heap->cached.true = (struct Object*) get_special(heap, SPECIAL_OOP_TRUE);
- heap->cached.false = (struct Object*) get_special(heap, SPECIAL_OOP_FALSE);
+ heap->cached.true_object = (struct Object*) get_special(heap, SPECIAL_OOP_TRUE);
+ heap->cached.false_object = (struct Object*) get_special(heap, SPECIAL_OOP_FALSE);
  heap->cached.nil = (struct Object*) get_special(heap, SPECIAL_OOP_NIL);
  heap->cached.primitive_method_window = (struct Object*) get_special(heap, SPECIAL_OOP_PRIMITIVE_METHOD_WINDOW);
  heap->cached.compiled_method_window = (struct Object*) get_special(heap, SPECIAL_OOP_COMPILED_METHOD_WINDOW);
@@ -873,7 +873,7 @@ void print_detail(struct object_heap* oh, struct Object* o) {
   print_object_with_depth(oh, o, 1, 5);
 }
 
-bool print_printname(struct object_heap* oh, struct Object* o) {
+bool_t print_printname(struct object_heap* oh, struct Object* o) {
 
   word_t i;
   struct Map* map = o->map;
@@ -982,7 +982,7 @@ void print_backtrace(struct object_heap* oh) {
     struct Object** vars;
     word_t input_count = object_to_smallint(closure->method->inputVariables);
     word_t local_count = object_to_smallint(closure->method->localVariables);
-    vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
+    vars = (closure->method->heapAllocate == oh->cached.true_object)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
     printf("fp: %ld\n", fp);
     printf("sp: %ld\n", sp);
@@ -990,7 +990,7 @@ void print_backtrace(struct object_heap* oh) {
     printf("result: %ld\n", resultStackPointer);
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
     printf("regs: %ld\n", object_to_smallint(closure->method->registerCount));
-    printf("heap alloc: %s\n", (closure->method->heapAllocate == oh->cached.true)? "true" : "false");
+    printf("heap alloc: %s\n", (closure->method->heapAllocate == oh->cached.true_object)? "true" : "false");
 
     for (j = 0; j < input_count; j++) {
       printf("arg[%ld] (%p) = ", j, (void*)vars[j]);
@@ -1000,7 +1000,7 @@ void print_backtrace(struct object_heap* oh) {
         print_detail(oh, vars[j]);
       }
     }
-    if (closure->method->heapAllocate == oh->cached.true) {
+    if (closure->method->heapAllocate == oh->cached.true_object) {
       for (j = 0; j < local_count; j++) {
         printf("var[%ld] (%p)= ", j, (void*)lc->variables[j]);
         if (depth > detail_depth) {
@@ -1103,7 +1103,7 @@ int writeMemory (struct object_heap* oh, int memory, int memStart, int n, char* 
   area = oh->memory_areas [memory];
   nDelimited = oh->memory_sizes [memory] - memStart;
   if (nDelimited > n)
-    nDelimited = n; // We're just taking the max of N and the amount left.
+    nDelimited = n; /* We're just taking the max of N and the amount left.*/
   if (nDelimited > 0)
     memcpy (bytes, area, nDelimited);
   return nDelimited;
@@ -1118,7 +1118,7 @@ int readMemory (struct object_heap* oh, int memory, int memStart, int n, char* b
   area = oh->memory_areas [memory];
   nDelimited = oh->memory_sizes [memory] - memStart;
   if (nDelimited > n)
-    nDelimited = n; // We're just taking the max of N and the amount left.
+    nDelimited = n; /* We're just taking the max of N and the amount left.*/
   if (nDelimited > 0)
     memcpy (area, bytes, nDelimited);
   return nDelimited;
@@ -1178,7 +1178,7 @@ static char *safe_string(struct ByteArray *s, char const *suffix) {
   return result;
 }
 
-bool openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle)
+bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle)
 {
   char *fullname;
   void *h;
@@ -1205,7 +1205,7 @@ bool openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, stru
   }
 }
 
-bool closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
+bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
   void *h;
 
   assert(byte_array_size(handle) >= sizeof(h));
@@ -1214,7 +1214,7 @@ bool closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
   return (dlclose(h) == 0) ? TRUE : FALSE;
 }
 
-bool lookupExternalLibraryPrimitive(struct object_heap* oh, 
+bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, 
                                     struct ByteArray *handle,
 				   struct ByteArray *symname,
 				   struct ByteArray *ptr)
@@ -1299,7 +1299,7 @@ word_t extractCString (struct ByteArray * array, byte_t* buffer, word_t bufferSi
   return arrayLength;
 }
 
-bool valid_handle(struct object_heap* oh, word_t file) {
+bool_t valid_handle(struct object_heap* oh, word_t file) {
   return (0 <= file && file < oh->file_index_size && oh->file_index[file] != NULL);
 }
 
@@ -1347,11 +1347,11 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags)
   if (file < 0)
     return SLATE_ERROR_RETURN;
 
-  // (CLEAR \/ CREATE) /\ !WRITE
+  /* (CLEAR \/ CREATE) /\ !WRITE */
   if ((flags & SF_CLEAR || flags & SF_CREATE) && (! (flags & SF_WRITE)))
     error("ANSI does not support clearing or creating files that are not opened for writing");
 
-  // WRITE /\ !READ
+  /* WRITE /\ !READ */
   if (flags & SF_WRITE && (! (flags & SF_READ)))
     error("ANSI does not support opening files for writing only");
 
@@ -1413,7 +1413,7 @@ word_t tellFile(struct object_heap* oh, word_t file)
   return (valid_handle(oh, file) ?  ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
 }
 
-bool endOfFile(struct object_heap* oh, word_t file)
+bool_t endOfFile(struct object_heap* oh, word_t file)
 {
   word_t c;
   if (!(valid_handle(oh, file)))
@@ -1462,17 +1462,17 @@ void heap_full_gc(struct object_heap* oh);
 
 
 
-bool object_is_old(struct object_heap* oh, struct Object* oop) {
+bool_t object_is_old(struct object_heap* oh, struct Object* oop) {
   return (oh->memoryOld <= (byte_t*)oop && (word_t)oh->memoryOld + oh->memoryOldSize > (word_t)oop);
 
 }
 
-bool object_is_young(struct object_heap* oh, struct Object* obj) {
+bool_t object_is_young(struct object_heap* oh, struct Object* obj) {
   return (oh->memoryYoung <= (byte_t*)obj && (byte_t*)oh->memoryYoung + oh->memoryYoungSize > (byte_t*)obj);
   
 }
 
-bool object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
+bool_t object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
   return (memory <= (byte_t*)oop && (byte_t*)memory + memorySize > (byte_t*)oop);
 
 }
@@ -1484,12 +1484,12 @@ struct Object* object_after(struct object_heap* heap, struct Object* o) {
   return (struct Object*)inc_ptr(o, object_total_size(o));
 }
 
-bool object_is_marked(struct object_heap* heap, struct Object* o) {
+bool_t object_is_marked(struct object_heap* heap, struct Object* o) {
 
   return (object_markbit(o) == heap->mark_color);
 }
 
-bool object_is_free(struct Object* o) {
+bool_t object_is_free(struct Object* o) {
 
   return (object_hash(o) >= ID_HASH_RESERVED);
 }
@@ -1550,7 +1550,7 @@ struct Object* heap_make_used_space(struct object_heap* oh, struct Object* obj, 
 }
 
 
-bool heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
+bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
   void* oldStart = (void*)0x10000000;
   void* youngStart = (void*)0x80000000;
   oh->memoryOldLimit = limit;
@@ -1602,7 +1602,7 @@ void gc_close(struct object_heap* oh) {
   munmap(oh->memoryYoung, oh->memoryYoungLimit);
 
 }
-bool object_is_pinned(struct object_heap* oh, struct Object* x) {
+bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
   if (object_is_young(oh, x)) {
     word_t diff = (byte_t*) x - oh->memoryYoung;
     return (oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
@@ -1683,7 +1683,7 @@ struct Object* gc_allocate_old(struct object_heap* oh, word_t bytes) {
 
 
 struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
-  bool already_scavenged = 0, already_full_gc = 0;
+  bool_t already_scavenged = 0, already_full_gc = 0;
   struct Object* next;
   word_t oldsize;
   word_t words = bytes / sizeof(word_t);
@@ -1824,7 +1824,7 @@ void heap_mark(struct object_heap* oh, struct Object* obj) {
 }
 
 
-void heap_mark_specials(struct object_heap* oh, bool mark_old) {
+void heap_mark_specials(struct object_heap* oh, bool_t mark_old) {
   word_t i;
   for (i = 0; i < array_size(oh->special_objects_oop); i++) {
     struct Object* obj = oh->special_objects_oop->elements[i];
@@ -1835,7 +1835,7 @@ void heap_mark_specials(struct object_heap* oh, bool mark_old) {
 
 }
 
-void heap_mark_fixed(struct object_heap* oh, bool mark_old) {
+void heap_mark_fixed(struct object_heap* oh, bool_t mark_old) {
   word_t i;
   for (i = 0; i < MAX_FIXEDS; i++) {
     if (oh->fixedObjects[i] != NULL) {
@@ -1847,7 +1847,7 @@ void heap_mark_fixed(struct object_heap* oh, bool mark_old) {
   }
 }
 
-void heap_mark_interpreter_stack(struct object_heap* oh, bool mark_old) {
+void heap_mark_interpreter_stack(struct object_heap* oh, bool_t mark_old) {
   word_t i;
   for (i = 0; i < oh->cached.interpreter->stackPointer; i++) {
     struct Object* obj = oh->cached.interpreter->stack->elements[i];
@@ -1873,7 +1873,7 @@ void heap_mark_fields(struct object_heap* oh, struct Object* o) {
 
 }
 
-void heap_mark_recursively(struct object_heap* oh, bool mark_old) {
+void heap_mark_recursively(struct object_heap* oh, bool_t mark_old) {
 
   while (oh->markStackPosition > 0) {
     struct Object* obj;
@@ -3220,9 +3220,9 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
         args[outArgIndex++] = extractBigInteger((struct ByteArray*) element);
       break;
     case ARG_FORMAT_BOOLEAN:
-      if (element == oh->cached.true) {
+      if (element == oh->cached.true_object) {
         args[outArgIndex++] = TRUE;
-      } else if (element == oh->cached.false) {
+      } else if (element == oh->cached.false_object) {
         args[outArgIndex++] = FALSE;
       } else {
         /*fix assert(0)?*/
@@ -3287,7 +3287,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
         word_t length = payload_size(element) / sizeof(word_t);
         word_t *source = (word_t *) object_array_elements(element);
         int i;
-        //make sure we have enough space
+        /* make sure we have enough space */
         if (argCount - arg + length > MAX_ARG_COUNT)
           return oh->cached.nil;
         for(i = 0; i < length; ++i)
@@ -3421,9 +3421,9 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
       return injectBigInteger(oh, (word_t)result);
   case ARG_FORMAT_BOOLEAN:
     if (result)
-      return oh->cached.true;
+      return oh->cached.true_object;
     else
-      return oh->cached.false;
+      return oh->cached.false_object;
   case ARG_FORMAT_POINTER:
     if (result == 0)
       return oh->cached.nil;
@@ -3458,7 +3458,7 @@ void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
   printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
 #endif
   method->code = method->oldCode;
-  method->isInlined = oh->cached.false;
+  method->isInlined = oh->cached.false_object;
   method->calleeCount = (struct OopArray*)oh->cached.nil;
   method->callCount = smallint_to_object(0);
 
@@ -3500,7 +3500,7 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 #endif
 
   method->oldCode = method->code;
-  method->isInlined = oh->cached.true;
+  method->isInlined = oh->cached.true_object;
   method_add_optimized(oh, method);
   
 }
@@ -3719,7 +3719,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
 
 
 
-bool interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value) {
+bool_t interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value) {
 
   struct OopArray* optKeys = i->method->optionalKeywords;
 
@@ -3727,7 +3727,7 @@ bool interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interp
 
   for (optKey = 0; optKey < size; optKey++) {
     if (optKeys->elements[optKey] == key) {
-      if (i->method->heapAllocate == oh->cached.true) {
+      if (i->method->heapAllocate == oh->cached.true_object) {
         heap_store_into(oh, (struct Object*)i->lexicalContext, value);
         i->lexicalContext->variables[object_to_smallint(i->method->inputVariables) + optKey] = value;
       } else {
@@ -3780,12 +3780,12 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
   /* optimize the callee function after a set number of calls*/
-  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false) {
+  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
     method_optimize(oh, method);
   }
 
   
-  if (n < inputs || (n > inputs && method->restVariable != oh->cached.true)) {
+  if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
     struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*) args, n, (word_t*)argsArray->elements);
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL, resultStackPointer);
@@ -3796,7 +3796,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   /* we save this so each function call doesn't leak the stack */
   beforeCallStackPointer = i->stackPointer;
 
-  if (method->heapAllocate == oh->cached.true) {
+  if (method->heapAllocate == oh->cached.true_object) {
     lexicalContext = (struct LexicalContext*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_LEXICAL_CONTEXT_PROTO), object_to_smallint(method->localVariables));
     lexicalContext->framePointer = smallint_to_object(framePointer);
     interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE + object_to_smallint(method->registerCount));
@@ -3857,7 +3857,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     vars[inputs+array_size(method->optionalKeywords)] = (struct Object*) restArgs;
     heap_store_into(oh, (struct Object*)lexicalContext, (struct Object*)restArgs);/*fix, not always right*/
   } else {
-    if (method->restVariable == oh->cached.true) {
+    if (method->restVariable == oh->cached.true_object) {
       vars[inputs+array_size(method->optionalKeywords)] = get_special(oh, SPECIAL_OOP_ARRAY_PROTO);
     }
   }
@@ -3936,9 +3936,9 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   if (endOfFile(oh, handle)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 }
 
@@ -4018,9 +4018,9 @@ void prim_loadLibrary(struct object_heap* oh, struct Object* args[], word_t arit
   struct Object *libname=args[1], *handle = args[2];
 
   if (openExternalLibrary(oh, (struct ByteArray*)libname, (struct ByteArray*)handle)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 
 }
@@ -4029,9 +4029,9 @@ void prim_closeLibrary(struct object_heap* oh, struct Object* args[], word_t ari
   struct Object *handle=args[1];
 
   if (closeExternalLibrary(oh, (struct ByteArray*) handle)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 
 }
@@ -4042,9 +4042,9 @@ void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t ar
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
 
   if (lookupExternalLibraryPrimitive(oh, (struct ByteArray*) handle, (struct ByteArray *) symname, addressBuffer)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 
 }
@@ -4298,7 +4298,7 @@ void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct O
 }
 
 void prim_isIdenticalTo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0]==args[1])? oh->cached.true : oh->cached.false;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0]==args[1])? oh->cached.true_object : oh->cached.false_object;
 }
 
 void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
@@ -4389,12 +4389,12 @@ void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t
 
 
 void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0] == args[1])?oh->cached.true:oh->cached.false;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0] == args[1])?oh->cached.true_object:oh->cached.false_object;
 }
 
 void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = 
-    (object_to_smallint(args[0])<object_to_smallint(args[1]))?oh->cached.true:oh->cached.false;
+    (object_to_smallint(args[0])<object_to_smallint(args[1]))?oh->cached.true_object:oh->cached.false_object;
 }
 
 
@@ -4488,18 +4488,18 @@ void prim_setcwd(struct object_heap* oh, struct Object* args[], word_t n, struct
 void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   if (*float_part(x) == *float_part(y)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 }
 
 void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   if (*float_part(x) < *float_part(y)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   }
 }
 
@@ -5085,7 +5085,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, st
 
   /*push true so if it resumes from the save image, it will do init code*/
   /*fixme*/
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 
   if (nameLength >= sizeof(nameString)) {
     /*interpreter_stack_pop(oh, oh->cached.interpreter);*/
@@ -5129,7 +5129,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, st
   free(forwardPointers);
   free(memoryStart);
 
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
   /*
   interpreter_stack_pop(oh, oh->cached.interpreter);
   interpreter_push_false(oh, oh->cached.interpreter);
@@ -5162,7 +5162,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
 
 
 
-bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result, word_t prevCodePointer) {
+bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result, word_t prevCodePointer) {
   /* Implements a non-local return with a value, specifying the block
    * to return from via lexical offset. Returns a success Boolean. The
    * prevCodePointer is the location of the return instruction that
@@ -5290,7 +5290,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
 
   barrier = i->stack->elements[framePointer-3];
   resender = ((struct Closure*) barrier)->method;
-  args = (resender->heapAllocate == oh->cached.true)? lexicalContext->variables : &i->stack->elements[framePointer];
+  args = (resender->heapAllocate == oh->cached.true_object)? lexicalContext->variables : &i->stack->elements[framePointer];
 
 
   selector = resender->selector;
@@ -5654,7 +5654,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_OPCODES
           printf("load var %ld\n", var);
 #endif
-          if (i->method->heapAllocate == oh->cached.true) {
+          if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->lexicalContext);
 #ifdef PRINT_DEBUG_STACK
             printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
@@ -5676,7 +5676,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_OPCODES
           printf("store var %ld\n", var);
 #endif
-          if (i->method->heapAllocate == oh->cached.true) {
+          if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->lexicalContext, (struct Object*)i->stack);
             i->lexicalContext->variables[var] = SSA_REGISTER(var);
           }
@@ -5756,7 +5756,7 @@ void interpret(struct object_heap* oh) {
 #endif
           ASSERT_VALID_REGISTER(resultReg);
           
-          SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true : oh->cached.false;
+          SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true_object : oh->cached.false_object;
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
 #endif
@@ -5787,10 +5787,10 @@ void interpret(struct object_heap* oh) {
           printf("branch if true: %ld, offset: %ld, val: ", condReg, offset);
           print_type(oh, val);
 #endif
-          if (val == oh->cached.true) {
+          if (val == oh->cached.true_object) {
             i->codePointer = i->codePointer + offset;
           } else {
-            if (val != oh->cached.false) {
+            if (val != oh->cached.false_object) {
               i->codePointer = i->codePointer - 3;
               interpreter_signal_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_A_BOOLEAN), val, NULL, condReg /*fixme*/);
             }
@@ -5810,10 +5810,10 @@ void interpret(struct object_heap* oh) {
           printf("branch if false: %ld, offset: %ld, val: ", condReg, offset);
           print_type(oh, val);
 #endif
-          if (val == oh->cached.false) {
+          if (val == oh->cached.false_object) {
             i->codePointer = i->codePointer + offset;
           } else {
-            if (val != oh->cached.true) {
+            if (val != oh->cached.true_object) {
               i->codePointer = i->codePointer - 3;
               interpreter_signal_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_A_BOOLEAN), val, NULL, condReg /*fixme*/);
             }

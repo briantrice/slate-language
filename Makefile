@@ -12,7 +12,7 @@ PRINT_DEBUG=$(PRINT_DEBUG_1)
 LIBRARIES_=-lefence -lm -ldl
 LIBRARIES=-lm -ldl
 #LIBRARIES=
-CFLAGS=-std=c99 -Wall -pedantic-errors -pthread $(PRINT_DEBUG)  $(INCLUDES)
+CFLAGS=-std=c99 -Wall -pedantic -pthread $(PRINT_DEBUG)  $(INCLUDES)
 DEBUGFLAGS= -g  
 OBJECTS=
 
