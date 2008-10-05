@@ -287,6 +287,13 @@ struct object_heap
   word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
   void* stackBottom;
 
+  /*
+   * I call this cached because originally these could move around
+   * memory, but now the old objects memory block doesn't move any of
+   * its objects around.  The old GC did compaction. The new GC only
+   * compacts YoungSpace.
+   */
+
   struct {
     struct Interpreter* interpreter;
     struct Object* true;
@@ -974,9 +981,7 @@ void print_backtrace(struct object_heap* oh) {
     word_t j;
     struct Object** vars;
     word_t input_count = object_to_smallint(closure->method->inputVariables);
-#if 0
     word_t local_count = object_to_smallint(closure->method->localVariables);
-#endif
     vars = (closure->method->heapAllocate == oh->cached.true)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
     printf("fp: %ld\n", fp);
@@ -995,7 +1000,6 @@ void print_backtrace(struct object_heap* oh) {
         print_detail(oh, vars[j]);
       }
     }
-#if 0
     if (closure->method->heapAllocate == oh->cached.true) {
       for (j = 0; j < local_count; j++) {
         printf("var[%ld] (%p)= ", j, (void*)lc->variables[j]);
@@ -1015,7 +1019,7 @@ void print_backtrace(struct object_heap* oh) {
         }
       }
     }
-#endif
+
 
     /*order matters here*/
     codePointer = object_to_smallint(i->stack->elements[fp-4]);
@@ -3753,7 +3757,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
                                                word_t resultStackPointer) {
 
 
-  word_t inputs, framePointer, j;
+  word_t inputs, framePointer, j, beforeCallStackPointer;
   struct Object** vars;
   struct LexicalContext* lexicalContext;
   struct CompiledMethod* method;
@@ -3789,6 +3793,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   }
 
   framePointer = i->stackPointer + FUNCTION_FRAME_SIZE;
+  /* we save this so each function call doesn't leak the stack */
+  beforeCallStackPointer = i->stackPointer;
 
   if (method->heapAllocate == oh->cached.true) {
     lexicalContext = (struct LexicalContext*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_LEXICAL_CONTEXT_PROTO), object_to_smallint(method->localVariables));
@@ -3810,7 +3816,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
   copy_words_into((word_t*) args, inputs, (word_t*) vars);
-  i->stack->elements[framePointer - 6] = smallint_to_object(i->stackPointer);
+  i->stack->elements[framePointer - 6] = smallint_to_object(beforeCallStackPointer);
   i->stack->elements[framePointer - 5] = smallint_to_object(resultStackPointer);
   i->stack->elements[framePointer - 4] = smallint_to_object(i->codePointer);
   i->stack->elements[framePointer - 3] = (struct Object*) closure;
@@ -4669,7 +4675,9 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
    
   if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
     struct Closure* closure = (struct Closure*)heap_clone(oh, method);
+    heap_fixed_add(oh, (struct Object*)closure);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
+    heap_fixed_remove(oh, (struct Object*)closure);
     heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
     closure->method->method = closure->method;
     closure->method->selector = selector;
@@ -4915,7 +4923,9 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
   
   if (traitsWindow == oh->cached.closure_method_window) {
     struct Closure* closure = (struct Closure*)heap_clone(oh, method);
+    heap_fixed_add(oh, (struct Object*)closure);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
+    heap_fixed_remove(oh, (struct Object*)closure);
     heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
     closure->method->method = closure->method;
     closure->method->selector = selector;
@@ -5439,6 +5449,8 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
 #define REG_STACK_POINTER(X)            (i->framePointer + (X))
 #define SSA_NEXT_PARAM_SMALLINT         ((word_t)i->method->code->elements[i->codePointer++]>>1)
 #define SSA_NEXT_PARAM_OBJECT           (i->method->code->elements[i->codePointer++])
+#define ASSERT_VALID_REGISTER(X)        (assert((X) < (word_t)i->method->registerCount>>1))
+
 
 void interpret(struct object_heap* oh) {
 
@@ -5564,6 +5576,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
     printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
 #endif
+          ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) array;
           break;
         }
@@ -5595,6 +5608,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
     printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
 #endif
+          ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) newClosure;
           break;
         }
@@ -5612,6 +5626,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
     printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
 #endif
+          ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = literal;
           break;
         }
@@ -5638,6 +5653,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
             printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
 #endif
+            ASSERT_VALID_REGISTER(var);
             SSA_REGISTER(var) = i->lexicalContext->variables[var];
           }
 #ifdef PRINT_DEBUG_OPCODES
@@ -5678,6 +5694,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
 #endif
+          ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = i->closure->lexicalWindow[lexOffset-1]->variables[varIndex];
 
 #ifdef PRINT_DEBUG_OPCODES
@@ -5717,6 +5734,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
 #endif
+          ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = SSA_REGISTER(srcReg);
           break;
         }
@@ -5730,6 +5748,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_OPCODES
           printf("is identical %ld, %ld\n", destReg, srcReg);
 #endif
+          ASSERT_VALID_REGISTER(resultReg);
           
           SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true : oh->cached.false;
 #ifdef PRINT_DEBUG_STACK
@@ -5816,6 +5835,7 @@ void interpret(struct object_heap* oh) {
           print_type(oh, i->method->environment);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->method->environment);
+          ASSERT_VALID_REGISTER(next_param);
           SSA_REGISTER(next_param) = i->method->environment;
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
@@ -5833,6 +5853,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: ", instruction_counter);
 #endif
+          ASSERT_VALID_REGISTER(reg);
           interpreter_return_result(oh, i, 0, SSA_REGISTER(reg));
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
@@ -5866,6 +5887,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: ", instruction_counter);
 #endif
+          ASSERT_VALID_REGISTER(reg);
           interpreter_return_result(oh, i, offset, SSA_REGISTER(reg));
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
