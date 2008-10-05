@@ -5162,9 +5162,13 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
 
 
 
-bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result) {
-  /* Implements a non-local return with a value, specifying the block to return
-     from via lexical offset. Returns a success Boolean. */
+bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result, word_t prevCodePointer) {
+  /* Implements a non-local return with a value, specifying the block
+   * to return from via lexical offset. Returns a success Boolean. The
+   * prevCodePointer is the location of the return instruction that
+   * returned. In the case that we have an ensure handler to run, we
+   * will use that code pointer so the return is executed again.
+   */
   word_t framePointer;
   word_t ensureHandlers;
   word_t resultStackPointer;
@@ -5192,7 +5196,8 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
 
   resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
 
-  /*store the result before we get interrupted for a possible finalizer*/
+  /*store the result before we get interrupted for a possible finalizer... fixme i'm not sure
+   if this is right*/
   if (result != NULL) {
 #ifdef PRINT_DEBUG_STACK
     printf("setting stack[%ld] = ", resultStackPointer); print_object(result);
@@ -5216,7 +5221,7 @@ bool interpreter_return_result(struct object_heap* oh, struct Interpreter* i, wo
 
     interpreter_stack_push(oh, i, smallint_to_object(i->stackPointer));
     interpreter_stack_push(oh, i, smallint_to_object(resultStackPointer));
-    interpreter_stack_push(oh, i, smallint_to_object(i->codePointer));
+    interpreter_stack_push(oh, i, smallint_to_object(prevCodePointer));
     interpreter_stack_push(oh, i, get_special(oh, SPECIAL_OOP_ENSURE_MARKER));
     interpreter_stack_push(oh, i, oh->cached.nil);
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
@@ -5479,8 +5484,8 @@ void interpret(struct object_heap* oh) {
     interpreter_stack_allocate(oh, oh->cached.interpreter, object_to_smallint(oh->cached.interpreter->method->registerCount));
   }
 
-  do {
-    word_t op;
+  for (;;) {
+    word_t op, prevPointer;
     struct Interpreter* i = oh->cached.interpreter; /*it won't move while we are in here */
 
     /*while (oh->cached.interpreter->codePointer < oh->cached.interpreter->codeSize) {*/
@@ -5492,6 +5497,7 @@ void interpret(struct object_heap* oh) {
       }
       
       instruction_counter++;
+      prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
 #ifdef PRINT_DEBUG_CODE_POINTER
       printf("(%ld/%ld) %ld ", i->codePointer, i->codeSize, op>>1);
@@ -5854,7 +5860,7 @@ void interpret(struct object_heap* oh) {
           printf("%lu: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, 0, SSA_REGISTER(reg));
+          interpreter_return_result(oh, i, 0, SSA_REGISTER(reg), prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -5866,8 +5872,8 @@ void interpret(struct object_heap* oh) {
           PRINTOP("op: resume\n");
           /*one for the resume and one for the function that we
             interrupted the return from to run the finalizer*/
-          interpreter_return_result(oh, i, 0, NULL);
-          interpreter_return_result(oh, i, 0, NULL);
+          /*interpreter_return_result(oh, i, 0, NULL);*/
+          interpreter_return_result(oh, i, 0, NULL, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -5888,7 +5894,7 @@ void interpret(struct object_heap* oh) {
           printf("%lu: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, offset, SSA_REGISTER(reg));
+          interpreter_return_result(oh, i, offset, SSA_REGISTER(reg), prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -5903,7 +5909,7 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_STACK
           printf("%lu: ", instruction_counter);
 #endif
-          interpreter_return_result(oh, i, 0, obj);
+          interpreter_return_result(oh, i, 0, obj, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -5934,7 +5940,7 @@ void interpret(struct object_heap* oh) {
       
 
     }
-  } while (interpreter_return_result(oh, oh->cached.interpreter, 0, NULL));
+  }/* while (interpreter_return_result(oh, oh->cached.interpreter, 0, NULL, prevPointer));*/
 
 
 

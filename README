@@ -36,3 +36,57 @@ See the slate backtrace -> print print_backtrace(oh)
 Inspect an object       -> print print_detail(oh, struct Object*)
 See the stack           -> print print_stack_types(oh, 200)
 
+
+Compiler
+--------
+
+A simple example:
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ 1 + 1
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: genCode
+] applyWith: VM SSACompiler new.
+
+
+
+Inside a function definition:
+
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ block@(Method traits) on: c@(Condition traits) do: handler
+[| context |
+  context: (c cloneSettingSlots: #(handlers exitContinuation)
+	      to: {{handler}. [| :result | ^ result]}).
+  conditionStack push: context.
+  block ensure: [conditionStack pop]
+].
+
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: genCode third code
+] applyWith: VM SSACompiler new.
+
+
+Inside the closure:
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ block@(Method traits) on: c@(Condition traits) do: handler
+[| context |
+  context: (c cloneSettingSlots: #(handlers exitContinuation)
+	      to: {{handler}. [| :result | ^ result]}).
+  conditionStack push: context.
+  block ensure: [conditionStack pop]
+].
+
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: (genCode third code at: 13) code
+] applyWith: VM SSACompiler new.

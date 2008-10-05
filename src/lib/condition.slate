@@ -76,8 +76,6 @@ signaled within the block."
 ].
 
 c@(Condition traits) tryHandlers
-"Tries all of the active handlers, beginning with the most-
-recently established."
 [| delegates |
    c returnContinuation: [| :result | ^ result].
    delegates: c allDelegates.
@@ -94,6 +92,24 @@ recently established."
              context handlers do: [| :handler | handler applyWith: c]]].
    c defaultHandler 
 ].
+
+
+"
+c@(Condition traits) tryHandlers
+[| delegates |
+   c returnContinuation: [| :result | ^ result].
+   delegates: c allDelegates.
+   conditionStack
+     reverseDoWithIndex:
+       [| :context :index |
+        (delegates includes: context traits)
+	  ifTrue:
+            [c exitContinuation: context exitContinuation.
+             contextshit
+             context handlers do: [| :handler | handler applyWith: c]]].
+   c defaultHandler 
+].
+"
 
 c@(Condition traits) return: result
 [
