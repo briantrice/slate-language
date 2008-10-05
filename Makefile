@@ -24,8 +24,8 @@ backup: superclean
 plugins:
 	make -C src/plugins
 
-vm: vm.c $(OBJECTS)
-	gcc $(DEBUGFLAGS) $(CFLAGS) $(LIBRARIES) -o vm vm.c $(OBJECTS)
+vm.debug: vm.c $(OBJECTS)
+	gcc $(DEBUGFLAGS) $(CFLAGS) $(LIBRARIES) -o vm.debug vm.c $(OBJECTS)
 
 #fix needs pg on every arg
 vm.prof: vm.c $(OBJECTS)
@@ -33,8 +33,8 @@ vm.prof: vm.c $(OBJECTS)
 
 
 #fix cflags
-vm.fast: vm.c $(OBJECTS)
-	gcc $(CFLAGS) $(LIBRARIES) -O2 -o vm.fast vm.c $(OBJECTS)
+vm: vm.c $(OBJECTS)
+	gcc $(CFLAGS) $(LIBRARIES) -O2 -o vm vm.c $(OBJECTS)
 
 
 superclean: clean

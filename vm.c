@@ -473,26 +473,41 @@ void error(char* str) {
 
 void fill_bytes_with(byte_t* dst, word_t n, byte_t value)
 {
+#ifdef SLATE_NO_MEM_PRIMS
   while (n > 0)
   {
     *dst = value;
     dst++;
     n--;
   }
+#else
+  memset(dst, value, n);
+#endif
 }
 
 void fill_words_with(word_t* dst, word_t n, word_t value)
 {
+#ifdef SLATE_NO_MEM_PRIMS
   while (n > 0)
   {
     *dst = value;
     dst++;
     n--;
   }
+#else
+  /*fixme*/
+  while (n > 0)
+  {
+    *dst = value;
+    dst++;
+    n--;
+  }
+#endif
 }
 
 void copy_words_into(word_t * src, word_t n, word_t * dst)
 {
+#ifdef SLATE_NO_MEM_PRIMS
   if ((src < dst) && ((src + n) > dst))
   {
     dst = dst + n;
@@ -517,10 +532,14 @@ void copy_words_into(word_t * src, word_t n, word_t * dst)
       src = src + 1;
       n = n - 1;
     }
+#else
+  memcpy(dst, src, n*sizeof(word_t));
+#endif
 }
 
 void copy_bytes_into(byte_t * src, word_t n, byte_t * dst)
 {
+#ifdef SLATE_NO_MEM_PRIMS
   if ((src < dst) && ((src + n) > dst))
   {
     dst = dst + n;
@@ -545,6 +564,9 @@ void copy_bytes_into(byte_t * src, word_t n, byte_t * dst)
       src = src + 1;
       n = n - 1;
     }
+#else
+  memcpy(dst, src, n);
+#endif
 }
 
 
