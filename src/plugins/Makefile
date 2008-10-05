@@ -1,4 +1,4 @@
-CFLAGS=-fPIC -I/usr/include/cairo -I/usr/include/SDL -std=c99 -Wall -pedantic-errors
+CFLAGS=-fPIC -I/usr/include/cairo -I/usr/include/SDL -std=c99 -Wall -pedantic
 DLLEXT=.so
 LIBS=time.so socket.so posix.so slate-cairo.so sdl-windows.so
 NONPOSIX=pipe.so

@@ -1551,17 +1551,24 @@ struct Object* heap_make_used_space(struct object_heap* oh, struct Object* obj, 
 
 
 bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
+#ifdef SLATE_USE_MMAP
   void* oldStart = (void*)0x10000000;
   void* youngStart = (void*)0x80000000;
+#endif
   oh->memoryOldLimit = limit;
   oh->memoryYoungLimit = young_limit;
 
   oh->memoryOldSize = size;
   oh->memoryYoungSize = young_limit;
 
+#ifdef SLATE_USE_MMAP
   assert((byte_t*)oldStart + limit < (byte_t*) youngStart);
   oh->memoryOld = (byte_t*)mmap((void*)oldStart, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
   oh->memoryYoung = (byte_t*)mmap((void*)youngStart, young_limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
+#else
+  oh->memoryOld = (byte_t*)malloc(limit);
+  oh->memoryYoung = (byte_t*)malloc(young_limit);
+#endif
   oh->pinnedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
 
   /*perror("err: ");*/
