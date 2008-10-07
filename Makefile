@@ -13,7 +13,8 @@ LIBRARIES_=-lefence -lm -ldl
 LIBRARIES=-lm -ldl
 #LIBRARIES=
 CFLAGS=-std=c99 -Wall -pedantic -pthread $(PRINT_DEBUG)  $(INCLUDES)
-DEBUGFLAGS= -g  
+#DEBUGFLAGS= -g  -DGC_BUG_CHECK
+DEBUGFLAGS= -g 
 OBJECTS=
 
 all: vm

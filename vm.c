@@ -35,6 +35,9 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <unistd.h>
 #include <dlfcn.h>
 
+#include <sys/time.h>
+#include <time.h>
+
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
 typedef word_t bool_t;
@@ -259,8 +262,11 @@ struct object_heap
   bool_t interrupt_flag;
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
+
+  /* contains all the file handles */
   FILE** file_index;
   word_t file_index_size;
+
   struct Object *nextFree;
   struct Object *nextOldFree;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
@@ -271,7 +277,7 @@ struct object_heap
   word_t optimizedMethodsSize;
   word_t optimizedMethodsLimit;
 
-
+  /* memory areas for the primitive memory functions */
   void* memory_areas [SLATE_MEMS_MAXIMUM];
   int memory_sizes [SLATE_MEMS_MAXIMUM];
   int memory_num_refs [SLATE_MEMS_MAXIMUM];
@@ -285,6 +291,7 @@ struct object_heap
   size_t markStackPosition;
 
   word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
+  word_t* rememberedYoungObjects; /* old gen -> new gen pointers for incremental GC */
   void* stackBottom;
 
   /*
@@ -804,6 +811,10 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
 
   map = o->map;
   print_object(o);
+  if (object_hash(o) >= ID_HASH_RESERVED) {
+    indent(depth); printf("<object is free/reserved>\n");
+    return;
+  }
 
   indent(depth); printf("{\n");
 
@@ -1592,6 +1603,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
   oh->pinnedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+  oh->rememberedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
 
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
@@ -1640,6 +1652,14 @@ bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
   
 }
 
+bool_t object_is_remembered(struct object_heap* oh, struct Object* x) {
+  if (object_is_young(oh, x)) {
+    word_t diff = (byte_t*) x - oh->memoryYoung;
+    return (oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
+  }
+  return 0;
+  
+}
 
 struct Object* heap_find_first_young_free(struct object_heap* oh, struct Object* obj, word_t bytes) {
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
@@ -1737,6 +1757,7 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
     } else {
       heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
       print_backtrace(oh);
+      printf("Couldn't allocate %ld bytes\n", bytes + sizeof(struct Object));
       assert(0);
     }
     oh->nextFree = (struct Object*)oh->memoryYoung;
@@ -1773,7 +1794,7 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
 
 
 
-word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize) {
+word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize, bool_t print) {
   struct Object* obj = (struct Object*) memory;
   word_t count = 0;
   while (object_in_memory(oh, obj, memory, memorySize)) {
@@ -1783,8 +1804,8 @@ word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* 
     for (; offset != limit; offset += sizeof(word_t)) {
       struct Object* val = object_slot_value_at_offset(obj, offset);
       if (val == x) {
-        if (!object_is_free(x)) count++;
-        print_object(obj);
+        if (!object_is_free(obj)) count++;
+        if (print) print_object(obj);
         break;
       }
     }
@@ -1794,9 +1815,9 @@ word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* 
 
 }
 
-word_t heap_what_points_to(struct object_heap* oh, struct Object* x) {
+word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t print) {
   
-  return heap_what_points_to_in(oh, x, oh->memoryOld, oh->memoryOldSize) + heap_what_points_to_in(oh, x, oh->memoryYoung, oh->memoryYoungSize);
+  return heap_what_points_to_in(oh, x, oh->memoryOld, oh->memoryOldSize, print) + heap_what_points_to_in(oh, x, oh->memoryYoung, oh->memoryYoungSize, print);
 
 }
 
@@ -1811,9 +1832,20 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 
 void heap_finish_gc(struct object_heap* oh) {
   method_flush_cache(oh, NULL);
+  /*unpin the C stack*/
+  fill_bytes_with((byte_t*)oh->pinnedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
   /*  cache_specials(oh);*/
-  fill_words_with((word_t*)oh->pinnedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE, 0);
 }
+
+
+void heap_finish_full_gc(struct object_heap* oh) {
+  heap_finish_gc(oh);
+  /*we can forget the remembered set after doing a full GC*/
+  fill_bytes_with((byte_t*)oh->rememberedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
+}
+
+
+
 void heap_start_gc(struct object_heap* oh) {
   oh->mark_color ^= MARK_MASK;
   oh->markStackPosition = 0;
@@ -1828,6 +1860,17 @@ void heap_pin_young_object(struct object_heap* oh, struct Object* x) {
     printf("pinning "); print_object(x);
 #endif
     oh->pinnedYoungObjects[diff / PINNED_CARD_SIZE] |= 1 << (diff % PINNED_CARD_SIZE);
+  }
+  
+}
+
+void heap_remember_young_object(struct object_heap* oh, struct Object* x) {
+  if (object_is_young(oh, x) && !object_is_smallint(x)) {
+    word_t diff = (byte_t*) x - oh->memoryYoung;
+#if 0
+    printf("remembering "); print_object(x);
+#endif
+    oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] |= 1 << (diff % PINNED_CARD_SIZE);
   }
   
 }
@@ -2049,7 +2092,6 @@ void heap_tenure(struct object_heap* oh) {
   obj = (struct Object*) oh->memoryYoung;
   prev = obj;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
-
     /*coalesce free spaces*/
     if (object_is_free(obj) && object_is_free(prev) && obj != prev) {
       heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
@@ -2074,6 +2116,15 @@ void heap_mark_pinned_young(struct object_heap* oh) {
   }
 }
 
+void heap_mark_remembered_young(struct object_heap* oh) {
+  struct Object* obj = (struct Object*) oh->memoryYoung;
+  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+    if (object_hash(obj) < ID_HASH_RESERVED && object_is_remembered(oh, obj)) heap_mark(oh, obj);
+    obj = object_after(oh, obj);
+  }
+}
+
+
 void heap_sweep_young(struct object_heap* oh) {
   word_t young_count = 0, young_word_count = 0;
   
@@ -2082,6 +2133,9 @@ void heap_sweep_young(struct object_heap* oh) {
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /* the pinned objects are ones on the C stack or rememberedSet (from heap_store_into)*/
     if (object_is_free(obj) && !object_is_pinned(oh, obj)) {
+#ifdef GC_BUG_CHECK
+      assert(0 == heap_what_points_to_in(oh, obj, oh->memoryOld, oh->memoryOldSize, 0));
+#endif
       young_count++;
       young_word_count += object_word_size(obj);
       if (object_is_free(prev) && obj != prev) {
@@ -2115,6 +2169,16 @@ void heap_pin_c_stack(struct object_heap* oh) {
 }
 
 
+void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
+  struct Object* o = (struct Object*)memory;
+
+  while (object_in_memory(oh, o, memory, memorySize)) {
+    if (object_is_free(o)) {
+      assert(heap_what_points_to(oh, o, 0) == 0);
+    }
+    o = object_after(oh, o);
+  }
+}
 
 void heap_full_gc(struct object_heap* oh) {
   heap_start_gc(oh);
@@ -2128,7 +2192,12 @@ void heap_full_gc(struct object_heap* oh) {
   /*  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
   heap_tenure(oh);
-  heap_finish_gc(oh);
+#ifdef GC_BUG_CHECK
+  printf("GC integrity check...\n");
+  heap_integrity_check(oh, oh->memoryOld, oh->memoryOldSize);
+  heap_integrity_check(oh, oh->memoryYoung, oh->memoryYoungSize);
+#endif
+  heap_finish_full_gc(oh);
 }
 
 void heap_gc(struct object_heap* oh) {
@@ -2140,6 +2209,7 @@ void heap_gc(struct object_heap* oh) {
   heap_mark_interpreter_stack(oh, 0);
   heap_mark_fixed(oh, 0);
   heap_mark_pinned_young(oh);
+  heap_mark_remembered_young(oh);
   heap_mark_recursively(oh, 0);
   /*heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_sweep_young(oh);
@@ -2207,7 +2277,7 @@ void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* 
   }
 
   if (/*object_is_young(oh, dest) && (implicit by following cmd)*/ object_is_old(oh, src)) {
-    heap_pin_young_object(oh, dest);
+    heap_remember_young_object(oh, dest);
   }
 }
 
@@ -2292,7 +2362,7 @@ struct ByteArray* heap_clone_byte_array_sized(struct object_heap* oh, struct Obj
                   (word_t*) inc_ptr(newObj, HEADER_SIZE));
 
   /*assumption that we are word aligned*/
-  fill_words_with((word_t*)newObj  + object_size(proto), (bytes+ sizeof(word_t) - 1) / sizeof(word_t), 0);
+  fill_bytes_with((byte_t*)((word_t*)newObj  + object_size(proto)), (bytes+ sizeof(word_t) - 1) / sizeof(word_t) * sizeof(word_t), 0);
 
   return (struct ByteArray*) newObj;
 }
@@ -2742,6 +2812,8 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
 
       /*fix: do we want to copy the roletable*/
       map->roleTable = role_table_grow_excluding(oh, map->roleTable, 0, NULL);
+      heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
+
       /* roleTable is in young memory now so we don't have to store_into*/
       entry = role_table_entry_for_name(oh, map->roleTable, selector);
       while (entry != NULL) {
@@ -2767,6 +2839,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   
   /*not found, adding role*/
   map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
+  heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
 
   entry = role_table_insert(oh, map->roleTable, selector);
   entry->name = selector;
@@ -3227,6 +3300,8 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
 {
   ext_fn0_t fn;
   word_t args [MAX_ARG_COUNT];
+  struct Object* fixedArgs [MAX_ARG_COUNT]; /*don't gc*/
+  word_t fixedArgsSize = 0;
   word_t result;
   word_t arg, argCount, outArgIndex = 0, outArgCount;
 
@@ -3261,10 +3336,10 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
     case ARG_FORMAT_FLOAT:
       if (object_is_smallint(element)) {
         union {
-          float f;
+          float_t f;
           word_t u;
         } convert;
-        convert.f = (float) object_to_smallint(element);
+        convert.f = (float_t) object_to_smallint(element);
         args[outArgIndex++] = convert.u;
       } else
         args[outArgIndex++] = * (word_t *) byte_array_elements((struct ByteArray*)element);
@@ -3279,7 +3354,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
 	  convert.d = (double) object_to_smallint(element);
         } else {
           /*TODO, support for real doubles*/
-	  convert.d = (double) * (float *) byte_array_elements((struct ByteArray*)element);
+	  convert.d = (double) * (float_t *) byte_array_elements((struct ByteArray*)element);
         }
 	args[outArgIndex++] = convert.u[0];
 	args[outArgIndex++] = convert.u[1];
@@ -3302,6 +3377,8 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
         memcpy(buffer, (char *) byte_array_elements((struct ByteArray*) element), len-1);
         buffer[len-1] = '\0';
         args[outArgIndex++] = (word_t) buffer;
+        fixedArgs[fixedArgsSize++] = (struct Object*)bufferObject;
+        heap_fixed_add(oh, (struct Object*)bufferObject);
       }
       break;
     case ARG_FORMAT_BYTES:
@@ -3442,6 +3519,11 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
     return oh->cached.nil;
   }
 
+  for (arg = 0; arg < fixedArgsSize; ++arg) {
+    heap_fixed_remove(oh, fixedArgs[arg]);
+  }
+
+
   switch ((word_t)resultFormat) { /*preconverted smallint*/
   case ARG_FORMAT_INT:
     if (smallint_fits_object(result))
@@ -3537,6 +3619,7 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 void method_pic_setup(struct object_heap* oh, struct CompiledMethod* caller) {
 
   caller->calleeCount = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), CALLER_PIC_SIZE*CALLER_PIC_ENTRY_SIZE);
+  heap_store_into(oh, (struct Object*) caller, (struct Object*) caller->calleeCount);
 
 }
 
@@ -3961,6 +4044,13 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeof(word_t));
 }
 
+void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t time;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  time = (word_t)tv.tv_sec * 1000000 + (word_t)tv.tv_usec;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(time);
+}
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
@@ -4633,11 +4723,11 @@ void prim_minus(struct object_heap* oh, struct Object* args[], word_t n, struct 
 
 
 void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  struct Object* x = args[0];
-  struct Object* y = args[1];
-  word_t z = object_to_smallint(x) * object_to_smallint(y);
-  if (z > 1073741823 || z < -1073741824) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), x, y, NULL, resultStackPointer);
+  word_t x = object_to_smallint(args[0]);
+  word_t y = object_to_smallint(args[1]);
+  word_t z = x * y;
+  if (y != 0 && (x * y) / y != x) { /*thanks slava*/
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
   }
@@ -5181,7 +5271,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixme, prim_fixme, prim_fixedAreaSize, prim_fixedAreaResize,
- /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_fixme, prim_fixme, prim_fixme,
  /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
