@@ -38,6 +38,11 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <sys/time.h>
 #include <time.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <sys/select.h>
+
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
 typedef word_t bool_t;
@@ -3980,6 +3985,121 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
 
+/************************ concurrency *******************************/
+
+void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t handle = object_to_smallint(args[0]);
+  int retval;
+  /*fixme remap fds for safety*/
+  retval = close(handle);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (retval == 0) ? oh->cached.true_object : oh->cached.false_object;
+
+}
+
+void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* array = (struct ByteArray*) args[0];
+  word_t handle = object_to_smallint(args[1]);
+  ssize_t retval;
+  /*fixme remap fds for safety*/
+  retval = recv(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] =
+    (retval == -1) ? smallint_to_object(0-errno) : smallint_to_object(retval);
+
+}
+
+void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* array = (struct ByteArray*) args[0];
+  word_t handle = object_to_smallint(args[1]);
+  ssize_t retval;
+  /*fixme remap fds for safety*/
+  retval = send(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] =
+    (retval == -1) ? smallint_to_object(0-errno) : smallint_to_object(retval);
+
+}
+
+void prim_selectOnPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct OopArray* selectOn = (struct OopArray*) args[0];
+  struct OopArray* readyPipes;
+  word_t waitTime = object_to_smallint(args[1]);
+  int retval;
+  struct timeval tv;
+  fd_set fdList;
+  word_t fdCount, readyCount, i, readyIndex;
+  
+  FD_ZERO(&fdList);
+  fdCount = array_size(selectOn);
+  for (i = 0; i < fdCount; i++) {
+    /*fixme remap fds for safety*/
+    FD_SET(object_to_smallint(selectOn->elements[i]), &fdList);
+  }
+  
+  tv.tv_sec = waitTime / 1000000;
+  tv.tv_usec = waitTime % 1000000;
+
+  retval = select(fdCount, &fdList, NULL, NULL, &tv); 
+
+  if (retval == -1) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+
+  /*fixme remap fds for safety*/
+
+  readyCount = (word_t)retval;
+  readyPipes = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), readyCount);
+  readyIndex = 0;
+
+  for (i = 0; i < fdCount || readyIndex >= readyCount; i++) {
+    if (FD_ISSET(object_to_smallint(selectOn->elements[i]), &fdList)) {
+      readyPipes->elements[readyIndex++] = selectOn->elements[i];
+    }
+  }
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)readyPipes;
+
+}
+
+
+void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  pid_t retval;
+  int pipes[2];
+  struct OopArray* array;
+
+  /* make two pipes that we can use exclusively in each process to talk to the other */
+  /*fixme remap fds for safety*/
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, pipes) == -1) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+
+  retval = fork();
+  
+  if (retval == (pid_t)-1) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
+
+  if (!retval) {  /* child */
+    array->elements[0] = oh->cached.false_object;
+    array->elements[1] = smallint_to_object(pipes[0]);
+  } else { /* parent */
+    array->elements[0] = oh->cached.true_object;
+    array->elements[1] = smallint_to_object(pipes[1]);
+  }
+
+
+
+}
+
+/********************************************************************/
+
+
 void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct Object *console=args[0], *n=args[1], *handle=args[2], *seq=args[3], *start=args[4];
   byte_t* bytes = &((struct ByteArray*)seq)->elements[0] + object_to_smallint(start);
@@ -4687,7 +4807,7 @@ void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, stru
   word_t shift = object_to_smallint(args[1]);
   word_t z;
   if (shift >= 0) {
-    if (shift >= 32 && bits != 0) {
+    if (shift >= __WORDSIZE && bits != 0) {
       interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
       return;
     }
@@ -4699,8 +4819,8 @@ void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, stru
       return;
     }
 
-  } else if (shift <= -32) {
-    z = bits >> 31;
+  } else if (shift <= -__WORDSIZE) {
+    z = bits >> (__WORDSIZE-1);
   } else {
     z = bits >> -shift;
   }
@@ -5271,8 +5391,8 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixme, prim_fixme, prim_fixedAreaSize, prim_fixedAreaResize,
- /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_fixme, prim_fixme, prim_fixme,
- /*20-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
+ /*20-9*/ prim_selectOnPipesFor, prim_closePipe, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,

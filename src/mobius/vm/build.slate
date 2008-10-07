@@ -181,6 +181,11 @@ Image Definition primitives clear.
 114 -> #primitiveErrorInto: -> #(ExternalLibraryTraits ByteArrayTraits).
 115 -> #primitiveApply:accepting:callFormat:returning:to: -> #(ExternalLibraryTraits ByteArrayTraits NoRoleObject NoRoleObject NoRoleObject ArrayTraits).
 116 -> #timeSinceEpoch -> #(LobbyObject).
+117 -> #cloneSystem -> #(LobbyObject).
+118 -> #readFromPipe: -> #(ByteArrayTraits SmallIntegerTraits).
+119 -> #writeToPipe: -> #(ByteArrayTraits SmallIntegerTraits).
+120 -> #selectOnPipesFor: -> #(ArrayTraits SmallIntegerTraits).
+121 -> #closePipe -> #(SmallIntegerTraits).
 
 
 } do: [ | :each | 
@@ -207,7 +212,7 @@ def@(Image Definition traits) generateFilename &base: base
 [
   base `defaultsTo: 'kernel'.
   def filename: base ; '.' ; (def littleEndian ifTrue: ['little'] ifFalse: ['big'])
-   ; '.' ; def bitSize printString ; '.image'].
+   ; '.' ; def bitSize printString ; '.' ; lobby timeSinceEpoch printString ; '.image'].
 
 c@(Image Definition traits) generate
 [| builder bootBlock statements |
