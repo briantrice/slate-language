@@ -16,6 +16,8 @@ CFLAGS=-std=c99 -Wall -pedantic -pthread $(PRINT_DEBUG)  $(INCLUDES)
 #DEBUGFLAGS= -g  -DGC_BUG_CHECK
 DEBUGFLAGS= -g 
 OBJECTS=
+#ARCH=-m32
+ARCH=-m64
 
 all: vm
 
@@ -26,16 +28,16 @@ plugins:
 	make -C src/plugins
 
 vm.debug: vm.c $(OBJECTS)
-	gcc $(DEBUGFLAGS) $(CFLAGS) $(LIBRARIES) -o vm.debug vm.c $(OBJECTS)
+	gcc $(DEBUGFLAGS) $(CFLAGS) $(LIBRARIES) $(ARCH) -o vm.debug vm.c $(OBJECTS)
 
 #fix needs pg on every arg
 vm.prof: vm.c $(OBJECTS)
-	gcc $(CFLAGS) $(LIBRARIES) -O2 -pg -o vm.prof vm.c $(OBJECTS)
+	gcc $(CFLAGS) $(LIBRARIES) $(ARCH) -O2 -pg -o vm.prof vm.c $(OBJECTS)
 
 
 #fix cflags
 vm: vm.c $(OBJECTS)
-	gcc $(CFLAGS) $(LIBRARIES) -O2 -o vm vm.c $(OBJECTS)
+	gcc $(CFLAGS) $(LIBRARIES) $(ARCH) -O2 -o vm vm.c $(OBJECTS)
 
 
 superclean: clean

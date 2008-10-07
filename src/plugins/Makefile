@@ -5,6 +5,8 @@ NONPOSIX=pipe.so
 
 LFLAGS_slate-cairo.o=-lcairo
 LFLAGS_sdl-windows.o=-lSDL
+#ARCH=-m32
+ARCH=-m64
 
 
 all: $(LIBS)
@@ -13,7 +15,7 @@ all: $(LIBS)
 	cd ../../lib && ln -s -f sdl-windows.so slate-windows.so
 
 %$(DLLEXT): %.o
-	gcc -shared $(CFLAGS) $(LFLAGS_$<) -o $@ $<
+	gcc -shared $(CFLAGS) $(ARCH) $(LFLAGS_$<) -o $@ $<
 
 clean:
 	rm -f *.o *.so ../../lib/*.so
