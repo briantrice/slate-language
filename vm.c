@@ -24,6 +24,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 
 ***************************/
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -38,10 +39,10 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <sys/time.h>
 #include <time.h>
 
-#include <sys/types.h>
 #include <sys/socket.h>
-
+#include <sys/wait.h>
 #include <sys/select.h>
+#include <netinet/in.h>
 
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
@@ -4108,6 +4109,37 @@ void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], w
 
 }
 
+/* this keeps us from having to handle sigchld and wait for processes.
+   if you don't wait they become zombies */
+int fork2()
+{
+  pid_t pid;
+  int status;
+  
+  if (!(pid = fork()))
+    {
+      switch (fork())
+        {
+        case 0: return 0;
+        case -1: _exit(errno); /* assumes all errnos are <256 */
+        default: _exit(0);
+        }
+    }
+  
+  if (pid < 0 || waitpid(pid,&status,0) < 0)
+    return -1;
+  
+  if (WIFEXITED(status))
+    if (WEXITSTATUS(status) == 0)
+      return 1;
+    else
+      errno = WEXITSTATUS(status);
+  else
+    errno = EINTR; /* well, sort of :-) */
+  
+  return -1;
+}
+
 
 void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   pid_t retval;
@@ -4121,7 +4153,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
     return;
   }
 
-  retval = fork();
+  retval = fork2();
   
   if (retval == (pid_t)-1) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
@@ -4148,6 +4180,107 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 
 /**************************  SOCKETS ********************************/
 
+#define SOCKET_RETURN(x) ((x == -1)? smallint_to_object(-errno) : smallint_to_object(x))
+
+void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t domain = object_to_smallint(args[0]);
+  word_t type = object_to_smallint(args[1]);
+  word_t protocol = object_to_smallint(args[2]);
+  word_t ret = socket((int)domain, (int)type, (int)protocol);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+}
+
+void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t fd = object_to_smallint(args[0]);
+  word_t size = object_to_smallint(args[1]);
+  word_t ret;
+
+  ret = listen(fd, size);
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+
+}
+
+void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t fd = object_to_smallint(args[0]);
+  word_t ret;
+  struct sockaddr_storage addr;
+  socklen_t len;
+  struct ByteArray* addrArray;
+  struct OopArray* result;
+
+
+  len = sizeof(addr);
+  ret = accept(fd, (struct sockaddr*)&addr, &len);
+  
+  if (ret >= 0) {
+    addrArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), sizeof(struct sockaddr_in));
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+    return;
+  }
+  
+  heap_fixed_add(oh, (struct Object*)addrArray);
+  result = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+  heap_fixed_remove(oh, (struct Object*)addrArray);
+
+  object_array_set_element(oh, (struct Object*)result, 0, SOCKET_RETURN(ret));
+  object_array_set_element(oh, (struct Object*)result, 1, (struct Object*)addrArray);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)result;
+
+}
+
+void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t fd = object_to_smallint(args[0]);
+  struct ByteArray* address = (struct ByteArray*) args[1];
+  word_t ret;
+
+  ret = bind(fd, (const struct sockaddr*)byte_array_elements(address), (socklen_t)byte_array_size(address));
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+}
+
+void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t fd = object_to_smallint(args[0]);
+  struct ByteArray* address = (struct ByteArray*) args[1];
+  word_t ret;
+
+  ret = connect(fd, (const struct sockaddr*)byte_array_elements(address), (socklen_t)byte_array_size(address));
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+
+}
+
+void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t domain = object_to_smallint(args[0]);
+  struct ByteArray* address = (struct ByteArray*) args[1];
+  word_t port = object_to_smallint(args[2]);
+  struct OopArray* options = (struct OopArray*) args[3];
+  struct sockaddr_in* sin;
+  struct sockaddr_in6* sin6;
+  struct ByteArray* ret;
+  
+  switch (domain) {
+
+  case AF_INET:
+    ret = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), sizeof(struct sockaddr_in));
+    sin = (struct sockaddr_in*)ret->elements;
+    sin->sin_family = domain;
+    sin->sin_port = port;
+    copy_bytes_into((byte_t*)address, sizeof(uint32_t), (byte_t*)&sin->sin_addr.s_addr);
+    break;
+
+    /*fixme ipv6*/
+    
+  default:
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)ret;
+
+}
 
 
 
@@ -4590,7 +4723,8 @@ void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t n,
 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   /*  print_stack_types(oh, 128);*/
-  print_backtrace(oh);
+  /*  print_backtrace(oh);*/
+  printf("Slate process %d exiting...\n", getpid());
   exit(0);
 }
 
@@ -5450,7 +5584,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixme, prim_fixme, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
- /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_fixme,
  /*30-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
