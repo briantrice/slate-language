@@ -4180,13 +4180,45 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 
 /**************************  SOCKETS ********************************/
 
+#define SLATE_DOMAIN_LOCAL  1
+#define SLATE_DOMAIN_IPV4   2
+#define SLATE_DOMAIN_IPV6   3
+
+#define SLATE_TYPE_STREAM   1
+
+#define SLATE_PROTOCOL_DEFAULT 0
+
 #define SOCKET_RETURN(x) ((x == -1)? smallint_to_object(-errno) : smallint_to_object(x))
+
+
+int socket_lookup_domain(word_t domain) {
+  switch (domain) {
+  case SLATE_DOMAIN_LOCAL: return AF_LOCAL;
+  case SLATE_DOMAIN_IPV4: return AF_INET;
+  case SLATE_DOMAIN_IPV6: return AF_INET6;
+  default: return AF_INET;
+  }
+}
+
+int socket_lookup_type(word_t type) {
+  switch (type) {
+  case SLATE_TYPE_STREAM: return SOCK_STREAM;
+  default: return SOCK_STREAM;
+  }
+}
+
+int socket_lookup_protocol(word_t protocol) {
+  switch (protocol) {
+  default: return 0;
+  }
+}
+
 
 void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
   word_t type = object_to_smallint(args[1]);
   word_t protocol = object_to_smallint(args[2]);
-  word_t ret = socket((int)domain, (int)type, (int)protocol);
+  word_t ret = socket(socket_lookup_domain(domain), socket_lookup_type(type), socket_lookup_protocol(protocol));
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
 }
 
@@ -4214,7 +4246,7 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
   ret = accept(fd, (struct sockaddr*)&addr, &len);
   
   if (ret >= 0) {
-    addrArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), sizeof(struct sockaddr_in));
+    addrArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), sizeof(struct sockaddr_in));
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
     return;
@@ -4237,7 +4269,7 @@ void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity
   word_t ret;
 
   ret = bind(fd, (const struct sockaddr*)byte_array_elements(address), (socklen_t)byte_array_size(address));
-  
+  if (ret < 0) perror("bind");
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
 }
 
@@ -4254,7 +4286,7 @@ void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t ar
 
 void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
-  struct ByteArray* address = (struct ByteArray*) args[1];
+  struct Object* address = args[1];
   word_t port = object_to_smallint(args[2]);
   struct OopArray* options = (struct OopArray*) args[3];
   struct sockaddr_in* sin;
@@ -4263,19 +4295,26 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   
   switch (domain) {
 
-  case AF_INET:
-    ret = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), sizeof(struct sockaddr_in));
-    sin = (struct sockaddr_in*)ret->elements;
-    sin->sin_family = domain;
-    sin->sin_port = port;
-    copy_bytes_into((byte_t*)address, sizeof(uint32_t), (byte_t*)&sin->sin_addr.s_addr);
+  case SLATE_DOMAIN_IPV4:
+    if (object_array_size(address) < 4) {
+      ret = (struct ByteArray*)oh->cached.nil;
+      break;
+    }
+    ret = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), sizeof(struct sockaddr_in));
+    sin = (struct sockaddr_in*)byte_array_elements(ret);
+    sin->sin_family = socket_lookup_domain(domain);
+    sin->sin_port = htons((uint16_t)port);
+    sin->sin_addr.s_addr = htonl(((object_to_smallint(object_array_get_element(address, 0)) & 0xFF) << 24)
+      | ((object_to_smallint(object_array_get_element(address, 1)) & 0xFF) << 16)
+      | ((object_to_smallint(object_array_get_element(address, 2)) & 0xFF) << 8)
+      | (object_to_smallint(object_array_get_element(address, 3)) & 0xFF));
     break;
 
     /*fixme ipv6*/
     
   default:
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
-    return;
+    ret = (struct ByteArray*)oh->cached.nil;
+    break;
   }
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)ret;
