@@ -1,0 +1,224 @@
+
+
+"Slate based sockets"
+
+prototypes ensureNamespace: #networking &delegate: True.
+
+networking define: #Socket &parents: {Cloneable} &slots: {#fd -> Nil}.
+networking define: #SocketServerConnection &parents: {Socket} &slots: {#peerAddress -> Nil}.
+networking define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
+networking define: #IP4Address &parents: {SocketAddress}.
+
+networking define: #SocketServer &parents: {Cloneable}
+ &slots: {#pipeToLoop -> Nil. #ip -> Nil. #port -> Nil. #dispatch -> Nil}.
+
+
+Socket traits ensureNamespace: #ErrorCodes.
+Socket traits ensureNamespace: #Domains.
+Socket traits ensureNamespace: #Types.
+Socket traits ensureNamespace: #Protocols.
+Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
+Socket traits addSlot: #BufferSize valued: 1024.
+
+Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
+
+{
+
+  #Error -> -1.
+  #AccessDenied -> -2.
+  #NoSupport -> -3.
+  #Invalid -> -4.
+  #Overflow -> -5.
+  #NoMemory -> -6.
+  #InUse -> -7.
+  #BadFD -> -8.
+  #Again -> -9.
+  #WouldBlock -> -10.
+  #ConnectionAborted -> -11.
+  #Interrupted -> -12.
+  #AlreadyInProgress -> -13.
+  #ConnectionRefused -> -14.
+  #InProgress -> -15.
+  #AlreadyConnected -> -16.
+  #NetworkUnreachable -> -17.
+  #Timeout -> -18.
+
+} do: [ | :item | 
+         Socket ErrorCodes addImmutableSlot: item key valued: item value.
+         Socket ErrorCodes Dictionary add: item value -> item key.
+       ].
+
+
+
+Socket Domains `>> [
+  addImmutableSlot: #Local valued: 1.
+  addImmutableSlot: #IP4 valued: 2.
+  addImmutableSlot: #IP6 valued: 3.
+  ].
+
+Socket Types `>> [
+  addImmutableSlot: #Stream valued: 1.
+  ].
+
+Socket Protocols `>> [
+  addImmutableSlot: #Default valued: 0.
+  ].
+
+
+s@(Socket traits) throwError: code
+[
+  error: (Socket ErrorCodes Dictionary at: code) printString
+].
+
+
+s@(Socket traits) newFor: domain type: type protocol: proto
+[ | ret |
+  ret: s new.
+  ret fd: (domain socketCreate: type protocol: proto).
+  ret fd < 0 ifTrue: [s throwError: ret fd].
+  ret
+].
+
+
+addr@(IP4Address traits) newOn: array port: port
+[ | ret |
+  ret: addr new.
+  addr address: (Socket Domains IP4 createIPAddress: array port: port options: #()).
+  addr
+].
+
+
+s@(Socket traits) bindTo: sa@(SocketAddress traits)
+[ | ret |
+  s fd < 0 ifTrue: [s throwError: Socket ErrorCodes Invalid].
+  
+  ret: (s fd socketBindOn: sa address).
+  ret < 0 ifTrue: [s throwError: ret].
+  ret
+].
+
+s@(Socket traits) listenSize: count
+[ | ret |
+  
+  ret: (s fd socketListenSize: count).
+  ret < 0 ifTrue: [s throwError: ret].
+  ret
+].
+
+s@(Socket traits) acceptConnection
+[ | ret |
+  
+  ret: (s fd socketAcceptConnection).
+  (ret is: Integer) ifTrue: [s throwError: ret].
+  (ret first < 0) ifTrue: [s throwError: ret first].
+  SocketServerConnection new `>> [fd: ret first. peerAddress: ret second.]
+].
+
+
+s@(SocketServer traits) newOn: ip port: port dispatch: block
+[ | ret |
+  ret: s new `>> [ip: ip. port: port. dispatch: block.].
+  ret
+].
+
+s@(SocketServer traits) start
+[
+
+  s pipeToLoop: 
+    (currentProcess forkAndDo:
+      [ | :commSock servSock |
+        servSock: (Socket newFor: Socket Domains IP4 type: Socket Types Stream protocol: Socket Protocols Default).
+        "fixme handle ipv6"
+        inform: 'Creating listening socket ' ; servSock printString.
+        inform: 'bind: ' ; (servSock bindTo: (IP4Address newOn: s ip port: s port)) printString.
+        inform: 'listen: '; (servSock listenSize: 5) printString.
+        [ | ready |
+          inform: 'Waiting for connection...' ; {commSock. servSock fd} printString.
+          ready: ({commSock. servSock fd} selectOnReadPipesFor: Socket SelectTimeout).
+          ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
+          "inform: ready printString."
+          "inform: 'read: ' ; ('aoeu' clone readFromPipe: commSock) printString."
+          (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock fd closePipe. lobby exit].
+          (ready includes: servSock fd) 
+            ifTrue: [ | peer child |
+                       peer: ([servSock acceptConnection] on: Error do: [| :e | inform: 'Accept error: ' ; e description. e return: Nil]).
+                       peer ifNotNil:
+                         [child: (currentProcess 
+                                   forkAndDo: [ |:parent| [s dispatch applyWith: parent with: peer]
+                                                          ensure: [parent closePipe. peer fd closePipe. lobby exit]]).
+                          "fixme... have a way to communinicated back"
+                          peer fd closePipe.
+                          child closePipe.
+                          inform: 'Connection from ' ; peer peerAddress printString]]
+        ] loop.
+      ]).
+
+].
+
+s@(SocketServer traits) stop
+[
+  'quit' writeToPipe: s pipeToLoop.
+].
+
+
+networking define: #SocketStream &parents: {ReadWriteStream}
+ &slots: {#internalReadBuffer -> Queue new. #internalWriteBuffer -> Queue new. #socket -> Nil. #closed -> False.
+#buffer -> (ByteArray new &capacity: Socket BufferSize)}.
+
+
+s@(SocketStream traits) collectionType
+[ByteArray].
+
+
+s@(SocketStream traits) on: socket
+[
+  s socket: socket.
+  s closed: False.
+  s
+].
+
+
+s@(SocketStream traits) isAtEnd
+[
+  s closed
+].
+
+s@(SocketStream traits) flush
+[ | buf i |
+  "fixme"
+  buf: (ByteArray new &capacity: s internalWriteBuffer size).
+  i: 0.
+  inform: 'iwb:' ; s internalWriteBuffer printString.
+  s internalWriteBuffer do: [ |:c| buf at: i put: (c ifNil: [0] ifNotNil: [c code]). i: i + 1].
+  inform: 'buf:' ; buf printString.
+  i: 0.
+  [i < buf size] whileTrue: 
+    [ | res fds | 
+      fds: ({s socket fd} selectOnWritePipesFor: Socket SelectTimeout).
+      res: 0.
+      fds do: [ |:fd| res: (buf writeToPipe: fd)].
+      (res = 0) ifTrue: [error: 'write failed']. 
+      i: i + res]
+].
+
+s@(SocketStream traits) next
+[
+  s closed ifTrue: [^ Nil].
+
+  [internalReadBuffer isEmpty]
+    whileTrue: [ | fds |
+                  fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
+                  fds do: [ |:fd ret |
+                             ret: [(s buffer readFromPipe: fd)] on: Error do: [ |:e| s closed: True. ^ Nil].
+                             ret = 0 ifTrue: [s closed: True. ^ Nil]
+                           internalReadBuffer next: ret putAll: s buffer]
+                ].
+  internalReadBuffer removeFirst
+].
+
+
+s@(SocketStream traits) nextPut: byte
+[ | ret |
+  s internalWriteBuffer addLast: byte.
+].
+

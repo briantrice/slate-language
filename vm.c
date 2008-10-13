@@ -35,7 +35,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <math.h>
 #include <unistd.h>
 #include <dlfcn.h>
-
+#include <fcntl.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -518,7 +518,7 @@ void fill_words_with(word_t* dst, word_t n, word_t value)
 #endif
 }
 
-void copy_words_into(word_t * src, word_t n, word_t * dst)
+void copy_words_into(void * src, word_t n, void * dst)
 {
 #ifdef SLATE_NO_MEM_PRIMS
   if ((src < dst) && ((src + n) > dst))
@@ -3814,7 +3814,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   method_remove_optimized_sending(oh, selector);
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
-  copy_words_into((word_t*)args, n, (word_t*)argBuffer); /*for pinning i presume */
+  copy_words_into(args, n, argBuffer); /*for pinning i presume */
   oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
   if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
@@ -3894,7 +3894,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   /*make sure they are pinned*/
   assert(n <= 16);
-  copy_words_into((word_t*)argsNotStack, n, (word_t*)args);
+  copy_words_into(argsNotStack, n, args);
 
 
   /* optimize the callee function after a set number of calls*/
@@ -3905,7 +3905,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
     struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
-    copy_words_into((word_t*) args, n, (word_t*)argsArray->elements);
+    copy_words_into(args, n, argsArray->elements);
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL, resultStackPointer);
     return;
   }
@@ -3933,7 +3933,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   }
 
 
-  copy_words_into((word_t*) args, inputs, (word_t*) vars);
+  copy_words_into(args, inputs, vars);
   i->stack->elements[framePointer - 6] = smallint_to_object(beforeCallStackPointer);
   i->stack->elements[framePointer - 5] = smallint_to_object(resultStackPointer);
   i->stack->elements[framePointer - 4] = smallint_to_object(i->codePointer);
@@ -3971,7 +3971,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   if (n > inputs) {
     struct OopArray* restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
-    copy_words_into(((word_t*)args)+inputs, n - inputs, (word_t*)restArgs->elements);
+    copy_words_into(args+inputs, n - inputs, restArgs->elements);
     vars[inputs+array_size(method->optionalKeywords)] = (struct Object*) restArgs;
     heap_store_into(oh, (struct Object*)lexicalContext, (struct Object*)restArgs);/*fix, not always right*/
   } else {
@@ -4024,43 +4024,63 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
 
 }
 
+int socket_select_setup(struct OopArray* selectOn, fd_set* fdList, int* maxFD) {
+  word_t fdCount, i;
+ 
+  FD_ZERO(fdList);
+  fdCount = array_size(selectOn);
+
+  for (i = 0; i < fdCount; i++) {
+    struct Object* fdo = object_array_get_element((struct Object*)selectOn, i);
+    word_t fd = object_to_smallint(fdo);
+    if (!object_is_smallint(fdo) || fd >= FD_SETSIZE) {
+      return -1;
+    }
+    *maxFD = max(*maxFD, fd);
+    FD_SET(fd, fdList);
+    assert(FD_ISSET(fd, fdList));
+  }
+
+  return fdCount;
+}
+
+void socket_select_find_available(struct OopArray* selectOn, fd_set* fdList, struct OopArray* readyPipes, word_t readyCount) {
+  word_t fdCount, i, readyIndex;
+  fdCount = array_size(selectOn);
+
+  for (i = 0, readyIndex = 0; i < fdCount && readyIndex < readyCount; i++) {
+    if (FD_ISSET(object_to_smallint(object_array_get_element((struct Object*)selectOn, i)), fdList)) {
+      readyPipes->elements[readyIndex++] = object_array_get_element((struct Object*)selectOn, i);
+    }
+  }
+}
+
 void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct OopArray* selectOn = (struct OopArray*) args[0];
   struct OopArray* readyPipes;
   word_t waitTime = object_to_smallint(args[1]);
-  int retval;
+  int retval, fdCount, maxFD;
   struct timeval tv;
   fd_set fdList;
-  word_t fdCount, readyCount, i, readyIndex;
-  
-  FD_ZERO(&fdList);
-  fdCount = array_size(selectOn);
-  for (i = 0; i < fdCount; i++) {
-    /*fixme remap fds for safety*/
-    FD_SET(object_to_smallint(selectOn->elements[i]), &fdList);
-  }
-  
-  tv.tv_sec = waitTime / 1000000;
-  tv.tv_usec = waitTime % 1000000;
-
-  retval = select(fdCount, &fdList, NULL, NULL, &tv); 
-
-  if (retval == -1) {
+  maxFD = 0;
+  if ((fdCount = socket_select_setup(selectOn, &fdList, &maxFD)) < 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
     return;
   }
 
-  /*fixme remap fds for safety*/
-
-  readyCount = (word_t)retval;
-  readyPipes = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), readyCount);
-  readyIndex = 0;
-
-  for (i = 0; i < fdCount || readyIndex >= readyCount; i++) {
-    if (FD_ISSET(object_to_smallint(selectOn->elements[i]), &fdList)) {
-      readyPipes->elements[readyIndex++] = selectOn->elements[i];
-    }
+  
+  tv.tv_sec = waitTime / 1000000;
+  tv.tv_usec = waitTime % 1000000;
+  retval = select(maxFD+1, &fdList, NULL, NULL, &tv); 
+  
+  if (retval < 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
   }
+
+
+  readyPipes = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), retval);
+  socket_select_find_available(selectOn, &fdList, readyPipes, retval);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)readyPipes;
 
@@ -4068,42 +4088,32 @@ void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], wo
 
 /*fixme this is a copy of the last function with only the select call changed*/
 void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
   struct OopArray* selectOn = (struct OopArray*) args[0];
   struct OopArray* readyPipes;
   word_t waitTime = object_to_smallint(args[1]);
-  int retval;
+  int retval, fdCount, maxFD;
   struct timeval tv;
   fd_set fdList;
-  word_t fdCount, readyCount, i, readyIndex;
-  
-  FD_ZERO(&fdList);
-  fdCount = array_size(selectOn);
-  for (i = 0; i < fdCount; i++) {
-    /*fixme remap fds for safety*/
-    FD_SET(object_to_smallint(selectOn->elements[i]), &fdList);
-  }
-  
-  tv.tv_sec = waitTime / 1000000;
-  tv.tv_usec = waitTime % 1000000;
-
-  retval = select(fdCount, NULL, &fdList, NULL, &tv); 
-
-  if (retval == -1) {
+  maxFD = 0;
+  if ((fdCount = socket_select_setup(selectOn, &fdList, &maxFD)) < 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
     return;
   }
 
-  /*fixme remap fds for safety*/
-
-  readyCount = (word_t)retval;
-  readyPipes = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), readyCount);
-  readyIndex = 0;
-
-  for (i = 0; i < fdCount || readyIndex >= readyCount; i++) {
-    if (FD_ISSET(object_to_smallint(selectOn->elements[i]), &fdList)) {
-      readyPipes->elements[readyIndex++] = selectOn->elements[i];
-    }
+  
+  tv.tv_sec = waitTime / 1000000;
+  tv.tv_usec = waitTime % 1000000;
+  retval = select(maxFD+1, NULL, &fdList, NULL, &tv); 
+  
+  if (retval < 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
   }
+
+
+  readyPipes = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), retval);
+  socket_select_find_available(selectOn, &fdList, readyPipes, retval);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)readyPipes;
 
@@ -4188,7 +4198,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 
 #define SLATE_PROTOCOL_DEFAULT 0
 
-#define SOCKET_RETURN(x) ((x == -1)? smallint_to_object(-errno) : smallint_to_object(x))
+#define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
 
 int socket_lookup_domain(word_t domain) {
@@ -4213,13 +4223,70 @@ int socket_lookup_protocol(word_t protocol) {
   }
 }
 
+int socket_set_nonblocking(int fd)
+{
+    int flags;
+
+    if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
+        flags = 0;
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+/* remap platform specific errors to slate errors */
+word_t socket_return(word_t ret) {
+
+  if (ret >= 0) return ret;
+  perror("socket_return");
+  switch (-ret) {
+  case EACCES: return -2;
+  case EAFNOSUPPORT: return -3;
+  case EINVAL: return -4;
+  case EMFILE: return -5;
+  case ENFILE: return -5;
+  case ENOMEM: return -6;
+  case EPROTONOSUPPORT: return -3;
+  case EADDRINUSE: return -7;
+  case EBADF: return -8;
+  case ENOTSOCK: return -8;
+  case EFAULT: return -4;
+  case EOPNOTSUPP: return -3;
+  case EAGAIN: return -9;
+    /*  case EWOULDBLOCK: return -10;*/
+  case ECONNABORTED: return -11;
+  case EINTR: return -12;
+  case EPERM: return -2;
+  case EALREADY: return -13;
+  case ECONNREFUSED: return -14;
+  case EINPROGRESS: return -15;
+  case EISCONN: return -16;
+  case ENETUNREACH: return -17;
+  case ETIMEDOUT: return -18;
+
+
+  default: return -1;
+  }
+
+}
 
 void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
   word_t type = object_to_smallint(args[1]);
   word_t protocol = object_to_smallint(args[2]);
   word_t ret = socket(socket_lookup_domain(domain), socket_lookup_type(type), socket_lookup_protocol(protocol));
-  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+  int ret2 = 0;
+
+  if (ret >= 0) {
+    ret2 = socket_set_nonblocking(ret);
+  } else {
+    perror("socket create");
+  }
+
+  if (ret2 < 0) {
+    perror("set nonblocking");
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(-1);
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+  }
 }
 
 void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -4256,7 +4323,7 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
   result = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
   heap_fixed_remove(oh, (struct Object*)addrArray);
 
-  object_array_set_element(oh, (struct Object*)result, 0, SOCKET_RETURN(ret));
+  object_array_set_element(oh, (struct Object*)result, 0, smallint_to_object(ret));
   object_array_set_element(oh, (struct Object*)result, 1, (struct Object*)addrArray);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)result;
@@ -5281,8 +5348,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   /*make sure they are pinned*/
   assert(arity <= 16);
   /*for gc*/
-  copy_words_into((word_t*)args, arity, (word_t*)argsStack);
-  copy_words_into((word_t*)dispatchers, arity, (word_t*)dispatchersStack);
+  copy_words_into(args, arity, argsStack);
+  copy_words_into(dispatchers, arity, dispatchersStack);
 
   def = NULL;
 
@@ -5766,7 +5833,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
   assert(n <= 16);
-  copy_words_into((word_t*)args, n, (word_t*)argsStack);
+  copy_words_into(args, n, argsStack);
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
   if (def == NULL) {
