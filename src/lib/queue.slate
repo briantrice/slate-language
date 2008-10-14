@@ -200,7 +200,7 @@ q@(Queue traits) removeLast: n
     ifFalse: [removed replaceFrom: 0 below: removed size with: q contents &startingAt: q lastIndex.
 	      newLastIndex below: q lastIndex do: [| :index | q contents at: index put: Nil]].
   "Finally, update the firstIndex."
-  q lastIndex: newLastIndex.
+  q forgetLast: n.
   removed
 ].
 
@@ -222,7 +222,7 @@ q@(Queue traits) removeFirst: n
 	      q firstIndex below: q firstIndex + n do:
 		[| :i | q contents at: i put: Nil]].
   "Finally, update the firstIndex."
-  q firstIndex: newFirstIndex.
+  q forgetFirst: n.
   removed
 ].
 
