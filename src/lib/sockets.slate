@@ -177,6 +177,10 @@ s@(SocketStream traits) on: socket
   s
 ].
 
+s@(SocketStream traits) collectionType
+[
+  ByteArray
+].
 
 s@(SocketStream traits) isAtEnd
 [
@@ -203,17 +207,32 @@ s@(SocketStream traits) flush
 
 s@(SocketStream traits) next
 [
-  s closed ifTrue: [^ Nil].
+  (s next: 1) first
+].
 
-  [internalReadBuffer isEmpty]
-    whileTrue: [ | fds |
+s@(SocketStream traits) nextLine
+[
+  s upTo: $\n
+].
+
+
+s@(SocketStream traits) next: n putInto: seq startingAt: start
+[ | stopReading readSize |
+  s closed ifTrue: [^ s exhausted].
+  stopReading: False.
+
+  [[s internalReadBuffer size < n] \/ [stopReading]]
+    whileFalse: [ | fds ret |
                   fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
-                  fds do: [ |:fd ret |
-                             ret: [(s buffer readFromPipe: fd)] on: Error do: [ |:e| s closed: True. ^ Nil].
-                             ret = 0 ifTrue: [s closed: True. ^ Nil]
-                           internalReadBuffer next: ret putAll: s buffer]
+                  fds isEmpty ifTrue: [s closed: True. ^ s exhausted]. "this shouldn't happen"
+                  ret: [(s buffer readFromPipe: s socket fd)] on: Error do: [ |:e| ret: 0].
+                  ret = 0 ifTrue: [s closed: True. stopReading: True].
+                  s internalReadBuffer next: ret putAll: s buffer]
                 ].
-  internalReadBuffer removeFirst
+  readSize: (s internalReadBuffer size min: n).
+  seq replaceFrom: start to: start - 1 + readSize with: s internalReadBuffer.
+  s internalReadBuffer forgetFirst: readSize.
+  readSize
 ].
 
 
