@@ -5,6 +5,15 @@
 networking define: #Database &parents: {Cloneable} &slots: {#stream -> Nil}.
 
 networking define: #Postgres &parents: {Database}" &slots: {#stream -> Nil}".
+networking define: #PostgresCommand &parents: {StructMixin}.
+networking define: #PostgresStartCommand &parents: {PostgresCommand}
+  &slots: {#length -> 0. #protocol -> 196608. #user -> 'user'. #database -> 'mydb'.
+           #binaryDescription -> #((length Int32)
+                                   (protocol Int32)
+                                   ('user' Fixed)
+                                   (user CString)
+                                   ('database' Fixed)
+                                   (database CString))}.
 
 db@(Database traits) newOn: stream
 [ | ret |
@@ -13,5 +22,20 @@ db@(Database traits) newOn: stream
   db
 ].
 
+db@(Database traits) sendCommand: cmd@(PostgresCommand traits)
+[ |bytes|
+  bytes: cmd packed.
+  db stream nextPutAll: bytes.
+].
 
 
+db@(Postgres traits) loginAs: user password: pw &database: database
+[ | cmd reply |
+  cmd: (PostgresCommand newType: PostgresCommand Startup) ; (Postgres ProtocolVersion as: PostgresInt32) ; 'user' ; user.
+  database ifNotNil: [ cmd << 'database' << database].
+
+  db send: cmd.
+  reply: db readReply.
+  "..."
+
+].

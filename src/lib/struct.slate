@@ -1,0 +1,68 @@
+
+"provides similar functionality to python's struct.pack"
+
+
+prototypes define: #StructMixin &parents: {Cloneable} &slots: {#binaryDescription -> ExtensibleArray new}.
+
+"binaryDescription is a list of (slotName type), e.g. (width Int32)"
+
+
+struct@(StructMixin traits) sizeOf: item@(Sequence traits)
+[ | type slot |
+  slot: item first.
+  type: item second.
+  ({
+    #Int8 ->  [ |:x| 1].
+    #Int16 -> [ |:x| 2].
+    #Int32 -> [ |:x| 4].
+    #Int64 -> [ |:x| 8].
+    #CString -> [ |:x| x size + 1].
+    #ByteArray -> [ |:x| x size].
+    #Struct -> [ |:x| x structByteSize].
+    #Fixed -> [ |:x| x size].
+
+   } firstSatisfying: [|:each| each key = type])
+                        ifNotNilDo: [ |:found| ^ (found value applyWith: (found key = #Fixed ifTrue: [slot] ifFalse: [struct atSlotNamed: slot])].
+  error: 'Could not find size of ' ; item printString.
+].
+
+struct@(StructMixin traits) structByteSize
+[
+  struct binaryDescription reduce: [ |:carry :item | carry + struct sizeOf: item] ifEmpty: [0]
+].
+
+struct@(StructMixin traits) packed &littleEndian: le
+[ | ret offset |
+  le `defaultsTo: [True].
+  ret: (ba new &capacity: struct structByteSize).
+  
+  offset: 0.
+  struct binaryDescription do:
+    [ | :slotDescription type slot|
+       slot: item first.
+       type: item second.
+       ({#Int8 ->  [ |:x| ret byteAt: offset put: x. offset: offset + 1].
+         #Int16 -> [ |:x| ret int16At: offset put: x. offset: offset + 2].
+         #Int32 -> [ |:x| ret int32At: offset put: x. offset: offset + 4].
+         #Int64 -> [ |:x| ret int64At: offset put: x. offset: offset + 4].
+         #CString -> [ |:x| 
+                        ret replaceFrom: offset to: offset + x size - 1 with: x.
+                        ret byteAt: offset + x size put: 0.
+                        offset: offset + x size + 1].
+         #ByteArray -> [ |:x|
+                          ret replaceFrom: offset to: offset + x size - 1 with: x.
+                          offset: offset + x size].
+         #Fixed -> [ |:x|
+                      ret replaceFrom: offset to: offset + x size - 1 with: x.
+                      offset: offset + x size].
+         #Struct -> [ |:x obj |
+                       obj: (x packed &littleEndian: le).
+                       ret replaceFrom: offset to: offset - 1 + obj size with: obj.
+                       offset: offset + obj size].
+         } firstSatisfying: [|:each| each key = type])
+            ifNil: [error: 'Could find method to serialize ' ; item printString]
+            ifNotNilDo: [ |:found| ^ (found value applyWith: 
+              (found key = #Fixed ifTrue: [slot] ifFalse: [struct atSlotNamed: slot]))].
+   ].
+
+].
