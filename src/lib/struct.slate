@@ -19,9 +19,9 @@ struct@(StructMixin traits) packed &littleEndian: le
            #Int16 -> [ |:x| return next: 2 putInteger: x &littleEndian: le].
            #Int32 -> [ |:x| return next: 4 putInteger: x &littleEndian: le].
            #Int64 -> [ |:x| return next: 8 putInteger: x &littleEndian: le].
-           #CString -> [ |:x| return ; x. return nextPut: 0].
+           #CString -> [ |:x| return ; (x as: ByteArray). return nextPut: 0].
            #ByteArray -> [ |:x| return ; x].
-           #Fixed -> [ |:x| return ; x].
+           #Fixed -> [ |:x| return ; (x as: ByteArray)].
            #Struct -> [ |:x | return ; (x packed &littleEndian: le)].
            } firstSatisfying: [|:each| each key = type])
              ifNil: [error: 'Could find method to serialize ' ; slotDescription printString]

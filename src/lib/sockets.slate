@@ -227,8 +227,7 @@ s@(SocketStream traits) next: n putInto: seq startingAt: start
                   fds isEmpty ifTrue: [s closed: True. ^ s exhausted]. "this shouldn't happen"
                   ret: ([(s buffer readFromPipe: s socket fd)] on: Error do: [ |:e| e return: 0]).
                   ret = 0 ifTrue: [s closed: True. stopReading: True].
-                  s internalReadBuffer next: ret putAll: s buffer]
-                ].
+                  s internalReadBuffer next: ret putAll: s buffer].
   readSize: (s internalReadBuffer size min: n).
   seq replaceFrom: start to: start - 1 + readSize with: s internalReadBuffer.
   s internalReadBuffer forgetFirst: readSize.
