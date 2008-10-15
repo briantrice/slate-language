@@ -322,7 +322,7 @@ to set the image size."
     [| :oop :chunk | chunk oop: oop. chunk nextOop])
 ].
 
-
+"fixme: use the new #next:putInteger:&littleEndian in stream.slate"
 gen@(Image Bootstrap Generator traits) emitInteger: val on: stream byteSize: byteSize
 "Takes an integer and outputs the binary data value in the correct byte-order
 onto the stream."
@@ -855,7 +855,8 @@ gen@(Image Bootstrap Generator traits) generateLinkage
          gen generateLiteral: #divideByZero.
          gen generateLiteral: #notABoolean.
          gen generateLiteral: #applyTo:.
-         gen generateLiteral: #&optionals:}).
+         gen generateLiteral: #&optionals:.
+         gen generateLiteral: #badTypeError}).
   gen GlobalsObject setSlot: #bootstrapSymbols to: (gen cloneOf: gen ArrayProto elements: gen symbols valueSet).
 ].
 

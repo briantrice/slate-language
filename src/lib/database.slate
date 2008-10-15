@@ -23,18 +23,15 @@ db@(Database traits) newOn: stream
 ].
 
 db@(Database traits) sendCommand: cmd@(PostgresCommand traits)
-[ |bytes|
-  bytes: cmd packed.
-  db stream nextPutAll: bytes.
+[
+  db stream ; cmd packed.
 ].
 
 
 db@(Postgres traits) loginAs: user password: pw &database: database
 [ | cmd reply |
-  cmd: (PostgresCommand newType: PostgresCommand Startup) ; (Postgres ProtocolVersion as: PostgresInt32) ; 'user' ; user.
-  database ifNotNil: [ cmd << 'database' << database].
-
-  db send: cmd.
+ 
+  db sendCommand: PostgresStartCommand new `>> [user: user. database: database. ].
   reply: db readReply.
   "..."
 

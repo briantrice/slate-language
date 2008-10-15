@@ -465,6 +465,7 @@ word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
 #define SPECIAL_OOP_NOT_A_BOOLEAN 31
 #define SPECIAL_OOP_APPLY_TO 32
 #define SPECIAL_OOP_OPTIONALS 33
+#define SPECIAL_OOP_TYPE_ERROR_ON 34
 
 #define SF_READ				1
 #define SF_WRITE			1 << 1
@@ -3720,6 +3721,12 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
 
 /********************** SIGNAL ****************************/
 
+#define ASSURE_SMALLINT_ARG(XXX) \
+  if (!object_is_smallint(args[XXX])) { \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    return; \
+  }
+
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
 
@@ -3991,7 +3998,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[0]);
   int retval;
-  /*fixme remap fds for safety*/
+
+  ASSURE_SMALLINT_ARG(1);
   retval = close(handle);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (retval == 0) ? oh->cached.true_object : oh->cached.false_object;
 
@@ -4001,7 +4009,10 @@ void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t ari
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
   ssize_t retval;
-  /*fixme remap fds for safety*/
+
+  ASSURE_SMALLINT_ARG(1);
+
+
   retval = recv(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] =
@@ -4013,7 +4024,8 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
   ssize_t retval;
-  /*fixme remap fds for safety*/
+
+  ASSURE_SMALLINT_ARG(1);
 #ifdef linux
   retval = send(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT | MSG_NOSIGNAL);
 #else
@@ -4063,6 +4075,9 @@ void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], wo
   struct timeval tv;
   fd_set fdList;
   maxFD = 0;
+
+ASSURE_SMALLINT_ARG(1);
+
   if ((fdCount = socket_select_setup(selectOn, &fdList, &maxFD)) < 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
     return;
@@ -4096,6 +4111,9 @@ void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], w
   struct timeval tv;
   fd_set fdList;
   maxFD = 0;
+
+  ASSURE_SMALLINT_ARG(1);
+
   if ((fdCount = socket_select_setup(selectOn, &fdList, &maxFD)) < 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
     return;
@@ -4275,6 +4293,10 @@ void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t ari
   word_t ret = socket(socket_lookup_domain(domain), socket_lookup_type(type), socket_lookup_protocol(protocol));
   int ret2 = 0;
 
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  
   if (ret >= 0) {
     ret2 = socket_set_nonblocking(ret);
   } else {
@@ -4294,6 +4316,9 @@ void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t ari
   word_t size = object_to_smallint(args[1]);
   word_t ret;
 
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
   ret = listen(fd, size);
   
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
@@ -4308,6 +4333,7 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
   struct ByteArray* addrArray;
   struct OopArray* result;
 
+  ASSURE_SMALLINT_ARG(0);
 
   len = sizeof(addr);
   ret = accept(fd, (struct sockaddr*)&addr, &len);
@@ -4335,6 +4361,8 @@ void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity
   struct ByteArray* address = (struct ByteArray*) args[1];
   word_t ret;
 
+  ASSURE_SMALLINT_ARG(0);
+
   ret = bind(fd, (const struct sockaddr*)byte_array_elements(address), (socklen_t)byte_array_size(address));
   if (ret < 0) perror("bind");
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
@@ -4344,6 +4372,8 @@ void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t ar
   word_t fd = object_to_smallint(args[0]);
   struct ByteArray* address = (struct ByteArray*) args[1];
   word_t ret;
+
+  ASSURE_SMALLINT_ARG(0);
 
   ret = connect(fd, (const struct sockaddr*)byte_array_elements(address), (socklen_t)byte_array_size(address));
   
@@ -4360,6 +4390,10 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   struct sockaddr_in6* sin6;
   struct ByteArray* ret;
   
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(2);
+
+
   switch (domain) {
 
   case SLATE_DOMAIN_IPV4:
@@ -4402,6 +4436,10 @@ void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], wo
   byte_t* bytes = &((struct ByteArray*)seq)->elements[0] + object_to_smallint(start);
   word_t size = object_to_smallint(n);
 
+
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(4);
+
   assert(arity == 5 && console != NULL);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] =
@@ -4412,6 +4450,8 @@ void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], wo
 
 void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
+  ASSURE_SMALLINT_ARG(1);
+
   closeFile(oh, handle);
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 
@@ -4422,6 +4462,9 @@ void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Objec
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
 
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(4);
+
   retval = fread((char*)(byte_array_elements(bytes) + start), 1, n, stdin);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 
@@ -4431,7 +4474,8 @@ void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
-
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(4);
   retval = readFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
@@ -4440,6 +4484,8 @@ void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(4);
   retval = writeFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
@@ -4448,12 +4494,15 @@ void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[
 void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
   word_t retval = seekFile(oh, handle, n);
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
 void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   word_t retval = tellFile(oh, handle);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
@@ -4471,6 +4520,7 @@ void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t a
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
+  ASSURE_SMALLINT_ARG(1);
   if (endOfFile(oh, handle)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
   } else {
@@ -4481,6 +4531,7 @@ void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, s
 void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   word_t retval = sizeOfFile(oh, handle);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
@@ -4537,7 +4588,8 @@ void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t
 void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct Object *handle=args[1], *offset=args[2];
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
-
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
   if (object_is_smallint(handle) && object_is_smallint(offset)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
                            smallint_to_object(addressOfMemory(oh,
@@ -4759,12 +4811,15 @@ void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t n, st
 
   index = object_to_smallint(i);
 
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+
   if (object_is_immutable(obj)) {
     interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), obj, NULL, resultStackPointer);
     return;
   }
   
-  if (index < object_byte_size(obj)) {
+  if (index < byte_array_size((struct ByteArray*)obj)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(byte_array_set_element((struct ByteArray*)obj, index, object_to_smallint(val)));
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, resultStackPointer);
@@ -4781,7 +4836,9 @@ void prim_byteat(struct object_heap* oh, struct Object* args[], word_t n, struct
   i = args[1];
   index = object_to_smallint(i);
   
-  if (index < object_byte_size(obj)) {
+  ASSURE_SMALLINT_ARG(1);
+
+  if (index < byte_array_size((struct ByteArray*)obj)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(byte_array_get_element(obj, index));
   } else {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, resultStackPointer);
@@ -4882,7 +4939,7 @@ void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct Oop
 
   array = args[0];
   i = object_to_smallint(args[1]);
-  
+  ASSURE_SMALLINT_ARG(1);  
   if (i < object_array_size(array) && i >= 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = ((struct OopArray*)array)->elements[i];
   } else {
@@ -4898,6 +4955,7 @@ void prim_at_put(struct object_heap* oh, struct Object* args[], word_t n, struct
   struct Object *array = args[0], *i = args[1], *val = args[2];
   word_t index = object_to_smallint(i);
 
+  ASSURE_SMALLINT_ARG(1);
   if (object_is_immutable(array)) {
     interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), array, NULL, resultStackPointer);
     return;
@@ -4930,6 +4988,9 @@ void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct
 }
 
 void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = 
     (object_to_smallint(args[0])<object_to_smallint(args[1]))?oh->cached.true_object:oh->cached.false_object;
 }
@@ -4940,15 +5001,22 @@ void prim_size(struct object_heap* oh, struct Object* args[], word_t n, struct O
 }
 
 void prim_bitand(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)((word_t)args[0] & (word_t)args[1]);
 }
 void prim_bitor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)((word_t)args[0] | (word_t)args[1]);
 }
 void prim_bitxor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)(((word_t)args[0] ^ (word_t)args[1])|SMALLINT_MASK);
 }
 void prim_bitnot(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  ASSURE_SMALLINT_ARG(0);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)(~((word_t)args[0]) | SMALLINT_MASK);
 }
 
@@ -4957,6 +5025,12 @@ void prim_plus(struct object_heap* oh, struct Object* args[], word_t n, struct O
   struct Object* x = args[0];
   struct Object* y = args[1];
   word_t z = object_to_smallint(x) + object_to_smallint(y);
+
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
+
   if (smallint_fits_object(z)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
   } else {
@@ -5104,6 +5178,10 @@ void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, stru
   word_t bits = object_to_smallint(args[0]);
   word_t shift = object_to_smallint(args[1]);
   word_t z;
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
   if (shift >= 0) {
     if (shift >= __WORDSIZE && bits != 0) {
       interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
@@ -5132,6 +5210,10 @@ void prim_minus(struct object_heap* oh, struct Object* args[], word_t n, struct 
   struct Object* x = args[0];
   struct Object* y = args[1];
   word_t z = object_to_smallint(x) - object_to_smallint(y);
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
   if (smallint_fits_object(z)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
   } else {
@@ -5144,6 +5226,12 @@ void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct 
   word_t x = object_to_smallint(args[0]);
   word_t y = object_to_smallint(args[1]);
   word_t z = x * y;
+
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
+
   if (y != 0 && (x * y) / y != x) { /*thanks slava*/
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
   } else {
@@ -5154,6 +5242,10 @@ void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct 
 void prim_quo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   struct Object* x = args[0];
   struct Object* y = args[1];
+
+  ASSURE_SMALLINT_ARG(0);
+  ASSURE_SMALLINT_ARG(1);
+
   if (object_to_smallint(y) == 0) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_DIVIDE_BY_ZERO), x, y, NULL, resultStackPointer);
   } else {
