@@ -6,10 +6,14 @@ prototypes define: #StructMixin &parents: {Cloneable} &slots: {#binaryDescriptio
 
 "binaryDescription is a list of (slotName type), e.g. (width Int32)"
 
+struct@(StructMixin traits) littleEndian
+[
+  OverrideThis
+].
 
 struct@(StructMixin traits) packed &littleEndian: le
 [ 
-  le `defaultsTo: True.
+  le `defaultsTo: struct littleEndian.
   [ |:return|
     struct binaryDescription do:
       [ | :slotDescription type slot|

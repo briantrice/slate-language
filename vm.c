@@ -43,6 +43,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
@@ -3727,6 +3728,12 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
     return; \
   }
 
+#define ASSURE_TYPE_ARG(XXX, TYPEXXX) \
+  if (object_type(args[XXX]) != TYPEXXX) { \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    return; \
+  }
+
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
 
@@ -3995,44 +4002,110 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 /************************ concurrency *******************************/
 
+#define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
+
+
+/* remap platform specific errors to slate errors */
+word_t socket_return(word_t ret) {
+
+  if (ret >= 0) return ret;
+  perror("socket_return");
+  switch (-ret) {
+  case EACCES: return -2;
+  case EAFNOSUPPORT: return -3;
+  case EINVAL: return -4;
+  case EMFILE: return -5;
+  case ENFILE: return -5;
+  case ENOMEM: return -6;
+  case EPROTONOSUPPORT: return -3;
+  case EADDRINUSE: return -7;
+  case EBADF: return -8;
+  case ENOTSOCK: return -8;
+  case EFAULT: return -4;
+  case EOPNOTSUPP: return -3;
+  case EAGAIN: return -9;
+    /*  case EWOULDBLOCK: return -10;*/
+  case ECONNABORTED: return -11;
+  case EINTR: return -12;
+  case EPERM: return -2;
+  case EALREADY: return -13;
+  case ECONNREFUSED: return -14;
+  case EINPROGRESS: return -15;
+  case EISCONN: return -16;
+  case ENETUNREACH: return -17;
+  case ETIMEDOUT: return -18;
+
+
+  default: return -1;
+  }
+
+}
+
 void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[0]);
   int retval;
 
-  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(0);
   retval = close(handle);
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (retval == 0) ? oh->cached.true_object : oh->cached.false_object;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
 
 }
 
 void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
+  word_t start = object_to_smallint(args[2]), end = object_to_smallint(args[3]);
   ssize_t retval;
 
+  ASSURE_TYPE_ARG(0, TYPE_BYTE_ARRAY);
   ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(3);
 
+  if (start < 0 || start >= byte_array_size(array)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, resultStackPointer);
+    return;
+  }
 
-  retval = recv(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT);
+  if (end < start || end > byte_array_size(array)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, resultStackPointer);
+    return;
+  }
 
-  oh->cached.interpreter->stack->elements[resultStackPointer] =
-    (retval == -1) ? smallint_to_object(0-errno) : smallint_to_object(retval);
+  retval = recv(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
+
 
 }
 
 void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
+  word_t start = object_to_smallint(args[2]), end = object_to_smallint(args[3]);
   ssize_t retval;
 
+  ASSURE_TYPE_ARG(0, TYPE_BYTE_ARRAY);
   ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(3);
+
+  if (start < 0 || start >= byte_array_size(array)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, resultStackPointer);
+    return;
+  }
+
+  if (end < start || end > byte_array_size(array)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, resultStackPointer);
+    return;
+  }
+
 #ifdef linux
-  retval = send(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT | MSG_NOSIGNAL);
+  retval = send(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT | MSG_NOSIGNAL);
 #else
-  retval = send(handle, byte_array_elements(array), byte_array_size(array), MSG_DONTWAIT);
+  retval = send(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT);
 #endif
-  oh->cached.interpreter->stack->elements[resultStackPointer] =
-    (retval == -1) ? smallint_to_object(0-errno) : smallint_to_object(retval);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
 
 }
 
@@ -4216,7 +4289,6 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 
 #define SLATE_PROTOCOL_DEFAULT 0
 
-#define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
 
 int socket_lookup_domain(word_t domain) {
@@ -4248,42 +4320,6 @@ int socket_set_nonblocking(int fd)
     if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
         flags = 0;
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
-
-/* remap platform specific errors to slate errors */
-word_t socket_return(word_t ret) {
-
-  if (ret >= 0) return ret;
-  perror("socket_return");
-  switch (-ret) {
-  case EACCES: return -2;
-  case EAFNOSUPPORT: return -3;
-  case EINVAL: return -4;
-  case EMFILE: return -5;
-  case ENFILE: return -5;
-  case ENOMEM: return -6;
-  case EPROTONOSUPPORT: return -3;
-  case EADDRINUSE: return -7;
-  case EBADF: return -8;
-  case ENOTSOCK: return -8;
-  case EFAULT: return -4;
-  case EOPNOTSUPP: return -3;
-  case EAGAIN: return -9;
-    /*  case EWOULDBLOCK: return -10;*/
-  case ECONNABORTED: return -11;
-  case EINTR: return -12;
-  case EPERM: return -2;
-  case EALREADY: return -13;
-  case ECONNREFUSED: return -14;
-  case EINPROGRESS: return -15;
-  case EISCONN: return -16;
-  case ENETUNREACH: return -17;
-  case ETIMEDOUT: return -18;
-
-
-  default: return -1;
-  }
-
 }
 
 void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -4388,15 +4424,28 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   struct OopArray* options = (struct OopArray*) args[3];
   struct sockaddr_in* sin;
   struct sockaddr_in6* sin6;
+  struct sockaddr_un* sun;
   struct ByteArray* ret;
   
   ASSURE_SMALLINT_ARG(0);
-  ASSURE_SMALLINT_ARG(2);
-
 
   switch (domain) {
 
+  case SLATE_DOMAIN_LOCAL:
+    if (byte_array_size((struct ByteArray*)address) > 100) {
+      ret = (struct ByteArray*)oh->cached.nil;
+      break;
+    }
+    ret = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), sizeof(struct sockaddr_un));
+    sun = (struct sockaddr_un*)byte_array_elements(ret);
+    sun->sun_family = socket_lookup_domain(domain);
+    ASSURE_TYPE_ARG(1, TYPE_BYTE_ARRAY);
+    strncpy(sun->sun_path, (char*)byte_array_elements((struct ByteArray*)address), 100);
+    sun->sun_path[byte_array_size((struct ByteArray*)address)] = '\0';
+    break;
+
   case SLATE_DOMAIN_IPV4:
+    ASSURE_SMALLINT_ARG(2);
     if (object_array_size(address) < 4) {
       ret = (struct ByteArray*)oh->cached.nil;
       break;
@@ -4405,6 +4454,7 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
     sin = (struct sockaddr_in*)byte_array_elements(ret);
     sin->sin_family = socket_lookup_domain(domain);
     sin->sin_port = htons((uint16_t)port);
+    ASSURE_TYPE_ARG(1, TYPE_OOP_ARRAY);
     sin->sin_addr.s_addr = htonl(((object_to_smallint(object_array_get_element(address, 0)) & 0xFF) << 24)
       | ((object_to_smallint(object_array_get_element(address, 1)) & 0xFF) << 16)
       | ((object_to_smallint(object_array_get_element(address, 2)) & 0xFF) << 8)

@@ -2,10 +2,11 @@
 "for talking to databases through a socket interface"
 
 
-networking define: #Database &parents: {Cloneable} &slots: {#stream -> Nil}.
+networking define: #Database &parents: {Cloneable}.
+networking define: #DatabaseCommand &parents: {Database} &slots: {}.
 
-networking define: #Postgres &parents: {Database}" &slots: {#stream -> Nil}".
-networking define: #PostgresCommand &parents: {StructMixin}.
+networking define: #Postgres &parents: {Database} &slots: {#stream -> Nil}.
+networking define: #PostgresCommand &parents: {DatabaseCommand. StructMixin}.
 networking define: #PostgresStartCommand &parents: {PostgresCommand}
   &slots: {#length -> 0. #protocol -> 196608. #user -> 'user'. #database -> 'mydb'.
            #binaryDescription -> #((length Int32)
@@ -13,26 +14,89 @@ networking define: #PostgresStartCommand &parents: {PostgresCommand}
                                    ('user\0' Fixed)
                                    (user CString)
                                    ('database\0' Fixed)
-                                   (database CString))}.
+                                   (database CString)
+                                   ('\0' Fixed))}.
 
 db@(Database traits) newOn: stream
+[
+OverrideThis
+].
+
+db@(Database traits) sendCommand: cmd@(DatabaseCommand traits)
+[
+OverrideThis
+].
+
+db@(Database traits) close
+[
+OverrideThis
+].
+
+
+" ... Postgresql specific ... "
+
+pc@(PostgresCommand traits) littleEndian
+[
+  False
+].
+
+db@(Postgres traits) newOn: stream
 [ | ret |
   ret: db new.
   db stream: stream.
   db
 ].
 
-db@(Database traits) sendCommand: cmd@(PostgresCommand traits)
+db@(Postgres traits) sendCommand: cmd@(PostgresCommand traits)
 [
   db stream ; cmd packed.
+  db stream flush.
+].
+
+db@(Postgres traits) close
+[
+  db stream close.
+].
+
+
+
+db@(Postgres traits) connectTo: addr
+[ | socket |
+  socket: (Socket newFor: addr domain type: Socket Types Stream protocol: Socket Protocols Default).
+  socket connectTo: addr.
+  db stream: (SocketStream newOn: socket).
+  db
+].
+
+db@(Postgres traits) readReply
+[ | responseTypeByte responseLength response |
+
+[
+  responseTypeByte: db stream next.
+  inform: 'response type: ' ; responseTypeByte printString.
+  responseLength: ((db stream next: 4) bigEndianInt32At: 0)."fixme replace with int32 constant size or something"
+  inform: 'response len: ' ; responseLength printString.
+  inform: 'read buf ' ; db stream internalReadBuffer printString.
+  inform: 'write buf ' ; db stream internalWriteBuffer printString.
+  response: ((responseLength >= 4)
+               ifTrue: [(db stream next: responseLength - 4)] 
+               ifFalse: [error: 'malformed message from ' ; db printString]).
+ "fixme coerce to real structure"
+  {responseTypeByte. response}
+
+] on: Stream Exhaustion do: [ |:e| ^ Nil]
+
 ].
 
 
 db@(Postgres traits) loginAs: user password: pw &database: database
 [ | cmd reply |
- 
-  db sendCommand: PostgresStartCommand new `>> [user: user. database: database. ].
+  database `defaultsTo: user.
+  cmd: (PostgresStartCommand new `>> [user: user. database: database. ]).
+  cmd length: cmd packed size.
+  db sendCommand: cmd.
   reply: db readReply.
   "..."
+  inform: 'reply: ' ; reply second printString.
 
 ].

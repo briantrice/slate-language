@@ -24,6 +24,14 @@ all n requested elements may fit without lastIndex = firstIndex (the empty
 condition) occurring."
 [n ifNotNil: [n: n + 1]. resend clear].
 
+s@(Sequence traits) as: es@(Queue traits)
+"Likewise, we have to protect the buggy coding of whoever wrote this class."
+[
+  es new `>> [contents: (s arrayType newSize: s length + 1).
+	      addAll: s. ]
+].
+
+
 q@(Queue traits) isFull
 "The Queue is full if the indices span the whole array or are adjacent."
 [
