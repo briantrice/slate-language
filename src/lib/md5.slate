@@ -1,0 +1,77 @@
+
+"stuff for doing md5 sums"
+
+prototypes define: #Md5Sum &parents: {Cloneable} &slots: {
+ #shiftAmounts -> {7. 12. 17. 22. 7. 12. 17. 22. 7. 12. 17. 22. 7. 12. 17. 22. 
+                   5. 9. 14. 20. 5. 9. 14. 20. 5. 9. 14. 20. 5. 9. 14. 20. 
+                   4. 11. 16. 23. 4. 11. 16. 23. 4. 11. 16. 23. 4. 11. 16. 23. 
+                   6. 10. 15. 21. 6. 10. 15. 21. 6. 10. 15. 21. 6. 10. 15. 21}.
+ #k -> {-680876936. -389564586. 606105819. -1044525330. -176418897. 1200080426. -1473231341. -45705983. 1770035416. -1958414417. -42063. -1990404162. 1804603682. -40341101. -1502002290. 1236535329.
+        -165796510. -1069501632.  643717713. -373897302. -701558691.  38016083. -660478335. -405537848.  568446438. -1019803690. -187363961.  1163531501. -1444681467. -51403784.  1735328473. -1926607734.
+        -378558. -2022574463.  1839030562. -35309556. -1530992060.  1272893353. -155497632. -1094730640.  681279174. -358537222. -722521979.  76029189. -640364487. -421815835.  530742520. -995338651.
+        -198630844.  1126891415. -1416354905. -57434055.  1700485571. -1894986606. -1051523. -2054922799.  1873313359. -30611744. -1560198380.  1309151649. -145523070. -1120210379.  718787259. -343485551.
+        }
+}.
+
+0 upTo: 63 do: [ | :i | Md5Sum k at: i put: (((i + 1) as: Float) sin abs * (2 raisedTo: 32)) floor ].
+
+
+x@(Integer traits) md5LeftRotate: c
+[
+  (x << c) bitOr: (x >> (32 - c))
+].
+
+
+array@(ByteArray traits) md5sum
+[ | h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
+
+  h0: 16r01234567.
+  h1: 16r89ABCDEF.
+  h2: 16rFEDCBA98.
+  h3: 16r76543210.
+
+"
+append 1 bit to message
+append 0 bits until message length in bits == 448 (mod 512)
+append bit /* bit, not byte */ length of unpadded message as 64-bit little-endian integer to message
+"
+  arrayUnpaddedSizeInBits: array size * 8.
+  bitsToAdd: 448 - (arrayUnpaddedSizeInBits + 1 mod: 448).
+  newArray: (array as: ByteArray)
+    ; ((ByteArray newSize: bitsToAdd + 7 // 8) `>> [at: 0 put: 128. ])
+    ; ((ByteArray newSize: 8) `>> [writer next: 8 putInteger: arrayUnpaddedSizeInBits &littleEndian: True. ]).
+
+  0 upTo: newArray size - 1 by: 64 do:
+    [ | :chunkStart a b c d temp f g |
+       a: h0. b: h1. c: h2. d: h3.
+       0 upTo: 63 do:
+         [ |:i|
+
+            i <= 15 ifTrue:[ "f: ((b bitAnd: c) bitOr: (b bitNot bitAnd: d))."
+                              f: (d bitXor: (b bitAnd: (c bitXor: d))).
+                              g: i].
+            i > 15 /\ [i <= 31] ifTrue: ["f: (d bitAnd: b) bitOr: ((not d) and c)"
+                                          f: (c bitXor: (d bitAnd: (b bitXor: c))).
+                                          g: (5 * i + 1 mod: 16)].
+            i > 31 /\ [i <= 47] ifTrue: [ f: ((b bitXor: c) bitXor: d).
+                                          g: ((3 * i + 5) mod: 16)].
+            i > 47 ifTrue: [ f: (c bitXor: (b bitOr: d bitNot)).
+                             g: (7 * i mod: 16)].
+ 
+        temp: d.
+        d: c.
+        c: b.
+        b: b + (((a + f + (Md5Sum k at: i) + (newArray int32At: chunkStart // 4 * g)) mod: 16rFFFFFFFF) md5LeftRotate: (Md5Sum shiftAmounts at: i)).
+        a: temp].
+
+       h0: (h0 + a mod: 16rFFFFFFFF).
+       h1: (h1 + b mod: 16rFFFFFFFF).
+       h2: (h2 + c mod: 16rFFFFFFFF).
+       h3: (h3 + d mod: 16rFFFFFFFF)
+
+     ].
+
+  h0 bitOr: (h1 << 32 bitOr: (h2 << 64 bitOr: (h3 << 96)))
+
+].
+
