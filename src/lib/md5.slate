@@ -21,14 +21,25 @@ x@(Integer traits) md5LeftRotate: c
   (x << c) bitOr: (x >> (32 - c))
 ].
 
+x@(Integer traits) md5Int
+[
+  x bitAnd: 16rFFFFFFFF
+].
+
 
 array@(ByteArray traits) md5sum
 [ | h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
-
+"
   h0: 16r01234567.
   h1: 16r89ABCDEF.
   h2: 16rFEDCBA98.
   h3: 16r76543210.
+"
+  h0: 1732584193.
+  h1: -271733879 md5Int.
+  h2: -1732584194 md5Int.
+  h3: 271733878.
+
 
 "
 append 1 bit to message
@@ -41,7 +52,9 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
     ; ((ByteArray newSize: bitsToAdd + 7 // 8) `>> [at: 0 put: 128. ])
     ; ((ByteArray newSize: 8) `>> [writer next: 8 putInteger: arrayUnpaddedSizeInBits &littleEndian: True. ]).
 
-  0 upTo: newArray size - 1 by: 64 do:
+  inform: newArray printString.
+
+  0 below: newArray size by: 64 do:
     [ | :chunkStart a b c d temp f g |
        a: h0. b: h1. c: h2. d: h3.
        0 upTo: 63 do:
@@ -58,20 +71,24 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
             i > 47 ifTrue: [ f: (c bitXor: (b bitOr: d bitNot)).
                              g: (7 * i mod: 16)].
  
-        temp: d.
-        d: c.
-        c: b.
-        b: b + (((a + f + (Md5Sum k at: i) + (newArray int32At: chunkStart // 4 * g)) mod: 16rFFFFFFFF) md5LeftRotate: (Md5Sum shiftAmounts at: i)).
+        temp: d md5Int.
+        d: c md5Int.
+        c: b md5Int.
+        b: b + ((a + f md5Int + (Md5Sum k at: i) + (newArray int32At: chunkStart // 4 * g)) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)).
+        b: b md5Int.
         a: temp].
 
-       h0: (h0 + a mod: 16rFFFFFFFF).
-       h1: (h1 + b mod: 16rFFFFFFFF).
-       h2: (h2 + c mod: 16rFFFFFFFF).
-       h3: (h3 + d mod: 16rFFFFFFFF)
+       h0: (h0 + a) md5Int.
+       h1: (h1 + b) md5Int.
+       h2: (h2 + c) md5Int.
+       h3: (h3 + d) md5Int
 
      ].
 
-  h0 bitOr: (h1 << 32 bitOr: (h2 << 64 bitOr: (h3 << 96)))
+  h0 md5Int bitOr: 
+ (h1 md5Int << 32 bitOr:
+ (h2 md5Int << 64 bitOr:
+ (h3 md5Int << 96)))
 
 ].
 
