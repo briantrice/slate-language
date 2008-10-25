@@ -52,6 +52,8 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
     ; ((ByteArray newSize: bitsToAdd + 7 // 8) `>> [at: 0 put: 128. ])
     ; ((ByteArray newSize: 8) `>> [writer next: 8 putInteger: arrayUnpaddedSizeInBits &littleEndian: True. ]).
 
+  inform: 'bta: ' ; bitsToAdd printString.
+  inform: 'upsb: ' ; arrayUnpaddedSizeInBits printString.
   inform: newArray printString.
 
   0 below: newArray size by: 64 do:
@@ -61,22 +63,31 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
          [ |:i|
 
             i <= 15 ifTrue:[ "f: ((b bitAnd: c) bitOr: (b bitNot bitAnd: d))."
-                              f: (d bitXor: (b bitAnd: (c bitXor: d))).
+                             f: (d bitXor: (b bitAnd: (c bitXor: d))).
                               g: i].
-            i > 15 /\ [i <= 31] ifTrue: ["f: (d bitAnd: b) bitOr: ((not d) and c)"
-                                          f: (c bitXor: (d bitAnd: (b bitXor: c))).
+            i > 15 /\ [i <= 31] ifTrue: ["f: ((d bitAnd: b) bitOr: (d bitNot bitAnd: c))."
+                                         f: (c bitXor: (d bitAnd: (b bitXor: c))).
                                           g: (5 * i + 1 mod: 16)].
             i > 31 /\ [i <= 47] ifTrue: [ f: ((b bitXor: c) bitXor: d).
                                           g: ((3 * i + 5) mod: 16)].
             i > 47 ifTrue: [ f: (c bitXor: (b bitOr: d bitNot)).
                              g: (7 * i mod: 16)].
+       "inform: a printString.
+       inform: b printString.
+       inform: c printString.
+       inform: d printString."
  
         temp: d md5Int.
         d: c md5Int.
         c: b md5Int.
-        b: b + ((a + f md5Int + (Md5Sum k at: i) + (newArray int32At: chunkStart // 4 * g)) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)).
+        b: b + ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)).
         b: b md5Int.
         a: temp].
+
+       inform: a printString.
+       inform: b printString.
+       inform: c printString.
+       inform: d printString.
 
        h0: (h0 + a) md5Int.
        h1: (h1 + b) md5Int.

@@ -1830,9 +1830,24 @@ word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t prin
 }
 
 void heap_free_object(struct object_heap* oh, struct Object* obj) {
+  int i, k;
 #ifdef PRINT_DEBUG_GC_MARKINGS
   printf("freeing "); print_object(obj);
 #endif
+  /*fixme. there is a possibility that this is a method in oh->optimizedMethods.
+   * we might want to optimize this
+   */
+  for (i = 0; i < oh->optimizedMethodsSize; i++) {
+    if (obj == (struct Object*)oh->optimizedMethods[i]) {
+      /*shift things down*/
+      for (k = i; k < oh->optimizedMethodsSize - 1; k++) {
+        oh->optimizedMethods[k] = oh->optimizedMethods[k+1];
+      }
+      oh->optimizedMethodsSize --;
+      i--;
+    }
+  }
+
   heap_make_free_space(oh, obj, object_word_size(obj));
 
 }
@@ -2147,6 +2162,8 @@ void heap_sweep_young(struct object_heap* oh) {
       young_count++;
       young_word_count += object_word_size(obj);
       if (object_is_free(prev) && obj != prev) {
+        /*run hooks for free object before coalesce */
+        heap_free_object(oh, obj);
         heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
         obj = object_after(oh, prev);
         continue;
