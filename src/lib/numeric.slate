@@ -123,10 +123,8 @@ SmallInteger traitsWindow _delegates:
 
 
 
-
-
-SmallInteger traits addImmutableSlot: #minimumValue valued: -16r40000000.
-SmallInteger traits addImmutableSlot: #maximumValue valued: 16r3FFFFFFF.
+SmallInteger traits addImmutableSlot: #minimumValue valued: lobby smallIntegerMinimum.
+SmallInteger traits addImmutableSlot: #maximumValue valued: lobby smallIntegerMaximum.
 SmallInteger traits addImmutableSlot: #level valued: 0.
 "Level of the number type for coercion purposes."
 
@@ -139,16 +137,8 @@ i@(SmallInteger traits) highBit
     ifTrue: [^ (i bitNot highBit + 1)].
   bit: 0.
   n: i abs.
-  n > 16rFFFF
-    ifTrue: [bit: bit + 16. n: (n bitShift: -16)].
-  n > 16rFF
-    ifTrue: [bit: bit + 8. n: (n bitShift: -8)].
-  n > 16rF
-    ifTrue: [bit: bit + 4. n: (n bitShift: -4)].
-  n > 2r11
-    ifTrue: [bit: bit + 2. n: (n bitShift: -2)].
-  n > 2r1
-    ifTrue: [bit: bit + 1].
+  [n > 2r1]
+    whileTrue: [bit: bit + 1. n: (n bitShift: -1)].
   bit
 ].
 

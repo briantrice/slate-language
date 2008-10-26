@@ -13,7 +13,6 @@ prototypes define: #Md5Sum &parents: {Cloneable} &slots: {
         }
 }.
 
-0 upTo: 63 do: [ | :i | Md5Sum k at: i put: (((i + 1) as: Float) sin abs * (2 raisedTo: 32)) floor ].
 
 
 x@(Integer traits) md5LeftRotate: c
@@ -26,15 +25,17 @@ x@(Integer traits) md5Int
   x bitAnd: 16rFFFFFFFF
 ].
 
+array@(ByteArray traits) md5String
+[ | sum writer |
+  sum: array md5Sum.
+  writer: '' writer.
+  0 below: 16 do: [ |:i| writer ; (((sum >> (i * 8)) intoByte printString &radix: 16) truncateTo: 2 paddedBy: $0 &onRight: False)].
+  writer contents toLowercase
+].
 
-array@(ByteArray traits) md5sum
+array@(ByteArray traits) md5Sum
 [ | h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
-"
-  h0: 16r01234567.
-  h1: 16r89ABCDEF.
-  h2: 16rFEDCBA98.
-  h3: 16r76543210.
-"
+
   h0: 1732584193.
   h1: -271733879 md5Int.
   h2: -1732584194 md5Int.
@@ -52,13 +53,14 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
     ; ((ByteArray newSize: bitsToAdd + 7 // 8) `>> [at: 0 put: 128. ])
     ; ((ByteArray newSize: 8) `>> [writer next: 8 putInteger: arrayUnpaddedSizeInBits &littleEndian: True. ]).
 
-  inform: 'bta: ' ; bitsToAdd printString.
+"  inform: 'bta: ' ; bitsToAdd printString.
   inform: 'upsb: ' ; arrayUnpaddedSizeInBits printString.
   inform: newArray printString.
-
+"
   0 below: newArray size by: 64 do:
     [ | :chunkStart a b c d temp f g |
        a: h0. b: h1. c: h2. d: h3.
+"       inform: '0= ';  a printString ; ', 1= ' ; b printString ; ', 2= ' ; c printString ; ', 3= ' ; d printString."
        0 upTo: 63 do:
          [ |:i|
 
@@ -72,22 +74,20 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
                                           g: ((3 * i + 5) mod: 16)].
             i > 47 ifTrue: [ f: (c bitXor: (b bitOr: d bitNot)).
                              g: (7 * i mod: 16)].
-       "inform: a printString.
-       inform: b printString.
-       inform: c printString.
-       inform: d printString."
+
  
         temp: d md5Int.
         d: c md5Int.
         c: b md5Int.
-        b: b + ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)).
+        "inform: 'i= ';  i printString ; ', g= ' ; g printString ; ', f= ' ; f md5Int printString ; ', k= ' ;  (Md5Sum k at: i) md5Int printString  ; ', w[g]= ' ;  (newArray int32At: chunkStart // 4 + g) md5Int printString.
+        inform: 'rotate=' ; ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)) md5Int printString."
+        b: b + ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)) md5Int.
         b: b md5Int.
-        a: temp].
+        a: temp.
 
-       inform: a printString.
-       inform: b printString.
-       inform: c printString.
-       inform: d printString.
+        "inform: 'i= ';  i printString ; ', a= ';  a printString ; ', b= ' ; b printString ; ', c= ' ; c printString ; ', d= ' ; d printString."
+        ].
+
 
        h0: (h0 + a) md5Int.
        h1: (h1 + b) md5Int.
@@ -96,10 +96,15 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
 
      ].
 
-  h0 md5Int bitOr: 
- (h1 md5Int << 32 bitOr:
- (h2 md5Int << 64 bitOr:
- (h3 md5Int << 96)))
+"  inform: h0 printString.
+  inform: h1 printString.
+  inform: h2 printString.
+  inform: h3 printString.
+"
+  h0 bitOr: 
+ (h1 << 32 bitOr:
+ (h2 << 64 bitOr:
+ (h3 << 96)))
 
 ].
 
