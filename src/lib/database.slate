@@ -1,13 +1,17 @@
 
 "for talking to databases through a socket interface"
 
+networking ensureNamespace: #databases &delegate: True.
 
-networking define: #Database &parents: {Cloneable}.
-networking define: #DatabaseCommand &parents: {Database} &slots: {}.
 
-networking define: #Postgres &parents: {Database} &slots: {#stream -> Nil}.
-networking define: #PostgresCommand &parents: {DatabaseCommand. StructMixin}.
-networking define: #PostgresStartCommand &parents: {PostgresCommand}
+databases define: #Database &parents: {Cloneable}.
+databases define: #DatabaseCommand &parents: {Database} &slots: {}.
+databases define: #DatabaseReply &parents: {Database} &slots: {}.
+
+databases define: #Postgres &parents: {Database} &slots: {#stream -> Nil}.
+databases define: #PostgresReply &parents: {DatabaseReply} &slots: {#type -> Nil. #length -> 0. #response -> Nil}.
+databases define: #PostgresCommand &parents: {DatabaseCommand. StructMixin}.
+databases define: #PostgresStartCommand &parents: {PostgresCommand}
   &slots: {#length -> 0. #protocol -> 196608. #user -> 'user'. #database -> 'mydb'.
            #binaryDescription -> #((length Int32)
                                    (protocol Int32)
@@ -16,6 +20,11 @@ networking define: #PostgresStartCommand &parents: {PostgresCommand}
                                    ('database\0' Fixed)
                                    (database CString)
                                    ('\0' Fixed))}.
+
+databases define: #PostgresPasswordMessage &parents: {PostgresCommand}
+  &slots: {#length -> 0. #password -> ''.
+           #binaryDescription -> #(('p' Fixed)(length Int32)(password CString))}.
+
 
 db@(Database traits) newOn: stream
 [
@@ -28,6 +37,11 @@ OverrideThis
 ].
 
 db@(Database traits) close
+[
+OverrideThis
+].
+
+reply@(DatabaseReply traits) isError
 [
 OverrideThis
 ].
@@ -60,6 +74,12 @@ db@(Postgres traits) close
 
 
 
+reply@(PostgresReply traits) newType: type response: response
+[ | return |
+  reply new `>> [type: type. length: response size. response: response. ]
+].
+
+
 db@(Postgres traits) connectTo: addr
 [ | socket |
   socket: (Socket newFor: addr domain type: Socket Types Stream protocol: Socket Protocols Default).
@@ -67,6 +87,20 @@ db@(Postgres traits) connectTo: addr
   db stream: (SocketStream newOn: socket).
   db
 ].
+
+reply@(PostgresReply traits) isError
+[
+  reply type = $E code
+].
+
+reply@(PostgresReply traits) printError
+[
+  reply isError ifFalse: [^ Nil].
+  reply response first = 0
+        ifTrue: [inform: 'Generic Error']
+        ifFalse: [inform: 'Postgres Error: ' ; (reply response allButFirst as: ASCIIString)]
+].
+
 
 db@(Postgres traits) readReply
 [ | responseTypeByte responseLength response |
@@ -82,21 +116,44 @@ db@(Postgres traits) readReply
                ifTrue: [(db stream next: responseLength - 4)] 
                ifFalse: [error: 'malformed message from ' ; db printString]).
  "fixme coerce to real structure"
-  {responseTypeByte. response}
+  PostgresReply newType: responseTypeByte response: response
 
 ] on: Stream Exhaustion do: [ |:e| ^ Nil]
 
 ].
 
+db@(Postgres traits) md5Encrypt: pw salt: salt
+[
+  ((pw as: ByteArray) ; (salt as: ByteArray)) md5String
+].
+
+db@(Postgres traits) handleLogin: user password: pw
+[ | cmd reply reply authCode|
+  reply: db readReply.
+  inform: 'reply: ' ; reply printString.
+  reply isError ifTrue: [reply printError. error: 'Login Failed.'].
+  reply type ~= $R code ifTrue: [error: 'Reply from server is not an authentication request'].
+  authCode: (reply response bigEndianInt32At: 0).
+  inform: 'auth code: ' ; authCode printString.
+  authCode = 0 ifTrue: [ ^ True].
+  authCode = 5 "md5 with salt on pw"
+    ifTrue: [inform: 'salt: ' ; (reply response allButFirst: 4) printString.
+             cmd: (PostgresPasswordMessage new `>> [password: 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
+             cmd length: cmd packed size - 1.
+             inform: 'sending md5 pw: ' ; cmd password printString.
+             db sendCommand: cmd.
+             ^ (db handleLogin: user password: pw)
+             ]
+    ifFalse: [error: 'unhandled authentication'].
+
+].
 
 db@(Postgres traits) loginAs: user password: pw &database: database
-[ | cmd reply |
+[ | cmd |
   database `defaultsTo: user.
   cmd: (PostgresStartCommand new `>> [user: user. database: database. ]).
   cmd length: cmd packed size.
   db sendCommand: cmd.
-  reply: db readReply.
-  "..."
-  inform: 'reply: ' ; reply second printString.
+  (db handleLogin: user password: pw) ifTrue: [inform: 'Login success'].
 
 ].

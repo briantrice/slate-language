@@ -230,7 +230,7 @@ s@(SocketStream traits) flush
     [ | return fds | 
       fds: ({s socket fd} selectOnWritePipesFor: Socket SelectTimeout).
       return: 0.
-      inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString.
+      "inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString."
       fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
       (return = 0) ifTrue: [error: 'write failed']. 
       return < 0 /\ [return ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
@@ -257,11 +257,11 @@ s@(SocketStream traits) next: n putInto: seq startingAt: start
     whileTrue: [ | fds ret |
                   fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
                   fds isEmpty ifTrue: [s closed: True. s exhausted. ^ 0]. "this shouldn't happen"
-                  inform: 'before read ' ; fds printString.
+                  "inform: 'before read ' ; fds printString."
                   ret: (s buffer readFromPipe: s socket fd start: 0 end: s buffer size).
-                  inform: 'ret ' ; ret printString.
+                  "inform: 'ret ' ; ret printString."
                   ret = 0 ifTrue: [s closed: True. s exhausted. ^ 0].
-                  inform: 'read bytes: ' ; s buffer printString.
+                  "inform: 'read bytes: ' ; s buffer printString."
                   writer next: ret putAll: s buffer].
   readSize: (s internalReadBuffer size min: n).
   seq replaceFrom: start to: start - 1 + readSize with: s internalReadBuffer.
