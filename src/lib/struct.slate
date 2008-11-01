@@ -35,3 +35,20 @@ struct@(StructMixin traits) packed &littleEndian: le
   ] writingAs: ByteArray
 
 ].
+
+
+array@(Sequence traits) as: int@(Integer traits) &bigEndian: bigEndian &radix: radix
+[ | result position |
+  bigEndian `defaultsTo: False.
+  radix `defaultsTo: 256.
+  result: 0.
+  position: 1.
+
+  bigEndian
+    ifTrue: [array size - 1 downTo: 0 do: [ |:i| result: (array at: i) * position + result. position: position * radix]]
+    ifFalse: [0 below: array size do: [ |:i| result: (array at: i) * position + result. position: position * radix]].
+
+  result
+
+
+].

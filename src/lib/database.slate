@@ -1,6 +1,16 @@
 
 "for talking to databases through a socket interface"
 
+
+"
+TODO:
+
+ - postgres needs better error handling
+ - accept any type of message at any time
+ - support for advanced features
+
+"
+
 networking ensureNamespace: #databases &delegate: True.
 
 
@@ -25,6 +35,13 @@ databases define: #PostgresPasswordMessage &parents: {PostgresCommand}
   &slots: {#length -> 0. #password -> ''.
            #binaryDescription -> #(('p' Fixed)(length Int32)(password CString))}.
 
+databases define: #PostgresQueryCommand &parents: {PostgresCommand}
+  &slots: {#length -> 0. #query -> ''.
+           #binaryDescription -> #(('Q' Fixed)(length Int32)(query CString))}.
+
+
+databases define: #PostgresColumnDescription &parents: {Cloneable}
+ &slots: {#name -> ''. #objectID -> 0. #attributeNumber -> 0. #type -> 0. #typeSize -> 0. #typeModifier -> 0. #format -> 0}.
 
 db@(Database traits) newOn: stream
 [
@@ -69,10 +86,14 @@ db@(Postgres traits) sendCommand: cmd@(PostgresCommand traits)
 
 db@(Postgres traits) close
 [
+  inform: 'closing postgres connection'.
   db stream close.
 ].
 
-
+db@(Postgres traits) hasReply
+[
+  db stream socket canRead
+].
 
 reply@(PostgresReply traits) newType: type response: response
 [ | return |
@@ -88,6 +109,12 @@ db@(Postgres traits) connectTo: addr
   db
 ].
 
+reply@(PostgresReply traits) isNotice
+[
+  reply type = $N code
+].
+
+
 reply@(PostgresReply traits) isError
 [
   reply type = $E code
@@ -95,10 +122,10 @@ reply@(PostgresReply traits) isError
 
 reply@(PostgresReply traits) printError
 [
-  reply isError ifFalse: [^ Nil].
+  reply isError \/ [reply isNotice] ifFalse: [^ Nil].
   reply response first = 0
-        ifTrue: [inform: 'Generic Error']
-        ifFalse: [inform: 'Postgres Error: ' ; (reply response allButFirst as: ASCIIString)]
+        ifTrue: ['Generic Error']
+        ifFalse: ['Postgres Error: ' ; (reply response allButFirst as: ASCIIString)]
 ].
 
 
@@ -107,11 +134,7 @@ db@(Postgres traits) readReply
 
 [
   responseTypeByte: db stream next.
-  inform: 'response type: ' ; responseTypeByte printString.
-  responseLength: ((db stream next: 4) bigEndianInt32At: 0)."fixme replace with int32 constant size or something"
-  inform: 'response len: ' ; responseLength printString.
-  inform: 'read buf ' ; db stream internalReadBuffer printString.
-  inform: 'write buf ' ; db stream internalWriteBuffer printString.
+  responseLength: ((db stream next: 4) as: Integer &bigEndian: True)."fixme replace with int32 constant size or something"
   response: ((responseLength >= 4)
                ifTrue: [(db stream next: responseLength - 4)] 
                ifFalse: [error: 'malformed message from ' ; db printString]).
@@ -131,9 +154,9 @@ db@(Postgres traits) handleLogin: user password: pw
 [ | cmd reply reply authCode|
   reply: db readReply.
   inform: 'reply: ' ; reply printString.
-  reply isError ifTrue: [reply printError. error: 'Login Failed.'].
+  reply isError ifTrue: [error: 'Login Failed. ' ; reply printError].
   reply type ~= $R code ifTrue: [error: 'Reply from server is not an authentication request'].
-  authCode: (reply response bigEndianInt32At: 0).
+  authCode: ((reply response first: 4) as: Integer &bigEndian: True).
   inform: 'auth code: ' ; authCode printString.
   authCode = 0 ifTrue: [ ^ True].
   authCode = 5 "md5 with salt on pw"
@@ -149,11 +172,86 @@ db@(Postgres traits) handleLogin: user password: pw
 ].
 
 db@(Postgres traits) loginAs: user password: pw &database: database
+"Use this command to log into a database"
 [ | cmd |
   database `defaultsTo: user.
   cmd: (PostgresStartCommand new `>> [user: user. database: database. ]).
   cmd length: cmd packed size.
   db sendCommand: cmd.
   (db handleLogin: user password: pw) ifTrue: [inform: 'Login success'].
-
+  db waitForQuery.
 ].
+
+
+db@(Postgres traits) waitForQuery
+"receive messages until readyforquery message"
+[ | reply |
+ [
+  reply: db readReply.
+  reply type caseOf: {
+    $S code -> [inform: 'parameter status ' ; reply printString].
+    $E code -> [error: 'Error: ' ; reply printError. ].
+    $K code -> [inform: 'Receiving Key data'].
+    $Z code -> [inform: 'Ready for query'. ^ True].
+  } otherwise: [error: 'unexpected reply: ' ; reply printString]
+ ] loop.
+].
+
+
+
+db@(Postgres traits) query: query
+"Use this to do a simple query on the database"
+[ | cmd |
+  cmd: (PostgresQueryCommand new `>> [query: query. ]).
+  cmd length: cmd packed size - 1.
+  db sendCommand: cmd.
+  db readQueryResult
+].
+
+pcd@(PostgresColumnDescription traits) createEntryFrom: value
+[
+  pcd format = 0 ifTrue: [value as: ASCIIString]
+                 ifFalse: [value "fixme.. binary serialize"]
+].
+
+db@(Postgres traits) readQueryResult
+[ | reply result rowDescription rows reader columnCount|
+ result: ExtensibleArray new.
+ rows: ExtensibleArray new.
+ [
+  reply: db readReply.
+  reader: reply response reader.
+  reply type caseOf: {
+    $N code -> [inform: 'Notice: ' ; reply printError].
+    $C code -> [inform: 'Command Complete'. result add: {rowDescription. rows}].
+    $E code -> [error: 'Read Query Result Error: ' ; reply printError. ].
+    $I code -> [inform: 'Empty query response.'].
+    $D code -> [inform: 'Data row'.
+                columnCount: ((reader next: 2) as: Integer &bigEndian: True).
+                rows add: ((0 below: columnCount)
+                                collect: [ | :col entrySize entry|
+                                            entrySize: ((reader next: 4) as: Integer &bigEndian: True).
+                                            entrySize < 0 ifTrue: [Nil]
+                                                          ifFalse: [(rowDescription at: col) createEntryFrom: (reader next: entrySize)]]).
+                ].
+    $T code -> [inform: 'Row description.'. 
+                rowDescription: (Array newSize: ((reader next: 2) as: Integer &bigEndian: True)).
+                0 below: rowDescription size do:
+                  [ | :i column |
+                     column: PostgresColumnDescription new.
+                     column name: ((reader nextUntil: [ |:c| c = 0]) as: ASCIIString).
+                     reader next. "null terminator"
+                     column objectID: ((reader next: 4) as: Integer &bigEndian: True).
+                     column attributeNumber: ((reader next: 2) as: Integer &bigEndian: True).
+                     column type: ((reader next: 4) as: Integer &bigEndian: True).
+                     column typeSize: ((reader next: 2) as: Integer &bigEndian: True).
+                     column typeModifier: ((reader next: 4) as: Integer &bigEndian: True).
+                     column format: ((reader next: 2) as: Integer &bigEndian: True).
+                     inform: 'column: ' ; column printString.
+                     rowDescription at: i put: column.
+                  ]].
+    $Z code -> [inform: 'Ready for query'. ^ result].
+  } otherwise: [error: 'unexpected reply: ' ; reply printString]
+ ] loop.
+].
+

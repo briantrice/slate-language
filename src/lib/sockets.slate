@@ -131,6 +131,18 @@ s@(Socket traits) close
   ret < 0 ifTrue: [s throwError: ret].
 ].
 
+s@(Socket traits) canRead
+[ 
+  ({s} selectOnReadPipesFor: 0) isEmpty not
+].
+
+s@(Socket traits) canWrite
+[ 
+  ({s} selectOnWritePipesFor: 0) isEmpty not
+].
+
+
+
 
 s@(Socket traits) acceptConnection
 [ | ret |
