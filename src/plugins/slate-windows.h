@@ -10,6 +10,9 @@
 #  endif
 #endif
 
+#include <stdint.h>
+typedef  intptr_t slate_int_t;
+
 enum MessageType
 {
     repaintWindowMessageType        = 0,
@@ -64,18 +67,18 @@ enum ButtonStates
 
 EXPORT void init();
 EXPORT void shutdown();
-EXPORT Window *createWindow(int width, int height);
-EXPORT int haveEvent();
-EXPORT int waitForEvent();
+EXPORT Window *createWindow(slate_int_t width, slate_int_t height);
+EXPORT slate_int_t haveEvent();
+EXPORT slate_int_t waitForEvent();
 EXPORT void popEvent();
-EXPORT int getEventType();
+EXPORT slate_int_t getEventType();
 EXPORT Window *getEventWindow();
-EXPORT int getEventMouseMotionX();
-EXPORT int getEventMouseMotionY();
-EXPORT int getEventMouseButtonX();
-EXPORT int getEventMouseButtonY();
-EXPORT int getKeyboardKey();
-EXPORT int getKeyboardMod();
+EXPORT slate_int_t getEventMouseMotionX();
+EXPORT slate_int_t getEventMouseMotionY();
+EXPORT slate_int_t getEventMouseButtonX();
+EXPORT slate_int_t getEventMouseButtonY();
+EXPORT slate_int_t getKeyboardKey();
+EXPORT slate_int_t getKeyboardMod();
 EXPORT void blit(
-    Window *dest, int destX, int destY, int destWidth, int destHeight,
-    void *src, int srcX, int srcY, int srcWidth, int srcHeight, int srcStride);
+    Window *dest, slate_int_t destX, slate_int_t destY, slate_int_t destWidth, slate_int_t destHeight,
+    void *src, slate_int_t srcX, slate_int_t srcY, slate_int_t srcWidth, slate_int_t srcHeight, slate_int_t srcStride);

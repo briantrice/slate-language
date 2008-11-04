@@ -34,23 +34,22 @@ _@(WordArray traits) defaultElement [0].
 w@(WordArray traits) accepts: i@(Integer traits) "Should be fixed 32bits"
 [(0 below: (1 << (w wordSize * 8))) includes: i].
 
-"fix 32bits"
 a@(WordArray BigEndian traits) at: offset
 [
-  a bytes bigEndianInt32At: offset
+  a wordSize = 8 ifTrue: [a bytes bigEndianInt64At: offset] ifFalse: [a bytes bigEndianInt32At: offset]
 ].
 
 a@(WordArray LittleEndian traits) at: offset
 [
-  a bytes littleEndianInt32At: offset
+  a wordSize = 8 ifTrue: [a bytes littleEndianInt64At: offset] ifFalse: [a bytes littleEndianInt32At: offset]
 ].
 
 a@(WordArray BigEndian traits) at: offset put: word
 [
-  a bytes bigEndianInt32At: offset put: word
+  a wordSize = 8 ifTrue: [a bytes bigEndianInt64At: offset put: word] ifFalse: [a bytes bigEndianInt32At: offset put: word]
 ].
 
 a@(WordArray LittleEndian traits) at: offset put: word
 [
-  a bytes littleEndianInt32At: offset put: word
+  a wordSize = 8 ifTrue: [a bytes littleEndianInt64At: offset put: word] ifFalse: [a bytes littleEndianInt32At: offset put: word]
 ].

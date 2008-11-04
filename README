@@ -2,8 +2,13 @@
 Setup
 -----
 
-'make vm' for debugging vm
-'make vm.fast' for non-debugging vm
+'make vm' for regular vm
+'make vm.debug' for debugging vm
+
+./vm kernel.image                 "bootstrap"
+Image saveNamed: 'my.image'.      "dump image"
+./vm my.image                     "load image"
+
 
 
 Command Line
@@ -90,3 +95,8 @@ genCode: (c generate:
 method sourceTree result: Nil &topLevel: True) code.
 c decompile: (genCode third code at: 13) code
 ] applyWith: VM SSACompiler new.
+
+
+"see what is getting called"
+VM SSACompiler new decompile: (#handle: findOn: {mainWindow. PaintEvent newContext: mainWindow context}) method code.
+

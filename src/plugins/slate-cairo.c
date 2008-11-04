@@ -5,6 +5,8 @@
 #endif
 
 #include <cairo.h>
+#include <stdint.h>
+typedef  intptr_t slate_int_t;
 
 #ifndef EXPORT
 #  ifdef _WIN32
@@ -19,7 +21,7 @@
 ******************************************************************************/
 
 EXPORT cairo_surface_t *image_surface_create_for_data(
-    unsigned char *data, int format, int width, int height, int stride)
+    unsigned char *data, slate_int_t format, slate_int_t width, slate_int_t height, slate_int_t stride)
 {
     return cairo_image_surface_create_for_data(data, format, width, height, stride);
 }
@@ -74,23 +76,23 @@ EXPORT void save(cairo_t *context)
     cairo_save(context);
 }
 
-EXPORT int get_line_width(cairo_t *context)
+EXPORT slate_int_t get_line_width(cairo_t *context)
 {
     float f = (float)cairo_get_line_width(context);
-    return *(int*)&f;
+    return *(slate_int_t*)&f;
 }
 
-EXPORT void set_line_width(cairo_t *context, int width)
+EXPORT void set_line_width(cairo_t *context, slate_int_t width)
 {
     cairo_set_line_width(context, *(float*)&width);
 }
 
-EXPORT void set_source_rgb(cairo_t *context, int r, int g, int b)
+EXPORT void set_source_rgb(cairo_t *context, slate_int_t r, slate_int_t g, slate_int_t b)
 {
     cairo_set_source_rgb(context, *(float*)&r, *(float*)&g, *(float*)&b);
 }
 
-EXPORT void set_source_rgba(cairo_t *context, int r, int g, int b, int a)
+EXPORT void set_source_rgba(cairo_t *context, slate_int_t r, slate_int_t g, slate_int_t b, slate_int_t a)
 {
     cairo_set_source_rgba(context, *(float*)&r, *(float*)&g, *(float*)&b, *(float*)&a);
 }
@@ -114,12 +116,12 @@ EXPORT void close_path(cairo_t *context)
     cairo_close_path(context);
 }
 
-EXPORT void line_to(cairo_t *context, int x, int y)
+EXPORT void line_to(cairo_t *context, slate_int_t x, slate_int_t y)
 {
     cairo_line_to(context, *(float*)&x, *(float*)&y);
 }
 
-EXPORT void move_to(cairo_t *context, int x, int y)
+EXPORT void move_to(cairo_t *context, slate_int_t x, slate_int_t y)
 {
     cairo_move_to(context, *(float*)&x, *(float*)&y);
 }
@@ -129,7 +131,7 @@ EXPORT void new_path(cairo_t *context)
     cairo_new_path(context);
 }
 
-EXPORT void rectangle(cairo_t *context, int x, int y, int w, int h)
+EXPORT void rectangle(cairo_t *context, slate_int_t x, slate_int_t y, slate_int_t w, slate_int_t h)
 {
     cairo_rectangle(context, *(float*)&x, *(float*)&y, *(float*)&w, *(float*)&h);
 }
@@ -138,12 +140,12 @@ EXPORT void rectangle(cairo_t *context, int x, int y, int w, int h)
 * Transformation
 ******************************************************************************/
 
-EXPORT void translate(cairo_t *context, int tx, int ty)
+EXPORT void translate(cairo_t *context, slate_int_t tx, slate_int_t ty)
 {
     cairo_translate(context, *(float*)&tx, *(float*)&ty);
 }
 
-EXPORT void scale(cairo_t *context, int sx, int sy)
+EXPORT void scale(cairo_t *context, slate_int_t sx, slate_int_t sy)
 {
     cairo_scale(context, *(float*)&sx, *(float*)&sy);
 }
@@ -152,7 +154,7 @@ EXPORT void scale(cairo_t *context, int sx, int sy)
 * Text
 ******************************************************************************/
 
-EXPORT void select_font_face(cairo_t *context, const char *family, int italic, int bold)
+EXPORT void select_font_face(cairo_t *context, const char *family, slate_int_t italic, slate_int_t bold)
 {
     cairo_select_font_face(
         context, 
@@ -161,7 +163,7 @@ EXPORT void select_font_face(cairo_t *context, const char *family, int italic, i
         bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
 }
 
-EXPORT void set_font_size(cairo_t *context, int size)
+EXPORT void set_font_size(cairo_t *context, slate_int_t size)
 {
     cairo_set_font_size(context, *(float*)&size);
 }

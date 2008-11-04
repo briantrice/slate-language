@@ -1135,7 +1135,7 @@ int openMemory (struct object_heap* oh, int size)
   }
 }
 
-int writeMemory (struct object_heap* oh, int memory, int memStart, int n, char* bytes)
+int writeMemory (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes)
 {
   void* area;
   int nDelimited;
@@ -1150,7 +1150,7 @@ int writeMemory (struct object_heap* oh, int memory, int memStart, int n, char* 
   return nDelimited;
 }
 
-int readMemory (struct object_heap* oh, int memory, int memStart, int n, char* bytes)
+int readMemory (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes)
 {
   void* area;
   int nDelimited;
@@ -3359,15 +3359,22 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
       }
       break;
     case ARG_FORMAT_FLOAT:
-      if (object_is_smallint(element)) {
+      {
         union {
           float_t f;
           word_t u;
         } convert;
-        convert.f = (float_t) object_to_smallint(element);
+
+        if (object_is_smallint(element)) {
+          convert.f = (float_t) object_to_smallint(element);
+        } else {
+          convert.f = * (float_t *) byte_array_elements((struct ByteArray*)element);
+        }
+        /*fixme this is broken probably*/
+        assert(0);
         args[outArgIndex++] = convert.u;
-      } else
-        args[outArgIndex++] = * (word_t *) byte_array_elements((struct ByteArray*)element);
+      }
+
       break;
     case ARG_FORMAT_DOUBLE:
       {
@@ -4657,7 +4664,7 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
-  if (object_is_smallint(handle) && object_is_smallint(offset)) {
+  if (object_is_smallint(handle) && object_is_smallint(offset) && byte_array_size(addressBuffer) >= sizeof(word_t)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
                            smallint_to_object(addressOfMemory(oh,
                                                               object_to_smallint(handle), 
@@ -4765,6 +4772,51 @@ void prim_fixedAreaAddRef(struct object_heap* oh, struct Object* args[], word_t 
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 
 }
+
+void prim_fixedReadFromStarting(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
+  struct ByteArray* buf = (struct ByteArray*)args[0];
+  word_t amount = object_to_smallint(args[1]), startingAt = object_to_smallint(args[3]),
+    handle = object_to_smallint(args[2]);
+
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(3);
+
+  if (!validMemoryHandle(oh, handle) 
+      || byte_array_size(buf) < amount 
+      || startingAt + amount >= oh->memory_sizes [handle]) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(-1);
+    return;
+  }
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] =
+    smallint_to_object(writeMemory(oh, handle, startingAt, amount, byte_array_elements(buf)));
+
+}
+
+void prim_fixedWriteFromStarting(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
+  struct ByteArray* buf = (struct ByteArray*)args[0];
+  word_t amount = object_to_smallint(args[1]), startingAt = object_to_smallint(args[3]),
+    handle = object_to_smallint(args[2]);
+
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(3);
+
+  if (!validMemoryHandle(oh, handle) 
+      || byte_array_size(buf) < amount 
+      || startingAt + amount >= oh->memory_sizes [handle]) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(-1);
+    return;
+  }
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = 
+    smallint_to_object(readMemory(oh, handle, startingAt, amount, byte_array_elements(buf)));
+
+}
+
 
 void prim_fixedAreaResize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 
@@ -5861,7 +5913,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_float_sin, prim_fixme, prim_fixme, prim_fixme, 
- /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixme, prim_fixme, prim_fixedAreaSize, prim_fixedAreaResize,
+ /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
