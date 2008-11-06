@@ -1,0 +1,102 @@
+"Events are designed to handle both UI events and Commands."
+
+prototypes ensureNamespace: #events &delegate: True.
+
+events define: #Event &slots: {#timeStamp. #source ". #handled"}.
+
+events define: #WindowEvent &parents: {Event} 
+  &slots: {#region "The damage region associated with the event.". #window}.
+
+events define: #InputEvent &parents: {WindowEvent}.
+
+events define: #DeviceInputEvent &parents: {InputEvent}.
+
+events define: #KeyboardEvent &parents: {InputEvent} &slots: {#key. #modifiers}.
+
+events define: #KeyboardPressEvent &parents: {KeyboardEvent}.
+
+events define: #KeyboardReleaseEvent &parents: {KeyboardEvent}.
+
+
+events define: #PointerEvent &parents: {InputEvent}
+  &slots: {#pointer. #position}.
+
+event@(PointerEvent traits) copyOffset: offset
+[|c|
+    c: event copy.
+    c position: c position + offset.
+    c
+].
+
+events define: #MouseEvent &parents: {PointerEvent}.
+
+events define: #MouseButtonEvent &parents: {MouseEvent}.
+
+events define: #MouseButtonPressEvent &parents: {MouseButtonEvent}.
+
+events define: #MouseButtonReleaseEvent &parents: {MouseButtonEvent}.
+
+events define: #MouseButtonHoldEvent &parents: {MouseButtonEvent}.
+
+events define: #MouseButtonClickEvent &parents: {MouseButtonEvent}.
+
+events define: #MouseButtonClickHoldEvent &parents: {MouseButtonEvent}.
+
+events define: #MouseButtonDoubleClickEvent &parents: {MouseButtonEvent}.
+
+events define: #LeftMouseButtonPressEvent &parents: {MouseButtonPressEvent}.
+
+events define: #LeftMouseButtonReleaseEvent &parents: {MouseButtonReleaseEvent}.
+
+events define: #LeftMouseButtonDoubleClickEvent &parents: {MouseButtonDoubleClickEvent}.
+
+events define: #RightMouseButtonPressEvent &parents: {MouseButtonPressEvent}.
+
+events define: #RightMouseButtonReleaseEvent &parents: {MouseButtonReleaseEvent}.
+
+events define: #RightMouseButtonDoubleClickEvent &parents: {MouseButtonDoubleClickEvent}.
+
+events define: #MiddleMouseButtonPressEvent &parents: {MouseButtonPressEvent}.
+
+events define: #MiddleMouseButtonReleaseEvent &parents: {MouseButtonReleaseEvent}.
+
+events define: #MiddleMouseButtonDoubleClickEvent &parents: {MouseButtonDoubleClickEvent}.
+
+events define: #X1MouseButtonPressEvent &parents: {MouseButtonPressEvent}.
+
+events define: #X1MouseButtonReleaseEvent &parents: {MouseButtonReleaseEvent}.
+
+events define: #X1MouseButtonDoubleClickEvent &parents: {MouseButtonDoubleClickEvent}.
+
+events define: #X2MouseButtonPressEvent &parents: {MouseButtonPressEvent}.
+
+events define: #X2MouseButtonReleaseEvent &parents: {MouseButtonReleaseEvent}.
+
+events define: #X2MouseButtonDoubleClickEvent &parents: {MouseButtonDoubleClickEvent}.
+
+events define: #MouseMotionEvent &parents: {MouseEvent}.
+
+events define: #MouseEnterEvent &parents: {MouseMotionEvent}.
+
+events define: #MouseLeaveEvent &parents: {MouseMotionEvent}.
+
+events define: #PenEvent &parents: {PointerEvent}.
+
+events define: #PenDownEvent &parents: {PenEvent}.
+
+events define: #PenLiftEvent &parents: {PenEvent}.
+
+events define: #PenHoldEvent &parents: {PenEvent}.
+
+events define: #PenMotionEvent &parents: {PenEvent}.
+
+events define: #PenLeaveEvent &parents: {PenMotionEvent}.
+
+events define: #PenEnterEvent &parents: {PenMotionEvent}.
+
+events define: #WindowConfigEvent &parents: {WindowEvent}.
+"Corresponds to a window movement or resizing."
+
+events define: #PaintEvent &parents: {WindowEvent}.
+events define: #WindowRepaintEvent &parents: {WindowEvent}.
+"A window redraw request."

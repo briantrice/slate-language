@@ -1,0 +1,120 @@
+Graphics define: #Color &parents: {Cloneable}.
+
+Graphics define: #RGBColor &parents: {Color}
+  &slots: {#red -> 0.0. #green -> 0.0. #blue -> 0.0}.
+
+RGBColor traits compareAndHashUsingSlots: #(red green blue).
+
+_@(Color traits) r: red g: green b: blue
+[RGBColor cloneSettingSlots: #(red green blue) to: {red. green. blue}].
+
+c@(Color traits) gray: gray
+[c r: gray g: gray b: gray].
+
+rgb@(RGBColor traits) luminosity
+[
+  0.299 * rgb red + 0.587 * rgb green + 0.114 * rgb blue
+].
+
+Graphics define: #HSVColor &parents: {Color}
+  &slots: {#hue -> 0.0. #saturation -> 0.0. #intensity -> 0.0}.
+
+HSVColor traits compareAndHashUsingSlots: #(hue saturation intensity).
+
+_@(Color traits) h: hue s: saturation v: intensity
+[HSVColor cloneSettingSlots: #(hue saturation intensity)
+	  to: {hue. saturation. intensity}].
+
+hsv@(HSVColor traits) as: rgb@(RGBColor traits)
+[| hh c s x y z |
+  hh: (hsv hue - 0.5 mod: 1.0) * 2 * pi - pi.
+  c: hsv saturation cos.
+  s: hsv saturation sin.
+  x: #[(1 / 6) sqrt] * s * hh cos * hsv intensity.
+  y: #[(1 / 2) sqrt] * s * hh sin * hsv intensity.
+  z: #[(1 / 3) sqrt] * c * intensity.
+  rgb r: (1.0 min: x + x + z max: 0.0)
+      g: (1.0 min: y + z - x max: 0.0)
+      b: (1.0 min: z - x - y max: 0.0)
+].
+
+rgb@(RGBColor traits) as: hsv@(HSVColor traits)
+[| x y z |
+  x: #[(1 / 6) sqrt] * (rgb red + rgb red - rgb blue - rgb green).
+  y: #[(1 / 2) sqrt] * (rgb green - rgb blue).
+  z: #[(1 / 3) sqrt] * (rgb red + rgb green + rgb blue).
+  q: x squared + y squared.
+  intensity: (q + z squared) sqrt. "sqrt(r^2 + g^2 + b^2)"
+  q isZero "A totally unsaturated color"
+    ifTrue: [newC h: 0.0 s: 0.0 v: intensity]
+    ifFalse: [| a b |
+	      a: z / intensity.
+	      b: (1.0 - a squared) sqrt.
+	      hsv h: ((y atan2: x) / (2 * pi) mod: 1.0)
+		  s: (b atan2: a)
+		  v: intensity]
+].
+
+rgb@(RGBColor traits) = c@(Color traits)
+[
+  rgb = (c as: rgb)
+].
+
+c@(Color traits) = rgb@(RGBColor traits)
+[
+  rgb = (c as: rgb)
+].
+
+Graphics define: #CMYColor &parents: {Color}
+  &slots: {#cyan -> 0.0. #magenta -> 0.0. #yellow -> 0.0}.
+"Uses a subtractive color model in contrast to RGB - generally for printing."
+
+CMYColor traits compareAndHashUsingSlots: #(cyan magenta yellow).
+
+_@(Color traits) c: cyan m: magenta y: yellow
+[CMYColor cloneSettingSlots: #(cyan magenta yellow) to: {cyan. magenta. yellow}].
+
+cmy@(CMYColor traits) as: rgb@(RGBColor traits)
+[
+  rgb cloneSettingSlots: #(red green blue)
+      to: {1.0 - cmy cyan. 1.0 - cmy magenta. 1.0 - cmy yellow}
+].
+
+rgb@(RGBColor traits) as: cmy@(CMYColor traits)
+[
+  cmy cloneSettingSlots: #(cyan magenta yellow)
+      to: {1.0 - rgb red. 1.0 - rgb green. 1.0 - rgb blue}
+].
+
+cmy@(CMYColor traits) cmykValues
+"Answer an Array of C,M,Y,K values corresponding to this color - used only for
+four-color printing models."
+[| k |
+  k: ((cmy cyan min: cmy magenta) min: cmy yellow).
+  {cmy cyan - k. cmy magenta - k. cmy yellow - k. k}
+].
+
+Graphics define: #Palette &parents: {Cloneable}.
+
+pal@(Palette traits) newFrom: dict
+[
+].
+
+pal@(Palette traits) addAll: colors
+[
+].
+
+pal@(Palette traits) removeAll: colors
+[
+].
+
+Graphics define: #BasicPalette &parents: {Palette} &slots:
+  {#inColor -> True.
+   #isDynamic -> False.
+   #cache -> Dictionary new.
+   #dynamicCache -> Dictionary new.
+   #layeredCache -> Dictionary new.
+   #delayedRecolors -> Dictionary new
+  }.
+
+Graphics define: #palettes &builder: [IdentityDictionary new].

@@ -1,0 +1,154 @@
+lobby ensureNamespace: #Windows &delegate: True.
+
+Windows define: #Lib
+  &builder: [ExternalInterface newForLibrary: 'sdl-windows' primitives:
+    #(
+      (Void init())
+      (Void shutdown())
+      (Int haveEvent())
+      (Int waitForEvent())
+      (Void popEvent())
+      (Pointer createWindow(Int Int))
+      (Int getEventType ())
+      (Pointer getEventWindow ())
+      (Int getEventMouseMotionX())
+      (Int getEventMouseMotionY())
+      (Int getEventMouseButtonX())
+      (Int getEventMouseButtonY())
+      (Int getKeyboardKey())
+      (Int getKeyboardMod())
+      (Void blit(Pointer Int Int Int Int Pointer Int Int Int Int Int))
+      )].
+
+Windows Lib enable.
+
+Windows define: #EventTableEntry &slots: {#prototype. #constructors}.
+
+entry@(Windows EventTableEntry traits) newPrototype: prototype constructors: constructors
+[entry cloneSettingSlots: #(prototype constructors)
+       to: {prototype. constructors}].
+
+entry@(Windows EventTableEntry traits) construct
+[| event |
+  event: entry prototype copy.
+  entry constructors do: [| :name | event construct: name].
+  event
+].
+
+event@(WindowEvent traits) construct: _@#osWindow
+[
+  event window: Windows Lib primitives getEventWindow do.
+].
+
+event@(Event traits) construct: _@#mouseButtonPosition
+[
+  event position:
+    Windows Lib primitives getEventMouseButtonX do ,
+    Windows Lib primitives getEventMouseButtonY do.
+].
+
+event@(Event traits) construct: _@#mouseMotionPosition
+[
+  event position:
+    Windows Lib primitives getEventMouseMotionX do ,
+    Windows Lib primitives getEventMouseMotionY do.
+].
+
+event@(Event traits) construct: _@#keyboardKey
+[
+  event key: Windows Lib primitives getKeyboardKey do.
+  event modifiers: Windows Lib primitives getKeyboardMod do.
+].
+
+
+Windows addSlot: #eventTable valued: Dictionary new.
+
+{
+    100 -> #(LeftMouseButtonPressEvent          (osWindow mouseButtonPosition)).
+    101 -> #(LeftMouseButtonReleaseEvent        (osWindow mouseButtonPosition)).
+    102 -> #(LeftMouseButtonDoubleClickEvent    (osWindow mouseButtonPosition)).
+
+    110 -> #(RightMouseButtonPressEvent         (osWindow mouseButtonPosition)).
+    111 -> #(RightMouseButtonReleaseEvent       (osWindow mouseButtonPosition)).
+    112 -> #(RightMouseButtonDoubleClickEvent   (osWindow mouseButtonPosition)).
+
+    120 -> #(MiddleMouseButtonPressEvent        (osWindow mouseButtonPosition)).
+    121 -> #(MiddleMouseButtonReleaseEvent      (osWindow mouseButtonPosition)).
+    122 -> #(MiddleMouseButtonDoubleClickEvent  (osWindow mouseButtonPosition)).
+
+    130 -> #(X1MouseButtonPressEvent            (osWindow mouseButtonPosition)).
+    131 -> #(X1MouseButtonReleaseEvent          (osWindow mouseButtonPosition)).
+    132 -> #(X1MouseButtonDoubleClickEvent      (osWindow mouseButtonPosition)).
+
+    140 -> #(X2MouseButtonPressEvent            (osWindow mouseButtonPosition)).
+    141 -> #(X2MouseButtonReleaseEvent          (osWindow mouseButtonPosition)).
+    142 -> #(X2MouseButtonDoubleClickEvent      (osWindow mouseButtonPosition)).
+
+    150 -> #(MouseMotionEvent                   (osWindow mouseMotionPosition)).
+    151 -> #(MouseEnterEvent                    (osWindow mouseMotionPosition)).
+    152 -> #(MouseLeaveEvent                    (osWindow mouseMotionPosition)).
+
+
+    160 -> #(KeyboardPressEvent                 (osWindow keyboardKey)).
+    161 -> #(KeyboardReleaseEvent               (osWindow keyboardKey)).
+    "FIXME"
+    "162 -> #(MouseMotionEvent                   (osWindow mouseMotionPosition))."
+
+} do: [|:each|
+    Windows eventTable at: each key put:
+      (Windows EventTableEntry
+         newPrototype: (events atSlotNamed: each value first)
+         constructors: each value second)].
+
+w@Windows constructEvent
+[
+  w eventTable at: w Lib primitives getEventType do
+	       ifPresent:
+		 [| :entry event |
+		  event: entry construct.
+                  "(event is: MouseMotionEvent) ifFalse: [lobby inform: event printString]."
+		  w Lib primitives popEvent do.
+		  event]
+	       ifAbsent: [w Lib primitives popEvent do. Nil]
+].
+
+w@Windows getEvent
+[w Lib primitives haveEvent do == 0 ifFalse: [Windows constructEvent]].
+
+w@Windows waitForEvent
+[w Lib primitives waitForEvent do == 0 ifFalse: [Windows constructEvent]].
+
+Windows define: #Window &slots: {#osWindow. #sceneElement}.
+
+Windows addSlot: #windows valued: Dictionary new.
+
+w@(Window traits) newWidth: width height: height sceneElement: sceneElement
+[| newW |
+  newW: (w cloneSettingSlots: #(osWindow sceneElement) to:
+    {Windows Lib primitives createWindow applyTo: {width. height}.
+     sceneElement}).
+  windows at: newW osWindow put: newW.
+  newW
+].
+
+_@Nil dispatchEvent
+[
+].
+
+event@(Event traits) dispatchEvent
+[
+  windows at: event window ifPresent:
+    [| :window | window sceneElement handle: event].
+].
+
+window@(Window traits) blit: form@(Form traits) dest: dest src: src
+"Careful! bad arguments can clobber memory; TODO: add checking"
+[
+  form depth == 32 ifFalse: [onlyDepth32CurrentlySupported].
+  Windows Lib primitives blit applyTo:
+    {window osWindow. dest left. dest top. dest width. dest height.
+     form bits bytes address. src left. src top. src width. src height. form width * 4}.
+  window
+].
+
+Windows Lib primitives init do.

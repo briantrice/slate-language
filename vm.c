@@ -3371,7 +3371,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
           convert.f = * (float_t *) byte_array_elements((struct ByteArray*)element);
         }
         /*fixme this is broken probably*/
-        assert(0);
+        /*assert(0);*/
         args[outArgIndex++] = convert.u;
       }
 

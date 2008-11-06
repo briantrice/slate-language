@@ -1,0 +1,27 @@
+
+
+Graphics define: #Demo &slots: {
+
+#mainWindow -> WindowSceneElement new.
+#background -> SolidBackgroundMorph new.
+
+}.
+
+Demo mainWindow child: Demo background.
+Demo background parent: Demo mainWindow.
+
+
+w@(Demo mainWindow traits) handle: _@(MiddleMouseButtonPressEvent traits)
+[
+  inform: 'Exiting...'.
+  w exitRequested: True
+].
+
+demo@(Demo traits) start
+[
+  demo mainWindow width: 640 height: 480.
+  demo background position: demo mainWindow position.
+  demo background color: (RGBColor new `>> [green: 1.0.]).
+  demo mainWindow createWindow.
+  demo mainWindow eventLoop
+].

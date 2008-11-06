@@ -1,0 +1,152 @@
+lobby ensureNamespace: #Graphics &delegate: True.
+
+
+Graphics define: #Position &parents: {Cloneable} &slots: {}.
+Graphics define: #AbsoluteBound &parents: {Position} &slots: {#x -> 0. #y -> 0. #width -> 0. #height -> 0}.
+Graphics define: #RelativeBound &parents: {Position} &slots: {#leftPercent -> 0. #topPercent -> 0. #widthPercent -> 100. #heightPercent -> 100}.
+Graphics define: #Surface &parents: {Cloneable}.
+
+"This will be sort of an abstract base class. Useful for understanding
+the minimum of functions that need to be defined for morphs."
+
+Graphics define: #SceneElement &parents: {Cloneable} &slots: {
+
+  #parent -> Nil.
+  #position -> Nil.
+}.
+
+"this is the top level 'world' morph in a scene"
+
+Graphics define: #WindowSceneElement &parents: {SceneElement} &slots: {
+#exitRequested -> False.
+#surface -> Nil.
+#form -> Nil.
+#needRepaint -> True.
+#child -> Nil.
+#osWindow -> Nil.
+}.
+
+wse@(WindowSceneElement traits) width: width height: height
+[ | res |
+  res: wse.
+  res form: (Form extent: width , height depth: 32). 
+  res surface: (FormContext newForm: res form).
+  res position: (AbsoluteBound newWidth: width height: height).
+  res
+].
+
+wse@(WindowSceneElement traits) createWindow
+[
+  wse osWindow: (Windows Window newWidth: wse width height: wse height sceneElement: wse)
+].
+
+"a morph that can't do anything besides paint a solid color"
+Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color. #alpha -> 1}.
+
+
+"--- Bounds ---"
+
+
+
+p@(AbsoluteBound traits) positionIn: _
+[
+  p x , p y
+].
+
+p@(AbsoluteBound traits) sizeIn: _
+[
+  p width , p height
+].
+
+
+p@(AbsoluteBound traits) newWidth: w height: h
+[
+  AbsoluteBound new `>> [width: w. height: h.]
+].
+
+p@(RelativeBound traits) positionIn: parent@(SceneElement traits)
+[
+  (parent width / p leftPercent * 100) , (parent height / p topPercent * 100)
+].
+
+p@(RelativeBound traits) sizeIn: parent@(SceneElement traits)
+[
+  (parent width / p widthPercent * 100) , (parent height / p heightPercent * 100)
+].
+
+
+
+
+"--- Surface ---"
+
+"we paint on this... we should be able to swap out cairo with something else
+if this is designed right"
+
+
+"--- Morph ---"
+
+
+
+
+
+se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window].
+se@(SceneElement traits) handle: input@(Event traits) [].
+se@(SceneElement traits) paintOn: surface@(Surface traits) [].
+se@(SceneElement traits) repaint [se parent repaint].
+se@(SceneElement traits) position [ se position positionIn: se parent].
+se@(SceneElement traits) size [ se position sizeIn: se parent].
+se@(SceneElement traits) x [ se position x].
+se@(SceneElement traits) y [ se position y].
+se@(SceneElement traits) left [ se x].
+se@(SceneElement traits) top [ se y].
+se@(SceneElement traits) width [ se size x].
+se@(SceneElement traits) height [ se size y].
+
+
+
+
+se@(WindowSceneElement traits) repaint
+[
+  se needRepaint: True.
+].
+
+se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
+[
+  se needRepaint: False.
+  se child paintOn: surface.
+  inform: 'painting...'.
+  se osWindow blit: se form dest: se src: se.
+].
+
+se@(WindowSceneElement traits) eventLoop
+"Temporary event loop"
+[
+    se exitRequested: False.
+    se needRepaint: True.
+    inform: '**** Press middle mouse button to exit loop ****'.
+    [se exitRequested] whileFalse: 
+        [
+            se needRepaint ifTrue: [se paintOn: se surface].
+            Windows waitForEvent dispatchEvent.
+        ].
+].
+
+
+
+
+se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
+[
+    surface `>> [
+       save. 
+       sourceRGB: se color alpha: se alpha.
+       rectangle: se. 
+       fill.
+       restore].
+
+].
+
+se@(SolidBackgroundMorph traits) handle: input@(InputEvent traits)
+[
+
+].
+
