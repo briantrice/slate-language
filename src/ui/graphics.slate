@@ -2,9 +2,18 @@ lobby ensureNamespace: #Graphics &delegate: True.
 
 
 Graphics define: #Position &parents: {Cloneable} &slots: {}.
-Graphics define: #AbsoluteBound &parents: {Position} &slots: {#x -> 0. #y -> 0. #width -> 0. #height -> 0}.
-Graphics define: #RelativeBound &parents: {Position} &slots: {#leftPercent -> 0. #topPercent -> 0. #widthPercent -> 100. #heightPercent -> 100}.
 Graphics define: #Surface &parents: {Cloneable}.
+
+
+"holds properties"
+Graphics define: #Theme &parents: {Cloneable} &slots: {
+  #backgroundColor -> Colors DarkSlateGray. #backgroundAlpha -> 1.0.
+  #foregroundColor -> Colors PeachPuff. #foregroundAlpha -> 1.0.
+  #textColor -> Colors SpringGreen. #textAlpha -> 1.0.
+  #labelColor -> Colors Gray. #labelAlpha -> 1.0.
+
+}.
+
 
 "This will be sort of an abstract base class. Useful for understanding
 the minimum of functions that need to be defined for morphs."
@@ -26,12 +35,38 @@ Graphics define: #WindowSceneElement &parents: {SceneElement} &slots: {
 #osWindow -> Nil.
 }.
 
+
+"a default theme"
+Graphics define: #BasicTheme &parents: {Theme}.
+
+
+"a morph that can't do anything besides paint a solid color"
+Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color. #alpha -> 1}.
+
+"this is the main morph class that can hold children and has a theme"
+Graphics define: #Morph &parents: {SceneElement}
+  &slots: {#theme -> BasicTheme new. #children -> ExtensibleArray new. #childWithFocus -> Nil}.
+
+Graphics define: #LabelMorph &parents: {Morph} &slots: {#text -> ''. #fontSize -> 14}.
+
+
+
+
+
+" --- Methods --- "
+
+m@(Morph traits) new
+[
+  m cloneSettingSlots: #(theme children childWithFocus) to: {m theme. ExtensibleArray new. Nil}
+].
+
+
 wse@(WindowSceneElement traits) width: width height: height
 [ | res |
   res: wse.
   res form: (Form extent: width , height depth: 32). 
   res surface: (FormContext newForm: res form).
-  res position: (AbsoluteBound newWidth: width height: height).
+  res position: (Rectangle origin: 0, 0 extent: width , height).
   res
 ].
 
@@ -40,69 +75,50 @@ wse@(WindowSceneElement traits) createWindow
   wse osWindow: (Windows Window newWidth: wse width height: wse height sceneElement: wse)
 ].
 
-"a morph that can't do anything besides paint a solid color"
-Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color. #alpha -> 1}.
-
-
-"--- Bounds ---"
-
-
-
-p@(AbsoluteBound traits) positionIn: _
+wse@(WindowSceneElement traits) handle: input@(InputEvent traits)
 [
-  p x , p y
+  "inform: 'child handle: ' ; input printString."
+  wse child handle: input.
 ].
-
-p@(AbsoluteBound traits) sizeIn: _
-[
-  p width , p height
-].
-
-
-p@(AbsoluteBound traits) newWidth: w height: h
-[
-  AbsoluteBound new `>> [width: w. height: h.]
-].
-
-p@(RelativeBound traits) positionIn: parent@(SceneElement traits)
-[
-  (parent width / p leftPercent * 100) , (parent height / p topPercent * 100)
-].
-
-p@(RelativeBound traits) sizeIn: parent@(SceneElement traits)
-[
-  (parent width / p widthPercent * 100) , (parent height / p heightPercent * 100)
-].
-
-
-
-
-"--- Surface ---"
-
-"we paint on this... we should be able to swap out cairo with something else
-if this is designed right"
 
 
 "--- Morph ---"
 
 
-
-
-
 se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window].
 se@(SceneElement traits) handle: input@(Event traits) [].
+"se@(SceneElement traits) handle: input@(MouseEvent traits) [inform: 'unhandled mouse event'.]."
+se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (FocusEvent new `>> [source: se.])]].
 se@(SceneElement traits) paintOn: surface@(Surface traits) [].
 se@(SceneElement traits) repaint [se parent repaint].
-se@(SceneElement traits) position [ se position positionIn: se parent].
-se@(SceneElement traits) size [ se position sizeIn: se parent].
-se@(SceneElement traits) x [ se position x].
-se@(SceneElement traits) y [ se position y].
-se@(SceneElement traits) left [ se x].
-se@(SceneElement traits) top [ se y].
-se@(SceneElement traits) width [ se size x].
-se@(SceneElement traits) height [ se size y].
+se@(SceneElement traits) x [ se position left].
+se@(SceneElement traits) y [ se position top].
+se@(SceneElement traits) left [ se position left].
+se@(SceneElement traits) top [ se position top].
+se@(SceneElement traits) bottom [ se position bottom].
+se@(SceneElement traits) right [ se position right].
+se@(SceneElement traits) width [ se position width].
+se@(SceneElement traits) height [ se position height].
+se@(SceneElement traits) topLeft [ se position topLeft].
+se@(SceneElement traits) topCenter [ se position topCenter].
+se@(SceneElement traits) topRight [ se position topRight].
+se@(SceneElement traits) bottomLeft [ se position bottomLeft].
+se@(SceneElement traits) bottomCenter [ se position bottomCenter].
+se@(SceneElement traits) bottomRight [ se position bottomRight].
+se@(SceneElement traits) leftCenter [ se position leftCenter].
+se@(SceneElement traits) rightCenter [ se position rightCenter].
 
 
+surface@(Surface traits) ensurePaint: block
+[
+
+  [surface save. block do. surface restore.]
+    on: Error 
+    do: [|:error| surface `>> [restore.
+                      sourceRGB: Colors Red.
+                      moveTo: 0 , 0. showText: error printString.
+                      ]].
+].
 
 
 se@(WindowSceneElement traits) repaint
@@ -113,7 +129,10 @@ se@(WindowSceneElement traits) repaint
 se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
 [
   se needRepaint: False.
-  se child paintOn: surface.
+  surface ensurePaint: [surface rectangle: se child.
+                        surface clip.
+                        surface translate: se child position origin.
+                        se child paintOn: surface].
   inform: 'painting...'.
   se osWindow blit: se form dest: se src: se.
 ].
@@ -133,7 +152,7 @@ se@(WindowSceneElement traits) eventLoop
 
 
 
-
+"solidbackgroundmorph doesn't have any children or methods"
 se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 [
     surface `>> [
@@ -145,8 +164,80 @@ se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 
 ].
 
-se@(SolidBackgroundMorph traits) handle: input@(InputEvent traits)
+"I'm defining this so other classes can just focus on changing this...
+e.g. alignment panes would ensure the positions are right, etc."
+m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 [
+  m children do: [|:child| surface ensurePaint: [surface rectangle: child.
+                                                 surface clip.
+                                                 surface translate: child position origin.
+                                                 child paintOn: surface]].
+].
+
+m@(Morph traits) paintMyselfOn: surface@(Surface traits)
+[
+].
+
+"the key here is we assume we're already cliped and someone is saving and restoring
+context around this call"
+m@(Morph traits) paintOn: surface@(Surface traits)
+[
+  surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
+  surface rectangle: m.
+  surface fill.
+  m paintMyselfOn: surface.
+  m paintChildrenOn: surface.
 
 ].
 
+"by default pass all the events down"
+m@(Morph traits) handle: input@(Event traits)
+[
+  m children reverseDo: [|:child| child handle: input].
+].
+
+m@(Morph traits) handle: input@(FocusEvent traits)
+[
+  m childWithFocus: input source.
+].
+
+input@(MouseEvent traits) offset: m@(Morph traits)
+[ |off|
+  off: input copy.
+  off position: off position - m position origin.
+  off
+].
+
+m@(Morph traits) handle: input@(MouseEvent traits)
+[
+  (input is: MouseMotionEvent) ifTrue: [^ False].
+  m children reverseDo: [|:child| 
+                         (child position contains: input position) ifTrue: [^ (child handle: (input offset: child))]].
+].
+
+m@(Morph traits) handle: input@(KeyboardEvent traits)
+[
+  m childWithFocus ifNotNilDo: [ |:child| child handle: input].
+].
+
+
+m@(Morph traits) addChild: child@(SceneElement traits)
+[
+  m children addLast: child.
+  child parent: m.
+  child
+].
+
+
+m@(LabelMorph traits) paintMyselfOn: surface@(Surface traits)
+[
+  inform: 'painting ' ; m printString.
+  surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+  surface moveTo: 10 , (m height // 2).
+  surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+  surface showText: m text.
+].
