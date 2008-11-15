@@ -12,23 +12,31 @@ Graphics define: #Demo &slots: {
 Demo mainWindow child: Demo background.
 Demo background parent: Demo mainWindow.
 
+Demo blueButton canDrag: True.
+
 Demo background addChild: Demo blueButton `>> [text: 'blue button'. ].
 Demo background addChild: Demo redButton `>> [text: 'red button'. ].
 
-Demo redButton position: (Rectangle origin: 20 , 20 extent: 200, 30).
-Demo blueButton position: (Rectangle origin: 200 , 300 extent: 200, 30).
+Demo redButton region: (Rectangle origin: 20 , 20 extent: 200, 30).
+Demo blueButton region: (Rectangle origin: 200 , 300 extent: 200, 30).
 
 Demo redButton theme: Demo redButton theme clone `>> [labelColor: Colors Red.].
 Demo blueButton theme: Demo blueButton theme clone `>> [labelColor: Colors Blue.].
 
-b@(Demo redButton) handle: e@(MouseButtonPressEvent traits)
+"override handleMyself if you want the main handler to try sending it to
+the children first. here it doesn't matter that much"
+
+b@(Demo redButton) handleMyself: e@(MouseButtonPressEvent traits)
 [
   inform: 'red clicked @ ' ; e position printString.
+  b
 ].
 
-b@(Demo blueButton) handle: e@(MouseButtonPressEvent traits)
+b@(Demo blueButton) handleMyself: e@(MouseButtonPressEvent traits)
 [
+  "allow drag by resending.. fixme?"
   inform: 'blue clicked @ ' ; e position printString.
+  resend
 ].
 
 w@(Demo mainWindow traits) handle: _@(MiddleMouseButtonPressEvent traits)
@@ -40,7 +48,7 @@ w@(Demo mainWindow traits) handle: _@(MiddleMouseButtonPressEvent traits)
 demo@(Demo traits) start
 [
   demo mainWindow width: 640 height: 480.
-  demo background position: demo mainWindow position.
+  demo background region: demo mainWindow region.
   demo mainWindow createWindow.
   demo mainWindow eventLoop
 ].

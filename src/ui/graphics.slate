@@ -14,6 +14,9 @@ Graphics define: #Theme &parents: {Cloneable} &slots: {
 
 }.
 
+Graphics define: #Conductor &parents: {Cloneable} &slots: {
+  #focus -> Nil.
+}.
 
 "This will be sort of an abstract base class. Useful for understanding
 the minimum of functions that need to be defined for morphs."
@@ -21,7 +24,11 @@ the minimum of functions that need to be defined for morphs."
 Graphics define: #SceneElement &parents: {Cloneable} &slots: {
 
   #parent -> Nil.
-  #position -> Nil.
+  #region -> Nil.
+
+  #dragging -> False.
+  #dragOffset -> Nil.
+  #canDrag -> False.
 }.
 
 "this is the top level 'world' morph in a scene"
@@ -33,6 +40,7 @@ Graphics define: #WindowSceneElement &parents: {SceneElement} &slots: {
 #needRepaint -> True.
 #child -> Nil.
 #osWindow -> Nil.
+#conductor -> Conductor new.
 }.
 
 
@@ -45,7 +53,7 @@ Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color.
 
 "this is the main morph class that can hold children and has a theme"
 Graphics define: #Morph &parents: {SceneElement}
-  &slots: {#theme -> BasicTheme new. #children -> ExtensibleArray new. #childWithFocus -> Nil}.
+  &slots: {#theme -> BasicTheme new. #children -> ExtensibleArray new}.
 
 Graphics define: #LabelMorph &parents: {Morph} &slots: {#text -> ''. #fontSize -> 14}.
 
@@ -57,7 +65,7 @@ Graphics define: #LabelMorph &parents: {Morph} &slots: {#text -> ''. #fontSize -
 
 m@(Morph traits) new
 [
-  m cloneSettingSlots: #(theme children childWithFocus) to: {m theme. ExtensibleArray new. Nil}
+  m cloneSettingSlots: #(theme children) to: {m theme. ExtensibleArray new}
 ].
 
 
@@ -66,47 +74,90 @@ wse@(WindowSceneElement traits) width: width height: height
   res: wse.
   res form: (Form extent: width , height depth: 32). 
   res surface: (FormContext newForm: res form).
-  res position: (Rectangle origin: 0, 0 extent: width , height).
+  res region: (Rectangle origin: 0, 0 extent: width , height).
   res
 ].
 
 wse@(WindowSceneElement traits) createWindow
 [
+  wse conductor: wse conductor new.
+  wse conductor focus: Nil. "set it to wse and we might have a loop"
   wse osWindow: (Windows Window newWidth: wse width height: wse height sceneElement: wse)
 ].
 
-wse@(WindowSceneElement traits) handle: input@(InputEvent traits)
+wse@(WindowSceneElement traits) handle: input@(Event traits)
 [
-  "inform: 'child handle: ' ; input printString."
-  wse child handle: input.
+  wse conductor handle: input for: wse
 ].
 
 
+wse@(WindowSceneElement traits) defaultHandler [wse child].
+se@(WindowSceneElement traits) activeConductor [se conductor].
+
+
+"--- input handler: conductor---"
+
+c@(Conductor traits) setFocus: item [c focus: item].
+
+c@(Conductor traits) handle: input@(Event traits) for: wse@(WindowSceneElement traits)
+[
+  wse defaultHandler == wse ifTrue: [^ Nil].
+  wse defaultHandler handle: input
+].
+
+c@(Conductor traits) handle: input@(MouseButtonReleaseEvent traits) for: wse@(WindowSceneElement traits)
+[
+  c focus ifNil: [resend] ifNotNil: [c focus handle: input]
+].
+
+c@(Conductor traits) handle: input@(MouseMotionEvent traits) for: wse@(WindowSceneElement traits)
+[
+  c focus ifNil: [resend] ifNotNil: [c focus handle: input]
+].
+
 "--- Morph ---"
 
-
-se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window].
-se@(SceneElement traits) handle: input@(Event traits) [].
+"***the #handle: function must return itself if it handled the event and nil if it didn't***"
+se@(SceneElement traits) activeConductor [se parent activeConductor].
+se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window. ^ se].
+se@(SceneElement traits) handle: input@(Event traits) [^ se].
 "se@(SceneElement traits) handle: input@(MouseEvent traits) [inform: 'unhandled mouse event'.]."
-se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (FocusEvent new `>> [source: se.])]].
+se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (RequestFocusEvent new `>> [source: se.])]].
+se@(SceneElement traits) dropFocus [se parent ifNotNilDo: [|:p| p handle: (DropFocusEvent new `>> [source: se.])]].
 se@(SceneElement traits) paintOn: surface@(Surface traits) [].
 se@(SceneElement traits) repaint [se parent repaint].
-se@(SceneElement traits) x [ se position left].
-se@(SceneElement traits) y [ se position top].
-se@(SceneElement traits) left [ se position left].
-se@(SceneElement traits) top [ se position top].
-se@(SceneElement traits) bottom [ se position bottom].
-se@(SceneElement traits) right [ se position right].
-se@(SceneElement traits) width [ se position width].
-se@(SceneElement traits) height [ se position height].
-se@(SceneElement traits) topLeft [ se position topLeft].
-se@(SceneElement traits) topCenter [ se position topCenter].
-se@(SceneElement traits) topRight [ se position topRight].
-se@(SceneElement traits) bottomLeft [ se position bottomLeft].
-se@(SceneElement traits) bottomCenter [ se position bottomCenter].
-se@(SceneElement traits) bottomRight [ se position bottomRight].
-se@(SceneElement traits) leftCenter [ se position leftCenter].
-se@(SceneElement traits) rightCenter [ se position rightCenter].
+se@(SceneElement traits) x [ se region left].
+se@(SceneElement traits) y [ se region top].
+se@(SceneElement traits) left [ se region left].
+se@(SceneElement traits) top [ se region top].
+se@(SceneElement traits) bottom [ se region bottom].
+se@(SceneElement traits) right [ se region right].
+se@(SceneElement traits) width [ se region width].
+se@(SceneElement traits) height [ se region height].
+se@(SceneElement traits) topLeft [ se region topLeft].
+se@(SceneElement traits) topCenter [ se region topCenter].
+se@(SceneElement traits) topRight [ se region topRight].
+se@(SceneElement traits) bottomLeft [ se region bottomLeft].
+se@(SceneElement traits) bottomCenter [ se region bottomCenter].
+se@(SceneElement traits) bottomRight [ se region bottomRight].
+se@(SceneElement traits) leftCenter [ se region leftCenter].
+se@(SceneElement traits) rightCenter [ se region rightCenter].
+se@(SceneElement traits) absolutePosition [se parent absolutePosition + se region origin].
+
+
+se@(SceneElement traits) startDragging: position
+[
+  se dragging: True.
+  se dragOffset: se absolutePosition - position.
+  se requestFocus.
+].
+
+se@(SceneElement traits) stopDragging: position
+[
+  se dragging: False.
+  se dragOffset: Nil.
+  se dropFocus.
+].
 
 
 surface@(Surface traits) ensurePaint: block
@@ -120,7 +171,7 @@ surface@(Surface traits) ensurePaint: block
                       ]].
 ].
 
-
+se@(WindowSceneElement traits) absolutePosition [ 0 , 0].
 se@(WindowSceneElement traits) repaint
 [
   se needRepaint: True.
@@ -131,9 +182,8 @@ se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
   se needRepaint: False.
   surface ensurePaint: [surface rectangle: se child.
                         surface clip.
-                        surface translate: se child position origin.
+                        surface translate: se child region origin.
                         se child paintOn: surface].
-  inform: 'painting...'.
   se osWindow blit: se form dest: se src: se.
 ].
 
@@ -164,13 +214,14 @@ se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 
 ].
 
+
 "I'm defining this so other classes can just focus on changing this...
 e.g. alignment panes would ensure the positions are right, etc."
 m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 [
   m children do: [|:child| surface ensurePaint: [surface rectangle: child.
                                                  surface clip.
-                                                 surface translate: child position origin.
+                                                 surface translate: child region origin.
                                                  child paintOn: surface]].
 ].
 
@@ -193,31 +244,54 @@ m@(Morph traits) paintOn: surface@(Surface traits)
 "by default pass all the events down"
 m@(Morph traits) handle: input@(Event traits)
 [
-  m children reverseDo: [|:child| child handle: input].
+  m children reverseDo: [|:child| (child handle: input) ifNotNilDo: [|:handler| ^ handler]].
+  m handleMyself: input
 ].
 
-m@(Morph traits) handle: input@(FocusEvent traits)
-[
-  m childWithFocus: input source.
-].
-
-input@(MouseEvent traits) offset: m@(Morph traits)
-[ |off|
-  off: input copy.
-  off position: off position - m position origin.
-  off
-].
-
+"re-adjust mouse input to give local coordinates"
 m@(Morph traits) handle: input@(MouseEvent traits)
 [
-  (input is: MouseMotionEvent) ifTrue: [^ False].
+  "(input is: MouseMotionEvent) ifTrue: [^ False]."
   m children reverseDo: [|:child| 
-                         (child position contains: input position) ifTrue: [^ (child handle: (input offset: child))]].
+                         (child region contains: input position) ifTrue: [^ (child handle: input)]].
+
+  m handleMyself: input
 ].
 
-m@(Morph traits) handle: input@(KeyboardEvent traits)
+m@(Morph traits) handleMyself: input@(Event traits)
 [
-  m childWithFocus ifNotNilDo: [ |:child| child handle: input].
+  m
+].
+
+m@(Morph traits) handle: input@(RequestFocusEvent traits)
+[
+  m activeConductor ifNotNilDo: [|:hand| hand setFocus: input source].
+  ^ m
+].
+
+m@(Morph traits) handle: input@(DropFocusEvent traits)
+[
+  m activeConductor ifNotNilDo: [|:hand| hand setFocus: Nil].
+  ^ m
+].
+
+
+m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
+[
+  m canDrag ifTrue: [m startDragging: input position].
+  m
+].
+
+m@(Morph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[
+  m canDrag ifTrue: [m stopDragging: input position].
+  m
+].
+
+m@(Morph traits) handleMyself: input@(MouseMotionEvent traits)
+[
+  m dragging ifTrue: [m region: (Rectangle origin: input position + m dragOffset extent: m region extent). m repaint].
+  m
 ].
 
 
@@ -231,7 +305,6 @@ m@(Morph traits) addChild: child@(SceneElement traits)
 
 m@(LabelMorph traits) paintMyselfOn: surface@(Surface traits)
 [
-  inform: 'painting ' ; m printString.
   surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
