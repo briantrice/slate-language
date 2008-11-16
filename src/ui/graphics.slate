@@ -18,6 +18,7 @@ Graphics define: #Theme &parents: {Cloneable} &slots: {
 
 Graphics define: #Conductor &parents: {Cloneable} &slots: {
   #focus -> Nil.
+  #mouseMovedAfterPress -> False.
 }.
 
 "This will be sort of an abstract base class. Useful for understanding
@@ -99,7 +100,7 @@ se@(WindowSceneElement traits) activeConductor [se conductor].
 
 "--- input handler: conductor---"
 
-c@(Conductor traits) setFocus: item [c focus: item].
+c@(Conductor traits) setFocus: item [c focus: item. c mouseMovedAfterPress: False].
 
 c@(Conductor traits) handle: input@(Event traits) for: wse@(WindowSceneElement traits)
 [
@@ -108,13 +109,20 @@ c@(Conductor traits) handle: input@(Event traits) for: wse@(WindowSceneElement t
 ].
 
 c@(Conductor traits) handle: input@(MouseButtonReleaseEvent traits) for: wse@(WindowSceneElement traits)
-[
-  c focus ifNil: [resend] ifNotNil: [c focus handle: input]
+[ "cache because it will lose focus after it handles the event"
+  c focus `cache ifNil: [resend] ifNotNil: [c mouseMovedAfterPress 
+                                       ifTrue: [c focus handle: input] 
+                                       ifFalse: [c focus handle: input. 
+                                                 c focus handle: (MouseButtonClickEvent new `>> [source: input source. 
+                                                                                             region: input region.
+                                                                                             pointer: input pointer.
+                                                                                             position: input position.
+                                                                                             window: input window.])]]
 ].
 
 c@(Conductor traits) handle: input@(MouseMotionEvent traits) for: wse@(WindowSceneElement traits)
 [
-  c focus ifNil: [resend] ifNotNil: [c focus handle: input]
+  c focus ifNil: [resend] ifNotNil: [c mouseMovedAfterPress: True. c focus handle: input]
 ].
 
 "--- Morph ---"
@@ -151,14 +159,12 @@ se@(SceneElement traits) startDragging: position
 [
   se dragging: True.
   se dragOffset: se absolutePosition - position.
-  se requestFocus.
 ].
 
 se@(SceneElement traits) stopDragging: position
 [
   se dragging: False.
   se dragOffset: Nil.
-  se dropFocus.
 ].
 
 
@@ -282,12 +288,14 @@ m@(Morph traits) handle: input@(DropFocusEvent traits)
 m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
 [
   m canDrag ifTrue: [m startDragging: input position].
+  m requestFocus. "necessary to receive a click event"
   m
 ].
 
 m@(Morph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [
   m canDrag ifTrue: [m stopDragging: input position].
+  m dropFocus.
   m
 ].
 
