@@ -185,8 +185,8 @@ struct CompiledMethod
   /* calleeCount is the polymorphic inline cache (PIC), see #defines/method_pic_add_callee below for details */
   struct OopArray* calleeCount;
   struct Object* registerCount;
-  struct Object* reserved2;
-  struct Object* reserved3;
+  struct OopArray* cachedInCallers; /*struct Object* reserved2;*/
+  struct Object* cachedInCallersCount; /*struct Object* reserved3;*/
   struct Object* reserved4;
   struct Object* reserved5;
   struct Object* reserved6;
@@ -3704,6 +3704,48 @@ void method_pic_insert(struct object_heap* oh, struct Object* picEntry[], struct
 
 }
 
+void method_pic_flush_caller_pics(struct object_heap* oh, struct CompiledMethod* callee) {
+
+  int i;
+  if (callee->base.map->delegates->elements[0] == oh->cached.closure_method_window) callee = callee->method;
+  assert (callee->base.map->delegates->elements[0] == oh->cached.compiled_method_window);
+  if (!object_is_smallint(callee->cachedInCallersCount)) return;
+  for (i = 0; i < object_to_smallint(callee->cachedInCallersCount); i++) {
+    /*this should reset the pic*/
+    method_pic_setup(oh, (struct CompiledMethod*)callee->cachedInCallers->elements[i]);
+  }
+
+
+}
+
+/*when a function is redefined, we need to know what PICs to flush. Here each method will
+keep a list of all the pics that it is in */
+void method_pic_add_callee_backreference(struct object_heap* oh,
+                                         struct CompiledMethod* caller, struct CompiledMethod* callee) {
+
+  if (callee->base.map->delegates->elements[0] == oh->cached.closure_method_window) callee = callee->method;
+  if (callee->base.map->delegates->elements[0] == oh->cached.primitive_method_window) return;
+
+  assert (callee->base.map->delegates->elements[0] == oh->cached.compiled_method_window);
+
+  if ((struct Object*)callee->cachedInCallers == oh->cached.nil) {
+    callee->cachedInCallers = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 32);
+    heap_store_into(oh, (struct Object*)callee, (struct Object*)callee->cachedInCallers);
+    callee->cachedInCallersCount = smallint_to_object(0);
+  }
+
+  if (object_to_smallint(callee->cachedInCallersCount) >= array_size(callee->cachedInCallers)) {
+    struct OopArray* newArray = callee->cachedInCallers = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), array_size(callee->cachedInCallers) * 2);
+    copy_words_into(callee->cachedInCallers->elements, array_size(callee->cachedInCallers), newArray->elements);
+    callee->cachedInCallers = newArray;
+    heap_store_into(oh, (struct Object*)callee, (struct Object*)callee->cachedInCallers);
+  }
+
+  callee->cachedInCallers->elements[object_to_smallint(callee->cachedInCallersCount)] = (struct Object*)caller;
+  callee->cachedInCallersCount =  smallint_to_object(object_to_smallint(callee->cachedInCallersCount) + 1);
+
+}
+
 void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
                            word_t arity, struct Object* args[]) {
   word_t i;
@@ -3713,6 +3755,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
     /* if it's nil, we need to insert it*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
       method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) def->method);
       return;
     }
   }
@@ -3720,6 +3763,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
     /*MUST be same as first loop*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
       method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*)def->method);
       return;
     }
   }
@@ -3856,6 +3900,9 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
   if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
+  }
+  if (oldDef != NULL) {
+    method_pic_flush_caller_pics(oh, (struct CompiledMethod*)oldDef->method);
   }
   heap_fixed_add(oh, (struct Object*)def);
   def->method = method;
