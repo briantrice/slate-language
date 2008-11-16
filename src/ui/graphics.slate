@@ -11,6 +11,8 @@ Graphics define: #Theme &parents: {Cloneable} &slots: {
   #foregroundColor -> Colors PeachPuff. #foregroundAlpha -> 1.0.
   #textColor -> Colors SpringGreen. #textAlpha -> 1.0.
   #labelColor -> Colors Gray. #labelAlpha -> 1.0.
+  #scrollbarBackgroundColor -> Colors DarkGray. #scrollbarBackgroundAlpha -> 1.0.
+  #scrollbarForegroundColor -> Colors LightGray. #scrollbarForegroundAlpha -> 1.0.
 
 }.
 
@@ -227,15 +229,15 @@ m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 
 m@(Morph traits) paintMyselfOn: surface@(Surface traits)
 [
+  surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
+  surface rectangle: m.
+  surface fill.
 ].
 
 "the key here is we assume we're already cliped and someone is saving and restoring
 context around this call"
 m@(Morph traits) paintOn: surface@(Surface traits)
 [
-  surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
-  surface rectangle: m.
-  surface fill.
   m paintMyselfOn: surface.
   m paintChildrenOn: surface.
 
@@ -253,7 +255,8 @@ m@(Morph traits) handle: input@(MouseEvent traits)
 [
   "(input is: MouseMotionEvent) ifTrue: [^ False]."
   m children reverseDo: [|:child| 
-                         (child region contains: input position) ifTrue: [^ (child handle: input)]].
+                         ((Rectangle origin: child absolutePosition extent: child region extent)
+                             contains: input position) ifTrue: [^ (child handle: input)]].
 
   m handleMyself: input
 ].
