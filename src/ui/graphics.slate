@@ -9,6 +9,7 @@ Graphics define: #Surface &parents: {Cloneable}.
 Graphics define: #Theme &parents: {Cloneable} &slots: {
   #backgroundColor -> Colors DarkSlateGray. #backgroundAlpha -> 1.0.
   #foregroundColor -> Colors PeachPuff. #foregroundAlpha -> 1.0.
+  #selectedColor -> Colors Blue. #selectedAlpha -> 1.0.
   #textColor -> Colors SpringGreen. #textAlpha -> 1.0.
   #labelColor -> Colors Gray. #labelAlpha -> 1.0.
   #scrollbarBackgroundColor -> Colors DarkGray. #scrollbarBackgroundAlpha -> 1.0.
@@ -222,15 +223,20 @@ se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 
 ].
 
+"this is just a function that ensures/clips a region to paint within the current morph"
+m@(Morph traits) paintChild: child@(SceneElement traits) on: surface@(Surface traits)
+[
+  surface ensurePaint: [surface rectangle: child.
+                        surface clip.
+                        surface translate: child region origin.
+                        child paintOn: surface]
+].
 
 "I'm defining this so other classes can just focus on changing this...
 e.g. alignment panes would ensure the positions are right, etc."
 m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 [
-  m children do: [|:child| surface ensurePaint: [surface rectangle: child.
-                                                 surface clip.
-                                                 surface translate: child region origin.
-                                                 child paintOn: surface]].
+  m children do: [|:child| m paintChild: child on: surface].
 ].
 
 m@(Morph traits) paintMyselfOn: surface@(Surface traits)

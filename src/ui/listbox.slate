@@ -1,0 +1,210 @@
+
+"load after graphics.slate"
+
+Graphics define: #Scrollbar &parents: {Morph}
+  &slots: {#vertical -> True. #min -> 0. #max -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
+
+m@(Scrollbar traits) percent
+[
+  m position - m min / (m max - m min)
+].
+
+m@(Scrollbar traits) rangePercent
+[
+  m position + m visibleRange - m min / (m max - m min)
+].
+
+m@(Scrollbar traits) paintMyselfOn: surface@(Surface traits)
+[
+  surface sourceRGB: m theme scrollbarBackgroundColor alpha: m theme scrollbarBackgroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m region extent).
+  surface fill.
+  surface sourceRGB: m theme scrollbarForegroundColor alpha: m theme scrollbarForegroundAlpha.
+  m vertical
+    ifTrue: 
+      [surface rectangle: (Rectangle origin: (2 , ((m percent * m height) rounded
+                                                     min: m height - m minimumBar))
+                                    corner: (m width - 2 , ((m rangePercent * m height) rounded 
+                                                               max: (m percent * m height) rounded + m minimumBar)))]
+    ifFalse: [surface rectangle: (Rectangle origin: (2 , ((m percent * m width) rounded
+                                                     min: m width - m minimumBar))
+                                    corner: (m height - 2 , ((m rangePercent * m width) rounded 
+                                                               max: (m percent * m width) rounded + m minimumBar)))].
+
+  surface fill.
+].
+
+
+m@(Scrollbar traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
+[
+  m requestFocus.
+  m dragOffset: "m absolutePosition - input position" m position. "save the value for later for undo? dunno"
+  m
+].
+
+m@(Scrollbar traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[
+  m dropFocus.
+  m dragOffset: Nil.
+  m
+].
+
+m@(Scrollbar traits) slideIncrease
+[
+  m position: (m position + m visibleRange min: m max).
+  m repaint.
+  m
+].
+
+m@(Scrollbar traits) slideDecrease
+[
+  m position: (m position - m visibleRange max: m min).
+  m repaint.
+  m
+].
+
+m@(Scrollbar traits) handleMyself: input@(MouseButtonClickEvent traits)
+[ | absPos |
+ "increment the position"
+ 
+  absPos: m absolutePosition.
+  m vertical ifTrue: [input position y > (absPos y + (m percent * m height) rounded) 
+                            ifTrue: [m slideIncrease]
+                            ifFalse: [m slideDecrease]]
+           ifFalse: [input position x > (absPos x + (m percent * m width) rounded)
+                           ifTrue: [m slideIncrease]
+                           ifFalse: [m slideDecrease]]
+
+].
+
+m@(Scrollbar traits) handleMyself: input@(MouseMotionEvent traits)
+[ | absPos |
+  m dragOffset ifNil: [^ Nil].
+  absPos: m absolutePosition.
+  m vertical ifTrue: [input position y > (absPos y + m height) ifTrue: [m position: m max. m repaint. ^ m].
+                    input position y < absPos y ifTrue: [m position: m min. m repaint. ^ m].
+                    m position: (input position y - absPos y / m height * (m max - m min) + m min) rounded.
+                    m repaint.
+                    m]
+           ifFalse: [input position x > (absPos x + m width) ifTrue: [m position: m max. m repaint. ^ m].
+                    input position x < absPos x ifTrue: [m position: m min. m repaint. ^ m].
+                    m position: (input position x - absPos x / m width * (m max - m min) + m min) rounded.
+                    m repaint.
+                    m].
+
+  m
+].
+
+
+Graphics define: #Listbox &parents: {Morph}
+  &slots: {#items -> ExtensibleArray new. 
+           #verticalScrollbar -> Scrollbar new.
+           #horizontalScrollbar -> (Scrollbar new `>> [vertical: False. ]).
+           #selectedItems -> Set new. 
+           #scrollbarWidth -> 10.
+           #singleSelect -> True.
+           }.
+
+m@(Listbox traits) new
+[ |me|
+  me: (m cloneSettingSlots: #(items verticalScrollbar horizontalScrollbar selectedItems) to:
+        {ExtensibleArray new. Scrollbar new. (Scrollbar new `>> [vertical: False. ]). Set new}).
+  me addChild: me verticalScrollbar.
+  me addChild: me horizontalScrollbar.
+  me
+].
+
+"fixme make this called automatically"
+m@(Listbox traits) updateScrollbars
+[
+  m verticalScrollbar region: (Rectangle origin: (m width - m scrollbarWidth) , 0 
+                                         extent: m scrollbarWidth , (m height - m scrollbarWidth)).
+  m horizontalScrollbar region: (Rectangle origin: 0 , (m height - m scrollbarWidth)
+                                           extent: m width - (m scrollbarWidth , m scrollbarWidth)).
+].
+
+m@(Listbox traits) itemSize: item
+[
+  12
+  "fixme: ^ item asMorph height"
+].
+
+m@(Listbox traits) visibleRange
+[ |vsb|
+  vsb: m verticalScrollbar.
+  (vsb position to: (vsb position + vsb visibleRange min: vsb max))
+].
+
+m@(Listbox traits) paintMyselfOn: surface@(Surface traits)
+[ | vsb hsb heightOffset |
+  resend. "paint the background..."
+  vsb: m verticalScrollbar.
+  hsb: m horizontalScrollbar.
+  "calculate the visible portion and stuff"
+  vsb max: m items size - 1.
+  vsb min: 0.
+  vsb position: ((vsb position min: vsb max) max: vsb min).
+  vsb visibleRange: m visibleItems.
+  heightOffset: 0.
+  inform: 'painting items ' ; m visibleRange printString.
+  m visibleRange do:
+    [ |:itemPos item itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       (m selectedItems includes: item)
+         ifTrue: [surface ensurePaint: [surface rectangle: (Rectangle origin: 0 , heightOffset 
+                                                                      corner: m width , (heightOffset + itemHeight)).
+                                        surface sourceRGB: m theme selectedColor alpha: m theme selectedAlpha.
+                                        surface fill]].
+       surface ensurePaint: [surface moveTo: 5 , (itemHeight + heightOffset - 2). "text paints from bottom left"
+                             surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+                             surface showText: item printString].
+       heightOffset: heightOffset + itemHeight.
+   ].
+"  m paintChild: vsb on: surface.
+  m paintChild: hsb on: surface.
+"
+].
+
+m@(Listbox traits) visibleItems
+[ | itemCount heightOffset |
+  itemCount: 0.
+  heightOffset: 0.
+  m visibleRange do:
+    [ |:itemPos item itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       itemCount: itemCount + 1.
+       heightOffset: heightOffset + itemHeight.
+       heightOffset > m height ifTrue: [^ itemCount]].
+  itemCount " = range size"
+].
+
+m@(Listbox traits) selectItem: item
+[
+  m repaint.
+  m singleSelect ifTrue: [m selectedItems clear. m selectedItems add: item]
+                 ifFalse: [(m selectedItems includes: item) ifTrue: [m selectedItems remove: item]
+                                                            ifFalse: [m selectedItems add: item]]
+  
+].
+
+
+m@(Listbox traits) handleMyself: e@(MouseButtonClickEvent traits)
+[ | heightOffset item clickPosition relPos|
+  relPos: e position - m absolutePosition.
+  (m verticalScrollbar region contains: relPos) ifTrue: [^ (m verticalScrollbar handle: e)].
+  (m horizontalScrollbar region contains: relPos) ifTrue: [^ (m horizontalScrollbar handle: e)].
+  heightOffset: 0.
+  clickPosition: relPos y.
+  "inform: 'pos: ' ; clickPosition printString."
+  m visibleRange do:
+    [ |:itemPos itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       heightOffset: heightOffset + itemHeight.
+       clickPosition < heightOffset ifTrue: [m selectItem: item. ^ m].
+       heightOffset > m height ifTrue: [ ^ Nil]].
+  m selectItem: item.
+  m
+].

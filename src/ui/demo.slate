@@ -6,7 +6,9 @@ Graphics define: #Demo &slots: {
 #background -> Morph new.
 #redButton -> LabelMorph new.
 #blueButton -> LabelMorph new.
-#vertScrollbar -> Scrollbar new.
+"#vertScrollbar -> Scrollbar new."
+#listbox -> Listbox new.
+#listboxItems -> {'alice'. 'bob'. 'carol'. 'doug'. 'ellen'. 'fred'. 'george'. 'herman'. 'issac'}.
 }.
 
 
@@ -17,7 +19,13 @@ Demo blueButton canDrag: True.
 
 Demo background addChild: Demo blueButton `>> [text: 'blue button'. ].
 Demo background addChild: Demo redButton `>> [text: 'red button'. ].
-Demo background addChild: Demo vertScrollbar `>> [region: (Rectangle origin: 400 , 20 extent: 20 , 150). ].
+"Demo background addChild: Demo vertScrollbar `>> [region: (Rectangle origin: 400 , 20 extent: 20 , 150). ]."
+Demo background addChild: Demo listbox `>> [region: (Rectangle origin: 400 , 20 extent: 200 , 90).
+                                            items: Demo listboxItems.
+                                            singleSelect: False.
+                                            selectedItems: (Set new `>> [add: Demo listboxItems first.
+                                                                         add: Demo listboxItems third.]).
+                                            updateScrollbars.].
 
 Demo redButton region: (Rectangle origin: 20 , 20 extent: 200, 30).
 Demo blueButton region: (Rectangle origin: 200 , 300 extent: 200, 30).
