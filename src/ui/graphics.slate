@@ -11,6 +11,9 @@ Graphics define: #Theme &parents: {Cloneable} &slots: {
   #foregroundColor -> Colors PeachPuff. #foregroundAlpha -> 1.0.
   #selectedColor -> Colors Blue. #selectedAlpha -> 1.0.
   #textColor -> Colors SpringGreen. #textAlpha -> 1.0.
+  #textboxColor -> Colors DarkBlue. #textboxAlpha -> 1.0.
+  #listboxColor -> Colors DarkRed. #listboxAlpha -> 1.0.
+  #cursorColor -> Colors Red. #cursorAlpha -> 1.0.
   #labelColor -> Colors Gray. #labelAlpha -> 1.0.
   #scrollbarBackgroundColor -> Colors DarkGray. #scrollbarBackgroundAlpha -> 1.0.
   #scrollbarForegroundColor -> Colors LightGray. #scrollbarForegroundAlpha -> 1.0.
@@ -101,12 +104,22 @@ se@(WindowSceneElement traits) activeConductor [se conductor].
 
 "--- input handler: conductor---"
 
-c@(Conductor traits) setFocus: item [c focus: item. c mouseMovedAfterPress: False].
+c@(Conductor traits) setFocus: item
+[
+  c focus: item.
+  inform: 'focus set to ' ; item printString.
+  c mouseMovedAfterPress: False
+].
 
 c@(Conductor traits) handle: input@(Event traits) for: wse@(WindowSceneElement traits)
 [
   wse defaultHandler == wse ifTrue: [^ Nil].
   wse defaultHandler handle: input
+].
+
+c@(Conductor traits) handle: input@(InputEvent traits) for: wse@(WindowSceneElement traits)
+[ "cache because it will lose focus after it handles the event"
+  c focus `cache ifNil: [resend] ifNotNil: [c focus handle: input]
 ].
 
 c@(Conductor traits) handle: input@(MouseButtonReleaseEvent traits) for: wse@(WindowSceneElement traits)

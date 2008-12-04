@@ -1,0 +1,96 @@
+
+"from key presses to function calls on the textbox"
+Graphics define: #InputTranslator &parents: {Cloneable}.
+Graphics define: #HashTableInputTranslator &parents: {InputTranslator} &slots: {#table -> Dictionary new}.
+Graphics define: #TextboxInputTranslator &parents: {InputTranslator}.
+
+
+Graphics define: #Textbox &parents: {Morph}
+  &slots: {#text -> '' new. 
+           #position -> 0. 
+           #fontSize -> 12. 
+           #inputTranslator -> TextboxInputTranslator new.
+           }.
+
+"let the input translator class handle all keyboard input on me"
+m@(Textbox traits) handleMyself: e@(KeyboardEvent traits)
+[
+  m inputTranslator handle: e on: m
+].
+
+it@(InputTranslator traits) handle: e@(InputEvent traits) on: m@(Morph traits)
+[
+  inform: 'Default handler does not handle event'.
+  Nil
+].
+
+it@(HashTableInputTranslator traits) handle: e@(KeyboardEvent traits) on: m@(Morph traits)
+[
+  (it table at: e key ifAbsent: [Nil]) ifNotNilDo: [|:func| func applyTo: {m e}]
+].
+
+"someone pressed enter"
+m@(Textbox traits) activate [].
+
+it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(Textbox traits)
+[ |char oldText pos|
+  inform: 'key: ' ; e key printString.
+  inform: 'mod: ' ; e modifiers printString.
+  e key = 276 ifTrue: [m repaint. m position: (m position - 1 max: 0). ^ Nil].
+  e key = 275 ifTrue: [m repaint. m position: (m position + 1 min: m printText size). ^ Nil].
+  oldText: m text.
+  pos: m position.
+  e key = 13 ifTrue: [^ m activate].
+  "backspace"
+  e key = 8 ifTrue: [m repaint.
+                     m text: (oldText first: pos - 1) ; (oldText allButFirst: pos).
+                     m position: (pos - 1 max: 0).
+                     ^ Nil].
+  "delete"
+  e key = 127 ifTrue: [m repaint.
+                       m text: (oldText first: pos) ; (oldText allButFirst: pos + 1).
+                     ^ Nil].
+
+  e key > 250 ifTrue: [^ Nil].
+  char: (e key as: ASCIICharacter).
+  char isPrintable ifTrue: [m repaint. 
+                            m text: (oldText first: pos) ; (char as: String) ; (oldText allButFirst: pos).
+                            m position: pos + 1.
+                            ^ Nil].
+].
+
+m@(Textbox traits) printText
+["this is the text as a string in case i change the underlying representation"
+  m text
+].
+
+
+m@(Textbox traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[ "don't drop focus like usual"
+  m
+].
+
+m@(Textbox traits) paintMyselfOn: surface@(Surface traits)
+[ |text|
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+"fixme, we should use cairo's text_extents function to see how large the text is and draw
+the appropriate cursor. "
+  text: m printText.
+
+  "print cursor... text is invisible here because we chose the foreground color"
+  surface moveTo: 10 , ((m height // 2) + 2).
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface showText: (text first: m position).
+  surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
+  surface showText: '_'.
+
+  "print text"
+  surface moveTo: 10 , (m height // 2).
+  surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+  surface showText: text.
+].
+

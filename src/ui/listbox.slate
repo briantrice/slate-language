@@ -137,7 +137,11 @@ m@(Listbox traits) visibleRange
 
 m@(Listbox traits) paintMyselfOn: surface@(Surface traits)
 [ | vsb hsb heightOffset |
-  resend. "paint the background..."
+  surface sourceRGB: m theme listboxColor alpha: m theme listboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+
   vsb: m verticalScrollbar.
   hsb: m horizontalScrollbar.
   "calculate the visible portion and stuff"
@@ -146,7 +150,7 @@ m@(Listbox traits) paintMyselfOn: surface@(Surface traits)
   vsb position: ((vsb position min: vsb max) max: vsb min).
   vsb visibleRange: m visibleItems.
   heightOffset: 0.
-  inform: 'painting items ' ; m visibleRange printString.
+  "inform: 'painting items ' ; m visibleRange printString."
   m visibleRange do:
     [ |:itemPos item itemHeight|
        item: (m items at: itemPos).
