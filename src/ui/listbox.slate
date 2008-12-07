@@ -1,20 +1,20 @@
 
 "load after graphics.slate"
 
-Graphics define: #Scrollbar &parents: {Morph}
+Graphics define: #ScrollbarMorph &parents: {Morph}
   &slots: {#vertical -> True. #min -> 0. #max -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
 
-m@(Scrollbar traits) percent
+m@(ScrollbarMorph traits) percent
 [
   m position - m min / (m max - m min)
 ].
 
-m@(Scrollbar traits) rangePercent
+m@(ScrollbarMorph traits) rangePercent
 [
   m position + m visibleRange - m min / (m max - m min)
 ].
 
-m@(Scrollbar traits) paintMyselfOn: surface@(Surface traits)
+m@(ScrollbarMorph traits) paintMyselfOn: surface@(Surface traits)
 [
   surface sourceRGB: m theme scrollbarBackgroundColor alpha: m theme scrollbarBackgroundAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m region extent).
@@ -35,35 +35,35 @@ m@(Scrollbar traits) paintMyselfOn: surface@(Surface traits)
 ].
 
 
-m@(Scrollbar traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
+m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
 [
   m requestFocus.
   m dragOffset: "m absolutePosition - input position" m position. "save the value for later for undo? dunno"
   m
 ].
 
-m@(Scrollbar traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [
   m dropFocus.
   m dragOffset: Nil.
   m
 ].
 
-m@(Scrollbar traits) slideIncrease
+m@(ScrollbarMorph traits) slideIncrease
 [
   m position: (m position + m visibleRange min: m max).
   m repaint.
   m
 ].
 
-m@(Scrollbar traits) slideDecrease
+m@(ScrollbarMorph traits) slideDecrease
 [
   m position: (m position - m visibleRange max: m min).
   m repaint.
   m
 ].
 
-m@(Scrollbar traits) handleMyself: input@(MouseButtonClickEvent traits)
+m@(ScrollbarMorph traits) handleMyself: input@(MouseButtonClickEvent traits)
 [ | absPos |
  "increment the position"
  
@@ -77,7 +77,7 @@ m@(Scrollbar traits) handleMyself: input@(MouseButtonClickEvent traits)
 
 ].
 
-m@(Scrollbar traits) handleMyself: input@(MouseMotionEvent traits)
+m@(ScrollbarMorph traits) handleMyself: input@(MouseMotionEvent traits)
 [ | absPos |
   m dragOffset ifNil: [^ Nil].
   absPos: m absolutePosition.
@@ -96,26 +96,26 @@ m@(Scrollbar traits) handleMyself: input@(MouseMotionEvent traits)
 ].
 
 
-Graphics define: #Listbox &parents: {Morph}
+Graphics define: #ListboxMorph &parents: {Morph}
   &slots: {#items -> ExtensibleArray new. 
-           #verticalScrollbar -> Scrollbar new.
-           #horizontalScrollbar -> (Scrollbar new `>> [vertical: False. ]).
+           #verticalScrollbar -> ScrollbarMorph new.
+           #horizontalScrollbar -> (ScrollbarMorph new `>> [vertical: False. ]).
            #selectedItems -> Set new. 
            #scrollbarWidth -> 10.
            #singleSelect -> True.
            }.
 
-m@(Listbox traits) new
+m@(ListboxMorph traits) new
 [ |me|
   me: (m cloneSettingSlots: #(items verticalScrollbar horizontalScrollbar selectedItems) to:
-        {ExtensibleArray new. Scrollbar new. (Scrollbar new `>> [vertical: False. ]). Set new}).
+        {ExtensibleArray new. ScrollbarMorph new. (ScrollbarMorph new `>> [vertical: False. ]). Set new}).
   me addChild: me verticalScrollbar.
   me addChild: me horizontalScrollbar.
   me
 ].
 
 "fixme make this called automatically"
-m@(Listbox traits) updateScrollbars
+m@(ListboxMorph traits) updateScrollbars
 [
   m verticalScrollbar region: (Rectangle origin: (m width - m scrollbarWidth) , 0 
                                          extent: m scrollbarWidth , (m height - m scrollbarWidth)).
@@ -123,19 +123,19 @@ m@(Listbox traits) updateScrollbars
                                            extent: m width - (m scrollbarWidth , m scrollbarWidth)).
 ].
 
-m@(Listbox traits) itemSize: item
+m@(ListboxMorph traits) itemSize: item
 [
   12
   "fixme: ^ item asMorph height"
 ].
 
-m@(Listbox traits) visibleRange
+m@(ListboxMorph traits) visibleRange
 [ |vsb|
   vsb: m verticalScrollbar.
   (vsb position to: (vsb position + vsb visibleRange min: vsb max))
 ].
 
-m@(Listbox traits) paintMyselfOn: surface@(Surface traits)
+m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
 [ | vsb hsb heightOffset |
   surface sourceRGB: m theme listboxColor alpha: m theme listboxAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
@@ -170,7 +170,7 @@ m@(Listbox traits) paintMyselfOn: surface@(Surface traits)
 "
 ].
 
-m@(Listbox traits) visibleItems
+m@(ListboxMorph traits) visibleItems
 [ | itemCount heightOffset |
   itemCount: 0.
   heightOffset: 0.
@@ -184,7 +184,7 @@ m@(Listbox traits) visibleItems
   itemCount " = range size"
 ].
 
-m@(Listbox traits) selectItem: item
+m@(ListboxMorph traits) selectItem: item
 [
   m repaint.
   m singleSelect ifTrue: [m selectedItems clear. m selectedItems add: item]
@@ -194,7 +194,7 @@ m@(Listbox traits) selectItem: item
 ].
 
 
-m@(Listbox traits) handleMyself: e@(MouseButtonClickEvent traits)
+m@(ListboxMorph traits) handleMyself: e@(MouseButtonClickEvent traits)
 [ | heightOffset item clickPosition relPos|
   relPos: e position - m absolutePosition.
   (m verticalScrollbar region contains: relPos) ifTrue: [^ (m verticalScrollbar handle: e)].

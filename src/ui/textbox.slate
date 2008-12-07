@@ -3,24 +3,38 @@
 Graphics define: #InputTranslator &parents: {Cloneable}.
 Graphics define: #HashTableInputTranslator &parents: {InputTranslator} &slots: {#table -> Dictionary new}.
 Graphics define: #TextboxInputTranslator &parents: {InputTranslator}.
+Graphics define: #LineEditorInputTranslator &parents: {InputTranslator}.
 
 
-Graphics define: #Textbox &parents: {Morph}
+Graphics define: #TextboxMorph &parents: {Morph}
   &slots: {#text -> '' new. 
            #position -> 0. 
            #fontSize -> 12. 
            #inputTranslator -> TextboxInputTranslator new.
            }.
 
+
+Graphics define: #LineEditorMorph &parents: {Morph}
+  &slots: {#editor -> LineEditor new.
+           #fontSize -> 12. 
+           #inputTranslator -> LineEditorInputTranslator new.
+           }.
+
+
 "let the input translator class handle all keyboard input on me"
-m@(Textbox traits) handleMyself: e@(KeyboardEvent traits)
+m@(TextboxMorph traits) handleMyself: e@(KeyboardEvent traits)
+[
+  m inputTranslator handle: e on: m
+].
+
+m@(LineEditorMorph traits) handleMyself: e@(KeyboardEvent traits)
 [
   m inputTranslator handle: e on: m
 ].
 
 it@(InputTranslator traits) handle: e@(InputEvent traits) on: m@(Morph traits)
 [
-  inform: 'Default handler does not handle event'.
+  inform: 'Default handler ' ; (it printString) ; ' does not handle event ' ; e printString.
   Nil
 ].
 
@@ -29,10 +43,13 @@ it@(HashTableInputTranslator traits) handle: e@(KeyboardEvent traits) on: m@(Mor
   (it table at: e key ifAbsent: [Nil]) ifNotNilDo: [|:func| func applyTo: {m e}]
 ].
 
-"someone pressed enter"
-m@(Textbox traits) activate [].
+it@(TextboxInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: m@(TextboxMorph traits) [].
+it@(LineEditorInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: m@(LineEditorMorph traits) [].
 
-it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(Textbox traits)
+"someone pressed enter"
+m@(TextboxMorph traits) activate [].
+
+it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(TextboxMorph traits)
 [ |char oldText pos|
   inform: 'key: ' ; e key printString.
   inform: 'mod: ' ; e modifiers printString.
@@ -59,18 +76,45 @@ it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m
                             ^ Nil].
 ].
 
-m@(Textbox traits) printText
+
+
+it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(LineEditorMorph traits)
+[ |char oldText |
+  inform: 'key: ' ; e key printString.
+  inform: 'mod: ' ; e modifiers printString.
+  e key = 275 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
+  e key = 276 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
+  e key = 273 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
+  e key = 274 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
+  "backspace"
+  e key = 8 ifTrue: [m repaint.
+                     m editor deleteBackwardAt: m editor cursor.
+                     ^ Nil].
+  "delete"
+  e key = 127 ifTrue: [m repaint.
+                       m editor deleteAt: m editor cursor.
+                     ^ Nil].
+
+  e key > 250 ifTrue: [^ Nil].
+  char: (e key as: ASCIICharacter).
+  char isPrintable \/ [e key = 13] ifTrue: [m repaint. 
+                            m editor insert: char at: m editor cursor.
+                            ^ Nil].
+].
+
+
+m@(TextboxMorph traits) printText
 ["this is the text as a string in case i change the underlying representation"
   m text
 ].
 
 
-m@(Textbox traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+m@(TextboxMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [ "don't drop focus like usual"
   m
 ].
 
-m@(Textbox traits) paintMyselfOn: surface@(Surface traits)
+m@(TextboxMorph traits) paintMyselfOn: surface@(Surface traits)
 [ |text|
   surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
@@ -92,5 +136,43 @@ the appropriate cursor. "
   surface moveTo: 10 , (m height // 2).
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
   surface showText: text.
+].
+
+
+m@(LineEditorMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[ "don't drop focus like usual"
+  m
+].
+
+m@(LineEditorMorph traits) paintMyselfOn: surface@(Surface traits)
+[ |text|
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+"fixme, we should use cairo's text_extents function to see how large the text is and draw
+the appropriate cursor. "
+
+  "fixme scrollbar position?"
+  (m editor firstVisibleLine to: (m editor firstVisibleLine + m editor visibleLines min: m editor lineCount - 1))
+    do: [ |:lineNumber line offset |
+           line: ((m editor lineAt: lineNumber) as: String).
+           offset: lineNumber - m editor firstVisibleLine + 1.
+           (m editor cursor line = lineNumber)
+             ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
+                      surface moveTo: 5 , (offset * m fontSize + 2).
+                      surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+                      surface showText: (line first: m editor cursor column).
+                      surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
+                      surface showText: '_'].
+
+           "print text"
+           surface moveTo: 5 , (offset * m fontSize).
+           surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+           surface showText: line.
+
+   ].
+                                                                                      
 ].
 
