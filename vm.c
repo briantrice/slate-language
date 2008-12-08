@@ -337,7 +337,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
 
 #define FLOAT_SIGNIFICAND 0x7FFFFF
 #define FLOAT_EXPONENT_OFFSET 23
-typedef float float_t;
+typedef float float_type;
 
 
 /*obj map flags is a smallint oop, so we start after the smallint flag*/
@@ -688,8 +688,8 @@ struct Object** array_elements(struct OopArray* o) {
   return object_array_elements((struct Object*) o);
 }
 
-float_t* float_part(struct ByteArray* o) {
-  return (float_t*)object_array_elements((struct Object*) o);
+float_type* float_part(struct ByteArray* o) {
+  return (float_type*)object_array_elements((struct Object*) o);
 }
 
 word_t object_array_size(struct Object* o) {
@@ -3361,14 +3361,14 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
     case ARG_FORMAT_FLOAT:
       {
         union {
-          float_t f;
+          float_type f;
           word_t u;
         } convert;
 
         if (object_is_smallint(element)) {
-          convert.f = (float_t) object_to_smallint(element);
+          convert.f = (float_type) object_to_smallint(element);
         } else {
-          convert.f = * (float_t *) byte_array_elements((struct ByteArray*)element);
+          convert.f = * (float_type *) byte_array_elements((struct ByteArray*)element);
         }
         /*fixme this is broken probably*/
         /*assert(0);*/
@@ -3386,7 +3386,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh,
 	  convert.d = (double) object_to_smallint(element);
         } else {
           /*TODO, support for real doubles*/
-	  convert.d = (double) * (float_t *) byte_array_elements((struct ByteArray*)element);
+	  convert.d = (double) * (float_type *) byte_array_elements((struct ByteArray*)element);
         }
 	args[outArgIndex++] = convert.u[0];
 	args[outArgIndex++] = convert.u[1];
