@@ -372,6 +372,18 @@ avoiding circularity and duplicates."
 	 each allDelegatesDo: block &seen: seen]].
 ].
 
+x@(Root traits) allSlotsAndDelegatesDo: block &seen: seen
+[
+  seen `defaultsTo: IdentitySet new.
+  x slotValues ; x _delegates do:
+    [| :obj |
+      (seen includes: obj)
+        ifFalse: [seen include: obj.
+		  block applyWith: obj.
+		  obj allSlotsAndDelegatesDo: block &seen: seen]].
+].
+
+
 x isSameAs: y@(Root traits)
 "Answer whether the two objects have the exact same shared behavior."
 [x traits == y traits].

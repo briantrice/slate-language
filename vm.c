@@ -5412,7 +5412,7 @@ void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct 
   ASSURE_SMALLINT_ARG(1);
 
 
-  if (y != 0 && (x * y) / y != x) { /*thanks slava*/
+  if (y != 0 && (z / y != x || !smallint_fits_object(z))) { /*thanks slava*/
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
@@ -5917,7 +5917,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, st
   heap_full_gc(oh);
   totalSize = oh->memoryOldSize + oh->memoryYoungSize;
   forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
-  memoryStart = malloc(totalSize);
+  memoryStart = calloc(1, totalSize);
   writeObject = (struct Object*)memoryStart;
   forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
   assert(memoryStart != NULL);
