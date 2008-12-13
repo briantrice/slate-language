@@ -45,6 +45,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <netinet/in.h>
 #include <sys/un.h>
 
+typedef uintptr_t uword_t;
 typedef intptr_t word_t;
 typedef uint8_t byte_t;
 typedef word_t bool_t;
@@ -5771,7 +5772,7 @@ struct ForwardPointerEntry* forward_pointer_hash_get(struct ForwardPointerEntry*
                                                     word_t forwardPointerEntryCount,
                                                     struct Object* fromObj) {
   word_t index;
-  word_t hash = (word_t)fromObj % forwardPointerEntryCount;
+  word_t hash = (uword_t)fromObj % forwardPointerEntryCount;
   struct ForwardPointerEntry* entry;
 
   for (index = hash; index < forwardPointerEntryCount; index++) {
