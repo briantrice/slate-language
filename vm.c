@@ -788,7 +788,7 @@ void print_byte_array(struct Object* o) {
     if (elements[i] >= 32 && elements[i] <= 126) {
       printf("%c", elements[i]);
     } else {
-      printf("\\x%02lx", (word_t)elements[i]);
+      printf("\\x%02" PRIxPTR "", (word_t)elements[i]);
     }
     if (i > 10 && payload_size(o) - i > 100) {
       i = payload_size(o) - 20;
@@ -893,7 +893,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
       if (roleTable->roles[i].name == (struct Symbol*)oh->cached.nil) {continue;}
       else {
         indent(depth); printf("role[%" PRIdPTR "]['", i); print_symbol(roleTable->roles[i].name);
-        printf("'] @ 0x%04lx\n", object_to_smallint(roleTable->roles[i].rolePositions));
+        printf("'] @ 0x%04" PRIxPTR "\n", object_to_smallint(roleTable->roles[i].rolePositions));
 #if 0
         print_object_with_depth(oh, (struct Object*)roleTable->roles[i].methodDefinition, max_depth, max_depth);
 #endif
