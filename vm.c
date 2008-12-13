@@ -27,6 +27,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -593,7 +594,7 @@ void print_object(struct Object* oop) {
     return;
   }
   if (oop_is_smallint((word_t)oop)) {
-    printf("<object int_value: %ld>\n", object_to_smallint(oop));
+    printf("<object int_value: %" PRIdPTR ">\n", object_to_smallint(oop));
   } else {
     char* typestr=0;
     switch (object_type(oop)) {
@@ -601,7 +602,7 @@ void print_object(struct Object* oop) {
     case TYPE_OOP_ARRAY: typestr = "oop array"; break;
     case TYPE_BYTE_ARRAY: typestr = "byte array"; break;
     }
-    printf("<object at %p, hash: 0x%lX, size: %ld, payload size: %ld, type: %s>\n", (void*)oop, object_hash(oop), object_size(oop), payload_size(oop), typestr);
+    printf("<object at %p, hash: 0x%" PRIuPTR "X, size: %" PRIdPTR ", payload size: %" PRIdPTR ", type: %s>\n", (void*)oop, object_hash(oop), object_size(oop), payload_size(oop), typestr);
   }
 
 }
@@ -833,9 +834,9 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
   }
   if (object_type(o) == TYPE_OOP_ARRAY) {
     struct OopArray* array = (struct OopArray*)o;
-    indent(depth); printf("size(array) = %ld\n", object_array_size(o));
+    indent(depth); printf("size(array) = %" PRIdPTR "\n", object_array_size(o));
     for (i=0; i < object_array_size(o); i++) {
-      indent(depth); printf("array[%ld]: ", i); print_object_with_depth(oh, array->elements[i], depth+1, max_depth);
+      indent(depth); printf("array[%" PRIdPTR "]: ", i); print_object_with_depth(oh, array->elements[i], depth+1, max_depth);
       if (object_array_size(o) - i > 10) {
         indent(depth); printf("...\n");
         i = object_array_size(o) - 2;
@@ -843,7 +844,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     }
   }
   indent(depth);
-  printf("map flags: %ld (%s)\n", 
+  printf("map flags: %" PRIdPTR " (%s)\n", 
          object_to_smallint(map->flags),
          ((((word_t)map->flags & MAP_FLAG_RESTRICT_DELEGATION)==0)? "delegation not restricted":"delegation restricted"));
 
@@ -855,7 +856,7 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
     word_t limit = object_total_size((struct Object*)delegates);
     for (i = 0; offset != limit; offset += sizeof(word_t), i++) {
       struct Object* delegate = object_slot_value_at_offset((struct Object*)delegates, offset);
-      indent(depth); printf("delegate[%ld] = ", i);
+      indent(depth); printf("delegate[%" PRIdPTR "] = ", i);
       print_object_with_depth(oh, delegate, 
                               (((word_t)map->flags & MAP_FLAG_RESTRICT_DELEGATION) == 0)?  depth+1 : max(max_depth-1, depth+1), max_depth);
     }
@@ -864,11 +865,11 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
   {/*if?*/
     struct SlotTable* slotTable = map->slotTable;
     word_t limit = slot_table_capacity(map->slotTable);
-    indent(depth); printf("slot count: %ld\n", object_to_smallint(map->slotCount));
+    indent(depth); printf("slot count: %" PRIdPTR "\n", object_to_smallint(map->slotCount));
     for (i=0; i < limit; i++) {
       if (slotTable->slots[i].name == (struct Symbol*)oh->cached.nil) continue;
       indent(depth);
-      printf("slot[%ld]['", i); print_symbol(slotTable->slots[i].name); printf("'] = ");
+      printf("slot[%" PRIdPTR "]['", i); print_symbol(slotTable->slots[i].name); printf("'] = ");
       {
         struct Object* obj = object_slot_value_at_offset(o, object_to_smallint(slotTable->slots[i].offset));
         if (object_is_smallint(obj) || object_type(obj) != TYPE_BYTE_ARRAY) {
@@ -887,11 +888,11 @@ void print_object_with_depth(struct object_heap* oh, struct Object* o, word_t de
   {
     struct RoleTable* roleTable = map->roleTable;
     word_t limit = role_table_capacity(roleTable);
-    indent(depth); printf("role table capacity: %ld\n", limit);
+    indent(depth); printf("role table capacity: %" PRIdPTR "\n", limit);
     for (i = 0; i < limit; i++) {
       if (roleTable->roles[i].name == (struct Symbol*)oh->cached.nil) {continue;}
       else {
-        indent(depth); printf("role[%ld]['", i); print_symbol(roleTable->roles[i].name);
+        indent(depth); printf("role[%" PRIdPTR "]['", i); print_symbol(roleTable->roles[i].name);
         printf("'] @ 0x%04lx\n", object_to_smallint(roleTable->roles[i].rolePositions));
 #if 0
         print_object_with_depth(oh, (struct Object*)roleTable->roles[i].methodDefinition, max_depth, max_depth);
@@ -941,7 +942,7 @@ void print_type(struct object_heap* oh, struct Object* o) {
   struct Object* traitsWindow;
   struct OopArray* x;
   if (object_is_smallint(o)) {
-    printf("<smallint value: %ld (0x%lx)>\n", object_to_smallint(o), object_to_smallint(o));
+    printf("<smallint value: %" PRIdPTR " (0x%" PRIuPTR "x)>\n", object_to_smallint(o), object_to_smallint(o));
     return;
   }
 
@@ -991,7 +992,7 @@ void print_stack(struct object_heap* oh) {
   word_t size = i->stackPointer;
   word_t j;
   for (j=0; j < size; j++) {
-    printf("stack[%ld] = ", j);
+    printf("stack[%" PRIdPTR "] = ", j);
     print_detail(oh, i->stack->elements[j]);
   }
 }
@@ -1002,7 +1003,7 @@ void print_stack_types(struct object_heap* oh, word_t last_count) {
   word_t j;
   for (j=0; j < size; j++) {
     if (size - j > last_count) continue;
-    printf("stack[%ld] = ", j);
+    printf("stack[%" PRIdPTR "] = ", j);
     print_type(oh, i->stack->elements[j]);
   }
 }
@@ -1018,7 +1019,7 @@ void print_backtrace(struct object_heap* oh) {
   word_t codeSize = i->codeSize;
   word_t resultStackPointer = object_to_smallint(i->stack->elements[fp-5]);
   struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];;
-  printf("printing backtrace from fp=%ld, sp=%ld\n", fp, i->stackPointer);
+  printf("printing backtrace from fp=%" PRIdPTR ", sp=%" PRIdPTR "\n", fp, i->stackPointer);
   do {
     word_t j;
     struct Object** vars;
@@ -1026,16 +1027,16 @@ void print_backtrace(struct object_heap* oh) {
     word_t local_count = object_to_smallint(closure->method->localVariables);
     vars = (closure->method->heapAllocate == oh->cached.true_object)? (&lc->variables[0]) : (&i->stack->elements[fp]);
     printf("------------------------------\n");
-    printf("fp: %ld\n", fp);
-    printf("sp: %ld\n", sp);
-    printf("ip: %ld/%ld\n", codePointer, codeSize);
-    printf("result: %ld\n", resultStackPointer);
+    printf("fp: %" PRIdPTR "\n", fp);
+    printf("sp: %" PRIdPTR "\n", sp);
+    printf("ip: %" PRIdPTR "/%" PRIdPTR "\n", codePointer, codeSize);
+    printf("result: %" PRIdPTR "\n", resultStackPointer);
     printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
-    printf("regs: %ld\n", object_to_smallint(closure->method->registerCount));
+    printf("regs: %" PRIdPTR "\n", object_to_smallint(closure->method->registerCount));
     printf("heap alloc: %s\n", (closure->method->heapAllocate == oh->cached.true_object)? "true" : "false");
 
     for (j = 0; j < input_count; j++) {
-      printf("arg[%ld] (%p) = ", j, (void*)vars[j]);
+      printf("arg[%" PRIdPTR "] (%p) = ", j, (void*)vars[j]);
       if (depth > detail_depth) {
         print_type(oh, vars[j]);
       } else {
@@ -1044,7 +1045,7 @@ void print_backtrace(struct object_heap* oh) {
     }
     if (closure->method->heapAllocate == oh->cached.true_object) {
       for (j = 0; j < local_count; j++) {
-        printf("var[%ld] (%p)= ", j, (void*)lc->variables[j]);
+        printf("var[%" PRIdPTR "] (%p)= ", j, (void*)lc->variables[j]);
         if (depth > detail_depth) {
           print_type(oh, lc->variables[j]);
         } else {
@@ -1053,7 +1054,7 @@ void print_backtrace(struct object_heap* oh) {
       }
     } else {
       for (j = input_count; j < input_count + local_count; j++) {
-        printf("var[%ld] (%p) = ", j - input_count, (void*)vars[j]);
+        printf("var[%" PRIdPTR "] (%p) = ", j - input_count, (void*)vars[j]);
         if (depth > detail_depth) {
           print_type(oh, vars[j]);
         } else {
@@ -1409,7 +1410,7 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags)
   } else if (flags & SF_READ)
     mode[modeIndex++] = 'r';
   else {
-    fprintf(stderr, "Slate: Unexpected mode flags for ANSI file module: %ld, falling back to \"r\"", flags);
+    fprintf(stderr, "Slate: Unexpected mode flags for ANSI file module: %" PRIdPTR ", falling back to \"r\"", flags);
     mode[modeIndex++] = 'r';
   }
 
@@ -1569,7 +1570,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   assert(words > 0);
 
 #ifdef PRINT_DEBUG
-  printf("Making %ld words of free space at: %p\n", words, (void*)start);
+  printf("Making %" PRIdPTR " words of free space at: %p\n", words, (void*)start);
 #endif
 
 
@@ -1701,12 +1702,12 @@ void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySiz
       printf("[used ");
       used_count++;
     }
-    printf("%ld]\n", object_total_size(obj));
+    printf("%" PRIdPTR "]\n", object_total_size(obj));
 
     obj = object_after(oh, obj);
   }
   printf("\n");
-  printf("free: %ld, used: %ld, pinned: %ld\n", free_count, used_count, pin_count);
+  printf("free: %" PRIdPTR ", used: %" PRIdPTR ", pinned: %" PRIdPTR "\n", free_count, used_count, pin_count);
 
 }
 
@@ -1766,7 +1767,7 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
     } else {
       heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
       print_backtrace(oh);
-      printf("Couldn't allocate %ld bytes\n", bytes + sizeof(struct Object));
+      printf("Couldn't allocate %" PRIdPTR " bytes\n", bytes + sizeof(struct Object));
       assert(0);
     }
     oh->nextFree = (struct Object*)oh->memoryYoung;
@@ -1911,7 +1912,7 @@ void heap_mark(struct object_heap* oh, struct Object* obj) {
   if (oh->markStackPosition + 1 >=oh->markStackSize) {
     oh->markStackSize *= 2;
 #ifdef PRINT_DEBUG
-    printf("Growing mark stack to %ld\n", oh->markStackSize);
+    printf("Growing mark stack to %" PRIdPTR "\n", oh->markStackSize);
 #endif
     oh->markStack = realloc(oh->markStack, oh->markStackSize * sizeof(struct Object*));
     assert(oh->markStack);
@@ -2001,7 +2002,7 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
     
   }
 #ifdef PRINT_DEBUG_GC_1
-  printf("GC Freed %ld words and coalesced %ld times\n", freed_words, coalesce_count);
+  printf("GC Freed %" PRIdPTR " words and coalesced %" PRIdPTR " times\n", freed_words, coalesce_count);
 #endif
 }
 
@@ -2043,7 +2044,7 @@ void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize)
     obj = object_after(oh, obj);
   }
   printf("\n");
-  printf("free: %ld, used: %ld, pinned: %ld\n", free_count, used_count, pin_count);
+  printf("free: %" PRIdPTR ", used: %" PRIdPTR ", pinned: %" PRIdPTR "\n", free_count, used_count, pin_count);
 
 }
 
@@ -2103,7 +2104,7 @@ void heap_tenure(struct object_heap* oh) {
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_1
-  printf("GC tenured %ld objects (%ld words)\n", tenure_count, tenure_words);
+  printf("GC tenured %" PRIdPTR " objects (%" PRIdPTR " words)\n", tenure_count, tenure_words);
 #endif
 
   heap_update_forwarded_pointers(oh, oh->memoryOld, oh->memoryOldSize);
@@ -2176,7 +2177,7 @@ void heap_sweep_young(struct object_heap* oh) {
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_2
-  printf("GC freed %ld young objects (%ld words)\n", young_count, young_word_count);
+  printf("GC freed %" PRIdPTR " young objects (%" PRIdPTR " words)\n", young_count, young_word_count);
 #endif
   oh->nextFree = (struct Object*)oh->memoryYoung;
 
@@ -2437,7 +2438,7 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
   i->stackPointer += n;
 
 #ifdef PRINT_DEBUG_STACK_PUSH
-  printf("stack allocate, new stack pointer: %ld\n", i->stackPointer);
+  printf("stack allocate, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
 #endif
 
 }
@@ -2445,7 +2446,7 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
 void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struct Object* value) {
 
 #ifdef PRINT_DEBUG_STACK_PUSH
-  printf("Stack push at %ld (fp=%ld): ", i->stackPointer, i->framePointer); print_type(oh, value);
+  printf("Stack push at %" PRIdPTR " (fp=%" PRIdPTR "): ", i->stackPointer, i->framePointer); print_type(oh, value);
 #endif
   if (!object_is_smallint(value)) {
     assert(object_hash(value) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
@@ -2470,7 +2471,7 @@ struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter*
   {
     struct Object* o = i->stack->elements[i->stackPointer];
 #ifdef PRINT_DEBUG_STACK_POINTER
-    printf("popping from stack, new stack pointer: %ld\n", i->stackPointer);
+    printf("popping from stack, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
     /*print_detail(oh, o);*/
 #endif
     return o;
@@ -2492,9 +2493,9 @@ void interpreter_stack_pop_amount(struct object_heap* oh, struct Interpreter* i,
 
 void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n, struct Object* args[]) {
   word_t i;
-  printf("Unhandled signal: "); print_symbol(selector); printf(" with %ld arguments: \n", n);
+  printf("Unhandled signal: "); print_symbol(selector); printf(" with %" PRIdPTR " arguments: \n", n);
   for (i = 0; i<n; i++) {
-    printf("arg[%ld] = ", i);
+    printf("arg[%" PRIdPTR "] = ", i);
     print_detail(oh, args[i]);
   }
   printf("partial stack: \n");
@@ -3014,9 +3015,9 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 #ifdef PRINT_DEBUG_DISPATCH
   printf("dispatch to: '");
   print_symbol(name);
-  printf("' (arity: %ld)\n", arity);
+  printf("' (arity: %" PRIdPTR ")\n", arity);
   for (i = 0; i < arity; i++) {
-    printf("arguments[%ld] (%p) = ", i, (void*)arguments[i]); print_type(oh, arguments[i]);
+    printf("arguments[%" PRIdPTR "] (%p) = ", i, (void*)arguments[i]); print_type(oh, arguments[i]);
   }
   /*  printf("resend: "); print_object(resendMethod);*/
 #endif
@@ -3091,7 +3092,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
               def->foundPositions |= (1 << i);
 
 #ifdef PRINT_DEBUG_FOUND_ROLE
-              printf("found role index %ld <%p> for '%s' foundPos: %lx dispatchPos: %lx\n",
+              printf("found role index %" PRIdPTR " <%p> for '%s' foundPos: %" PRIuPTR "x dispatchPos: %" PRIuPTR "x\n",
                      i,
                      (void*) role,
                      ((struct Symbol*)(role->name))->elements, def->foundPositions, def->dispatchPositions);
@@ -3969,7 +3970,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   
 
 #ifdef PRINT_DEBUG
-  printf("apply to arity %ld\n", n);
+  printf("apply to arity %" PRIdPTR "\n", n);
 #endif
 
   method = closure->method;
@@ -4031,13 +4032,13 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   heap_store_into(oh, (struct Object*)i->stack, (struct Object*)lexicalContext);
 
 #ifdef PRINT_DEBUG_FUNCALL_VERBOSE
-  printf("i->stack->elements[%ld(fp-4)] = \n", framePointer - 4);
+  printf("i->stack->elements[%" PRIdPTR "(fp-4)] = \n", framePointer - 4);
   print_detail(oh, i->stack->elements[framePointer - 4]);
-  printf("i->stack->elements[%ld(fp-3)] = \n", framePointer - 3);
+  printf("i->stack->elements[%" PRIdPTR "(fp-3)] = \n", framePointer - 3);
   print_detail(oh, i->stack->elements[framePointer - 3]);
-  printf("i->stack->elements[%ld(fp-2)] = \n", framePointer - 2);
+  printf("i->stack->elements[%" PRIdPTR "(fp-2)] = \n", framePointer - 2);
   print_detail(oh, i->stack->elements[framePointer - 2]);
-  printf("i->stack->elements[%ld(fp-1)] = \n", framePointer - 1);
+  printf("i->stack->elements[%" PRIdPTR "(fp-1)] = \n", framePointer - 1);
   print_detail(oh, i->stack->elements[framePointer - 1]);
 #endif
 
@@ -4928,7 +4929,7 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct
   interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
   oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
 #ifdef PRINT_DEBUG_ENSURE
-  printf("ensure handlers at %ld\n", oh->cached.interpreter->stackPointer - 2);
+  printf("ensure handlers at %" PRIdPTR "\n", oh->cached.interpreter->stackPointer - 2);
 #endif
 
 }
@@ -5672,7 +5673,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
-    printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+    printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
@@ -5985,8 +5986,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
 #ifdef PRINT_DEBUG_FUNCALL
       printf("interpreter_return_result BEFORE\n");
-      printf("stack pointer: %ld\n", i->stackPointer);
-      printf("frame pointer: %ld\n", i->framePointer);
+      printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
+      printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, 16);
 #endif
 
@@ -6010,7 +6011,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
    if this is right*/
   if (result != NULL) {
 #ifdef PRINT_DEBUG_STACK
-    printf("setting stack[%ld] = ", resultStackPointer); print_object(result);
+    printf("setting stack[%" PRIdPTR "] = ", resultStackPointer); print_object(result);
 #endif
 
     i->stack->elements[resultStackPointer] = result;
@@ -6021,12 +6022,12 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   if (framePointer <= ensureHandlers) {
     struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
 #ifdef PRINT_DEBUG_ENSURE
-  printf("current ensure handlers at %ld\n", object_to_smallint(i->ensureHandlers));
+  printf("current ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
     assert(object_to_smallint(i->stack->elements[ensureHandlers]) < 0x1000000); /*sanity check*/
     i->ensureHandlers = i->stack->elements[ensureHandlers];
 #ifdef PRINT_DEBUG_ENSURE
-  printf("reset ensure handlers at %ld\n", object_to_smallint(i->ensureHandlers));
+  printf("reset ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
 
     interpreter_stack_push(oh, i, smallint_to_object(i->stackPointer));
@@ -6062,8 +6063,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
 #ifdef PRINT_DEBUG_FUNCALL
       printf("interpreter_return_result AFTER\n");
-      printf("stack pointer: %ld\n", i->stackPointer);
-      printf("frame pointer: %ld\n", i->framePointer);
+      printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
+      printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, 16);
 #endif
 
@@ -6123,7 +6124,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
-    printf("calling primitive: %ld\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+    printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, n, NULL, resultStackPointer);
     return;
@@ -6274,7 +6275,7 @@ void interpret(struct object_heap* oh) {
   unsigned long int instruction_counter = 0;
 
 #ifdef PRINT_DEBUG
-  printf("Interpret: img:%p size:%ld spec:%p next:%ld\n",
+  printf("Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
          (void*)oh->memoryOld, oh->memoryOldSize, (void*)oh->special_objects_oop, oh->lastHash);
   printf("Special oop: "); print_object((struct Object*)oh->special_objects_oop);
 #endif
@@ -6283,9 +6284,9 @@ void interpret(struct object_heap* oh) {
 
 #ifdef PRINT_DEBUG
   printf("Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
-  printf("Interpreter stack size: %ld\n", oh->cached.interpreter->stackSize);
-  printf("Interpreter stack pointer: %ld\n", oh->cached.interpreter->stackPointer);
-  printf("Interpreter frame pointer: %ld\n", oh->cached.interpreter->framePointer);
+  printf("Interpreter stack size: %" PRIdPTR "\n", oh->cached.interpreter->stackSize);
+  printf("Interpreter stack pointer: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
+  printf("Interpreter frame pointer: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
 #endif 
   /*fixme this should only be called in the initial bootstrap because
     the stack doesn't have enough room for the registers */
@@ -6311,7 +6312,7 @@ void interpret(struct object_heap* oh) {
       prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
 #ifdef PRINT_DEBUG_CODE_POINTER
-      printf("(%ld/%ld) %ld ", i->codePointer, i->codeSize, op>>1);
+      printf("(%" PRIdPTR "/%" PRIdPTR ") %" PRIdPTR " ", i->codePointer, i->codeSize, op>>1);
 #endif
       i->codePointer++;
 
@@ -6328,7 +6329,7 @@ void interpret(struct object_heap* oh) {
           arity = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("send message fp: %ld, result: %ld, arity: %ld, message: ", i->framePointer, result, arity);
+          printf("send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
           print_type(oh, selector);
 #endif
           assert(arity <= 16);
@@ -6336,7 +6337,7 @@ void interpret(struct object_heap* oh) {
             word_t argReg = SSA_NEXT_PARAM_SMALLINT;
             args[k] = SSA_REGISTER(argReg);
 #ifdef PRINT_DEBUG_OPCODES
-            printf("args[%d@%ld] = ", k, argReg);
+            printf("args[%d@%" PRIdPTR "] = ", k, argReg);
             print_type(oh, args[k]);
 #endif
           }
@@ -6359,7 +6360,7 @@ void interpret(struct object_heap* oh) {
           optsArrayReg = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("send message with opts fp: %ld, result: %ld arity: %ld, opts: %ld, message: ", i->framePointer, result, arity, optsArrayReg);
+          printf("send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
           print_type(oh, selector);
 #endif
           assert(arity <= 16);
@@ -6383,7 +6384,7 @@ void interpret(struct object_heap* oh) {
           size = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("new array, result: %ld, size: %ld\n", result, size);
+          printf("new array, result: %" PRIdPTR ", size: %" PRIdPTR "\n", result, size);
 #endif
           array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), size);
           for (k = 0; k < size; k++) {
@@ -6391,7 +6392,7 @@ void interpret(struct object_heap* oh) {
           }
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)array);
 #ifdef PRINT_DEBUG_STACK
-    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
+    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
 #endif
           ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) array;
@@ -6405,7 +6406,7 @@ void interpret(struct object_heap* oh) {
           result = SSA_NEXT_PARAM_SMALLINT;
           block = (struct CompiledMethod*)SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("new closure, result: %ld, block", result);
+          printf("new closure, result: %" PRIdPTR ", block", result);
           print_type(oh, (struct Object*)block);
 #endif
           if ((struct CompiledMethod *) i->closure == i->method) {
@@ -6423,7 +6424,7 @@ void interpret(struct object_heap* oh) {
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)block);
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)newClosure);
 #ifdef PRINT_DEBUG_STACK
-    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
+    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
 #endif
           ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) newClosure;
@@ -6436,12 +6437,12 @@ void interpret(struct object_heap* oh) {
           destReg = SSA_NEXT_PARAM_SMALLINT;
           literal = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load literal into reg %ld, value: ", destReg);
+          printf("load literal into reg %" PRIdPTR ", value: ", destReg);
           print_type(oh, literal);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, literal);
 #ifdef PRINT_DEBUG_STACK
-    printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
+    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = literal;
@@ -6453,7 +6454,7 @@ void interpret(struct object_heap* oh) {
           resultRegister = SSA_NEXT_PARAM_SMALLINT;
           lexicalOffset = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("resend message reg %ld, offset: %ld\n", resultRegister, lexicalOffset);
+          printf("resend message reg %" PRIdPTR ", offset: %" PRIdPTR "\n", resultRegister, lexicalOffset);
 #endif
           interpreter_resend_message(oh, i, lexicalOffset, i->framePointer + resultRegister);
           break;
@@ -6463,12 +6464,12 @@ void interpret(struct object_heap* oh) {
           word_t var;
           var = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load var %ld\n", var);
+          printf("load var %" PRIdPTR "\n", var);
 #endif
           if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->lexicalContext);
 #ifdef PRINT_DEBUG_STACK
-            printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
+            printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
 #endif
             ASSERT_VALID_REGISTER(var);
             SSA_REGISTER(var) = i->lexicalContext->variables[var];
@@ -6485,7 +6486,7 @@ void interpret(struct object_heap* oh) {
           word_t var;
           var = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("store var %ld\n", var);
+          printf("store var %" PRIdPTR "\n", var);
 #endif
           if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->lexicalContext, (struct Object*)i->stack);
@@ -6505,11 +6506,11 @@ void interpret(struct object_heap* oh) {
           lexOffset = SSA_NEXT_PARAM_SMALLINT;
           varIndex = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load free var to: %ld, lexoffset: %ld, index: %ld\n", destReg, lexOffset, varIndex);
+          printf("load free var to: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", destReg, lexOffset, varIndex);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->closure->lexicalWindow[lexOffset-1]);
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
+          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = i->closure->lexicalWindow[lexOffset-1]->variables[varIndex];
@@ -6527,7 +6528,7 @@ void interpret(struct object_heap* oh) {
           varIndex = SSA_NEXT_PARAM_SMALLINT;
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("store free var from: %ld, lexoffset: %ld, index: %ld\n", srcReg, lexOffset, varIndex);
+          printf("store free var from: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", srcReg, lexOffset, varIndex);
 #endif
           heap_store_into(oh, (struct Object*)i->closure->lexicalWindow[lexOffset-1], (struct Object*)i->stack);
           i->closure->lexicalWindow[lexOffset-1]->variables[varIndex] = SSA_REGISTER(srcReg);
@@ -6545,11 +6546,11 @@ void interpret(struct object_heap* oh) {
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("move reg %ld, %ld\n", destReg, srcReg);
+          printf("move reg %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, SSA_REGISTER(srcReg));
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
+          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = SSA_REGISTER(srcReg);
@@ -6563,13 +6564,13 @@ void interpret(struct object_heap* oh) {
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("is identical %ld, %ld\n", destReg, srcReg);
+          printf("is identical %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
 #endif
           ASSERT_VALID_REGISTER(resultReg);
           
           SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true_object : oh->cached.false_object;
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
+          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
 #endif
           break;
         }
@@ -6580,7 +6581,7 @@ void interpret(struct object_heap* oh) {
           tableReg = SSA_NEXT_PARAM_SMALLINT;
           /*assert(0);*/
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch keyed: %ld/%ld\n", tableReg, keyReg);
+          printf("branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
 #endif
           interpreter_branch_keyed(oh, i, (struct OopArray*)SSA_REGISTER(tableReg), SSA_REGISTER(keyReg));
           break;
@@ -6595,7 +6596,7 @@ void interpret(struct object_heap* oh) {
           val = SSA_REGISTER(condReg);
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch if true: %ld, offset: %ld, val: ", condReg, offset);
+          printf("branch if true: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
           print_type(oh, val);
 #endif
           if (val == oh->cached.true_object) {
@@ -6618,7 +6619,7 @@ void interpret(struct object_heap* oh) {
           val = SSA_REGISTER(condReg);
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch if false: %ld, offset: %ld, val: ", condReg, offset);
+          printf("branch if false: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
           print_type(oh, val);
 #endif
           if (val == oh->cached.false_object) {
@@ -6637,7 +6638,7 @@ void interpret(struct object_heap* oh) {
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
           assert(offset < 20000 && offset > -20000);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("jump to offset: %ld\n", offset);
+          printf("jump to offset: %" PRIdPTR "\n", offset);
 #endif
           i->codePointer = i->codePointer + offset;
           
@@ -6648,14 +6649,14 @@ void interpret(struct object_heap* oh) {
           word_t next_param;
           next_param = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load environment into reg %ld, value: ", next_param);
+          printf("load environment into reg %" PRIdPTR ", value: ", next_param);
           print_type(oh, i->method->environment);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->method->environment);
           ASSERT_VALID_REGISTER(next_param);
           SSA_REGISTER(next_param) = i->method->environment;
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: setting stack[%ld] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
+          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
 #endif
           break;
         }
@@ -6664,11 +6665,11 @@ void interpret(struct object_heap* oh) {
           word_t reg;
           reg = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("return reg %ld, value: ", reg);
+          printf("return reg %" PRIdPTR ", value: ", reg);
           print_type(oh, SSA_REGISTER(reg));
 #endif
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: ", instruction_counter);
+          printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
           interpreter_return_result(oh, i, 0, SSA_REGISTER(reg), prevPointer);
@@ -6698,11 +6699,11 @@ void interpret(struct object_heap* oh) {
           reg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("return result reg: %ld, offset: %ld, value: ", reg, offset);
+          printf("return result reg: %" PRIdPTR ", offset: %" PRIdPTR ", value: ", reg, offset);
           print_type(oh, SSA_REGISTER(reg));
 #endif
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: ", instruction_counter);
+          printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
           interpreter_return_result(oh, i, offset, SSA_REGISTER(reg), prevPointer);
@@ -6718,7 +6719,7 @@ void interpret(struct object_heap* oh) {
           PRINTOP("op: return obj\n");
           obj = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_STACK
-          printf("%lu: ", instruction_counter);
+          printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           interpreter_return_result(oh, i, 0, obj, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
@@ -6733,18 +6734,18 @@ void interpret(struct object_heap* oh) {
           word_t reg;
           reg = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("allocate %ld registers\n", reg);
+          printf("allocate %" PRIdPTR " registers\n", reg);
 #endif
           interpreter_stack_allocate(oh, i, reg);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("new fp: %ld sp: %ld\n", i->framePointer, i->stackPointer);
+          printf("new fp: %" PRIdPTR " sp: %" PRIdPTR "\n", i->framePointer, i->stackPointer);
 #endif
           
           break;
         }
 #endif
       default:
-        printf("error bad opcode... %ld\n", op>>1);
+        printf("error bad opcode... %" PRIdPTR "\n", op>>1);
         assert(0);
         break;
       }
@@ -6790,16 +6791,16 @@ int main(int argc, char** argv) {
   fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file);
   
   if (sih.magic != SLATE_IMAGE_MAGIC) {
-    fprintf(stderr, "Magic number (0x%lX) doesn't match (word_t)0xABCDEF43\n", sih.magic);
+    fprintf(stderr, "Magic number (0x%" PRIuPTR "X) doesn't match (word_t)0xABCDEF43\n", sih.magic);
     return 1;
   }
   
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
 
-  printf("Image size: %ld bytes\n", sih.size);
+  printf("Image size: %" PRIdPTR " bytes\n", sih.size);
   if ((res = fread(heap->memoryOld, 1, sih.size, file)) != sih.size) {
-    fprintf(stderr, "Error fread()ing image. Got %lu, expected %lu.\n", res, sih.size);
+    fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
     return 1;
   }
 
