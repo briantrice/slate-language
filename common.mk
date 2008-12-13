@@ -98,22 +98,27 @@ PRINT_DEBUG=$(PRINT_DEBUG_1)
 
 ## Determine CPU type
 
-ifeq ($(HOST_SYSTEM), Darwin)
-  CPU_TYPE := powerpc
-endif
+#ifeq ($(HOST_SYSTEM), Darwin)
+#  CPU_TYPE := powerpc
+#endif
 
 ## TODO: Sparc detection for SunOS?
 ## TODO: Base CPU type on real information, not just generic OS variant
 
 ## CPU-type specific overrides. Any of the variables above may be changed here.
 
-ifeq ($(CPU_TYPE), i686)
-  CFLAGS += -m$(WORD_SIZE)
+ifdef ARCH
+  CFLAGS += -m$(ARCH)
 endif
 
-ifeq ($(CPU_TYPE), x86_64)
-  CFLAGS += -m$(WORD_SIZE)
-endif
+
+#ifeq ($(CPU_TYPE), i686)
+#  CFLAGS += -m$(WORD_SIZE)
+#endif
+
+#ifeq ($(CPU_TYPE), x86_64)
+#  CFLAGS += -m$(WORD_SIZE)
+#endif
 
 ## Platform specific overrides. Any of the variables above may be changed here.
 
@@ -135,10 +140,9 @@ ifeq ($(findstring CYGWIN,$(HOST_SYSTEM)), CYGWIN)
 endif
 
 ifeq ($(HOST_SYSTEM), Darwin)
-  LIBTOOL   := MACOSX_DEPLOYMENT_TARGET=10.3 glibtool
-  # Work around G4 crashes with GCC 4.0.
-  # TODO: Should be CPU specific.
-  COPTFLAGS := $(subst -DNDEBUG=1,,$(COPTFLAGS))
+#  LIBTOOL := MACOSX_DEPLOYMENT_TARGET=10.3 glibtool
+  LIBTOOL := glibtool
+  PLUGINS := $(subst sdl-windows,quartz-windows, $(PLUGINS))
 endif
 
 ifeq ($(HOST_SYSTEM), DragonFly)

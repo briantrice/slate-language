@@ -17,6 +17,10 @@ clean:
 	$(SECHO) "Compiling src/plugins/$(BASENAME)/$<	($(MODE))"
 	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=compile $(CC) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
 
+%.o: %.m
+	$(SECHO) "Compiling src/plugins/$(BASENAME)/$<	($(MODE))"
+	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=compile $(CC) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
+
 %$(LIB_SO_EXT): %.la
 	$(SECHO) "Installing $(BASENAME) Plug-in  ($(MODE))"
 	mkdir -p `pwd`/$(libdir)
@@ -30,6 +34,9 @@ clean:
 	$(SECHO) "Compiling src/plugins/$(BASENAME)/$<	($(MODE))"
 	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=compile $(CC) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
 
+%.lo: %.m
+	$(SECHO) "Compiling src/plugins/$(BASENAME)/$<	($(MODE))"
+	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=compile $(CC) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
 
 #%.o: %.c
 #	$(LIBTOOL) $(LIBTOOL_FLAGS) --mode=compile $(CC) $(CFLAGS) $(CFLAGS_$<) -fPIC -c -o $@ $<
