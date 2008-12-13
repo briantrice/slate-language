@@ -6045,7 +6045,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   i->stackPointer = object_to_smallint(i->stack->elements[framePointer - 6]);
   i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
   if (i->framePointer < FUNCTION_FRAME_SIZE) {
-    assert(0);
+    /* returning from the last function on the stack seems to happen when the user presses Ctrl-D */
+    exit(0);
     return 0;
   }
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
