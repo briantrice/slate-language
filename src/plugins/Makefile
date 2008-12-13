@@ -10,8 +10,7 @@ all: $(PLUGINS)
 	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=finish $(libdir)
 
 clean:
-#	$(SILENT) $(LIBTOOL) --mode=clean rm -f *.so *.o *.a
-	$(SILENT) rm -fr $(libdir)/* *.a *.o .libs
+	$(SILENT) rm -f $(libdir)/* *.a *.o .libs/*
 
 
 %.o: %.c
