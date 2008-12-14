@@ -89,8 +89,10 @@ le@(LineEditor traits) deleteFrom: c@(Cursor traits)
 le@(LineEditor traits) characterAt: c@(Cursor traits)
 [ |line|
   line: (le lineAt: c line).
-  line contents size <= c column ifTrue: [^ Nil].
-  line contents at: c column.
+  line contents size <= c column ifTrue: [line contents size = 0
+                                               ifTrue: [^ (line contents at: line contents size - 1)]
+                                               ifFalse: [^ $\n]].
+  line contents at: c column
 ].
 
 
@@ -193,6 +195,20 @@ le@(LineEditor traits) do: block undo: undoBlock record: record
   
 ].
 
+le@(LineEditor traits) undo
+[
+  le undoHistoryPosition < 1 ifTrue: [^ Nil].
+  le undoHistoryPosition: le undoHistoryPosition - 1.
+  (le undoHistory at: le undoHistoryPosition) undo do.
+].
+
+le@(LineEditor traits) redo
+[
+  le undoHistoryPosition >= le undoHistory size ifTrue: [^ Nil].
+  (le undoHistory at: le undoHistoryPosition) redo do.
+  le undoHistoryPosition: le undoHistoryPosition + 1.
+].
+
 
 "------------------------------------------------------------"
 "functions here use the functions above to modify the buffer.
@@ -238,6 +254,7 @@ le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record: record
                                   point setTo: p]
                           record: record]
                ifFalse: [deletedCharacter: (le characterAt: (p backwardOn: le)).
+                         inform: 'deleted: ' ; deletedCharacter printString.
                          le do: [le deleteFrom: (p backwardOn: le).
                                  point setTo: (p backwardOn: le)]
                             undo: [le insertCharacter: deletedCharacter at: (p backwardOn: le).
@@ -259,6 +276,7 @@ le@(LineEditor traits) deleteAt: point@(Cursor traits) &record: record
                        point setTo: p]
                 record: record]
     ifFalse: [deletedCharacter: (le characterAt: p).
+              inform: 'deleted: ' ; deletedCharacter printString.
               le do: [le deleteFrom: p.
                       point setTo: p]
                  undo: [le insertCharacter: deletedCharacter at: p.

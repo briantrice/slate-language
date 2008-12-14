@@ -85,6 +85,8 @@ CFLAGS_slate-cairo.c=`pkg-config --cflags cairo`
 LDFLAGS_slate-cairo.lo=`pkg-config --libs cairo`
 CFLAGS_sdl-windows.c=`pkg-config --cflags sdl`
 LDFLAGS_sdl-windows.lo=`pkg-config --libs sdl`
+CFLAGS_cocoa-windows.c=`pkg-config --cflags cocoa`
+LDFLAGS_cocoa-windows.lo=`pkg-config --libs cocoa`
 
 
 PRINT_DEBUG_Y=  -DPRINT_DEBUG_STACK_POINTER  -DPRINT_DEBUG_STACK_PUSH -DPRINT_DEBUG_FOUND_ROLE  -DPRINT_DEBUG_FUNCALL   
@@ -142,7 +144,7 @@ endif
 ifeq ($(HOST_SYSTEM), Darwin)
 #  LIBTOOL := MACOSX_DEPLOYMENT_TARGET=10.3 glibtool
   LIBTOOL := glibtool
-  PLUGINS := $(subst sdl-windows,quartz-windows, $(PLUGINS))
+  PLUGINS := $(subst sdl-windows,cocoa-windows, $(PLUGINS))
 endif
 
 ifeq ($(HOST_SYSTEM), DragonFly)

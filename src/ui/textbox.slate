@@ -94,6 +94,17 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on
   e key = 127 ifTrue: [m repaint.
                        m editor deleteAt: m editor cursor.
                      ^ Nil].
+  
+  "undo C-/ "
+  e key = 47 /\ [e modifiers = 64] ifTrue: [m repaint.
+                                            m editor undo.
+                                            ^ Nil].
+
+  "redo C-\ "
+  e key = 92 /\ [e modifiers = 64] ifTrue: [m repaint.
+                                            m editor redo.
+                                            ^ Nil].
+
 
   e key > 250 ifTrue: [^ Nil].
   char: (e key as: ASCIICharacter).
