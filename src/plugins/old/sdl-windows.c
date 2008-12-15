@@ -17,6 +17,8 @@ slate_int_t eventValid = 0;
 EXPORT void init()
 {
     SDL_Init(SDL_INIT_VIDEO);
+    printf("enable unicode!!!!!!\n");
+    SDL_EnableUNICODE(1);
 }
 
 EXPORT void shutdown()
@@ -141,7 +143,7 @@ EXPORT slate_int_t getEventMouseButtonY()
 
 EXPORT slate_int_t getKeyboardKey()
 {
-    return event.key.keysym.sym;
+  return event.key.keysym.unicode; /*unicode must be enabled for this to work*/
 }
 
 EXPORT slate_int_t getKeyboardMod()

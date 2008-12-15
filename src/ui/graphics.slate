@@ -42,11 +42,9 @@ Graphics define: #SceneElement &parents: {Cloneable} &slots: {
 
 Graphics define: #WindowSceneElement &parents: {SceneElement} &slots: {
 #exitRequested -> False.
-#surface -> Nil.
-#form -> Nil.
 #needRepaint -> True.
 #child -> Nil.
-#osWindow -> Nil.
+#osWindow -> Nil. "the BasicWindowElement?"
 #conductor -> Conductor new.
 }.
 
@@ -76,20 +74,14 @@ m@(Morph traits) new
 ].
 
 
-wse@(WindowSceneElement traits) width: width height: height
+wse@(WindowSceneElement traits) newNamed: name width: width height: height
 [ | res |
   res: wse.
-  res form: (Form extent: width , height depth: 32). 
-  res surface: (FormContext newForm: res form).
   res region: (Rectangle origin: 0, 0 extent: width , height).
+  res conductor: wse conductor new.
+  res conductor focus: Nil. "set it to wse and we might have a loop"
+  res osWindow: (XWindowSession newWindow: 'blah' width: 640 height: 480).
   res
-].
-
-wse@(WindowSceneElement traits) createWindow
-[
-  wse conductor: wse conductor new.
-  wse conductor focus: Nil. "set it to wse and we might have a loop"
-  wse osWindow: (Windows Window newWidth: wse width height: wse height sceneElement: wse)
 ].
 
 wse@(WindowSceneElement traits) handle: input@(Event traits)
@@ -206,7 +198,7 @@ se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
                         surface clip.
                         surface translate: se child region origin.
                         se child paintOn: surface].
-  se osWindow blit: se form dest: se src: se.
+  se osWindow paint.
 ].
 
 se@(WindowSceneElement traits) eventLoop
@@ -217,8 +209,8 @@ se@(WindowSceneElement traits) eventLoop
     inform: '**** Press middle mouse button to exit loop ****'.
     [se exitRequested] whileFalse: 
         [
-            se needRepaint ifTrue: [se paintOn: se surface].
-            Windows waitForEvent dispatchEvent.
+            se needRepaint ifTrue: [se paintOn: se osWindow].
+            se handle: se osWindow getNextEvent.
         ].
 ].
 

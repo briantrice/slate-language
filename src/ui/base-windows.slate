@@ -1,0 +1,46 @@
+
+
+"this defines the base class for all toolkits and what they must support"
+
+Graphics define: #BasicWindowSession &parents: {Cloneable}.
+Graphics define: #BasicWindowElement &parents: {Surface}.
+
+"basic window session operations"
+
+ws@(BasicWindowSession traits) start [overrideThis].
+ws@(BasicWindowSession traits) stop [overrideThis].
+ws@(BasicWindowSession traits) newWindow: title width: width height: height [overrideThis].
+
+
+
+"for the current event... you will use these values to make an Event (src/ui/event.slate)"
+w@(BasicWindowElement traits) getNextEvent [overrideThis].
+
+
+"the actual blit to paint the cairo surface"
+w@(BasicWindowElement traits) paint [overrideThis]. 
+
+"cairo-like drawing operations... the morphs call these on you to draw on the canvas"
+
+w@(BasicWindowElement traits) clip [overrideThis].
+w@(BasicWindowElement traits) clipPreserve [overrideThis].
+w@(BasicWindowElement traits) fill [overrideThis].
+w@(BasicWindowElement traits) fillPreserve [overrideThis].
+w@(BasicWindowElement traits) restore [overrideThis].
+w@(BasicWindowElement traits) save [overrideThis].
+w@(BasicWindowElement traits) lineWidth [overrideThis].
+w@(BasicWindowElement traits) lineWidth: width [overrideThis].
+w@(BasicWindowElement traits) sourceRGB: color@(RGBColor traits) [overrideThis].
+w@(BasicWindowElement traits) sourceRGB: color@(RGBColor traits) alpha: alpha [overrideThis].
+w@(BasicWindowElement traits) stroke [overrideThis].
+w@(BasicWindowElement traits) strokePreserve [overrideThis].
+w@(BasicWindowElement traits) closePath [overrideThis].
+w@(BasicWindowElement traits) lineTo: point@(Point traits) [overrideThis].
+w@(BasicWindowElement traits) moveTo: point@(Point traits) [overrideThis].
+w@(BasicWindowElement traits) newPath [overrideThis].
+w@(BasicWindowElement traits) rectangle: rectangle [overrideThis].
+w@(BasicWindowElement traits) translate: offset@(Point traits) [overrideThis].
+w@(BasicWindowElement traits) scale: offset@(Point traits) [overrideThis].
+w@(BasicWindowElement traits) font: font &italic: italic &bold: bold [overrideThis].
+w@(BasicWindowElement traits) fontSize: size [overrideThis].
+w@(BasicWindowElement traits) showText: text [overrideThis].

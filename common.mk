@@ -74,19 +74,18 @@ WORD_SIZE   := 64
 LDFLAGS     := # -avoid-version
 LIBS        := #-lm -ldl
 #PLUGINS     := platform.so posix.so pipe.so
-PLUGINS     := sdl-windows.so slate-cairo.so
+PLUGINS     := x-windows.so
 HOST_SYSTEM := $(shell uname -s)
 LIB_SO_EXT  := .so
 INSTALL_MODE := -m 644
 CPU_TYPE    := `uname -m`
 VM_LIBRARIES = -lm -ldl
 
-CFLAGS_slate-cairo.c=`pkg-config --cflags cairo`
-LDFLAGS_slate-cairo.lo=`pkg-config --libs cairo`
-CFLAGS_sdl-windows.c=`pkg-config --cflags sdl`
-LDFLAGS_sdl-windows.lo=`pkg-config --libs sdl`
-CFLAGS_cocoa-windows.c=`pkg-config --cflags cocoa`
-LDFLAGS_cocoa-windows.lo=`pkg-config --libs cocoa`
+
+CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
+LDFLAGS_x-windows.lo=`pkg-config --libs x11` `pkg-config --libs cairo`
+CFLAGS_cocoa-windows.c=`pkg-config --cflags cocoa` `pkg-config --cflags cairo`
+LDFLAGS_cocoa-windows.lo=`pkg-config --libs cocoa` `pkg-config --libs cairo`
 
 
 PRINT_DEBUG_Y=  -DPRINT_DEBUG_STACK_POINTER  -DPRINT_DEBUG_STACK_PUSH -DPRINT_DEBUG_FOUND_ROLE  -DPRINT_DEBUG_FUNCALL   
@@ -144,7 +143,7 @@ endif
 ifeq ($(HOST_SYSTEM), Darwin)
 #  LIBTOOL := MACOSX_DEPLOYMENT_TARGET=10.3 glibtool
   LIBTOOL := glibtool
-  PLUGINS := $(subst sdl-windows,cocoa-windows, $(PLUGINS))
+  PLUGINS := $(subst x-windows,cocoa-windows, $(PLUGINS))
 endif
 
 ifeq ($(HOST_SYSTEM), DragonFly)

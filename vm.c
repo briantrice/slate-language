@@ -4760,6 +4760,12 @@ void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
+void prim_extlibError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* messageBuffer=(struct ByteArray*) args[1];
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(readExternalLibraryError(messageBuffer));
+}
+
 
 void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 
@@ -5963,7 +5969,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_float_sin, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
- /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_fixme, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
+ /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,

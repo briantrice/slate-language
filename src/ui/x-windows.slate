@@ -1,0 +1,222 @@
+
+lobby ensureNamespace: #Windows &delegate: True.
+
+Windows define: #XLib
+  &builder: [ExternalInterface newForLibrary: 'x-windows' primitives:
+    #(
+      (Pointer x_open_display(CString))
+      (Void x_close_display(Pointer))
+      (Int x_create_window(Pointer Int Int))
+
+      (Pointer cairo_create_context(Pointer))
+      (Void cairo_destroy_context(Pointer))
+
+      (Pointer cairo_create_surface(Pointer Int Int Int))
+      (Void cairo_destroy_surface(Pointer))
+
+      (Void x_next_event(Pointer))
+      (Void cairo_paint(Pointer))
+
+      (Void clip(Pointer))
+      (Void clip_preserve(Pointer))
+      (Void fill(Pointer))
+      (Void fill_preserve(Pointer))
+      (Void restore(Pointer))
+      (Void save(Pointer))
+      (Float get_line_width(Pointer))
+      (Void set_line_width(Pointer Float))
+      (Void set_source_rgb(Pointer Float Float Float))
+      (Void set_source_rgba(Pointer Float Float Float Float))
+      (Void stroke(Pointer))
+      (Void stroke_preserve(Pointer))
+
+      (Void close_path(Pointer))
+      (Void line_to(Pointer Float Float))
+      (Void move_to(Pointer Float Float))
+      (Void new_path(Pointer))
+      (Void rectangle(Pointer Float Float Float Float))
+		
+      (Void translate(Pointer Float Float))
+      (Void scale(Pointer Float Float))
+      		
+      (Void select_font_face(Pointer CString Int Int))
+      (Void set_font_size(Pointer Float))
+      (Void show_text(Pointer CString))
+      )].
+
+Windows XLib enable.
+
+Graphics define: #XWindowSession &parents: {BasicWindowSession}
+  &slots: {#display -> Nil.}.
+
+Graphics define: #XWindowElement &parents: {BasicWindowElement}
+  &slots: {#surface -> Nil. "the cairo surface"
+           #context -> Nil. "the cairo context to draw on"
+           #session -> Nil. "the XWindowSession this is apart of"
+           #windowID -> Nil. "the Window that XLib gives to me"
+}.
+
+ws@(XWindowSession traits) start
+[
+  ws display: (Windows XLib primitives x_open_display applyTo: {Nil.})
+].
+
+ws@(XWindowSession traits) stop
+[
+  Windows XLib primitives x_close_display applyTo: {ws display.}.
+  ws display: Nil.
+].
+
+"FIXME delete the context and sturface"
+
+ws@(XWindowSession traits) newWindow: title width: width height: height
+[ | w |
+  w: XWindowElement new.
+  w session: ws.
+  w windowID: (Windows XLib primitives x_create_window applyTo: {ws display. width. height}).
+  w surface: (Windows XLib primitives cairo_create_surface applyTo: {ws display. w windowID. width. height.}).
+  w context: (Windows XLib primitives cairo_create_context applyTo: {w surface}).
+  w
+].
+
+w@(XWindowElement traits) paint
+[
+  Windows XLib primitives cairo_paint applyTo: {w surface.}
+].
+
+w@(XWindowElement traits) getNextEvent
+[ |evt|
+   
+   Windows XLib primitives x_next_event applyTo: {w session display.}.
+   evt: Event new.
+
+   evt
+
+].
+
+
+w@(XWindowElement traits) clip
+[
+    Windows XLib primitives clip applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) clip_preserve
+[
+    Windows XLib primitives clip_preserve applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) fill
+[
+    Windows XLib primitives fill applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) fill_preserve
+[
+    Windows XLib primitives fill_preserve applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) restore
+[
+    Windows XLib primitives restore applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) save
+[
+    Windows XLib primitives save applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineWidth
+[
+    Windows XLib primitives get_line_width applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineWidth: width
+[
+    Windows XLib primitives set_line_width applyTo: {w context. width.}.
+].
+
+w@(XWindowElement traits) sourceRGB: color@(RGBColor traits)
+[
+    Windows XLib primitives set_source_rgb applyTo: {w context. color red. color green. color blue.}.
+].
+
+w@(XWindowElement traits) sourceRGB: color@(RGBColor traits) alpha: alpha
+[
+    Windows XLib primitives set_source_rgba applyTo: {w context. color red. color green. color blue. alpha.}.
+].
+
+w@(XWindowElement traits) stroke
+[
+    Windows XLib primitives stroke applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) stroke_preserve
+[
+    Windows XLib primitives stroke_preserve applyTo: {w context.}.
+].
+
+"Path"
+"============================================================================"
+
+w@(XWindowElement traits) closePath
+[
+    Windows XLib primitives close_path applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineTo: point@(Point traits)
+[
+    Windows XLib primitives line_to applyTo: {w context. point x. point y.}.
+].
+
+w@(XWindowElement traits) moveTo: point@(Point traits)
+[
+    Windows XLib primitives move_to applyTo: {w context. point x. point y.}.
+].
+
+w@(XWindowElement traits) newPath
+[
+    Windows XLib primitives new_path applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) rectangle: rectangle
+[
+    Windows XLib primitives rectangle applyTo: {w context. rectangle left. rectangle top. rectangle width. rectangle height.}.
+].
+
+"Transformation"
+"============================================================================"
+
+w@(XWindowElement traits) translate: offset@(Point traits)
+[
+    Windows XLib primitives translate applyTo: {w context. offset x. offset y.}.
+].
+
+w@(XWindowElement traits) scale: offset@(Point traits)
+[
+    Windows XLib primitives scale applyTo: {w context. offset x. offset y.}.
+].
+
+"Text"
+"============================================================================"
+
+w@(XWindowElement traits) font: font &italic: italic &bold: bold
+[
+    italic `defaultsTo: False.
+    bold `defaultsTo: False.
+    Windows XLib primitives select_font_face applyTo: {
+        w context. 
+        font. 
+        italic ifTrue: [1] ifFalse: [0]. 
+        bold ifTrue: [1] ifFalse: [0]}.
+].
+
+w@(XWindowElement traits) fontSize: size
+[
+    Windows XLib primitives set_font_size applyTo: {w context. size}.
+].
+
+w@(XWindowElement traits) showText: text
+[
+    Windows XLib primitives show_text applyTo: {w context. text}.
+].
+
