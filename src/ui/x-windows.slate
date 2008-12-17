@@ -8,14 +8,28 @@ Windows define: #XLib
       (Void x_close_display(Pointer))
       (Int x_create_window(Pointer Int Int))
 
-      (Pointer cairo_create_context(Pointer))
-      (Void cairo_destroy_context(Pointer))
+      (Pointer slate_cairo_create_context(Pointer))
+      (Void slate_cairo_destroy_context(Pointer))
 
-      (Pointer cairo_create_surface(Pointer Int Int Int))
-      (Void cairo_destroy_surface(Pointer))
+      (Pointer slate_cairo_create_surface(Pointer Int Int Int))
+      (Void slate_cairo_destroy_surface(Pointer))
 
       (Void x_next_event(Pointer))
-      (Void cairo_paint(Pointer))
+      (Int x_event_type())
+      (Int x_event_keyboard_key(Pointer)) "display needed for keycode->keysym translation"
+      (Int x_event_keyboard_modifiers())
+      (Int x_event_pointer_x())
+      (Int x_event_pointer_y())
+      (Int x_event_pointer_button())
+      (Int x_event_pointer_state())
+      (Int x_event_resize_width())
+      (Int x_event_resize_height())
+      (Int x_event_configure_width())
+      (Int x_event_configure_height())
+
+
+      (Void slate_cairo_paint(Pointer))
+      (Void slate_cairo_resize(Pointer Int Int))
 
       (Void clip(Pointer))
       (Void clip_preserve(Pointer))
@@ -56,6 +70,8 @@ Graphics define: #XWindowElement &parents: {BasicWindowElement}
            #windowID -> Nil. "the Window that XLib gives to me"
 }.
 
+se@(WindowSceneElement traits) nativeSessionType [XWindowSession].
+
 ws@(XWindowSession traits) start
 [
   ws display: (Windows XLib primitives x_open_display applyTo: {Nil.})
@@ -74,26 +90,132 @@ ws@(XWindowSession traits) newWindow: title width: width height: height
   w: XWindowElement new.
   w session: ws.
   w windowID: (Windows XLib primitives x_create_window applyTo: {ws display. width. height}).
-  w surface: (Windows XLib primitives cairo_create_surface applyTo: {ws display. w windowID. width. height.}).
-  w context: (Windows XLib primitives cairo_create_context applyTo: {w surface}).
+  w surface: (Windows XLib primitives slate_cairo_create_surface applyTo: {ws display. w windowID. width. height.}).
+  w context: (Windows XLib primitives slate_cairo_create_context applyTo: {w surface}).
   w
 ].
 
 w@(XWindowElement traits) paint
 [
-  Windows XLib primitives cairo_paint applyTo: {w surface.}
+  Windows XLib primitives slate_cairo_paint applyTo: {w surface.}
 ].
 
 w@(XWindowElement traits) getNextEvent
-[ |evt|
+[ |evtType evt|
    
-   Windows XLib primitives x_next_event applyTo: {w session display.}.
-   evt: Event new.
+  Windows XLib primitives x_next_event applyTo: {w session display.}.
+  evtType: (Windows XLib primitives x_event_type do).
 
-   evt
+"#define KeyPress                2
+#define KeyRelease              3
+#define ButtonPress             4
+#define ButtonRelease           5
+#define MotionNotify            6
+#define EnterNotify             7
+#define LeaveNotify             8
+#define FocusIn                 9
+#define FocusOut                10
+#define KeymapNotify            11
+#define Expose                  12
+#define GraphicsExpose          13
+#define NoExpose                14
+#define VisibilityNotify        15
+#define CreateNotify            16
+#define DestroyNotify           17
+#define UnmapNotify             18
+#define MapNotify               19
+#define MapRequest              20
+#define ReparentNotify          21
+#define ConfigureNotify         22
+#define ConfigureRequest        23
+#define GravityNotify           24
+#define ResizeRequest           25
+#define CirculateNotify         26
+#define CirculateRequest        27
+#define PropertyNotify          28
+#define SelectionClear          29
+#define SelectionRequest        30
+#define SelectionNotify         31
+#define ColormapNotify          32
+#define ClientMessage           33
+#define MappingNotify           34
+"
+
+  evtType caseOf:
+    {2 -> [evt: (w setupEventType: KeyboardPressEvent)].
+     3 -> [evt: (w setupEventType: KeyboardReleaseEvent)].
+     4 -> [evt: (w setupEventType: MouseButtonPressEvent)].
+     5 -> [evt: (w setupEventType: MouseButtonReleaseEvent)].
+     6 -> [evt: (w setupEventType: MouseMotionEvent)].
+     12 -> [evt: (w setupEventType: WindowRepaintEvent)].
+     22 -> [evt: (w setupEventType: WindowConfigEvent)].
+     25 -> [evt: (w setupEventType: WindowResizeEvent)]. 
+}
+    otherwise: [inform: 'Unhandled event type: ' ; evtType printString.
+                evt: (w setupEventType: Event)].
+
+  evt
 
 ].
 
+w@(XWindowElement traits) setupEventType: eventType@(Event traits)
+[
+  eventType new
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(KeyboardEvent traits)
+[ |evt|
+  evt: eventType new.
+  evt key: (Windows XLib primitives x_event_keyboard_key applyTo: {w session display}).
+  evt modifiers: (Windows XLib primitives x_event_keyboard_modifiers do).
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(PointerEvent traits)
+[ |evt position pointer|
+  position: (Windows XLib primitives x_event_pointer_x do) , (Windows XLib primitives x_event_pointer_y do).
+  pointer: (Windows XLib primitives x_event_pointer_button do).
+  evt: eventType.
+  eventType caseOf: 
+    {MouseButtonReleaseEvent -> [pointer caseOf: {1 -> [evt: LeftMouseButtonReleaseEvent].
+                                                  2 -> [evt: MiddleMouseButtonReleaseEvent].
+                                                  3 -> [evt: RightMouseButtonReleaseEvent].
+                                                  4 -> [evt: X1MouseButtonReleaseEvent].
+                                                  5 -> [evt: X2MouseButtonReleaseEvent].}].
+     MouseButtonPressEvent -> [pointer caseOf: {1 -> [evt: LeftMouseButtonPressEvent].
+                                                2 -> [evt: MiddleMouseButtonPressEvent].
+                                                3 -> [evt: RightMouseButtonPressEvent].
+                                                4 -> [evt: X1MouseButtonPressEvent].
+                                                5 -> [evt: X2MouseButtonPressEvent].}].
+     }.
+  evt: evt new.
+  evt position: position.
+  evt button: pointer.
+  evt modifiers: (Windows XLib primitives x_event_pointer_state do)."fixme less x11 specific"
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(WindowResizeEvent traits)
+[ |evt position pointer|
+  evt: eventType new.
+  evt width: (Windows XLib primitives x_event_resize_width do).
+  evt height: (Windows XLib primitives x_event_resize_height do).
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(WindowConfigEvent traits)
+[ |evt position pointer|
+  evt: eventType new.
+"  evt width: (Windows XLib primitives x_event_configure_width do).
+  evt height: (Windows XLib primitives x_event_configure_height do).
+"
+  evt
+].
+
+w@(XWindowElement traits) resizeWidth: w height: h
+[
+  Windows XLib primitives slate_cairo_resize applyTo: {w surface. w. h.}
+].
 
 w@(XWindowElement traits) clip
 [

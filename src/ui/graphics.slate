@@ -80,8 +80,21 @@ wse@(WindowSceneElement traits) newNamed: name width: width height: height
   res region: (Rectangle origin: 0, 0 extent: width , height).
   res conductor: wse conductor new.
   res conductor focus: Nil. "set it to wse and we might have a loop"
-  res osWindow: (XWindowSession newWindow: 'blah' width: 640 height: 480).
+  res osWindow: (wse nativeSessionType newWindow: 'blah' width: 640 height: 480).
   res
+].
+
+wse@(WindowSceneElement traits) handle: input@(WindowRepaintEvent traits)
+[
+  wse repaint.
+  True
+].
+
+wse@(WindowSceneElement traits) handle: input@(WindowResizeEvent traits)
+[
+  wse repaint.
+  wse osWindow resizeWidth: input width height: input height.
+  True
 ].
 
 wse@(WindowSceneElement traits) handle: input@(Event traits)

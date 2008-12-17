@@ -8,6 +8,7 @@
 #endif
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,7 +91,8 @@ EXPORT Window x_create_window(Display* d, int width, int height) {
                           BlackPixel(d, s), WhitePixel(d, s));
   
   /* select kind of events we are interested in */
-  XSelectInput(d, w, ExposureMask | KeyPressMask);
+  XSelectInput(d, w, ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask
+               | ButtonReleaseMask | PointerMotionMask | KeymapStateMask | StructureNotifyMask);
   
   /* map (show) the window */
   XMapWindow(d, w);
@@ -102,36 +104,119 @@ EXPORT Window x_create_window(Display* d, int width, int height) {
 XEvent globalEvent;
 
 EXPORT void x_next_event(Display* d) {
-
+  /*we should probably fix this and make it per window...
+    also... should we through out extra mouse movements for speed?*/
   XNextEvent(d, &globalEvent);
 
 }
 
-EXPORT cairo_t * cairo_create_context(cairo_surface_t *surface)
+EXPORT int x_event_type() {
+
+  return globalEvent.type;
+
+}
+
+EXPORT int x_event_keyboard_key(Display* display) {
+  //KeySym XKeycodeToKeysym(Display *display, KeyCode keycode, int index);
+  KeyCode kc;
+  KeySym ks, ksHigh, ksLow;
+  kc = globalEvent.xkey.keycode;
+  ks = XKeycodeToKeysym(display, kc, 0);
+  if (ks > 0xFF00) {
+    return ks & 0xFF;
+  }
+  XConvertCase(ks, &ksLow, &ksHigh);
+  if (globalEvent.xkey.state & 3) { /*shift or capslock?*/
+    return ksHigh;
+  } else {
+    return ksLow;
+  }
+
+}
+
+EXPORT int x_event_keyboard_modifiers() {
+
+  return globalEvent.xkey.state;
+
+}
+
+EXPORT int x_event_pointer_x() {
+
+  return globalEvent.xbutton.x;
+
+}
+
+EXPORT int x_event_pointer_y() {
+
+  return globalEvent.xbutton.y;
+
+}
+
+EXPORT int x_event_pointer_state() {
+
+  return globalEvent.xbutton.state;
+
+}
+
+EXPORT int x_event_pointer_button() {
+
+  return globalEvent.xbutton.button;
+
+}
+
+EXPORT int x_event_resize_width() {
+
+  return globalEvent.xresizerequest.width;
+
+}
+EXPORT int x_event_resize_height() {
+
+  return globalEvent.xresizerequest.height;
+
+}
+
+EXPORT int x_event_configure_width() {
+
+  return globalEvent.xconfigure.width;
+
+}
+EXPORT int x_event_configure_height() {
+
+  return globalEvent.xconfigure.height;
+
+}
+
+EXPORT cairo_t * slate_cairo_create_context(cairo_surface_t *surface)
 {
     return cairo_create(surface);
 }
 
-EXPORT void cairo_destroy_context(cairo_t *context)
+EXPORT void slate_cairo_destroy_context(cairo_t *context)
 {
     cairo_destroy(context);
 }
 
 
-EXPORT void cairo_paint(cairo_t* c) {
+EXPORT void slate_cairo_paint(cairo_t* c) {
 
   cairo_show_page(c);
 
 
 }
 
+EXPORT void slate_cairo_resize(cairo_surface_t* surface, int width, int height) {
 
-EXPORT cairo_surface_t * cairo_create_surface(Display* d, Window w, int width, int height) {
+  cairo_xlib_surface_set_size(surface, width, height);
+
+}
+
+
+EXPORT cairo_surface_t * slate_cairo_create_surface(Display* d, Window w, int width, int height) {
   return cairo_xlib_surface_create(d, w, DefaultVisual(d, 0), width, height);
 
 }
 
-EXPORT void cairo_destroy_surface(cairo_surface_t *surface) {
+EXPORT void slate_cairo_destroy_surface(cairo_surface_t *surface) {
     cairo_surface_destroy(surface);
 }
 
