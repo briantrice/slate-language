@@ -1,6 +1,7 @@
 # Generates new website documentation via LyX and latex2html
 
-LYX_BIN=/Applications/Office/LyX.app/Contents/MacOS/lyx
+#LYX_BIN=/Applications/Office/LyX.app/Contents/MacOS/lyx
+LYX_BIN=lyx
 OUT=progman
 DIAGRAMS=core-web collection-web stream-web
 DIAGRAM_OUTS=$(foreach dgm, $(DIAGRAMS), $(dgm).eps)
@@ -13,7 +14,7 @@ default: $(OUT)
 $(OUT).tex: $(OUT).lyx
 	$(LYX_BIN) -e latex $< $@
 	mv $@ $@.pre
-	sed -E  -e '24,30s/tabularnewline/ZANZIBAR/' \
+	sed     -e '24,30s/tabularnewline/ZANZIBAR/' \
 		-e 's/\\tabularnewline/\\\\/g' \
 		-e 's/ZANZIBAR/tabularnewline/1' $@.pre > $@
 
