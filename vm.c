@@ -6764,6 +6764,25 @@ void interpret(struct object_heap* oh) {
 
 }
 
+word_t memory_string_to_bytes(char* str) {
+
+  word_t res = atoi(str);
+
+  if (strstr(str, "GB")) {
+    return res * 1024 * 1024 * 1024;
+
+  } else if (strstr(str, "MB")) {
+    return res * 1024 * 1024;
+
+  } else if (strstr(str, "KB")) {
+    return res * 1024;
+
+  } else {
+    return res;
+  }
+
+}
+
 
 int main(int argc, char** argv) {
 
@@ -6775,19 +6794,22 @@ int main(int argc, char** argv) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
+  int i;
 
   heap = calloc(1, sizeof(struct object_heap));
 
-  if (argc > 2) {
+  if (argc < 2) {
     fprintf(stderr, "You must supply an image file as an argument\n");
     fprintf(stderr, "Your platform is %d bit, %s\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little endian" : "big endian");
+    fprintf(stderr, "Usage: ./vm <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB|)]\n");
+    fprintf(stderr, "Options:\n");
+    fprintf(stderr, "  -mo Old memory for tenured/old objects (Default 400MB)\n");
+    fprintf(stderr, "  -mn New memory for young/new objects (Default 10MB)\n");
     return 1;
   }
-  if (argc == 1) {
-    file = fopen("slate.image", "r");
-  } else {
-    file = fopen(argv[1], "r");
-  }
+
+  file = fopen(argv[1], "r");
+
   if (file == NULL) {fprintf(stderr, "Open file failed (%d)\n", errno); return 1;}
 
   fread(&sih.magic, sizeof(sih.magic), 1, file);
@@ -6795,15 +6817,34 @@ int main(int argc, char** argv) {
   fread(&sih.next_hash, sizeof(sih.next_hash), 1, file);
   fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, file);
   fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file);
+
+  /* skip argv[0] and image name */
+  for (i = 2; i < argc - 1; i++) {
+    if (strcmp(argv[i], "-mo") == 0) {
+      memory_limit = memory_string_to_bytes(argv[i+1]);
+      i++;
+    } else if (strcmp(argv[i], "-mn") == 0) {
+      young_limit = memory_string_to_bytes(argv[i+1]);
+      i++;
+    } else {
+      fprintf(stderr, "Illegal argument: %s\n", argv[i]);
+    }
+  }
   
   if (sih.magic != SLATE_IMAGE_MAGIC) {
     fprintf(stderr, "Magic number (0x%" PRIuPTR "X) doesn't match (word_t)0xABCDEF43\n", sih.magic);
     return 1;
   }
   
+  if (memory_limit < sih.size) {
+    fprintf(stderr, "Slate image cannot fit into base allocated memory size. Use -mo with a greater value\n");
+    return 1;
+  }
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
 
+  printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
+  printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
   printf("Image size: %" PRIdPTR " bytes\n", sih.size);
   if ((res = fread(heap->memoryOld, 1, sih.size, file)) != sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
