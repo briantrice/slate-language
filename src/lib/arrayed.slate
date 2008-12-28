@@ -120,7 +120,7 @@ a@(ByteArray traits) bigEndianInt64At: offset
    (a byteAt: offset + 7)
 ].
 
-a@(ByteArray traits) bigEndianInt16At: offset put: word
+a@(ByteArray traits) bigEndianInt16At: offset put: word@(ByteArray traits)
 [
   offset: offset * 2.
   a byteAt: offset     put: (word byteAt: 1).
@@ -128,7 +128,16 @@ a@(ByteArray traits) bigEndianInt16At: offset put: word
   word
 ].
 
-a@(ByteArray traits) bigEndianInt32At: offset put: word
+a@(ByteArray traits) bigEndianInt16At: offset put: word@(Integer traits)
+[
+  offset: offset * 2.
+  a byteAt: offset     put: (word bitShift: -8) intoByte.
+  a byteAt: offset + 1 put: word intoByte.
+  word
+].
+
+
+a@(ByteArray traits) bigEndianInt32At: offset put: word@(ByteArray traits)
 [
   offset: offset * 4.
   a byteAt: offset     put: (word byteAt: 3).
@@ -138,7 +147,17 @@ a@(ByteArray traits) bigEndianInt32At: offset put: word
   word
 ].
 
-a@(ByteArray traits) bigEndianInt64At: offset put: word
+a@(ByteArray traits) bigEndianInt32At: offset put: word@(Integer traits)
+[
+  offset: offset * 4.
+  a byteAt: offset     put: (word bitShift: -24) intoByte.
+  a byteAt: offset + 1 put: (word bitShift: -16) intoByte.
+  a byteAt: offset + 2 put: (word bitShift: -8) intoByte.
+  a byteAt: offset + 3 put: word intoByte.
+  word
+].
+
+a@(ByteArray traits) bigEndianInt64At: offset put: word@(ByteArray traits)
 [
   offset: offset * 8.
   a byteAt: offset     put: (word byteAt: 7).
@@ -149,6 +168,20 @@ a@(ByteArray traits) bigEndianInt64At: offset put: word
   a byteAt: offset + 5 put: (word byteAt: 2).
   a byteAt: offset + 6 put: (word byteAt: 1).
   a byteAt: offset + 7 put: (word byteAt: 0).
+  word
+].
+
+a@(ByteArray traits) bigEndianInt64At: offset put: word@(Integer traits)
+[
+  offset: offset * 8.
+  a byteAt: offset     put: (word bitShift: -56) intoByte.
+  a byteAt: offset + 1 put: (word bitShift: -48) intoByte.
+  a byteAt: offset + 2 put: (word bitShift: -40) intoByte.
+  a byteAt: offset + 3 put: (word bitShift: -32) intoByte.
+  a byteAt: offset + 4 put: (word bitShift: -24) intoByte.
+  a byteAt: offset + 5 put: (word bitShift: -16) intoByte.
+  a byteAt: offset + 6 put: (word bitShift: -8) intoByte.
+  a byteAt: offset + 7 put: word intoByte.
   word
 ].
 
@@ -181,7 +214,7 @@ a@(ByteArray traits) littleEndianInt64At: offset
   ((a byteAt: offset + 7) byteShift: 7)
 ].
 
-a@(ByteArray traits) littleEndianInt16At: offset put: word
+a@(ByteArray traits) littleEndianInt16At: offset put: word@(ByteArray traits)
 [
   offset: offset * 2.
   a byteAt: offset     put: (word byteAt: 0).
@@ -189,7 +222,17 @@ a@(ByteArray traits) littleEndianInt16At: offset put: word
   word
 ].
 
-a@(ByteArray traits) littleEndianInt32At: offset put: word
+a@(ByteArray traits) littleEndianInt16At: offset put: word@(Integer traits)
+[
+  offset: offset * 2.
+  a byteAt: offset     put: word intoByte.
+  a byteAt: offset + 1 put: (word bitShift: -8) intoByte.
+  word
+].
+
+
+
+a@(ByteArray traits) littleEndianInt32At: offset put: word@(ByteArray traits)
 [
   offset: offset * 4.
   a byteAt: offset     put: (word byteAt: 0).
@@ -199,7 +242,18 @@ a@(ByteArray traits) littleEndianInt32At: offset put: word
   word
 ].
 
-a@(ByteArray traits) littleEndianInt64At: offset put: word
+a@(ByteArray traits) littleEndianInt32At: offset put: word@(Integer traits)
+[
+  offset: offset * 4.
+  a byteAt: offset     put: word intoByte.
+  a byteAt: offset + 1 put: (word bitShift: -8) intoByte.
+  a byteAt: offset + 2 put: (word bitShift: -16) intoByte.
+  a byteAt: offset + 3 put: (word bitShift: -24) intoByte.
+  word
+].
+
+
+a@(ByteArray traits) littleEndianInt64At: offset put: word@(ByteArray traits)
 [
   offset: offset * 8.
   a byteAt: offset     put: (word byteAt: 0).
@@ -212,6 +266,21 @@ a@(ByteArray traits) littleEndianInt64At: offset put: word
   a byteAt: offset + 7 put: (word byteAt: 7).
   word
 ].
+
+a@(ByteArray traits) littleEndianInt64At: offset put: word@(Integer traits)
+[
+  offset: offset * 8.
+  a byteAt: offset     put: word intoByte.
+  a byteAt: offset + 1 put: (word bitShift: -8) intoByte.
+  a byteAt: offset + 2 put: (word bitShift: -16) intoByte.
+  a byteAt: offset + 3 put: (word bitShift: -24) intoByte.
+  a byteAt: offset + 4 put: (word bitShift: -32) intoByte.
+  a byteAt: offset + 5 put: (word bitShift: -40) intoByte.
+  a byteAt: offset + 6 put: (word bitShift: -48) intoByte.
+  a byteAt: offset + 7 put: (word bitShift: -56) intoByte.
+  word
+].
+
 
 collections define: #BitArray &parents: {ByteArray} &slots: {#bitSize -> 0}.
 "Uses byte-contents to implement an array of direct binary values (Booleans)."
