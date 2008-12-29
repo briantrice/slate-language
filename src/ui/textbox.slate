@@ -95,6 +95,16 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on
                        m editor deleteAt: m editor cursor.
                      ^ Nil].
   
+  "set mark C-space "
+  e key = 32 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                           m editor setMark.
+                                            ^ Nil].
+
+  "del mark C-g "
+  e key = 103 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                            m editor deleteMark.
+                                            ^ Nil].
+
   "undo C-/ "
   e key = 47 /\ [e modifiers = 4] ifTrue: [m repaint.
                                             m editor undo.
@@ -103,6 +113,19 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on
   "redo C-\ "
   e key = 92 /\ [e modifiers = 4] ifTrue: [m repaint.
                                             m editor redo.
+                                            ^ Nil].
+
+  "wipe C-w "
+  e key = 119 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                            m editor cutTo: e window.
+                                            ^ Nil].
+  "copy M-w "
+  e key = 119 /\ [e modifiers = 8] ifTrue: [m repaint.
+                                            m editor copyTo: e window.
+                                            ^ Nil].
+  "yank C-y "
+  e key = 121 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                            m editor pasteFrom: e window.
                                             ^ Nil].
 
 
@@ -170,13 +193,18 @@ the appropriate cursor. "
     do: [ |:lineNumber line offset |
            line: ((m editor lineAt: lineNumber) as: String).
            offset: lineNumber - m editor firstVisibleLine + 1.
-           (m editor cursor line = lineNumber)
-             ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
-                      surface moveTo: 5 , (offset * m fontSize + 2).
-                      surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
-                      surface showText: (line first: m editor cursor column).
-                      surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
-                      surface showText: '_'].
+           m editor cursors do:
+             [ |:cursor |
+                (cursor line = lineNumber)
+                  ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
+                         surface moveTo: 5 , (offset * m fontSize + 2).
+                         surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+                         surface showText: (line first: cursor column).
+                         "if it is the main cursor or not"
+                         cursor == m editor cursor
+                                ifTrue: [surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha]
+                                ifFalse: [surface sourceRGB: m theme alternateCursorColor alpha: m theme alternateCursorAlpha].
+                         surface showText: '_']].
 
            "print text"
            surface moveTo: 5 , (offset * m fontSize).

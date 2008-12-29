@@ -31,6 +31,12 @@ Windows define: #XLib
       (Void slate_cairo_paint(Pointer))
       (Void slate_cairo_resize(Pointer Int Int))
 
+ "fixme memory safeness.. new solution to ARG_FORMAT_BYTES bug ~1"
+      (Void slate_clipboard_copy(Pointer Int Bytes Int))
+      (Void slate_clipboard_paste(Pointer Int Bytes Int))
+      (Int slate_clipboard_size(Pointer Int))
+      (Int slate_clipboard_update(Pointer Int))
+
       (Void clip(Pointer))
       (Void clip_preserve(Pointer))
       (Void fill(Pointer))
@@ -100,6 +106,24 @@ w@(XWindowElement traits) paint
   Windows XLib primitives slate_cairo_paint applyTo: {w surface.}
 ].
 
+
+w@(XWindowElement traits) clipboardCopy: obj
+[ |str|
+  str: (obj as: String).
+  Windows XLib primitives slate_clipboard_copy applyTo: {w session display. w windowID. str. str size}
+].
+
+w@(XWindowElement traits) clipboardPasteAs: objType
+[ |size array|
+  Windows XLib primitives slate_clipboard_update applyTo: {w session display. w windowID}.
+  size: (Windows XLib primitives slate_clipboard_size applyTo: {w session display. w windowID}).
+  array: (ByteArray newSize: size).
+  Windows XLib primitives slate_clipboard_paste applyTo: {w session display. w windowID. array. array size}.
+  inform: array printString.
+  array as: objType
+].
+
+
 w@(XWindowElement traits) getNextEvent
 [ |evtType evt|
    
@@ -166,6 +190,7 @@ w@(XWindowElement traits) setupEventType: eventType@(Event traits)
 w@(XWindowElement traits) setupEventType: eventType@(KeyboardEvent traits)
 [ |evt|
   evt: eventType new.
+  evt window: w.
   evt key: (Windows XLib primitives x_event_keyboard_key applyTo: {w session display}).
   evt modifiers: (Windows XLib primitives x_event_keyboard_modifiers do).
   evt
@@ -192,6 +217,7 @@ w@(XWindowElement traits) setupEventType: eventType@(PointerEvent traits)
   evt position: position.
   evt button: pointer.
   evt modifiers: (Windows XLib primitives x_event_pointer_state do)."fixme less x11 specific"
+  evt window: w.
   evt
 ].
 
@@ -200,6 +226,7 @@ w@(XWindowElement traits) setupEventType: eventType@(WindowResizeEvent traits)
   evt: eventType new.
   evt width: (Windows XLib primitives x_event_resize_width do).
   evt height: (Windows XLib primitives x_event_resize_height do).
+  evt window: w.
   evt
 ].
 
@@ -209,6 +236,7 @@ w@(XWindowElement traits) setupEventType: eventType@(WindowConfigEvent traits)
 "  evt width: (Windows XLib primitives x_event_configure_width do).
   evt height: (Windows XLib primitives x_event_configure_height do).
 "
+  evt window: w.
   evt
 ].
 

@@ -284,3 +284,32 @@ le@(LineEditor traits) deleteAt: point@(Cursor traits) &record: record
                  record: record].
   
 ].
+
+
+le@(LineEditor traits) setMark &record: record
+[ 
+  le do: [le cursors push: le cursor] undo: [le cursors pop] record: record
+].
+
+le@(LineEditor traits) deleteMark &record: record
+[ |mark| 
+  le cursors size > 1 ifFalse: [inform: 'Cannot delete last mark'. ^ Nil].
+  mark: le cursor.
+  le do: [le cursors pop] undo: [le cursors push: mark] record: record
+].
+
+le@(LineEditor traits) cutTo: window &record: record
+[
+  window clipboardCopy: 'hello'.
+].
+
+le@(LineEditor traits) copyTo: window &record: record
+[
+  window clipboardCopy: 'hello'.
+].
+
+le@(LineEditor traits) pasteFrom: window &record: record
+[ |str|
+   str: (window clipboardPasteAs: String).
+  inform: 'paste:' ; str.
+].
