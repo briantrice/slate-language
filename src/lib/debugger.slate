@@ -141,6 +141,8 @@ d@(Debugger traits) evaluate: expr at: frame
 [| method compiler exprClosure |
   (d isValidFrameIndex: frame) ifTrue:
     [method: (d interpreter stack at: frame - 3) method].
+  (expr is: Syntax Literal) /\ [expr value is: Integer] /\ [(d restarts acceptsKey: expr value)]
+    ifTrue: [d signalRestartAt: expr value. expr value].
   expr: (Syntax Block newFor: expr).
   expr parentScope: (method isNotNil /\ [method sourceTree isNotNil]
     ifTrue: [method sourceTree]
@@ -197,9 +199,11 @@ in the selected option number, returning it if valid."
   out ; d basePrompt.
   out flush.
   [| expr result |
-    expr: d parser next.
-    result: (d evaluate: expr).
-    (expr is: Syntax Message) /\ [#(: restart: up up: down down: frame restarts help) includes: expr selector]
+   expr: d parser next.
+   result: (d evaluate: expr).
+   "Exclude selections of restarts and other commands from printing."
+   ((expr is: Syntax Literal) /\ [result is: Integer]) \/
+     [(expr is: Syntax Message) /\ [#(: restart: up up: down down: frame restarts help) includes: expr selector]]
       ifFalse:
         [result printOn: out.
           out newLine.
