@@ -1,159 +1,74 @@
-"Demonstration of Windows + Cairo + SceneElement"
-
-lobby define: #BecomeStar &parents: {SceneElement}.
-se@(BecomeStar traits) handle: event@(RightMouseButtonPressEvent traits)
-[
-    se parents: starParents.
-].
-
-lobby define: #BecomeRect &parents: {SceneElement}.
-se@(BecomeRect traits) handle: event@(RightMouseButtonPressEvent traits)
-[
-    se parents: rectParents.
-].
-
-lobby addSlot: #containerParents valued: {
-    PaintSolidBackground. 
-    PaintChildren. 
-    PaintHandles. 
-    Text.
-    PassInputToInputHandler. 
-    PassPointerToHandles. 
-    PassPointerToChildren.
-    Drag}.
-
-lobby addSlot: #childParents valued: {
-    PaintSolidBackground. 
-    Text}.
-
-lobby addSlot: #rectParents valued: childParents ; {BecomeStar}.
-lobby addSlot: #starParents valued: childParents ; {Star. BecomeRect}.
 
 
+Graphics define: #Demo &slots: {
 
-lobby addSlot: #numberList valued: (ListboxElement newTarget: Nil getList: #getList getSelection: #getSelection setSelection: #setSelection:).
-
-lobby addSlot: #numberListSelected valued: 0.
-
-lb@numberList getList [ Colors slotNames ].
-lb@numberList getSelection [ lobby numberListSelected ].
-
-
-lb@numberList setSelection: value@(Integer traits)
-[ | color |
-
-  color: (Colors atSlotNamed: (Colors slotNames at: value)).
-  (color is: Color) ifTrue:[ Graphics Themeable backgroundColor: color].
-  lobby numberListSelected: value
-].
-
-
-lobby addSlot: #buttonMenuOptions valued: {
-
-   MenuItemElement action: [lobby inform: 'hello']  text: 'Say hello to console'.
-   MenuItemElement action: [lobby inform: 'bye']    text: 'Say bye to console'.
+#mainWindow -> WindowSceneElement new.
+#background -> Morph new.
+#redButton -> LabelMorph new.
+#blueButton -> LabelMorph new.
+"#vertScrollbar -> Scrollbar new."
+#listbox -> ListboxMorph new.
+#listboxItems -> {'alice'. 'bob'. 'carol'. 'doug'. 'ellen'. 'fred'. 'george'. 'herman'. 'issac'}.
+#textbox -> TextboxMorph new.
+#editor -> LineEditorMorph new.
 }.
 
 
-lobby addSlot: #button valued:
-  (SimpleBorderedButtonElement
-     newTarget: [(ListboxMenuElement menuItemBlock: [lobby buttonMenuOptions])
-                         openIn: (lobby atSlotNamed: #mainWindow)
-                         near: (lobby atSlotNamed: #button) position]).
+Demo mainWindow child: Demo background.
+Demo background parent: Demo mainWindow.
 
+Demo blueButton canDrag: True.
 
-lobby addSlot: #textbox valued:
-  (TextboxElement newModel: ArrayTextBuffer view: SimpleTextView inputHandler: FundamentalMode).
+Demo background addChild: Demo blueButton `>> [text: 'blue button'. ].
+Demo background addChild: Demo redButton `>> [text: 'red button'. ].
+Demo background addChild: Demo textbox `>> [text: 'my text'. ].
+Demo background addChild: Demo editor `>> [region: (Rectangle origin: 300 , 250 extent: 200, 100). ].
 
+"Demo background addChild: Demo vertScrollbar `>> [region: (Rectangle origin: 400 , 20 extent: 20 , 150). ]."
 
-(lobby addSlot: #mainWindow valued: (WindowSceneElement newWidth: 640 height: 480)) `>> [
-    parents: {
-        WindowSceneElement.
-        PaintSolidBackground.
-        PaintChildren.
-        Text.
-        PassInputToInputHandler.
-        PassKeyboardToChildren.
-        PassPointerToChildren}.
-    text: '#mainWindow'.
-    bold: True.
-    textColor: Colors Red.
-    addAll: {
-        numberList `>> [
-            position: (400, 50).
-            extent: (200, 100).
-            update.
-            backgroundColor: Colors Grey.
-        ].
-        textbox `>> [
-            position: (50, 300).
-            extent: (200, 140).
-            view update.
-            backgroundColor: Colors Grey.
-        ].
-        button `>> [
-            position: (300, 50).
-            extent: (80, 20).
-            text: 'Click me'.
-            backgroundColor: Colors Honeydew.
-        ].
-        (addSlot: #container1 valued: SceneElement new) `>> [
-            parents: containerParents ; {HBox}.
-            position: (50, 50).
-            extent: (200, 200).
-            backgroundColor: Colors Grey.
-            text: '#container1'.
-            bold: True.
-            addAll: {
-                SceneElement new `>> [
-                    parents: starParents.
-                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 320, 320 min: 10, 10).
-                    position: (90, 30).
-                    extent: (20, 20).
-                    text: 'child 1'.
-                    italic: True.
-                    textColor: Colors Green.
-                    backgroundColor: Colors Red.].
-                SceneElement new `>> [
-                    parents: starParents.
-                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 160, 160 min: 20, 20).
-                    position: (50, 50).
-                    extent: (50, 50).
-                    text: 'child 2'.
-                    fontSize: 20.
-                    textColor: Colors Beige.
-                    backgroundColor: Colors Green.].
-                SceneElement new `>> [
-                    parents: starParents.
-                    spaceRequirement: (SpaceRequirement newPreferred: 80, 80 max: 80, 80 min: 40, 40).
-                    position: (100, 100).
-                    extent: (100, 100).
-                    text: 'child 3'.
-                    backgroundColor: Colors Blue.]}.].
-        (addSlot: #container2 valued: SceneElement new) `>> [
-            parents: {
-                PaintSolidBackground. 
-                PaintChildren. 
-                PassInputToInputHandler. 
-                PassPointerToChildren.
-                ResizableSpacing}.
-            position: (300, 200).
-            extent: (200, 200).
-            backgroundColor: Colors Grey.
-            leftMargin: 6.
-            rightMargin: 6.
-            topMargin: 6.
-            bottomMargin: 6.
-            add: SceneElement new `>> [
-                parents: {PaintSolidBackground. PaintChildren. PassInputToInputHandler. PassPointerToChildren}.
-                spaceRequirement: (SpaceRequirement newPreferred: 200, 200 max: 400, 400 min: 16, 16).
-                addAll: (container1 children collect: #copy`er).
-                children do: [|:each| each parents: {PaintSolidBackground. Drag. Star}].].
-            composeSpaceRequirement.]}].
+Demo background addChild: Demo listbox `>> [region: (Rectangle origin: 400 , 20 extent: 200 , 90).
+                                            items: Demo listboxItems.
+                                            singleSelect: False.
+                                            selectedItems: (Set new `>> [add: Demo listboxItems first.
+                                                                         add: Demo listboxItems third.]).
+                                            updateScrollbars.].
 
-container1 showHandles.
+Demo redButton region: (Rectangle origin: 20 , 20 extent: 200, 30).
+Demo blueButton region: (Rectangle origin: 200 , 300 extent: 200, 30).
+Demo textbox region: (Rectangle origin: 20 , 250 extent: 200, 20).
 
-inform: '***********************************************'.
-inform: '** To start the event loop, do the following:'.
-inform: '** mainWindow eventLoop.'.
-inform: '***********************************************'.
+Demo redButton theme: Demo redButton theme clone `>> [labelColor: Colors Red.].
+Demo blueButton theme: Demo blueButton theme clone `>> [labelColor: Colors Blue.].
+
+"override handleMyself if you want the main handler to try sending it to
+the children first. here it doesn't matter that much"
+
+b@(Demo redButton) handleMyself: e@(MouseButtonClickEvent traits)
+[
+  inform: 'red clicked @ ' ; e position printString.
+  b
+].
+
+b@(Demo blueButton) handleMyself: e@(MouseButtonClickEvent traits)
+[
+  inform: 'blue clicked @ ' ; e position printString.
+  b
+].
+
+w@(Demo mainWindow traits) handle: _@(MiddleMouseButtonPressEvent traits)
+[
+  inform: 'Exiting...'.
+  w exitRequested: True
+].
+
+demo@(Demo traits) start
+[
+  demo mainWindow newNamed: 'Untitled' width: 640 height: 480.
+  demo background region: demo mainWindow region.
+  demo mainWindow eventLoop
+].
+
+demo@(Demo traits) continue
+[
+  demo mainWindow eventLoop
+].

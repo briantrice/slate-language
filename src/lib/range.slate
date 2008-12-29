@@ -13,7 +13,11 @@ r@(Range traits) newFrom: start to: end by: step
 
 r@(Range traits) newFrom: start to: end
 "This method implicitly defines a sensible default stepping value."
-[r newFrom: start to: end by: end <=> start].
+[ |step|
+  step: end <=> start.
+  step = 0 ifTrue: [step: 1]. "seems like whoever designed this didn't think of step=0"
+  r newFrom: start to: end by: step
+].
 
 s@(Sequence traits) as: r@(Range traits)
 [| newR size |

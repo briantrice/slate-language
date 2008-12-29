@@ -1,0 +1,291 @@
+#LyX 1.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 221
+\textclass article
+\language english
+\inputencoding auto
+\fontscheme default
+\graphics default
+\paperfontsize default
+\papersize Default
+\paperpackage a4
+\use_geometry 0
+\use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+
+Slate System Design
+\layout Author
+
+Brian T.
+ Rice
+\newline 
+Lee Salzman
+\layout Abstract
+
+This paper outlines the plans for and documents Slate language and environment
+ design decisions, the motivations behind them, and open questions.
+\layout Standard
+
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Section
+
+Introduction
+\layout Standard
+
+Slate is a 
+\begin_inset Quotes eld
+\end_inset 
+
+clean slate
+\begin_inset Quotes erd
+\end_inset 
+
+ variant of the Smalltalk language and system idea.
+ The project was started in 2000 as a series of experiments to see what
+ could be made of the Self project results to benefit everyone.
+ Numerous models were tried and thrown out.
+ Finally, we decided to take a few principles and re-work the Smalltalk
+ language without bothering the syntax or mind-set involved unnecessarily.
+ The result was surprisingly usable and still afforded us a large enough
+ expansion on the original expressive power to justify building a new system
+ around it.
+ This paper presents the ideas involved in what resulted, and details some
+ plans for the design.
+\layout Section
+
+Semantics
+\layout Subsection
+
+Smalltalk Basis
+\layout Standard
+
+Slate is largely based on objects as sets of properties with methods defined
+ on them, which are dynamically activated by message-sends from other objects.
+ Pieces of code can be encapsulated and remotely activated as block objects.
+ Block objects in Slate have closure semantics: the scope which defines
+ the block of code is remembered by the block wherever it is passed.
+\layout Subsection
+
+Multi-method Dispatch
+\layout Standard
+
+Slate uses a method-lookup algorithm that cooperatively involves all arguments.
+ In order to be intuitive for those coming from a single-dispatch background,
+ method precedence is associative with the left-most arguments.
+ However, Slate does not yield privileged access to any single method argument
+ by default.
+\layout Standard
+
+Multiple dispatch is a complex process, so it involves a performance penalty.
+ Traditional implementations compile a table of methods with the same name,
+ and select a method from the table based on the message-send signature.
+ Slate's lookup system is lazier than this, by having each object remember
+ its 
+\begin_inset Quotes eld
+\end_inset 
+
+roles
+\begin_inset Quotes erd
+\end_inset 
+
+ in methods, and traversing up the inheritance chains until a first-appropriate-
+method is found.
+ This basic principle allows a simple dynamic system which only imposes
+ a significant penalty for multiple dispatchings when they are used.
+\layout Standard
+
+The benefits to be reaped basically amounts to clarity and a removal of
+ a level of indirection in the case where multiple dispatch is often emulated
+ in regular systems.
+ The common 
+\begin_inset Quotes eld
+\end_inset 
+
+double dispatch
+\begin_inset Quotes erd
+\end_inset 
+
+ pattern has turned out to constitute the majority of multiple dispatch
+ cases, and some libraries are a lot more lucid once translated if they
+ heavily involve binary operators involving both types in the logic.
+\layout Subsection
+
+Prototypes
+\layout Standard
+
+Methods may be installed on any instance in the system, including immediate
+ objects (Integers, Characters, etc.).
+ So, handling Singleton objects in any argument position is more directly
+ expressed.
+ This is more significant when laying out an environment and customizing
+ the various objects within for tasks, without having to delineate distinct
+ classes for each functionality.
+\layout Subsection
+
+Methods as Named Closures
+\layout Standard
+
+Slate's methods are developed as an extension of the definition of code
+ blocks.
+ A method's signature is followed by a block definition.
+ The argument names in the signature become block arguments, and the dispatched
+ arguments' roles are annotated to include this closure.
+ This allows method definition to be 
+\begin_inset Quotes eld
+\end_inset 
+
+free-standing
+\begin_inset Quotes erd
+\end_inset 
+
+ in comparison to the characteristic of Smalltalk-80 systems to use a very
+ specialized method definition syntax which suits the browser tool, and
+ has a place within the chunk format, but generally doesn't have any fundamental
+ ties to the language or system.
+\layout Subsection
+
+Subjective Dispatch
+\layout Standard
+
+An idea only briefly visited some years ago by David Ungar and Randall Smith
+ is the idea of subject-orientation: treating the context as an extra invisible
+ argument to a message.
+ We are looking at seeing what is possible in this area, with structured
+ notions of context, perhaps to represent the current user, some system
+ state, or access level.
+\layout Standard
+
+The current plan is to implement this as an extra-argument part of the multiple
+ dispatch as an experiment in this functionality.
+\layout Section
+
+Syntax
+\layout Subsection
+
+Smalltalk Basis
+\layout Subsection
+
+Self Influence
+\layout Standard
+
+Slate inherits Self's lack of direct slot assignment syntax, requiring normal
+ access and update to occur through methods.
+ There is a reflective interface which overrides this, and the accessor/mutator
+ methods work with this level.
+\layout Standard
+
+Also like Self, any references to identifiers are really message-sends to
+ the local context.
+\layout Standard
+
+It is worth noting that Self's 
+\emph on 
+object literal
+\emph default 
+ syntax is not used in Slate; block definitions mostly suffice, and methods
+ cannot be inserted into object slots, so the need does not arise.
+\layout Standard
+
+A small change was adopted for the same reasons that Self used it.
+ Block headers must be delimited on both sides by vertical bars, to help
+ distinguish the local declarations from implicit context sends.
+\layout Subsection
+
+Removal of Bang
+\layout Standard
+
+Slate has generally taken the route of a declarative build from independent
+ source files until we achieve some bootstrapped system status.
+ This has allowed the presentation of Slate without a purpose-built development
+ environment in order to rapidly evaluate the ideas without the subtle influence
+ of others.
+ Thus far, the need for a 
+\begin_inset Quotes eld
+\end_inset 
+
+chunk
+\begin_inset Quotes erd
+\end_inset 
+
+ format has not arisen, so the bang signifier in chunk-style inputs has
+ not been allocated from the character table.
+\layout Subsection
+
+Method Definitions
+\layout Standard
+
+Method definitions consist of a method signature denoted with the 
+\family typewriter 
+@
+\family default 
+ character between the argument name and a dispatch expression.
+ The parser expects some object to follow which yields a block which constitutes
+ the method's body.
+\layout Subsection
+
+Separator Sensitivity
+\layout Standard
+
+Slate currently follows a liberal policy about identifiers, which makes
+ whitespace as a separator very important.
+\layout Subsection
+
+Character-Appropriation Summary
+\layout Section
+
+Core Libraries
+\layout Subsection
+
+Strongtalk-Influenced Collections
+\layout Subsection
+
+Conditions
+\layout Standard
+
+The exception-handling system is based on Dylan's condition system, itself
+ an object-oriented version of Common Lisp's condition system.
+\layout Section
+
+Environment
+\layout Subsection
+
+Namespaces
+\layout Subsection
+
+Packages
+\layout Subsection
+
+Threads
+\layout Section
+
+Run-time
+\layout Subsection
+
+Image
+\layout Subsection
+
+Intermediate Language Encoding
+\layout Subsection
+
+Type Engine
+\layout Section
+
+Conclusion
+\the_end

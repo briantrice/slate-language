@@ -1,139 +1,214 @@
-Graphics define: #ListboxElement &parents: {ScrollpaneElement. PaintSolidBackground} &slots:
-{
-  #targetObject -> Nil. "Nil will be itself by default"
-  #getListSelector -> #getList.
-  #getSelectionSelector -> #getSelection.
-  #setSelectionSelector -> #setSelection
-}.
 
+"load after graphics.slate"
 
+Graphics define: #ScrollbarMorph &parents: {Morph}
+  &slots: {#vertical -> True. #min -> 0. #max -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
 
-lb@(ListboxElement traits) newTarget: t getList: getlist@(Symbol traits) getSelection: getsel@(Symbol traits) setSelection: setsel@(Symbol traits)
-[ | obj |
-  obj: ((lb newInnerBounds: (Rectangle origin: (0 , 0) extent: ( 999 , 999)))
-         cloneSettingSlots: #(targetObject getListSelector getSelectionSelector setSelectionSelector)
-                        to: {t. getlist. getsel. setsel.}).
-
-  "WARNING: the scrollbars point to obj so they need to be updated if the object is cloned"
-
-  obj vScrollbar: (ScrollbarElement newVerticalOnObject: obj itemSize: obj fontSize).
-  obj hScrollbar: (ScrollbarElement newHorizontalOnObject: obj itemSize: obj fontSize).
-
-  obj
-
-].
-
-lb@(ListboxElement traits) target
+m@(ScrollbarMorph traits) percent
 [
-lb targetObject ifNil: [lb]
+  m position - m min / (m max - m min)
 ].
 
-lb@(ListboxElement traits) calculateInnerBoundsFrom: items
+m@(ScrollbarMorph traits) rangePercent
 [
-  lb innerBounds: (Rectangle origin: ( 0 , 0 ) extent: (100 , (lb fontSize + 1 * items size)))
+  m position + m visibleRange - m min / (m max - m min)
 ].
 
-
-lb@(ListboxElement traits) update
+m@(ScrollbarMorph traits) paintMyselfOn: surface@(Surface traits)
 [
-  lb calculateInnerBoundsFrom: lb items.
-  lb repaintSoon.
+  surface sourceRGB: m theme scrollbarBackgroundColor alpha: m theme scrollbarBackgroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m region extent).
+  surface fill.
+  surface sourceRGB: m theme scrollbarForegroundColor alpha: m theme scrollbarForegroundAlpha.
+  m vertical
+    ifTrue: 
+      [surface rectangle: (Rectangle origin: (2 , ((m percent * m height) rounded
+                                                     min: m height - m minimumBar))
+                                    corner: (m width - 2 , ((m rangePercent * m height) rounded 
+                                                               max: (m percent * m height) rounded + m minimumBar)))]
+    ifFalse: [surface rectangle: (Rectangle origin: (2 , ((m percent * m width) rounded
+                                                     min: m width - m minimumBar))
+                                    corner: (m height - 2 , ((m rangePercent * m width) rounded 
+                                                               max: (m percent * m width) rounded + m minimumBar)))].
+
+  surface fill.
 ].
 
-lb@(ListboxElement traits) items
-[ 
-  lb getListSelector sendTo: {lb target}
-].
 
-
-lb@(ListboxElement traits) selection
+m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
 [
-lb getSelectionSelector sendTo: {lb target}
+  m requestFocus.
+  m dragOffset: "m absolutePosition - input position" m position. "save the value for later for undo? dunno"
+  m
 ].
 
-lb@(ListboxElement traits) selectionIncludesIndex: index@(Integer traits)
+m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [
- | selection |
-selection: lb selection.
-(selection is: Integer) ifTrue: [ selection = index] ifFalse: [ selection includes: index ]
+  m dropFocus.
+  m dragOffset: Nil.
+  m
 ].
 
-
-lb@(ListboxElement traits) selection: selection
+m@(ScrollbarMorph traits) slideIncrease
 [
-lb repaintSoon.
-lb setSelectionSelector sendTo: {lb target. selection.}
+  m position: (m position + m visibleRange min: m max).
+  m repaint.
+  m
 ].
 
-
-
-lb@(ListboxElement traits) setSelectionFromPosition: position@(Point traits)
-[  "we put this here so we can call it easily from outside of leftmouse click events"
- (lb innerArea contains: position)
-   ifTrue: [lb selection: position y - lb boundingRect origin y + lb offset y ceiling // lb fontSize] "FIX"
-].
-
-lb@(ListboxElement traits) handle: event@(LeftMouseButtonPressEvent traits)
+m@(ScrollbarMorph traits) slideDecrease
 [
-    (lb innerArea contains: event position)
-       ifTrue: [lb setSelectionFromPosition: event position]
-       ifFalse: [resend]
+  m position: (m position - m visibleRange max: m min).
+  m repaint.
+  m
+].
+
+m@(ScrollbarMorph traits) handleMyself: input@(MouseButtonClickEvent traits)
+[ | absPos |
+ "increment the position"
+ 
+  absPos: m absolutePosition.
+  m vertical ifTrue: [input position y > (absPos y + (m percent * m height) rounded) 
+                            ifTrue: [m slideIncrease]
+                            ifFalse: [m slideDecrease]]
+           ifFalse: [input position x > (absPos x + (m percent * m width) rounded)
+                           ifTrue: [m slideIncrease]
+                           ifFalse: [m slideDecrease]]
+
+].
+
+m@(ScrollbarMorph traits) handleMyself: input@(MouseMotionEvent traits)
+[ | absPos |
+  m dragOffset ifNil: [^ Nil].
+  absPos: m absolutePosition.
+  m vertical ifTrue: [input position y > (absPos y + m height) ifTrue: [m position: m max. m repaint. ^ m].
+                    input position y < absPos y ifTrue: [m position: m min. m repaint. ^ m].
+                    m position: (input position y - absPos y / m height * (m max - m min) + m min) rounded.
+                    m repaint.
+                    m]
+           ifFalse: [input position x > (absPos x + m width) ifTrue: [m position: m max. m repaint. ^ m].
+                    input position x < absPos x ifTrue: [m position: m min. m repaint. ^ m].
+                    m position: (input position x - absPos x / m width * (m max - m min) + m min) rounded.
+                    m repaint.
+                    m].
+
+  m
 ].
 
 
-lb@(ListboxElement traits) handle: event@(PaintEvent traits)
-[ | position index selection |
+Graphics define: #ListboxMorph &parents: {Morph}
+  &slots: {#items -> ExtensibleArray new. 
+           #verticalScrollbar -> ScrollbarMorph new.
+           #horizontalScrollbar -> (ScrollbarMorph new `>> [vertical: False. ]).
+           #selectedItems -> Set new. 
+           #scrollbarWidth -> 10.
+           #singleSelect -> True.
+           }.
 
-    resend.
-
-    "TODO: only paint relevant items"
-
-    event context `>> [
-        rectangle: lb innerArea.
-        save.
-        clip.
-        translate: (lb boundingRect origin - lb offset).
-        font: lb font &italic: lb italic &bold: lb bold.
-        fontSize: lb fontSize.
-    ].
-
-    " mark the selections "
-
-    event context sourceRGB: lb selectionColor alpha: lb selectionAlpha.
-    selection: lb selection.
-    (selection is: Collection) ifFalse: [selection: {selection}].
-
-
-    selection do: [| :index |
-                   event context rectangle: (Rectangle origin: 0 , (index * lb fontSize)
-                                                       extent: (lb boundingRect width , lb fontSize)).
-                   event context fill
-                  ].
-
-
-
-
-
-    " for the list item to print "
-    position: (0 , (lb fontSize)).
-    index: 0.
-    event context sourceRGB: lb textColor alpha: lb textAlpha.
-
-    lb items do: [| :item |
-                    event context moveTo: position.
-
-                    (selection includes: index)
-                      ifTrue: [
-                                event context sourceRGB: lb selectionInverseColor alpha: lb selectionInverseAlpha.
-                                event context showText: (item as: String).
-                                event context sourceRGB: lb textColor alpha: lb textAlpha.
-                              ]
-                      ifFalse: [event context showText: (item as: String).].
-
-                    position: (position x , (position y + lb fontSize)).
-                    index: index + 1].
-
-    event context restore.
-    event context
+m@(ListboxMorph traits) new
+[ |me|
+  me: (m cloneSettingSlots: #(items verticalScrollbar horizontalScrollbar selectedItems) to:
+        {ExtensibleArray new. ScrollbarMorph new. (ScrollbarMorph new `>> [vertical: False. ]). Set new}).
+  me addChild: me verticalScrollbar.
+  me addChild: me horizontalScrollbar.
+  me
 ].
 
+"fixme make this called automatically"
+m@(ListboxMorph traits) updateScrollbars
+[
+  m verticalScrollbar region: (Rectangle origin: (m width - m scrollbarWidth) , 0 
+                                         extent: m scrollbarWidth , (m height - m scrollbarWidth)).
+  m horizontalScrollbar region: (Rectangle origin: 0 , (m height - m scrollbarWidth)
+                                           extent: m width - (m scrollbarWidth , m scrollbarWidth)).
+].
+
+m@(ListboxMorph traits) itemSize: item
+[
+  12
+  "fixme: ^ item asMorph height"
+].
+
+m@(ListboxMorph traits) visibleRange
+[ |vsb|
+  vsb: m verticalScrollbar.
+  (vsb position to: (vsb position + vsb visibleRange min: vsb max))
+].
+
+m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
+[ | vsb hsb heightOffset |
+  surface sourceRGB: m theme listboxColor alpha: m theme listboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+
+  vsb: m verticalScrollbar.
+  hsb: m horizontalScrollbar.
+  "calculate the visible portion and stuff"
+  vsb max: m items size - 1.
+  vsb min: 0.
+  vsb position: ((vsb position min: vsb max) max: vsb min).
+  vsb visibleRange: m visibleItems.
+  heightOffset: 0.
+  "inform: 'painting items ' ; m visibleRange printString."
+  m visibleRange do:
+    [ |:itemPos item itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       (m selectedItems includes: item)
+         ifTrue: [surface ensurePaint: [surface rectangle: (Rectangle origin: 0 , heightOffset 
+                                                                      corner: m width , (heightOffset + itemHeight)).
+                                        surface sourceRGB: m theme selectedColor alpha: m theme selectedAlpha.
+                                        surface fill]].
+       surface ensurePaint: [surface moveTo: 5 , (itemHeight + heightOffset - 2). "text paints from bottom left"
+                             surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+                             surface showText: item printString].
+       heightOffset: heightOffset + itemHeight.
+   ].
+"  m paintChild: vsb on: surface.
+  m paintChild: hsb on: surface.
+"
+].
+
+m@(ListboxMorph traits) visibleItems
+[ | itemCount heightOffset |
+  itemCount: 0.
+  heightOffset: 0.
+  m visibleRange do:
+    [ |:itemPos item itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       itemCount: itemCount + 1.
+       heightOffset: heightOffset + itemHeight.
+       heightOffset > m height ifTrue: [^ itemCount]].
+  itemCount " = range size"
+].
+
+m@(ListboxMorph traits) selectItem: item
+[
+  m repaint.
+  m singleSelect ifTrue: [m selectedItems clear. m selectedItems add: item]
+                 ifFalse: [(m selectedItems includes: item) ifTrue: [m selectedItems remove: item]
+                                                            ifFalse: [m selectedItems add: item]]
+  
+].
+
+
+m@(ListboxMorph traits) handleMyself: e@(MouseButtonClickEvent traits)
+[ | heightOffset item clickPosition relPos|
+  relPos: e position - m absolutePosition.
+  (m verticalScrollbar region contains: relPos) ifTrue: [^ (m verticalScrollbar handle: e)].
+  (m horizontalScrollbar region contains: relPos) ifTrue: [^ (m horizontalScrollbar handle: e)].
+  heightOffset: 0.
+  clickPosition: relPos y.
+  "inform: 'pos: ' ; clickPosition printString."
+  m visibleRange do:
+    [ |:itemPos itemHeight|
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       heightOffset: heightOffset + itemHeight.
+       clickPosition < heightOffset ifTrue: [m selectItem: item. ^ m].
+       heightOffset > m height ifTrue: [ ^ Nil]].
+  m selectItem: item.
+  m
+].

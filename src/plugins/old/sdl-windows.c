@@ -12,11 +12,13 @@ typedef SDL_Surface Window;
 
 SDL_Surface *surface; // Ick! SDL only supports 1 window
 SDL_Event event;
-int eventValid = 0;
+slate_int_t eventValid = 0;
 
 EXPORT void init()
 {
     SDL_Init(SDL_INIT_VIDEO);
+    printf("enable unicode!!!!!!\n");
+    SDL_EnableUNICODE(1);
 }
 
 EXPORT void shutdown()
@@ -24,12 +26,12 @@ EXPORT void shutdown()
     SDL_Quit();
 }
 
-EXPORT SDL_Surface *createWindow(int width, int height)
+EXPORT SDL_Surface *createWindow(slate_int_t width, slate_int_t height)
 {
     return surface = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_RESIZABLE);
 }
 
-EXPORT int haveEvent()
+EXPORT slate_int_t haveEvent()
 {
     if(eventValid)
         return 1;
@@ -43,7 +45,7 @@ EXPORT int haveEvent()
 }
 
 // Returns 1 if there is a message. Returns 0 if error
-EXPORT int waitForEvent()
+EXPORT slate_int_t waitForEvent()
 {
     if(haveEvent())
         return 1;
@@ -61,7 +63,7 @@ EXPORT void popEvent()
     eventValid = 0;
 }
 
-EXPORT int getEventType()
+EXPORT slate_int_t getEventType()
 {
     switch(event.type)
     {
@@ -119,40 +121,40 @@ EXPORT SDL_Surface *getEventWindow()
     return surface; // Ick! SDL only supports 1 window
 }
 
-EXPORT int getEventMouseMotionX()
+EXPORT slate_int_t getEventMouseMotionX()
 {
     return event.motion.x;
 }
 
-EXPORT int getEventMouseMotionY()
+EXPORT slate_int_t getEventMouseMotionY()
 {
     return event.motion.y;
 }
 
-EXPORT int getEventMouseButtonX()
+EXPORT slate_int_t getEventMouseButtonX()
 {
     return event.button.x;
 }
 
-EXPORT int getEventMouseButtonY()
+EXPORT slate_int_t getEventMouseButtonY()
 {
     return event.button.y;
 }
 
-EXPORT int getKeyboardKey()
+EXPORT slate_int_t getKeyboardKey()
 {
-    return event.key.keysym.sym;
+  return event.key.keysym.unicode; /*unicode must be enabled for this to work*/
 }
 
-EXPORT int getKeyboardMod()
+EXPORT slate_int_t getKeyboardMod()
 {
     return event.key.keysym.mod;
 }
 
 
 EXPORT void blit(
-    SDL_Surface *dest, int destX, int destY, int destWidth, int destHeight,
-    void *src, int srcX, int srcY, int srcWidth, int srcHeight, int srcStride)
+    SDL_Surface *dest, slate_int_t destX, slate_int_t destY, slate_int_t destWidth, slate_int_t destHeight,
+    void *src, slate_int_t srcX, slate_int_t srcY, slate_int_t srcWidth, slate_int_t srcHeight, slate_int_t srcStride)
 {
     SDL_Rect destRect = {destX, destY, destWidth, destHeight};
     SDL_Rect srcRect = {srcX, srcY, srcWidth, srcHeight};

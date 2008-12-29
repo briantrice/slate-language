@@ -1,18 +1,27 @@
 
+See the wiki for more detailed documentation.
+
+http://code.google.com/p/slate-language/w/list
+
+
 Setup
 -----
 
-'make vm' for debugging vm
-'make vm.fast' for non-debugging vm
+'make vm' for regular vm
+'make vm.debug' for debugging vm
+
+./vm kernel.image                 "bootstrap"
+Image saveNamed: 'my.image'.      "dump image"
+./vm my.image                     "load image"
+
 
 
 Command Line
 ------------
 
-vm [image-file]
+./vm <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB|)]
 
-This starts slate using [image-file]. If omitted, it uses
-slate.image by default.
+This starts slate using <image>.
 
 
 Bootstrapping
@@ -20,8 +29,11 @@ Bootstrapping
 
 Run vm to get a repl.
 
+[
 load: 'src/mobius/init.slate'.
-Image littleEndian: True bitSize: 64. "I may change the name of this function soon."
+Image littleEndian: True bitSize: 64.
+Image littleEndian: True bitSize: 32.
+] do.
 
 
 Debugging
@@ -90,3 +102,8 @@ genCode: (c generate:
 method sourceTree result: Nil &topLevel: True) code.
 c decompile: (genCode third code at: 13) code
 ] applyWith: VM SSACompiler new.
+
+
+"see what is getting called"
+VM SSACompiler new decompile: (#handle: findOn: {mainWindow. PaintEvent newContext: mainWindow context}) method code.
+

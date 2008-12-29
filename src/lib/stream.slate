@@ -179,6 +179,17 @@ s@(WriteStream traits) nextPut: _
 "Place the given element on the Stream."
 [overrideThis].
 
+
+s@(WriteStream traits) next: n putInteger: val &littleEndian: le
+[
+  le `defaultsTo: True.
+  n <= 0 ifTrue: [^ s].
+  0 below: n do: [|:bytenum| s nextPut:
+    (le ifTrue: [val >> (bytenum * 8)] ifFalse: [val >> (n - 1 - bytenum * 8)]) intoByte].
+  s
+].
+
+
 s@(WriteStream traits) next: n put: obj
 "Make the next N values the argument object."
 [

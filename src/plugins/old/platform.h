@@ -1,5 +1,4 @@
 #include <sys/utsname.h>
-#include "env.h"
 
 int uname(struct utsname *name);
 

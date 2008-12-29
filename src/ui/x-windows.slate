@@ -1,0 +1,344 @@
+
+lobby ensureNamespace: #Windows &delegate: True.
+
+Windows define: #XLib
+  &builder: [ExternalInterface newForLibrary: 'x-windows' primitives:
+    #(
+      (Pointer x_open_display(CString))
+      (Void x_close_display(Pointer))
+      (Int x_create_window(Pointer Int Int))
+
+      (Pointer slate_cairo_create_context(Pointer))
+      (Void slate_cairo_destroy_context(Pointer))
+
+      (Pointer slate_cairo_create_surface(Pointer Int Int Int))
+      (Void slate_cairo_destroy_surface(Pointer))
+
+      (Void x_next_event(Pointer))
+      (Int x_event_type())
+      (Int x_event_keyboard_key(Pointer)) "display needed for keycode->keysym translation"
+      (Int x_event_keyboard_modifiers())
+      (Int x_event_pointer_x())
+      (Int x_event_pointer_y())
+      (Int x_event_pointer_button())
+      (Int x_event_pointer_state())
+      (Int x_event_resize_width())
+      (Int x_event_resize_height())
+      (Int x_event_configure_width())
+      (Int x_event_configure_height())
+
+
+      (Void slate_cairo_paint(Pointer))
+      (Void slate_cairo_resize(Pointer Int Int))
+
+      (Void clip(Pointer))
+      (Void clip_preserve(Pointer))
+      (Void fill(Pointer))
+      (Void fill_preserve(Pointer))
+      (Void restore(Pointer))
+      (Void save(Pointer))
+      (Float get_line_width(Pointer))
+      (Void set_line_width(Pointer Float))
+      (Void set_source_rgb(Pointer Float Float Float))
+      (Void set_source_rgba(Pointer Float Float Float Float))
+      (Void stroke(Pointer))
+      (Void stroke_preserve(Pointer))
+
+      (Void close_path(Pointer))
+      (Void line_to(Pointer Float Float))
+      (Void move_to(Pointer Float Float))
+      (Void new_path(Pointer))
+      (Void rectangle(Pointer Float Float Float Float))
+		
+      (Void translate(Pointer Float Float))
+      (Void scale(Pointer Float Float))
+      		
+      (Void select_font_face(Pointer CString Int Int))
+      (Void set_font_size(Pointer Float))
+      (Void show_text(Pointer CString))
+      )].
+
+Windows XLib enable.
+
+Graphics define: #XWindowSession &parents: {BasicWindowSession}
+  &slots: {#display -> Nil.}.
+
+Graphics define: #XWindowElement &parents: {BasicWindowElement}
+  &slots: {#surface -> Nil. "the cairo surface"
+           #context -> Nil. "the cairo context to draw on"
+           #session -> Nil. "the XWindowSession this is apart of"
+           #windowID -> Nil. "the Window that XLib gives to me"
+}.
+
+se@(WindowSceneElement traits) nativeSessionType [XWindowSession].
+
+ws@(XWindowSession traits) start
+[
+  ws display: (Windows XLib primitives x_open_display applyTo: {Nil.})
+].
+
+ws@(XWindowSession traits) stop
+[
+  Windows XLib primitives x_close_display applyTo: {ws display.}.
+  ws display: Nil.
+].
+
+"FIXME delete the context and sturface"
+
+ws@(XWindowSession traits) newWindow: title width: width height: height
+[ | w |
+  w: XWindowElement new.
+  w session: ws.
+  w windowID: (Windows XLib primitives x_create_window applyTo: {ws display. width. height}).
+  w surface: (Windows XLib primitives slate_cairo_create_surface applyTo: {ws display. w windowID. width. height.}).
+  w context: (Windows XLib primitives slate_cairo_create_context applyTo: {w surface}).
+  w
+].
+
+w@(XWindowElement traits) paint
+[
+  Windows XLib primitives slate_cairo_paint applyTo: {w surface.}
+].
+
+w@(XWindowElement traits) getNextEvent
+[ |evtType evt|
+   
+  Windows XLib primitives x_next_event applyTo: {w session display.}.
+  evtType: (Windows XLib primitives x_event_type do).
+
+"#define KeyPress                2
+#define KeyRelease              3
+#define ButtonPress             4
+#define ButtonRelease           5
+#define MotionNotify            6
+#define EnterNotify             7
+#define LeaveNotify             8
+#define FocusIn                 9
+#define FocusOut                10
+#define KeymapNotify            11
+#define Expose                  12
+#define GraphicsExpose          13
+#define NoExpose                14
+#define VisibilityNotify        15
+#define CreateNotify            16
+#define DestroyNotify           17
+#define UnmapNotify             18
+#define MapNotify               19
+#define MapRequest              20
+#define ReparentNotify          21
+#define ConfigureNotify         22
+#define ConfigureRequest        23
+#define GravityNotify           24
+#define ResizeRequest           25
+#define CirculateNotify         26
+#define CirculateRequest        27
+#define PropertyNotify          28
+#define SelectionClear          29
+#define SelectionRequest        30
+#define SelectionNotify         31
+#define ColormapNotify          32
+#define ClientMessage           33
+#define MappingNotify           34
+"
+
+  evtType caseOf:
+    {2 -> [evt: (w setupEventType: KeyboardPressEvent)].
+     3 -> [evt: (w setupEventType: KeyboardReleaseEvent)].
+     4 -> [evt: (w setupEventType: MouseButtonPressEvent)].
+     5 -> [evt: (w setupEventType: MouseButtonReleaseEvent)].
+     6 -> [evt: (w setupEventType: MouseMotionEvent)].
+     12 -> [evt: (w setupEventType: WindowRepaintEvent)].
+     22 -> [evt: (w setupEventType: WindowConfigEvent)].
+     25 -> [evt: (w setupEventType: WindowResizeEvent)]. 
+}
+    otherwise: [inform: 'Unhandled event type: ' ; evtType printString.
+                evt: (w setupEventType: Event)].
+
+  evt
+
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(Event traits)
+[
+  eventType new
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(KeyboardEvent traits)
+[ |evt|
+  evt: eventType new.
+  evt key: (Windows XLib primitives x_event_keyboard_key applyTo: {w session display}).
+  evt modifiers: (Windows XLib primitives x_event_keyboard_modifiers do).
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(PointerEvent traits)
+[ |evt position pointer|
+  position: (Windows XLib primitives x_event_pointer_x do) , (Windows XLib primitives x_event_pointer_y do).
+  pointer: (Windows XLib primitives x_event_pointer_button do).
+  evt: eventType.
+  eventType caseOf: 
+    {MouseButtonReleaseEvent -> [pointer caseOf: {1 -> [evt: LeftMouseButtonReleaseEvent].
+                                                  2 -> [evt: MiddleMouseButtonReleaseEvent].
+                                                  3 -> [evt: RightMouseButtonReleaseEvent].
+                                                  4 -> [evt: X1MouseButtonReleaseEvent].
+                                                  5 -> [evt: X2MouseButtonReleaseEvent].}].
+     MouseButtonPressEvent -> [pointer caseOf: {1 -> [evt: LeftMouseButtonPressEvent].
+                                                2 -> [evt: MiddleMouseButtonPressEvent].
+                                                3 -> [evt: RightMouseButtonPressEvent].
+                                                4 -> [evt: X1MouseButtonPressEvent].
+                                                5 -> [evt: X2MouseButtonPressEvent].}].
+     }.
+  evt: evt new.
+  evt position: position.
+  evt button: pointer.
+  evt modifiers: (Windows XLib primitives x_event_pointer_state do)."fixme less x11 specific"
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(WindowResizeEvent traits)
+[ |evt position pointer|
+  evt: eventType new.
+  evt width: (Windows XLib primitives x_event_resize_width do).
+  evt height: (Windows XLib primitives x_event_resize_height do).
+  evt
+].
+
+w@(XWindowElement traits) setupEventType: eventType@(WindowConfigEvent traits)
+[ |evt position pointer|
+  evt: eventType new.
+"  evt width: (Windows XLib primitives x_event_configure_width do).
+  evt height: (Windows XLib primitives x_event_configure_height do).
+"
+  evt
+].
+
+w@(XWindowElement traits) resizeWidth: w height: h
+[
+  Windows XLib primitives slate_cairo_resize applyTo: {w surface. w. h.}
+].
+
+w@(XWindowElement traits) clip
+[
+    Windows XLib primitives clip applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) clip_preserve
+[
+    Windows XLib primitives clip_preserve applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) fill
+[
+    Windows XLib primitives fill applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) fill_preserve
+[
+    Windows XLib primitives fill_preserve applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) restore
+[
+    Windows XLib primitives restore applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) save
+[
+    Windows XLib primitives save applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineWidth
+[
+    Windows XLib primitives get_line_width applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineWidth: width
+[
+    Windows XLib primitives set_line_width applyTo: {w context. width.}.
+].
+
+w@(XWindowElement traits) sourceRGB: color@(RGBColor traits)
+[
+    Windows XLib primitives set_source_rgb applyTo: {w context. color red. color green. color blue.}.
+].
+
+w@(XWindowElement traits) sourceRGB: color@(RGBColor traits) alpha: alpha
+[
+    Windows XLib primitives set_source_rgba applyTo: {w context. color red. color green. color blue. alpha.}.
+].
+
+w@(XWindowElement traits) stroke
+[
+    Windows XLib primitives stroke applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) stroke_preserve
+[
+    Windows XLib primitives stroke_preserve applyTo: {w context.}.
+].
+
+"Path"
+"============================================================================"
+
+w@(XWindowElement traits) closePath
+[
+    Windows XLib primitives close_path applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) lineTo: point@(Point traits)
+[
+    Windows XLib primitives line_to applyTo: {w context. point x. point y.}.
+].
+
+w@(XWindowElement traits) moveTo: point@(Point traits)
+[
+    Windows XLib primitives move_to applyTo: {w context. point x. point y.}.
+].
+
+w@(XWindowElement traits) newPath
+[
+    Windows XLib primitives new_path applyTo: {w context.}.
+].
+
+w@(XWindowElement traits) rectangle: rectangle
+[
+    Windows XLib primitives rectangle applyTo: {w context. rectangle left. rectangle top. rectangle width. rectangle height.}.
+].
+
+"Transformation"
+"============================================================================"
+
+w@(XWindowElement traits) translate: offset@(Point traits)
+[
+    Windows XLib primitives translate applyTo: {w context. offset x. offset y.}.
+].
+
+w@(XWindowElement traits) scale: offset@(Point traits)
+[
+    Windows XLib primitives scale applyTo: {w context. offset x. offset y.}.
+].
+
+"Text"
+"============================================================================"
+
+w@(XWindowElement traits) font: font &italic: italic &bold: bold
+[
+    italic `defaultsTo: False.
+    bold `defaultsTo: False.
+    Windows XLib primitives select_font_face applyTo: {
+        w context. 
+        font. 
+        italic ifTrue: [1] ifFalse: [0]. 
+        bold ifTrue: [1] ifFalse: [0]}.
+].
+
+w@(XWindowElement traits) fontSize: size
+[
+    Windows XLib primitives set_font_size applyTo: {w context. size}.
+].
+
+w@(XWindowElement traits) showText: text
+[
+    Windows XLib primitives show_text applyTo: {w context. text}.
+].
+

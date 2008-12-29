@@ -8,6 +8,7 @@ networking define: #Socket &parents: {Cloneable} &slots: {#fd -> Nil}.
 networking define: #SocketServerConnection &parents: {Socket} &slots: {#peerAddress -> Nil}.
 networking define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
 networking define: #IP4Address &parents: {SocketAddress}.
+networking define: #UnixDomainAddress &parents: {SocketAddress}.
 
 networking define: #SocketServer &parents: {Cloneable}
  &slots: {#pipeToLoop -> Nil. #ip -> Nil. #port -> Nil. #dispatch -> Nil}.
@@ -80,11 +81,29 @@ s@(Socket traits) newFor: domain type: type protocol: proto
 ].
 
 
-addr@(IP4Address traits) newOn: array port: port
+addr@(SocketAddress traits) newOn: array port: port
 [ | ret |
   ret: addr new.
-  addr address: (Socket Domains IP4 createIPAddress: array port: port options: #()).
+  addr address: (addr domain createIPAddress: array port: port options: #()).
   addr
+].
+
+addr@(IP4Address traits) domain
+[
+  Socket Domains IP4
+].
+
+addr@(UnixDomainAddress traits) domain
+[
+  Socket Domains Local
+].
+
+
+s@(Socket traits) connectTo: addr@(SocketAddress traits)
+[ | ret |
+  ret: (s fd socketConnect: addr address).
+  ret < 0 /\ [ret ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: ret].
+  
 ].
 
 
@@ -105,6 +124,26 @@ s@(Socket traits) listenSize: count
   ret
 ].
 
+
+s@(Socket traits) close
+[ | ret |
+  ret: s fd closePipe.
+  ret < 0 ifTrue: [s throwError: ret].
+].
+
+s@(Socket traits) canRead
+[ 
+  ({s} selectOnReadPipesFor: 0) isEmpty not
+].
+
+s@(Socket traits) canWrite
+[ 
+  ({s} selectOnWritePipesFor: 0) isEmpty not
+].
+
+
+
+
 s@(Socket traits) acceptConnection
 [ | ret |
   
@@ -121,23 +160,21 @@ s@(SocketServer traits) newOn: ip port: port dispatch: block
   ret
 ].
 
-s@(SocketServer traits) start
+s@(SocketServer traits) start &domain: addressDomain
 [
-
+  addressDomain `defaultsTo: IP4Address.
   s pipeToLoop: 
     (currentProcess forkAndDo:
       [ | :commSock servSock |
-        servSock: (Socket newFor: Socket Domains IP4 type: Socket Types Stream protocol: Socket Protocols Default).
+        servSock: (Socket newFor: addressDomain domain type: Socket Types Stream protocol: Socket Protocols Default).
         "fixme handle ipv6"
         inform: 'Creating listening socket ' ; servSock printString.
-        inform: 'bind: ' ; (servSock bindTo: (IP4Address newOn: s ip port: s port)) printString.
+        inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
         inform: 'listen: '; (servSock listenSize: 5) printString.
         [ | ready |
           inform: 'Waiting for connection...' ; {commSock. servSock fd} printString.
           ready: ({commSock. servSock fd} selectOnReadPipesFor: Socket SelectTimeout).
           ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
-          "inform: ready printString."
-          "inform: 'read: ' ; ('aoeu' clone readFromPipe: commSock) printString."
           (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock fd closePipe. lobby exit].
           (ready includes: servSock fd) 
             ifTrue: [ | peer child |
@@ -157,22 +194,24 @@ s@(SocketServer traits) start
 
 s@(SocketServer traits) stop
 [
-  'quit' writeToPipe: s pipeToLoop.
+  s pipeToLoop nextPutAll: 'quit'.
 ].
 
 
 networking define: #SocketStream &parents: {ReadWriteStream}
- &slots: {#internalReadBuffer -> Queue new. #internalWriteBuffer -> Queue new. #socket -> Nil. #closed -> False.
+ &slots: {#internalReadBuffer -> (ByteArray new as: Queue). #internalWriteBuffer -> (ByteArray new as: Queue). #socket -> Nil. #closed -> False.
 #buffer -> (ByteArray new &capacity: Socket BufferSize)}.
 
-
-s@(SocketStream traits) collectionType
-[ByteArray].
-
+s@(SocketStream traits) newOn: socket
+[
+  s new on: socket
+].
 
 s@(SocketStream traits) on: socket
 [
   s socket: socket.
+  s internalReadBuffer clear.
+  s internalWriteBuffer clear.
   s closed: False.
   s
 ].
@@ -187,22 +226,28 @@ s@(SocketStream traits) isAtEnd
   s closed
 ].
 
+
+s@(SocketStream traits) close
+[
+  s closed: True.
+  s socket close.
+].
+
+
 s@(SocketStream traits) flush
-[ | buf i |
-  "fixme"
-  buf: (ByteArray new &capacity: s internalWriteBuffer size).
+[ | i contents |
   i: 0.
-  inform: 'iwb:' ; s internalWriteBuffer printString.
-  s internalWriteBuffer do: [ |:c| buf at: i put: (c ifNil: [0] ifNotNil: [c code]). i: i + 1].
-  inform: 'buf:' ; buf printString.
-  i: 0.
-  [i < buf size] whileTrue: 
-    [ | res fds | 
+  contents: (s internalWriteBuffer as: ByteArray).
+  [i < contents size] whileTrue: 
+    [ | return fds | 
       fds: ({s socket fd} selectOnWritePipesFor: Socket SelectTimeout).
-      res: 0.
-      fds do: [ |:fd| res: (buf writeToPipe: fd)].
-      (res = 0) ifTrue: [error: 'write failed']. 
-      i: i + res]
+      return: 0.
+      "inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString."
+      fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
+      (return = 0) ifTrue: [error: 'write failed']. 
+      return < 0 /\ [return ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
+      i: i + return].
+  s internalWriteBuffer clear.
 ].
 
 s@(SocketStream traits) next
@@ -217,18 +262,19 @@ s@(SocketStream traits) nextLine
 
 
 s@(SocketStream traits) next: n putInto: seq startingAt: start
-[ | stopReading readSize |
-  s closed ifTrue: [^ s exhausted].
-  stopReading: False.
-
-  [[s internalReadBuffer size < n] \/ [stopReading]]
-    whileFalse: [ | fds ret |
+[ | readSize writer |
+  s closed ifTrue: [s exhausted. ^ 0].
+  writer: s internalReadBuffer writer.
+  [s internalReadBuffer size < n]
+    whileTrue: [ | fds ret |
                   fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
-                  fds isEmpty ifTrue: [s closed: True. ^ s exhausted]. "this shouldn't happen"
-                  ret: ([(s buffer readFromPipe: s socket fd)] on: Error do: [ |:e| e return: 0]).
-                  ret = 0 ifTrue: [s closed: True. stopReading: True].
-                  s internalReadBuffer next: ret putAll: s buffer]
-                ].
+                  fds isEmpty ifTrue: [s closed: True. s exhausted. ^ 0]. "this shouldn't happen"
+                  "inform: 'before read ' ; fds printString."
+                  ret: (s buffer readFromPipe: s socket fd start: 0 end: s buffer size).
+                  "inform: 'ret ' ; ret printString."
+                  ret = 0 ifTrue: [s closed: True. s exhausted. ^ 0].
+                  "inform: 'read bytes: ' ; s buffer printString."
+                  writer next: ret putAll: s buffer].
   readSize: (s internalReadBuffer size min: n).
   seq replaceFrom: start to: start - 1 + readSize with: s internalReadBuffer.
   s internalReadBuffer forgetFirst: readSize.

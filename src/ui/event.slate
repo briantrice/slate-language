@@ -2,18 +2,17 @@
 
 prototypes ensureNamespace: #events &delegate: True.
 
-events define: #Event &slots: {#timeStamp. #source ". #handled"}.
+events define: #Event &slots: {#timeStamp. #source}.
 
-Mixins define: #EventUndoMixin
-  &slots: {#name. #sender. #doArgs. #undoArgs. #contextArgs. #doSelector.
-	   #undoSelector. #generalizeSelector. #instantiateSelector. #contextSelector. #mergeSelector}.
+events define: #FocusEvent &parents: {Event}.
 
-events define: #PaintEvent &parents: {Event} &slots: {#context}.
+events define: #RequestFocusEvent &parents: {FocusEvent}.
+events define: #DropFocusEvent &parents: {FocusEvent}.
 
-e@PaintEvent newContext: context
-[e cloneSettingSlots: #(context) to: {context}].
+events define: #WindowEvent &parents: {Event} 
+  &slots: {#region "The damage region associated with the event.". #window}.
 
-events define: #InputEvent &parents: {Event}.
+events define: #InputEvent &parents: {WindowEvent}.
 
 events define: #DeviceInputEvent &parents: {InputEvent}.
 
@@ -25,7 +24,7 @@ events define: #KeyboardReleaseEvent &parents: {KeyboardEvent}.
 
 
 events define: #PointerEvent &parents: {InputEvent}
-  &slots: {#pointer. #position}.
+  &slots: {#pointer. #position. #button. #modifiers}.
 
 event@(PointerEvent traits) copyOffset: offset
 [|c|
@@ -100,152 +99,11 @@ events define: #PenLeaveEvent &parents: {PenMotionEvent}.
 
 events define: #PenEnterEvent &parents: {PenMotionEvent}.
 
-events define: #WindowEvent &parents: {Event}
-  &slots: {#region "The damage region associated with the event."}.
-
-e@(WindowEvent) nativeRegion
-"The event's region in native coordinates."
-[
-].
-
 events define: #WindowConfigEvent &parents: {WindowEvent}.
 "Corresponds to a window movement or resizing."
 
+events define: #WindowResizeEvent &parents: {WindowConfigEvent} &slots: {#width. #height}..
+
+events define: #PaintEvent &parents: {WindowEvent}.
 events define: #WindowRepaintEvent &parents: {WindowEvent}.
 "A window redraw request."
-
-events define: #AggregateEvent &parents: {Event. OrderedTree}
-  &slots: {#currentPosition}.
-"AggregateEvents are aggregated events, corresponding to Commands. They
-also have a current position so that undo/redo support is lazy and works
-decently."
-
-c@(AggregateEvent traits) perform: ch@(Event traits)
-"Coordinates with #perform. This just handles the command structure itself."
-[
-  c currentPosition < c children size
-    ifTrue: [c children at: currentPosition put: ch].
-  c currentPosition: p currentPosition + 1
-].
-
-c@(AggregateEvent traits) perform
-"A recursive action, which also tells the parent command to add it."
-[
-  c treeParent ifNotNilDo:
-    [| :p | p perform: c].
-  c children do: [| :each | each perform]
-].
-
-c@(AggregateEvent traits) undo: ch@(Event traits)
-"Coordinates with #undo. This just handles the command structure itself."
-[
-  c currentPosition = 0 ifTrue: [c undo].
-  c currentPosition: c currentPosition - 1.
-  ch
-].
-
-c@(AggregateEvent traits) undo
-"A recursive action, which also tells the parent command to remove it."
-[
-  c treeParent ifNotNilDo: [| :p | p undo: c].
-  c children do: [| :each | each undo]
-].
-
-c@(AggregateEvent traits) redo
-[c perform].
-
-c@(AggregateEvent traits) parentCommandType
-"Return the command type of the parent, or the default one for the command if
-it has not been adopted yet."
-[overrideThis].
-
-c@(AggregateEvent traits) generateCommandParent
-"Return and set the relationship for the default command type abstracting over
-the current one."
-"TODO: generalize this, since this relation may not always have an answer or
-a single answer."
-[
-  (c parentCommandType newFor: c) `>> [adopt: c. ]
-].
-
-c@(AggregateEvent traits) add: ch@(Event traits)
-[| acceptedCh adoption |
-  acceptedCh: ch.
-  [(adoption: (c tryToAdd: acceptedCh)) isNil] whileTrue:
-    [acceptedCh: ch generateCommandParent].
-  acceptedCh == ch ifFalse: [c remove: ch. c add: acceptedCh].
-  acceptedCh
-].
-
-c@(AggregateEvent traits) last
-"The currentPosition always points to the latest performed command."
-[
-  c children at: c currentPosition
-].
-
-c@(AggregateEvent traits) tryToAdd: ch@(Event traits)
-[
-  (c last tryToAdd: ch)
-    ifNil: [(c accepts: ch) ifTrue: [c adopt: ch] ifFalse: [Nil]]
-    ifNotNilDo: [| :adoption | adoption == ch ifTrue: [c updateArgs].
-		 adoption]
-].
-
-c@(AggregateEvent traits) accepts: ch@(Event traits)
-"Answer if the command satisfies the potential child command's
-parentCommandType."
-[
-  c is: ch parentCommandType
-].
-
-c@(AggregateEvent traits) adopt: ch@(Event traits)
-[
-  
-].
-
-c@(AggregateEvent traits) updateArgs
-"Just completely recompute my arguments based on all the children."
-[].
-
-c@(AggregateEvent traits) adjustArgsForAdding: ch@(Event traits)
-"How the command's performance information should be adjusted for adding a
-given sub-command."
-[
-  c updateArgs
-].
-
-c@(AggregateEvent traits) adjustArgsForRemoving: ch@(Event traits)
-"How the command's performance information should be adjusted for removing a
-given sub-command."
-[
-  c updateArgs
-].
-
-"----------------------------
-Text-Editing Example Events
-----------------------------"
-
-events define: #TextEditEvent &parents: {AggregateEvent} &slots: {#text}.
-
-events define: #SelectTextEvent &parents: {TextEditEvent}
-  &slots: {#start. #end}.
-"(SelectInsertionPoint | SelectRange | MoveCursor)+"
-
-events define: #ReplaceTextEvent &parents: {TextEditEvent}
-  &slots: {#start. #end. #replacement}.
-"SelectText?, (TypeText | DeleteText)+"
-
-events define: #InsertCharToText &parents: {TextEditEvent} &slots: {#character}.
-
-events define: #TypeText &parents: {TextEditEvent} &slots: {#insertedSeq}.
-"= (InsertCharToText)*"
-
-events define: #DeletePrevCharFromText &parents: {TextEditEvent}.
-
-events define: #DeleteNextCharFromText &parents: {TextEditEvent}.
-
-events define: #DeleteSelectionFromText &parents: {TextEditEvent}.
-
-events define: #DeleteText &parents: {TextEditEvent} &slots: {#numberOfChars}.
-"= SelectText?, (DeleteSelectionFromText | DeletePrevCharFromText |
-DeleteNextCharFromText)*"

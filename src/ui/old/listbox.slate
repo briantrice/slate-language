@@ -1,0 +1,139 @@
+Graphics define: #ListboxElement &parents: {ScrollpaneElement. PaintSolidBackground} &slots:
+{
+  #targetObject -> Nil. "Nil will be itself by default"
+  #getListSelector -> #getList.
+  #getSelectionSelector -> #getSelection.
+  #setSelectionSelector -> #setSelection
+}.
+
+
+
+lb@(ListboxElement traits) newTarget: t getList: getlist@(Symbol traits) getSelection: getsel@(Symbol traits) setSelection: setsel@(Symbol traits)
+[ | obj |
+  obj: ((lb newInnerBounds: (Rectangle origin: (0 , 0) extent: ( 999 , 999)))
+         cloneSettingSlots: #(targetObject getListSelector getSelectionSelector setSelectionSelector)
+                        to: {t. getlist. getsel. setsel.}).
+
+  "WARNING: the scrollbars point to obj so they need to be updated if the object is cloned"
+
+  obj vScrollbar: (ScrollbarElement newVerticalOnObject: obj itemSize: obj fontSize).
+  obj hScrollbar: (ScrollbarElement newHorizontalOnObject: obj itemSize: obj fontSize).
+
+  obj
+
+].
+
+lb@(ListboxElement traits) target
+[
+lb targetObject ifNil: [lb]
+].
+
+lb@(ListboxElement traits) calculateInnerBoundsFrom: items
+[
+  lb innerBounds: (Rectangle origin: ( 0 , 0 ) extent: (100 , (lb fontSize + 1 * items size)))
+].
+
+
+lb@(ListboxElement traits) update
+[
+  lb calculateInnerBoundsFrom: lb items.
+  lb repaintSoon.
+].
+
+lb@(ListboxElement traits) items
+[ 
+  lb getListSelector sendTo: {lb target}
+].
+
+
+lb@(ListboxElement traits) selection
+[
+lb getSelectionSelector sendTo: {lb target}
+].
+
+lb@(ListboxElement traits) selectionIncludesIndex: index@(Integer traits)
+[
+ | selection |
+selection: lb selection.
+(selection is: Integer) ifTrue: [ selection = index] ifFalse: [ selection includes: index ]
+].
+
+
+lb@(ListboxElement traits) selection: selection
+[
+lb repaintSoon.
+lb setSelectionSelector sendTo: {lb target. selection.}
+].
+
+
+
+lb@(ListboxElement traits) setSelectionFromPosition: position@(Point traits)
+[  "we put this here so we can call it easily from outside of leftmouse click events"
+ (lb innerArea contains: position)
+   ifTrue: [lb selection: position y - lb boundingRect origin y + lb offset y ceiling // lb fontSize] "FIX"
+].
+
+lb@(ListboxElement traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    (lb innerArea contains: event position)
+       ifTrue: [lb setSelectionFromPosition: event position]
+       ifFalse: [resend]
+].
+
+
+lb@(ListboxElement traits) handle: event@(PaintEvent traits)
+[ | position index selection |
+
+    resend.
+
+    "TODO: only paint relevant items"
+
+    event context `>> [
+        rectangle: lb innerArea.
+        save.
+        clip.
+        translate: (lb boundingRect origin - lb offset).
+        font: lb font &italic: lb italic &bold: lb bold.
+        fontSize: lb fontSize.
+    ].
+
+    " mark the selections "
+
+    event context sourceRGB: lb selectionColor alpha: lb selectionAlpha.
+    selection: lb selection.
+    (selection is: Collection) ifFalse: [selection: {selection}].
+
+
+    selection do: [| :index |
+                   event context rectangle: (Rectangle origin: 0 , (index * lb fontSize)
+                                                       extent: (lb boundingRect width , lb fontSize)).
+                   event context fill
+                  ].
+
+
+
+
+
+    " for the list item to print "
+    position: (0 , (lb fontSize)).
+    index: 0.
+    event context sourceRGB: lb textColor alpha: lb textAlpha.
+
+    lb items do: [| :item |
+                    event context moveTo: position.
+
+                    (selection includes: index)
+                      ifTrue: [
+                                event context sourceRGB: lb selectionInverseColor alpha: lb selectionInverseAlpha.
+                                event context showText: (item as: String).
+                                event context sourceRGB: lb textColor alpha: lb textAlpha.
+                              ]
+                      ifFalse: [event context showText: (item as: String).].
+
+                    position: (position x , (position y + lb fontSize)).
+                    index: index + 1].
+
+    event context restore.
+    event context
+].
+

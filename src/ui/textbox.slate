@@ -1,154 +1,189 @@
 
-"
-  The following make up a textbox (MVC paradigm):
---------------------------------------------------
-
-- #model: this is something like an ArrayTextBuffer. All modifications
-   that are formally performed here must be sent this way:
-   model@(TextBuffer traits) execute: action@(TextBufferCommand
-   traits). #undo: has the same-typed arguments. These actions will be
-   chained together and then most likely executed using the recording
-   facilities in command.slate.
-
-- #view: The model has to be displayed so the view here has to handle
-   drawing the textbox and it also has to handle input from the mouse
-   (actually, just changing the mouse coordinates to a TextBuffer
-   Pointer and calling the right function in the #inputHandler. The
-   reason I decided to do this here was because some views might like
-   to color text or turn them into buttons, as well as have their own
-   custom wrapping options. For example, someone might right a view to
-   have vertical lines and the mappings to the horizontally-based
-   #model will be done in the view.
-
-- #inputHandler: This is how the user generates TextBufferCommands to be
-   executed by the model. Keypresses are looked up in the command map.
-   See fundamental-mode.slate for some examples.
+"from key presses to function calls on the textbox"
+Graphics define: #InputTranslator &parents: {Cloneable}.
+Graphics define: #HashTableInputTranslator &parents: {InputTranslator} &slots: {#table -> Dictionary new}.
+Graphics define: #TextboxInputTranslator &parents: {InputTranslator}.
+Graphics define: #LineEditorInputTranslator &parents: {InputTranslator}.
 
 
-"
+Graphics define: #TextboxMorph &parents: {Morph}
+  &slots: {#text -> '' new. 
+           #position -> 0. 
+           #fontSize -> 12. 
+           #inputTranslator -> TextboxInputTranslator new.
+           }.
 
 
-" -- the textbox morph -- "
+Graphics define: #LineEditorMorph &parents: {Morph}
+  &slots: {#editor -> LineEditor new.
+           #fontSize -> 12. 
+           #inputTranslator -> LineEditorInputTranslator new.
+           }.
 
 
-Graphics define: #TextboxElement &parents: {ScrollpaneElement. PassInputToInputHandler} &slots:
-{
-  #model -> Nil.
-  #view -> Nil.
-  "#commandMap -> Nil. " "use inputHandler instead"
-}.
-
-
-te@(TextboxElement traits) handle: event@(PaintEvent traits)
+"let the input translator class handle all keyboard input on me"
+m@(TextboxMorph traits) handleMyself: e@(KeyboardEvent traits)
 [
-
-    resend.
-
-    "TODO: only paint relevant items"
-
-    event context `>> [
-        rectangle: te innerArea.
-        save.
-        clip.
-        translate: (te boundingRect origin - te offset).
-        font: te font &italic: te italic &bold: te bold.
-        fontSize: te fontSize.
-    ].
-
-
-    te view paintOn: event context withOffset: te offset.
-
-    event context restore.
-    event context
+  m inputTranslator handle: e on: m
 ].
 
-
-
-
-teclass@(TextboxElement traits) newModel: model view: view inputHandler: controller
-" For example: TextboxElement newModel: ArrayTextBuffer view: SimpleTextView inputHandler: FundamentalMode. "
-[ | te |
-  te: (teclass newInnerBounds: (Rectangle origin: 0 , 0 extent: 100 , 100)).
-  te model: (model new).
-  te view: (view new `>> [on: te model.]).
-  te model view: te view.
-  te view morph: te.
-  te inputHandler: (controller new `>> [on: te model.]).
-  te
-].
-
-
-
-
-
-" -- a simple view -- "
-
-
-
-
-Graphics define: #SimpleTextView &parents: {Cloneable} &slots:
-{
- #model -> Nil.
- #morph -> Nil. "We change the size so the scrollpane knows how big we are."
-}.
-
-stv@(SimpleTextView traits) on: model
+m@(LineEditorMorph traits) handleMyself: e@(KeyboardEvent traits)
 [
- stv model: model.
- stv
+  m inputTranslator handle: e on: m
 ].
 
-
-
-
-stv@(SimpleTextView traits) paintOn: context withOffset: point
+it@(InputTranslator traits) handle: e@(InputEvent traits) on: m@(Morph traits)
 [
- | position index selection |
-
-
-  "FIXME do selections and wrap and stuff"
-
-
-    " for the list item to print "
-    position: (0 , (stv morph fontSize)).
-    index: 0.
-    context sourceRGB: stv morph textColor alpha: stv morph textAlpha.
-
-    stv model lines do: [| :item |
-                    context moveTo: position.
-                    context showText: (item as: String).
-
-                    position: (position x , (position y + stv morph fontSize)).
-                    index: index + 1].
-
-    context sourceRGB: stv morph foregroundColor alpha: stv morph foregroundAlpha.
-
-    "FIXME don't hardcode width"
-
-    stv model allPoints do: [| :point |
-                    context moveTo: ((point position * (7)) , ((point line + 1 * stv morph fontSize) + 2)).
-                    context showText: '_'].
-
-    context sourceRGB: stv morph selectionColor alpha: stv morph selectionAlpha.
-    context moveTo: ((stv model activePoint position * (7)) , 
-                     ((stv model activePoint line + 1 * stv morph fontSize) + 2)).
-    context showText: '_'.
-
-
+  inform: 'Default handler ' ; (it printString) ; ' does not handle event ' ; e printString.
+  Nil
 ].
 
-
-stv@(SimpleTextView traits) update
-"The model has changed so we need to repaint it."
+it@(HashTableInputTranslator traits) handle: e@(KeyboardEvent traits) on: m@(Morph traits)
 [
-  "FIXME change the width and height"
-  stv morph repaintSoon.
+  (it table at: e key ifAbsent: [Nil]) ifNotNilDo: [|:func| func applyTo: {m e}]
+].
+
+it@(TextboxInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: m@(TextboxMorph traits) [].
+it@(LineEditorInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: m@(LineEditorMorph traits) [].
+
+"someone pressed enter"
+m@(TextboxMorph traits) activate [].
+
+it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(TextboxMorph traits)
+[ |char oldText pos|
+  inform: 'key: ' ; e key printString.
+  inform: 'mod: ' ; e modifiers printString.
+  e key = 276 ifTrue: [m repaint. m position: (m position - 1 max: 0). ^ Nil].
+  e key = 275 ifTrue: [m repaint. m position: (m position + 1 min: m printText size). ^ Nil].
+  oldText: m text.
+  pos: m position.
+  e key = 13 ifTrue: [^ m activate].
+  "backspace"
+  e key = 8 ifTrue: [m repaint.
+                     m text: (oldText first: pos - 1) ; (oldText allButFirst: pos).
+                     m position: (pos - 1 max: 0).
+                     ^ Nil].
+  "delete"
+  e key = 127 ifTrue: [m repaint.
+                       m text: (oldText first: pos) ; (oldText allButFirst: pos + 1).
+                     ^ Nil].
+
+  e key > 250 ifTrue: [^ Nil].
+  char: (e key as: ASCIICharacter).
+  char isPrintable ifTrue: [m repaint. 
+                            m text: (oldText first: pos) ; (char as: String) ; (oldText allButFirst: pos).
+                            m position: pos + 1.
+                            ^ Nil].
 ].
 
 
 
+it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(LineEditorMorph traits)
+[ |char oldText |
+  inform: 'key: ' ; e key printString.
+  inform: 'mod: ' ; e modifiers printString.
+  e key = 275 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
+  e key = 276 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
+  e key = 273 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
+  e key = 274 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
+  "backspace"
+  e key = 8 ifTrue: [m repaint.
+                     m editor deleteBackwardAt: m editor cursor.
+                     ^ Nil].
+  "delete"
+  e key = 127 ifTrue: [m repaint.
+                       m editor deleteAt: m editor cursor.
+                     ^ Nil].
+  
+  "undo C-/ "
+  e key = 47 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                            m editor undo.
+                                            ^ Nil].
 
-" -- a model is in text.slate -- "
+  "redo C-\ "
+  e key = 92 /\ [e modifiers = 4] ifTrue: [m repaint.
+                                            m editor redo.
+                                            ^ Nil].
 
-" -- a inputHandler is in fundamental-mode.slate -- "
+
+  e key > 250 ifTrue: [^ Nil].
+  char: (e key as: ASCIICharacter).
+  char isPrintable \/ [e key = 13] ifTrue: [m repaint. 
+                            m editor insert: char at: m editor cursor.
+                            ^ Nil].
+].
+
+
+m@(TextboxMorph traits) printText
+["this is the text as a string in case i change the underlying representation"
+  m text
+].
+
+
+m@(TextboxMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[ "don't drop focus like usual"
+  m
+].
+
+m@(TextboxMorph traits) paintMyselfOn: surface@(Surface traits)
+[ |text|
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+"fixme, we should use cairo's text_extents function to see how large the text is and draw
+the appropriate cursor. "
+  text: m printText.
+
+  "print cursor... text is invisible here because we chose the foreground color"
+  surface moveTo: 10 , ((m height // 2) + 2).
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface showText: (text first: m position).
+  surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
+  surface showText: '_'.
+
+  "print text"
+  surface moveTo: 10 , (m height // 2).
+  surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+  surface showText: text.
+].
+
+
+m@(LineEditorMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
+[ "don't drop focus like usual"
+  m
+].
+
+m@(LineEditorMorph traits) paintMyselfOn: surface@(Surface traits)
+[ |text|
+  surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+"fixme, we should use cairo's text_extents function to see how large the text is and draw
+the appropriate cursor. "
+
+  "fixme scrollbar position?"
+  (m editor firstVisibleLine to: (m editor firstVisibleLine + m editor visibleLines min: m editor lineCount - 1))
+    do: [ |:lineNumber line offset |
+           line: ((m editor lineAt: lineNumber) as: String).
+           offset: lineNumber - m editor firstVisibleLine + 1.
+           (m editor cursor line = lineNumber)
+             ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
+                      surface moveTo: 5 , (offset * m fontSize + 2).
+                      surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+                      surface showText: (line first: m editor cursor column).
+                      surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
+                      surface showText: '_'].
+
+           "print text"
+           surface moveTo: 5 , (offset * m fontSize).
+           surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+           surface showText: line.
+
+   ].
+                                                                                      
+].
 

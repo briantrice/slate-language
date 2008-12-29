@@ -6,63 +6,49 @@ prototypes define: #StructMixin &parents: {Cloneable} &slots: {#binaryDescriptio
 
 "binaryDescription is a list of (slotName type), e.g. (width Int32)"
 
-
-struct@(StructMixin traits) sizeOf: item@(Sequence traits)
-[ | type slot |
-  slot: item first.
-  type: item second.
-  ({
-    #Int8 ->  [ |:x| 1].
-    #Int16 -> [ |:x| 2].
-    #Int32 -> [ |:x| 4].
-    #Int64 -> [ |:x| 8].
-    #CString -> [ |:x| x size + 1].
-    #ByteArray -> [ |:x| x size].
-    #Struct -> [ |:x| x structByteSize].
-    #Fixed -> [ |:x| x size].
-
-   } firstSatisfying: [|:each| each key = type])
-                        ifNotNilDo: [ |:found| ^ (found value applyWith: (found key = #Fixed ifTrue: [slot] ifFalse: [struct atSlotNamed: slot])].
-  error: 'Could not find size of ' ; item printString.
-].
-
-struct@(StructMixin traits) structByteSize
+struct@(StructMixin traits) littleEndian
 [
-  struct binaryDescription reduce: [ |:carry :item | carry + struct sizeOf: item] ifEmpty: [0]
+  OverrideThis
 ].
 
 struct@(StructMixin traits) packed &littleEndian: le
-[ | ret offset |
-  le `defaultsTo: [True].
-  ret: (ba new &capacity: struct structByteSize).
-  
-  offset: 0.
-  struct binaryDescription do:
-    [ | :slotDescription type slot|
-       slot: item first.
-       type: item second.
-       ({#Int8 ->  [ |:x| ret byteAt: offset put: x. offset: offset + 1].
-         #Int16 -> [ |:x| ret int16At: offset put: x. offset: offset + 2].
-         #Int32 -> [ |:x| ret int32At: offset put: x. offset: offset + 4].
-         #Int64 -> [ |:x| ret int64At: offset put: x. offset: offset + 4].
-         #CString -> [ |:x| 
-                        ret replaceFrom: offset to: offset + x size - 1 with: x.
-                        ret byteAt: offset + x size put: 0.
-                        offset: offset + x size + 1].
-         #ByteArray -> [ |:x|
-                          ret replaceFrom: offset to: offset + x size - 1 with: x.
-                          offset: offset + x size].
-         #Fixed -> [ |:x|
-                      ret replaceFrom: offset to: offset + x size - 1 with: x.
-                      offset: offset + x size].
-         #Struct -> [ |:x obj |
-                       obj: (x packed &littleEndian: le).
-                       ret replaceFrom: offset to: offset - 1 + obj size with: obj.
-                       offset: offset + obj size].
-         } firstSatisfying: [|:each| each key = type])
-            ifNil: [error: 'Could find method to serialize ' ; item printString]
-            ifNotNilDo: [ |:found| ^ (found value applyWith: 
-              (found key = #Fixed ifTrue: [slot] ifFalse: [struct atSlotNamed: slot]))].
-   ].
+[ 
+  le `defaultsTo: struct littleEndian.
+  [ |:return|
+    struct binaryDescription do:
+      [ | :slotDescription type slot|
+         slot: slotDescription first.
+         type: slotDescription second.
+         ({#Int8 ->  [ |:x| return next: 1 putInteger: x &littleEndian: le].
+           #Int16 -> [ |:x| return next: 2 putInteger: x &littleEndian: le].
+           #Int32 -> [ |:x| return next: 4 putInteger: x &littleEndian: le].
+           #Int64 -> [ |:x| return next: 8 putInteger: x &littleEndian: le].
+           #CString -> [ |:x| return ; (x as: ByteArray). return nextPut: 0].
+           #ByteArray -> [ |:x| return ; x].
+           #Fixed -> [ |:x| return ; (x as: ByteArray)].
+           #Struct -> [ |:x | return ; (x packed &littleEndian: le)].
+           } firstSatisfying: [|:each| each key = type])
+             ifNil: [error: 'Could find method to serialize ' ; slotDescription printString]
+             ifNotNilDo: [ |:found| found value applyWith: 
+               (found key = #Fixed ifTrue: [slot] ifFalse: [struct atSlotNamed: slot])]]
+
+  ] writingAs: ByteArray
+
+].
+
+
+array@(Sequence traits) as: int@(Integer traits) &bigEndian: bigEndian &radix: radix
+[ | result position |
+  bigEndian `defaultsTo: False.
+  radix `defaultsTo: 256.
+  result: 0.
+  position: 1.
+
+  bigEndian
+    ifTrue: [array size - 1 downTo: 0 do: [ |:i| result: (array at: i) * position + result. position: position * radix]]
+    ifFalse: [0 below: array size do: [ |:i| result: (array at: i) * position + result. position: position * radix]].
+
+  result
+
 
 ].

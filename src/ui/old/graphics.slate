@@ -1,0 +1,843 @@
+prototypes ensureNamespace: #Graphics &delegate: True.
+
+
+Graphics define: #SceneElement &parents: {OrderedTree}.
+"SceneElements are the basis of the Slate graphical visual element system.
+They can be Morphs or Presentations or both, but those aspects are optional
+mixins. All of them have bounding extents and definite positions, as well as
+a growable sequence of sub-elements / children."
+
+SceneElement addImmutableSlot: #position valued: (0, 0).
+"The position on the parent coordinate system of the reference point for
+locating the SceneElement."
+
+SceneElement addImmutableSlot: #boundingRect valued: (Rectangle origin: 0 , 0 extent: 0 , 0). 
+"The smallest Rectangle bounding the SceneElement."
+
+SceneElement addImmutableSlot: #inputHandler valued: Nil.
+"inputHandler receives all input directed toward this SceneElement"
+
+SceneElement addImmutableSlot: #spaceRequirement valued: SpaceRequirement zero.
+
+SceneElement addImmutableSlot: #needToComposeSpaceRequirement valued: False.
+
+SceneElement addImmutableSlot: #needToAllocateSpace valued: False.
+
+SceneElement useTheme: BaseTheme.
+
+se1@(SceneElement traits) = se2@(SceneElement traits)
+[
+    se1 == se2
+].
+
+se@(SceneElement traits) cleanup
+"Clean up se after #new, #copy, or #parents:"
+[
+    se removeMutator: #position.
+    se removeMutator: #boundingRect.
+    se removeMutator: #inputHandler.
+    se removeMutator: #spaceRequirement.
+    se removeMutator: #needToComposeSpaceRequirement.
+    se removeMutator: #needToAllocateSpace.
+    se noteSpaceRequirementIsInvalid.
+].
+
+se@(SceneElement traits) new
+"Create a new SceneElement; don't include children"
+[
+  (se cloneSettingSlots: #(treeParent inputHandler children)
+      to: {Nil. Nil. se children new}) `>> [cleanup. ]
+].
+
+se@(SceneElement traits) copy
+"Copy a SceneElement; include children"
+[|c|
+    se new `>> [addAll: se children.]
+].
+
+se@(SceneElement traits) position: p
+[
+    (p x ~= se position x) \/ (p y ~= se position y) ifTrue: [
+        se boundingRect: se boundingRect + (p - se position).
+        se atSlotNamed: #position put: p.
+        se repaintSoon].
+    se
+].
+
+se@(SceneElement traits) parents: parents
+[| newObj |
+  newObj: (se derive &mixins: parents).
+  newObj addPrintName: se printName ; ' instance'.
+  se _delegates: {newObj traitsWindow}.
+  se addSlotsFrom: newObj.
+  se cleanup.
+  se treeParent ifNil: [se repaintSoon] ifNotNil: [se treeParent repaintSoon].
+  se
+].
+
+se@(SceneElement traits) boundingRect: r
+[
+    r ~= se boundingRect ifTrue: [
+        se repaintSoon.
+        se atSlotNamed: #boundingRect put: r.
+        se noteAllocationIsInvalid.
+        se repaintSoon].
+    se
+].
+
+se@(SceneElement traits) moveBy: p
+[
+    se position: se position + p
+].
+
+se@(SceneElement traits) origin: o
+[
+    se boundingRect: (Rectangle origin: o extent: se boundingRect extent).
+    se
+].
+
+se@(SceneElement traits) extent: e
+[
+    se boundingRect: (Rectangle origin: se boundingRect origin extent: e).
+    se
+].
+
+se@(SceneElement traits) corner: c
+[
+    se boundingRect: (Rectangle origin: se boundingRect origin corner: c).
+    se
+].
+
+se@(SceneElement traits) handle: event@(Event traits)
+"Handle an event."
+[
+"  (event is: MouseMotionEvent)
+    ifFalse: [lobby `>> [inform: ('Unhandled event: ' ; se printString  ; ' , ' ; event printString).].]"
+].
+
+se@(SceneElement traits) repaintSoon
+[
+    se treeParent ifNotNil: [se treeParent repaintSoon].
+    se
+].
+
+se@(SceneElement traits) inputHandler: ih
+[
+    se atSlotNamed: #inputHandler put: ih.
+    se treeParent ifNotNil: [
+         se treeParent inputHandler: (ih ifNotNil: [se])
+    ].
+    se
+].
+
+se@(SceneElement traits) getPath: context
+[
+    context rectangle: se boundingRect.
+].
+
+Graphics define: #Aspect.
+Graphics define: #Position &parents: {Aspect}.
+Graphics define: #Top &parents: {Aspect}.
+Graphics define: #Bottom &parents: {Aspect}.
+Graphics define: #Left &parents: {Aspect}.
+Graphics define: #Right &parents: {Aspect}.
+Graphics define: #TopLeft &parents: {Aspect}.
+Graphics define: #TopRight &parents: {Aspect}.
+Graphics define: #BottomLeft &parents: {Aspect}.
+Graphics define: #BottomRight &parents: {Aspect}.
+
+se@(SceneElement traits) startAdjusting: aspect position: p
+"Call this in response to a LeftMouseButtonPressEvent to start adjusting
+an aspect of this se as a drag operation. 
+ex: (se startAdjusting: BottomRight position: event position)."
+[|handle| "handle is invisible and transient"
+    handle: (Handle newTarget: se aspect: aspect).
+    handle updatePosition.
+    handle startDrag: p.
+].
+
+se@(SceneElement traits) adjust: _@(Position traits) by: offset
+[
+    se position: se position + offset.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(Top traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r top: (
+        r top + offset y 
+        min: (r bottom - se spaceRequirement minHeight) 
+        max: (r bottom - se spaceRequirement maxHeight))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(Bottom traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r bottom: (
+        r bottom + offset y 
+        min: (r top + se spaceRequirement maxHeight)
+        max: (r top + se spaceRequirement minHeight))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(Left traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r left: (
+        r left + offset x 
+        min: (r right - se spaceRequirement minWidth)
+        max: (r right - se spaceRequirement maxWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(Right traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r right: (
+        r right + offset x 
+        min: (r left + se spaceRequirement maxWidth)
+        max: (r left + se spaceRequirement minWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(TopLeft traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r top: (
+        r top + offset y 
+        min: (r bottom - se spaceRequirement minHeight) 
+        max: (r bottom - se spaceRequirement maxHeight))).
+    r: (r left: (
+        r left + offset x 
+        min: (r right - se spaceRequirement minWidth)
+        max: (r right - se spaceRequirement maxWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(TopRight traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r top: (
+        r top + offset y 
+        min: (r bottom - se spaceRequirement minHeight) 
+        max: (r bottom - se spaceRequirement maxHeight))).
+    r: (r right: (
+        r right + offset x 
+        min: (r left + se spaceRequirement maxWidth)
+        max: (r left + se spaceRequirement minWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(BottomLeft traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r bottom: (
+        r bottom + offset y 
+        min: (r top + se spaceRequirement maxHeight)
+        max: (r top + se spaceRequirement minHeight))).
+    r: (r left: (
+        r left + offset x 
+        min: (r right - se spaceRequirement minWidth)
+        max: (r right - se spaceRequirement maxWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) adjust: _@(BottomRight traits) by: offset
+[|r|
+    r: se boundingRect copy.
+    r: (r bottom: (
+        r bottom + offset y 
+        min: (r top + se spaceRequirement maxHeight)
+        max: (r top + se spaceRequirement minHeight))).
+    r: (r right: (
+        r right + offset x 
+        min: (r left + se spaceRequirement maxWidth)
+        max: (r left + se spaceRequirement minWidth))).
+    se boundingRect: r.
+    se
+].
+
+se@(SceneElement traits) translatePoint: point fromChild: ch@(SceneElement traits)
+"Translate a point from a child's outer coordinate system to se's outer coordinate system"
+[
+    ch == se 
+        ifTrue: [point] 
+        ifFalse: [se translatePoint: point + ch treeParent boundingRect origin fromChild: ch treeParent]
+].
+
+se@(SceneElement traits) close
+[
+    se treeParent ifNotNil: [se treeParent remove: se].
+].
+
+se@(SceneElement traits) updateExtentFor: p@(Point traits)
+"p is now included in or's area, so update it and it's ancestors'
+bounding Rectangles as needed. Answers the highest se updated."
+[
+  (se boundingRect contains: p)
+    ifTrue: [se]
+    ifFalse: [| br |
+      br: (se boundingRect encompass: p).
+      se boundingRect: br.
+      se treeParent updateExtentFor: br]
+].
+
+se@(SceneElement traits) updateExtentFor: r@(Rectangle traits)
+"This handles changing of the bounding rectangle by re-positioning a child to
+a point, by performing a merge as necessary, and then propagating up the
+update if the merge was necessary."
+[
+  (se boundingRect contains: r)
+    ifTrue: [se]
+    ifFalse: [| br |
+      br: (se boundingRect merge: r).
+      se boundingRect: br.
+      se treeParent updateExtentFor: br]
+].
+
+se@(SceneElement traits) updateExtentFor: ch@(SceneElement traits)
+"This can be overridden in the cases where necessary to handle different
+specialized regions used as bounds."
+[
+  se updateExtentFor: ch boundingRect
+].
+
+se@(SceneElement traits) replayOn: s@(Stream traits) in: r@(Region traits)
+"Display the output captured by se on s, and all of or's children,
+subject to the restricted area of r.
+TODO: restrict se to be replayed only on the stream that recorded it?"
+[
+].
+
+se@(SceneElement traits) hitDetectionRect
+"Return or's effective size for hit-detection. Override this to provide,
+say, hysteresis effects."
+[
+  se boundingRect
+].
+
+se@(SceneElement traits) occludingSiblings
+"Return all siblings that occlude at least part of the node's region."
+[
+  (se treeParent children `cacheAs: #c) copyFrom: (c find: se) + 1
+].
+
+se@(SceneElement traits) contains: p@(Point traits)
+"The definitive answerer of whether p lies on the scene element. Override
+for different shapes."
+[
+  (se boundingRect contains: p) ifTrue: [^ True].
+  False
+].
+
+se@(SceneElement traits) highlight: b@(Boolean traits)
+"TODO: implement this generic system of highlighting."
+[
+  b ifTrue: ["Draw the highlighting widget."]
+    ifFalse: ["Erase the highlighting widget."]
+].
+
+se@(SceneElement traits) addLast: ch@(SceneElement traits)
+"Scene elements interpret the last in the ordering as the back of the visual
+stack or pile."
+[
+  resend.
+  ch noteSpaceRequirementIsInvalid.
+  ch repaintSoon.
+  se
+].
+
+se@(SceneElement traits) addFirst: ch@(SceneElement traits)
+"Scene elements interpret the first in the ordering as the front of the
+visual stack or pile."
+[
+  resend.
+  ch noteSpaceRequirementIsInvalid.
+  ch repaintSoon.
+  se
+].
+
+se@(SceneElement traits) remove: ch@(SceneElement traits)
+[
+  se noteSpaceRequirementIsInvalid.
+  ch repaintSoon.
+  resend.
+  se
+].
+
+se@(SceneElement traits) replace: ch@(SceneElement traits)
+  with: ch2@(SceneElement traits)
+[
+  ch2 reparentTo: se.
+  se replaceAll: ch with: ch2.
+  ch2
+].
+
+se@(SceneElement traits) resetBoundingRect
+"Sets the boundingRect to a rectangle of 0,0 0,0."
+[se boundingRect: (Rectangle origin: 0 , 0 corner: 0 , 0)].
+
+se@(SceneElement traits) clear
+"Remove all children, and reset the parent back-links."
+[
+  se children `cache ifNotNil:
+    [se children do: [| :child | child treeParent: Nil]].
+  se children: se children new.
+  se resetBoundingRect.
+  se
+].
+
+se@(SceneElement traits) onChildrenContaining: p@(Point traits) collect: block
+"The CLIM spec claims that reverseDo: is needed here, apparently since this
+deals with pointer queries."
+[| newC |
+  "se children
+    select: [| :each | each contains: p]
+    collect: [| :each | block applyWith: each]"
+  newC: se new.
+  se children reverseDo: [| :each | (each contains: p)
+      ifTrue: [newC add: (block applyWith: each)]]
+].
+
+se@(SceneElement traits) onChildrenContaining: r@(Rectangle traits)
+  collect: block
+[
+  se children
+    select: [| :each | each contains: r]
+    collect: [| :each | block applyWith: each]
+].
+
+se@(SceneElement traits) drawOn: c &medium: m
+[
+].
+
+Graphics define: #OutputRecordingStream &parents: {ReadWriteStream} &slots:
+{#recording -> False.
+ #drawing -> False.
+ #stack -> Stack new.
+ #viewport
+}.
+
+"TODO: OutputRecordingStreams are an artifact of CLIM, but they need to be
+integrated into Canvasses."
+
+ors@(OutputRecordingStream traits) on: se
+"Creates a new stream with the output record as top-level history.
+Note that calling this on an existing stream will copy some attributes."
+[ors cloneSettingSlots: #(stack collection)
+     to: {{se} as: ors stack. se}].
+
+ors@(OutputRecordingStream traits) newOn: se
+"Creates a new stream with the output record as top-level history."
+[ors clone on: se].
+
+ors@(OutputRecordingStream traits) enter: se
+[
+  (ors collection includes: se) ifFalse: [ors error: NotIncluded].
+  ors stack push: se
+].
+
+ors@(OutputRecordingStream traits) leave
+[
+  ors stack `>> [size = 1 ifTrue: [^ Nil]. pop]
+].
+
+ors@(OutputRecordingStream traits) history
+"Returns the history se top-level output record."
+[
+  ors collection
+].
+
+ors@(OutputRecordingStream traits) contents
+"Answer the actual output record, since it is more structured than an
+ExtensibleArray. TODO: make this overriding unnecessary."
+[
+  ors collection
+].
+
+ors@(OutputRecordingStream traits) current
+"Return the output record that the stream currently has open for writing.
+This is the top of the output record stack."
+[
+  ors stack top
+].
+
+ors@(OutputRecordingStream traits) add: se
+[
+  ors current add: se
+].
+
+ors@(OutputRecordingStream traits) nextPut: se
+[
+  ors current add: se
+].
+
+ors@(OutputRecordingStream traits) replayOn: r
+"Replay the output history for records overlapping the given region."
+[
+  ors history replayOn: r
+].
+
+ors@(OutputRecordingStream traits) replay
+"Replay the output history for all records on the stream's viewport."
+[
+  ors replayOn: ors viewport
+].
+
+ors@(OutputRecordingStream traits) remove: se
+"Remove the record from the stream's output history, and ensure all the records
+that it overlapped are visible."
+[
+  (ors contents includes: se) ifFalse: [^ Nil].
+  ors contents remove: se.
+  ors history replayOn: se.
+  "TODO: improve the implementation's laziness."
+].
+
+Graphics define: #DisplayedSceneElement &parents: {SceneElement}.
+"TODO: consult CLIM/Morphic to see if this is redundant."
+
+Graphics define: #PaintChildren &parents: {SceneElement}.
+
+se@(PaintChildren traits) handle: event@(PaintEvent traits)
+[
+    ((se is: PaintChildren) not) \/ [(event is: PaintEvent) not] ifTrue: [break].
+    event context save.
+    se getPath: event context.
+    event context clip.
+    event context translate: se boundingRect origin.
+    se children reverseDo: [|:each| each handle: event].
+    event context restore.
+    resend
+].
+
+Graphics define: #PassInputToInputHandler &parents: {SceneElement}.
+
+se@(PassInputToInputHandler traits) handle: event@(InputEvent traits)
+[
+    ((se is: PassInputToInputHandler) not) \/ [(event is: InputEvent) not] ifTrue: [break].
+    se inputHandler ifNotNil: [
+        se inputHandler == se ifFalse: [ ^ (se inputHandler handle: event)]].
+    resend
+].
+
+Graphics define: #PassPointerToChildren &parents: {SceneElement}.
+
+se@(PassPointerToChildren traits) handle: event@(PointerEvent traits)
+[
+    ((se is: PassPointerToChildren) not) \/ [(event is: PointerEvent) not] ifTrue: [break].
+    se inputHandler ifNil: [|newEvent|
+        newEvent: (event copyOffset: (0 , 0) - se boundingRect origin).
+        se children do: [|:each|
+            (each contains: newEvent position) ifTrue: [
+                ^ (each handle: newEvent)]]].
+    resend
+].
+
+Graphics define: #PassKeyboardToChildren &parents: {SceneElement}.
+
+se@(PassKeyboardToChildren traits) handle: event@(KeyboardEvent traits)
+[
+    ((se is: PassKeyboardToChildren) not) \/ [(event is: KeyboardEvent) not] ifTrue: [break].
+    se inputHandler ifNil: [
+        se children do: [|:each| (each handle: event)]].
+    resend
+].
+
+Graphics define: #Drag &parents: {SceneElement} &slots: {#dragging -> False. #offset}.
+
+se@(Drag traits) startDrag: position
+[
+    se dragging: True.
+    se offset: se position - position.
+    se inputHandler: se.
+].
+
+se@(Drag traits) handle: event@(LeftMouseButtonPressEvent traits)
+[
+    (event is: LeftMouseButtonPressEvent) not ifTrue: [break].
+    se startDrag: event position
+].
+
+se@(Drag traits) handle: event@(MouseMotionEvent traits)
+[
+    (event is: MouseMotionEvent) not ifTrue: [break].
+    se dragging 
+        ifTrue: [se moveBy: event position + se offset - se position.]
+        ifFalse: [resend]
+].
+
+se@(Drag traits) handle: event@(LeftMouseButtonReleaseEvent traits)
+[
+    (event is: LeftMouseButtonReleaseEvent) not ifTrue: [break].
+    se dragging 
+        ifTrue: [
+            se moveBy: event position + se offset - se position.
+            se inputHandler: Nil.
+            se dragging: False.]
+        ifFalse: [resend]
+].
+
+Graphics define: #Handle &parents: {SceneElement. Drag} &slots: {
+    #solidColor -> Colors White. 
+    #solidAlpha -> 1.
+    #borderWidth -> 2.
+    #width -> 10.
+    #height -> 10.
+    #target.
+    #aspect.
+}.
+
+
+h@(Handle traits) newTarget: t aspect: o
+[
+    h copy `>> [
+        target: t.
+        treeParent: t treeParent.
+        aspect: o.
+    ]
+].
+
+h@(Handle traits) position: p
+[
+    h target adjust: h aspect by: p - h position.
+    h updatePosition.
+    h
+].
+
+h@(Handle traits) updatePosition
+[
+    h treeParent: h target treeParent.
+    h updatePosition: h aspect.
+    h boundingRect: (Rectangle 
+        origin: (h position x - (h width / 2)),
+                (h position y - (h height / 2))
+        extent: h width , h height).
+    h target treeParent ifNotNilDo: [|:p| p repaintSoon].
+    h
+].
+
+h@(Handle traits) updatePosition: _@(Position traits)
+[
+    h atSlotNamed: #position put: h target position.
+].
+
+h@(Handle traits) updatePosition: _@(Top traits)
+[
+    h atSlotNamed: #position put: h target boundingRect topCenter + (0, (0 - h height / 2)).
+].
+
+h@(Handle traits) updatePosition: _@(Bottom traits)
+[
+    h atSlotNamed: #position put: h target boundingRect bottomCenter + (0, (h height / 2)).
+].
+
+h@(Handle traits) updatePosition: _@(Left traits)
+[
+    h atSlotNamed: #position put: h target boundingRect leftCenter + ((0 - h width / 2), 0).
+].
+
+h@(Handle traits) updatePosition: _@(Right traits)
+[
+    h atSlotNamed: #position put: h target boundingRect rightCenter + ((h height / 2), 0).
+].
+
+h@(Handle traits) updatePosition: _@(TopLeft traits)
+[
+    h atSlotNamed: #position put: h target boundingRect topLeft + ((0 - h width / 2), (0 - h height / 2)).
+].
+
+h@(Handle traits) updatePosition: _@(TopRight traits)
+[
+    h atSlotNamed: #position put: h target boundingRect topRight + ((h height / 2), (0 - h height / 2)).
+].
+
+h@(Handle traits) updatePosition: _@(BottomLeft traits)
+[
+    h atSlotNamed: #position put: h target boundingRect bottomLeft + ((0 - h width / 2), (h height / 2)).
+].
+
+h@(Handle traits) updatePosition: _@(BottomRight traits)
+[
+    h atSlotNamed: #position put: h target boundingRect bottomRight + ((h height / 2), (h height / 2)).
+].
+
+h@(Handle traits) handle: event@(PaintEvent traits)
+[
+    event context `>> [
+        save.
+        sourceRGB: h borderColor alpha: h borderAlpha.
+        rectangle: h boundingRect.
+        fill.
+        sourceRGB: h solidColor alpha: h solidAlpha.
+        rectangle: (Rectangle origin: (h boundingRect origin + h borderWidth) corner: (h boundingRect corner - h borderWidth)).
+        fill.
+        restore.
+    ].
+    resend
+].
+
+Graphics define: #Handles &parents: {SceneElement}.
+
+Handles addImmutableSlot: #handles valued: {}.
+
+se@(Handles traits) cleanup
+[
+    resend.
+    se removeMutator: #handles.
+    se handles size == 0 ifFalse: [
+        se handles first target == se 
+            ifTrue: [se handles do: #updatePosition`er.]
+            ifFalse: [se atSlotNamed: #handles put: {}]].
+].
+
+se@(Handles traits) boundingRect: r
+[
+    r ~= se boundingRect ifTrue: [
+        resend.
+        se handles do: #updatePosition`er].
+    se
+].
+
+se@(Handles traits) contains: p@(Point traits)
+[
+    resend ifTrue: [^ True].
+    se handles do: [|:each| (each contains: p) ifTrue: [^ True]].
+    False
+].
+
+se@(Handles traits) handles: h
+[
+    se atSlotNamed: #handles put: h.
+    se handles do: #updatePosition`er.
+    se repaintSoon.
+    se
+].
+
+se@(Handles traits) showHandles
+[
+    se handles: {
+        Handle newTarget: se aspect: TopLeft.
+        Handle newTarget: se aspect: TopRight.
+        Handle newTarget: se aspect: BottomRight.
+        Handle newTarget: se aspect: BottomLeft.
+        Handle newTarget: se aspect: Top.
+        Handle newTarget: se aspect: Right.
+        Handle newTarget: se aspect: Bottom.
+        Handle newTarget: se aspect: Left}.
+    se
+].
+
+Graphics define: #PaintHandles &parents: {Handles}.
+
+se@(PaintHandles traits) handle: event@(PaintEvent traits)
+[
+    ((se is: PaintHandles) not) \/ [(event is: PaintEvent) not] ifTrue: [break].
+    se handles reverseDo: [|:each| each handle: event].
+    resend
+].
+
+Graphics define: #PaintSolidBackground &parents: {SceneElement}.
+
+
+se@(PaintSolidBackground traits) handle: event@(PaintEvent traits)
+[
+    ((se is: PaintSolidBackground) not) \/ [(event is: PaintEvent) not] ifTrue: [break].
+    event context save.
+    se getPath: event context.
+    event context `>> [
+        sourceRGB: se backgroundColor alpha: se backgroundAlpha.
+        fill.
+        restore.
+    ].
+    resend
+].
+
+
+Graphics define: #PaintBorder &parents: {SceneElement}.
+
+
+se@(PaintBorder traits) handle: event@(PaintEvent traits)
+[
+    "This first check is a little weird..."
+    ((se is: PaintBorder) not) \/ [(event is: PaintEvent) not] ifTrue: [break].
+    event context save.
+    se getPath: event context.
+    event context `>> [
+        lineWidth: se borderWidth.
+        sourceRGB: se borderColor alpha: se borderAlpha.
+        stroke.
+        restore.
+    ].
+    resend
+].
+
+Graphics define: #PassPointerToHandles &parents: {Handles}.
+
+se@(PassPointerToHandles traits) handle: event@(PointerEvent traits)
+[
+    ((se is: PassPointerToHandles) not) \/ [(event is: PointerEvent) not] ifTrue: [break].
+    se inputHandler ifNil: [
+        se handles do: [|:each|
+            (each contains: event position) ifTrue: [
+                ^ (each handle: event)]]].
+    resend
+].
+
+Graphics define: #Text &parents: {SceneElement}.
+
+
+Text addImmutableSlot: #text valued: ''.
+Text addImmutableSlot: #textOffset valued: 0 , 0.
+
+{#text. #textOffset} do: [|:slotName|
+    [|:se :v| 
+        se atSlotNamed: slotName put: v.
+        se repaintSoon.
+        se] asMethod: (mutatorNameFor: slotName) on: {Text traits. NoRole}].
+
+se@(Text traits) cleanup
+[
+    resend.
+    {#text. #textOffset} do: [|:slotName|
+        se removeMutator: slotName].
+].
+
+se@(Text traits) handle: event@(PaintEvent traits)
+[
+    se getPath: event context.
+    event context `>> [
+        save.
+        clip.
+        moveTo: se boundingRect bottomLeft + se textOffset.
+        font: se font &italic: se italic &bold: se bold.
+        fontSize: se fontSize.
+        sourceRGB: se textColor alpha: se textAlpha.
+        showText: se text.
+        restore.
+    ].
+    resend
+].
+
+Graphics define: #Star &parents: {SceneElement}.
+
+se@(Star traits) getPath: context
+[
+    context `>> [
+        save.
+        translate: se boundingRect origin.
+        scale: se boundingRect extent.
+        moveTo: 0, 1. lineTo: 0.5, 0. lineTo: 1, 1.
+        lineTo: 0, 0.25. lineTo: 1, 0.25. closePath.
+        restore.
+    ].
+].
