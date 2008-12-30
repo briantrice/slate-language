@@ -6832,7 +6832,7 @@ int main(int argc, char** argv) {
   }
   
   if (sih.magic != SLATE_IMAGE_MAGIC) {
-    fprintf(stderr, "Magic number (0x%" PRIuPTR "X) doesn't match (word_t)0xABCDEF43\n", sih.magic);
+    fprintf(stderr, "Magic number (0x%" PRIuPTR "X) doesn't match (word_t)0xABCDEF43. Make sure you have a valid slate image and it is the correct endianess. Run slate without arguments to see more info.\n", sih.magic);
     return 1;
   }
   

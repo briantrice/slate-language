@@ -9,6 +9,8 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,6 +82,65 @@ EXPORT void x_close_display(Display* d) {
 }
 
 
+/*fixme per display*/
+char* globalSelection = 0;
+int globalSelectionSize = 0;
+
+EXPORT void slate_clipboard_update(Display* d, Window w) {
+  Window selectionOwner;
+  Atom type;
+  int format, result;
+  unsigned long len, bytes_left, size;
+  unsigned char* data;
+  selectionOwner = XGetSelectionOwner (d, XA_PRIMARY);
+
+  if (selectionOwner == None) return;
+  XConvertSelection(d, XA_PRIMARY, XA_STRING, None, selectionOwner, CurrentTime);
+  XFlush(d);
+  XGetWindowProperty(d, selectionOwner, XA_STRING, 0, 0, 0, /*don't grab any*/
+                      AnyPropertyType, &type, &format, &len, &bytes_left, &data);
+  printf ("type:%i len:%i format:%i byte_left:%i\n", (int)type, (int)len, (int)format, (int)bytes_left);
+  if (bytes_left > 0) {
+    size = bytes_left;
+    result = XGetWindowProperty (d, selectionOwner, XA_STRING, 0, size, 0,
+                                 AnyPropertyType, &type, &format, &len, &bytes_left, &data);
+    if (result == Success) {
+      printf ("DATA IS HERE!!```%s'''\n", data);
+      globalSelection = malloc(size);
+      if (globalSelection == NULL) {
+        globalSelectionSize = 0;
+        XFree(data);
+        return;
+      }
+      globalSelectionSize = size;
+      memcpy(globalSelection, data, size);
+    }
+    else printf ("FAIL\n");
+ 
+  }
+    
+}
+
+EXPORT int slate_clipboard_size(Display* d, Window w) {
+  return globalSelectionSize;
+}
+
+EXPORT void slate_clipboard_copy(Display* d, Window w, char* bytes, int size) {
+  globalSelection = malloc(size);
+  if (globalSelection == NULL) {
+    globalSelectionSize = 0;
+    return;
+  }
+  globalSelectionSize = size;
+  memcpy(globalSelection, bytes, size);
+  XSetSelectionOwner(d, XA_PRIMARY, w, CurrentTime);
+}
+
+
+EXPORT void slate_clipboard_paste(Display* d, Window w, char* bytes, int size) {
+  if (globalSelection == NULL) return;
+  memcpy(bytes, globalSelection, (size < globalSelectionSize) ? size : globalSelectionSize);
+}
 
 EXPORT Window x_create_window(Display* d, int width, int height) {
   Window w;
@@ -106,7 +167,44 @@ XEvent globalEvent;
 EXPORT void x_next_event(Display* d) {
   /*we should probably fix this and make it per window...
     also... should we through out extra mouse movements for speed?*/
-  XNextEvent(d, &globalEvent);
+  for (;;) {
+    XEvent reply;
+
+    XNextEvent(d, &globalEvent);
+    if (globalEvent.type != SelectionRequest) break;
+
+    printf ("prop:%i tar:%i sel:%i\n", 
+            (int)globalEvent.xselectionrequest.property,
+            (int)globalEvent.xselectionrequest.target, 
+            (int)globalEvent.xselectionrequest.selection);
+    if (globalEvent.xselectionrequest.target == XA_STRING)
+      {
+        XChangeProperty (d,
+                         globalEvent.xselectionrequest.requestor,
+                         globalEvent.xselectionrequest.property,
+                         XA_STRING,
+                         8,
+                         PropModeReplace,
+                         (unsigned char*) globalSelection,
+                         globalSelectionSize);
+        reply.xselection.property=globalEvent.xselectionrequest.property;
+      }
+    else
+      {
+        printf ("No String %i\n",
+                (int)globalEvent.xselectionrequest.target);
+        reply.xselection.property= None;
+      }
+    reply.xselection.type= SelectionNotify;
+    reply.xselection.display= globalEvent.xselectionrequest.display;
+    reply.xselection.requestor= globalEvent.xselectionrequest.requestor;
+    reply.xselection.selection=globalEvent.xselectionrequest.selection;
+    reply.xselection.target= globalEvent.xselectionrequest.target;
+    reply.xselection.time = globalEvent.xselectionrequest.time;
+    XSendEvent(d, globalEvent.xselectionrequest.requestor,0,0,&reply);
+
+  }
+
 
 }
 
