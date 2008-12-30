@@ -83,9 +83,16 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on
   inform: 'key: ' ; e key printString.
   inform: 'mod: ' ; e modifiers printString.
   e key = 275 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
+  e key = 102 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
+
   e key = 276 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
+  e key = 98 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
+
   e key = 273 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
+  e key = 112 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
+
   e key = 274 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
+  e key = 110 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
   "backspace"
   e key = 8 ifTrue: [m repaint.
                      m editor deleteBackwardAt: m editor cursor.

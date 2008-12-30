@@ -95,6 +95,8 @@ EXPORT void slate_clipboard_update(Display* d, Window w) {
   selectionOwner = XGetSelectionOwner (d, XA_PRIMARY);
 
   if (selectionOwner == None) return;
+  if (selectionOwner == w) return; /*already on our globalSelection*/
+
   XConvertSelection(d, XA_PRIMARY, XA_STRING, None, selectionOwner, CurrentTime);
   XFlush(d);
   XGetWindowProperty(d, selectionOwner, XA_STRING, 0, 0, 0, /*don't grab any*/
@@ -105,7 +107,7 @@ EXPORT void slate_clipboard_update(Display* d, Window w) {
     result = XGetWindowProperty (d, selectionOwner, XA_STRING, 0, size, 0,
                                  AnyPropertyType, &type, &format, &len, &bytes_left, &data);
     if (result == Success) {
-      printf ("DATA IS HERE!!```%s'''\n", data);
+      free(globalSelection);
       globalSelection = malloc(size);
       if (globalSelection == NULL) {
         globalSelectionSize = 0;
@@ -126,6 +128,7 @@ EXPORT int slate_clipboard_size(Display* d, Window w) {
 }
 
 EXPORT void slate_clipboard_copy(Display* d, Window w, char* bytes, int size) {
+  free(globalSelection);
   globalSelection = malloc(size);
   if (globalSelection == NULL) {
     globalSelectionSize = 0;
