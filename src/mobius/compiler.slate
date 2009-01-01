@@ -20,6 +20,7 @@ of it."
     ifNotNilDo: [| :src | m forwardTo: src compile]
 ].
 
+lobby ensureNamespace: #VM.
 VM ensureNamespace: #SSACode.
 
 VM SSACode addImmutableSlot: #instructionInfo valued:
@@ -917,10 +918,6 @@ gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
            result: result]
     ifFalse: [resend]
 ].
-
-gen@(VM SSACompiler traits) generate: mode@(Syntax Mode traits) result: result
-"Modes are not supported for bytecode compilation."
-[shouldNotImplement].
 
 gen@(VM SSACompiler traits) printInstructionAt: pos in: array@(Array traits)
 [ | instr arguments nextStart instrVal output |

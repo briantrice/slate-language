@@ -1,3 +1,8 @@
+"This file only defines methods on Syntax Nodes for the purpose of generating
+static source output which can be used as valid input. These methods make a
+general attempt at comprehensible output. All of them assume that the
+previously-called method responsibly adds a line-ending when possible."
+
 prototypes define: #Writer &parents: {StructuredPrinterMixin. Stream WrapperStream}.
 "A basis for formatted code-printing."
 
@@ -17,3 +22,407 @@ w@(Writer traits) indentedDo: block surroundedBy: str1 and: str2
   w ; str2.
 ].
 
+
+
+Syntax define: #SourceWriter &parents: {Writer} &slots: {
+  #printComments -> False.
+  "Whether comments are added to the source. The default is not to."
+  #useApplyWith -> False.
+  "Whether method calls should be printed with applyWith:"
+  #surroundingArity -> -1.
+  "The arity of a message-send context. This is significant if >= 0, and should
+   be set to -1 otherwise. Comparisons are made with a current arity, and if the
+   current is greater, the message is surrounded with precedence-preserving
+   parentheses."
+}.
+"This visitor is a dispatch point for these methods and may be overridden."
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Node traits)
+"All printable nodes need to override this method."
+[
+  overrideThis
+].
+
+x@(Syntax Node traits) printOn: o
+"Specialize printOn: for syntax nodes"
+[
+  (x surroundings SourceWriter newOn: o) print: x.
+  o
+].
+
+w@(Syntax SourceWriter traits) print: _@(Syntax ImplicitArgument traits)
+"The target of implicit message sends to the context. Prints nothing."
+[].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Comment traits)
+"(Optionally) print out the comment on the following line."
+[
+  w print: node value.
+  w printComments
+    ifTrue: [w ; '"' ; node comment ; '"'].
+  w newLine.
+  w
+].
+
+"w@(Syntax SourceWriter traits) print: node inParenthesesOn: s
+[
+  s ; '('.
+  w print: node on: s.
+  s ; ')'.
+  w
+].
+"
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Literal traits)
+[w ; node value printString. ].
+
+w@(Syntax SourceWriter traits) printSelectorPrefixOf: _
+[].
+
+w@(Syntax SourceWriter traits) printSelectorPrefixOf: _@(Syntax Macro traits)
+[w ; '`'. ].
+
+w@(Syntax SourceWriter traits) printSelectorPrefixOf: _@(Syntax Deferred traits)
+[w ; '%'. ].
+
+w@(Syntax SourceWriter traits) withSurroundingArity: arity do: block
+[| previousArity |
+  previousArity: w surroundingArity.
+  w surroundingArity: arity.
+  block do.
+  w surroundingArity: previousArity.
+].
+
+w@(Syntax SourceWriter traits) print: node sending: selector to: args
+"Accepts a method name and array of arguments, and print the appropriate
+source on the stream."
+[| previousArity closeParen |
+  closeParen: False.
+  previousArity: w surroundingArity.
+"  w indentedDo: ["
+    (w surroundings isUnarySelector: selector)
+      ifTrue: [w withSurroundingArity: 1 do:
+                [previousArity isZero /\
+		   [(args first isSameAs: w surroundings ImplicitArgument) not]
+                    ifTrue: [w nextPut: $(. closeParen: True].
+                  (w printAsArgument: args first) ifTrue: [w newColumn].
+                  w printSelectorPrefixOf: node.
+	          w ; selector name]].
+    (w surroundings isBinarySelector: selector)
+      ifTrue: [w withSurroundingArity: 2 do:
+	        [(previousArity between: 0 and: 1) ifTrue:
+		    [w nextPut: $(. closeParen: True].
+	          (w printAsArgument: args first) ifTrue: [w newColumn].
+                  w printSelectorPrefixOf: node.
+	          w ; selector name.
+	          w newColumn.
+	          w printAsArgument: args second]].
+    "For keyword sends, print the first argument, partition the selector by
+     the colons, (at an offset of 1 to synchronize indices for looping),
+     and then loop from one to the end, printing the keywords and arguments
+     alternately."
+    (w surroundings isKeywordSelector: selector)
+      ifTrue: [| names |
+	        names: (selector name splitWith: $:).
+	        w withSurroundingArity: 3 do:
+	          [previousArity >= 0 ifTrue: [w nextPut: $(. closeParen: True].
+	            (w printAsArgument: args first) ifTrue: [w newColumn].
+	            1 below: args size do:
+		      [| :index arg |
+                        index = 1
+                          ifTrue: [w printSelectorPrefixOf: node]
+                          ifFalse: [w newColumn].
+		        w ; ((names at: index - 1) as: String).
+		        w ; ': '.
+                        w printAsArgument: (args at: index)]]].
+    closeParen ifTrue: [w nextPut: $)].
+"  ]."
+  w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax StoreVariable traits)
+[
+  w print: node sending: (node variable name name ; ':') intern
+		to: {w surroundings ImplicitArgument. node value}
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax LoadVariable traits)
+[
+  w print: node sending: node variable name to: {w surroundings ImplicitArgument}
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Message traits)
+[
+  w useApplyWith
+    ifTrue: [w ; '(' ; node selector printString ; ' applyWith: '
+		     ; node arguments printString ; ')']
+    ifFalse: [w print: node sending: node selector to: node arguments].
+  w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax OptionalKeywords traits)
+[| closeParen |
+  closeParen: False.
+  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen: True].
+  w withSurroundingArity: -1 do:
+    [w print: node message].
+  w withSurroundingArity: 2 do:
+    [node keywords with: node arguments do:
+      [| :selector :argument |
+       w indentedDo:
+	 [w newColumn.
+          w ; selector name.
+          w newColumn.
+          w printAsArgument: argument]]].
+  closeParen ifTrue: [w ; ')'].
+  w
+].
+
+w@(Syntax SourceWriter traits) isDefaultLastStatement: node
+"Whether the expression would be a default value for the last statement in a
+sequence - only True for Literal Nil."
+[False].
+
+w@(Syntax SourceWriter traits) isDefaultLastStatement: node@(Syntax Literal traits)
+[node value isNil].
+
+w@(Syntax SourceWriter traits) printStatements: statements &separatedBy: separator
+[
+  separator `defaultsTo: [w newLine].
+  w withSurroundingArity: -1 do:
+    [statements indexLast `cache.
+     statements doWithIndex:
+       [| :statement :index |
+	index = statements indexLast /\ [w isDefaultLastStatement: statement]
+          ifFalse: [w print: statement]]
+		separatedBy: [w ; '.'. separator do]].
+  w
+].
+
+w@(Syntax SourceWriter traits) printAsRole: node
+[
+  w withSurroundingArity: 0 do: [w print: node].
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax CompoundStatement traits)
+[
+  w indentedDo:
+    [w newLine.
+     w printStatements: node statements].
+  w newLine.
+  w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Array traits)
+[
+  w ; '{'.
+  resend.
+  w ; '}'.
+  w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Parenthesis traits)
+[
+  w ; '('.
+  w printStatements: node statements.
+  w ; ')'.
+  w
+].
+
+w@(Syntax SourceWriter traits) printVariablesOf: node@(Syntax Block traits) &skipInputs: skipInputs
+[
+  skipInputs `defaultsTo: False.
+  (skipInputs not /\ [node inputVariables size > 0]) \/
+    [node localVariables size > (node inputVariables size + node optionalVariables size)]
+      ifTrue:
+	[w nextPut: $|.
+         skipInputs
+           ifFalse:
+             [node inputVariables do:
+	       [| :inputVar |
+		w newColumn.
+		w ; ':' ; (inputVar name as: String)]].
+         node localVariables do:
+           [| :localVar |
+            (node inputVariables includes: localVar) \/ [node optionalVariables includes: localVar]
+              ifFalse:
+                [w newColumn.
+	         w ; (localVar name as: String)]].
+         w ; ' | '].
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Block traits)
+[
+  w ; '['.
+  w printVariablesOf: node.
+  resend.
+  w ; ']'.
+].
+
+w@(Syntax SourceWriter traits) printAsStatement: node
+[
+  w print: node
+].
+
+w@(Syntax SourceWriter traits) printArg: arg withRole: role
+[
+  w ; (arg name as: String).
+  (role is: w surroundings Literal) /\ [role value == NoRole] ifFalse:
+    [w ; '@'.
+     w printAsRole: role]
+].
+
+w@(Syntax SourceWriter traits) printMethodHeader: node@(Syntax MethodDefinition traits)
+"Accepts a method name and array of arguments, and print the appropriate
+source on the stream."
+[| args selector |
+  selector: node selector.
+  args: node inputVariables.
+  w indentedDo: [
+    (w surroundings isUnarySelector: selector) /\ [args size = 1]
+      ifTrue: [ | role |
+               role: (node roles first).
+	       w printArg: args first withRole: role.
+	       w newColumn.
+	       w ; (selector as: String)
+              ].
+    (w surroundings isBinarySelector: selector) /\ [args size = 2]
+      ifTrue: [ | role0 role1 |
+	       role0: (node roles first).
+               role1: (node roles second).
+	       w printArg: args first withRole: role0.
+	       w newColumn.
+	       w ; (selector as: String).
+	       w newColumn.
+	       w printArg: args second withRole: role1
+              ].
+    "For keyword sends, print the first argument, partition the selector by
+     the colons, (at an offset of 1 to synchronize indices for looping),
+     and then loop from one to the end, printing the keywords and arguments
+     alternately."
+    (w surroundings isKeywordSelector: selector)
+      ifTrue: [| name names |
+	        name: (selector as: String).
+	        names: (name splitWith: $:).
+	        w printArg: args first withRole: node roles first.
+	        1 below: args size
+		  do: [| :index |
+			w newColumn.
+			w ; ((names at: index - 1) as: String).
+			w nextPut: $:.
+			w newColumn.
+			w printArg: (args at: index) withRole: (node roles at: index)]].
+    node optionalKeywords with: node optionalVariables do: [| :selector :variable |
+      w newColumn.
+      w ; selector name.
+      w newColumn.
+      w ; variable name].
+  ].
+].
+
+w@(Syntax SourceWriter traits) printAsMethodBody: node@(Syntax Block traits)
+[
+  w newLine.
+  w ; '['.
+  w printVariablesOf: node &skipInputs: True.
+  w indentedDo:
+    [w newLine.
+     w printStatements: node statements].
+  w newLine.
+  w ; ']'.
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax MethodDefinition traits)
+[
+  w newLine.
+  w printMethodHeader: node.
+  w printAsMethodBody: node.
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Return traits)
+[
+  w ; node selector ; ' '.
+  w withSurroundingArity: 2 do:
+   [w print: node value].
+].
+
+w@(Syntax SourceWriter traits) print: _@(Syntax Resend traits)
+[
+  w ; 'resend'.
+].
+
+w@(Syntax SourceWriter traits) treatAsSimpleNode: node
+[| nodeCount |
+  nodeCount: 0.
+  node walk: [| :each | nodeCount: nodeCount + 1. nodeCount > 7 ifTrue: [ ^ False]].
+  True
+].
+
+"
+w@(Syntax SourceWriter traits) treatAsSimpleNode: node@(Syntax CompoundStatement traits)
+[
+  node statements size <= 1
+].
+"
+
+w@(Syntax SourceWriter traits) printAsArgument: node
+"Print the node as an argument and return wether something was printed at all"
+[
+  w print: node.
+  True
+].
+
+w@(Syntax SourceWriter traits) printAsArgument: def@(Syntax MethodDefinition traits)
+[
+  w surroundingArity < 0
+    ifFalse: [w nextPut: $(].
+  w print: node.
+  w surroundingArity < 0
+    ifFalse: [w nextPut: $)].
+  True
+].
+
+w@(Syntax SourceWriter traits) printAsArgument: _@(Syntax ImplicitArgument traits)
+[False].
+
+w@(Syntax SourceWriter traits) printAsArgument: node@(Syntax CompoundStatement traits)
+[
+  w indentedDo:
+    [w newLine.
+     w print: node].
+  True
+].
+
+w@(Syntax SourceWriter traits) printAsArgument: node@(Syntax Parenthesis traits)
+[
+  w ; '('.
+  w indentedDo:
+    [w printStatements: node statements &separatedBy: [w newColumn]].
+  w ; ')'.
+  True
+].
+
+w@(Syntax SourceWriter traits) printAsArgument: node@(Syntax Block traits)
+[
+  (w treatAsSimpleNode: node)
+    ifTrue:
+      [w ; '['.
+       w printVariablesOf: node.
+       w indentedDo:
+	 [w printStatements: node statements &separatedBy: [w newColumn]].
+       w ; ']']
+    ifFalse: [resend].
+  True
+].
+
+w@(Syntax SourceWriter traits) printAsArgument: node@(Syntax Array traits)
+[
+  (w treatAsSimpleNode: node)
+    ifTrue:
+      [w ; '{'.
+       w indentedDo:
+	 [w printStatements: node statements &separatedBy: [w newColumn]].
+       w ; '}']
+    ifFalse: [resend].
+  True
+].

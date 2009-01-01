@@ -32,18 +32,23 @@ endif
 
 ifdef DEBUG
   MODE := debug
-  COPTFLAGS += -g 
+  COPTFLAGS += -g
+  CFLAGS += -DSLATE_BUILD_TYPE="\"Debug\""
 else
   MODE := optimized
-#  COPTFLAGS += -O2
+  CFLAGS += -DSLATE_BUILD_TYPE="\"Optimized\""
+  COPTFLAGS += -O2
 endif
 
 ifdef PROFILE
   MODE += profiled
   COPTFLAGS += -pg -g
+  CFLAGS += -DSLATE_BUILD_TYPE="\"Profile\""
 else
 #  COPTFLAGS += -fomit-frame-pointer 
 endif
+
+
 
 ## All required executables
 
