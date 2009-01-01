@@ -66,9 +66,11 @@ int main(int argc, char** argv) {
     fprintf(stderr, "You must supply an image file as an argument\n");
     fprintf(stderr, "Your platform is %d bit, %s\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little endian" : "big endian");
     fprintf(stderr, "Usage: ./vm <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB|)]\n");
-    fprintf(stderr, "Options:\n");
+    fprintf(stderr, "VM Options:\n");
     fprintf(stderr, "  -mo Old memory for tenured/old objects (Default 400MB)\n");
     fprintf(stderr, "  -mn New memory for young/new objects (Default 10MB)\n");
+    fprintf(stderr, "For image options: %s <image> --image-help\n", argv[0]);
+
     return 1;
   }
 
@@ -91,7 +93,8 @@ int main(int argc, char** argv) {
       young_limit = memory_string_to_bytes(argv[i+1]);
       i++;
     } else {
-      fprintf(stderr, "Illegal argument: %s\n", argv[i]);
+      /*it might be an image argument*/
+      /*fprintf(stderr, "Illegal argument: %s\n", argv[i]);*/
     }
   }
   
