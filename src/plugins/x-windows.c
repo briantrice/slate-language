@@ -221,7 +221,14 @@ EXPORT int x_event_keyboard_key(Display* display) {
   //KeySym XKeycodeToKeysym(Display *display, KeyCode keycode, int index);
   KeyCode kc;
   KeySym ks, ksHigh, ksLow;
+  char buf[16];
+  XComposeStatus composeStatus;
+
   kc = globalEvent.xkey.keycode;
+  if (0 != XLookupString(&globalEvent.xkey, buf, 1, &ks, &composeStatus)) {
+    return (int)buf[0];
+  }
+
   ks = XKeycodeToKeysym(display, kc, 0);
   if (ks > 0xFF00) {
     return ks & 0xFF;
