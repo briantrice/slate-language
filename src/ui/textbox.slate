@@ -82,17 +82,30 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on
 [ |char oldText |
   inform: 'key: ' ; e key printString.
   inform: 'mod: ' ; e modifiers printString.
+
   e key = 275 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
-  e key = 102 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
+  e key = 102 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor).
+                                            m ensureVisibleCursor: m editor.
+                                            ^ Nil].
 
   e key = 276 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
-  e key = 98 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
+  e key = 98 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor).
+                                           m ensureVisibleCursor: m editor.
+                                           ^ Nil].
 
   e key = 273 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
-  e key = 112 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
+  e key = 112 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor).
+                                            m ensureVisibleCursor: m editor.
+                                            ^ Nil].
 
   e key = 274 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
-  e key = 110 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
+  e key = 110 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor).
+                                            m ensureVisibleCursor: m editor.
+                                            ^ Nil].
+
+  "alt-d do it"
+  e key = 100 /\ [e modifiers = 8] ifTrue: [('' concatenateAll: (m editor lines collect: #contents `er) &separator: m editor lineDelimeter) evaluate
+                                            ^ Nil].
   "backspace"
   e key = 8 ifTrue: [m repaint.
                      m editor deleteBackwardAt: m editor cursor.
@@ -185,6 +198,17 @@ m@(LineEditorMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent trai
   m
 ].
 
+m@(LineEditorMorph traits) ensureVisibleCursor: le@(LineEditor traits)
+[
+  (m visibleRange includes: le cursor line)
+    ifFalse: [m editor firstVisibleLine: (le cursor line - (m editor visibleLines // 2) max: 0)].
+].
+
+m@(LineEditorMorph traits) visibleRange
+[
+  (m editor firstVisibleLine to: (m editor firstVisibleLine + m editor visibleLines min: m editor lineCount - 1))
+].
+
 m@(LineEditorMorph traits) paintMyselfOn: surface@(Surface traits)
 [ |text|
   surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
@@ -196,7 +220,7 @@ m@(LineEditorMorph traits) paintMyselfOn: surface@(Surface traits)
 the appropriate cursor. "
 
   "fixme scrollbar position?"
-  (m editor firstVisibleLine to: (m editor firstVisibleLine + m editor visibleLines min: m editor lineCount - 1))
+  m visibleRange
     do: [ |:lineNumber line offset |
            line: ((m editor lineAt: lineNumber) as: String).
            offset: lineNumber - m editor firstVisibleLine + 1.
