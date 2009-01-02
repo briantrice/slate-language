@@ -34,9 +34,6 @@ Graphics define: #SceneElement &parents: {Cloneable} &slots: {
   #parent -> Nil.
   #region -> Nil.
 
-  #dragging -> False.
-  #dragOffset -> Nil.
-  #canDrag -> False.
 }.
 
 "this is the top level 'world' morph in a scene"
@@ -59,7 +56,18 @@ Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color.
 
 "this is the main morph class that can hold children and has a theme"
 Graphics define: #Morph &parents: {SceneElement}
-  &slots: {#theme -> BasicTheme new. #children -> ExtensibleArray new}.
+  &slots: {#theme -> BasicTheme new. 
+           #children -> ExtensibleArray new.
+           #dragging -> False.
+           #dragOffset -> Nil.
+           #resizeOffset -> Nil.
+           #canDrag -> False.
+           #canResize -> False.
+           #resizing -> False.
+           #minWidth -> 10. "for resizing"
+           #minHeight -> 10.
+           #borderWidth -> 5.
+           }.
 
 Graphics define: #LabelMorph &parents: {Morph} &slots: {#text -> ''. #fontSize -> 14}.
 
@@ -175,18 +183,29 @@ se@(SceneElement traits) rightCenter [ se region rightCenter].
 se@(SceneElement traits) absolutePosition [se parent absolutePosition + se region origin].
 
 
-se@(SceneElement traits) startDragging: position
+se@(Morph traits) startDragging: position
 [
   se dragging: True.
   se dragOffset: se absolutePosition - position.
 ].
 
-se@(SceneElement traits) stopDragging: position
+se@(Morph traits) startResizing: position
+[
+  se resizing: True.
+  se resizeOffset: (0 , 0) - se absolutePosition.
+].
+
+se@(Morph traits) stopDragging: position
 [
   se dragging: False.
   se dragOffset: Nil.
 ].
 
+se@(Morph traits) stopResizing: position
+[
+  se resizing: False.
+  se resizeOffset: Nil.
+].
 
 surface@(Surface traits) ensurePaint: block
 [
@@ -311,7 +330,11 @@ m@(Morph traits) handle: input@(DropFocusEvent traits)
 
 
 m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
-[
+[ | bw |
+  bw: m borderWidth.
+  "handle in bottom right of window"
+  m canResize /\ [(Rectangle origin: m absolutePosition + m region extent - (bw , bw) extent: (bw , bw)) contains: input position]
+    ifTrue: [m startResizing: input position. m requestFocus. ^ m].
   m canDrag ifTrue: [m startDragging: input position].
   m requestFocus. "necessary to receive a click event"
   m
@@ -319,14 +342,20 @@ m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
 
 m@(Morph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [
-  m canDrag ifTrue: [m stopDragging: input position].
+  m dragging ifTrue: [m stopDragging: input position].
+  m resizing ifTrue: [m stopResizing: input position].
   m dropFocus.
   m
 ].
 
 m@(Morph traits) handleMyself: input@(MouseMotionEvent traits)
-[
+[ | extent |
+ 
   m dragging ifTrue: [m region: (Rectangle origin: input position + m dragOffset extent: m region extent). m repaint].
+  m resizing ifTrue: [extent: input position + m resizeOffset.
+                      m region: (Rectangle origin: m region origin 
+                                           extent: (extent x max: m minHeight) , (extent y max: m minWidth)).
+                      m repaint].
   m
 ].
 

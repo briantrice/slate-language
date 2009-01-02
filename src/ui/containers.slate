@@ -1,0 +1,44 @@
+
+
+Graphics define: #AlignmentMorph &parents: {Morph} &slots: {#vertical -> True. #percentages -> {}. #startOffset -> 0}.
+Graphics define: #WindowMorph &parents: {AlignmentMorph} &slots: {#title -> 'System Window'}.
+
+
+m@(AlignmentMorph traits) pack
+[ | currentPosition nextPosition size |
+   "set all the children's sizes"
+  currentPosition: m startOffset.
+  m vertical
+    ifTrue: [m children doWithIndex: [|:child :i| 
+                                        size: (m percentages at: i) // 100 * m height.
+                                        nextPosition: currentPosition + size.
+                                        child region topLeft: (0 , currentPosition).
+                                        child region width: m width - m borderWidth.
+                                        child region height: (size - 1 min: m height - m borderWidth).
+                                        currentPosition: nextPosition.
+                                        ]]
+    ifFalse: [m children doWithIndex: [|:child :i| 
+                                        size: (m percentages at: i) // 100 * m width.
+                                        nextPosition: currentPosition + size.
+                                        child region topLeft: (currentPosition , 0).
+                                        child region width: (size - 1 min: m width - m borderWidth).
+                                        child region height: m height - m borderWidth.
+                                        currentPosition: nextPosition.
+                                        ]]
+].
+
+
+
+
+
+m@(WindowMorph traits) paintMyselfOn: surface@(Surface traits)
+[
+  surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m fontSize.
+  surface moveTo: 10 , (m height // 2).
+  surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+  surface showText: m text.
+].
