@@ -230,6 +230,8 @@ gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameter
 
 gen@(VM SSACompiler traits) emitInstruction: code withParameters: values from: node
 [
+  "add the selector to the list so we know what this function calls... so it can be unoptimized if needed"
+  code = gen directSendMessage ifTrue: [gen currentContext method selectors: gen currentContext method selectors ; {values second}].
   gen emitObject: code from: node.
   values do: [| :value | gen emitObject: value from: node]
 ].

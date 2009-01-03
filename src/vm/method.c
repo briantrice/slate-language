@@ -270,7 +270,7 @@ void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method)
 }
 
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
-#ifdef PRINT_DEBUG_OPTIMIZER
+#ifdef PRINT_DEBUG_UNOPTIMIZER
   printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
 #endif
   method->code = method->oldCode;

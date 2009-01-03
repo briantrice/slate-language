@@ -1,44 +1,60 @@
 
 
-Graphics define: #AlignmentMorph &parents: {Morph} &slots: {#vertical -> True. #percentages -> {}. #startOffset -> 0}.
+Graphics define: #AlignmentMorph &parents: {Morph} &slots: {#vertical -> True. #percentages -> {100}.
+ #leftBorder -> 0. #topBorder -> 0. #rightBorder -> 0. #bottomBorder -> 0.}.
 Graphics define: #WindowMorph &parents: {AlignmentMorph} &slots: {#title -> 'System Window'}.
 
+m@(WindowMorph traits) new
+[ "with some defaults"
+  resend `>> [canResize: True. canDrag: True.
+              topBorder: m theme titleFontSize. 
+              leftBorder: m borderWidth. 
+              rightBorder: m borderWidth. 
+              bottomBorder: m borderWidth. ]
+].
 
 m@(AlignmentMorph traits) pack
 [ | currentPosition nextPosition size |
    "set all the children's sizes"
-  currentPosition: m startOffset.
+  
   m vertical
-    ifTrue: [m children doWithIndex: [|:child :i| 
+    ifTrue: [currentPosition: m topBorder.
+             m children doWithIndex: [|:child :i| 
                                         size: (m percentages at: i) // 100 * m height.
                                         nextPosition: currentPosition + size.
-                                        child region topLeft: (0 , currentPosition).
-                                        child region width: m width - m borderWidth.
-                                        child region height: (size - 1 min: m height - m borderWidth).
+                                        child region: (Rectangle origin: (m leftBorder , currentPosition)
+                                                                 corner: m width - m rightBorder , (size - 1 min: m height - m bottomBorder)).
                                         currentPosition: nextPosition.
                                         ]]
-    ifFalse: [m children doWithIndex: [|:child :i| 
+    ifFalse: [currentPosition: m leftBorder.
+              m children doWithIndex: [|:child :i| 
                                         size: (m percentages at: i) // 100 * m width.
                                         nextPosition: currentPosition + size.
-                                        child region topLeft: (currentPosition , 0).
-                                        child region width: (size - 1 min: m width - m borderWidth).
-                                        child region height: m height - m borderWidth.
+                                        child region: (Rectangle origin: (currentPosition , m topBorder).
+                                                                 corner: (size - 1 min: m width - m rightBorder) , (m height - m bottomBorder))
                                         currentPosition: nextPosition.
                                         ]]
 ].
 
-
+m@(AlignmentMorph traits) sizeChanged
+[
+  m pack.
+  m repaint.
+].
 
 
 
 m@(WindowMorph traits) paintMyselfOn: surface@(Surface traits)
 [
-  surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
+  surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
   surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
-  surface fontSize: m fontSize.
-  surface moveTo: 10 , (m height // 2).
+  surface fontSize: m theme titleFontSize.
+  surface moveTo: 5 , m topBorder - 1.
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
-  surface showText: m text.
+  surface showText: m title.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 1 , 1 extent: m width , m topBorder - 1). surface stroke.
+  surface rectangle: (Rectangle origin: m width - m borderWidth , 1 extent: m width , m topBorder - 1). surface stroke.
 ].
