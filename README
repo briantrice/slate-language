@@ -60,6 +60,27 @@ src/plugins -> C code for slate FFI calls. `make plugins' to build
 src/ui -> The slate UI code that probably calls plugins to draw the basics. See init.slate for loading.
 
 
+Stack format
+------------
+
+The caller is about to call the callee.
+fp at the time of the activation is equal to the current stack pointer plus the function frame size (6).
+
+stack[fp-6] -> the stack pointer before the stack allocation for this frame + localvars + registers is done
+stack[fp-5] -> the absolute position (stack location) of where the callee should place its result
+stack[fp-4] -> the current code pointer (ip) of the caller
+stack[fp-3] -> the callee's closure/method
+stack[fp-2] -> the callee's lexical context (nil for stack allocated frames)
+stack[fp-1] -> frame pointer of caller
+stack[fp+0] .. stack[fp+lvCount+registerCount] -> local variables + registers
+
+When you return from a function and you want to restore the frame in
+the interpreter object to what it was before the call, you restore
+everything based on fp (interpreter's current fp) except the closure
+and the lexical context which are restored based on the saved
+framepointer (at fp-1) using the previous frame (notice callee
+vs. caller).
+
 
 Compiler
 --------
