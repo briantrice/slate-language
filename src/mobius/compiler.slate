@@ -222,7 +222,8 @@ gen@(VM SSACompiler traits) mapTo: sourceTree
   index: gen codeWriter position.
   debugMap: gen currentContext debugMap.
   debugMap isEmpty not /\ [debugMap last == sourceTree]
-    ifTrue: [debugMap at: debugMap indexLast put: index]
+    ifTrue: [debugMap at: debugMap indexLast - 1 put: (index max: (debugMap at: debugMap indexLast - 1)).
+             debugMap at: debugMap indexLast - 2 put: (index min: (debugMap at: debugMap indexLast - 2))]
     ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
 ].
 
