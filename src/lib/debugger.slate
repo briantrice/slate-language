@@ -1,9 +1,18 @@
+
+"DebugConsole writeStream collectionLimit: 512.
+DebugConsole writeStream nestingLimit: 3.
+Stream PrettyPrinter collectionLimit: 512.
+Stream PrettyPrinter nestingLimit: 3."
+
+Stream PrettyPrinter collectionLimit: 512.
+Stream PrettyPrinter nestingLimit: 3.
+
 conditions define: #Debugger &parents: {Cloneable}
   &slots: {#condition -> Nil.
            #restarts -> ExtensibleArray new.
            #interpreter -> bootstrapInterpreter.
            #resource -> DebugConsole.
-           #parser -> Syntax Parser new.
+           #parser -> Syntax Parser.
            #printer -> DebugConsole writer.
            #namespace -> lobby newSubSpace.
            #frameList -> Nil.
@@ -31,6 +40,8 @@ d@(Debugger traits) on: resource
   d resource: resource.
   d parser: (d parser newOn: resource reader).
   d printer: resource writer.
+  d printer collectionLimit: Stream PrettyPrinter collectionLimit.
+  d printer nestingLimit: Stream PrettyPrinter nestingLimit.
   d
 ].
 
@@ -249,8 +260,10 @@ d@(Debugger traits) installMethods
 d@(Debugger traits) enter
 "The main interactive debugger loop."
 [
+  d printer ; 'We are entering the debugger...\n'.
   d refreshWorkspace.
   d findRestarts.
+  d printBacktrace.
   d describeRestarts.
 
   [d prompt] loop
