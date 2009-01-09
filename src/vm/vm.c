@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
   assert(fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file) == 1);
 
   if (sih.size == 0) {
-    fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wronge WORD_SIZE. Run slate without any options to see your build configuration.\n");
+    fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wrong WORD_SIZE. Run slate without any options to see your build configuration.\n");
     return 1;
 
   }
