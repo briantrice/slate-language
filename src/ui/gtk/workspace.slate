@@ -1,0 +1,152 @@
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #codeBuffer.	#view. #namespace }.
+Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
+
+w@(Gtk Workspace traits) buildMenuBar [
+	| menuBar menu menuItem |
+	menuBar: Gtk MenuBar new.
+	menu: Gtk Menu new.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Do it').
+	menuItem when: #activate send: #evaluateSelected: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Print it').
+	menuItem when: #activate send: #printSelected: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Inspect it').
+	menuItem when: #activate send: #inspectSelected: to: w.
+	menu append: menuItem.
+	
+	menuBar append: (menu createMenuItem: '_Code').
+	menu: Gtk Menu new.
+	menu append: (Gtk MenuItem newWithMnemonic: '_Cut').
+	menu append: (Gtk MenuItem newWithMnemonic: 'C_opy').
+	menu append: (Gtk MenuItem newWithMnemonic: '_Paste').
+	menuBar append: (menu createMenuItem: '_Edit').
+	menuBar
+].
+
+w@(Gtk Workspace traits) buildToolBar [
+	| toolBar toolButton |
+
+	toolBar: Gtk Toolbar new.
+	toolButton: (Gtk ToolButton newFromStockID: 'gtk-execute').
+	toolButton when: #clicked send: #evaluateSelected: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStockID: 'gtk-print').
+	toolButton when: #clicked send: #printSelected: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStockID: 'gtk-find').
+	toolButton when: #clicked send: #inspectSelected: to: w.
+	toolBar insert: toolButton.
+	
+	toolBar
+].
+
+w@(Gtk Workspace traits) buildCodeView [
+	| codeView |
+	w codeBuffer: Gtk TextBuffer new.
+	codeView: (Gtk TextView newWithBuffer: w codeBuffer).
+	codeView wrapMode: Gtk WrapMode WordChar.
+	Gtk ScrolledWindow newWithChild: codeView
+].
+
+w@(Gtk Workspace traits) new [
+	| workspace |
+		
+	workspace: resend.
+	workspace buildView.
+	workspace namespace: lobby newSubSpace.
+	workspace
+].
+
+w@(Gtk Workspace traits) show [
+	w view showAll.
+	w
+].
+
+w@(Gtk Workspace traits) destroy: _ [
+	w view destroy.
+	w codeBuffer: Nil.
+	w view: Nil.
+	w namespace: Nil.
+].
+
+w@(Gtk Workspace traits) buildView [
+	| vBox |
+	
+	w view: Gtk Window newTopLevel.
+	w view when: #destroy send: #destroy: to: w.
+	w view title: 'Workspace'.
+	w view defaultSizeWidth: 640 height: 480.
+	vBox: Gtk VBox new.
+	vBox packStart: (w buildMenuBar) &expand: False.
+	vBox packStart: (w buildToolBar) &expand: False.
+	vBox packStart: (w buildCodeView).
+	vBox packStart: (Gtk Statusbar new) &expand: False.
+	w view add: vBox.
+	w
+].
+
+w@(Gtk Workspace traits) selectedTextOrCurrentLine [
+	| selection |
+
+	selection: w codeBuffer selection.
+	selection ifNil: [
+		| iter |
+		iter: (w codeBuffer iterAtMark: w codeBuffer insertMark).
+		iter line: iter line.
+		w codeBuffer moveMarkNamed: 'insert' to: iter.
+		iter forwardToLineEnd.
+		w codeBuffer moveMarkNamed: 'selection_bound' to: iter.
+		selection: w codeBuffer selection.
+	].
+	selection
+		ifNil: [ '' ]
+		ifNotNil: [ w codeBuffer textFrom: selection first to: selection last ]
+].
+
+w@(Gtk Workspace traits) evaluateSelected [
+	| selection parser result |
+
+	selection: w selectedTextOrCurrentLine.
+	parser: (Syntax Parser newOn: selection).
+  	[ parser isAtEnd ] whileFalse: [	
+    	result: ([ parser next evaluateIn: w namespace ] on: SeriousCondition do: [
+			| :c stream dialog |
+			stream: (Stream newTo: String new).
+			c describeOn: stream.
+			dialog: (Gtk MessageDialog newErrorMessage: stream contents &parent: w view).
+			dialog when: #response do: [ | :args | dialog destroy ].
+			dialog show.
+			c exit 
+		])
+	].
+	result
+].
+
+w@(Gtk Workspace traits) evaluateSelected: _ [
+	w evaluateSelected
+].
+
+w@(Gtk Workspace traits) printSelected: _ [
+	w display: w evaluateSelected printString.
+].
+
+w@(Gtk Workspace traits) inspectSelected: _ [
+	(Gtk Inspector newOn: w evaluateSelected) show.
+].
+
+w@(Gtk Workspace traits) display: aString [
+	| iter offset |
+
+	iter: (w codeBuffer iterAtMark: w codeBuffer selectionBound).
+	w codeBuffer moveMarkNamed: 'insert' to: iter.
+	offset: iter offset.
+	w codeBuffer insertAtCursor: ( ' '; aString ).
+	iter: (w codeBuffer iterAtOffset: offset).
+	w codeBuffer moveMarkNamed: 'selection_bound' to: iter.
+].

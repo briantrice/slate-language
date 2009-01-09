@@ -1,0 +1,27 @@
+Gtk define: #TextView &parents: {Gtk Container}.
+Gtk TextView traits atSlotNamed: #printName put: 'Gtk TextView'. 
+
+tv@(Gtk TextView traits) new [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_new do
+	])
+].
+
+tv@(Gtk TextView traits) newWithBuffer: buffer [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_new_with_buffer applyTo: {buffer handle}
+	])
+].
+
+tv@(Gtk TextView traits) buffer [
+	Gtk TextBuffer newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_get_buffer applyTo: {tv handle}
+	])
+].
+
+tv@(Gtk TextView traits) wrapMode: wrapMode [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_set_wrap_mode applyTo: {tv handle. wrapMode}
+	].
+	tv
+].

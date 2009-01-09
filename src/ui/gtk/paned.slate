@@ -1,0 +1,36 @@
+Gtk define: #Paned &parents: {Gtk Container}.
+Gtk Paned traits atSlotNamed: #printName put: 'Gtk Paned'. 
+
+p@(Gtk Paned traits) packFirst: child resize: resize shrink: shrink [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_paned_pack1 applyTo: {p handle. child handle. resize. shrink}
+	].
+	p
+].
+
+p@(Gtk Paned traits) packSecond: child resize: resize shrink: shrink [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_paned_pack2 applyTo: {p handle. child handle. resize. shrink}
+	].
+	p
+].
+
+p@(Gtk Paned traits) addFirst: child [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_paned_add1 applyTo: {p handle. child handle }
+	].
+	p
+].
+
+p@(Gtk Paned traits) addSecond: child [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_paned_add2 applyTo: {p handle. child handle}
+	].
+	p
+].
+
+p@(Gtk Paned traits) first: first second: second [
+	p addFirst: first.
+	p addSecond: second.
+	p
+].

@@ -1,0 +1,17 @@
+Gtk define: #MenuItem &parents: {Gtk Item}.
+Gtk MenuItem traits atSlotNamed: #printName put: 'Gtk MenuItem'. 
+
+mi@(Gtk MenuItem traits) newWithMnemonic: mnemonic  [
+"Creates a new GtkMenuItem containing a label. The label will be created using 
+gtk_label_new_with_mnemonic(), so underscores in label indicate the mnemonic for the menu item."
+	mi newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_menu_item_new_with_mnemonic applyTo: {mnemonic}
+	])
+].
+
+mi@(Gtk MenuItem traits) submenu: submenu [
+	(Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_menu_item_set_submenu applyTo: { mi handle. submenu handle }
+	]).	
+].
+

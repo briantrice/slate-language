@@ -1,0 +1,27 @@
+Gtk define: #Widget &parents: {Gtk Object}.
+Gtk Widget traits atSlotNamed: #printName put: 'Gtk Widget'. 
+
+w@(Gtk Widget traits) show [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_widget_show applyTo: {w handle}
+	]
+].
+
+w@(Gtk Widget traits) showAll [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_widget_show_all applyTo: {w handle}
+	]
+].
+
+w@(Gtk Widget traits) destroy [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_widget_destroy applyTo: {w handle}
+	]
+].
+
+w@(Gtk Widget traits) sizeRequest: size@(Tuple traits) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_widget_set_size_request applyTo: {w handle. size at: 0. size at: 1}
+	].
+	w
+].

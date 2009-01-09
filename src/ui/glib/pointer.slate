@@ -1,0 +1,16 @@
+GLib define: #Pointer &parents: {Cloneable} &slots: {#handle}. 
+GLib Pointer traits atSlotNamed: #printName put: 'GLib Pointer'. 
+
+GLib Pointer compareAndHashUsingSlots: #(handle).
+
+p@(GLib Pointer traits) newNull [
+	p newWithHandle: (ByteArray new &capacity: bytesPerWord)
+].
+
+p@(GLib Pointer traits) newWithHandle: h [
+	p cloneSettingSlots: #(handle) to: {h}
+].
+
+_@(GLib Pointer traits) gType [
+	GLib FundamentalType Pointer
+].

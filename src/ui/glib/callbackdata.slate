@@ -1,0 +1,49 @@
+GLib define: #CallbackData &parents: {GLib Pointer}.
+GLib CallbackData traits atSlotNamed: #printName put: 'GLib CallbackData'. 
+"	
+struct: CallbackData
+	gint blockID;
+	gint parameterCount;
+	GValue* parameters[];
+"
+cd@(GLib CallbackData traits) blockID [
+	GLib Lib primitives wrapper_g_callback_data_get_block_id applyTo: { cd handle }
+].	
+	
+cd@(GLib CallbackData traits) parameterCount [
+	GLib Lib primitives wrapper_g_callback_data_get_parameter_count applyTo: { cd handle }
+].	
+	
+cd@(GLib CallbackData traits) parameterAt: index [
+	GLib Value newWithHandle: (
+		GLib Lib primitives wrapper_g_callback_data_get_parameter_at applyTo: { cd handle. index }
+	)
+].	
+	
+cd@(GLib CallbackData traits) parameterArray [
+	| size array param |
+	size: cd parameterCount.
+	array: (Array newSize: size).
+	0 below: size do: [ | :i |
+		param: (cd parameterAt: i).
+		array at: i put: param value. 
+	].
+	array
+].
+
+cd@(GLib CallbackData traits) waitNext [
+	cd newWithHandle: GLib Lib primitives wrapper_g_callback_wait_next do
+].
+
+cd@(GLib CallbackData traits) end [
+	GLib Lib primitives wrapper_g_callback_end applyTo: { cd handle }
+].
+
+
+_@(GLib CallbackData traits) initQueue [
+	GLib Lib primitives wrapper_g_callback_queue_init do.
+].
+
+_@(GLib CallbackData traits) shutdownQueue [
+	GLib Lib primitives wrapper_g_callback_queue_shutdown do.
+].

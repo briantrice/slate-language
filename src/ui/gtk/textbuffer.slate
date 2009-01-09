@@ -1,0 +1,110 @@
+Gtk define: #TextBuffer &parents: {GLib Object}.
+Gtk TextBuffer traits atSlotNamed: #printName put: 'Gtk TextBuffer'. 
+
+tb@(Gtk TextBuffer traits) new &table: table [
+	tb newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_new applyTo: {table ifNotNil: [ table handle ]}
+	])
+].
+
+tb@(Gtk TextBuffer traits) selectionBoundsStart: start end: end [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_selection_bounds applyTo: {tb handle. start handle. end handle }
+	]
+].
+
+tb@(Gtk TextBuffer traits) selectionBound [
+	Gtk TextMark newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_selection_bound applyTo: {tb handle }
+	])
+].
+
+tb@(Gtk TextBuffer traits) selection [
+	| startIter endIter |
+	startIter: Gtk TextIter new.
+	endIter: Gtk TextIter new.
+	(tb selectionBoundsStart: startIter end: endIter) 
+		ifTrue: [ {startIter. endIter} ]
+		ifFalse: [ Nil ]	
+].
+
+tb@(Gtk TextBuffer traits) textFrom: start to: end &includeHiddenChars: include [
+	include `defaultsTo: False.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_text applyTo: {tb handle. start handle. end handle. include }
+	]
+].
+
+tb@(Gtk TextBuffer traits) insertMark [
+	Gtk TextMark newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_insert applyTo: { tb handle }
+	])
+].
+
+tb@(Gtk TextBuffer traits) iterAtMark: mark [
+	| iter |
+	iter: Gtk TextIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_iter_at_mark applyTo: { tb handle. iter handle. mark handle }
+	].
+	iter
+].
+
+tb@(Gtk TextBuffer traits) moveMarkNamed: name to: where [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_move_mark_by_name applyTo: { tb handle. name. where handle }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) insertAtCursor: text [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_insert_at_cursor applyTo: { tb handle. text. text size }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) iterAtOffset: offset [
+	| iter |
+	iter: Gtk TextIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_iter_at_offset applyTo: { tb handle. iter handle. offset }
+	].
+	iter
+].
+
+tb@(Gtk TextBuffer traits) startIter [
+	| iter |
+	iter: Gtk TextIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_start_iter applyTo: { tb handle. iter handle }
+	].
+	iter
+].
+
+tb@(Gtk TextBuffer traits) endIter [
+	| iter |
+	iter: Gtk TextIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_end_iter applyTo: { tb handle. iter handle }
+	].
+	iter
+].
+
+tb@(Gtk TextBuffer traits) clear [
+	tb deleteFrom: tb startIter to: tb endIter
+].
+
+tb@(Gtk TextBuffer traits) deleteFrom: startIter to: endIter [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_delete applyTo: { tb handle. startIter handle. endIter handle }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) text: text [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_set_text applyTo: { tb handle. text. text size }
+	].
+	tb
+].

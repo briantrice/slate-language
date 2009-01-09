@@ -1,0 +1,102 @@
+GLib define: #Value &parents: {GLib Pointer}. 
+GLib Value traits atSlotNamed: #printName put: 'GLib Value'. 
+
+v@(GLib Value traits) new [
+	v newWithHandle: ( GLib Lib primitives wrapper_g_value_new do )
+].
+
+v@(GLib Value traits) initWithType: type@(GLib Type traits) [
+	GLib Lib primitives g_value_init applyTo: {v handle. type type}.
+	v
+].
+
+v@(GLib Value traits) newFor: object [
+	| newValue |
+	newValue: (v new initWithType: object gType).
+	newValue value: object.
+	newValue
+].
+
+v@(GLib Value traits) type [
+	| type |
+	type: (GLib Lib primitives wrapper_g_value_type applyTo: {v handle}).
+	GLib Type newWithType: type
+].
+
+v@(GLib Value traits) as: type@(Integer traits) [
+	v type fundamentalType caseOf: {
+		(GLib FundamentalType Int) -> [ GLib Lib primitives g_value_get_int applyTo: { v handle } ].
+		(GLib FundamentalType UInt) -> [ GLib Lib primitives g_value_get_uint applyTo: { v handle } ].
+		(GLib FundamentalType Long) -> [ GLib Lib primitives g_value_get_long applyTo: { v handle } ].
+		(GLib FundamentalType ULong) -> [ GLib Lib primitives g_value_get_ulong applyTo: { v handle } ].
+		(GLib FundamentalType Enum) -> [ GLib Lib primitives g_value_get_enum applyTo: { v handle } ]
+	} otherwise: [ 
+		error: (v type fundamentalType name ; ' is an unknown int type'). 
+	]
+].
+
+v@(GLib Value traits) as: _@(String traits) [
+	GLib Lib primitives g_value_get_string applyTo: { v handle }
+].
+
+v@(GLib Value traits) as: _@(Boolean traits) [
+	GLib Lib primitives g_value_get_boolean applyTo: { v handle }
+].
+
+v@(GLib Value traits) as: _@(GLib Boxed traits) [
+	GLib Boxed newWithHandle: (
+		GLib Lib primitives g_value_get_boxed applyTo: { v handle }
+	)
+].
+
+v@(GLib Value traits) as: _@(GLib Object traits) [
+	GLib Object objectFromHandle: (
+		GLib Lib primitives g_value_get_object applyTo: { v handle }
+	)
+].
+
+v@(GLib Value traits) value [
+	v type fundamentalType caseOf: {
+		(GLib FundamentalType Int) -> [v as: Integer].
+		(GLib FundamentalType UInt) -> [v as: Integer].
+		(GLib FundamentalType Long) -> [v as: Integer].
+		(GLib FundamentalType ULong) -> [v as: Integer].
+		(GLib FundamentalType Enum) -> [v as: Integer].
+		(GLib FundamentalType String) -> [v as: String].
+		(GLib FundamentalType Boolean) -> [v as: Boolean].
+		(GLib FundamentalType Object) -> [v as: GLib Object].
+		(GLib FundamentalType Boxed) -> [v as: GLib Boxed]
+	} otherwise: [ 
+		error: (v type fundamentalType name ; ' is an unknown type') 
+	]
+].
+
+v@(GLib Value traits) value: value@(String traits) [
+	GLib Lib primitives g_value_set_string applyTo: {v handle. value }.
+	v
+].
+
+v@(GLib Value traits) value: value@(Boolean traits) [
+	GLib Lib primitives g_value_set_boolean applyTo: {v handle. value }.
+	v
+].
+
+v@(GLib Value traits) value: value@(Integer traits) [
+	GLib Lib primitives g_value_set_int applyTo: {v handle. value }.
+	v
+].
+
+v@(GLib Value traits) value: value@(Float traits) [
+	GLib Lib primitives g_value_set_float applyTo: {v handle. value }.
+	v
+].
+
+v@(GLib Value traits) value: value@(GLib Pointer traits) [
+	GLib Lib primitives g_value_set_pointer applyTo: {v handle. value handle}.
+	v
+].
+
+v@(GLib Value traits) value: value@(GLib Object traits) [
+	GLib Lib primitives g_value_set_object applyTo: {v handle. value handle}.
+	v
+].

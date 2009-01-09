@@ -91,6 +91,12 @@ CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
 LDFLAGS_x-windows.lo=`pkg-config --libs x11` `pkg-config --libs cairo`
 CFLAGS_cocoa-windows.c=`pkg-config --cflags cocoa` `pkg-config --cflags cairo`
 LDFLAGS_cocoa-windows.lo=`pkg-config --libs cocoa` `pkg-config --libs cairo`
+CFLAGS_glib-wrapper.c=`pkg-config --cflags glib-2.0` 
+LDFLAGS_glib-wrapper.lo=`pkg-config --libs glib-2.0` `pkg-config --libs gobject-2.0` 
+CFLAGS_gdk-wrapper.c=`pkg-config --cflags gdk-2.0`
+LDFLAGS_gdk-wrapper.lo=`pkg-config --libs gdk-2.0` `pkg-config --libs gthread-2.0`
+CFLAGS_gtk-wrapper.c=`pkg-config --cflags gtk+-2.0`
+LDFLAGS_gtk-wrapper.lo=`pkg-config --libs gtk+-2.0`
 
 
 PRINT_DEBUG_Y=  -DPRINT_DEBUG_STACK_POINTER  -DPRINT_DEBUG_STACK_PUSH -DPRINT_DEBUG_FOUND_ROLE  -DPRINT_DEBUG_FUNCALL   
@@ -168,6 +174,7 @@ endif
 
 ifeq ($(HOST_SYSTEM), Linux)
   LIBS       := -lm -ldl
+  PLUGINS    += gtk-wrapper.so gdk-wrapper.so glib-wrapper.so
 endif
 
 ifeq ($(findstring MINGW,$(HOST_SYSTEM)), MINGW)

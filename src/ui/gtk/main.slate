@@ -1,0 +1,60 @@
+Gtk define: #Main &parents: {Cloneable}
+	&slots: { #initialized -> False. #callbackBlocks -> Nil. #nextBlockID -> 1 }.
+Gtk Main traits atSlotNamed: #printName put: 'Gtk Main'. 
+
+_@(Gtk Main traits) mainQuit [
+	Gtk Lib primitives gtk_main_quit do
+].
+
+m@(Gtk Main traits) registerCallbackBlock: aBlock [
+	| blockID |
+	blockID: m nextBlockID.
+	m callbackBlocks at: blockID put: aBlock.
+	m nextBlockID: (blockID + 1).
+	blockID
+].
+
+m@(Gtk Main traits) unregisterCallbackBlock: blockID [
+	m callbackBlocks removeKey: blockID.
+].
+
+m@(Gtk Main traits) init [
+	m initialized ifFalse: [
+		Gdk Lib init.
+		GLib CallbackData initQueue.
+		Gtk Lib init.
+		m callbackBlocks: Dictionary new.
+		m initialized: True.
+	]
+].
+
+m@(Gtk Main traits) shutdown [
+	m initialized ifTrue: [
+		m mainQuit.
+		m callbackBlocks: Nil.
+		m initialized: False.
+		GLib CallbackData shutdownQueue.
+	]
+].
+
+m@(Gtk Main traits) callbackBlockDo: callbackData@(GLib CallbackData traits) [
+	| block |
+	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
+	[ (m callbackBlocks at: callbackData blockID) applyTo: {callbackData parameterArray } ]
+		on: SeriousCondition
+		do: [ | :c | c describeOn: Console ].
+	callbackData end.
+].
+
+m@(Gtk Main traits) doEventLoop [
+	[	m callbackBlockDo: GLib CallbackData waitNext.
+		True
+	] whileTrue.
+].
+
+m@(Gtk Main traits) do: aBlock [
+	m init.
+	aBlock do.
+	m doEventLoop.
+	m shutdown.
+].

@@ -1,0 +1,38 @@
+Gtk define: #MessageDialog &parents: {Gtk Dialog}.
+Gtk MessageDialog traits atSlotNamed: #printName put: 'Gtk MessageDialog'. 
+
+md@(Gtk MessageDialog traits) newWithFlags: flags type: type buttons: buttons &message: message &parent: parent [
+	| parentHandle |
+	parentHandle: (parent ifNil: [ Nil ] ifNotNil: [ parent handle ]).
+	md newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_message_dialog_new applyTo: {parentHandle. flags. type. buttons. message }
+	])
+].
+
+md@(Gtk MessageDialog traits) newErrorMessage: message &parent: parent [
+	md newWithFlags: Gtk DialogFlags Modal
+		type: Gtk MessageType Error
+		buttons: Gtk ButtonsType Ok
+		&message: message &parent: parent
+].
+
+md@(Gtk MessageDialog traits) newInfoMessage: message &parent: parent [
+	md newWithFlags: Gtk DialogFlags Modal
+		type: Gtk MessageType Info
+		buttons: Gtk ButtonsType Ok
+		&message: message &parent: parent
+].
+
+md@(Gtk MessageDialog traits) newQuestionMessage: message &parent: parent [
+	md newWithFlags: Gtk DialogFlags Modal
+		type: Gtk MessageType Question
+		buttons: Gtk ButtonsType YesNo
+		&message: message &parent: parent
+].
+
+md@(Gtk MessageDialog traits) newWarningMessage: message &parent: parent [
+	md newWithFlags: Gtk DialogFlags Modal
+		type: Gtk MessageType Warning
+		buttons: Gtk ButtonsType Ok
+		&message: message &parent: parent
+].

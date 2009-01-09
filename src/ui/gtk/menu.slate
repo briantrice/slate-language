@@ -1,0 +1,17 @@
+Gtk define: #Menu &parents: {Gtk MenuShell}.
+Gtk Menu traits atSlotNamed: #printName put: 'Gtk Menu'. 
+
+m@(Gtk Menu traits) new [
+	m newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_menu_new do
+	])
+].
+
+m@(Gtk Menu traits) createMenuItem: mnemonic [
+	| menuItem |
+	"Creates a menu item with the given label and attach self as its submenu"
+	menuItem: (Gtk MenuItem newWithMnemonic: mnemonic).
+	menuItem submenu: m.
+	menuItem
+].
+

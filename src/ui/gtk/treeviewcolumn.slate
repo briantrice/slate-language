@@ -1,0 +1,37 @@
+Gtk define: #TreeViewColumn &parents: {Gtk Object}.
+Gtk TreeViewColumn traits atSlotNamed: #printName put: 'Gtk TreeViewColumn'. 
+
+tvc@(Gtk TreeViewColumn traits) new [
+	tvc newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_column_new do
+	])
+].
+
+tvc@(Gtk TreeViewColumn traits) title: title [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_column_set_title applyTo: {tvc handle. title}
+	].
+	tvc
+].
+
+tvc@(Gtk TreeViewColumn traits) packStart: cell &expand: expand [
+	expand `defaultsTo: True.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_column_pack_start applyTo: {tvc handle. cell handle. expand}
+	].
+	tvc
+].
+
+tvc@(Gtk TreeViewColumn traits) addAttribute: attribute column: column on: cell [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_column_add_attribute applyTo: {tvc handle. cell handle. attribute. column}
+	].
+	tvc
+].
+
+tvc@(Gtk TreeViewColumn traits) addAttributes: attributeArray on: cell [
+	attributeArray do: [ | :each |
+		tvc addAttribute: each key column: each value on: cell
+	].
+	tvc
+].
