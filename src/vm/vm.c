@@ -78,11 +78,17 @@ int main(int argc, char** argv) {
 
   if (file == NULL) {fprintf(stderr, "Open file failed (%d)\n", errno); return 1;}
 
-  fread(&sih.magic, sizeof(sih.magic), 1, file);
-  fread(&sih.size, sizeof(sih.size), 1, file);
-  fread(&sih.next_hash, sizeof(sih.next_hash), 1, file);
-  fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, file);
-  fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file);
+  assert(fread(&sih.magic, sizeof(sih.magic), 1, file) == 1);
+  assert(fread(&sih.size, sizeof(sih.size), 1, file) == 1);
+  assert(fread(&sih.next_hash, sizeof(sih.next_hash), 1, file) == 1);
+  assert(fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, file) == 1);
+  assert(fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, file) == 1);
+
+  if (sih.size == 0) {
+    fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wronge WORD_SIZE. Run slate without any options to see your build configuration.\n");
+    return 1;
+
+  }
 
   /* skip argv[0] and image name */
   for (i = 2; i < argc - 1; i++) {

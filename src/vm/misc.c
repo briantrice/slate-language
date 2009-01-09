@@ -1,7 +1,7 @@
 #include "slate.h"
 
 void error(char* str) {
-  fprintf(stderr, str);
+  fprintf(stderr, "%s", str);
   assert(0);
 }
 
