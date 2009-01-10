@@ -12,6 +12,16 @@ m@(CompiledMethod traits) sourceTreeOf: index
 ].
 
 
+m@(CompiledMethod traits) definitionLocation
+[
+  m sourceTree ifNil: [^ Nil].
+  (m sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+  (m sourceTree source hasSlotNamed: #resource)
+   ifTrue: [(m sourceTree source resource locator as: String) ; ':' ; m sourceTree lineNumber printString]
+   ifFalse: [(m sourceTree source as: String) ; ':' ; m sourceTree lineNumber printString]
+].
+
+
 m@(CompiledMethod traits) new
 "Answer a new CompiledMethod with a fresh compilation state."
 [

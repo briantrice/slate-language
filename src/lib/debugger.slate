@@ -156,7 +156,7 @@ in the selected option number, returning it if valid."
    result: (expr evaluateIn: d namespace).
    "Exclude selections of restarts and other commands from printing."
    ((expr is: Syntax Literal) /\ [result is: Integer]) \/
-     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
+     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace arg:) includes: expr selector]]
       ifFalse:
         [result printOn: out.
           out newLine.
@@ -196,6 +196,22 @@ d@(Debugger traits) frame: n
   d printFrame
 ].
 
+d@(Debugger traits) currentFrameValueAt: n
+[ |out frame method|
+  out: d printer.
+  frame: d currentFrame.
+  frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
+  method: frame method method.
+  d currentFrame ifNil: [inform: 'Current frame is nil'. ^ Nil].
+  out ; 'register[' 
+    ; n printString 
+    ; ']@'
+    ; (d stackItem: frame framePointer + n) printName
+    ;' = '
+    ; (d stackItem: frame framePointer + n) printString ; '\n'.
+].
+
+
 d@(Debugger traits) printFrame
 [ |out frame method|
   out: d printer.
@@ -227,8 +243,8 @@ d@(Debugger traits) printHelp
    ; 'backtrace (or "bt") - print the backtrace\n'
    ; 'frame - print the current frame\n'
    ; 'frame: N - set the current frame\n'
-"   ; 'arg: N - evaluates the frame\'s value at index N\n'
-   ; 'arg: N put: - sets the frame\'s value at index N\n'"
+   ; 'arg: N - evaluates the frame\'s register at index N\n'
+"   ; 'arg: N put: - sets the frame\'s value at index N\n'"
    ; 'restarts - print the currently available restarts\n'
    ; 'help - print this help listing\n'.
 ].
@@ -239,9 +255,9 @@ d@(Debugger traits) installMethods
   [d printFrame].
   _@(d namespace) frame: n
   [d frame: n].
-"  _@(d namespace) arg: n
+  _@(d namespace) arg: n
   [d currentFrameValueAt: n].
-  _@(d namespace) arg: n put: newVal
+"  _@(d namespace) arg: n put: newVal
   [d currentFrameValueAt: n put: newVal]."
   _@(d namespace) backtrace &limit: n
   [d printBacktrace &limit: n].
