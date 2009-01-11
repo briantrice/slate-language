@@ -35,7 +35,7 @@ the minimum of functions that need to be defined for morphs."
 Graphics define: #SceneElement &parents: {Cloneable} &slots: {
 
   #parent -> Nil.
-  #region -> Nil.
+  #region -> (Rectangle origin: 0 , 0 corner: 10 , 10).
 
 }.
 
@@ -372,6 +372,14 @@ m@(Morph traits) addChild: child@(SceneElement traits)
   m children addLast: child.
   child parent: m.
   child
+].
+
+m@(Morph traits) setChildren: array
+[
+  m children: ExtensibleArray new.
+  array do: [|:child|
+             m children addLast: child.
+             child parent: m].
 ].
 
 

@@ -444,6 +444,12 @@ extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word
     return; \
   }
 
+#define ASSURE_NOT_SMALLINT_ARG(XXX) \
+  if (object_is_smallint(args[XXX])) { \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    return; \
+  }
+
 #define ASSURE_TYPE_ARG(XXX, TYPEXXX) \
   if (object_type(args[XXX]) != TYPEXXX) { \
     interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \

@@ -833,7 +833,11 @@ void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word
 
 
 void prim_clone(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = heap_clone(oh, args[0]);
+  if (object_is_smallint(args[0])) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = heap_clone(oh, args[0]);
+  }
 }
 
 void prim_applyto(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {

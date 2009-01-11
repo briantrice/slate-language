@@ -102,6 +102,11 @@ d@(Debugger traits) stackItem: x
   d interpreter stack at: x
 ].
 
+d@(Debugger traits) stackItem: x put: val
+[
+  d interpreter stack at: x put: val
+].
+
 
 d@(Debugger traits) buildFrames
 "build a list of frames return true if you have them all"
@@ -156,7 +161,7 @@ in the selected option number, returning it if valid."
    result: (expr evaluateIn: d namespace).
    "Exclude selections of restarts and other commands from printing."
    ((expr is: Syntax Literal) /\ [result is: Integer]) \/
-     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace arg:) includes: expr selector]]
+     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
       ifFalse:
         [result printOn: out.
           out newLine.
@@ -209,6 +214,12 @@ d@(Debugger traits) currentFrameValueAt: n
     ; (d stackItem: frame framePointer + n) printName
     ;' = '
     ; (d stackItem: frame framePointer + n) printString ; '\n'.
+  (d stackItem: frame framePointer + n)
+].
+
+d@(Debugger traits) currentFrameValueAt: n put: val
+[
+  d stackItem: frame framePointer + n put: val
 ].
 
 
@@ -244,7 +255,7 @@ d@(Debugger traits) printHelp
    ; 'frame - print the current frame\n'
    ; 'frame: N - set the current frame\n'
    ; 'arg: N - evaluates the frame\'s register at index N\n'
-"   ; 'arg: N put: - sets the frame\'s value at index N\n'"
+   ; 'arg: N put: - sets the frame\'s register at index N\n'
    ; 'restarts - print the currently available restarts\n'
    ; 'help - print this help listing\n'.
 ].
@@ -257,8 +268,8 @@ d@(Debugger traits) installMethods
   [d frame: n].
   _@(d namespace) arg: n
   [d currentFrameValueAt: n].
-"  _@(d namespace) arg: n put: newVal
-  [d currentFrameValueAt: n put: newVal]."
+  _@(d namespace) arg: n put: newVal
+  [d currentFrameValueAt: n put: newVal].
   _@(d namespace) backtrace &limit: n
   [d printBacktrace &limit: n].
   _@(d namespace) bt &limit: n

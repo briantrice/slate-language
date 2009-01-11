@@ -132,7 +132,7 @@ m@(ListboxMorph traits) itemSize: item
 m@(ListboxMorph traits) visibleRange
 [ |vsb|
   vsb: m verticalScrollbar.
-  (vsb position to: (vsb position + vsb visibleRange min: vsb max))
+  (vsb position to: (vsb position + vsb visibleRange min: vsb max) by: 1)
 ].
 
 m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
@@ -184,12 +184,19 @@ m@(ListboxMorph traits) visibleItems
   itemCount " = range size"
 ].
 
+m@(ListboxMorph traits) selectionChanged
+[
+
+].
+
+
 m@(ListboxMorph traits) selectItem: item
 [
   m repaint.
   m singleSelect ifTrue: [m selectedItems clear. m selectedItems add: item]
                  ifFalse: [(m selectedItems includes: item) ifTrue: [m selectedItems remove: item]
-                                                            ifFalse: [m selectedItems add: item]]
+                                                            ifFalse: [m selectedItems add: item]].
+  m selectionChanged
   
 ].
 
