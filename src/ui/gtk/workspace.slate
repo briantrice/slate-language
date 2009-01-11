@@ -115,17 +115,23 @@ w@(Gtk Workspace traits) evaluateSelected [
 	selection: w selectedTextOrCurrentLine.
 	parser: (Syntax Parser newOn: selection).
   	[ parser isAtEnd ] whileFalse: [	
-    	result: ([ parser next evaluateIn: w namespace ] on: SeriousCondition do: [
-			| :c stream dialog |
-			stream: (Stream newTo: String new).
-			c describeOn: stream.
-			dialog: (Gtk MessageDialog newErrorMessage: stream contents &parent: w view).
-			dialog when: #response do: [ | :args | dialog destroy ].
-			dialog show.
-			c exit 
-		])
+    	  result: (parser next evaluateIn: w namespace)
 	].
 	result
+].
+
+c@(Condition traits) invokeDebugger
+"The hook for any Condition to start the debugger and enter its loop."
+"[(Debugger newFor: c) enter]."
+[ | stream dialog debugger |
+  stream: (Stream newTo: String new).
+  debugger: (Debugger newFor: c).
+  c describeOn: stream.
+  debugger printBacktrace &stream: stream.
+  dialog: (Gtk MessageDialog newErrorMessage: stream contents).
+  dialog when: #response do: [ | :args | dialog destroy ].
+  dialog show.
+  c exit 
 ].
 
 w@(Gtk Workspace traits) evaluateSelected: _ [

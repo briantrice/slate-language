@@ -45,10 +45,11 @@ d@(Debugger traits) on: resource
   d
 ].
 
-d@(Debugger traits) newFor: c &interpreter: interp &console: resource
+d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol
 [
   interp `defaultsTo: d interpreter.
   resource `defaultsTo: d resource.
+  symbol `defaultsTo: #invokeDebugger.
   d clone `>>
     [| :newD |
      on: resource.
@@ -59,7 +60,7 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource
      parser parseInteractively:
        ([repl parser parseInteractively]
 	  on: SeriousCondition do: [| :c | c return: False]).
-     baseFramePointer: (d interpreter framePointerOf: #invokeDebugger).
+     baseFramePointer: (d interpreter framePointerOf: symbol).
      buildFrames.]
 ].
 
@@ -119,6 +120,7 @@ d@(Debugger traits) buildFrames
 
 "
   "set up the first frame to browse"
+  d baseFramePointer ifNil: [d printer ; 'Base frame pointer is nil. Cannot build stack frames...\n'].
   fp: (d stackItem: d baseFramePointer - 1).
   ip: (d stackItem: d baseFramePointer - 4).
   resultLoc: (d stackItem: fp - 5).
@@ -138,7 +140,7 @@ d@(Debugger traits) buildFrames
    resultLoc: (d stackItem: fp - 5).
    lc: (d stackItem: fp - 2).
    method: (d stackItem: fp - 3).
-   frameList size > d maxBacktraceSize ifTrue: [d frameList: frameList. ^ False].
+   "frameList size > d maxBacktraceSize ifTrue: [d frameList: frameList. ^ False]."
   ] loop.
     
 ].
@@ -182,14 +184,15 @@ d@(Debugger traits) signalRestartAt: index
     ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
 ].
 
-d@(Debugger traits) printBacktrace &limit: limit
-[ |out|
-  limit `defaultsTo: [d maxBacktraceSize].
-  out: d printer.
+d@(Debugger traits) printBacktrace &limit: limit &stream: out
+[ 
+  limit `defaultsTo: d maxBacktraceSize.
+  out `defaultsTo: d printer.
   d frameList doWithIndex:
     [|:frame :index|
        "out ; '<' ; index printString ; '> ' ; (frame method method sourceTreeOf: (0 max: frame instructionPointer - 1)) printString ; '\n'."
        "out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'."
+       index > limit ifTrue: [^ Nil].
        out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'
        ].
 ].
