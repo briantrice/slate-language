@@ -2,16 +2,18 @@
 "load after graphics.slate"
 
 Graphics define: #ScrollbarMorph &parents: {Morph}
-  &slots: {#vertical -> True. #min -> 0. #max -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
+  &slots: {#vertical -> True. #minPos -> 0. #maxPos -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
 
 m@(ScrollbarMorph traits) percent
 [
-  m position - m min / (m max - m min)
+  m maxPos - m minPos = 0 ifTrue: [^ 0].
+  m position - m minPos / (m maxPos - m minPos)
 ].
 
 m@(ScrollbarMorph traits) rangePercent
 [
-  m position + m visibleRange - m min / (m max - m min)
+  m maxPos - m minPos = 0 ifTrue: [^ 0].
+  m position + m visibleRange - m minPos / (m maxPos - m minPos)
 ].
 
 m@(ScrollbarMorph traits) paintMyselfOn: surface@(Surface traits)
@@ -51,14 +53,14 @@ m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent trait
 
 m@(ScrollbarMorph traits) slideIncrease
 [
-  m position: (m position + m visibleRange min: m max).
+  m position: (m position + m visibleRange min: m maxPos).
   m repaint.
   m
 ].
 
 m@(ScrollbarMorph traits) slideDecrease
 [
-  m position: (m position - m visibleRange max: m min).
+  m position: (m position - m visibleRange max: m minPos).
   m repaint.
   m
 ].
@@ -82,13 +84,13 @@ m@(ScrollbarMorph traits) handleMyself: input@(MouseMotionEvent traits)
   m dragOffset ifNil: [^ Nil].
   absPos: m absolutePosition.
   m vertical ifTrue: [input position y > (absPos y + m height) ifTrue: [m position: m max. m repaint. ^ m].
-                    input position y < absPos y ifTrue: [m position: m min. m repaint. ^ m].
-                    m position: (input position y - absPos y / m height * (m max - m min) + m min) rounded.
+                    input position y < absPos y ifTrue: [m position: m minPos. m repaint. ^ m].
+                    m position: (input position y - absPos y / m height * (m maxPos - m minPos) + m minPos) rounded.
                     m repaint.
                     m]
-           ifFalse: [input position x > (absPos x + m width) ifTrue: [m position: m max. m repaint. ^ m].
-                    input position x < absPos x ifTrue: [m position: m min. m repaint. ^ m].
-                    m position: (input position x - absPos x / m width * (m max - m min) + m min) rounded.
+           ifFalse: [input position x > (absPos x + m width) ifTrue: [m position: m maxPos. m repaint. ^ m].
+                    input position x < absPos x ifTrue: [m position: m minPos. m repaint. ^ m].
+                    m position: (input position x - absPos x / m width * (m maxPos - m minPos) + m minPos) rounded.
                     m repaint.
                     m].
 
@@ -121,6 +123,13 @@ m@(ListboxMorph traits) updateScrollbars
                                          extent: m scrollbarWidth , (m height - m scrollbarWidth)).
   m horizontalScrollbar region: (Rectangle origin: 0 , (m height - m scrollbarWidth)
                                            extent: m width - (m scrollbarWidth , m scrollbarWidth)).
+  m verticalScrollbar visibleRange: m width // m theme listboxFontSize.
+].
+
+
+m@(ListboxMorph traits) sizeChanged
+[
+  m updateScrollbars
 ].
 
 m@(ListboxMorph traits) itemSize: item
@@ -132,7 +141,7 @@ m@(ListboxMorph traits) itemSize: item
 m@(ListboxMorph traits) visibleRange
 [ |vsb|
   vsb: m verticalScrollbar.
-  (vsb position to: (vsb position + vsb visibleRange min: vsb max) by: 1)
+  (vsb position to: (vsb position + vsb visibleRange min: vsb maxPos) by: 1)
 ].
 
 m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
@@ -145,12 +154,14 @@ m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
   vsb: m verticalScrollbar.
   hsb: m horizontalScrollbar.
   "calculate the visible portion and stuff"
-  vsb max: m items size - 1.
-  vsb min: 0.
-  vsb position: ((vsb position min: vsb max) max: vsb min).
+  vsb maxPos: m items size - 1.
+  vsb minPos: 0.
+  vsb position: ((vsb position min: vsb maxPos) max: vsb minPos).
   vsb visibleRange: m visibleItems.
   heightOffset: 0.
   "inform: 'painting items ' ; m visibleRange printString."
+  surface fontSize: m theme listboxFontSize.
+
   m visibleRange do:
     [ |:itemPos item itemHeight|
        item: (m items at: itemPos).
