@@ -10,6 +10,7 @@ m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &h
   width `defaultsTo: 320.
   height `defaultsTo: 240.
   im percentages: {30. 70}.
+  im title: 'Inspecting: ' ; obj printName.
   im vertical: False.
   le: LineEditorMorph new.
   buttonMorph: LabelMorph new.
@@ -17,18 +18,20 @@ m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &h
   slotListbox items: obj slotNames.
   arrayListbox: ListboxMorph new.
   (obj is: Sequence)
-    ifTrue: [arrayListbox items: ((0 to: obj size) collect: #printString `er)]
+    ifTrue: [arrayListbox items: obj]
     ifFalse: [arrayListbox items: {}].
   m@(slotListbox) selectionChanged
   [
     m selectedItems do: [ |:item| 
-       im selectedItem: item.
-       le editor insert: item printString at: le editor cursor]
+       im selectedItem: (obj atSlotNamed: item).
+       le editor reset.
+       le editor insert: (obj atSlotNamed: item) printString at: le editor cursor]
   ].
   m@(arrayListbox) selectionChanged
   [
      m selectedItems do: [ |:item| 
        im selectedItem: item.
+       le editor reset.
        le editor insert: item printString at: le editor cursor]
   ].
 

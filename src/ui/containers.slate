@@ -60,3 +60,13 @@ m@(WindowMorph traits) paintMyselfOn: surface@(Surface traits)
   surface rectangle: (Rectangle origin: 1 , 1 extent: m width , m topBorder - 1). surface stroke.
   surface rectangle: (Rectangle origin: m width - m borderWidth , 1 extent: m width , m topBorder - 1). surface stroke.
 ].
+
+m@(WindowMorph traits) handleMyself: e@(MouseButtonClickEvent traits)
+[ | relPos|
+  relPos: e position - m absolutePosition.
+  m width - relPos x < m borderWidth /\ [relPos y < m borderWidth]
+    ifTrue: [inform: 'Closing Window "' ; m title ; '"'.
+             m repaint.
+             m parent children remove: m].
+
+].
