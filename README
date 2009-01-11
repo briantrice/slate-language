@@ -11,9 +11,9 @@ Setup
 
 Read common.mk for more options.
 
-./slate kernel.image                 "bootstrap"
-Image saveNamed: 'my.image'.      "dump image"
-./slate my.image                     "load image"
+./slate kernel.image                 "initial bootstrap (see below for more details)"
+Image saveNamed: 'my.image'.         "save current image"
+./slate my.image                     "load a saved image"
 
 
 
@@ -28,6 +28,11 @@ This starts slate using <image>.
 Bootstrapping
 -------------
 
+If you make changes to core slate files (like adding a new field to
+CompiledMethods), sometimes the only easy way to make those changes
+throughout the system is to bootstrap again. Here is how you generate
+a new kernel image:
+
 Run slate to get a repl.
 
 [
@@ -35,6 +40,10 @@ load: 'src/mobius/init.slate'.
 Image littleEndian: True bitSize: 64.
 Image littleEndian: True bitSize: 32.
 ] do.
+
+Then you will load it like a regular image:
+
+./slate kernel.new.<endian>.<bitsize>.<timestamp>.image
 
 
 Debugging
@@ -57,7 +66,8 @@ src/vm -> The C files for the VM. Interprets bytecode and provides necessary fac
 src/mobius -> The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
 src/lib -> The core and not-so-core libraries for slate
 src/plugins -> C code for slate FFI calls. `make plugins' to build
-src/ui -> The slate UI code that probably calls plugins to draw the basics. See init.slate for loading.
+src/ui -> The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
+src/ui/gtk -> The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
 
 
 Stack format
@@ -139,4 +149,16 @@ c decompile: (genCode third code at: 13) code
 
 "see what is getting called"
 VM SSACompiler new decompile: (#handle: findOn: {mainWindow. PaintEvent newContext: mainWindow context}) method code.
+
+
+Finding source code
+-------------------
+
+Besides using grep (which is better since it will find bootstrap
+code), there are a few facilities. See the slate manual for more
+details.
+
+#as: implementations do: [|:each| each definitionLocation ifNotNilDo: [|:l| inform: (l as: String) ]].
+
+(#parseExpression findOn: {Syntax Parser}) definitionLocation
 
