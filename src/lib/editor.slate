@@ -22,8 +22,15 @@ Editor define: #LineEditor &parents: {Cloneable}
 x@(LineEditor traits) new
 [ |le|
   le: resend.
-  le lines addLast: Line new.
-  le cursors push: (Cursor line: 0 column: 0).
+  le reset.
+  le
+].
+
+le@(LineEditor traits) reset
+[
+  le lines: (ExtensibleArray newWith: Line new).
+  le cursors: (Stack newWith: (Cursor line: 0 column: 0)).
+  le undoHistory: ExtensibleArray new.
   le
 ].
 

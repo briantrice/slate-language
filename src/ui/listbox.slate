@@ -109,8 +109,10 @@ Graphics define: #ListboxMorph &parents: {Morph}
 
 m@(ListboxMorph traits) new
 [ |me|
-  me: (m cloneSettingSlots: #(items verticalScrollbar horizontalScrollbar selectedItems) to:
-        {ExtensibleArray new. ScrollbarMorph new. (ScrollbarMorph new `>> [vertical: False. ]). Set new}).
+  me: resend `>> [items: ExtensibleArray new. 
+                  verticalScrollbar: ScrollbarMorph new.
+                  horizontalScrollbar: (ScrollbarMorph new `>> [vertical: False. ]).
+                  selectedItems: Set new. ].
   me addChild: me verticalScrollbar.
   me addChild: me horizontalScrollbar.
   me
