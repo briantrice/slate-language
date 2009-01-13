@@ -120,22 +120,8 @@ w@(Gtk Workspace traits) evaluateSelected [
 	result
 ].
 
-c@(Condition traits) invokeDebugger
-"The hook for any Condition to start the debugger and enter its loop."
-"[(Debugger newFor: c) enter]."
-[ | stream dialog debugger |
-  stream: (Stream newTo: String new).
-  debugger: (Debugger newFor: c).
-  c describeOn: stream.
-  debugger printBacktrace &stream: stream.
-  dialog: (Gtk MessageDialog newErrorMessage: stream contents).
-  dialog when: #response do: [ | :args | dialog destroy ].
-  dialog show.
-  c exit.
-].
-
 w@(Gtk Workspace traits) evaluateSelected: _ [
-	w evaluateSelected
+	w evaluateSelected.
 ].
 
 w@(Gtk Workspace traits) printSelected: _ [

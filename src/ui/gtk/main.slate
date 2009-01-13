@@ -40,10 +40,8 @@ m@(Gtk Main traits) shutdown [
 m@(Gtk Main traits) callbackBlockDo: callbackData@(GLib CallbackData traits) [
 	| block |
 	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-	[ (m callbackBlocks at: callbackData blockID) applyTo: {callbackData parameterArray } ]
-		on: SeriousCondition
-		do: [ | :c | c describeOn: Console ].
-	callbackData end.
+	[ (m callbackBlocks at: callbackData blockID) applyTo: {callbackData parameterArray } ] 
+	  ensure: [ callbackData end ]
 ].
 
 m@(Gtk Main traits) doEventLoop [
