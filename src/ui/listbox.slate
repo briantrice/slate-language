@@ -104,6 +104,7 @@ Graphics define: #ListboxMorph &parents: {Morph}
            #horizontalScrollbar -> (ScrollbarMorph new `>> [vertical: False. ]).
            #selectedItems -> Set new. 
            #scrollbarWidth -> 10.
+           #printFunction -> Nil.
            #singleSelect -> True.
            }.
 
@@ -175,7 +176,10 @@ m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
                                         surface fill]].
        surface ensurePaint: [surface moveTo: 5 , (itemHeight + heightOffset - 2). "text paints from bottom left"
                              surface sourceRGB: m theme textColor alpha: m theme textAlpha.
-                             surface showText: item printString].
+                             m printFunction
+                               ifNil: [surface showText: item printString]
+                               ifNotNil: [surface showText: (m printFunction applyWith: item)]].
+
        heightOffset: heightOffset + itemHeight.
    ].
 "  m paintChild: vsb on: surface.
