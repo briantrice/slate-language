@@ -696,6 +696,7 @@ void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t
 
   while (frame > FUNCTION_FRAME_SIZE) {
     method = (struct CompiledMethod*) i->stack->elements[frame-3];
+    method = method->method; /*incase it's a closure and not a compiledmethod*/
     if (method->selector == selector) {
       oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(frame);
       return;
