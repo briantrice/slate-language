@@ -1,7 +1,7 @@
 Gtk define: #TraitsBrowser &parents: {Cloneable} &slots: { #inspectedVar. #codeBuffer. #view. #traitsView. #methodView. #selectedTrait. #selectedMethod }.
 Gtk TraitsBrowser traits atSlotNamed: #printName put: 'Gtk TraitsBrowser'. 
 
-tb@(Gtk TraitsBrowser traits) newOn: var [
+tb@(Gtk TraitsBrowser traits) newFor: var [
 	| traitBrowser |
 		
 	traitBrowser: tb new.
@@ -219,7 +219,7 @@ tb@(Gtk TraitsBrowser traits) loadCode [
 			ifNotNil: [ 
 				| stream |
 				stream: String writer.
-				(Syntax SourceWriter newOn: stream) print: tb selectedMethod sourceTree.
+				(Syntax SourceWriter newFor: stream) print: tb selectedMethod sourceTree.
 				tb codeBuffer text: stream contents
 			].
 	].
