@@ -1,4 +1,4 @@
-Gtk define: #Inspector &parents: {Cloneable} &slots: { #inspectedVar. #view }. 
+Gtk define: #Inspector &parents: {Cloneable} &slots: { #inspectedVar. #view. #traitsView. #selectedTrait. #methodView }. 
 Gtk Inspector traits atSlotNamed: #printName put: 'Gtk Inspector'. 
 
 i@(Gtk Inspector traits) newFor: var [
@@ -34,8 +34,11 @@ i@(Gtk Inspector traits) buildView [
 		ifFalse: [
 			(i inspectedVar is: Sequence) ifTrue: [ notebook appendPage: i buildSequencedDataView label: 'Sequence' ]
 		].
-	notebook appendPage: i buildSlotsView label: 'Slots'.
+	i inspectedVar slotNames isEmpty ifFalse: [
+		notebook appendPage: i buildSlotsView label: 'Slots'.
+	].
 	notebook appendPage: i buildDelegatesView label: 'Delegates'.
+	notebook appendPage: i buildTraitsView label: 'Traits'.
 	i view add: notebook.
 	i
 ].
@@ -229,3 +232,122 @@ i@(Gtk Inspector traits) loadDictionaryDataIn: model [
 		].
 	].
 ].
+
+i@(Gtk Inspector traits) buildTraitsView [
+	Gtk HPaned new
+		first: (i buildTraitsListView sizeRequest: 320 , -1 )
+		second: (i buildMethodsView sizeRequest: 320 , -1 )
+].
+
+i@(Gtk Inspector traits) buildTraitsListView [
+	| cell col |
+	
+	i traitsView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Traits'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	i traitsView appendColumn: col.
+	
+	i traitsView gridLines: Gtk TreeViewGridLines Both.
+	i traitsView selection when: #changed send: #onTraitsListViewChanged: to: i.
+	i loadTraits.
+	Gtk ScrolledWindow newWithChild: i traitsView	
+].
+
+i@(Gtk Inspector traits) loadTraits [
+	| model |
+	model: i traitsView model.
+	model clear.
+	i inspectedVar ifNotNil: [
+		i inspectedVar orderTraits do: [ 
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each printName })
+		].
+	].
+].
+
+i@(Gtk Inspector traits) onTraitsListViewChanged: _ [
+	| iter |
+	i traitsView ifNotNil: [
+		iter: i traitsView selection selected.
+		iter ifNil: [
+			i selectedTrait: Nil.
+			i loadMethods.
+		]
+		ifNotNil: [
+			| index newSelectedTrait |
+			index: ((i traitsView model stringFromIter: iter) as: Integer).
+			newSelectedTrait: (i inspectedVar orderTraits at: index).
+			(newSelectedTrait = i selectedTrait)
+				ifFalse: [ 
+					i selectedTrait: newSelectedTrait.
+					i loadMethods.
+				]
+		]
+	]
+].
+
+i@(Gtk Inspector traits) buildMethodsView [
+	| cell col |
+	
+	i methodView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Methods'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	i methodView appendColumn: col.
+	
+	i methodView gridLines: Gtk TreeViewGridLines Both.
+	i methodView when: #row-activated send: #onMethodsView:methodRowActivated:column: to: i. 
+	Gtk ScrolledWindow newWithChild: i methodView	
+].
+
+i@(Gtk Inspector traits) onMethodsView: methodView methodRowActivated: path column: column [
+	| iter index selectedMethod |
+	i selectedTrait ifNil: [ ^ Nil ].
+	iter: methodView selection selected.
+	iter ifNil: [ ^ Nil ].
+	index: ((methodView model stringFromIter: iter) as: Integer).
+	selectedMethod: (i selectedTrait methods at: index).
+	(selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
+	selectedMethod sourceTree ifNil: [ ^ Nil ].
+	(selectedMethod sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+	(selectedMethod sourceTree source hasSlotNamed: #resource) ifTrue: [
+		| workspace |
+		workspace: (Gtk Workspace new &fileName: (selectedMethod sourceTree source resource locator as: String)).
+		workspace goToLineNumber: selectedMethod sourceTree lineNumber.
+		workspace show.
+	]
+].
+
+i@(Gtk Inspector traits) loadMethods [
+	| model |
+	model: i methodView model.
+	model clear.
+	i selectedTrait ifNotNil: [
+		i selectedTrait methods do: [ 
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each selector })
+		].
+	].
+].
+

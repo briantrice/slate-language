@@ -25,3 +25,20 @@ tv@(Gtk TextView traits) wrapMode: wrapMode [
 	].
 	tv
 ].
+
+tv@(Gtk TextView traits) scrollOnScreen: mark@(Gtk TextMark) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_scroll_mark_onscreen applyTo: {tv handle. mark handle }
+	].
+	tv
+].
+
+tv@(Gtk TextView traits) scrollTo: iter@(Gtk TextIter) &withinMargin: margin &useAlign: useAlign &xAlign: xAlign &yAlign: yAlign  [
+	margin `defaultsTo: 0.0 .
+	useAlign `defaultsTo: False.
+	xAlign `defaultsTo: 0.0 . 
+	yAlign `defaultsTo: 0.0 . 
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_scroll_to_iter applyTo: {tv handle. iter handle. margin. useAlign. xAlign. yAlign }
+	]
+].

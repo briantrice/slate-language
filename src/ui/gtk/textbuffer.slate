@@ -50,6 +50,15 @@ tb@(Gtk TextBuffer traits) iterAtMark: mark [
 	iter
 ].
 
+tb@(Gtk TextBuffer traits) iterAtLine: lineNumber [
+	| iter |
+	iter: Gtk TextIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_iter_at_line applyTo: { tb handle. iter handle. lineNumber }
+	].
+	iter
+].
+
 tb@(Gtk TextBuffer traits) moveMarkNamed: name to: where [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_text_buffer_move_mark_by_name applyTo: { tb handle. name. where handle }

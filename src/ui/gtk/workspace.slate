@@ -1,5 +1,15 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #codeBuffer.	#view. #namespace }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer.	#view. #namespace }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
+
+w@(Gtk Workspace traits) new &fileName: fileName [
+	| workspace |
+		
+	workspace: w clone.
+	workspace fileName: fileName.
+	workspace buildView.
+	workspace namespace: lobby newSubSpace.
+	workspace
+].
 
 w@(Gtk Workspace traits) buildMenuBar [
 	| menuBar menu menuItem |
@@ -47,20 +57,23 @@ w@(Gtk Workspace traits) buildToolBar [
 ].
 
 w@(Gtk Workspace traits) buildCodeView [
-	| codeView |
 	w codeBuffer: Gtk TextBuffer new.
-	codeView: (Gtk TextView newWithBuffer: w codeBuffer).
-	codeView wrapMode: Gtk WrapMode WordChar.
-	Gtk ScrolledWindow newWithChild: codeView
+	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
+"	w codeView wrapMode: Gtk WrapMode WordChar."
+	w loadCodeView.
+	Gtk ScrolledWindow newWithChild: w codeView
 ].
 
-w@(Gtk Workspace traits) new [
-	| workspace |
-		
-	workspace: resend.
-	workspace buildView.
-	workspace namespace: lobby newSubSpace.
-	workspace
+w@(Gtk Workspace traits) loadCodeView [
+	| file text |
+	w fileName ifNil: [ ^ Nil ].
+	file: (File newNamed: w fileName).
+	file exists ifFalse: [
+		"FIXME: Message dialog"
+		^ Nil.
+	].
+	text: (file sessionDo: [| :f | f reader next: file size ]).
+	w codeBuffer text: text.
 ].
 
 w@(Gtk Workspace traits) show [
@@ -80,7 +93,7 @@ w@(Gtk Workspace traits) buildView [
 	
 	w view: Gtk Window newTopLevel.
 	w view when: #destroy send: #destroy: to: w.
-	w view title: 'Workspace'.
+	w view title: ((w fileName ifNil: [ 'unnamed.slate' ] ifNotNil: [ w fileName ]) ; ' - Workspace').
 	w view defaultSizeWidth: 640 height: 480.
 	vBox: Gtk VBox new.
 	vBox packStart: (w buildMenuBar) &expand: False.
@@ -113,8 +126,8 @@ w@(Gtk Workspace traits) evaluateSelected [
 	| selection parser result |
 
 	selection: w selectedTextOrCurrentLine.
-	parser: (Syntax Parser newFor: selection).
-  	[ parser isAtEnd ] whileFalse: [	
+	parser: (Syntax Parser newOn: selection reader).
+ 	[ parser isAtEnd ] whileFalse: [	
     	  result: (parser next evaluateIn: w namespace)
 	].
 	result
@@ -142,3 +155,11 @@ w@(Gtk Workspace traits) display: aString [
 	iter: (w codeBuffer iterAtOffset: offset).
 	w codeBuffer moveMarkNamed: 'selection_bound' to: iter.
 ].
+
+w@(Gtk Workspace traits) goToLineNumber: lineNumber [
+	| iter offset |
+
+	iter: (w codeBuffer iterAtLine: lineNumber).
+	w codeView scrollTo: iter &useAlign: True.
+].
+
