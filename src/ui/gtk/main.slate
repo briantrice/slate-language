@@ -21,7 +21,16 @@ m@(Gtk Main traits) installDebuggerHook [
   m oldDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
   c@(Condition traits) invokeDebugger [ 
 	"The hook for any Condition to start the debugger and enter its loop."
-	(Gtk Debugger newFor: c) show.
+	| stream dialog message |
+	stream: (Stream newTo: String new).
+	c describeOn: stream.
+	message: (stream contents ; 'Debug it?' ).
+	dialog: (Gtk MessageDialog newQuestionMessage: message).
+	dialog when: #response do: [ | :dialog :answer | 
+		dialog destroy.
+		answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c) show ]
+	].
+	dialog show.
 	Gtk Main doEventLoop.
   ].
 ].
@@ -58,8 +67,7 @@ m@(Gtk Main traits) shutdown [
 m@(Gtk Main traits) callbackBlockDo: callbackData@(GLib CallbackData traits) [
 	| block |
 	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-	[ (m callbackBlocks at: callbackData blockID) applyTo: {callbackData parameterArray } ] 
-	  ensure: [ callbackData end ]
+	[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ] ensure: [ callbackData end ]
 ].
 
 m@(Gtk Main traits) doEventLoop [
