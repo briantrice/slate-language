@@ -43,7 +43,7 @@ m@(Gtk Main traits) uninstallDebuggerHook [
 	ifNotNil: [ myDebuggerHook replaceWith: m oldDebuggerHook on: {Condition traits} ]
 ].
 
-m@(Gtk Main traits) init [
+m@(Gtk Main traits) initialize [
 	m initialized ifFalse: [
 		Gdk Lib init.
 		GLib CallbackData initQueue.
@@ -54,13 +54,27 @@ m@(Gtk Main traits) init [
 	]
 ].
 
+m@(Gtk Main traits) uninitialize [
+	m uninstallDebuggerHook.
+	m callbackBlocks: Nil.
+	m oldDebuggerHook: Nil.
+	m nextBlockID: 1.
+	m initialized: False.
+].
+
 m@(Gtk Main traits) shutdown [
 	m initialized ifTrue: [
-		m uninstallDebuggerHook.
 		m mainQuit.
-		m callbackBlocks: Nil.
-		m initialized: False.
 		GLib CallbackData shutdownQueue.
+		m uninitialize.
+	]
+].
+
+m@(Gtk Main traits) resetOnStartup [
+"Adds a handler for Image startup to reset the REPL."
+	Image startupActions at: m put: [
+		m uninitialize.
+		m initialize.
 	]
 ].
 
@@ -75,7 +89,7 @@ m@(Gtk Main traits) doEventLoop [
 ].
 
 m@(Gtk Main traits) do: aBlock [
-	m init.
+	m initialize.
 	aBlock do.
 	m doEventLoop.
 	m shutdown.
