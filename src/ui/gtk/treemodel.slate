@@ -1,0 +1,45 @@
+Gtk define: #TreeModel &parents: {GLib Interface}.
+Gtk TreeModel traits atSlotNamed: #printName put: 'Gtk TreeModel'. 
+
+tm@(Gtk TreeModel traits) columnsCount [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_model_get_n_columns applyTo: { tm handle }
+	]
+].
+
+tm@(Gtk TreeModel traits) pathFromIter: iter [
+	Gtk TreePath newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_model_get_path applyTo: { tm handle. iter handle }
+	])
+].
+
+tm@(Gtk TreeModel traits) stringFromIter: iter [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_model_get_string_from_iter applyTo: { tm handle. iter handle }
+	]
+].
+
+tm@(Gtk TreeModel traits) at: iter@(Gtk TreeIter traits) [
+	"Returns a collection of values on the given row"
+	| values columnsCount |
+	columnsCount: tm columnsCount.
+	values: (Array new &capacity: columnsCount).
+	0 below: tm columnsCount do: [ | :column |
+		values at: column put: (tm at: iter column: column)
+	].
+	values
+].
+
+tm@(Gtk TreeModel traits) at: iter@(Gtk TreeIter traits) column: column [
+	"Gets the value at the given column index of the given GtkTreeIter."
+	(tm isValid: iter) 
+		ifTrue: [
+			| value |
+			value: GLib Value new.
+			(Gdk Lib protectedDo: [
+				Gtk Lib primitives gtk_tree_model_get_value applyTo: { tm handle. iter handle. column. value handle }
+			]).
+			value value
+		]
+		ifFalse: [ Nil ]
+].

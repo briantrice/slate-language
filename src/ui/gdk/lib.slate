@@ -1,0 +1,25 @@
+Gdk define: #Lib -> (
+	ExternalInterface newForLibrary: 'gdk-wrapper' primitives: #(		
+		(Void wrapper_gdk_lib_init())
+		
+		(Void gdk_threads_enter())
+		(Void gdk_threads_leave())
+		(Void gdk_flush())
+	)
+).
+
+Gdk Lib enable.
+
+l@(Gdk Lib traits) init [
+	l primitives wrapper_gdk_lib_init do.
+].
+
+l@(Gdk Lib traits) protectedDo: aBlock [
+	| r |
+	l primitives gdk_threads_enter do.
+	r: aBlock do.
+	l primitives gdk_flush do.
+	l primitives gdk_threads_leave do.
+	r
+].
+

@@ -2,7 +2,7 @@
 customized without requiring a full bootstrap. This is loaded by post-bootstrap
 code which is compiled in to the kernel image."
 
-(({'src/mobius/vm/interp/map'} ;
+(({'src/mobius/map'} ;
   ({'fraction'. 'complex'. 'numericMixin'.
    'tuple'. 'linkedlist'. 'cord'.
    'traversal'. 'lookup'. 'path'. "These require TraversalStream."
@@ -13,17 +13,16 @@ code which is compiled in to the kernel image."
    'inspect'. 'directory'.
    'concurrency'. 'observer'}
      collect: #; `er <- 'src/lib/') ;
-  {'src/mobius/vm/interp/role'.
+  {'src/mobius/role'.
    'src/lib/image'.
-   'src/mobius/vm/interp/memory'.
-   'src/mobius/vm/interp/disassemble'.
-   'src/mobius/c/types'.
+   'src/mobius/memory'.
+   'src/mobius/disassemble'.
+   'src/mobius/types'.
    'src/lib/extlib'.
    'src/lib/repl' }) collect: #; `er <-* '.slate') do: #load: `er <- here.
 
 "Totally optional, makes for pretty source output and enables C code output."
 load: 'src/mobius/writer.slate'.
-load: 'src/mobius/syntax/writer.slate'.
 
 "Loads AutoLoader definitions from the standard file database."
 load: 'src/lib/module.slate'.

@@ -1,0 +1,56 @@
+Gtk define: #TreeView &parents: {Gtk Container}.
+Gtk TreeView traits atSlotNamed: #printName put: 'Gtk TreeView'. 
+
+tv@(Gtk TreeView traits) new [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_new do
+	])
+].
+
+tv@(Gtk TreeView traits) newWithModel: model [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_new_with_model applyTo: {model handle}
+	])
+].
+
+tv@(Gtk TreeView traits) appendColumn: column [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_append_column applyTo: {tv handle. column handle }
+	]
+].
+
+tv@(Gtk TreeView traits) model [
+	GLib Object objectFromHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_get_model applyTo: {tv handle }
+	])
+].
+
+tv@(Gtk TreeView traits) expandAll [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_expand_all applyTo: {tv handle }
+	]
+].
+
+tv@(Gtk TreeView traits) selection [
+	Gtk TreeSelection newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_get_selection applyTo: {tv handle }
+	])
+].
+
+tv@(Gtk TreeView traits) selectedRow [
+	tv model at: tv selection selected
+].
+
+tv@(Gtk TreeView traits) selectedPath [
+	tv model pathFromIter: tv selection selected
+].
+
+tv@(Gtk TreeView traits) selectedPathString [
+	tv model stringFromIter: tv selection selected
+].
+
+tv@(Gtk TreeView traits) gridLines: gridLines [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_view_set_grid_lines applyTo: {tv handle. gridLines }
+	]
+].

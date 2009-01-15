@@ -1,0 +1,978 @@
+
+
+m@(CompiledMethod traits) sourceTreeOf: index
+"Find the source tree corresponding to a bytecode's index."
+[
+  m debugMap
+    do: [| :start :end :sourceTree |
+         (index between: start and: end)
+           ifTrue: [^ sourceTree]]
+    inGroupsOf: 3.
+  Nil
+].
+
+
+m@(CompiledMethod traits) definitionLocation
+[
+  m sourceTree ifNil: [^ Nil].
+  (m sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+  (m sourceTree source hasSlotNamed: #resource)
+   ifTrue: [(m sourceTree source resource locator as: String) ; ':' ; m sourceTree lineNumber printString]
+   ifFalse: [(m sourceTree source as: String) ; ':' ; m sourceTree lineNumber printString]
+].
+
+
+m@(CompiledMethod traits) new
+"Answer a new CompiledMethod with a fresh compilation state."
+[
+  m clone `>>
+    [| :newM |
+      method: newM.
+      literals: m literals new.
+      selectors: m selectors new.
+      optionalKeywords: m optionalKeywords new.
+      code: m code new.
+      debugMap: m debugMap new. ]
+].
+
+m@(CompiledMethod traits) recompile
+"If the method has a sourceTree, replace the method with a re-compiled version
+of it."
+[
+  m sourceTree
+    ifNil: [warn: 'The method has no source code to recompile.'. m]
+    ifNotNilDo: [| :src | m forwardTo: src compile]
+].
+
+lobby ensureNamespace: #VM.
+VM ensureNamespace: #SSACode.
+
+VM SSACode addImmutableSlot: #instructionInfo valued:
+{ "the result or destination is usually the first argument"
+" the first item in the argument list is the number of arguments. numbers after that tell which items in the argument
+list to use to increment the whole count"
+  0 -> (#directSendMessage -> {3. 2}). "result register, selector, arity, parameters..."
+  1 -> (#indirectSendMessage -> {3. 2}).  "result register, selector register, arity, parameters...."
+
+  "2 -> (#allocateRegisters -> {1})."  "this should be in the function definition now"
+  3 -> (#loadLiteral -> {2}). "dest register, literal"
+  4 -> (#storeLiteral -> {2}). "dest literal index, src register"
+
+  5 -> (#sendMessageWithOptionals -> {4. 2}).  "result register, selector register, arity, optsArrayRegister, parameters...."
+
+  7 -> (#newClosure -> {2}). "register, block"
+  8 -> (#newArrayWith -> {2. 1}). "result register, size, parameters..."
+  9 -> (#resendMessage -> {2}). "result register, lexical offset"
+  10 -> (#returnFrom -> {2}). "result register, lexical offset"
+  11 -> (#loadEnvironment -> {1}). "result register"
+  12 -> (#loadVariable -> {1}). "dest register / var index"
+  13 -> (#storeVariable -> {1}). "var index / src register"
+  14 -> (#loadFreeVariable -> {3}). "dest register, lexical offset, free var index"
+  15 -> (#storeFreeVariable -> {3}). "lexical offset, var index, src register"
+
+  16 -> (#isIdenticalTo -> {3}). "result register, x register, y register"
+  17 -> (#branchKeyed -> {2}). "key to switch on register, table"
+  18 -> (#jumpTo -> {1}). "offset"
+  19 -> (#moveRegister -> {2}). "dest reg, src reg. (used like SSA phi / branch merges)"
+  20 -> (#branchIfTrue -> {2}). "condition register, branch offset"
+  21 -> (#branchIfFalse -> {2}). "condition register, branch offset"
+  22 -> (#returnRegister -> {1}). "mark the end of a block"
+  23 -> (#returnValue -> {1}). "mark the end of a block"
+  24 -> (#resume -> {0}). "I'm not sure what this does yet..used in bootstrap"
+}.
+
+VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
+
+
+
+VM define: #SSACompiler &parents: {Cloneable}
+  &slots: {#contexts -> Stack new}.
+
+VM SSACompiler traitsWindow addDelegate: VM SSACode.
+
+g@(VM SSACompiler traits) new
+[g clone `>> [contexts: g contexts new. ]].
+
+VM SSACompiler traits define: #Context &parents: {Cloneable} &slots:
+  {#isClosure -> False "Whether the method being compiled is a closure.".
+   #method -> CompiledMethod new "The method the context targets.".
+   #codeWriter "The stream for writing bytecodes to the method.".
+   #debugMap -> ExtensibleArray new
+   "Gathers the method's debug map; must be indexable at all times.".
+   #registerValues -> ExtensibleArray new
+   "The current register values.".
+   #labels -> ExtensibleArray new
+   "label serials -> code index.".
+   #relocations -> Dictionary new
+   "code index -> label serials".
+   #currentRegister -> 0
+   "The last assigned register value.. or the count?"
+   }.
+
+c@(VM SSACompiler Context traits) newOn: method
+"FIXME change method code to array instead of bytearray."
+[
+  method code: Array new.
+  c cloneSettingSlots: #(method codeWriter debugMap registerValues relocations labels currentRegister)
+   to: {method. method code writer.
+	method debugMap as: c debugMap.
+        c registerValues new.
+        c relocations new.
+        c labels new.
+	method inputVariables + method localVariables}
+].
+
+c@(VM SSACompiler Context traits) copy
+[resend `>> [registerValues: c registerValues copy.
+             relocations: c relocations copy.
+             labels: c labels copy.
+             currentRegister: c currentRegister]].
+
+c@(VM SSACompiler Context traits) resolveLabel: label at: index
+[
+  (c labels at: label) - index
+].
+
+c@(VM SSACompiler Context traits) resolveLabels
+"This takes the labels Dictionary and uses it to replace the temporary ID's
+placed in the jump fields with actual offsets."
+[| code |
+  code: c method code.
+  c relocations keysAndValuesDo:
+    [| :index :label offset |
+     offset: (c resolveLabel: label at: index).
+     code at: index put: offset]
+].
+
+c@(VM SSACompiler Context traits) flush
+[
+  c method code: c codeWriter contents.
+  c method debugMap: (c debugMap as: Array).
+  c resolveLabels.
+  c
+].
+
+gen@(VM SSACompiler traits) currentContext
+[gen contexts top].
+
+gen@(VM SSACompiler traits) newRegister
+[
+ gen contexts top currentRegister: gen contexts top currentRegister + 1.
+ gen contexts top currentRegister
+].
+
+gen@(VM SSACompiler traits) registerFor: obj from: def result: result
+[ | saveRegister |
+   "the whole problem with this function is that we could cache a literal that
+ is only loaded in a loop which may not always be executed. remove this code
+until we have it figured out."
+"  gen contexts top registerValues do: 
+    [ | :val | val value = obj
+                 ifTrue: 
+                   [val key = result \/ [result isNil]
+                        ifTrue: [^ val key] 
+                        ifFalse: [result `defaultsTo: gen newRegister.
+                                   gen emitInstruction: gen moveRegister withParameters: {result. val key} from: def.
+                                  ^ result]]].
+ "
+  "we don't want result to be a local variable and have it overwritten later"
+  "result ifNil: [saveRegister: True] ifNotNil: [saveRegister: False]."
+   saveRegister: False.
+  result `defaultsTo: gen newRegister.
+  gen emitInstruction: gen loadLiteral withParameters: {result. obj} from: def.
+  saveRegister ifTrue: [gen setRegister: result to: obj].
+  result
+].
+
+gen@(VM SSACompiler traits) setRegister: x to: y
+[
+ gen contexts top registerValues add: x -> y ifPresent: [error: 'Compiler error: Register already set.'].
+].
+
+gen@(VM SSACompiler traits) currentMethod
+[gen currentContext method].
+
+gen@(VM SSACompiler traits) codeWriter
+[gen currentContext codeWriter].
+
+
+gen@(VM SSACompiler traits) newLabel
+[| label |
+  label: gen currentContext labels size.
+  gen currentContext labels addLast: Nil.
+  label
+].
+
+gen@(VM SSACompiler traits) emitLabel
+[| label |
+  label: gen newLabel.
+  gen emitLabel: label.
+  label
+].
+
+gen@(VM SSACompiler traits) emitLabel: label
+[
+  gen currentContext labels at: label put: gen codeWriter position
+].
+
+gen@(VM SSACompiler traits) emitRelocationAgainst: label
+[
+  gen currentContext relocations at: gen codeWriter position put: label
+].
+
+gen@(VM SSACompiler traits) emitBranchTo: label from: msg
+[
+  gen emitRelocationAgainst: label.
+  gen emitObject: 0 from: msg "replaced later when flushed"
+].
+
+
+gen@(VM SSACompiler traits) mapTo: sourceTree
+[| index entry debugMap |
+  index: gen codeWriter position.
+  debugMap: gen currentContext debugMap.
+  debugMap isEmpty not /\ [debugMap last == sourceTree]
+    ifTrue: [debugMap at: debugMap indexLast - 1 put: (index max: (debugMap at: debugMap indexLast - 1)).
+             debugMap at: debugMap indexLast - 2 put: (index min: (debugMap at: debugMap indexLast - 2))]
+    ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
+].
+
+gen@(VM SSACompiler traits) emitObject: value from: node
+[
+  "(0 until: bytesPerWord) do: [ | :byte | gen emitByte: (value byteShift: 0 - byte) intoByte from: node]."
+  gen mapTo: node.
+  gen codeWriter nextPut: value
+].
+
+
+gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameters: values from: node
+"this gets called before the real function"
+[
+  "values do: [|:value| (value is: Syntax Node) ifTrue: [error: 'bad code']]." "commented out because we could actually load node literals in compiler code"
+  resend
+].
+
+
+gen@(VM SSACompiler traits) emitInstruction: code withParameters: values from: node
+[
+  "add the selector to the list so we know what this function calls... so it can be unoptimized if needed"
+  code = gen directSendMessage \/ [code = gen sendMessageWithOptionals] ifTrue: [gen currentContext method selectors: gen currentContext method selectors ; {values second}].
+  gen emitObject: code from: node.
+  values do: [| :value | gen emitObject: value from: node]
+].
+
+gen@(VM SSACompiler traits) emitInstruction: code from: node
+"Emitting an instruction without an immediate value required just puts the
+byte onto the end."
+[
+  gen emitInstruction: code withParameters: #() from: node
+].
+
+
+
+
+"
+=======================================================================
+Generate methods. They all must return the register(s) with the results
+=======================================================================
+
+"
+
+
+_@(VM SSACompiler traits) generate: _@(Syntax Node traits)
+"Do nothing in the default case, for comments and annotations and such."
+[error: 'do not call generate without a result'].
+
+_@(VM SSACompiler traits) generate: _@(Syntax Node traits) result: result
+"Do nothing in the default case, for comments and annotations and such."
+[].
+
+gen@(VM SSACompiler traits) generate: ann@(Syntax Annotation traits) result: result
+"Generate the annotation's value."
+[
+  gen generate: ann value
+].
+
+gen@(VM SSACompiler traits) generate: block@(Syntax Block traits) result: result &topLevel: topLevel
+"Encountering a new block, build a new CompiledMethod object and push it and
+a new bytecode array writer onto the generator, then go through the underlying
+code and generate that. When done, pop both, set up the block as a literal
+and push it onto the stack."
+[| newBlock isClosure statements |
+  topLevel `defaultsTo: False.
+  newBlock: CompiledMethod new.
+  newBlock environment: (gen contexts isEmpty
+    ifTrue: [block parentScope topLevel namespace]
+    ifFalse: [gen currentMethod environment]).
+  newBlock sourceTree: block.
+  gen contexts push: (gen Context newOn: newBlock).
+  "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
+  statements: (block statements collect: [| :statement | statement macroExpand &environment: gen currentMethod sourceTree]).
+  gen currentContext currentRegister: block localVariables size. "input variables might not be needed"
+  statements allButLastDo: [| :node | gen generate: node result: Nil].
+  statements size > 0
+    ifTrue: [gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} from: block]
+    ifFalse: [gen emitInstruction: gen returnValue withParameters: {Nil} from: block].
+
+  "Set the variable information after generation, just in case it was modified."
+  newBlock `>>
+   [inputVariables: block inputVariables size.
+    localVariables: block localVariables size.
+    restVariable: block restVariable isNotNil.
+    registerCount: gen currentContext currentRegister + 1.
+    "reserved1: gen currentContext currentRegister + 1."
+    optionalKeywords: block optionalKeywords.].
+  isClosure: gen currentContext isClosure.
+
+  gen contexts pop flush.
+  "Forces the newBlock to record all the remaining stream input correctly."
+
+  gen contexts isEmpty \/ [topLevel]
+    ifFalse:
+      [result `defaultsTo: gen newRegister. "asking for a register requires a context"
+       isClosure
+        ifTrue:
+          [gen emitInstruction: gen newClosure withParameters: {result. newBlock} from: block]
+        ifFalse:
+          [gen emitInstruction: gen loadLiteral withParameters: {result. newBlock} from: block]].
+
+  gen contexts isEmpty \/ [topLevel] ifTrue: [newBlock] ifFalse: [result]
+].
+
+gen@(VM SSACompiler traits) generate: def@(Syntax MethodDefinition traits) result: resultRegister
+"Translate method definitions to equivalent asMethod:on: invocations."
+[ | blockRegister roleRegisters arrayRegister resultRegister selectorRegister |
+  gen contexts isEmpty
+    ifTrue: [^ resend].
+  blockRegister: (#generate:result: sendTo: {gen. def. Nil} through: {gen. Syntax Block. Nil}).
+  arrayRegister: gen newRegister.
+  selectorRegister: (gen registerFor: def selector from: def result: Nil).
+  roleRegisters: (def roles collect: [| :role | gen generate: role result: Nil]).
+  resultRegister `defaultsTo: gen newRegister.
+  gen emitInstruction: gen newArrayWith withParameters: {arrayRegister. roleRegisters size} ; roleRegisters from: def.
+  gen emitInstruction: gen directSendMessage withParameters: {resultRegister. #asMethod:on:. 3. blockRegister. selectorRegister. arrayRegister} from: def.
+  resultRegister
+].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax Resend traits) result: resultRegister
+[| lexOffset scope |
+  scope: gen currentMethod sourceTree.
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: 'resend must be used within a method definition.']).
+  lexOffset > 0
+    ifTrue:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+        (gen contexts top: lexOffset) do: #isClosure: `er <-* True].
+  resultRegister `defaultsTo: gen newRegister.
+  gen emitInstruction: gen resendMessage withParameters: {resultRegister. lexOffset} from: r.
+  resultRegister
+].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax Return traits) result: blah
+[overrideThis].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax Return traits) by: lexOffset result: resultRegister
+[ 
+  resultRegister `defaultsTo: gen newRegister.
+  lexOffset > 0
+    ifTrue:
+      [(gen contexts fromTop: lexOffset) method heapAllocate: True.
+       (gen contexts top: lexOffset) do: [| :x | x isClosure: True]].
+  gen generate: r value result: resultRegister.
+  gen emitInstruction: gen returnFrom withParameters: {resultRegister. lexOffset} from: r.
+  resultRegister.
+].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax ReturnClose traits) result: resultRegister
+"Exits the first enclosing named method in the lexical scope."
+[| lexOffset |
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: '^ must be used within a method definition.']).
+  gen generate: r by: lexOffset result: resultRegister
+].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax ReturnFar traits) result: result
+"Exits the last enclosing named method in the lexical scope."
+[| lexOffset |
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+      ifNil:
+        [error: '^^ must be used within a method definition.']).
+  gen generate: r by: lexOffset result: result
+].
+
+gen@(VM SSACompiler traits) generate: r@(Syntax ReturnLevel traits) result: result
+"Exits the Nth enclosing lexical scope."
+[gen generate: r by: r level result: result].
+
+gen@(VM SSACompiler traits) generate: literal@(Syntax Literal traits) result: result
+[
+  gen registerFor: literal value from: literal result: result
+].
+
+gen@(VM SSACompiler traits) generate: n@(Syntax CompoundStatement traits) result: result
+"return the registers that the values were saved into"
+[
+  n statements size < 1
+    ifTrue: [{}]
+    ifFalse: [(n statements allButLast collect: [| :node | gen generate: node result: Nil])
+                ; {(gen generate: n statements last result: result)}]
+].
+
+gen@(VM SSACompiler traits) generate: n@(Syntax Parenthesis traits) result: result
+"return the registers that the values were saved into"
+[
+  n statements size < 1 
+   ifTrue: [{}]
+   ifFalse: [n statements allButLastDo: [| :node | gen generate: node result: Nil].
+             gen generate: n statements last result: result]
+].
+
+gen@(VM SSACompiler traits) generate: i@(Syntax ImplicitArgument traits) result: result
+[
+  result `defaultsTo: gen newRegister.
+  gen emitInstruction: gen loadEnvironment withParameters: {result} from: i.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@(Syntax Namespace traits) result: result
+[shouldNotImplement].
+
+gen@(VM SSACompiler traits) generate: load@(Syntax LoadVariable traits) result: result
+[| scope lexOffset varIndex |
+  scope: load variable scope.
+  varIndex: (scope localVariables indexOf: load variable).
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+      ifNil:
+        [error: 'Could not determine variable scope.']).
+  lexOffset isZero
+    ifTrue:
+      [result `defaultsTo: varIndex.
+       gen emitInstruction: gen loadVariable withParameters: {varIndex} from: load.
+       result = varIndex
+              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} from: load]]
+    ifFalse:
+      [result `defaultsTo: gen newRegister.
+       (gen contexts fromTop: lexOffset) method heapAllocate: True.
+       (gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+       gen emitInstruction: gen loadFreeVariable withParameters: {result. lexOffset. varIndex} from: load].
+  result
+].
+
+gen@(VM SSACompiler traits) generate: store@(Syntax StoreVariable traits) result: result
+[| scope lexOffset varIndex |
+  scope: store variable scope.
+  varIndex: (scope localVariables indexOf: store variable).
+  lexOffset: gen contexts indexLast -
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+      ifNil:
+        [error: 'Could not determine variable scope.']).
+  
+  
+  lexOffset isZero
+    ifTrue: 
+      [result `defaultsTo: varIndex.
+       gen generate: store value result: varIndex.
+       gen emitInstruction: gen storeVariable withParameters: {varIndex} from: store.
+       result = varIndex
+              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} from: store]]
+    ifFalse:
+      [result `defaultsTo: gen newRegister.
+       gen generate: store value result: result.
+       (gen contexts fromTop: lexOffset) method heapAllocate: True.
+       (gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+        gen emitInstruction: gen storeFreeVariable withParameters: {lexOffset. varIndex. result} from: store].
+  
+  result
+].
+
+gen@(VM SSACompiler traits) generate: array@(Syntax Array traits) result: result
+"Generate the code to push the element expression results on the stack,
+then the appropriate literal-array constructor bytecode."
+[ | registers |
+  registers: resend.
+  result `defaultsTo: gen newRegister.
+  gen emitInstruction: gen newArrayWith withParameters: {result. array size} ; registers from: array.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) result: result
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+[ | argRegisters |
+  result `defaultsTo: gen newRegister.
+  argRegisters: (args collect: [| :arg | gen generate: arg result: Nil]).
+  gen emitInstruction: gen directSendMessage withParameters: {result. selector. args size} ; argRegisters from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: msg@(Syntax Message traits) result: result &optionals: opts
+[
+  gen generate: msg selector on: msg arguments from: (opts ifNil: [msg]) result: result
+].
+
+gen@(VM SSACompiler traits) generate: macro@(Syntax Macro traits) result: result &optionals: opts
+[
+  "gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree) result: result"
+  error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
+].
+
+gen@(VM SSACompiler traits) generate: def@(Syntax Deferred traits) result: result &optionals: opts
+[| block message |
+  block: Syntax Block new `>> [parentScope: gen currentMethod sourceTree. ].
+  def arguments size timesRepeat: #addInputVariable `er <- block.
+  message: (Syntax Message sending: def selector to:
+    (block inputVariables collect: [| :var | Syntax LoadVariable from: var])).
+  opts
+    ifNotNil:
+      [message:
+        ((Syntax OptionalArguments for: message)
+          `>> [arguments: (opts arguments deepCopy: block). ])].
+  block statements: {message}.
+  gen generate:
+    (Syntax KeywordMessage
+      sending: #whenFulfilled:
+      to: {def arguments as: Syntax Array. block})
+    result: result
+].
+
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) result: result
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+[ | argRegisters optsArray optsWriter optsArrayRegister|
+  result `defaultsTo: gen newRegister.
+  argRegisters: (args collect: [| :arg | gen generate: arg result: Nil]).
+  optsArrayRegister: gen newRegister.
+  optsArray: ExtensibleArray new.
+  optsWriter: optsArray writer.
+  opts keywords with: opts arguments
+    do: [| :key :arg |
+          optsWriter nextPut: (gen registerFor: key from: opts result: Nil).
+          optsWriter nextPut: (gen generate: arg result: Nil)
+        ].
+
+  gen emitInstruction: gen newArrayWith withParameters: {optsArrayRegister. optsArray size} ; optsArray from: opts.
+  gen emitInstruction: gen sendMessageWithOptionals withParameters: {result. selector. args size. optsArrayRegister } ; argRegisters from: opts.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) result: result
+[
+  gen generate: opts message result: result &optionals: opts
+].
+
+gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen registerFor: True from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) generate: _@#False on: args from: msg result: result
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen registerFor: False from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) generate: _@#Nil on: args from: msg result: result
+[
+  (args first isSameAs: Syntax ImplicitArgument)
+    ifTrue: [gen registerFor: Nil from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) generate: _@#== on: args from: msg result: result
+[ | argRegs |
+  result `defaultsTo: gen newRegister.
+  argRegs: (args collect: [| :arg | gen generate: arg result: Nil]).
+  gen emitInstruction: gen isIdenticalTo withParameters: {result. argRegs first. argRegs second} from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@#do on: args from: msg result: result
+"If the block is a literal with no variables, then inline it.
+Otherwise, fall back to evaluating it via 'do'."
+[| block |
+  block: args first.
+  (block isSameAs: Syntax Block)
+    /\ [block localVariables isEmpty]
+    ifFalse: [^ resend].
+  result `defaultsTo: gen newRegister.
+  block statements size > 0
+    ifTrue: [block statements allButLastDo: [| :node | gen generate: node result: Nil].
+             gen generate: block statements last result: result]
+    ifFalse: [gen emitInstruction: gen loadLiteral withParameters: {result. Nil} from: msg.
+              result]
+].
+
+gen@(VM SSACompiler traits) generateExecutionOf: args from: msg result: result
+[gen generate: #do on: args from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#loop on: args from: msg result: result
+"Repeatedly evaluates a block via 'do'."
+[| label |
+  label: gen emitLabel.
+  gen generateExecutionOf: args from: msg result: Nil.
+  gen emitInstruction: gen jumpTo withParameters: #()"see below" from: msg.
+  gen emitBranchTo: label from: msg.
+  gen registerFor: Nil from: msg result: result "return nil"
+].
+
+gen@(VM SSACompiler traits) branchTableHash: key
+[
+  key identityHash
+].
+
+gen@(VM SSACompiler traits) buildBranchTableMapping: keys
+[| table tableSize |
+  tableSize: 1.
+  [tableSize < keys size]
+    whileTrue:
+      [tableSize: tableSize * 2].
+  table: (Array newSize: tableSize * 2).
+  keys do:
+    [| :key hash |
+      hash: ((gen branchTableHash: key) bitAnd: (tableSize - 1) * 2).
+      [(table at: hash) isNil]
+        whileFalse:
+          [key = (table at: hash)
+            ifTrue:
+              [error: 'Duplicate key ' ; key printString ; ' in caseOf:.'].
+            hash: hash + 2.
+            hash >= (tableSize * 2)
+              ifTrue:
+                [hash: 0]].
+      table at: hash put: key
+    ].
+  table
+].
+
+gen@(VM SSACompiler traits) generate: _@#caseOf: on: args from: msg result: result
+"Generates a caseOf:otherwise: with a default otherwise clause."
+[
+  (gen mayInlineCaseOf: msg)
+    ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) mayInlineCaseOf: msg
+"Answer whether a safe inlining is possible for a caseOf: expression without
+further analysis; currently this is the case where the second argument is a
+literal array, and the appropriate Associations and their elements are laid
+out with literal keys."
+[
+  (msg arguments second isSameAs: Syntax Array) /\
+   [msg arguments second statements allSatisfy:
+     [| :assoc |
+      (assoc is: Syntax Message)
+        /\ [assoc selector = #->]
+        /\ [assoc arguments first is: Syntax Literal]
+        /\ [{Symbol. ASCIIString Character. SmallInteger} anySatisfy:
+          [| :proto | assoc arguments first value is: proto]]]]
+].
+
+gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args from: msg result: finalResult
+[| labels table indices branchOffset otherwiseLabel endLabel switchKeyRegister |
+  (gen mayInlineCaseOf: msg)
+    ifFalse: [^ resend].
+  args second statements `cacheAs: #assocs.
+  labels: (assocs collect: [| :_ | gen newLabel]).
+  finalResult `defaultsTo: gen newRegister.
+  table:
+    (gen
+      buildBranchTableMapping:
+        (assocs collect: [| :assoc | assoc arguments first value])).
+  indices: IdentityDictionary new.
+  0 below: table size by: 2 do: [| :index |
+    (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
+
+  switchKeyRegister: (gen generate: args first result: Nil).
+  gen emitInstruction: gen branchKeyed withParameters: {switchKeyRegister. (gen registerFor: table from: msg result: Nil)} from: msg.
+  branchOffset: gen codeWriter position.
+  gen emitInstruction: gen jumpTo from: msg.
+  endLabel: gen newLabel.
+  otherwiseLabel: gen newLabel.
+  gen emitBranchTo: otherwiseLabel from: msg.
+
+  assocs with: labels do:
+    [| :assoc :label |
+      gen emitLabel: label.
+      table
+        at: (indices at: assoc arguments first value) + 1
+        put: (gen currentContext resolveLabel: label at: branchOffset).
+      gen generateExecutionOf: {assoc arguments second} from: msg result: finalResult.
+      gen emitInstruction: gen jumpTo from: msg.
+      gen emitBranchTo: endLabel from: msg].
+
+  "Handle the otherwise clause. If we didn't get a literal block for it, just
+  encode a Nil-push."
+  gen emitLabel: otherwiseLabel.
+  args size >= 3
+    ifTrue: [gen generateExecutionOf: {args third} from: msg result: finalResult]
+    ifFalse: [gen registerFor: Nil from: msg result: finalResult].
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#caseOf: on: args from: msg result: result
+"Generates a caseOf:otherwise: with a default otherwise clause."
+[
+  (gen mayInlineCaseOf: msg)
+    ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args from: msg result: finalResult
+"Branches to one of two blocks and evaluates it."
+[| falseLabel endLabel condReg |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  finalResult `defaultsTo: gen newRegister.
+  condReg: (gen generate: args first result: Nil).
+  condReg ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfFalse withParameters: {condReg} from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen generateExecutionOf: {args third} from: msg result: finalResult.
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args from: msg result: finalResult
+"Optionally evaluates a block."
+[| falseLabel endLabel condResult |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  finalResult `defaultsTo: gen newRegister.
+  condResult: (gen generate: args first result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen registerFor: Nil from: msg result: finalResult.
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args from: msg result: finalResult
+[| falseLabel endLabel condResult |
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  finalResult `defaultsTo: gen newRegister.
+  condResult: (gen generate: args first result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen registerFor: Nil from: msg result: finalResult.
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResult
+"Optionally evaluates a block."
+[| falseLabel endLabel condResult |
+  (args second isSameAs: Syntax Block)
+    ifFalse: [^ resend].
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  finalResult `defaultsTo: gen newRegister.
+  condResult: (gen generate: args first result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen registerFor: False from: msg result: finalResult.
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#\/ on: args from: msg result: finalResult
+"Optionally evaluates a block."
+[| block falseLabel endLabel condResult |
+  (args second isSameAs: Syntax Block)
+    ifFalse: [^ resend].
+  falseLabel: gen newLabel.
+  endLabel: gen newLabel.
+  finalResult `defaultsTo: gen newRegister.
+  condResult: (gen generate: args first result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
+  gen emitBranchTo: falseLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen emitLabel: falseLabel.
+  gen registerFor: True from: msg result: finalResult.
+  gen emitLabel: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args from: msg result: finalResult
+"Repeatedly evaluates a block while it returns True."
+[| label endLabel condResult |
+  endLabel: gen newLabel.
+  label: gen emitLabel.
+  condResult: (gen generateExecutionOf: {args first} from: msg result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: Nil.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitLabel: endLabel.
+  gen registerFor: Nil from: msg result: finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#whileFalse: on: args from: msg result: finalResult
+"Repeatedly evaluates a block while it returns False."
+[| label endLabel condResult |
+  endLabel: gen newLabel.
+  label: gen emitLabel.
+  condResult: (gen generateExecutionOf: {args first} from: msg result: Nil).
+  condResult ifNil: [inform: args first printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: Nil.
+  gen emitInstruction: gen jumpTo from: msg.
+  gen emitBranchTo: label from: msg.
+  gen emitLabel: endLabel.
+  gen registerFor: Nil from: msg result: finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#whileTrue on: args from: msg result: result
+"Repeatedly evaluates a block while it returns True."
+[| label condResult |
+  label: gen emitLabel.
+  condResult: (gen generateExecutionOf: args from: msg result: Nil).
+  condResult ifNil: [inform: args printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
+  gen emitBranchTo: label from: msg.
+  gen registerFor: Nil from: msg result: result
+].
+
+gen@(VM SSACompiler traits) generate: _@#whileFalse on: args from: msg result: result
+"Repeatedly evaluates a block while it returns False."
+[| label condResult |
+  label: gen emitLabel.
+  condResult: (gen generateExecutionOf: args from: msg result: Nil).
+  condResult ifNil: [inform: args printString. error: 'cond is nil'].
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
+  gen emitBranchTo: label from: msg.
+  gen registerFor: Nil from: msg result: result
+].
+
+gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
+[| block index var value |
+  block: args first.
+  index: args second.
+  value: args third.
+  (block isSameAs: Syntax Block) /\
+    [index isSameAs: Syntax Literal] /\
+    [block inputVariables acceptsKey: index value]
+    ifFalse: [^ resend].
+  (value isSameAs: Syntax Literal)
+    ifFalse:
+      [| tmp |
+        tmp: gen currentMethod sourceTree addVariable.
+        gen generate: (Syntax StoreVariable of: value into: tmp) result: Nil. "fixme"
+        value: (Syntax LoadVariable from: tmp)].
+  index: index value.
+  var: (block inputVariables at: index).
+  block inputVariables: (block inputVariables copyWithoutAt: index).
+  block localVariables
+    replaceFrom: index
+    below: block localVariables indexLast
+    with: block localVariables
+    startingAt: index + 1.
+  block localVariables at: block localVariables indexLast put: var.
+  block statements:
+    {(Syntax StoreVariable of: value into: var)} ; block statements.
+  gen generate: block result: result
+].
+
+gen@(VM SSACompiler traits) generate: _@#<- on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-1 on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-2 on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 1) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-3 on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 2) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-4 on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 3) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-5 on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 4) at: 1) from: msg result: result].
+
+gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
+"Optimizes currying calls on literal blocks using #fill:with:."
+[
+  (args first isSameAs: Syntax Block)
+    ifTrue:
+      [gen generate: #fill:with:
+	   on: (args copyWith:
+	     (Syntax Literal for: args first inputVariables indexLast) at: 1)
+	   from: msg
+           result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) printInstructionAt: pos in: array@(Array traits)
+[ | instr arguments nextStart instrVal output |
+  instrVal: (array at: pos).
+  instr: (VM SSACode instructionInfo detect: [|:elem| elem key = instrVal] 
+                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; array printString]) value.
+  output: '(' ; pos printString ; ') ' ; instrVal printString ; ' ' ; instr key printString.
+
+  nextStart: (pos + 1 + instr value first +
+               (instr value size > 1 
+                 ifTrue: [ |sum|
+                            sum: 0. 
+                            instr value allButFirstDo: [|:offset| sum: sum + (array at: pos + 1 + offset)].
+                            sum]
+                 ifFalse: [0])).
+
+  (pos + 1 until: nextStart) do: [ |:i| output: output ; ' ' ; (array at: i) printString].
+
+  inform: output.
+
+  nextStart
+].
+
+
+gen@(VM SSACompiler traits) decompile: array@(Array traits)
+[ | pos |
+  pos: 0.
+  [pos < array size] whileTrue: [ | instr |  pos: (gen printInstructionAt: pos in: array) ].
+].
+
+

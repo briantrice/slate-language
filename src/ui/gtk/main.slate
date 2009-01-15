@@ -1,0 +1,100 @@
+Gtk define: #Main &parents: {Cloneable}  &slots: { #initialized -> False. #callbackBlocks -> Nil. #nextBlockID -> 1. #oldDebuggerHook }.
+Gtk Main traits atSlotNamed: #printName put: 'Gtk Main'. 
+
+_@(Gtk Main traits) mainQuit [
+	Gtk Lib primitives gtk_main_quit do
+].
+
+m@(Gtk Main traits) registerCallbackBlock: aBlock [
+	| blockID |
+	blockID: m nextBlockID.
+	m callbackBlocks at: blockID put: aBlock.
+	m nextBlockID: (blockID + 1).
+	blockID
+].
+
+m@(Gtk Main traits) unregisterCallbackBlock: blockID [
+	m callbackBlocks removeKey: blockID.
+].
+
+m@(Gtk Main traits) installDebuggerHook [
+  m oldDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
+  c@(Condition traits) invokeDebugger [ 
+	"The hook for any Condition to start the debugger and enter its loop."
+	| stream dialog message |
+	stream: (Stream newTo: String new).
+	c describeOn: stream.
+	message: (stream contents ; 'Debug it?' ).
+	dialog: (Gtk MessageDialog newQuestionMessage: message).
+	dialog when: #response do: [ | :dialog :answer | 
+		dialog destroy.
+		answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c) show ]
+	].
+	dialog show.
+	Gtk Main doEventLoop.
+  ].
+].
+
+m@(Gtk Main traits) uninstallDebuggerHook [
+  | myDebuggerHook |
+  myDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
+  m oldDebuggerHook
+	ifNil: [ myDebuggerHook removeFrom: {Condition traits} ]
+	ifNotNil: [ myDebuggerHook replaceWith: m oldDebuggerHook on: {Condition traits} ]
+].
+
+m@(Gtk Main traits) initialize [
+	m initialized ifFalse: [
+		Gdk Lib init.
+		GLib CallbackData initQueue.
+		Gtk Lib init.
+		m callbackBlocks: Dictionary new.
+		m initialized: True.
+		m installDebuggerHook.
+	]
+].
+
+m@(Gtk Main traits) uninitialize [
+	m uninstallDebuggerHook.
+	m callbackBlocks: Nil.
+	m oldDebuggerHook: Nil.
+	m nextBlockID: 1.
+	m initialized: False.
+].
+
+m@(Gtk Main traits) shutdown [
+	m initialized ifTrue: [
+		m mainQuit.
+		GLib CallbackData shutdownQueue.
+		m uninitialize.
+	]
+].
+
+m@(Gtk Main traits) resetOnStartup [
+"Adds a handler for Image startup to reset the REPL."
+	Image startupActions at: m put: [ m uninitialize ].
+].
+
+m@(Gtk Main traits) callbackBlockDo: callbackData@(GLib CallbackData traits) [
+	| block |
+	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
+	[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
+		ensure: [
+			"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
+			m initialized ifTrue: [ callbackData end ]
+		].
+].
+
+m@(Gtk Main traits) doEventLoop [
+	[ m callbackBlockDo: GLib CallbackData waitNext.
+	"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
+	  m initialized
+ 	] whileTrue.
+].
+
+m@(Gtk Main traits) do: aBlock [
+	m initialize.
+	aBlock do.
+	m doEventLoop.
+	m shutdown.
+].

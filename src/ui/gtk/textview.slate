@@ -1,0 +1,44 @@
+Gtk define: #TextView &parents: {Gtk Container}.
+Gtk TextView traits atSlotNamed: #printName put: 'Gtk TextView'. 
+
+tv@(Gtk TextView traits) new [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_new do
+	])
+].
+
+tv@(Gtk TextView traits) newWithBuffer: buffer [
+	tv newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_new_with_buffer applyTo: {buffer handle}
+	])
+].
+
+tv@(Gtk TextView traits) buffer [
+	Gtk TextBuffer newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_get_buffer applyTo: {tv handle}
+	])
+].
+
+tv@(Gtk TextView traits) wrapMode: wrapMode [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_set_wrap_mode applyTo: {tv handle. wrapMode}
+	].
+	tv
+].
+
+tv@(Gtk TextView traits) scrollOnScreen: mark@(Gtk TextMark) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_scroll_mark_onscreen applyTo: {tv handle. mark handle }
+	].
+	tv
+].
+
+tv@(Gtk TextView traits) scrollTo: iter@(Gtk TextIter) &withinMargin: margin &useAlign: useAlign &xAlign: xAlign &yAlign: yAlign  [
+	margin `defaultsTo: 0.0 .
+	useAlign `defaultsTo: False.
+	xAlign `defaultsTo: 0.0 . 
+	yAlign `defaultsTo: 0.0 . 
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_view_scroll_to_iter applyTo: {tv handle. iter handle. margin. useAlign. xAlign. yAlign }
+	]
+].

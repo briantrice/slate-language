@@ -1,20 +1,36 @@
-conditions define: #Debugger &parents: {Cloneable}.
-Debugger `>>
-[addSlot: #condition. "The Condition that raised the debugging context."
- addSlot: #restarts valued: ExtensibleArray new.
- "The available Restart objects, in linear precedence order."
- addSlot: #interpreter valued: bootstrapInterpreter.
- "The Interpreter currently being debugged."
- addSlot: #resource valued: DebugConsole. "The interaction terminal."
- addSlot: #parser valued: Syntax Parser.
- "The Syntax Parser for expressions at the prompt."
- addSlot: #printer valued: DebugConsole writer. "The simple printer."
- addSlot: #namespace valued: lobby newSubSpace.
- "The namespace in which expressions are evaluated."
- addSlot: #framePointer valued: 0.
- "The frame pointer of where the currenly debugged frame nested."
- addSlot: #basePrompt valued: ': '.
-].
+
+"DebugConsole writeStream collectionLimit: 512.
+DebugConsole writeStream nestingLimit: 3.
+Stream PrettyPrinter collectionLimit: 512.
+Stream PrettyPrinter nestingLimit: 3."
+
+Stream PrettyPrinter collectionLimit: 256.
+Stream PrettyPrinter nestingLimit: 2.
+
+conditions define: #Debugger &parents: {Cloneable}
+  &slots: {#condition -> Nil.
+           #restarts -> ExtensibleArray new.
+           #interpreter -> bootstrapInterpreter.
+           #resource -> DebugConsole.
+           #parser -> Syntax Parser.
+           #printer -> DebugConsole writer.
+           #namespace -> lobby newSubSpace.
+           #frameList -> Nil.
+           #currentFrame -> Nil.
+           #baseFramePointer -> Nil.
+           #slateFrameSize -> 6.
+           #maxBacktraceSize -> 200.
+           #basePrompt -> ': '}.
+
+conditions define: #DebuggingFrame &parents: {Cloneable}
+  &slots: {#resultStackLocation -> Nil.
+           #instructionPointer -> Nil.
+           #method -> Nil.
+           #framePointer -> Nil.
+           #lexicalContext -> Nil.
+           }.
+
+
 
 d@(Debugger traits) refreshWorkspace
 [d namespace: d namespace newSisterSpace. d installMethods].
@@ -24,13 +40,16 @@ d@(Debugger traits) on: resource
   d resource: resource.
   d parser: (d parser newOn: resource reader).
   d printer: resource writer.
+  d printer collectionLimit: Stream PrettyPrinter collectionLimit.
+  d printer nestingLimit: Stream PrettyPrinter nestingLimit.
   d
 ].
 
-d@(Debugger traits) newFor: c &interpreter: interp &console: resource
+d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol
 [
   interp `defaultsTo: d interpreter.
   resource `defaultsTo: d resource.
+  symbol `defaultsTo: #invokeDebugger.
   d clone `>>
     [| :newD |
      on: resource.
@@ -41,7 +60,8 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource
      parser parseInteractively:
        ([repl parser parseInteractively]
 	  on: SeriousCondition do: [| :c | c return: False]).
-     framePointer: (d interpreter framePointerOf: #invokeDebugger). ]
+     baseFramePointer: (d interpreter framePointerOf: symbol).
+     buildFrames.]
 ].
 
 c@(Condition traits) invokeDebugger
@@ -78,109 +98,51 @@ d@(Debugger traits) describeRestarts
   out ; '\nEnter \'help.\' for instructions.\n'
 ].
 
-d@(Debugger traits) isValidFrameIndex: index
-[index >= 4].
-
-d@(Debugger traits) currentFrameIndex
-"Answers the current frame index or Nil if it is too low to be meaningful."
-[| frame |
-  frame: (d interpreter stack at: d framePointer - 1).
-  (d isValidFrameIndex: frame) ifTrue: [frame]
-].
-
-d@(Debugger traits) methodForFrameIndex: frame
-"Answer the method as consistent with interpreting the given number as a frame
-index, or Nil if not possible."
-[| method |
-  (d isValidFrameIndex: frame) ifTrue:
-    [method: (d interpreter stack at: frame - 3).
-     "Closures add one level of indirection to the actual method."
-     (method isSameAs: Closure) ifTrue: [method: method method].
-     method]
-].
-
-d@(Debugger traits) currentMethod
-"Answer the current frame method or Nil if not possible."
-[d methodForFrameIndex: (d interpreter stack at: d framePointer - 1)].
-
-d@(Debugger traits) currentLexicalContext
-"Answers the current lexical context or Nil if not possible."
+d@(Debugger traits) stackItem: x
 [
-  d currentMethod ifNotNilDo:
-    [| :method frame |
-     frame: d currentFrameIndex.
-     frame ifNil: [^ Nil].
-     method heapAllocate
-       ifTrue: [d interpreter stack at: frame - 2]
-       ifFalse: [d interpreter stack sliceFrom: frame
-				     below: frame + method localVariables]]
+  d interpreter stack at: x
 ].
 
-d@(Debugger traits) findScopesOf: method
-[| scope visited frame |
-  scope: method sourceTree.
-  scope ifNil: [^ {}].
-  visited: IdentitySet new.
-  [| :scopes |
-  frame: (d interpreter stack at: d framePointer - 1).
-  [d isValidFrameIndex: frame]
-    whileTrue:
-      [method: (d interpreter stack at: frame - 3) method.
-       (scope includesScope: method sourceTree)
-         ifTrue:
-           [(visited includes: method sourceTree)
-              ifTrue: [^ scopes contents].
-            visited include: method sourceTree.
-            scopes nextPut: frame.
-            (method sourceTree parentScope isSameAs: Syntax Namespace)
-              ifTrue: [^ scopes contents]].
-       frame: (d interpreter stack at: frame - 1)]] writingAs: {}
-].
-
-d@(Debugger traits) evaluate: expr at: frame
-[| method compiler exprClosure |
-  (d isValidFrameIndex: frame) ifTrue:
-    [method: (d interpreter stack at: frame - 3) method].
-  expr: (Syntax Block newFor: expr).
-  expr parentScope: (method isNotNil /\ [method sourceTree isNotNil]
-    ifTrue: [method sourceTree]
-    ifFalse: [d parser currentScope]).
-  expr linkVariables.
-  compiler: VM SSACompiler new.
-  exprClosure: Closure new.
-  method
-    ifNotNil:
-      [(d findScopesOf: method) reverseDo:
-        [| :frame closure |
-         closure: (d interpreter stack at: frame - 3).
-         exprClosure:
-           (exprClosure copyWith:
-             ((d interpreter stack at: frame - 2)
-               ifNil:
-                 [closure: closure clone.
-                  closure method:
-                    ((closure isSameAs: Closure)
-                      ifTrue: [closure method clone]
-                      ifFalse: [closure]).
-		  closure method method: closure method.
-                  closure method heapAllocate: True.
-                  d interpreter stack at: frame - 3 put: closure.
-                  d interpreter stack at: frame - 2 put:
-                    (LexicalContext newWithAll:
-                      (d interpreter stack sliceFrom: frame below: frame + closure method localVariables))
-                    `>> [framePointer: frame. ]])
-             at: 0).
-         compiler contexts push: (compiler Context newOn: closure method)]].
-  expr: (compiler generate: expr result: Nil &topLevel: True).
-  expr environment: d namespace.
-  method ifNotNil: [d namespace parentNamespace: method environment].
-  exprClosure method: expr.
-  exprClosure do
-].
-
-d@(Debugger traits) evaluate: expr
+d@(Debugger traits) stackItem: x put: val
 [
-  d evaluate: expr at: (d interpreter stack at: d framePointer - 1)
+  d interpreter stack at: x put: val
+].
+
+
+d@(Debugger traits) buildFrames
+"build a list of frames return true if you have them all"
+[ |fp ip method lc resultLoc frameList frame|
+ "  {#resultStackLocation -> Nil.
+           #instructionPointer -> Nil.
+           #method -> Nil.
+           #lexicalContext -> Nil.
+           }.
+
+"
+  "set up the first frame to browse"
+  d baseFramePointer ifNil: [d printer ; 'Base frame pointer is nil. Cannot build stack frames...\n'. ^ Nil].
+  fp: (d stackItem: d baseFramePointer - 1).
+  ip: (d stackItem: d baseFramePointer - 4).
+  resultLoc: (d stackItem: fp - 5).
+  lc: (d stackItem: fp - 2).
+  method: (d stackItem: fp - 3).
+  frameList: ExtensibleArray new.
+
+  "loop through all the frames and add them to the list"
+  [frameList addLast: (DebuggingFrame new `>> [method: method.
+                                               instructionPointer: ip.
+                                               lexicalContext: lc.
+                                               framePointer: fp.
+                                               resultStackLocation: resultLoc.]).
+   ip: (d stackItem: fp - 4).
+   fp: (d stackItem: fp - 1).
+   fp < d slateFrameSize ifTrue: [d frameList: frameList. ^ True].
+   resultLoc: (d stackItem: fp - 5).
+   lc: (d stackItem: fp - 2).
+   method: (d stackItem: fp - 3).
+   "frameList size > d maxBacktraceSize ifTrue: [d frameList: frameList. ^ False]."
+  ] loop.
+    
 ].
 
 d@(Debugger traits) prompt
@@ -197,9 +159,11 @@ in the selected option number, returning it if valid."
   out ; d basePrompt.
   out flush.
   [| expr result |
-    expr: d parser next.
-    result: (d evaluate: expr).
-    (expr is: Syntax Message) /\ [#(: restart: up up: down down: frame restarts help) includes: expr selector]
+   expr: d parser next.
+   result: (expr evaluateIn: d namespace).
+   "Exclude selections of restarts and other commands from printing."
+   ((expr is: Syntax Literal) /\ [result is: Integer]) \/
+     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
       ifFalse:
         [result printOn: out.
           out newLine.
@@ -220,94 +184,98 @@ d@(Debugger traits) signalRestartAt: index
     ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
 ].
 
-d@(Debugger traits) framePrint
-[| out frame codePointer method lexicalContext |
+d@(Debugger traits) printBacktrace &limit: limit &stream: out
+[ 
+  limit `defaultsTo: d maxBacktraceSize.
+  out `defaultsTo: d printer.
+  d frameList doWithIndex:
+    [|:frame :index|
+       "out ; '<' ; index printString ; '> ' ; (frame method method sourceTreeOf: (0 max: frame instructionPointer - 1)) printString ; '\n'."
+       "out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'."
+       index > limit ifTrue: [^ Nil].
+       out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'
+       ].
+].
+
+
+d@(Debugger traits) frame: n
+[
+  d currentFrame: (d frameList at: n ifAbsent: [Nil]).
+  d printFrame
+].
+
+d@(Debugger traits) currentFrameValueAt: n
+[ |out frame method|
   out: d printer.
-  codePointer: (d interpreter stack at: d framePointer - 4).
-  method: d currentMethod.
-  method == ensureMarker
-    ifTrue: [out ; 'ensure: handler invoked.\n'. ^ Nil].
-  lexicalContext: d currentLexicalContext.
-  lexicalContext ifNil: [out ; 'Top of stack.\n'. ^ Nil].
-  method sourceTree ifNil:
-    [out ; method printString ; '\n\n'.
-     lexicalContext isEmpty ifFalse:
-       [out ; 'Anonymous arguments: \n'.
-	lexicalContext doWithIndex:
-	  [| :val :index |
-           out ; index printString ; ': ' ; val printString ; '\n'].
-	out ; '\n']]
-    ifNotNil:
-      [(Syntax SourceWriter newOn: out) print: method sourceTree.
-       out ; '\n\n'.
-       (Syntax SourceWriter newOn: out) print: (method sourceTreeOf: codePointer - 1).
-       out ; '\n\n'.
-       method sourceTree localVariables doWithIndex:
-	 [| :var :index | out ; (var name as: String) ; ': '
-	    ; (lexicalContext at: index) printString ; '\n']]
+  frame: d currentFrame.
+  frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
+  method: frame method method.
+  d currentFrame ifNil: [inform: 'Current frame is nil'. ^ Nil].
+  out ; 'register[' 
+    ; n printString 
+    ; ']@'
+    ; (d stackItem: frame framePointer + n) printName
+    ;' = '
+    ; (d stackItem: frame framePointer + n) printString ; '\n'.
+  (d stackItem: frame framePointer + n)
 ].
 
-d@(Debugger traits) currentFrameValueAt: index
+d@(Debugger traits) currentFrameValueAt: n put: val
 [
-  d currentLexicalContext
-    ifNotNilDo: [| :context | context at: index ifAbsent: [Nil]]
+  d stackItem: frame framePointer + n put: val
 ].
 
-d@(Debugger traits) currentFrameValueAt: index put: obj
-[
-  d currentLexicalContext
-    ifNotNilDo: [| :context | context at: index put: obj].
+
+d@(Debugger traits) printFrame
+[ |out frame method|
+  out: d printer.
+  frame: d currentFrame.
+  frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
+  method: frame method method.
+  out ; 'fp:' ; frame framePointer printString  ; '\n'
+    ; 'ip: ' ; frame instructionPointer printString ; '/' ; method code size printString ; '\n'
+    ; 'method: ' ; method printString ; '\n'
+    ; 'call count: ' ; method callCount printString ; '\n'
+    ; 'register count: ' ; method registerCount printString ; '\n'
+    ; 'source: ' ; method sourceTree printString ; '\n'.
+  0 to: method inputVariables - 1
+    do: [|:i| out ; 'arg[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
+  method inputVariables to: method inputVariables + method localVariables - 1
+    do: [|:i| out ; 'local[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
+  method inputVariables + method localVariables to: method registerCount - 1
+    do: [|:i| out ; 'register[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
+  out ; 'Decompiled: ' ; '\n'.
+  VM SSACompiler decompile: method code.
 ].
 
-d@(Debugger traits) frameDown
-[| frame nextFrame method |
-  nextFrame: (d interpreter framePointerOf: #invokeDebugger).
-  [frame: nextFrame.
-   nextFrame: (d interpreter stack at: frame - 1).
-   nextFrame ~== d framePointer /\ [d isValidFrameIndex: nextFrame]] whileTrue.
-
-  (d isValidFrameIndex: nextFrame) ifTrue: [d framePointer: frame].
-].
-
-d@(Debugger traits) frameUp
-[| frame |
-  frame: (d interpreter stack at: d framePointer - 1).
-  (d isValidFrameIndex: frame) ifTrue: [d framePointer: frame].
-].
 
 d@(Debugger traits) printHelp
 [
   d printer
    ; 'The debugger is a specialized evaluator that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
    ; ': index. (or restart: index.) - signal the restart at the given index\n'
-   ; 'up - move up a frame\n'
-   ; 'up: N - move up N frames\n'
-   ; 'down - move down a frame\n'
-   ; 'down: N - move down N frames\n'
+   ; 'backtrace (or "bt") - print the backtrace\n'
    ; 'frame - print the current frame\n'
-   ; 'arg: N - evaluates the frame\'s value at index N\n'
-   ; 'arg: N put: - sets the frame\'s value at index N\n'
+   ; 'frame: N - set the current frame\n'
+   ; 'arg: N - evaluates the frame\'s register at index N\n'
+   ; 'arg: N put: - sets the frame\'s register at index N\n'
    ; 'restarts - print the currently available restarts\n'
    ; 'help - print this help listing\n'.
 ].
 
 d@(Debugger traits) installMethods
 [
-  _@(d namespace) up
-  [d frameUp. d framePrint].
-  _@(d namespace) down
-  [d frameDown. d framePrint].
-  _@(d namespace) up: n
-  [n timesRepeat: [d frameUp]. d framePrint].
-  _@(d namespace) down: n
-  [n timesRepeat: [d frameDown]. d framePrint].
   _@(d namespace) frame
-  [d framePrint].
+  [d printFrame].
+  _@(d namespace) frame: n
+  [d frame: n].
   _@(d namespace) arg: n
   [d currentFrameValueAt: n].
   _@(d namespace) arg: n put: newVal
   [d currentFrameValueAt: n put: newVal].
   _@(d namespace) backtrace &limit: n
+  [d printBacktrace &limit: n].
+  _@(d namespace) bt &limit: n
   [d printBacktrace &limit: n].
   _@(d namespace) restarts
   [d describeRestarts].
@@ -322,8 +290,10 @@ d@(Debugger traits) installMethods
 d@(Debugger traits) enter
 "The main interactive debugger loop."
 [
+  d printer ; 'We are entering the debugger...\n'.
   d refreshWorkspace.
   d findRestarts.
+  d printBacktrace.
   d describeRestarts.
 
   [d prompt] loop

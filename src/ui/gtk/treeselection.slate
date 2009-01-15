@@ -1,0 +1,11 @@
+Gtk define: #TreeSelection &parents: {GLib Object}.
+Gtk TreeSelection traits atSlotNamed: #printName put: 'Gtk TreeSelection'. 
+
+ts@(Gtk TreeSelection traits) selected [
+	| iter selectionAvailable |
+	iter: Gtk TreeIter new.
+	selectionAvailable: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_selection_get_selected applyTo: { ts handle. Nil. iter handle }
+	]).
+	selectionAvailable ifTrue: [ iter ] ifFalse: [ Nil ]
+].

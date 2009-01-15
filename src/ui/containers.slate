@@ -1,0 +1,72 @@
+
+
+Graphics define: #AlignmentMorph &parents: {Morph} &slots: {#vertical -> True. #percentages -> {100}.
+ #leftBorder -> 0. #topBorder -> 0. #rightBorder -> 0. #bottomBorder -> 0.}.
+Graphics define: #WindowMorph &parents: {AlignmentMorph} &slots: {#title -> 'System Window'}.
+
+m@(WindowMorph traits) new
+[ "with some defaults"
+  resend `>> [canResize: True. canDrag: True.
+              topBorder: m theme titleFontSize. 
+              leftBorder: m borderWidth. 
+              rightBorder: m borderWidth. 
+              bottomBorder: m borderWidth. ]
+].
+
+m@(AlignmentMorph traits) pack
+[ | currentPosition nextPosition size |
+   "set all the children's sizes"
+  
+  m vertical
+    ifTrue: [currentPosition: m topBorder.
+             m children doWithIndex: [|:child :i| 
+                                        size: ((m percentages at: i) / 100 * m height) rounded.
+                                        nextPosition: currentPosition + size.
+                                        child region: (Rectangle origin: (m leftBorder , currentPosition)
+                                                                 corner: m width - m rightBorder , (nextPosition - 1 min: m height - m bottomBorder)).
+                                        currentPosition: nextPosition.
+                                        child sizeChanged
+                                        ]]
+    ifFalse: [currentPosition: m leftBorder.
+              m children doWithIndex: [|:child :i| 
+                                        size: ((m percentages at: i) / 100 * m width) rounded.
+                                        nextPosition: currentPosition + size.
+                                        child region: (Rectangle origin: (currentPosition , m topBorder)
+                                                                 corner: (nextPosition - 1 min: m width - m rightBorder) , (m height - m bottomBorder)).
+                                        currentPosition: nextPosition.
+                                        child sizeChanged
+                                        ]]
+].
+
+m@(AlignmentMorph traits) sizeChanged
+[
+  m pack.
+  m repaint.
+].
+
+
+
+m@(WindowMorph traits) paintMyselfOn: surface@(Surface traits)
+[
+  surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface fontSize: m theme titleFontSize.
+  surface moveTo: 5 , m topBorder - 1.
+  surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+  surface showText: m title.
+  surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
+  surface rectangle: (Rectangle origin: 1 , 1 extent: m width , m topBorder - 1). surface stroke.
+  surface rectangle: (Rectangle origin: m width - m borderWidth , 1 extent: m width , m topBorder - 1). surface stroke.
+].
+
+m@(WindowMorph traits) handleMyself: e@(MouseButtonClickEvent traits)
+[ | relPos|
+  relPos: e position - m absolutePosition.
+  m width - relPos x < m borderWidth /\ [relPos y < m borderWidth]
+    ifTrue: [inform: 'Closing Window "' ; m title ; '"'.
+             m repaint.
+             m parent children remove: m].
+
+].

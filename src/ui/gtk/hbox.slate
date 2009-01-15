@@ -1,0 +1,15 @@
+Gtk define: #HBox &parents: {Gtk Box}.
+Gtk HBox traits atSlotNamed: #printName put: 'Gtk HBox'. 
+
+hb@(Gtk HBox traits) new &homogeneous: homogeneous &spacing: spacing [
+	| hBox |
+	"Creates a new GtkHBox. 
+	homogeneous: true if all children are to be given equal space allotments. 
+	spacing: the number of pixels to place by default between children."
+	homogeneous `defaultsTo: False.
+	spacing `defaultsTo: 0.
+	hb newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_hbox_new applyTo: { homogeneous. spacing }
+	])
+].
+

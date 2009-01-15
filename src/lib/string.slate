@@ -3,6 +3,8 @@ prototypes define: #String &parents: {Sequence. Collection. Mapping}.
 
 String traits define: #Character.
 
+_@String size [0]. "metadata traits barrier"
+
 a@(String Character traits) cr [$\r].
 
 a@(String Character traits) lf [$\n].
@@ -370,6 +372,19 @@ s@(String traits) trimAll: c@(Collection traits)
 s@(String traits) trim
 [
   s trimAll: s elementType Whitespace
+].
+
+s@(String traits) evaluate
+[
+  s evaluateIn: lobby
+].
+
+s@(String traits) evaluateIn: namespace
+[ |parser expr|
+  parser: (Syntax Parser newOn: s).
+  [[expr: parser next.
+    expr evaluateIn: lobby.
+    parser isAtEnd not] on: Stream Exhaustion do: [False]] whileTrue.
 ].
 
 c@(String Character traits) as: s@(String traits)

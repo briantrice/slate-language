@@ -11,6 +11,7 @@ Graphics define: #Demo &slots: {
 #listboxItems -> {'alice'. 'bob'. 'carol'. 'doug'. 'ellen'. 'fred'. 'george'. 'herman'. 'issac'}.
 #textbox -> TextboxMorph new.
 #editor -> LineEditorMorph new.
+#window -> WindowMorph new.
 }.
 
 
@@ -18,11 +19,17 @@ Demo mainWindow child: Demo background.
 Demo background parent: Demo mainWindow.
 
 Demo blueButton canDrag: True.
+Demo blueButton canResize: True.
 
 Demo background addChild: Demo blueButton `>> [text: 'blue button'. ].
 Demo background addChild: Demo redButton `>> [text: 'red button'. ].
 Demo background addChild: Demo textbox `>> [text: 'my text'. ].
-Demo background addChild: Demo editor `>> [region: (Rectangle origin: 300 , 250 extent: 200, 100). ].
+Demo background addChild: Demo window `>> [region: (Rectangle origin: 300 , 250 extent: 200, 100). 
+                                           percentages: {100}.
+                                           title: 'Repl'.].
+Demo editor region: Rectangle new.  
+Demo window addChild: Demo editor.
+Demo window pack.
 
 "Demo background addChild: Demo vertScrollbar `>> [region: (Rectangle origin: 400 , 20 extent: 20 , 150). ]."
 
@@ -39,6 +46,9 @@ Demo textbox region: (Rectangle origin: 20 , 250 extent: 200, 20).
 
 Demo redButton theme: Demo redButton theme clone `>> [labelColor: Colors Red.].
 Demo blueButton theme: Demo blueButton theme clone `>> [labelColor: Colors Blue.].
+
+InspectorMorph newOn: lobby parent: Demo background.
+
 
 "override handleMyself if you want the main handler to try sending it to
 the children first. here it doesn't matter that much"
@@ -65,6 +75,7 @@ demo@(Demo traits) start
 [
   demo mainWindow newNamed: 'Untitled' width: 640 height: 480.
   demo background region: demo mainWindow region.
+  DebuggerMorph enableDebuggerWithParent: demo background window: demo mainWindow.
   demo mainWindow eventLoop
 ].
 
