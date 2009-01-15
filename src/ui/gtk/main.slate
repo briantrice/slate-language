@@ -72,20 +72,24 @@ m@(Gtk Main traits) shutdown [
 
 m@(Gtk Main traits) resetOnStartup [
 "Adds a handler for Image startup to reset the REPL."
-	Image startupActions at: m put: [
-		m uninitialize.
-		m initialize.
-	]
+	Image startupActions at: m put: [ m uninitialize ].
 ].
 
 m@(Gtk Main traits) callbackBlockDo: callbackData@(GLib CallbackData traits) [
 	| block |
 	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-	[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ] ensure: [ callbackData end ]
+	[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
+		ensure: [
+			"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
+			m initialized ifTrue: [ callbackData end ]
+		].
 ].
 
 m@(Gtk Main traits) doEventLoop [
-	[ m callbackBlockDo: GLib CallbackData waitNext ] loop.
+	[ m callbackBlockDo: GLib CallbackData waitNext.
+	"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
+	  m initialized
+ 	] whileTrue.
 ].
 
 m@(Gtk Main traits) do: aBlock [
