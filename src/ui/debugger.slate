@@ -25,7 +25,7 @@ m@(DebuggerMorph traits) newOn: cond parent: parent window: window &x: x &y: y &
   restartButtons: (d restarts collect: [|:restart button|
                                           button: LabelMorph new `>> [text: 'Restart: ' ; restart printString. ].
                                           b@(button) handleMyself: e@(MouseButtonClickEvent traits)
-                                          [(restart newCondition: cond) `>> [queryFrom: d. signal]].
+                                          [im unlink. (restart newCondition: cond) `>> [queryFrom: d. signal]].
                                           button
                                           ]).
   im setChildren: {backtraceListbox. inspectButton} ; restartButtons.
