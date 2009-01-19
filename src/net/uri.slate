@@ -1,0 +1,196 @@
+lobby ensureNamespace: #Net.
+Net ensureNamespace: #Schemes.
+
+Net Schemes define: #Scheme &parents: {Cloneable}.
+Net Schemes define: #Http &parents: {Net Schemes Scheme}.
+Net Schemes define: #Mailto &parents: {Net Schemes Scheme}.
+
+Net Schemes define: #SchemeDictionary -> Dictionary new.
+
+{ 'http' -> Net Schemes Http.
+  'http' -> Net Schemes Mailto.
+} do: [|:each| Net Schemes SchemeDictionary add: each].
+
+u@(Net Schemes Scheme traits) uriText [overrideThis].
+u@(Net Schemes Http traits) uriText ['http'].
+u@(Net Schemes Mailto traits) uriText ['mailto'].
+
+string@(String traits) as: _@(Net Schemes Scheme)
+[
+  (Net Schemes SchemeDictionary at: string ifAbsent: [ error: 'Cannot find scheme: ' ; string]) new
+].
+
+"http://www.ietf.org/rfc/rfc3986.txt"
+Net define: #URI &parents: {ExternalResource Locator}
+  &slots: {#scheme. #fragment}.
+
+u@(Net URI traits) isAbsolute
+"All Absolute URLs have a scheme."
+[u scheme isNotNil].
+
+u@(Net URI traits) isEmpty
+"Answer whether it contains anything important according to the scheme."
+[overrideThis].
+
+u@(Net URI traits) printSchemeSpecificPartOn: encoder
+"Print the scheme-specific part on the encoding stream."
+[overrideThis].
+
+Net define: #HierarchicalURI &parents: {Net URI} &slots:
+  {#authority.
+   #path -> {}. "The path segments."
+   #query}.
+
+u@(Net HierarchicalURI traits) new
+"TODO: Finish this"
+[u cloneSettingSlots: #(scheme fragment authority path query)
+   to: {u scheme. u fragment. u authority. u path new. u query new}].
+
+u@(Net HierarchicalURI traits) isEmpty
+[u path isEmpty /\ [u authority isNil]].
+
+u@(Net HierarchicalURI traits) printSchemeSpecificPartOn: encoder
+[
+  u authority ifNotNil: [encoder ; '//'. u authority printOn: encoder].
+  u path printOn: encoder.
+  u query ifNotNil: [encoder ; '?'. encoder nextPutAll: u query as: 'uric'].
+].
+
+u@(Net URI traits) resolveRelative: ru
+[error: 'Only hierarchical URIs can resolve relative ones.'].
+
+abs@(Net HierarchicalURI traits) resolveRelative: rel@(Net HierarchicalURI traits)
+"Resolve a URI which should be relative to this one."
+"This algorithm is derived from the one in RFC 2396, section 5.2. It assumes
+both URIs have already been parsed.
+- If the first segment in rel's path is '', or rel's authority is
+  defined, rel contains an absolute path, so use rel's path as-is.
+  Otherwise, merge abs's path with rel's as follows:
+  - If the buffer is not empty, but begins with something other than '',
+    prepend '' to get a leading slash. If rel path is empty, but abs path
+    is not, put a '' at the end of the buffer so we don't lose the slash
+    that was there before we removed the last segment.
+  - Find the first occurrence of '..' from the left. If the previous argument
+    is '', then stop processing (or raise an error?). If '..' was the last
+    segment, append ''. Remove both '..' and the previous argument. Repeat
+    until there are no more occurrences of '..'."
+[| result |
+  "If rel is an absolute reference, it is (by the RFC) already resolved."
+  rel isAbsolute ifTrue: [^ rel].
+  "Scheme must be Nil at this point, since rel isAbsolute not."
+  "If rel's path is empty and the scheme, authority, and query are undefined,
+  then it is a reference to the current document."
+  rel path isEmpty
+    /\ [rel authority isNil]
+    /\ [rel query isNil]
+    ifTrue: [^ rel].
+  "Use rel's query and fragment, and abs's scheme."
+  result: (abs cloneSettingSlots: #(query fragment scheme)
+	       to: {rel query. rel fragment. abs scheme}).
+  "If rel's authority is defined, use it, or else use abs's."
+  rel authority
+    ifNil:
+      [result authority: abs authority.
+       rel path isEmpty not
+	 /\ [rel path first = '']
+	 ifTrue: [result path: rel path]
+	 ifFalse:
+	   [| resultPath dotDotIndex |
+	    "Copy all but the last segment of abs path to a buffer.
+	     Append rel path to the buffer."
+	    resultPath: (abs path allButLast ; rel path as: ExtensibleArray).
+	    resultPath isEmpty not
+	      /\ [resultPath first ~= '']
+	      ifTrue: [resultPath addFirst: ''].
+	    rel path isEmpty
+	      /\ [abs path isEmpty not]
+	      ifTrue: [resultPath addLast: ''].
+	    "If the last segment is '.', preserve a trailing slash."
+	    resultPath last = '.' ifTrue: [resultPath addLast: ''].
+	    "Remove all occurrences of '.' from the buffer."
+	    resultPath removeAllSuchThat: [| :seg | seg = '.'].
+	    "If the last segment is '..', preserve a trailing slash."
+	    resultPath last = '..' ifTrue: [resultPath addLast: ''].
+	    "Find occurrences of '..' from the left."
+	    dotDotIndex: 0.
+	    [dotDotIndex: (resultPath indexOf: '..' startingAt: dotDotIndex).
+	     dotDotIndex isNil]
+	      whileFalse:
+		[dotDotIndex = 1
+		   ifTrue: "Do not remove a leading slash."
+		     [dotDotIndex: dotDotIndex + 1]
+		   ifFalse: "Remove the '..' and the preceding element."
+		     [resultPath at: dotDotIndex - 1 remove: 2]].
+	    result path: resultPath]]
+    ifNotNil:
+      [result authority: rel authority.
+       result path: rel path].
+  result
+].
+
+Net define: #OpaqueURI &parents: {Net URI}
+  &slots: {#opaquePart}.
+
+u@(Net OpaqueURI traits) isEmpty [u opaquePart isNil].
+
+u@(Net OpaqueURI traits) printSchemeSpecificPartOn: encoder
+[u opaquePart ifNotNil: [encoder nextPutAll: u opaquePart as: 'uricNoSlash']].
+
+u@(Net URI traits) readFrom: s
+[| r | 
+  r: (Regex Matcher forString: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  (r matches: s)
+    ifTrue: [Net URI cloneSettingSlots: #(scheme authority path query fragment)
+		     to: {(r subexpression: 3) as: Net Schemes Scheme.
+			  r subexpression: 5. 
+			  r subexpression: 6. 
+			  r subexpression: 8. 
+			  r subexpression: 10}]
+    ifFalse: [error: 'Unable to parse: ' ; s ; ' as URI']
+].
+
+u@(Net URI traits) as: s@(String traits)
+[
+  [| :result |
+   u scheme isEmpty ifFalse: [result ; u scheme ; ':'].
+   u authority isEmpty ifFalse: [result ; '//' ; u authority].
+   result ; u path.
+   u query isEmpty ifFalse: [result ; '?' ; u query].
+   u fragment isEmpty ifFalse: [result ; '#' ; u fragment].
+   ] streamingAs: ''
+].
+
+u@(Net URI traits) testParsing
+[| myurl |
+  myurl: (uri readFrom: 'http://localhost/~jewel/moo').
+  myurl actor contents print.
+].
+
+
+Net define: #URL &parents: {Net HierarchicalURI} &slots: {}.
+
+u@(Net URI traits) scheme [overrideThis].
+
+u@(Net URL traits) readFrom: s
+[| r | 
+  r: (Regex Matcher for: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  (r matches: s)
+    ifTrue: [Net URL clone `>>
+	       [scheme: ((r subexpression: 3) as: Net Schemes Scheme). 
+		authority: (r subexpression: 5). 
+		path: (r subexpression: 6). 
+		query: (r subexpression: 8). 
+		fragment: (r subexpression: 10). ]]
+    ifFalse: [error: 'unable to parse URL']
+].
+
+u@(Net URL traits) as: s@(String traits)
+[
+ [| :result |
+ u scheme ifNotNil: [result ; u scheme uriText ; ':'].
+ u authority = '' ifFalse: [result ; '//' ; u authority].
+ result ; u path.
+ u query = '' ifFalse: [result ; '?' ; u query].
+ u fragment = '' ifFalse: [result ; '#' ; u fragment]
+   ] streamingAs: ''
+].

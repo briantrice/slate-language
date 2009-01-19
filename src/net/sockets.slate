@@ -49,6 +49,9 @@ Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
          Socket ErrorCodes Dictionary add: item value -> item key.
        ].
 
+conditions define: #SocketError
+  &parents: {ExternalResource SeriousCondition}
+  &slots: {#error. #errorCode}.
 
 
 Socket Domains `>> [
@@ -68,7 +71,7 @@ Socket Protocols `>> [
 
 s@(Socket traits) throwError: code
 [
-  error: (Socket ErrorCodes Dictionary at: code) printString
+  SocketError new `>> [error: (Socket ErrorCodes Dictionary at: code). errorCode: code. signal]
 ].
 
 
