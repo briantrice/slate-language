@@ -100,7 +100,7 @@ i@(Gtk Inspector traits) onSlotsView: treeView rowActivated: path column: column
 	index: ((treeView model stringFromIter: iter) as: Integer).
 	i inspectedVar ifNotNil: [
 		| slotName |
-		slotName: (i inspectedVar slotNames at: index).
+		slotName: (i inspectedVar slotNames sort at: index).
 		(Gtk Inspector newFor: (i inspectedVar atSlotNamed: slotName) ) show.
 	].	
 ].
@@ -108,7 +108,7 @@ i@(Gtk Inspector traits) onSlotsView: treeView rowActivated: path column: column
 i@(Gtk Inspector traits) loadSlotsIn: model [
 	model clear.
 	i inspectedVar ifNotNil: [
-		i inspectedVar slotNames do: [ 
+		i inspectedVar slotNames sort do: [ 
 			| :each |
 			model append: (Nil -> { 'gtk-execute'. each printString. (i inspectedVar atSlotNamed: each) printString })
 		].

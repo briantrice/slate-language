@@ -1,5 +1,7 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #isModified -> False }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #modifications }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
+
+"FIXME: modifications are held by saving the entire text into the modifications array instead of just the modified text"
 
 w@(Gtk Workspace traits) new &fileName: fileName [
 	| workspace |
@@ -99,12 +101,14 @@ w@(Gtk Workspace traits) buildCodeView [
 	w codeBuffer: Gtk TextBuffer new.
 	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
 "	w codeView wrapMode: Gtk WrapMode WordChar."
-	w loadCodeView.
-	w codeBuffer when: #changed do: [ | :_ wasModified |
-		wasModified: w isModified.
-		w isModified: True.
-		wasModified = w isModified ifFalse: [ w changeTitle ].
+	w codeBuffer when: #changed do: [ | :buffer |
+		inform: #changed.
+		w modifications
+			ifNil: [ w modifications: ExtensibleArray new ].
+		w modifications size <= 1 ifTrue: [ w changeTitle ].
+		w modifications add: buffer text.
 	].
+	w loadCodeView.
 	Gtk ScrolledWindow newWithChild: w codeView
 ].
 
@@ -117,8 +121,14 @@ w@(Gtk Workspace traits) loadCodeView [
 		^ Nil.
 	].
 	text: (file sessionDo: [| :f | f reader next: file size ]).
+	w modifications: Nil.
 	w codeBuffer text: text.
-	w isModified: False.
+	"Title is changed by the #changed signal"
+].
+
+w@(Gtk Workspace traits) resetModifications [
+	w modifications: ExtensibleArray new.
+	w modifications add: w codeBuffer text.
 	w changeTitle.
 ].
 
@@ -134,9 +144,8 @@ w@(Gtk Workspace traits) saveFileAs: _ &ifOk: block [
 			w fileName: dialog fileName.
 			file: (File newNamed: w fileName &mode: File CreateWrite).
 			file sessionDo: [| :f | f writer nextPutAll: w codeBuffer text ].
-			w isModified: False.
-			w changeTitle.
 			block ifNotNil: [ block do ].
+			w resetModifications.
 		].
 		dialog destroy.
 	].
@@ -151,8 +160,7 @@ w@(Gtk Workspace traits) saveFile: view &ifOk: block [
 			file: (File newNamed: w fileName).
 			file sessionDo: [| :f | f writer nextPutAll: w codeBuffer text ].
 		].
-	w isModified: False.
-	w changeTitle.
+	w resetModifications.
 ].
 
 w@(Gtk Workspace traits) openFile: _ [
@@ -188,7 +196,6 @@ w@(Gtk Workspace traits) buildView [
 	| vBox |
 	
 	w view: Gtk Window newTopLevel.
-	w changeTitle.
 	w view when: #destroy send: #destroy: to: w.
 	w view when: #delete-event send: #onWindow:event: to: w.
 	w view defaultSizeWidth: 640 height: 480.
@@ -202,32 +209,31 @@ w@(Gtk Workspace traits) buildView [
 ].
 
 w@(Gtk Workspace traits) ifOkToDiscardDo: aBlock [
-	w isModified
-		ifTrue: [
-			| dialog vBox hBox |
-			dialog: (Gtk Dialog
-				newWithFlags: Gtk DialogFlags Modal
-				&title: 'Workspace warning' ).
-			vBox: Gtk VBox new.
-			vBox packStart: (Gtk Label new &text: 'Workspace ' ; w composedFileName ; ' have been modified').
-			vBox packStart: (Gtk Label new &text: 'Do you want to save or discard changes?').
-			hBox: Gtk HBox new.
-			hBox packStart: (Gtk Image newFromStockId: #gtk-dialog-warning size: Gtk IconSize Dialog).
-			hBox packStart: vBox.
-			dialog vBox packStart: hBox.
-			dialog addButton: #gtk-save responseId: Gtk ResponseType Accept.
-			dialog addButton: #gtk-discard responseId: Gtk ResponseType Reject.
-			dialog addButton: #gtk-cancel responseId: Gtk ResponseType Cancel.
-			dialog when: #response do: [ | :dialog :answer |
-				dialog destroy.
-				answer caseOf: {
-					Gtk ResponseType Accept -> [ w saveFile: w view &ifOk: aBlock ].
-					Gtk ResponseType Reject -> aBlock.
-				}
-			].
-			dialog showAll.
-			^ Nil.
+	w modifications isEmpty ifFalse: [
+		| dialog vBox hBox |
+		dialog: (Gtk Dialog
+			newWithFlags: Gtk DialogFlags Modal
+			&title: 'Workspace warning' ).
+		vBox: Gtk VBox new.
+		vBox packStart: (Gtk Label new &text: 'Workspace ' ; w composedFileName ; ' have been modified').
+		vBox packStart: (Gtk Label new &text: 'Do you want to save or discard changes?').
+		hBox: Gtk HBox new.
+		hBox packStart: (Gtk Image newFromStockId: #gtk-dialog-warning size: Gtk IconSize Dialog).
+		hBox packStart: vBox.
+		dialog vBox packStart: hBox.
+		dialog addButton: #gtk-save responseId: Gtk ResponseType Accept.
+		dialog addButton: #gtk-discard responseId: Gtk ResponseType Reject.
+		dialog addButton: #gtk-cancel responseId: Gtk ResponseType Cancel.
+		dialog when: #response do: [ | :dialog :answer |
+			dialog destroy.
+			answer caseOf: {
+				Gtk ResponseType Accept -> [ w saveFile: w view &ifOk: aBlock ].
+				Gtk ResponseType Reject -> aBlock.
+			}
 		].
+		dialog showAll.
+		^ Nil.
+	].
 	aBlock do.
 ].
 
@@ -242,7 +248,7 @@ w@(Gtk Workspace traits) composedFileName [
 w@(Gtk Workspace traits) changeTitle [
 	| title |
 	title: w composedFileName.
-	w isModified ifTrue: [ title: title ; ' [modified]' ].
+	w modifications isEmpty ifFalse: [ title: title ; ' [modified]' ].
 	title: title ; ' - Workspace'.
 	w view title: title.
 ].
