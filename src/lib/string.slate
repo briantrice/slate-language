@@ -143,6 +143,30 @@ ch@(ASCIIString Character traits) isQuote
   ch = $\' \/ [ch = $\"]
 ].
 
+c1@(ASCIIString Character traits) < c2@(ASCIIString Character traits) 
+[
+  c1 code < c2 code
+].
+
+c1@(ASCIIString Character traits) > c2@(ASCIIString Character traits) 
+[
+  c1 code > c2 code
+].
+
+s1@(ASCIIString traits) < s2@(ASCIIString traits)
+[ | size |
+  size: (s1 size min: s2 size).
+  0 to: size do: [|:i| (s1 at: i) < (s2 at: i)
+                       ifTrue: [^ True]
+                       ifFalse: [((s1 at: i) > (s2 at: i)) ifTrue: [^ False]]].
+  False
+].
+
+s1@(ASCIIString traits) <= s2@(ASCIIString traits)
+[
+  s1 < s2 \/ [s1 = s2]
+].
+
 ch@(ASCIIString Character traits) isPrintable
 [ch code between: #[$\s code] and: #[$~ code]].
 
