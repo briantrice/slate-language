@@ -1,4 +1,4 @@
-Gtk define: #Inspector &parents: {Cloneable} &slots: { #inspectedVar. #view. #traitsView. #selectedTrait. #methodView }. 
+Gtk define: #Inspector &parents: {Cloneable} &slots: { #inspectedVar. #view. #traitsView. #selectedTrait. #traitMethodView". #delegatesView". #methodsView }.
 Gtk Inspector traits atSlotNamed: #printName put: 'Gtk Inspector'. 
 
 i@(Gtk Inspector traits) newFor: var [
@@ -18,6 +18,9 @@ i@(Gtk Inspector traits) show [
 i@(Gtk Inspector traits) destroy: _ [
 	i inspectedVar: Nil.
 	i view: Nil.
+	i traitsView: Nil.
+	i traitMethodView: Nil.
+"	i delegatesView: Nil."
 ].
 
 i@(Gtk Inspector traits) buildView [
@@ -37,144 +40,11 @@ i@(Gtk Inspector traits) buildView [
 	i inspectedVar slotNames isEmpty ifFalse: [
 		notebook appendPage: i buildSlotsView label: 'Slots'.
 	].
-	notebook appendPage: i buildDelegatesView label: 'Delegates'.
+"	notebook appendPage: i buildDelegatesView label: 'Delegates'."
+	notebook appendPage: i buildMethodsView label: 'Methods'.
 	notebook appendPage: i buildTraitsView label: 'Traits'.
 	i view add: notebook.
 	i
-].
-
-i@(Gtk Inspector traits) buildSlotsView [
-	| cell col slotsView |
-	
-	slotsView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-	})).
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Slot'.
-	cell: Gtk CellRendererPixbuf new.
-	col packStart: cell &expand: False.
-	col addAttribute: #stock-id column: 0 on: cell.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 1 } on: cell.	
-	slotsView appendColumn: col.
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Value'.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 2 } on: cell.	
-	slotsView appendColumn: col.
-	
-	slotsView gridLines: Gtk TreeViewGridLines Both.
-	i loadSlotsIn: slotsView model.
-	slotsView when: #row-activated send: #onTreeView:slotRowActivated:column: to: i. 
-	Gtk ScrolledWindow newWithChild: slotsView	
-].
-
-i@(Gtk Inspector traits) onTreeView: treeView slotRowActivated: path column: column [
-	| iter index slotName |
-	iter: treeView selection selected.
-	index: ((treeView model stringFromIter: iter) as: Integer).
-	i inspectedVar ifNotNil: [
-		slotName: (i inspectedVar slotNames at: index).
-		(Gtk Inspector newFor: (i inspectedVar atSlotNamed: slotName) ) show.
-	].	
-].
-
-i@(Gtk Inspector traits) loadSlotsIn: model [
-	model clear.
-	i inspectedVar ifNotNil: [
-		i inspectedVar slotNames do: [ 
-			| :each |
-			model append: (Nil -> { 'gtk-execute'. each printString. (i inspectedVar atSlotNamed: each) printString })
-		].
-	].
-].
-
-i@(Gtk Inspector traits) buildDelegatesView [
-	| cell col delegatesView |
-	
-	delegatesView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-	})).
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Delegate'.
-	cell: Gtk CellRendererPixbuf new.
-	col packStart: cell &expand: False.
-	col addAttribute: #stock-id column: 0 on: cell.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 1 } on: cell.	
-	delegatesView appendColumn: col.
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Value'.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 2 } on: cell.	
-	delegatesView appendColumn: col.
-	
-	delegatesView gridLines: Gtk TreeViewGridLines Both.
-	i loadDelegatesIn: delegatesView model.
-	Gtk ScrolledWindow newWithChild: delegatesView	
-].
-
-i@(Gtk Inspector traits) loadDelegatesIn: model [
-	model clear.
-	i inspectedVar ifNotNil: [
-		i inspectedVar _delegates do: [ 
-			| :each |
-			model append: (Nil -> { 'gtk-execute'. each printName. each printString })
-		].
-	].
-].
-
-i@(Gtk Inspector traits) buildSequencedDataView [
-	| cell col dataView |
-	
-	dataView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-		GLib FundamentalType String. 
-	})).
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Index'.
-	cell: Gtk CellRendererPixbuf new.
-	col packStart: cell &expand: False.
-	col addAttribute: #stock-id column: 0 on: cell.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 1 } on: cell.	
-	dataView appendColumn: col.
-	
-	col: Gtk TreeViewColumn new.
- 	col title: 'Value'.
-	cell: Gtk CellRendererText new.
-	col	packStart: cell.
-	col addAttributes: { #text -> 2 } on: cell.	
-	dataView appendColumn: col.
-	
-	dataView gridLines: Gtk TreeViewGridLines Both.
-	i loadSequencedDataIn: dataView model.
-	Gtk ScrolledWindow newWithChild: dataView	
-].
-
-i@(Gtk Inspector traits) loadSequencedDataIn: model [
-	model clear.
-	i inspectedVar ifNotNil: [
-		| size |
-		size: i inspectedVar size.
-		size > 100 ifTrue: [ size: 100 ].
-		0 below: size do: [ | :index | model append: (Nil -> { 'gtk-execute'. index printString. (i inspectedVar at: index) printString }) ].
-	].
 ].
 
 i@(Gtk Inspector traits) buildDataView [
@@ -192,6 +62,110 @@ i@(Gtk Inspector traits) loadDataIn: buffer [
 	].
 ].
 
+i@(Gtk Inspector traits) buildSlotsView [
+	| cell col slotsView |
+	
+	slotsView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Slots'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	slotsView appendColumn: col.
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Values'.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 2 } on: cell.	
+	slotsView appendColumn: col.
+	
+	slotsView gridLines: Gtk TreeViewGridLines Both.
+	i loadSlotsIn: slotsView model.
+	slotsView when: #row-activated send: #onSlotsView:rowActivated:column: to: i.
+	Gtk ScrolledWindow newWithChild: slotsView	
+].
+
+i@(Gtk Inspector traits) onSlotsView: treeView rowActivated: path column: column [
+	| iter index |
+	iter: treeView selection selected.
+	index: ((treeView model stringFromIter: iter) as: Integer).
+	i inspectedVar ifNotNil: [
+		| slotName |
+		slotName: (i inspectedVar slotNames at: index).
+		(Gtk Inspector newFor: (i inspectedVar atSlotNamed: slotName) ) show.
+	].	
+].
+
+i@(Gtk Inspector traits) loadSlotsIn: model [
+	model clear.
+	i inspectedVar ifNotNil: [
+		i inspectedVar slotNames do: [ 
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each printString. (i inspectedVar atSlotNamed: each) printString })
+		].
+	].
+].
+
+i@(Gtk Inspector traits) buildSequencedDataView [
+	| cell col dataView |
+	
+	dataView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Indexes'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	dataView appendColumn: col.
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Values'.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 2 } on: cell.	
+	dataView appendColumn: col.
+	
+	dataView gridLines: Gtk TreeViewGridLines Both.
+	i loadSequencedDataIn: dataView model.
+	dataView when: #row-activated send: #onSequencedDataView:rowActivated:column: to: i.
+	Gtk ScrolledWindow newWithChild: dataView	
+].
+
+i@(Gtk Inspector traits) onSequencedDataView: dataView rowActivated: path column: column [
+	| iter index data |
+	iter: dataView selection selected.
+	index: ((dataView model stringFromIter: iter) as: Integer).
+	i inspectedVar ifNotNil: [
+		(Gtk Inspector newFor: (i inspectedVar at: index) ) show.
+	].	
+].
+
+i@(Gtk Inspector traits) loadSequencedDataIn: model [
+	model clear.
+	i inspectedVar ifNotNil: [
+		| size |
+		size: i inspectedVar size.
+		size > 100 ifTrue: [ size: 100 ].
+		0 below: size do: [ | :index | model append: (Nil -> { 'gtk-execute'. index printString. (i inspectedVar at: index) printString }) ].
+	].
+].
+
 i@(Gtk Inspector traits) buildDictionaryDataView [
 	| cell col dataView |
 	
@@ -202,7 +176,7 @@ i@(Gtk Inspector traits) buildDictionaryDataView [
 	})).
 	
 	col: Gtk TreeViewColumn new.
- 	col title: 'Key'.
+ 	col title: 'Keys'.
 	cell: Gtk CellRendererPixbuf new.
 	col packStart: cell &expand: False.
 	col addAttribute: #stock-id column: 0 on: cell.
@@ -212,7 +186,7 @@ i@(Gtk Inspector traits) buildDictionaryDataView [
 	dataView appendColumn: col.
 	
 	col: Gtk TreeViewColumn new.
- 	col title: 'Value'.
+ 	col title: 'Values'.
 	cell: Gtk CellRendererText new.
 	col	packStart: cell.
 	col addAttributes: { #text -> 2 } on: cell.	
@@ -220,6 +194,7 @@ i@(Gtk Inspector traits) buildDictionaryDataView [
 	
 	dataView gridLines: Gtk TreeViewGridLines Both.
 	i loadDictionaryDataIn: dataView model.
+	dataView when: #row-activated send: #onDictionaryDataView:rowActivated:column: to: i.
 	Gtk ScrolledWindow newWithChild: dataView	
 ].
 
@@ -233,10 +208,20 @@ i@(Gtk Inspector traits) loadDictionaryDataIn: model [
 	].
 ].
 
+i@(Gtk Inspector traits) onDictionaryDataView: dataView rowActivated: path column: column [
+	| iter index key |
+	iter: dataView selection selected.
+	key: (dataView model at: iter column: 1).
+	key first = $# ifTrue: [ key: key allButFirst ].
+	i inspectedVar ifNotNil: [
+		(Gtk Inspector newFor: (i inspectedVar at: key intern ifAbsent: [ Nil ]) ) show.
+	].
+].
+
 i@(Gtk Inspector traits) buildTraitsView [
 	Gtk HPaned new
-		first: (i buildTraitsListView sizeRequest: 320 , -1 )
-		second: (i buildMethodsView sizeRequest: 320 , -1 )
+		first: (i buildTraitsListView sizeRequest: 150 , -1 )
+		second: (i buildTraitsMethodsView sizeRequest: 150 , -1 )
 ].
 
 i@(Gtk Inspector traits) buildTraitsListView [
@@ -282,7 +267,7 @@ i@(Gtk Inspector traits) onTraitsListViewChanged: _ [
 		iter: i traitsView selection selected.
 		iter ifNil: [
 			i selectedTrait: Nil.
-			i loadMethods.
+			i loadTraitsMethods.
 		]
 		ifNotNil: [
 			| index newSelectedTrait |
@@ -291,16 +276,16 @@ i@(Gtk Inspector traits) onTraitsListViewChanged: _ [
 			(newSelectedTrait = i selectedTrait)
 				ifFalse: [ 
 					i selectedTrait: newSelectedTrait.
-					i loadMethods.
+					i loadTraitsMethods.
 				]
 		]
 	]
 ].
 
-i@(Gtk Inspector traits) buildMethodsView [
+i@(Gtk Inspector traits) buildTraitsMethodsView [
 	| cell col |
 	
-	i methodView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+	i traitMethodView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
 		GLib FundamentalType String. 
 		GLib FundamentalType String. 
 		GLib FundamentalType String. 
@@ -314,19 +299,19 @@ i@(Gtk Inspector traits) buildMethodsView [
 	cell: Gtk CellRendererText new.
 	col	packStart: cell.
 	col addAttributes: { #text -> 1 } on: cell.	
-	i methodView appendColumn: col.
+	i traitMethodView appendColumn: col.
 	
-	i methodView gridLines: Gtk TreeViewGridLines Both.
-	i methodView when: #row-activated send: #onMethodsView:methodRowActivated:column: to: i. 
-	Gtk ScrolledWindow newWithChild: i methodView	
+	i traitMethodView gridLines: Gtk TreeViewGridLines Both.
+	i traitMethodView when: #row-activated send: #onTraitsMethodsView:rowActivated:column: to: i.
+	Gtk ScrolledWindow newWithChild: i traitMethodView
 ].
 
-i@(Gtk Inspector traits) onMethodsView: methodView methodRowActivated: path column: column [
+i@(Gtk Inspector traits) onTraitsMethodsView: traitMethodView rowActivated: path column: column [
 	| iter index selectedMethod |
 	i selectedTrait ifNil: [ ^ Nil ].
-	iter: methodView selection selected.
+	iter: traitMethodView selection selected.
 	iter ifNil: [ ^ Nil ].
-	index: ((methodView model stringFromIter: iter) as: Integer).
+	index: ((traitMethodView model stringFromIter: iter) as: Integer).
 	selectedMethod: (i selectedTrait methods at: index).
 	(selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
 	selectedMethod sourceTree ifNil: [ ^ Nil ].
@@ -339,9 +324,9 @@ i@(Gtk Inspector traits) onMethodsView: methodView methodRowActivated: path colu
 	]
 ].
 
-i@(Gtk Inspector traits) loadMethods [
+i@(Gtk Inspector traits) loadTraitsMethods [
 	| model |
-	model: i methodView model.
+	model: i traitMethodView model.
 	model clear.
 	i selectedTrait ifNotNil: [
 		i selectedTrait methods do: [ 
@@ -350,4 +335,109 @@ i@(Gtk Inspector traits) loadMethods [
 		].
 	].
 ].
+"
+i@(Gtk Inspector traits) buildDelegatesView [
+	| cell col |
+	
+	i delegatesView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Delegates'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	i delegatesView appendColumn: col.
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Values'.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 2 } on: cell.	
+	i delegatesView appendColumn: col.
+	
+	i delegatesView gridLines: Gtk TreeViewGridLines Both.
+	i loadDelegatesIn: i delegatesView model.
+	i delegatesView when: #row-activated send: #onDelegatesView:rowActivated:column: to: i.
+	Gtk ScrolledWindow newWithChild: i delegatesView
+].
+
+i@(Gtk Inspector traits) loadDelegatesIn: model [
+	model clear.
+	i inspectedVar ifNotNil: [
+		i inspectedVar _delegates do: [ 
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each printName. each printString })
+		].
+	].
+].
+
+i@(Gtk Inspector traits) onDelegatesView: treeView rowActivated: path column: column [
+	| iter index |
+	iter: treeView selection selected.
+	index: ((treeView model stringFromIter: iter) as: Integer).
+	i inspectedVar ifNotNil: [
+		(Gtk Inspector newFor: (i inspectedVar _delegates at: index) ) show.
+	].	
+].
+
+"
+i@(Gtk Inspector traits) buildMethodsView [
+	| cell col |
+	
+	i methodsView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Methods'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	i methodsView appendColumn: col.
+	
+	i methodsView gridLines: Gtk TreeViewGridLines Both.
+	i loadMethodsIn: i methodsView model.
+	i methodsView when: #row-activated send: #onMethodsView:rowActivated:column: to: i.
+	Gtk ScrolledWindow newWithChild: i methodsView
+].
+
+i@(Gtk Inspector traits) loadMethodsIn: model [
+	model clear.
+	i inspectedVar ifNotNil: [
+		i inspectedVar methods do: [
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each selector. })
+		].
+	].
+].
+
+i@(Gtk Inspector traits) onMethodsView: methodsView rowActivated: path column: column [
+	| iter index selectedMethod |
+	iter: methodsView selection selected.
+	iter ifNil: [ ^ Nil ].
+	index: ((methodsView model stringFromIter: iter) as: Integer).
+	selectedMethod: (i inspectedVar methods at: index).
+	(selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
+	selectedMethod sourceTree ifNil: [ ^ Nil ].
+	(selectedMethod sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+	(selectedMethod sourceTree source hasSlotNamed: #resource) ifTrue: [
+		| workspace |
+		workspace: (Gtk Workspace new &fileName: (selectedMethod sourceTree source resource locator as: String)).
+		workspace goToLineNumber: selectedMethod sourceTree lineNumber.
+		workspace show.
+	]
+].
+
 
