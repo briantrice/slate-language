@@ -1,4 +1,4 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer.	#view. #namespace }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #isModified -> False }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
 
 w@(Gtk Workspace traits) new &fileName: fileName [
@@ -14,6 +14,41 @@ w@(Gtk Workspace traits) new &fileName: fileName [
 w@(Gtk Workspace traits) buildMenuBar [
 	| menuBar menu menuItem |
 	menuBar: Gtk MenuBar new.
+	menu: Gtk Menu new.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_New').
+	menuItem when: #activate send: #newWorkspace: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Open...').
+	menuItem when: #activate send: #openFile: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Save').
+	menuItem when: #activate send: #saveFile: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: 'S_ave and compile').
+	menuItem when: #activate send: #saveFile: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: 'Sa_ve as...').
+	menuItem when: #activate send: #saveFileAs: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Reload').
+	menuItem when: #activate send: #reloadFile: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Print').
+	menuItem when: #activate send: #printFile: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Close').
+	menuItem when: #activate send: #closeWorkspace: to: w.
+	menu append: menuItem.
+	
+	menuBar append: (menu createMenuItem: '_File').
 	menu: Gtk Menu new.
 	
 	menuItem: (Gtk MenuItem newWithMnemonic: '_Do it').
@@ -35,6 +70,10 @@ w@(Gtk Workspace traits) buildMenuBar [
 	menu append: (Gtk MenuItem newWithMnemonic: '_Paste').
 	menuBar append: (menu createMenuItem: '_Edit').
 	menuBar
+].
+
+w@(Gtk Workspace traits) newWorkspace: _ [
+	Gtk Workspace new show
 ].
 
 w@(Gtk Workspace traits) buildToolBar [
@@ -61,6 +100,11 @@ w@(Gtk Workspace traits) buildCodeView [
 	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
 "	w codeView wrapMode: Gtk WrapMode WordChar."
 	w loadCodeView.
+	w codeBuffer when: #changed do: [ | :_ wasModified |
+		wasModified: w isModified.
+		w isModified: True.
+		wasModified = w isModified ifFalse: [ w changeTitle ].
+	].
 	Gtk ScrolledWindow newWithChild: w codeView
 ].
 
@@ -74,6 +118,58 @@ w@(Gtk Workspace traits) loadCodeView [
 	].
 	text: (file sessionDo: [| :f | f reader next: file size ]).
 	w codeBuffer text: text.
+	w isModified: False.
+	w changeTitle.
+].
+
+w@(Gtk Workspace traits) saveFileAs: _ &ifOk: block [
+	| dialog |
+	dialog: (Gtk FileChooserDialog newSave &title: 'Save Workspace as: ').
+	dialog addButton: #gtk-ok responseId: Gtk ResponseType Ok.
+	dialog addButton: #gtk-cancel responseId: Gtk ResponseType Cancel.
+	w fileName ifNotNil: [ dialog fileName: w fileName ].
+	dialog when: #response do: [ | :dialog :answer |
+		answer = Gtk ResponseType Ok ifTrue: [
+			| file |
+			w fileName: dialog fileName.
+			file: (File newNamed: w fileName &mode: File CreateWrite).
+			file sessionDo: [| :f | f writer nextPutAll: w codeBuffer text ].
+			w isModified: False.
+			w changeTitle.
+			block ifNotNil: [ block do ].
+		].
+		dialog destroy.
+	].
+	dialog show
+].
+
+w@(Gtk Workspace traits) saveFile: view &ifOk: block [
+	| file text |
+	w fileName 
+		ifNil: [ w saveFileAs: view &ifOk: block. ^ Nil ]
+		ifNotNil: [ 
+			file: (File newNamed: w fileName).
+			file sessionDo: [| :f | f writer nextPutAll: w codeBuffer text ].
+		].
+	w isModified: False.
+	w changeTitle.
+].
+
+w@(Gtk Workspace traits) openFile: _ [
+	w ifOkToDiscardDo: [
+		| dialog |
+		dialog: (Gtk FileChooserDialog newOpen &title: 'Open Workspace: ').
+		dialog addButton: #gtk-ok responseId: Gtk ResponseType Ok.
+		dialog addButton: #gtk-cancel responseId: Gtk ResponseType Cancel.
+		dialog when: #response do: [ | :dialog :answer |
+			answer = Gtk ResponseType Ok ifTrue: [ 
+				w fileName: dialog fileName.
+				w loadCodeView
+			].
+			dialog destroy.
+		].
+		dialog show
+	]
 ].
 
 w@(Gtk Workspace traits) show [
@@ -92,8 +188,9 @@ w@(Gtk Workspace traits) buildView [
 	| vBox |
 	
 	w view: Gtk Window newTopLevel.
+	w changeTitle.
 	w view when: #destroy send: #destroy: to: w.
-	w view title: ((w fileName ifNil: [ 'unnamed.slate' ] ifNotNil: [ w fileName ]) ; ' - Workspace').
+	w view when: #delete-event send: #onWindow:event: to: w.
 	w view defaultSizeWidth: 640 height: 480.
 	vBox: Gtk VBox new.
 	vBox packStart: (w buildMenuBar) &expand: False.
@@ -102,6 +199,52 @@ w@(Gtk Workspace traits) buildView [
 	vBox packStart: (Gtk Statusbar new) &expand: False.
 	w view add: vBox.
 	w
+].
+
+w@(Gtk Workspace traits) ifOkToDiscardDo: aBlock [
+	w isModified
+		ifTrue: [
+			| dialog vBox hBox |
+			dialog: (Gtk Dialog
+				newWithFlags: Gtk DialogFlags Modal
+				&title: 'Workspace warning' ).
+			vBox: Gtk VBox new.
+			vBox packStart: (Gtk Label new &text: 'Workspace ' ; w composedFileName ; ' have been modified').
+			vBox packStart: (Gtk Label new &text: 'Do you want to save or discard changes?').
+			hBox: Gtk HBox new.
+			hBox packStart: (Gtk Image newFromStockId: #gtk-dialog-warning size: Gtk IconSize Dialog).
+			hBox packStart: vBox.
+			dialog vBox packStart: hBox.
+			dialog addButton: #gtk-save responseId: Gtk ResponseType Accept.
+			dialog addButton: #gtk-discard responseId: Gtk ResponseType Reject.
+			dialog addButton: #gtk-cancel responseId: Gtk ResponseType Cancel.
+			dialog when: #response do: [ | :dialog :answer |
+				dialog destroy.
+				answer caseOf: {
+					Gtk ResponseType Accept -> [ w saveFile: w view &ifOk: aBlock ].
+					Gtk ResponseType Reject -> aBlock.
+				}
+			].
+			dialog showAll.
+			^ Nil.
+		].
+	aBlock do.
+].
+
+w@(Gtk Workspace traits) onWindow: view event: deleteEvent [
+	w ifOkToDiscardDo: [ view destroy ].
+].
+
+w@(Gtk Workspace traits) composedFileName [
+	w fileName ifNil: [ 'unnamed.slate' ] ifNotNil: [ w fileName ]
+].
+
+w@(Gtk Workspace traits) changeTitle [
+	| title |
+	title: w composedFileName.
+	w isModified ifTrue: [ title: title ; ' [modified]' ].
+	title: title ; ' - Workspace'.
+	w view title: title.
 ].
 
 w@(Gtk Workspace traits) selectedTextOrCurrentLine [

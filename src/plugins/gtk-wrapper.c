@@ -17,6 +17,10 @@ EXPORT GtkTextIter *wrapper_gtk_text_iter_new(void) {
 	return g_new0(GtkTextIter, 1);
 }
 
+EXPORT GtkWidget *wrapper_gtk_dialog_get_vbox( GtkDialog *dialog ) {
+	return dialog->vbox;
+}
+
 void wrapper_gtk_main( void ) {
 	gdk_threads_enter(); //The book says to call this begore gtk_main
 	gtk_main();
