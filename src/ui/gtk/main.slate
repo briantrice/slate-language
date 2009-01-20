@@ -79,12 +79,19 @@ m@(Gtk Main) resetOnStartup [
 
 m@(Gtk Main) callbackBlockDo: callbackData@(GLib CallbackData traits) [
 	| block |
-	"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-	[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
-		ensure: [
-			"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
-			m initialized ifTrue: [ callbackData end ].
-		].
+	callbackData parameterCount = 0
+		ifTrue: [
+			"callbacks with parameter count=0 signal the finalization of a callback, which means that it is no longer valid, ie: the object was destroyed"
+			m unregisterCallbackBlock: callbackData blockID.  
+		]
+		ifFalse: [
+			"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
+			[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
+				ensure: [
+					"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
+					m initialized ifTrue: [ callbackData end ].
+				].
+		]
 ].
 
 m@(Gtk Main) doEventLoop [

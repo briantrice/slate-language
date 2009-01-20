@@ -113,9 +113,18 @@ void callback_marshal (GClosure *closure, GValue *return_value, guint n_param_va
 		g_value_set_boolean (return_value, retVal);
 }
 
+void callback_finalize_notifier( gpointer blockID, GClosure *closure ) {
+//callbacks with parameter count=0 signal the finalization of a callback, which means that it is no longer valid, ie: the object was destroyed
+	CallbackData *data = g_malloc0( sizeof(CallbackData) );
+	data->blockID = (gint)blockID;
+	data->parameterCount = 0;
+	g_async_queue_push( callbackQueue, data );
+}
+
 EXPORT void wrapper_g_object_connect_to_block_id( gpointer instance, char* aSignalName, gint blockID ) {
 	GClosure *closure = g_cclosure_new( G_CALLBACK(callback), (gpointer)blockID, NULL);
 	g_closure_set_marshal( closure, callback_marshal);
+	g_closure_add_finalize_notifier( closure, (gpointer)blockID, callback_finalize_notifier );
 	g_signal_connect_closure(instance, aSignalName, closure, FALSE);
 }
 
