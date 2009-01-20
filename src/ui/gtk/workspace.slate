@@ -1,4 +1,4 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications. #ignoreChanges -> 0 }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
 
 "FIXME: modifications are held by saving the entire text into the modifications array instead of just the modified text"
@@ -102,8 +102,13 @@ w@(Gtk Workspace traits) buildCodeView [
 	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
 "	w codeView wrapMode: Gtk WrapMode WordChar."
 	w codeBuffer when: #changed do: [ | :buffer |
-		w modifications size <= 2 ifTrue: [ w changeTitle ].
-		w modifications add: buffer text.
+		w ignoreChanges > 0
+			"using w codeBuffer text: generates to #changed signals, I dont know why. We should ignore both of them"
+			ifTrue: [ w ignoreChanges: w ignoreChanges - 1 ]
+			ifFalse: [
+				w modifications push: buffer text.
+				w modifications size <= 1 ifTrue: [ "change once" w changeTitle ].
+			].
 	].
 	w resetModifications.
 	Gtk ScrolledWindow newWithChild: w codeView
@@ -118,13 +123,14 @@ w@(Gtk Workspace traits) loadCodeView [
 		^ Nil.
 	].
 	text: (file sessionDo: [| :f | f reader next: file size ]).
+	w ignoreChanges: 2.
 	w codeBuffer text: text.
 	w resetModifications.
 ].
 
 w@(Gtk Workspace traits) resetModifications [
-	w modifications: ExtensibleArray new.
-	w modifications add: w codeBuffer text.
+	w originalText: w codeBuffer text.
+	w modifications: Stack new.
 	w changeTitle.
 ].
 
@@ -205,7 +211,7 @@ w@(Gtk Workspace traits) buildView [
 ].
 
 w@(Gtk Workspace traits) ifOkToDiscardDo: aBlock [
-	w modifications size > 1 ifFalse: [
+	w modifications isEmpty ifFalse: [
 		| dialog vBox hBox |
 		dialog: (Gtk Dialog
 			newWithFlags: Gtk DialogFlags Modal
@@ -244,7 +250,7 @@ w@(Gtk Workspace traits) composedFileName [
 w@(Gtk Workspace traits) changeTitle [
 	| title |
 	title: w composedFileName.
-	w modifications size > 1 ifTrue: [ title: title ; ' [modified]' ].
+	w modifications isEmpty ifFalse: [ title: title ; ' [modified]' ].
 	title: title ; ' - Workspace'.
 	w view title: title.
 ].
