@@ -5,18 +5,23 @@ Regex ensureNamespace: #Match.
 
 "counter is incremented and stored inside expressions"
 Regex define: #Parser &parents: {Cloneable} &slots: {#position. #source. #counter}.
+
+"regex is a regex syntax node"
 Regex define: #Regex &parents: {Cloneable} &slots: {#regex. #parser -> Regex Parser.}.
+
+"regex is a regex regex. subexpressions are the () portions that match. see the counter property.
+the matchee is what we are trying to match"
+Regex define: #Matcher &parents: {Cloneable} &slots: {#regex. #subexpressions. #matchee}.
 
 
 "nodes are output by the parser"
 Regex Syntax define: #Node &parents: {Cloneable}.
 
-
 "the top element with expressions surrounded by branches 'exp|exp'"
-Regex Syntax define: #Branch &parents: {Regex Syntax Node} &slots: {#expressions}.
+Regex Syntax define: #Branch &parents: {Regex Syntax Node} &slots: {#nextBranch. #expressions}.
 
 "must match in consecutive order 'ab'"
-Regex Syntax define: #Expression &parents: {Regex Syntax Node} &slots: {#term. #counter. #repeatCount -> (1 to: 1 by: 1)}.
+Regex Syntax define: #Expression &parents: {Regex Syntax Node} &slots: {#term. #counter. #repeatCount}.
 
 
 "'[abc]'"
@@ -27,7 +32,7 @@ Regex Syntax define: #Character &parents: {Regex Syntax Node} &slots: {#characte
 Regex Syntax define: #CharacterRange &parents: {Regex Syntax Node} &slots: {#start. #end}.
 
 
-Regex Match define: #Terminator &parents: {Cloneable}.
+"Regex Match define: #Terminator &parents: {Cloneable}."
 
 
 r@(Regex Syntax Character traits) newOn: c
@@ -89,6 +94,16 @@ rp@(Regex Parser traits) newOn: s@(String traits)
   obj
 ].
 
+n@(Regex Syntax Node traits) as: e@(Regex Syntax Expression traits)
+[
+  e new `>> [term: n. ]
+].
+
+n@(Regex Syntax Expression traits) as: e@(Regex Syntax Expression traits)
+[
+  n
+].
+
 p@(Regex Parser traits) next
 [ |obj|
   p position >= p source size ifTrue: [p position: p position + 1. ^ Nil].
@@ -120,21 +135,31 @@ p@(Regex Parser traits) nextAssertIs: item
 
 p@(Regex Parser traits) backspaceCharacterFor: c
 [
-  Regex Parser BackslashSpecials at: c
+  Regex Parser BackslashSpecials at: c ifAbsent: [(Regex Syntax Character newOn: c)]
 ].
 
 "branch ::= expression* 
           | branch '|' branch"
 
 p@(Regex Parser traits) parseBranch
-[ | obj next |
-  obj: p parseExpression.
-  next: p next.
-  next caseOf:
-    { Nil -> [^ obj].
-      $| -> ["[next: p next. next = $]] whileFalse: [p parseRange ifNotNilDo: [|:r| obj elements addLast: r]]"
-                ]}
-   otherwise: [p expected: {Nil. $|} butFound: next]
+[ | branch oldBranch obj next firstBranch |
+  branch: Regex Syntax Branch new `>> [nextBranch: Nil. expressions: ExtensibleArray new. ].
+  firstBranch: branch.
+  [
+    obj: p parseExpression.
+    next: p next.
+    branch expressions addLast: obj.
+    next caseOf:
+      {
+        Nil -> [branch expressions size <= 1 /\ [oldBranch isNil] ifTrue: [^ obj] ifFalse: [^ firstBranch]].
+        $) -> [p previous.
+               branch expressions size <= 1 /\ [oldBranch isNil] ifTrue: [^ obj] ifFalse: [^ firstBranch]].
+        $| -> [oldBranch: branch.
+               branch: Regex Syntax Branch new `>> [nextBranch: Nil. expressions: ExtensibleArray new. ].
+               oldBranch nextBranch: branch].
+      } otherwise: [p previous]
+
+  ] loop.
 
 ].
 "repeatcount ::= {m,n}"
@@ -150,10 +175,10 @@ p@(Regex Parser traits) parseExpression
   obj: p parseTerm.
   next: p next.
   next caseOf:
-    { $? -> [obj repeatCount: (0 to: 1 by: 1). ^ obj].
-      $+ -> [obj repeatCount: (1 to: PositiveInfinity by: 1). ^ obj].
-      $* -> [obj repeatCount: (0 to: PositiveInfinity by: 1). ^ obj].
-      ${ -> [obj repeatCount: p parseRepeatCount. p nextAssertIs: $}. ^ obj].
+    { $? -> [obj: (obj as: Regex Syntax Expression). obj repeatCount: (0 to: 1 by: 1). ^ obj].
+      $+ -> [obj: (obj as: Regex Syntax Expression). obj repeatCount: (1 to: PositiveInfinity by: 1). ^ obj].
+      $* -> [obj: (obj as: Regex Syntax Expression). obj repeatCount: (0 to: PositiveInfinity by: 1). ^ obj].
+      ${ -> [obj: (obj as: Regex Syntax Expression). obj repeatCount: p parseRepeatCount. p nextAssertIs: $}. ^ obj].
       }
    otherwise: [p previous. ^ obj]
 
@@ -167,7 +192,7 @@ p@(Regex Parser traits) parseTerm
     { $( -> [p previous.
              count: p counter. 
              p counter: p counter + 1.
-             obj: p parseExpression. 
+             obj: p parseBranch.
              obj counter: count.
              p nextAssertIs: $). 
              ^ obj].
@@ -184,7 +209,9 @@ p@(Regex Parser traits) parseGroup
    ifTrue: [obj: Regex Syntax CharacterGroup new `>> [elements: ExtensibleArray new. ].
             next: p next.
             next = $^ ifTrue: [obj negated: True] ifFalse: [p previous].
-            [next: p next. next = $]] whileFalse: [p parseRange ifNotNilDo: [|:r| obj elements addLast: r]].
+            [next: p next.
+             next ifNil: [p expected: $] butFound: Nil].
+             next = $]] whileFalse: [p previous. p parseRange ifNotNilDo: [|:r| obj elements addLast: r]].
             ^ obj]
    ifFalse: [p previous. ^ p parseSymbol]
 
@@ -195,15 +222,16 @@ p@(Regex Parser traits) parseRange
 [ | next start end obj |
   start: p parseSymbol.
   next: p next.
-  next = $] ifTrue: [p previous. ^ Nil]. "fix return value?"
+  next = $] ifTrue: [p previous. ^ start].
   next = $-
    ifTrue: [end: p parseSymbol.
             obj: Regex Syntax CharacterRange new `>> [start: start. end: end. ].
             next: p next.
             next = $^ ifTrue: [obj negated: True] ifFalse: [p previous].
             [next: p next. next = $]] whileFalse: [obj elements addLast: p parseRange].
+            p previous.
             ^ obj]
-   ifFalse: [p previous. ^ p parseSymbol]
+   ifFalse: [p previous. ^ start]
 
 ].
 
@@ -211,10 +239,106 @@ p@(Regex Parser traits) parseRange
 p@(Regex Parser traits) parseSymbol
 [ | next |
   next: p next.
-  next = $. ifTrue: [^ Regex Syntax CharacterRange new `>> [start: start. end: end. ]].
+  next = $. ifTrue: [^ (Regex Syntax CharacterRange new `>> [start: $\x00. end: $\xFF. ])]. "fixme ascii"
   next = $\\
    ifTrue: [next: p next.
             p backspaceCharacterFor: next]
    ifFalse: [Regex Syntax Character new `>> [character: next. ]]
 
 ].
+
+
+
+"
+--------
+Matching
+--------
+"
+
+m@(Regex Matcher traits) newOn: s@(String traits)
+[
+  p newOn: (Regex Regex newOn: s).
+].
+
+m@(Regex Matcher traits) newOn: r@(Regex Regex traits)
+[
+  p new `>> [regex: r. ]
+].
+
+m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos to: endPos
+[
+  node counter ifNotNil: [m subexpressions at: node counter put: {pos. endPos}]
+].
+
+m@(Regex Matcher traits) match: s@(String traits)
+[
+  m subexpressions: Dictionary new.
+  m matchee: s.
+  m match: m regex regex from: 0
+
+].
+
+"these functions return the position they match until"
+m@(Regex Matcher traits) match: node@(Regex Syntax Node traits) from: pos
+[
+  overrideThis
+].
+
+m@(Regex Matcher traits) match: node@(Regex Syntax Branch traits) from: pos
+[ |curPos newPos|
+  curPos: pos.
+  node expressions do: [|:exp|
+                          newPos: (m match: exp from: curPos
+                          newPos = -1
+                                 ifTrue: ["it didn't match the expression"
+                                          ^ (m match: node nextBranch from: pos)]
+                                 ifFalse: [curPos: newPos]
+                        ]
+  curPos
+].
+
+m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
+[ | curPos newPos matches |
+  "no repeatCount means it just has to match once"
+  node repeatCount ifNil: [curPos: (m match: node term from: pos).
+                           curPos > pos ifTrue: [m markExpression: node from: pos to: curPos].
+                           ^ curPos].
+  
+  curPos: pos.
+  matches: ExtensibleArray new.
+
+  [matches size < node repeatCount end]
+    whileTrue: [newPos: (m match: node term from: curPos).
+                "no match"
+                newPos > curPos ifFalse: [numMatches > node repeatCount start
+                                           ifTrue: [curPos > pos ifTrue: [m markExpression: node from: pos to: curPos].
+                                                    ^ matches]]
+                curPos: newPos.
+                matches addLast: curPos.
+                 ].
+
+  matches size > node repeatCount start
+    ifTrue: [^ matches]
+    ifFalse: [^ pos]
+
+].
+
+m@(Regex Matcher traits) match: node@(Regex Syntax Character traits) from: pos
+[
+  (m source at: pos) = node character ifTrue: [pos + 1] ifFalse: [-1]
+].
+
+m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: pos
+[ |charCode|
+  charCode: (m source at: pos) code.
+  charCode >= node start code /\ [charCode <= node end code] ifTrue: [pos + 1] ifFalse: [-1]
+].
+
+
+m@(Regex Matcher traits) match: node@(Regex Syntax CharacterGroup traits) from: pos
+[ "there should be another way than assuming a match is just pos+1"
+  node negated
+    ifTrue: [(node elements noneSatisfy: [(m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
+    ifFalse: [(node elements anySatisfy: [(m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
+].
+
