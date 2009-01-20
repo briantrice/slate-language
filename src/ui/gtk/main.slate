@@ -1,21 +1,9 @@
-Gtk define: #Main &builder: [Oddball clone] &slots: { #initialized -> False. #callbackBlocks -> Nil. #nextBlockID -> 1. #oldDebuggerHook }.
+Gtk define: #Main &builder: [Oddball clone] &slots: { #initialized -> False. #oldDebuggerHook }.
 
 _@(Gtk Main) printName [ 'Gtk Main' ].
 
 _@(Gtk Main) mainQuit [
 	Gtk Lib primitives gtk_main_quit do
-].
-
-m@(Gtk Main) registerCallbackBlock: aBlock [
-	| blockID |
-	blockID: m nextBlockID.
-	m callbackBlocks at: blockID put: aBlock.
-	m nextBlockID: (blockID + 1).
-	blockID
-].
-
-m@(Gtk Main) unregisterCallbackBlock: blockID [
-	m callbackBlocks removeKey: blockID.
 ].
 
 m@(Gtk Main) installDebuggerHook [
@@ -45,22 +33,21 @@ m@(Gtk Main) uninstallDebuggerHook [
 		ifNotNil: [ myDebuggerHook replaceWith: m oldDebuggerHook on: {Condition traits} ]
 ].
 
-m@(Gtk Main) initialize [
+m@(Gtk Main) init [
 	m initialized ifFalse: [
 		Gdk Lib init.
 		GLib CallbackData initQueue.
+		GLib CallbackRegistry init.
 		Gtk Lib init.
-		m callbackBlocks: Dictionary new.
 		m initialized: True.
-		m installDebuggerHook.
+"		m installDebuggerHook."
 	]
 ].
 
 m@(Gtk Main) uninitialize [
 	m uninstallDebuggerHook.
-	m callbackBlocks: Nil.
 	m oldDebuggerHook: Nil.
-	m nextBlockID: 1.
+	GLib CallbackRegistry uninitialize.
 	m initialized: False.
 ].
 
@@ -77,33 +64,15 @@ m@(Gtk Main) resetOnStartup [
 	Image startupActions at: m put: [ m uninitialize ].
 ].
 
-m@(Gtk Main) callbackBlockDo: callbackData@(GLib CallbackData traits) [
-	| block |
-	callbackData parameterCount = 0
-		ifTrue: [
-			"callbacks with parameter count=0 signal the finalization of a callback, which means that it is no longer valid, ie: the object was destroyed"
-			m unregisterCallbackBlock: callbackData blockID.  
-		]
-		ifFalse: [
-			"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-			[ (m callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
-				ensure: [
-					"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
-					m initialized ifTrue: [ callbackData end ].
-				].
-		]
-].
-
 m@(Gtk Main) doEventLoop [
-	[
-		m callbackBlockDo: GLib CallbackData waitNext.
+	[	GLib CallbackRegistry executeNextCallback.
 	"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
 		m initialized
  	] whileTrue
 ].
 
 m@(Gtk Main) do: aBlock [
-	m initialize.
+	m init.
 	aBlock do.
 	m doEventLoop.
 	m shutdown.
