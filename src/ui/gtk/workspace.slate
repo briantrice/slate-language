@@ -1,4 +1,4 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #modifications }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
 
 "FIXME: modifications are held by saving the entire text into the modifications array instead of just the modified text"
@@ -102,13 +102,10 @@ w@(Gtk Workspace traits) buildCodeView [
 	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
 "	w codeView wrapMode: Gtk WrapMode WordChar."
 	w codeBuffer when: #changed do: [ | :buffer |
-		inform: #changed.
-		w modifications
-			ifNil: [ w modifications: ExtensibleArray new ].
-		w modifications size <= 1 ifTrue: [ w changeTitle ].
+		w modifications size <= 2 ifTrue: [ w changeTitle ].
 		w modifications add: buffer text.
 	].
-	w loadCodeView.
+	w resetModifications.
 	Gtk ScrolledWindow newWithChild: w codeView
 ].
 
@@ -121,9 +118,8 @@ w@(Gtk Workspace traits) loadCodeView [
 		^ Nil.
 	].
 	text: (file sessionDo: [| :f | f reader next: file size ]).
-	w modifications: Nil.
 	w codeBuffer text: text.
-	"Title is changed by the #changed signal"
+	w resetModifications.
 ].
 
 w@(Gtk Workspace traits) resetModifications [
@@ -209,7 +205,7 @@ w@(Gtk Workspace traits) buildView [
 ].
 
 w@(Gtk Workspace traits) ifOkToDiscardDo: aBlock [
-	w modifications isEmpty ifFalse: [
+	w modifications size > 1 ifFalse: [
 		| dialog vBox hBox |
 		dialog: (Gtk Dialog
 			newWithFlags: Gtk DialogFlags Modal
@@ -248,7 +244,7 @@ w@(Gtk Workspace traits) composedFileName [
 w@(Gtk Workspace traits) changeTitle [
 	| title |
 	title: w composedFileName.
-	w modifications isEmpty ifFalse: [ title: title ; ' [modified]' ].
+	w modifications size > 1 ifTrue: [ title: title ; ' [modified]' ].
 	title: title ; ' - Workspace'.
 	w view title: title.
 ].
