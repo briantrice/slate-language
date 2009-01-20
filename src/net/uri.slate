@@ -8,7 +8,7 @@ Net Schemes define: #Mailto &parents: {Net Schemes Scheme}.
 Net Schemes define: #SchemeDictionary -> Dictionary new.
 
 { 'http' -> Net Schemes Http.
-  'http' -> Net Schemes Mailto.
+  'mailto' -> Net Schemes Mailto.
 } do: [|:each| Net Schemes SchemeDictionary add: each].
 
 u@(Net Schemes Scheme traits) uriText [overrideThis].
@@ -40,11 +40,6 @@ Net define: #HierarchicalURI &parents: {Net URI} &slots:
   {#authority.
    #path -> {}. "The path segments."
    #query}.
-
-u@(Net HierarchicalURI traits) new
-"TODO: Finish this"
-[u cloneSettingSlots: #(scheme fragment authority path query)
-   to: {u scheme. u fragment. u authority. u path new. u query new}].
 
 u@(Net HierarchicalURI traits) isEmpty
 [u path isEmpty /\ [u authority isNil]].
@@ -169,14 +164,12 @@ u@(Net URI traits) testParsing
 
 Net define: #URL &parents: {Net HierarchicalURI} &slots: {}.
 
-u@(Net URI traits) scheme [overrideThis].
-
 u@(Net URL traits) readFrom: s
 [| r | 
-  r: (Regex Matcher for: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r matches: s)
-    ifTrue: [Net URL clone `>>
-	       [scheme: ((r subexpression: 3) as: Net Schemes Scheme). 
+    ifTrue: [Net URL new `>>
+	       [scheme: (r subexpression: 3). 
 		authority: (r subexpression: 5). 
 		path: (r subexpression: 6). 
 		query: (r subexpression: 8). 
