@@ -1,4 +1,4 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications. #ignoreChanges -> 0 }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications. #ignoreChanges -> 0. #clipboard }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
 
 "FIXME: modifications are held by saving the entire text into the modifications array instead of just the modified text"
@@ -10,6 +10,7 @@ w@(Gtk Workspace traits) new &fileName: fileName [
 	workspace fileName: fileName.
 	workspace buildView.
 	workspace namespace: lobby newSubSpace.
+	workspace clipboard: (Gtk Clipboard newWith: (Gdk Atom newIntern: 'CLIPBOARD')).
 	workspace
 ].
 
@@ -67,9 +68,19 @@ w@(Gtk Workspace traits) buildMenuBar [
 	
 	menuBar append: (menu createMenuItem: '_Code').
 	menu: Gtk Menu new.
-	menu append: (Gtk MenuItem newWithMnemonic: '_Cut').
-	menu append: (Gtk MenuItem newWithMnemonic: 'C_opy').
-	menu append: (Gtk MenuItem newWithMnemonic: '_Paste').
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Cut').
+	menuItem when: #activate do: [ | *args | w codeBuffer cutTo: w clipboard ].
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: 'C_opy').
+	menuItem when: #activate do: [ | *args | w codeBuffer copyTo: w clipboard ].
+	menu append: menuItem.
+	
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Paste').
+	menuItem when: #activate do: [ | *args | w codeBuffer pasteFrom: w clipboard ].
+	menu append: menuItem.
+
 	menuBar append: (menu createMenuItem: '_Edit').
 	menuBar
 ].
@@ -192,6 +203,7 @@ w@(Gtk Workspace traits) destroy: _ [
 	w codeBuffer: Nil.
 	w view: Nil.
 	w namespace: Nil.
+	w clipboard: Nil.
 ].
 
 w@(Gtk Workspace traits) buildView [

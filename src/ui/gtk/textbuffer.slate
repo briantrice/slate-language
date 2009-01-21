@@ -126,3 +126,28 @@ tb@(Gtk TextBuffer traits) textFrom: startIter@(Gtk TextIter) [
 	tb textFrom: startIter to: tb endIter
 ].
 
+tb@(Gtk TextBuffer traits) copyTo: clipboard@(Gtk Clipboard traits) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_copy_clipboard applyTo: { tb handle. clipboard handle }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) cutTo: clipboard@(Gtk Clipboard traits) &isDefaultEditable: isDefaultEditable [
+	isDefaultEditable `defaultsTo: True.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_cut_clipboard applyTo: { tb handle. clipboard handle. isDefaultEditable }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) pasteFrom: clipboard@(Gtk Clipboard traits) &isDefaultEditable: isDefaultEditable &at: location [
+	| locationHandle |
+	isDefaultEditable `defaultsTo: True.
+	location ifNotNil: [ locationHandle: location handle ].
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_paste_clipboard applyTo: { tb handle. clipboard handle. locationHandle. isDefaultEditable }
+	].
+	tb
+].
+
