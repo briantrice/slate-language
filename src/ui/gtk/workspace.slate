@@ -1,7 +1,7 @@
-Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #modifications. #ignoreChanges -> 0. #clipboard }.
+Gtk define: #Workspace &parents: {Cloneable} &slots: { #fileName. #codeView. #codeBuffer. #view. #namespace. #originalText. #undoQueue. #redoQueue. #ignoreChanges -> 0. #clipboard }.
 Gtk Workspace traits atSlotNamed: #printName put: 'Gtk Workspace'. 
 
-"FIXME: modifications are held by saving the entire text into the modifications array instead of just the modified text"
+"FIXME: undoQueue are held by saving the entire text into the undoQueue array instead of just the modified text"
 
 w@(Gtk Workspace traits) new &fileName: fileName [
 	| workspace |
@@ -19,15 +19,19 @@ w@(Gtk Workspace traits) buildMenuBar [
 	menuBar: Gtk MenuBar new.
 	menu: Gtk Menu new.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_New').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-new').
 	menuItem when: #activate send: #newWorkspace: to: w.
 	menu append: menuItem.
-	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Open...').
+
+	menu appendSeparator.
+
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-open').
 	menuItem when: #activate send: #openFile: to: w.
 	menu append: menuItem.
+
+	menu appendSeparator.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Save').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-save').
 	menuItem when: #activate send: #saveFile: to: w.
 	menu append: menuItem.
 	
@@ -35,19 +39,23 @@ w@(Gtk Workspace traits) buildMenuBar [
 	menuItem when: #activate send: #saveFile: to: w.
 	menu append: menuItem.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: 'Sa_ve as...').
+	menuItem: (Gtk MenuItem newWithMnemonic: 'gtk-saveas').
 	menuItem when: #activate send: #saveFileAs: to: w.
 	menu append: menuItem.
+
+	menu appendSeparator.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Reload').
+	menuItem: (Gtk MenuItem newWithMnemonic: 'gtk-reload').
 	menuItem when: #activate send: #reloadFile: to: w.
 	menu append: menuItem.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Print').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-print').
 	menuItem when: #activate send: #printFile: to: w.
 	menu append: menuItem.
+
+	menu appendSeparator.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Close').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-close').
 	menuItem when: #activate send: #closeWorkspace: to: w.
 	menu append: menuItem.
 	
@@ -69,16 +77,26 @@ w@(Gtk Workspace traits) buildMenuBar [
 	menuBar append: (menu createMenuItem: '_Code').
 	menu: Gtk Menu new.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Cut').
-	menuItem when: #activate do: [ | *args | w codeBuffer cutTo: w clipboard ].
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-undo').
+	menuItem when: #activate send: #onCodeBufferUndo: to: w.
 	menu append: menuItem.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: 'C_opy').
-	menuItem when: #activate do: [ | *args | w codeBuffer copyTo: w clipboard ].
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-redo').
+	menuItem when: #activate send: #onCodeBufferRedo: to: w.
+	menu append: menuItem.
+
+	menu appendSeparator.
+	
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-cut').
+	menuItem when: #activate send: #onCodeBufferCut: to: w.
 	menu append: menuItem.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: '_Paste').
-	menuItem when: #activate do: [ | *args | w codeBuffer pasteFrom: w clipboard ].
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-copy').
+	menuItem when: #activate send: #onCodeBufferCopy: to: w.
+	menu append: menuItem.
+	
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-paste').
+	menuItem when: #activate send: #onCodeBufferPaste: to: w.
 	menu append: menuItem.
 
 	menuBar append: (menu createMenuItem: '_Edit').
@@ -93,16 +111,36 @@ w@(Gtk Workspace traits) buildToolBar [
 	| toolBar toolButton |
 
 	toolBar: Gtk Toolbar new.
-	toolButton: (Gtk ToolButton newFromStockID: 'gtk-execute').
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-execute').
 	toolButton when: #clicked send: #evaluateSelected: to: w.
 	toolBar insert: toolButton.
 	
-	toolButton: (Gtk ToolButton newFromStockID: 'gtk-print').
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-print').
 	toolButton when: #clicked send: #printSelected: to: w.
 	toolBar insert: toolButton.
 	
-	toolButton: (Gtk ToolButton newFromStockID: 'gtk-find').
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-find').
 	toolButton when: #clicked send: #inspectSelected: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-undo').
+	toolButton when: #clicked send: #onCodeBufferUndo: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-redo').
+	toolButton when: #clicked send: #onCodeBufferRedo: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-cut').
+	toolButton when: #clicked send: #onCodeBufferCut: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-copy').
+	toolButton when: #clicked send: #onCodeBufferCopy: to: w.
+	toolBar insert: toolButton.
+	
+	toolButton: (Gtk ToolButton newFromStock: 'gtk-paste').
+	toolButton when: #clicked send: #onCodeBufferPaste: to: w.
 	toolBar insert: toolButton.
 	
 	toolBar
@@ -117,8 +155,9 @@ w@(Gtk Workspace traits) buildCodeView [
 			"using w codeBuffer text: generates to #changed signals, I dont know why. We should ignore both of them"
 			ifTrue: [ w ignoreChanges: w ignoreChanges - 1 ]
 			ifFalse: [
-				w modifications push: buffer text.
-				w modifications size <= 1 ifTrue: [ "change once" w changeTitle ].
+				w redoQueue: Stack new.
+				w undoQueue push: buffer text.
+				w undoQueue size <= 1 ifTrue: [ "change once" w changeTitle ].
 			].
 	].
 	w resetModifications.
@@ -141,7 +180,8 @@ w@(Gtk Workspace traits) loadCodeView [
 
 w@(Gtk Workspace traits) resetModifications [
 	w originalText: w codeBuffer text.
-	w modifications: Stack new.
+	w undoQueue: Stack new.
+	w redoQueue: Stack new.
 	w changeTitle.
 ].
 
@@ -223,7 +263,7 @@ w@(Gtk Workspace traits) buildView [
 ].
 
 w@(Gtk Workspace traits) ifOkToDiscardDo: aBlock [
-	w modifications isEmpty ifFalse: [
+	w undoQueue isEmpty ifFalse: [
 		| dialog vBox hBox |
 		dialog: (Gtk Dialog
 			newWithFlags: Gtk DialogFlags Modal
@@ -262,7 +302,7 @@ w@(Gtk Workspace traits) composedFileName [
 w@(Gtk Workspace traits) changeTitle [
 	| title |
 	title: w composedFileName.
-	w modifications isEmpty ifFalse: [ title: title ; ' [modified]' ].
+	w undoQueue isEmpty ifFalse: [ title: title ; ' [modified]' ].
 	title: title ; ' - Workspace'.
 	w view title: title.
 ].
@@ -325,4 +365,35 @@ w@(Gtk Workspace traits) goToLineNumber: lineNumber [
 	iter: (w codeBuffer iterAtLine: lineNumber).
 	w codeView scrollTo: iter &useAlign: True.
 ].
+
+w@(Gtk Workspace traits) onCodeBufferUndo: _ [
+	w ignoreChanges: 2.
+	w redoQueue push: w codeBuffer text.
+	w undoQueue isEmpty
+		ifTrue: [ 
+			w codeBuffer text: w originalText.
+			w changeTitle
+		]
+		ifFalse: [ w codeBuffer text: w undoQueue pop ].
+].
+
+w@(Gtk Workspace traits) onCodeBufferRedo: _ [
+	w redoQueue isEmpty ifFalse: [ 
+		w ignoreChanges: 1.
+		w codeBuffer text: w redoQueue pop
+	].
+].
+
+w@(Gtk Workspace traits) onCodeBufferCut: _ [
+	w codeBuffer cutTo: w clipboard
+].
+
+w@(Gtk Workspace traits) onCodeBufferCopy: _ [
+	w codeBuffer copyTo: w clipboard
+].
+
+w@(Gtk Workspace traits) onCodeBufferPaste: _ [
+	w codeBuffer pasteFrom: w clipboard
+].
+
 

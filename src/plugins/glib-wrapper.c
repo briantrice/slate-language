@@ -128,3 +128,6 @@ EXPORT void wrapper_g_object_connect_to_block_id( gpointer instance, char* aSign
 	g_signal_connect_closure(instance, aSignalName, closure, FALSE);
 }
 
+EXPORT gchar *wraper_g_pointer_as_string( gpointer *pointer ) {
+	return (gchar *)pointer;
+}
