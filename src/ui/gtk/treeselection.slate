@@ -9,3 +9,13 @@ ts@(Gtk TreeSelection traits) selected [
 	]).
 	selectionAvailable ifTrue: [ iter ] ifFalse: [ Nil ]
 ].
+
+ts@(Gtk TreeSelection traits) treeView [
+	Gtk TreeView newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_selection_get_tree_view applyTo: {ts handle}
+	])
+].
+
+ts@(Gtk TreeSelection traits) selectedRow [
+	ts treeView selectedRow
+]

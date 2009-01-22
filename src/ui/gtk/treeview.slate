@@ -13,6 +13,11 @@ tv@(Gtk TreeView traits) newWithModel: model [
 	])
 ].
 
+tv@(Gtk TreeView traits) appendColumns: columns@(Sequence traits) [
+	columns do: [ | :each | tv appendColumn: each ].
+	tv
+].
+
 tv@(Gtk TreeView traits) appendColumn: column [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_tree_view_append_column applyTo: {tv handle. column handle }
