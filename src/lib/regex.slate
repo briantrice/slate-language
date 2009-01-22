@@ -193,10 +193,9 @@ p@(Regex Parser traits) parseTerm
 [ | next obj count |
   next: p next.
   next caseOf:
-    { $( -> [p previous.
-             count: p counter. 
+    { $( -> [count: p counter. 
              p counter: p counter + 1.
-             obj: p parseBranch.
+             obj: (p parseBranch as: Regex Syntax Expression). "need the counter slot"
              obj counter: count.
              p nextAssertIs: $). 
              ^ obj].
@@ -263,12 +262,12 @@ Matching
 
 m@(Regex Matcher traits) newOn: s@(String traits)
 [
-  p newOn: (Regex Regex newOn: s).
+  m newOn: (Regex Regex newOn: s)
 ].
 
 m@(Regex Matcher traits) newOn: r@(Regex Regex traits)
 [
-  p new `>> [regex: r. ]
+  m new `>> [regex: r. ]
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos to: endPos
@@ -277,11 +276,11 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos 
 ].
 
 m@(Regex Matcher traits) match: s@(String traits)
-[
+[ |res|
   m subexpressions: Dictionary new.
   m matchee: s.
-  m match: m regex regex from: 0
-
+  res: (m match: m regex regex from: 0).
+  (res is: Sequence) ifTrue: [res last] ifFalse: [res]
 ].
 
 "these functions return the position they match until"
@@ -290,22 +289,56 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Node traits) from: pos
   overrideThis
 ].
 
-"expressions can return a list of matches because of repeating things"
-m@(Regex Matcher traits) match: node@(Regex Syntax Branch traits) from: pos
-[ |curPos newPos|
+"match all in sequence(from start to end in sequence) or none"
+m@(Regex Matcher traits) match: expressions@(Sequence traits) from: pos start: start end: end
+[ | curPos newPos exp futurePos|
   curPos: pos.
-  node expressions do: [|:exp|
-                          newPos: (m match: exp from: curPos)
-                          newPos = -1
-                                 ifTrue: ["it didn't match the expression"
-                                          ^ (m match: node nextBranch from: pos)]
-                                 ifFalse: [curPos: newPos]
-                        ]
-  curPos
+  [
+  start > end ifTrue: [^ curPos].
+  exp: (expressions at: start).
+  newPos: (m match: exp from: curPos).
+  "wildcard matches produce array results of all the possible matches."
+  "do them in reverse to be greedy"
+  "inform: expressions printString ; 'from pos: ' ; pos printString ; 'start: ' ; start printString ; 'end: ' ; end printString.
+  inform: 'newPos: ' ; newPos printString."
+  (newPos is: Sequence)
+    ifTrue: [newPos reverseDo: [|:matchPos| 
+                                  futurePos: (m match: expressions from: matchPos
+                                                       start: start + 1 end: end).
+                                  (futurePos is: Sequence) ifTrue: [error: 'crap'].
+                                  futurePos ~= -1 ifTrue: [m markExpression: exp from: curPos to: matchPos.
+                                                           ^ futurePos]
+                                    ]]
+    ifFalse: [newPos = -1 ifTrue: [m markExpression: exp from: curPos to: curPos.
+                                   ^ -1].
+              start: start + 1.
+              curPos: newPos]
+  ] loop.
 ].
 
+m@(Regex Matcher traits) match: node@(Sequence traits) from: pos
+[ m match: node from: pos start: 0 end: node size - 1].
+
+
+"expressions can return a list of matches because of repeating things"
+m@(Regex Matcher traits) match: node@(Regex Syntax Branch traits) from: pos
+[ |newPos|
+  newPos: (m match: node expressions from: pos).
+  newPos = -1 /\ [node nextBranch isNotNil]
+         ifTrue: [m match: node nextBranch from: pos]
+         ifFalse: [newPos]
+].
+
+m@(Regex Matcher traits) markExpression: node@(Regex Syntax Expression traits) from: start to: end
+[
+  node counter ifNotNil: [m subexpressions at: node counter put: start -> end]
+].
+
+m@(Regex Matcher traits) markExpression: node@(Regex Syntax Node traits) from: start to: end
+[ "cannot mark node" ].
+
 m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
-[ | curPos newPos matches |
+[ | curPos newPos matches numMatches |
   "no repeatCount means it just has to match once"
   node repeatCount ifNil: [curPos: (m match: node term from: pos).
                            curPos > pos ifTrue: [m markExpression: node from: pos to: curPos].
@@ -313,31 +346,31 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
   
   curPos: pos.
   matches: ExtensibleArray new.
-
-  [matches size < node repeatCount end]
+  node repeatCount start = 0 ifTrue: [matches addLast: pos]. "optional argument may match nil matchee"
+  numMatches: 0.
+  [numMatches < node repeatCount end]
     whileTrue: [newPos: (m match: node term from: curPos).
                 "no match"
-                newPos = -1 ifTrue: [numMatches > node repeatCount start
+                "inform: 'match: ' ; newPos printString."
+                newPos = -1 ifTrue: [numMatches >= node repeatCount start
                                       ifTrue: [curPos > pos ifTrue: [m markExpression: node from: pos to: curPos].
-                                               ^ matches]]
+                                               ^ matches]].
                 curPos: newPos.
                 matches addLast: curPos.
                  ].
 
-  matches size > node repeatCount start
-    ifTrue: [^ matches]
-    ifFalse: [^ pos]
-
+  matches isEmpty ifTrue: [-1] ifFalse: [matches]
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax Character traits) from: pos
 [
-  (m source at: pos) = node character ifTrue: [pos + 1] ifFalse: [-1]
+  pos >= m matchee size ifTrue: [^ -1].
+  (m matchee at: pos) = node character ifTrue: [pos + 1] ifFalse: [-1]
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: pos
 [ |charCode|
-  charCode: (m source at: pos) code.
+  charCode: (m matchee at: pos) code.
   charCode >= node start code /\ [charCode <= node end code] ifTrue: [pos + 1] ifFalse: [-1]
 ].
 
@@ -345,8 +378,8 @@ m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: 
 m@(Regex Matcher traits) match: node@(Regex Syntax CharacterGroup traits) from: pos
 [ "there should be another way than assuming a match is just pos+1"
   node negated
-    ifTrue: [(node elements noneSatisfy: [(m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
-    ifFalse: [(node elements anySatisfy: [(m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
+    ifTrue: [(node elements noneSatisfy: [|:each| (m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
+    ifFalse: [(node elements anySatisfy: [|:each| (m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax BeginningMarker traits) from: pos
@@ -356,6 +389,6 @@ m@(Regex Matcher traits) match: node@(Regex Syntax BeginningMarker traits) from:
 
 m@(Regex Matcher traits) match: node@(Regex Syntax EndMarker traits) from: pos
 [
-  m source size <= pos ifTrue: [pos] ifFalse: [-1]
+  m matchee size <= pos ifTrue: [pos] ifFalse: [-1]
 ].
 
