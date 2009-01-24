@@ -131,14 +131,14 @@ u@(Net OpaqueURI traits) isEmpty [u opaquePart isNil].
 u@(Net OpaqueURI traits) printSchemeSpecificPartOn: encoder
 [u opaquePart ifNotNil: [encoder nextPutAll: u opaquePart as: 'uricNoSlash']].
 
-u@(Net URI traits) readFrom: s
+u@(Net URI traits) newFrom: s
 [| r | 
   r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
-  (r matches: s)
-    ifTrue: [Net URI cloneSettingSlots: #(scheme authority path query fragment)
+  (r match: s) ~= -1
+    ifTrue: [u cloneSettingSlots: #(scheme authority path query fragment)
 		     to: {(r subexpression: 1) as: Net Schemes Scheme.
 			  r subexpression: 3. 
-			  r subexpression: 4. 
+			  (r subexpression: 4) ifNil: ['/']. 
 			  r subexpression: 6. 
 			  r subexpression: 7}]
     ifFalse: [error: 'Unable to parse: ' ; s ; ' as URI']
@@ -164,26 +164,3 @@ u@(Net URI traits) testParsing
 
 Net define: #URL &parents: {Net HierarchicalURI} &slots: {}.
 
-u@(Net URL traits) readFrom: s
-[| r | 
-  r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
-  (r matches: s)
-    ifTrue: [Net URL new `>>
-	       [scheme: (r subexpression: 3). 
-		authority: (r subexpression: 5). 
-		path: (r subexpression: 6). 
-		query: (r subexpression: 8). 
-		fragment: (r subexpression: 10). ]]
-    ifFalse: [error: 'unable to parse URL']
-].
-
-u@(Net URL traits) as: s@(String traits)
-[
- [| :result |
- u scheme ifNotNil: [result ; u scheme uriText ; ':'].
- u authority = '' ifFalse: [result ; '//' ; u authority].
- result ; u path.
- u query = '' ifFalse: [result ; '?' ; u query].
- u fragment = '' ifFalse: [result ; '#' ; u fragment]
-   ] streamingAs: ''
-].
