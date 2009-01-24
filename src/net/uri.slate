@@ -133,14 +133,14 @@ u@(Net OpaqueURI traits) printSchemeSpecificPartOn: encoder
 
 u@(Net URI traits) readFrom: s
 [| r | 
-  r: (Regex Matcher forString: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r matches: s)
     ifTrue: [Net URI cloneSettingSlots: #(scheme authority path query fragment)
-		     to: {(r subexpression: 3) as: Net Schemes Scheme.
-			  r subexpression: 5. 
+		     to: {(r subexpression: 1) as: Net Schemes Scheme.
+			  r subexpression: 3. 
+			  r subexpression: 4. 
 			  r subexpression: 6. 
-			  r subexpression: 8. 
-			  r subexpression: 10}]
+			  r subexpression: 7}]
     ifFalse: [error: 'Unable to parse: ' ; s ; ' as URI']
 ].
 

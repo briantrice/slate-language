@@ -270,17 +270,36 @@ m@(Regex Matcher traits) newOn: r@(Regex Regex traits)
   m new `>> [regex: r. ]
 ].
 
+m@(Regex Matcher traits) subexpression: x
+[ |se|
+  se: (m subexpressions at: x ifAbsent: [^ Nil]).
+  se key >= m matchee size ifTrue: [^ Nil].
+  m matchee copyFrom: se key to: se value
+].
+
+m@(Regex Matcher traits) subexpressionMatches
+[ | matches |
+  matches: Dictionary new.
+  m subexpressions keysDo: [|:key | matches at: key put: (m subexpression: key)].
+  matches
+].
+
 m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos to: endPos
 [
   node counter ifNotNil: [m subexpressions at: node counter put: {pos. endPos}]
 ].
 
 m@(Regex Matcher traits) match: s@(String traits)
+[ 
+  m match: s from: 0
+].
+
+m@(Regex Matcher traits) match: s@(String traits) from: fromStart
 [ |res|
   m subexpressions: Dictionary new.
   m matchee: s.
-  res: (m match: m regex regex from: 0).
-  (res is: Sequence) ifTrue: [res last] ifFalse: [res]
+  res: (m match: m regex regex from: fromStart).
+  (res is: Sequence) ifTrue: [res isEmpty ifTrue: [-1] ifFalse: [res last]] ifFalse: [res]
 ].
 
 "these functions return the position they match until"
@@ -299,7 +318,7 @@ m@(Regex Matcher traits) match: expressions@(Sequence traits) from: pos start: s
   newPos: (m match: exp from: curPos).
   "wildcard matches produce array results of all the possible matches."
   "do them in reverse to be greedy"
-  "inform: expressions printString ; 'from pos: ' ; pos printString ; 'start: ' ; start printString ; 'end: ' ; end printString.
+  "inform: expressions printString ; 'from pos: ' ; pos printString ; ' start: ' ; start printString ; ' end: ' ; end printString.
   inform: 'newPos: ' ; newPos printString."
   (newPos is: Sequence)
     ifTrue: [newPos reverseDo: [|:matchPos| 
@@ -308,7 +327,8 @@ m@(Regex Matcher traits) match: expressions@(Sequence traits) from: pos start: s
                                   (futurePos is: Sequence) ifTrue: [error: 'crap'].
                                   futurePos ~= -1 ifTrue: [m markExpression: exp from: curPos to: matchPos.
                                                            ^ futurePos]
-                                    ]]
+                                    ].
+               ^ -1]
     ifFalse: [newPos = -1 ifTrue: [m markExpression: exp from: curPos to: curPos.
                                    ^ -1].
               start: start + 1.
@@ -331,7 +351,7 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Branch traits) from: pos
 
 m@(Regex Matcher traits) markExpression: node@(Regex Syntax Expression traits) from: start to: end
 [
-  node counter ifNotNil: [m subexpressions at: node counter put: start -> end]
+  node counter ifNotNil: [m subexpressions at: node counter put: start -> (end - 1)]
 ].
 
 m@(Regex Matcher traits) markExpression: node@(Regex Syntax Node traits) from: start to: end
@@ -351,12 +371,14 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
   [numMatches < node repeatCount end]
     whileTrue: [newPos: (m match: node term from: curPos).
                 "no match"
-                "inform: 'match: ' ; newPos printString."
+                "inform: 'match: ' ; newPos printString ; ' from: ' ; node printString."
                 newPos = -1 ifTrue: [numMatches >= node repeatCount start
                                       ifTrue: [curPos > pos ifTrue: [m markExpression: node from: pos to: curPos].
-                                               ^ matches]].
+                                               ^ matches]
+                                      ifFalse: [^ -1]].
                 curPos: newPos.
                 matches addLast: curPos.
+                numMatches: numMatches + 1.
                  ].
 
   matches isEmpty ifTrue: [-1] ifFalse: [matches]
@@ -370,6 +392,7 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Character traits) from: pos
 
 m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: pos
 [ |charCode|
+  pos >= m matchee size ifTrue: [^ -1].
   charCode: (m matchee at: pos) code.
   charCode >= node start code /\ [charCode <= node end code] ifTrue: [pos + 1] ifFalse: [-1]
 ].
@@ -377,6 +400,7 @@ m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: 
 
 m@(Regex Matcher traits) match: node@(Regex Syntax CharacterGroup traits) from: pos
 [ "there should be another way than assuming a match is just pos+1"
+  pos >= m matchee size ifTrue: [^ -1].
   node negated
     ifTrue: [(node elements noneSatisfy: [|:each| (m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
     ifFalse: [(node elements anySatisfy: [|:each| (m match: each from: pos) ~= -1]) ifTrue: [pos + 1] ifFalse: [-1]]
