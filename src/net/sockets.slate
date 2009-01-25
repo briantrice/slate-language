@@ -1,27 +1,26 @@
 
+lobby ensureNamespace: #Net.
 
 "Slate based sockets"
 
-prototypes ensureNamespace: #networking &delegate: True.
+Net define: #Socket &parents: {Cloneable} &slots: {#fd -> Nil}.
+Net define: #SocketServerConnection &parents: {Net Socket} &slots: {#peerAddress -> Nil}.
+Net define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
+Net define: #IP4Address &parents: {Net SocketAddress}.
+Net define: #UnixDomainAddress &parents: {Net SocketAddress}.
 
-networking define: #Socket &parents: {Cloneable} &slots: {#fd -> Nil}.
-networking define: #SocketServerConnection &parents: {Socket} &slots: {#peerAddress -> Nil}.
-networking define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
-networking define: #IP4Address &parents: {SocketAddress}.
-networking define: #UnixDomainAddress &parents: {SocketAddress}.
-
-networking define: #SocketServer &parents: {Cloneable}
+Net define: #SocketServer &parents: {Cloneable}
  &slots: {#pipeToLoop -> Nil. #ip -> Nil. #port -> Nil. #dispatch -> Nil}.
 
 
-Socket traits ensureNamespace: #ErrorCodes.
-Socket traits ensureNamespace: #Domains.
-Socket traits ensureNamespace: #Types.
-Socket traits ensureNamespace: #Protocols.
-Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
-Socket traits addSlot: #BufferSize valued: 1024.
+Net Socket traits ensureNamespace: #ErrorCodes.
+Net Socket traits ensureNamespace: #Domains.
+Net Socket traits ensureNamespace: #Types.
+Net Socket traits ensureNamespace: #Protocols.
+Net Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
+Net Socket traits addSlot: #BufferSize valued: 1024.
 
-Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
+Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
 
 {
 
@@ -45,8 +44,8 @@ Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
   #Timeout -> -18.
 
 } do: [ | :item | 
-         Socket ErrorCodes addImmutableSlot: item key valued: item value.
-         Socket ErrorCodes Dictionary add: item value -> item key.
+         Net Socket ErrorCodes addImmutableSlot: item key valued: item value.
+         Net Socket ErrorCodes Dictionary add: item value -> item key.
        ].
 
 conditions define: #SocketError
@@ -54,28 +53,28 @@ conditions define: #SocketError
   &slots: {#error. #errorCode}.
 
 
-Socket Domains `>> [
+Net Socket Domains `>> [
   addImmutableSlot: #Local valued: 1.
   addImmutableSlot: #IP4 valued: 2.
   addImmutableSlot: #IP6 valued: 3.
   ].
 
-Socket Types `>> [
+Net Socket Types `>> [
   addImmutableSlot: #Stream valued: 1.
   ].
 
-Socket Protocols `>> [
+Net Socket Protocols `>> [
   addImmutableSlot: #Default valued: 0.
   ].
 
 
-s@(Socket traits) throwError: code
+s@(Net Socket traits) throwError: code
 [
-  SocketError new `>> [error: (Socket ErrorCodes Dictionary at: code). errorCode: code. signal]
+  SocketError new `>> [error: (Net Socket ErrorCodes Dictionary at: code). errorCode: code. signal]
 ].
 
 
-s@(Socket traits) newFor: domain type: type protocol: proto
+s@(Net Socket traits) newFor: domain type: type protocol: proto
 [ | ret |
   ret: s new.
   ret fd: (domain socketCreate: type protocol: proto).
@@ -84,42 +83,42 @@ s@(Socket traits) newFor: domain type: type protocol: proto
 ].
 
 
-addr@(SocketAddress traits) newOn: array port: port
+addr@(Net SocketAddress traits) newOn: array port: port
 [ | ret |
   ret: addr new.
   addr address: (addr domain createIPAddress: array port: port options: #()).
   addr
 ].
 
-addr@(IP4Address traits) domain
+addr@(Net IP4Address traits) domain
 [
-  Socket Domains IP4
+  Net Socket Domains IP4
 ].
 
-addr@(UnixDomainAddress traits) domain
+addr@(Net UnixDomainAddress traits) domain
 [
-  Socket Domains Local
+  Net Socket Domains Local
 ].
 
 
-s@(Socket traits) connectTo: addr@(SocketAddress traits)
+s@(Net Socket traits) connectTo: addr@(Net SocketAddress traits)
 [ | ret |
   ret: (s fd socketConnect: addr address).
-  ret < 0 /\ [ret ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: ret].
+  ret < 0 /\ [ret ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: ret].
   
 ].
 
 
-s@(Socket traits) bindTo: sa@(SocketAddress traits)
+s@(Net Socket traits) bindTo: sa@(Net SocketAddress traits)
 [ | ret |
-  s fd < 0 ifTrue: [s throwError: Socket ErrorCodes Invalid].
+  s fd < 0 ifTrue: [s throwError: Net Socket ErrorCodes Invalid].
   
   ret: (s fd socketBindOn: sa address).
   ret < 0 ifTrue: [s throwError: ret].
   ret
 ].
 
-s@(Socket traits) listenSize: count
+s@(Net Socket traits) listenSize: count
 [ | ret |
   
   ret: (s fd socketListenSize: count).
@@ -128,18 +127,18 @@ s@(Socket traits) listenSize: count
 ].
 
 
-s@(Socket traits) close
+s@(Net Socket traits) close
 [ | ret |
   ret: s fd closePipe.
   ret < 0 ifTrue: [s throwError: ret].
 ].
 
-s@(Socket traits) canRead
+s@(Net Socket traits) canRead
 [ 
   ({s} selectOnReadPipesFor: 0) isEmpty not
 ].
 
-s@(Socket traits) canWrite
+s@(Net Socket traits) canWrite
 [ 
   ({s} selectOnWritePipesFor: 0) isEmpty not
 ].
@@ -147,36 +146,36 @@ s@(Socket traits) canWrite
 
 
 
-s@(Socket traits) acceptConnection
+s@(Net Socket traits) acceptConnection
 [ | ret |
   
   ret: (s fd socketAcceptConnection).
   (ret is: Integer) ifTrue: [s throwError: ret].
   (ret first < 0) ifTrue: [s throwError: ret first].
-  SocketServerConnection new `>> [fd: ret first. peerAddress: ret second.]
+  Net SocketServerConnection new `>> [fd: ret first. peerAddress: ret second.]
 ].
 
 
-s@(SocketServer traits) newOn: ip port: port dispatch: block
+s@(Net SocketServer traits) newOn: ip port: port dispatch: block
 [ | ret |
   ret: s new `>> [ip: ip. port: port. dispatch: block.].
   ret
 ].
 
-s@(SocketServer traits) start &domain: addressDomain
+s@(Net SocketServer traits) start &domain: addressDomain
 [
-  addressDomain `defaultsTo: IP4Address.
+  addressDomain `defaultsTo: Net IP4Address.
   s pipeToLoop: 
     (currentProcess forkAndDo:
       [ | :commSock servSock |
-        servSock: (Socket newFor: addressDomain domain type: Socket Types Stream protocol: Socket Protocols Default).
+        servSock: (Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
         "fixme handle ipv6"
         inform: 'Creating listening socket ' ; servSock printString.
         inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
         inform: 'listen: '; (servSock listenSize: 5) printString.
         [ | ready |
           inform: 'Waiting for connection...' ; {commSock. servSock fd} printString.
-          ready: ({commSock. servSock fd} selectOnReadPipesFor: Socket SelectTimeout).
+          ready: ({commSock. servSock fd} selectOnReadPipesFor: Net Socket SelectTimeout).
           ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
           (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock fd closePipe. lobby exit].
           (ready includes: servSock fd) 
@@ -195,22 +194,22 @@ s@(SocketServer traits) start &domain: addressDomain
 
 ].
 
-s@(SocketServer traits) stop
+s@(Net SocketServer traits) stop
 [
   s pipeToLoop nextPutAll: 'quit'.
 ].
 
 
-networking define: #SocketStream &parents: {ReadWriteStream}
+Net define: #SocketStream &parents: {ReadWriteStream}
  &slots: {#internalReadBuffer -> (ByteArray new as: Queue). #internalWriteBuffer -> (ByteArray new as: Queue). #socket -> Nil. #closed -> False.
-#buffer -> (ByteArray new &capacity: Socket BufferSize)}.
+#buffer -> (ByteArray new &capacity: Net Socket BufferSize)}.
 
-s@(SocketStream traits) newOn: socket
+s@(Net SocketStream traits) newOn: socket
 [
   s new on: socket
 ].
 
-s@(SocketStream traits) on: socket
+s@(Net SocketStream traits) on: socket
 [
   s socket: socket.
   s internalReadBuffer clear.
@@ -219,58 +218,58 @@ s@(SocketStream traits) on: socket
   s
 ].
 
-s@(SocketStream traits) collectionType
+s@(Net SocketStream traits) collectionType
 [
   ByteArray
 ].
 
-s@(SocketStream traits) isAtEnd
+s@(Net SocketStream traits) isAtEnd
 [
   s closed
 ].
 
 
-s@(SocketStream traits) close
+s@(Net SocketStream traits) close
 [
   s closed: True.
   s socket close.
 ].
 
 
-s@(SocketStream traits) flush
+s@(Net SocketStream traits) flush
 [ | i contents |
   i: 0.
   contents: (s internalWriteBuffer as: ByteArray).
   [i < contents size] whileTrue: 
     [ | return fds | 
-      fds: ({s socket fd} selectOnWritePipesFor: Socket SelectTimeout).
+      fds: ({s socket fd} selectOnWritePipesFor: Net Socket SelectTimeout).
       return: 0.
       "inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString."
       fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
       (return = 0) ifTrue: [error: 'write failed']. 
-      return < 0 /\ [return ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
+      return < 0 /\ [return ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
       i: i + return].
   s internalWriteBuffer clear.
 ].
 
-s@(SocketStream traits) next
+s@(Net SocketStream traits) next
 [
   (s next: 1) first
 ].
 
-s@(SocketStream traits) nextLine
+s@(Net SocketStream traits) nextLine
 [
   s upTo: $\n
 ].
 
 
-s@(SocketStream traits) next: n putInto: seq startingAt: start
+s@(Net SocketStream traits) next: n putInto: seq startingAt: start
 [ | readSize writer |
   s closed ifTrue: [s exhausted. ^ 0].
   writer: s internalReadBuffer writer.
   [s internalReadBuffer size < n]
     whileTrue: [ | fds ret |
-                  fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
+                  fds: ({s socket fd} selectOnReadPipesFor: Net Socket SelectTimeout).
                   fds isEmpty ifTrue: [s closed: True. s exhausted. ^ 0]. "this shouldn't happen"
                   "inform: 'before read ' ; fds printString."
                   ret: (s buffer readFromPipe: s socket fd start: 0 end: s buffer size).
@@ -285,7 +284,7 @@ s@(SocketStream traits) next: n putInto: seq startingAt: start
 ].
 
 
-s@(SocketStream traits) nextPut: byte
+s@(Net SocketStream traits) nextPut: byte
 [ | ret |
   s internalWriteBuffer addLast: byte.
 ].
