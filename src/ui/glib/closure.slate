@@ -1,13 +1,10 @@
 GLib define: #Closure &parents: {GLib Pointer}. 
 GLib Closure traits atSlotNamed: #printName put: 'GLib Closure'. 
 
-c@(GLib Closure traits)  [
-	c shouldNotImplement
+c@(GLib Closure traits) newWithID: id@(Number traits) [
+	c newWithHandle: ( GLib Lib primitives wrapper_g_cclosure_new applyTo: { id } )
 ].
 
-c@(GLib Closure traits) when: aSignalName do: aBlock [
-	| blockID |
-	blockID: (GLib CallbackRegistry register: aBlock).
-	GLib Lib primitives wrapper_g_object_connect_to_block_id applyTo: { c handle. aSignalName. blockID }.
-	blockID
+c@(GLib Closure traits) newWithBlock: aBlock [
+	c newWithID: (GLib CallbackRegistry register: aBlock)
 ].

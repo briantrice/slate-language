@@ -9,11 +9,13 @@ _@(GLib Object traits) gType [
 	GLib FundamentalType Object
 ].
 
-o@(GLib Object traits) when: aSignalName do: aBlock [
-	| blockID |
-	blockID: (GLib CallbackRegistry register: aBlock).
-	GLib Lib primitives wrapper_g_object_connect_to_block_id applyTo: { o handle. aSignalName. blockID }.
-	blockID
+o@(GLib Object traits) connectTo: aSignalName@(String traits) closure: closure@(GLib Closure traits) &after: after [
+	after `defaultsTo: False.
+	GLib Lib primitives g_signal_connect_closure applyTo: { o handle. aSignalName. closure handle. after }
+].
+
+o@(GLib Object traits) when: aSignalName@(String traits) do: aBlock [
+	o connectTo: aSignalName closure: (GLib Closure newWithBlock: aBlock)
 ].
 
 o@(GLib Object traits) when: aSignalName send: selector to: object [

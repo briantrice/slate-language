@@ -120,19 +120,20 @@ void callback_finalize_notifier( gpointer blockID, GClosure *closure ) {
 	data->parameterCount = 0;
 	g_async_queue_push( callbackQueue, data );
 }
-
+/*
 EXPORT void wrapper_g_object_connect_to_block_id( gpointer instance, char* aSignalName, gint blockID ) {
 	GClosure *closure = g_cclosure_new( G_CALLBACK(callback), (gpointer)blockID, NULL);
 	g_closure_set_marshal( closure, callback_marshal);
 	g_closure_add_finalize_notifier( closure, (gpointer)blockID, callback_finalize_notifier );
 	g_signal_connect_closure(instance, aSignalName, closure, FALSE);
 }
-/*
-EXPORT void wrapper_g_closure_set_handlers( gpointer closure ) {
-	g_closure_set_marshal( closure, callback_marshal);
-	g_closure_add_finalize_notifier( closure, (gpointer)blockID, callback_finalize_notifier );
-}
 */
+EXPORT GClosure *wrapper_g_cclosure_new(gint blockID) {
+	GClosure *closure = g_cclosure_new( G_CALLBACK(callback), (gpointer)blockID, callback_finalize_notifier);
+	g_closure_set_marshal( closure, callback_marshal);
+	return closure;
+}
+
 EXPORT gchar *wraper_g_pointer_as_string( gpointer *pointer ) {
 	return (gchar *)pointer;
 }
