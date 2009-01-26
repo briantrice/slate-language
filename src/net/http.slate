@@ -74,9 +74,31 @@ Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
 
        extension-header = message-header
 
+       length := 0
+       read chunk-size, chunk-extension (if any) and CRLF
+       while (chunk-size > 0) {
+          read chunk-data and CRLF
+          append chunk-data to entity-body
+          length := length + chunk-size
+          read chunk-size and CRLF
+       }
+       read entity-header
+       while (entity-header not empty) {
+          append entity-header to existing header fields
+          read entity-header
+       }
+       Content-Length := length
+       Remove chunked from Transfer-Encoding
+
+
 "
 
-Net define: #HttpClient &parents: {Cloneable} &slots: {#userAgent -> 'slateweb/1.0'. }.
+Net define: #HttpClient &parents: {Cloneable}
+&slots: {#userAgent -> 'slateweb/1.0'. 
+         #statusResponseRegex -> (Regex Matcher newOn: '^(HTTP/\\d+\\.\\d+) (\\d+) ([ \\w]+)$').
+         #headerResponseRegex -> (Regex Matcher newOn: '^([^:]+)\\:\\s*(.*)$').
+}.
+
 Net define: #HttpMessage &parents: {Cloneable} &slots: {#version. #headers}.
 Net define: #HttpRequest &parents: {Net HttpMessage} &slots: {#uri. #method.}.
 
@@ -100,6 +122,22 @@ d@(Net HttpAcceptableDictionary traits) as: s@(String traits)
  ] streamingAs: s) allButFirst: 2
 ].
 
+
+hc@(Net HttpClient traits) simpleQuery: s@(String traits) &on: stream &method: method
+[ |str url closeStream |
+  closeStream: False.
+  url: (Net URL newFrom: s).
+  stream ifNil: [closeStream: True. 
+                  stream: (hc newConnectionFor: url)].
+  [str: ((hc request: url &method: method) as: String).
+   "inform: 'sending request'."
+   stream nextPutAll: (str as: ByteArray). "fixme unicode"
+   stream flush.
+   "inform: 'reading reply'."
+   hc readResponse: stream
+   ] ensure: [closeStream ifTrue: [stream close]]
+  
+].
 
 
 hc@(Net HttpClient traits) request: s@(String traits) &method: method
@@ -126,3 +164,70 @@ r@(Net HttpRequest traits) as: s@(String traits)
  ] writingAs: s
 ].
 
+hc@(Net HttpClient traits) newConnectionFor: url@(Net URL traits)
+[ |addr socket|
+  addr: (Net SocketAddress newOn: url authority).
+  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  socket connectTo: addr.
+  Net SocketStream newOn: socket
+].
+
+hc@(Net HttpClient traits) readLineFrom: stream@(ReadStream traits)
+[ |str|
+  "inform: 'reading line...'."
+  str: (stream upTo: $\r code).
+  stream next ~= $\n code ifTrue: [error: 'invalid newline separator in http response'].
+  str: (str as: ASCIIString).
+  "inform: 'read: ' ; str escaped."
+  str
+].
+
+hc@(Net HttpClient traits) readHeaders: stream@(ReadStream traits)
+[ |headers line re|
+  headers: Dictionary new.
+  "inform: 'reading headers'."
+  [
+    line: (hc readLineFrom: stream).
+    line isEmpty ifTrue: [^ headers].
+    re: hc headerResponseRegex clone.
+    (re match: line) = -1 ifTrue: [error: 'malformed header line'].
+    headers at: (re subexpression: 0) toLowercase put: (re subexpression: 1).
+    
+
+  ] loop.
+
+].
+
+hc@(Net HttpClient traits) newResponseFromHeaders: headers
+[ "fixme... checked for transfer-encoding/TE to see if we need chunked"
+  Net SimpleHttpResponse new `>> [headers: headers. ]
+].
+
+hc@(Net HttpClient traits) readBodyInto: response@(Net SimpleHttpResponse traits) from: stream@(ReadStream traits)
+[ |length|
+
+  length: ((response headers at: 'content-length' ifAbsent: [error: 'Content-Length field required'])
+    as: Integer).
+  inform: 'reading body len: ' ; length printString. 
+  response body: (stream next: length).
+].
+
+hc@(Net HttpClient traits) readResponse: stream@(ReadStream traits)
+[ |status re httpVersion statusCode statusReason headers response |
+  status: (hc readLineFrom: stream).
+  re: hc statusResponseRegex clone.
+  (re match: status) = -1
+    ifTrue: [error: 'Invalid status line in http response']
+    ifFalse: [httpVersion: (re subexpression: 0).
+              statusCode: (re subexpression: 1).
+              statusReason: (re subexpression: 2)].
+
+  httpVersion ~= 'HTTP/1.1' ifTrue: [error: 'Only supporting http version 1.1.'].
+  headers: (hc readHeaders: stream).
+  response: (hc newResponseFromHeaders: headers) `>> [version: httpVersion.
+                                                      status: statusCode. 
+                                                      reason: statusReason. ].
+  hc readBodyInto: response from: stream.
+  response
+  
+].

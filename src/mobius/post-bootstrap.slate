@@ -19,10 +19,12 @@ _@lobby printOn: s "Convenient lobby printing." [s ; 'lobby'].
 ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
-[| src |
+[| src retry |
   src: (File newNamed: fileName).
-  src exists ifTrue: [[ns load: src &in: namespace &verbose: verbose]
-                        handlingCases: {Retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
+  src exists ifTrue: [retry: Retry clone.
+                      _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ;'\n' ].
+                      [ns load: src &in: namespace &verbose: verbose]
+                        handlingCases: {retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
 	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
 ].
 
