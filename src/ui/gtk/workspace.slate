@@ -35,17 +35,13 @@ w@(Gtk Workspace traits) buildMenuBar [
 	menuItem when: #activate send: #saveFile: to: w.
 	menu append: menuItem.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: 'S_ave and compile').
-	menuItem when: #activate send: #saveFile: to: w.
-	menu append: menuItem.
-	
-	menuItem: (Gtk MenuItem newWithMnemonic: 'gtk-saveas').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-save-as').
 	menuItem when: #activate send: #saveFileAs: to: w.
 	menu append: menuItem.
 
 	menu appendSeparator.
 	
-	menuItem: (Gtk MenuItem newWithMnemonic: 'gtk-reload').
+	menuItem: (Gtk ImageMenuItem newFromStock: 'gtk-refresh').
 	menuItem when: #activate send: #reloadFile: to: w.
 	menu append: menuItem.
 	
@@ -61,6 +57,12 @@ w@(Gtk Workspace traits) buildMenuBar [
 	
 	menuBar append: (menu createMenuItem: '_File').
 	menu: Gtk Menu new.
+
+	menuItem: (Gtk MenuItem newWithMnemonic: '_Accept all').
+	menuItem when: #activate send: #evaluateSelected: to: w.
+	menu append: menuItem.
+	
+	menu appendSeparator.
 	
 	menuItem: (Gtk MenuItem newWithMnemonic: '_Do it').
 	menuItem when: #activate send: #evaluateSelected: to: w.
