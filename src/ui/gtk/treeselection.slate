@@ -1,6 +1,10 @@
 Gtk define: #TreeSelection &parents: {GLib Object}.
 Gtk TreeSelection traits atSlotNamed: #printName put: 'Gtk TreeSelection'. 
 
+ts@(Gtk TreeSelection traits) new [
+	ts shouldNotImplement
+].
+
 ts@(Gtk TreeSelection traits) selected [
 	| iter selectionAvailable |
 	iter: Gtk TreeIter new.
@@ -9,3 +13,13 @@ ts@(Gtk TreeSelection traits) selected [
 	]).
 	selectionAvailable ifTrue: [ iter ] ifFalse: [ Nil ]
 ].
+
+ts@(Gtk TreeSelection traits) treeView [
+	Gtk TreeView newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_selection_get_tree_view applyTo: {ts handle}
+	])
+].
+
+ts@(Gtk TreeSelection traits) selectedRow [
+	ts treeView selectedRow
+]

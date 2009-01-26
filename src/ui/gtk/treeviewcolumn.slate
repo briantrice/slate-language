@@ -7,10 +7,19 @@ tvc@(Gtk TreeViewColumn traits) new [
 	])
 ].
 
-tvc@(Gtk TreeViewColumn traits) title: title [
+tvc@(Gtk TreeViewColumn traits) title: title@(String traits) [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_tree_view_column_set_title applyTo: {tvc handle. title}
 	].
+	tvc
+].
+
+tvc@(Gtk TreeViewColumn traits) title: title@(String traits) text: text@(Number traits) [
+	| cell |
+	tvc title: title.
+	cell: Gtk CellRendererText new.
+	tvc	packStart: cell.
+	tvc addAttributes: { #text -> text } on: cell.	
 	tvc
 ].
 

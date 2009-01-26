@@ -1,6 +1,10 @@
 Gtk define: #Box &parents: {Gtk Container}.
 Gtk Box traits atSlotNamed: #printName put: 'Gtk Box'. 
 
+b@(Gtk Box traits) new [
+	b shouldNotImplement
+].
+
 b@(Gtk Box traits) packStart: widget &expand: expand &fill: fill &padding: padding [
 	"Appends a child widget to the end of the box.
 * expand: true if the new child is to be given extra space allocated to box. The extra space will be divided evenly between all children of box that use this option. 	
@@ -14,3 +18,22 @@ b@(Gtk Box traits) packStart: widget &expand: expand &fill: fill &padding: paddi
 	].
 ].
 
+b@(Gtk Box traits) packEnd: widget &expand: expand &fill: fill &padding: padding [
+	"Appends a child widget to the end of the box.
+* expand: true if the new child is to be given extra space allocated to box. The extra space will be divided evenly between all children of box that use this option. 	
+* fill: true if space given to child by the expand option is actually allocated to child, rather than just padding it. This parameter has no effect if expand is set to FALSE. A child is always allocated the full height of a GtkHBox and the full width of a GtkVBox. This option affects the other dimension. 	
+* padding: extra space in pixels to put between this child and its neighbors, over and above the global amount specified by spacing in GtkBox-struct. If child is a widget at one of the reference ends of box, then padding pixels are also put between child and the reference edge of box."
+	expand `defaultsTo: True.
+	fill `defaultsTo: True.
+	padding `defaultsTo: 0.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_box_pack_end applyTo: { b handle. widget handle. expand. fill. padding }.
+	].
+].
+
+b@(Gtk Box traits) packStartAll: widgetArray@(Sequence traits) &expand: expand &fill: fill &padding: padding [
+	widgetArray do: [ | :each |
+		b packStart: each &expand: expand &fill: fill &padding: padding
+	].
+	b
+].
