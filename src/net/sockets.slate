@@ -1,27 +1,30 @@
 
+lobby ensureNamespace: #Net.
 
 "Slate based sockets"
 
-prototypes ensureNamespace: #networking &delegate: True.
+"fixme, i just changed this to an externalresource from cloneable so i need to make sure i
+add back the right methods"
 
-networking define: #Socket &parents: {Cloneable} &slots: {#fd -> Nil}.
-networking define: #SocketServerConnection &parents: {Socket} &slots: {#peerAddress -> Nil}.
-networking define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
-networking define: #IP4Address &parents: {SocketAddress}.
-networking define: #UnixDomainAddress &parents: {SocketAddress}.
+Net define: #Socket &parents: {ExternalResource} &slots: {#address}.
+Net define: #SocketServerConnection &parents: {Net Socket} &slots: {#peerAddress -> Nil}.
+Net define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
+Net define: #IP4Address &parents: {Net SocketAddress}.
+Net define: #UnixDomainAddress &parents: {Net SocketAddress}.
 
-networking define: #SocketServer &parents: {Cloneable}
+Net define: #SocketServer &parents: {Cloneable}
  &slots: {#pipeToLoop -> Nil. #ip -> Nil. #port -> Nil. #dispatch -> Nil}.
 
 
-Socket traits ensureNamespace: #ErrorCodes.
-Socket traits ensureNamespace: #Domains.
-Socket traits ensureNamespace: #Types.
-Socket traits ensureNamespace: #Protocols.
-Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
-Socket traits addSlot: #BufferSize valued: 1024.
+Net Socket traits ensureNamespace: #ErrorCodes.
+Net Socket traits ensureNamespace: #Domains.
+Net Socket traits ensureNamespace: #Types.
+Net Socket traits ensureNamespace: #Protocols.
+Net Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
+Net Socket traits addSlot: #BufferSize valued: 1024.
 
-Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
+
+Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
 
 {
 
@@ -45,8 +48,8 @@ Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
   #Timeout -> -18.
 
 } do: [ | :item | 
-         Socket ErrorCodes addImmutableSlot: item key valued: item value.
-         Socket ErrorCodes Dictionary add: item value -> item key.
+         Net Socket ErrorCodes addImmutableSlot: item key valued: item value.
+         Net Socket ErrorCodes Dictionary add: item value -> item key.
        ].
 
 conditions define: #SocketError
@@ -54,92 +57,120 @@ conditions define: #SocketError
   &slots: {#error. #errorCode}.
 
 
-Socket Domains `>> [
+Net Socket Domains `>> [
   addImmutableSlot: #Local valued: 1.
   addImmutableSlot: #IP4 valued: 2.
   addImmutableSlot: #IP6 valued: 3.
   ].
 
-Socket Types `>> [
+Net Socket Types `>> [
   addImmutableSlot: #Stream valued: 1.
   ].
 
-Socket Protocols `>> [
+Net Socket Protocols `>> [
   addImmutableSlot: #Default valued: 0.
   ].
 
 
-s@(Socket traits) throwError: code
+s@(Net Socket traits) throwError: code
 [
-  SocketError new `>> [error: (Socket ErrorCodes Dictionary at: code). errorCode: code. signal]
+  SocketError new `>> [error: (Net Socket ErrorCodes Dictionary at: code). errorCode: code. signal]
 ].
 
 
-s@(Socket traits) newFor: domain type: type protocol: proto
+s@(Net Socket traits) newFor: domain type: type protocol: proto
 [ | ret |
   ret: s new.
-  ret fd: (domain socketCreate: type protocol: proto).
-  ret fd < 0 ifTrue: [s throwError: ret fd].
+  ret handle: (domain socketCreate: type protocol: proto).
+  ret handle < 0 ifTrue: [s throwError: ret handle].
   ret
 ].
 
 
-addr@(SocketAddress traits) newOn: array port: port
+addr@(Net SocketAddress traits) newOn: array port: port
 [ | ret |
   ret: addr new.
-  addr address: (addr domain createIPAddress: array port: port options: #()).
-  addr
+  ret address: (addr domain createIPAddress: array port: port options: #()).
+  ret
 ].
 
-addr@(IP4Address traits) domain
+addr@(Net SocketAddress traits) separatePort: string@(String traits)
+[ |regex|
+  regex: (Regex Matcher newOn: '^([^:]+)(\\:(\\d+))?$').
+  (regex match: string) = -11 
+                        ifTrue: [{Nil. Nil}]
+                        ifFalse: [{regex subexpression: 0. regex subexpression: 2}]
+].
+
+
+addr@(Net SocketAddress traits) newOn: string@(String traits)
+[ | regex portIp array|
+  "fixme ipv6.. we don't lookup the name here"
+  portIp: (addr separatePort: string).
+  (portIp anySatisfy: #isNil `er) ifTrue: [error: 'unable to separate port and ip'].
+  regex: (Regex Matcher newOn: '^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$').
+  (regex match: portIp first) = -1
+      ifTrue: [error: 'cannot get ip from string: ' ; string].
+  array: ({regex subexpression: 0. regex subexpression: 1. regex subexpression: 2. regex subexpression: 3. }
+            collect: #as: `er <-* Integer).
+  Net IP4Address new `>> [address: (Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #()). ]
+].
+
+addr@(Net IP4Address traits) domain
 [
-  Socket Domains IP4
+  Net Socket Domains IP4
 ].
 
-addr@(UnixDomainAddress traits) domain
+addr@(Net UnixDomainAddress traits) domain
 [
-  Socket Domains Local
+  Net Socket Domains Local
+].
+
+s@(Net Socket traits) enable
+[ | ret |
+  s address ifNil: [error: 'cannot connect to nil address'].
+  ret: (s handle socketConnect: s address).
+  ret < 0 /\ [ret ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: ret].
+
+].
+
+s@(Net Socket traits) connectTo: addr@(Net SocketAddress traits)
+[
+  s address: addr address.
+  s enable
 ].
 
 
-s@(Socket traits) connectTo: addr@(SocketAddress traits)
+s@(Net Socket traits) bindTo: sa@(Net SocketAddress traits)
 [ | ret |
-  ret: (s fd socketConnect: addr address).
-  ret < 0 /\ [ret ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: ret].
+  s handle < 0 ifTrue: [s throwError: Net Socket ErrorCodes Invalid].
   
-].
-
-
-s@(Socket traits) bindTo: sa@(SocketAddress traits)
-[ | ret |
-  s fd < 0 ifTrue: [s throwError: Socket ErrorCodes Invalid].
-  
-  ret: (s fd socketBindOn: sa address).
+  ret: (s handle socketBindOn: sa address).
   ret < 0 ifTrue: [s throwError: ret].
   ret
 ].
 
-s@(Socket traits) listenSize: count
+s@(Net Socket traits) listenSize: count
 [ | ret |
   
-  ret: (s fd socketListenSize: count).
+  ret: (s handle socketListenSize: count).
   ret < 0 ifTrue: [s throwError: ret].
   ret
 ].
 
 
-s@(Socket traits) close
+s@(Net Socket traits) disable
 [ | ret |
-  ret: s fd closePipe.
+  ret: s handle closePipe.
   ret < 0 ifTrue: [s throwError: ret].
 ].
 
-s@(Socket traits) canRead
+s@(Net Socket traits) canRead
 [ 
   ({s} selectOnReadPipesFor: 0) isEmpty not
 ].
 
-s@(Socket traits) canWrite
+s@(Net Socket traits) canWrite
 [ 
   ({s} selectOnWritePipesFor: 0) isEmpty not
 ].
@@ -147,47 +178,47 @@ s@(Socket traits) canWrite
 
 
 
-s@(Socket traits) acceptConnection
+s@(Net Socket traits) acceptConnection
 [ | ret |
   
-  ret: (s fd socketAcceptConnection).
+  ret: (s handle socketAcceptConnection).
   (ret is: Integer) ifTrue: [s throwError: ret].
   (ret first < 0) ifTrue: [s throwError: ret first].
-  SocketServerConnection new `>> [fd: ret first. peerAddress: ret second.]
+  Net SocketServerConnection new `>> [handle: ret first. peerAddress: ret second.]
 ].
 
 
-s@(SocketServer traits) newOn: ip port: port dispatch: block
+s@(Net SocketServer traits) newOn: ip port: port dispatch: block
 [ | ret |
   ret: s new `>> [ip: ip. port: port. dispatch: block.].
   ret
 ].
 
-s@(SocketServer traits) start &domain: addressDomain
+s@(Net SocketServer traits) start &domain: addressDomain
 [
-  addressDomain `defaultsTo: IP4Address.
+  addressDomain `defaultsTo: Net IP4Address.
   s pipeToLoop: 
     (currentProcess forkAndDo:
       [ | :commSock servSock |
-        servSock: (Socket newFor: addressDomain domain type: Socket Types Stream protocol: Socket Protocols Default).
+        servSock: (Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
         "fixme handle ipv6"
         inform: 'Creating listening socket ' ; servSock printString.
         inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
         inform: 'listen: '; (servSock listenSize: 5) printString.
         [ | ready |
-          inform: 'Waiting for connection...' ; {commSock. servSock fd} printString.
-          ready: ({commSock. servSock fd} selectOnReadPipesFor: Socket SelectTimeout).
+          inform: 'Waiting for connection...' ; {commSock. servSock handle} printString.
+          ready: ({commSock. servSock handle} selectOnReadPipesFor: Net Socket SelectTimeout).
           ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
-          (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock fd closePipe. lobby exit].
-          (ready includes: servSock fd) 
+          (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock handle closePipe. lobby exit].
+          (ready includes: servSock handle) 
             ifTrue: [ | peer child |
                        peer: ([servSock acceptConnection] on: Error do: [| :e | inform: 'Accept error: ' ; e description. e return: Nil]).
                        peer ifNotNil:
                          [child: (currentProcess 
                                    forkAndDo: [ |:parent| [s dispatch applyWith: parent with: peer]
-                                                          ensure: [parent closePipe. peer fd closePipe. lobby exit]]).
+                                                          ensure: [parent closePipe. peer handle closePipe. lobby exit]]).
                           "fixme... have a way to communinicated back"
-                          peer fd closePipe.
+                          peer handle closePipe.
                           child closePipe.
                           inform: 'Connection from ' ; peer peerAddress printString]]
         ] loop.
@@ -195,87 +226,75 @@ s@(SocketServer traits) start &domain: addressDomain
 
 ].
 
-s@(SocketServer traits) stop
+s@(Net SocketServer traits) stop
 [
   s pipeToLoop nextPutAll: 'quit'.
 ].
 
 
-networking define: #SocketStream &parents: {ReadWriteStream}
- &slots: {#internalReadBuffer -> (ByteArray new as: Queue). #internalWriteBuffer -> (ByteArray new as: Queue). #socket -> Nil. #closed -> False.
-#buffer -> (ByteArray new &capacity: Socket BufferSize)}.
+Net define: #SocketStream &parents: {ExternalResource ReadWriteStream}
+ &slots: {#internalReadBuffer -> (ByteArray new as: Queue). #internalWriteBuffer -> (ByteArray new as: Queue).
+          #resource -> Nil.
+          #buffer -> (ByteArray new &capacity: Net Socket BufferSize)}.
 
-s@(SocketStream traits) newOn: socket
+s@(Net SocketStream traits) newOn: socket
 [
   s new on: socket
 ].
 
-s@(SocketStream traits) on: socket
+s@(Net SocketStream traits) on: socket
 [
-  s socket: socket.
+  resend.
+  s isBinary: True.
   s internalReadBuffer clear.
   s internalWriteBuffer clear.
-  s closed: False.
   s
 ].
 
-s@(SocketStream traits) collectionType
+s@(Net SocketStream traits) collectionType
 [
   ByteArray
 ].
 
-s@(SocketStream traits) isAtEnd
+s@(Net SocketStream traits) isDirty
 [
-  s closed
+  s internalWriteBuffer size > 0
+].
+
+s@(Net SocketStream traits) isAtEnd
+[
+  False
 ].
 
 
-s@(SocketStream traits) close
-[
-  s closed: True.
-  s socket close.
-].
-
-
-s@(SocketStream traits) flush
+s@(Net SocketStream traits) flushWriteBuffer
 [ | i contents |
   i: 0.
   contents: (s internalWriteBuffer as: ByteArray).
   [i < contents size] whileTrue: 
     [ | return fds | 
-      fds: ({s socket fd} selectOnWritePipesFor: Socket SelectTimeout).
+      fds: ({s resource handle} selectOnWritePipesFor: Net Socket SelectTimeout).
       return: 0.
       "inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString."
       fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
       (return = 0) ifTrue: [error: 'write failed']. 
-      return < 0 /\ [return ~= Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
+      return < 0 /\ [return ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
       i: i + return].
   s internalWriteBuffer clear.
 ].
 
-s@(SocketStream traits) next
-[
-  (s next: 1) first
-].
 
-s@(SocketStream traits) nextLine
-[
-  s upTo: $\n
-].
-
-
-s@(SocketStream traits) next: n putInto: seq startingAt: start
+s@(Net SocketStream traits) next: n putInto: seq startingAt: start
 [ | readSize writer |
-  s closed ifTrue: [s exhausted. ^ 0].
   writer: s internalReadBuffer writer.
   [s internalReadBuffer size < n]
     whileTrue: [ | fds ret |
-                  fds: ({s socket fd} selectOnReadPipesFor: Socket SelectTimeout).
-                  fds isEmpty ifTrue: [s closed: True. s exhausted. ^ 0]. "this shouldn't happen"
+                  fds: ({s resource handle} selectOnReadPipesFor: Net Socket SelectTimeout).
+                  fds isEmpty ifTrue: [s exhausted. ^ 0]. "this shouldn't happen"
                   "inform: 'before read ' ; fds printString."
-                  ret: (s buffer readFromPipe: s socket fd start: 0 end: s buffer size).
+                  ret: (s buffer readFromPipe: s resource handle start: 0 end: s buffer size).
                   "inform: 'ret ' ; ret printString."
-                  ret = 0 ifTrue: [s closed: True. s exhausted. ^ 0].
+                  ret = 0 ifTrue: [s exhausted. ^ 0].
                   "inform: 'read bytes: ' ; s buffer printString."
                   writer next: ret putAll: s buffer].
   readSize: (s internalReadBuffer size min: n).
@@ -285,8 +304,14 @@ s@(SocketStream traits) next: n putInto: seq startingAt: start
 ].
 
 
-s@(SocketStream traits) nextPut: byte
+s@(Net SocketStream traits) nextPut: byte
 [ | ret |
   s internalWriteBuffer addLast: byte.
+  s
 ].
 
+s@(Net SocketStream traits) nextPutAll: c
+[
+  s internalWriteBuffer addAllLast: c. 
+  s
+].
