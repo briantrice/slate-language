@@ -97,14 +97,15 @@ Net define: #HttpClient &parents: {Cloneable}
 &slots: {#userAgent -> 'slateweb/1.0'. 
          #statusResponseRegex -> (Regex Matcher newOn: '^(HTTP/\\d+\\.\\d+) (\\d+) ([ \\w]+)$').
          #headerResponseRegex -> (Regex Matcher newOn: '^([^:]+)\\:\\s*(.*)$').
+         #chunkHeaderRegex -> (Regex Matcher newOn: '^([0-9a-fA-F]+)\\s*$').
 }.
 
 Net define: #HttpMessage &parents: {Cloneable} &slots: {#version. #headers}.
 Net define: #HttpRequest &parents: {Net HttpMessage} &slots: {#uri. #method.}.
 
-Net define: #HttpResponse &parents: {Net HttpMessage} &slots: {#status. #reason}.
-Net define: #SimpleHttpResponse &parents: {Net HttpResponse} &slots: {#status. #reason. #body}.
-Net define: #ChunkedHttpResponse &parents: {Net HttpResponse} &slots: {#status. #reason. #chunks}.
+Net define: #HttpResponse &parents: {Net HttpMessage} &slots: {#status. #reason. #body}.
+Net define: #SimpleHttpResponse &parents: {Net HttpResponse} &slots: {}.
+Net define: #ChunkedHttpResponse &parents: {Net HttpResponse} &slots: {}.
 
 Net define: #HttpAcceptableDictionary &parents: {Dictionary}.
 
@@ -164,9 +165,13 @@ r@(Net HttpRequest traits) as: s@(String traits)
  ] writingAs: s
 ].
 
+"this needs to be resolved.. fixme"
 hc@(Net HttpClient traits) newConnectionFor: url@(Net URL traits)
-[ |addr socket|
-  addr: (Net SocketAddress newOn: url authority).
+[ |addr socket hostname portIp|
+  hostname: url authority.
+  portIp: (Net SocketAddress separatePort: hostname).
+  portIp second ifNil: [hostname: hostname ; ':80'].
+  addr: (Net SocketAddress newOn: hostname).
   socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
   socket connectTo: addr.
   Net SocketStream newOn: socket
@@ -199,8 +204,17 @@ hc@(Net HttpClient traits) readHeaders: stream@(ReadStream traits)
 ].
 
 hc@(Net HttpClient traits) newResponseFromHeaders: headers
-[ "fixme... checked for transfer-encoding/TE to see if we need chunked"
+[ | tc|
+"fixme... checked for transfer-encoding/TE to see if we need chunked"
+  (headers at: 'content-length' ifAbsent: [Nil])
+    ifNotNil: [^ (Net SimpleHttpResponse new `>> [headers: headers. ])].
+
+  tc: (headers at: 'transfer-coding' ifAbsent: [Nil]).
+  tc ifNotNil: [(tc first: 7) toLowercase = 'chunked'
+                  ifTrue: [^ (Net ChunkedHttpResponse new `>> [headers: headers. ])]].
+ 
   Net SimpleHttpResponse new `>> [headers: headers. ]
+  error: 'not sure how to read response body...missing transfer encoding'
 ].
 
 hc@(Net HttpClient traits) readBodyInto: response@(Net SimpleHttpResponse traits) from: stream@(ReadStream traits)
@@ -211,6 +225,25 @@ hc@(Net HttpClient traits) readBodyInto: response@(Net SimpleHttpResponse traits
   inform: 'reading body len: ' ; length printString. 
   response body: (stream next: length).
 ].
+
+hc@(Net HttpClient traits) readBodyInto: response@(Net ChunkedHttpResponse traits) from: stream@(ReadStream traits)
+[ |chunkHeader chunkMatch length trailers|
+  response body: (ByteArray new as: ExtensibleArray).
+  [
+    chunkHeader: (hc readLineFrom: stream).
+    chunkMatch: hc chunkHeaderRegex clone.
+    (chunkMatch match: chunkHeader) = -1 ifTrue: [error: 'error reading chunk header: ' ; chunkHeader].
+    length: ((chunkMatch subexpression: 0) as: Integer &radix: 16)
+    inform: 'reading chunk len: ' ; length printString. 
+    len = 0 ifTrue: [trailers: (hc readHeaders: stream).
+                     response headers addAll: trailers.
+                     ^ Nil
+                     ].
+    response body addAllLast: (stream next: length).
+    stream next = $\r code /\ [stream next = $\n code] ifFalse: [error: 'expected CRLF after chunk'].
+  ] loop.
+].
+
 
 hc@(Net HttpClient traits) readResponse: stream@(ReadStream traits)
 [ |status re httpVersion statusCode statusReason headers response |
