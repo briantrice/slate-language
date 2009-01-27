@@ -166,6 +166,13 @@ w@(Gtk Workspace traits) buildToolBar [
 	toolBar
 ].
 
+w@(Gtk Workspace traits) onTextInsertedIn: buffer iter: iter text: text lenght: lenght [
+"	inform: buffer printString.
+	inform: iter offset printString.
+	inform: text.
+	inform: lenght printString."
+].
+
 w@(Gtk Workspace traits) buildCodeView [
 	w codeBuffer: Gtk TextBuffer new.
 	w codeView: (Gtk TextView newWithBuffer: w codeBuffer).
@@ -180,6 +187,7 @@ w@(Gtk Workspace traits) buildCodeView [
 				w undoQueue size <= 1 ifTrue: [ "change once" w changeTitle ].
 			].
 	].
+	w codeBuffer when: #insert-text send: #onTextInsertedIn:iter:text:lenght: to: w.
 	w resetModifications.
 	Gtk ScrolledWindow newWithChild: w codeView
 ].
