@@ -7,13 +7,17 @@ ag@(Gtk AccelGroup traits) new [
 	])
 ].
 
-ag@(Gtk AccelGroup traits) connectKey: key@(ASCIIString Character) modifier: modifier@(Number traits) flags: flags@(Number traits) closure: closure@(GLib Closure traits) [
+ag@(Gtk AccelGroup traits) connectKey: key@(Number traits) modifier: modifier@(Number traits) flags: flags@(Number traits) closure: closure@(GLib Closure traits) [
 	(Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_accel_group_connect applyTo: { ag handle. key. modifier. flags. closure }
+		Gtk Lib primitives gtk_accel_group_connect applyTo: { ag handle. key. modifier. flags. closure handle }
 	]).
 	ag
 ].
 
-ag@(Gtk AccelGroup traits) connectKey: key@(ASCIIString Character) modifier: modifier@(Number traits) flags:flags@(Number traits) block: block [
-	ag connectKey: key modifier: modifier flags: flags closure: (GLib Closure newWithBlock: aBlock)
+ag@(Gtk AccelGroup traits) connectKey: key@(Number traits) modifier: modifier@(Number traits) flags: flags@(Number traits) do: block [
+	ag connectKey: key modifier: modifier flags: flags closure: (GLib Closure newWithBlock: block)
+].
+
+ag@(Gtk AccelGroup traits) connectKey: key@(Number traits) modifier: modifier@(Number traits) flags: flags@(Number traits) send: selector to: object [
+	ag connectKey: key modifier: modifier flags: flags do: [ | *parameters  | selector sendTo: ( {object} ; parameters ) ]
 ].
