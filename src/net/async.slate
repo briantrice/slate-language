@@ -1,0 +1,179 @@
+lobby ensureNamespace: #Net.
+
+"slate asynchronous operations...I created these because I didn't
+like the way promises worked"
+
+"fixme ... better condition handling... replace #error: calls"
+
+Net define: #AsyncOperation &parents: {Clonable}
+&slots: {#dependsOn -> ExtensibleArray new.
+         #result -> Nil.
+         #finished -> False.
+         #canStart -> False. "false=dependsOn has unfinished. true=dependsOn all finished"
+         #observers -> ExtensibleArray new.
+         #completionBlock -> Nil.
+         }.
+
+o@(AsyncOperation traits) workOn [overrideThis].
+
+o@(AsyncOperation traits) do [[o finished] whileFalse: [o workOn]. o result].
+
+o@(AsyncOperation traits) noteCompletionOf: obj
+[
+  o dependenciesFinished ifTrue: [o canStart: True] ifFalse: [o canStart: False].
+].
+
+o@(AsyncOperation traits) dependenciesFinished
+[
+  o dependsOn allSatisfy: #finished `er
+].
+
+
+o@(AsyncOperation traits) complete &result: result
+[
+  result ifNotNil: [o result: result].
+  o finished: True.
+  o completionBlock ifNotNilDo: [|:cb| cb applyWith: o].
+  o observers do: [|:obs| obs noteCompletionOf: o].
+  
+].
+
+Net define: #AsyncBlockOperation &parents: {AsyncOperation}
+&slots: {#workBlock. "takes care of setting result and calling #complete"
+         #notifyBlock
+         }.
+
+o@(AsyncBlockOperation traits) workOn [o canStart ifTrue: [o workBlock do]].
+o@(AsyncOperation traits) noteCompletionOf: obj
+[
+  resend.
+  o notifyBlock ifNotNilDo: [|:b| b applyWith: obj]
+].
+
+
+Net define: #AsyncSendOperation &parents: {AsyncOperation}
+&slots: {#buffer. #start. #end. #handle
+         }.
+
+o@(AsyncSendOperation traits) newOn: handle buffer: buf &start: start &end: end
+[
+  start `defaultsTo: 0.
+  end `defaultsTo: buf size.
+
+  o new `>> [handle: handle. buffer: buf. start: start. end: end. ]
+].
+
+o@(AsyncSendOperation traits) workOn
+[ |fds return i | 
+  o canStart ifFalse: [^ Nil].
+  [
+   fds: ({o handle} selectOnWritePipesFor: 0).
+   fds isEmpty ifTrue: [^ Nil].
+   return: (o buffer writeToPipe: o handle start: o start end: o end).
+   (return = 0) ifTrue: [error: 'write failed']. 
+   return < 0 /\ [return ~= Net Socket ErrorCodes InProgress] ifTrue: [Net Socket throwError: return].
+   return > 0 ifTrue: [o start: o start + return].
+   o start >= o end ifTrue: [^ o complete]
+  ] loop.
+].
+
+Net define: #AsyncReceiveUntilOperation &parents: {AsyncOperation}
+&slots: {#handle. #buffer. #untilCode
+         }.
+
+o@(AsyncReceiveUntilOperation traits) newOn: handle until: code
+[
+  o new `>> [handle: handle. buffer: (ByteArray new as: ExtensibleArray). untilCode: code. ]
+].
+
+o@(AsyncReceiveUntilOperation traits) workOn
+[ |fds ret buffer char |
+  o canStart ifFalse: [^ Nil].
+  buffer: ByteArray newSize: 1.
+  [
+    fds: ({s resource handle} selectOnReadPipesFor: 0).
+    fds isEmpty ifTrue: [^ Nil].
+    ret: (buffer readFromPipe: o handle start: 0 end: 1).
+    ret = 0 ifTrue: [error: 'receiveuntil read failed'].
+    ret < 0 ifTrue: [Net Socket throwError: ret].
+
+    char: (buffer at: 0).
+    o buffer addLast: char.
+    char = o untilCode ifTrue: [^ (o complete &result: o buffer)].
+  ] loop.
+].
+
+Net define: #AsyncConnectOperation &parents: {AsyncOperation}
+&slots: {#address. #handle. #connectAttempted
+         }.
+
+o@(AsyncConnectOperation traits) newOn: address@(Net SocketAddress traits)
+[ |socket|
+  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  o new `>> [handle: socket handle. address: address. connectAttempted: False. ]
+].
+
+o@(AsyncConnectOperation traits) newOn: hostname@(String traits)
+[ |addr socket|
+  addr: (Net SocketAddress newOn: hostname).
+  o newOn: addr
+].
+
+o@(AsyncConnectOperation traits) workOn
+[ |ret fds |
+  o canStart ifFalse: [^ Nil].
+  o connectAttempted
+    ifFalse: [ret: (o handle socketConnect: o address address).
+              ret < 0 /\ [ret ~= Net Socket ErrorCodes InProgress] ifTrue: [Net Socket throwError: ret].
+              o connectAttempted: True
+              ].
+  fds: ({o handle} selectOnWritePipesFor: 0).
+  fds isEmpty ifTrue: [^ Nil].
+  ret: o handle socketGetError.
+  ret ~= 0 ifTrue: [Net Socket throwError: ret].
+  o complete
+].
+
+
+Net define: #AsyncCloseOperation &parents: {AsyncOperation}
+&slots: {#handle
+         }.
+
+o@(AsyncCloseOperation traits) newOn: handle
+[ 
+  o new `>> [handle: handle. ]
+].
+
+o@(AsyncCloseOperation traits) workOn
+[ | ret |
+  o canStart ifFalse: [^ Nil].
+  ret: o handle closePipe.
+  ret < 0 ifTrue: [Net Socket throwError: ret].
+  o complete
+].
+
+
+Net define: #AsyncResolveOperation &parents: {AsyncOperation}
+&slots: {#name. #service. #family. #type. #protocol. #flags.
+#ticket
+         }.
+
+o@(AsyncResolveOperation traits) newOn: name
+&service: service &family: family &type: type &protocol: protocol &flags: flags
+[ 
+  o new `>> [name: name. service: service. 
+             family: family. type: type. protocol: protocol. flags: flags.
+             ticket: Nil.
+             ]
+].
+
+o@(AsyncResolveOperation traits) workOn
+[ | ret |
+  o canStart ifFalse: [^ Nil].
+  o ticket ifNil: [o ticket: (lobby getAddrInfo: o name service: o service family: o family
+                                type: o type protocol: o protocol flags: o flags)].
+  ret: o ticket getAddrInfoResult.
+  ret ifNil: [^ Nil].
+  (ret is: Sequence) ifTrue: [o ticket freeAddrInfoResult. ^ (o complete &result: ret)].
+  Net Socket throwError: ret
+].

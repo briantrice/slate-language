@@ -84,7 +84,7 @@ HOST_SYSTEM := $(shell uname -s)
 LIB_SO_EXT  := .so
 INSTALL_MODE := -m 644
 CPU_TYPE    := `uname -m`
-VM_LIBRARIES = -lm -ldl
+VM_LIBRARIES = -lm -ldl -lpthread
 
 
 CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
@@ -98,6 +98,7 @@ LDFLAGS_gdk-wrapper.lo=`pkg-config --libs gdk-2.0` `pkg-config --libs gthread-2.
 CFLAGS_gtk-wrapper.c=`pkg-config --cflags gtk+-2.0`
 LDFLAGS_gtk-wrapper.lo=`pkg-config --libs gtk+-2.0`
 
+CFLAGS_socket.c=-D_POSIX_SOURCE=200112L
 
 PRINT_DEBUG_Y=  -DPRINT_DEBUG_STACK_POINTER  -DPRINT_DEBUG_STACK_PUSH -DPRINT_DEBUG_FOUND_ROLE  -DPRINT_DEBUG_FUNCALL   
 PRINT_DEBUG_X=-DPRINT_DEBUG  -DPRINT_DEBUG_OPCODES -DPRINT_DEBUG_INSTRUCTION_COUNT -DPRINT_DEBUG_CODE_POINTER -DPRINT_DEBUG_DISPATCH 

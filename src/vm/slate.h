@@ -20,6 +20,8 @@
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <sys/un.h>
+#include <pthread.h>
+#include <netdb.h>
 
 
 typedef uintptr_t uword_t;
@@ -232,8 +234,31 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define METHOD_CACHE_SIZE 1024*64
 #define PINNED_CARD_SIZE (sizeof(word_t) * 8)
 #define SLATE_MEMS_MAXIMUM		1024
+#define SLATE_NETTICKET_MAXIMUM	1024
 
-/*these things never exist in slate land (so word_t types are their actual value)*/
+
+
+/*these things below never exist in slate land (so word_t types are their actual value)*/
+
+struct object_heap;
+
+struct slate_addrinfo_request {
+
+  /*these first two must be freed individually also*/
+  char* hostname;
+  char* service;
+
+  word_t family, type, protocol, flags;
+
+  /*above are filled in by primitive requester, belowe are filled in by slate's socket_getaddrinfo*/
+  struct object_heap* oh;
+  word_t result, ticketNumber;
+  word_t inUse; /*whether this whole thing is garbage*/
+  word_t finished; /*whether getaddrinfo has returned... set this to zero before spawning the thread*/
+  struct addrinfo* addrResult; /*this needs to be freed with freeaddrinfo*/
+};
+
+
 struct object_heap
 {
   byte_t mark_color;
@@ -268,6 +293,11 @@ struct object_heap
   int memory_sizes [SLATE_MEMS_MAXIMUM];
   int memory_num_refs [SLATE_MEMS_MAXIMUM];
 
+  struct slate_addrinfo_request*  socketTickets;
+  int socketTicketCount;
+#if 0
+  pthread_mutex_t socketTicketMutex;
+#endif
 
   int argcSaved;
   char** argvSaved;
@@ -297,6 +327,8 @@ struct object_heap
     struct Object* closure_method_window;
   } cached;
 };
+
+
 
 
 #define SMALLINT_MASK 0x1
@@ -661,6 +693,10 @@ void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t ari
 void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
+void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
+void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
+void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
+void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
@@ -758,6 +794,9 @@ void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], wo
 int socket_lookup_domain(word_t domain);
 int socket_lookup_type(word_t type);
 int socket_lookup_protocol(word_t protocol);
+int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags);
+void *socket_getaddrinfo_callback( void *ptr );
+
 word_t memory_string_to_bytes(char* str);
 
 byte_t* byte_array_elements(struct ByteArray* o);
