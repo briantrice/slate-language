@@ -792,8 +792,11 @@ int socket_select_setup(struct OopArray* selectOn, fd_set* fdList, int* maxFD);
 void socket_select_find_available(struct OopArray* selectOn, fd_set* fdList, struct OopArray* readyPipes, word_t readyCount);
 void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
 int socket_lookup_domain(word_t domain);
+int socket_reverse_lookup_domain(word_t domain);
 int socket_lookup_type(word_t type);
+int socket_reverse_lookup_type(word_t type);
 int socket_lookup_protocol(word_t protocol);
+int socket_reverse_lookup_protocol(word_t protocol);
 int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags);
 void *socket_getaddrinfo_callback( void *ptr );
 

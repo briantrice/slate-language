@@ -115,6 +115,15 @@ int socket_lookup_domain(word_t domain) {
   }
 }
 
+int socket_reverse_lookup_domain(word_t domain) {
+  switch (domain) {
+  case AF_LOCAL: return SLATE_DOMAIN_LOCAL;
+  case AF_INET: return SLATE_DOMAIN_IPV4;
+  case AF_INET6: return SLATE_DOMAIN_IPV6;
+  default: return SLATE_DOMAIN_IPV4;
+  }
+}
+
 int socket_lookup_type(word_t type) {
   switch (type) {
   case SLATE_TYPE_STREAM: return SOCK_STREAM;
@@ -122,7 +131,20 @@ int socket_lookup_type(word_t type) {
   }
 }
 
+int socket_reverse_lookup_type(word_t type) {
+  switch (type) {
+  case SOCK_STREAM: return SLATE_TYPE_STREAM;
+  default: return SLATE_TYPE_STREAM;
+  }
+}
+
 int socket_lookup_protocol(word_t protocol) {
+  switch (protocol) {
+  default: return 0;
+  }
+}
+
+int socket_reverse_lookup_protocol(word_t protocol) {
   switch (protocol) {
   default: return 0;
   }

@@ -5,7 +5,7 @@ like the way promises worked"
 
 "fixme ... better condition handling... replace #error: calls"
 
-Net define: #AsyncOperation &parents: {Clonable}
+Net define: #AsyncOperation &parents: {Cloneable}
 &slots: {#dependsOn -> ExtensibleArray new.
          #result -> Nil.
          #finished -> False.
@@ -14,22 +14,22 @@ Net define: #AsyncOperation &parents: {Clonable}
          #completionBlock -> Nil.
          }.
 
-o@(AsyncOperation traits) workOn [overrideThis].
+o@(Net AsyncOperation traits) workOn [overrideThis].
 
-o@(AsyncOperation traits) do [[o finished] whileFalse: [o workOn]. o result].
+o@(Net AsyncOperation traits) do [[o finished] whileFalse: [o workOn]. o result].
 
-o@(AsyncOperation traits) noteCompletionOf: obj
+o@(Net AsyncOperation traits) noteCompletionOf: obj
 [
   o dependenciesFinished ifTrue: [o canStart: True] ifFalse: [o canStart: False].
 ].
 
-o@(AsyncOperation traits) dependenciesFinished
+o@(Net AsyncOperation traits) dependenciesFinished
 [
   o dependsOn allSatisfy: #finished `er
 ].
 
 
-o@(AsyncOperation traits) complete &result: result
+o@(Net AsyncOperation traits) complete &result: result
 [
   result ifNotNil: [o result: result].
   o finished: True.
@@ -38,24 +38,24 @@ o@(AsyncOperation traits) complete &result: result
   
 ].
 
-Net define: #AsyncBlockOperation &parents: {AsyncOperation}
+Net define: #AsyncBlockOperation &parents: {Net AsyncOperation}
 &slots: {#workBlock. "takes care of setting result and calling #complete"
          #notifyBlock
          }.
 
-o@(AsyncBlockOperation traits) workOn [o canStart ifTrue: [o workBlock do]].
-o@(AsyncOperation traits) noteCompletionOf: obj
+o@(Net AsyncBlockOperation traits) workOn [o canStart ifTrue: [o workBlock do]].
+o@(Net AsyncOperation traits) noteCompletionOf: obj
 [
   resend.
   o notifyBlock ifNotNilDo: [|:b| b applyWith: obj]
 ].
 
 
-Net define: #AsyncSendOperation &parents: {AsyncOperation}
+Net define: #AsyncSendOperation &parents: {Net AsyncOperation}
 &slots: {#buffer. #start. #end. #handle
          }.
 
-o@(AsyncSendOperation traits) newOn: handle buffer: buf &start: start &end: end
+o@(Net AsyncSendOperation traits) newOn: handle buffer: buf &start: start &end: end
 [
   start `defaultsTo: 0.
   end `defaultsTo: buf size.
@@ -63,7 +63,7 @@ o@(AsyncSendOperation traits) newOn: handle buffer: buf &start: start &end: end
   o new `>> [handle: handle. buffer: buf. start: start. end: end. ]
 ].
 
-o@(AsyncSendOperation traits) workOn
+o@(Net AsyncSendOperation traits) workOn
 [ |fds return i | 
   o canStart ifFalse: [^ Nil].
   [
@@ -77,16 +77,16 @@ o@(AsyncSendOperation traits) workOn
   ] loop.
 ].
 
-Net define: #AsyncReceiveUntilOperation &parents: {AsyncOperation}
+Net define: #AsyncReceiveUntilOperation &parents: {Net AsyncOperation}
 &slots: {#handle. #buffer. #untilCode
          }.
 
-o@(AsyncReceiveUntilOperation traits) newOn: handle until: code
+o@(Net AsyncReceiveUntilOperation traits) newOn: handle until: code
 [
   o new `>> [handle: handle. buffer: (ByteArray new as: ExtensibleArray). untilCode: code. ]
 ].
 
-o@(AsyncReceiveUntilOperation traits) workOn
+o@(Net AsyncReceiveUntilOperation traits) workOn
 [ |fds ret buffer char |
   o canStart ifFalse: [^ Nil].
   buffer: ByteArray newSize: 1.
@@ -103,27 +103,40 @@ o@(AsyncReceiveUntilOperation traits) workOn
   ] loop.
 ].
 
-Net define: #AsyncConnectOperation &parents: {AsyncOperation}
+Net define: #AsyncConnectOperation &parents: {Net AsyncOperation}
 &slots: {#address. #handle. #connectAttempted
          }.
 
-o@(AsyncConnectOperation traits) newOn: address@(Net SocketAddress traits)
-[ |socket|
-  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
-  o new `>> [handle: socket handle. address: address. connectAttempted: False. ]
+"the format returned by the resolve function"
+o@(Net AsyncConnectOperation traits) newOn: array@(Sequence traits)
+[
+  o newOnDomain: array second type: array third protocol: array fourth address: array fifth
 ].
 
-o@(AsyncConnectOperation traits) newOn: hostname@(String traits)
+o@(Net AsyncConnectOperation traits) newOnDomain: domain type: type protocol: protocol address: address
+[ |socket|
+  socket: (domain socketCreate: type protocol: protocol).
+  socket < 0 ifTrue: [Net Socket throwError: socket].
+  o new `>> [handle: socket. address: address. connectAttempted: False. ]
+].
+
+o@(Net AsyncConnectOperation traits) newOn: address@(Net SocketAddress traits)
+[ |socket|
+  socket: (Net Socket newFor: address domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  o new `>> [handle: socket handle. address: address address. connectAttempted: False. ]
+].
+
+o@(Net AsyncConnectOperation traits) newOn: hostname@(String traits)
 [ |addr socket|
   addr: (Net SocketAddress newOn: hostname).
   o newOn: addr
 ].
 
-o@(AsyncConnectOperation traits) workOn
+o@(Net AsyncConnectOperation traits) workOn
 [ |ret fds |
   o canStart ifFalse: [^ Nil].
   o connectAttempted
-    ifFalse: [ret: (o handle socketConnect: o address address).
+    ifFalse: [ret: (o handle socketConnect: o address).
               ret < 0 /\ [ret ~= Net Socket ErrorCodes InProgress] ifTrue: [Net Socket throwError: ret].
               o connectAttempted: True
               ].
@@ -135,16 +148,16 @@ o@(AsyncConnectOperation traits) workOn
 ].
 
 
-Net define: #AsyncCloseOperation &parents: {AsyncOperation}
+Net define: #AsyncCloseOperation &parents: {Net AsyncOperation}
 &slots: {#handle
          }.
 
-o@(AsyncCloseOperation traits) newOn: handle
+o@(Net AsyncCloseOperation traits) newOn: handle
 [ 
   o new `>> [handle: handle. ]
 ].
 
-o@(AsyncCloseOperation traits) workOn
+o@(Net AsyncCloseOperation traits) workOn
 [ | ret |
   o canStart ifFalse: [^ Nil].
   ret: o handle closePipe.
@@ -153,12 +166,12 @@ o@(AsyncCloseOperation traits) workOn
 ].
 
 
-Net define: #AsyncResolveOperation &parents: {AsyncOperation}
+Net define: #AsyncResolveOperation &parents: {Net AsyncOperation}
 &slots: {#name. #service. #family. #type. #protocol. #flags.
 #ticket
          }.
 
-o@(AsyncResolveOperation traits) newOn: name
+o@(Net AsyncResolveOperation traits) newOn: name
 &service: service &family: family &type: type &protocol: protocol &flags: flags
 [ 
   o new `>> [name: name. service: service. 
@@ -167,7 +180,7 @@ o@(AsyncResolveOperation traits) newOn: name
              ]
 ].
 
-o@(AsyncResolveOperation traits) workOn
+o@(Net AsyncResolveOperation traits) workOn
 [ | ret |
   o canStart ifFalse: [^ Nil].
   o ticket ifNil: [o ticket: (lobby getAddrInfo: o name service: o service family: o family
