@@ -92,6 +92,12 @@ m@(Morph traits) new
   resend `>> [theme: m theme. children: ExtensibleArray new. ]
 ].
 
+m@(Morph traits) unlink
+["use this to delete the morph from the screen"
+  m repaint.
+  m parent children remove: m
+].
+
 
 wse@(WindowSceneElement traits) newNamed: name width: width height: height
 [ | res |
@@ -248,6 +254,11 @@ se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
   se osWindow paint.
 ].
 
+se@(SceneElement traits) doWithRestart: block
+[
+  block handlingCases: {Abort -> [| :_ | ^ Nil]}
+].
+
 se@(WindowSceneElement traits) eventLoop
 "Temporary event loop"
 [
@@ -257,7 +268,7 @@ se@(WindowSceneElement traits) eventLoop
     [se exitRequested] whileFalse: 
         [
             se needRepaint ifTrue: [se paintOn: se osWindow].
-            se handle: se osWindow getNextEvent.
+            se doWithRestart: [se handle: se osWindow getNextEvent].
         ].
 ].
 

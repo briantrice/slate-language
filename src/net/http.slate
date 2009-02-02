@@ -1,0 +1,444 @@
+
+"
+
+        Request       = Request-Line              ; Section 5.1
+                        *(( general-header        ; Section 4.5
+                         | request-header         ; Section 5.3
+                         | entity-header ) CRLF)  ; Section 7.1
+                        CRLF
+                        [ message-body ]          ; Section 4.3
+
+       general-header = Cache-Control            ; Section 14.9
+                      | Connection               ; Section 14.10
+                      | Date                     ; Section 14.18
+                      | Pragma                   ; Section 14.32
+                      | Trailer                  ; Section 14.40
+                      | Transfer-Encoding        ; Section 14.41
+                      | Upgrade                  ; Section 14.42
+                      | Via                      ; Section 14.45
+                      | Warning                  ; Section 14.46
+
+      request-header = Accept                   ; Section 14.1
+                      | Accept-Charset           ; Section 14.2
+                      | Accept-Encoding          ; Section 14.3
+                      | Accept-Language          ; Section 14.4
+                      | Authorization            ; Section 14.8
+                      | Expect                   ; Section 14.20
+                      | From                     ; Section 14.22
+                      | Host                     ; Section 14.23
+                      | If-Match                 ; Section 14.24
+                      | If-Modified-Since        ; Section 14.25
+                      | If-None-Match            ; Section 14.26
+                      | If-Range                 ; Section 14.27
+                      | If-Unmodified-Since      ; Section 14.28
+                      | Max-Forwards             ; Section 14.31
+                      | Proxy-Authorization      ; Section 14.34
+                      | Range                    ; Section 14.35
+                      | Referer                  ; Section 14.36
+                      | TE                       ; Section 14.39
+                      | User-Agent               ; Section 14.43
+
+       Response      = Status-Line               ; Section 6.1
+                       *(( general-header        ; Section 4.5
+                        | response-header        ; Section 6.2
+                        | entity-header ) CRLF)  ; Section 7.1
+                       CRLF
+                       [ message-body ]          ; Section 7.2
+
+Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
+
+     Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
+
+
+       response-header = Accept-Ranges           ; Section 14.5
+                       | Age                     ; Section 14.6
+                       | ETag                    ; Section 14.19
+                       | Location                ; Section 14.30
+                       | Proxy-Authenticate      ; Section 14.33
+                       | Retry-After             ; Section 14.37
+                       | Server                  ; Section 14.38
+                       | Vary                    ; Section 14.44
+                       | WWW-Authenticate        ; Section 14.47
+
+       entity-header  = Allow                    ; Section 14.7
+                      | Content-Encoding         ; Section 14.11
+                      | Content-Language         ; Section 14.12
+                      | Content-Length           ; Section 14.13
+                      | Content-Location         ; Section 14.14
+                      | Content-MD5              ; Section 14.15
+                      | Content-Range            ; Section 14.16
+                      | Content-Type             ; Section 14.17
+                      | Expires                  ; Section 14.21
+                      | Last-Modified            ; Section 14.29
+                      | extension-header
+
+       extension-header = message-header
+
+       length := 0
+       read chunk-size, chunk-extension (if any) and CRLF
+       while (chunk-size > 0) {
+          read chunk-data and CRLF
+          append chunk-data to entity-body
+          length := length + chunk-size
+          read chunk-size and CRLF
+       }
+       read entity-header
+       while (entity-header not empty) {
+          append entity-header to existing header fields
+          read entity-header
+       }
+       Content-Length := length
+       Remove chunked from Transfer-Encoding
+
+
+"
+
+Net define: #HttpClient &parents: {Cloneable}
+&slots: {#userAgent -> 'slateweb/1.0'. 
+         #statusResponseRegex -> (Regex Matcher newOn: '^(HTTP/\\d+\\.\\d+) (\\d+) ([ \\w]+)$').
+         #headerResponseRegex -> (Regex Matcher newOn: '^([^:]+)\\:\\s*(.*)$').
+         #chunkHeaderRegex -> (Regex Matcher newOn: '^([0-9a-fA-F]+)\\s*$').
+}.
+
+Net define: #HttpMessage &parents: {Cloneable} &slots: {#version. #headers}.
+Net define: #HttpRequest &parents: {Net HttpMessage} &slots: {#uri. #method.}.
+
+Net define: #HttpResponse &parents: {Net HttpMessage} &slots: {#status. #reason. #body}.
+Net define: #SimpleHttpResponse &parents: {Net HttpResponse} &slots: {}.
+Net define: #ChunkedHttpResponse &parents: {Net HttpResponse} &slots: {}.
+
+Net define: #HttpAcceptableDictionary &parents: {Dictionary}.
+
+
+m@(Net HttpMessage traits) new
+[
+  resend `>> [version: 'HTTP/1.1'. headers: Dictionary new. ]
+].
+
+d@(Net HttpAcceptableDictionary traits) as: s@(String traits)
+[
+ ([| :result |
+   d keysAndValuesDo: [|:key :val| val ifNil: [result ; ', ' ; key printString]
+                                       ifNotNil: [result ; ', ' ; key printString ; ';q=' ; val printString]].
+ ] streamingAs: s) allButFirst: 2
+].
+
+
+hc@(Net HttpClient traits) simpleQuery: s@(String traits) &on: stream &method: method
+[ |str url closeStream |
+  closeStream: False.
+  url: (Net URL newFrom: s).
+  stream ifNil: [closeStream: True. 
+                  stream: (hc newConnectionFor: url)].
+  [str: ((hc request: url &method: method) as: String).
+   "inform: 'sending request'."
+   stream nextPutAll: (str as: ByteArray). "fixme unicode"
+   stream flush.
+   "inform: 'reading reply'."
+   hc readResponse: stream
+   ] ensure: [closeStream ifTrue: [stream close]]
+  
+].
+
+
+Net define: #AsyncSimpleHttpRequest &parents: {Net AsyncBlockOperation}
+&slots: {#url. #request}.
+
+_@(Net AsyncSimpleHttpRequest traits) new
+[ |o con discon send recv retval hostname portIp|
+  o: resend.
+
+  discon: Net AsyncCloseOperation new. 
+  recv: Net AsyncHttpReader new.
+  "con/send bound later because request unknown at time of #new"
+
+  recv completionBlock: [|:me| o workBlock: [discon workOn]. retval: me result].
+  discon completionBlock: [|:me| o complete &result: retval].
+
+  o workBlock: [hostname: o url authority.
+                portIp: (Net SocketAddress separatePort: hostname).
+                portIp second ifNil: [hostname: hostname ; ':80'].
+                con: (Net AsyncConnectOperation newOn: hostname).
+                con completionBlock: [|:me|
+                                        {discon. send. recv. } do: [|:x| x handle: me result].
+                                      o workBlock: [send workOn]].
+                
+                send: ((o request as: String) as: Net AsyncSendOperation).
+                send completionBlock: [|:me| o workBlock: [recv workOn]].
+                o workBlock: [con workOn].
+                o workOn].
+  o
+].
+
+
+hc@(Net HttpClient traits) simpleAsyncQuery: s@(String traits) &method: method
+[ |url request|
+  url: (Net URL newFrom: s).
+  request: (hc request: url &method: method).
+  Net AsyncSimpleHttpRequest new `>> [url: url. request: request. ]
+].
+
+
+hc@(Net HttpClient traits) request: s@(String traits) &method: method
+[
+  hc request: (Net URL newFrom: s) &method: method
+].
+
+hc@(Net HttpClient traits) request: url@(Net URL traits) &method: method
+[ |req|
+  method `defaultsTo: 'GET'.
+  req: Net HttpRequest new `>> [uri: url. method: method. ].
+  req headers at: 'Host' put: url authority.
+  hc userAgent ifNotNil: [req headers at: 'User-Agent' put: hc userAgent].
+  req
+].
+
+r@(Net HttpRequest traits) as: s@(String traits)
+[
+  r method isNil \/ [r uri path isNil] \/ [r version isNil] ifTrue: [error: 'Nil request'].
+  [| :result |
+   result ; r method ; ' ' ; r uri path ; ' ' ; r version ; '\r\n'.
+   r headers keysAndValuesDo: [|:key :val| result ; key ; ': ' ; (val as: String) ; '\r\n'].
+   result ; '\r\n'.
+ ] writingAs: s
+].
+
+"this needs to be resolved.. fixme"
+hc@(Net HttpClient traits) newConnectionFor: url@(Net URL traits)
+[ |addr socket hostname portIp|
+  hostname: url authority.
+  portIp: (Net SocketAddress separatePort: hostname).
+  portIp second ifNil: [hostname: hostname ; ':80'].
+  addr: (Net SocketAddress newOn: hostname).
+  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  socket connectTo: addr.
+  Net SocketStream newOn: socket
+].
+
+hc@(Net HttpClient traits) readLineFrom: stream@(ReadStream traits)
+[ |str|
+  "inform: 'reading line...'."
+  str: (stream upTo: $\r code).
+  stream next ~= $\n code ifTrue: [error: 'invalid newline separator in http response'].
+  str: (str as: ASCIIString).
+  "inform: 'read: ' ; str escaped."
+  str
+].
+
+hc@(Net HttpClient traits) readHeaders: stream@(ReadStream traits)
+[ |headers line re|
+  headers: Dictionary new.
+  "inform: 'reading headers'."
+  [
+    line: (hc readLineFrom: stream).
+    line isEmpty ifTrue: [^ headers].
+    re: hc headerResponseRegex clone.
+    (re match: line) = -1 ifTrue: [error: 'malformed header line'].
+    headers at: (re subexpression: 0) toLowercase put: (re subexpression: 1).
+    
+
+  ] loop.
+
+].
+
+hc@(Net HttpClient traits) newResponseFromHeaders: headers
+[ | tc|
+"fixme... checked for transfer-encoding/TE to see if we need chunked"
+  (headers at: 'content-length' ifAbsent: [Nil])
+    ifNotNil: [^ (Net SimpleHttpResponse new `>> [headers: headers. ])].
+
+  tc: (headers at: 'transfer-coding' ifAbsent: [Nil]).
+  tc ifNotNil: [(tc first: 7) toLowercase = 'chunked'
+                  ifTrue: [^ (Net ChunkedHttpResponse new `>> [headers: headers. ])]].
+ 
+  Net SimpleHttpResponse new `>> [headers: headers. ]
+  error: 'not sure how to read response body...missing transfer encoding'
+].
+
+hc@(Net HttpClient traits) readBodyInto: response@(Net SimpleHttpResponse traits) from: stream@(ReadStream traits)
+[ |length|
+
+  length: ((response headers at: 'content-length' ifAbsent: [error: 'Content-Length field required'])
+    as: Integer).
+  inform: 'reading body len: ' ; length printString. 
+  response body: (stream next: length).
+].
+
+hc@(Net HttpClient traits) readBodyInto: response@(Net ChunkedHttpResponse traits) from: stream@(ReadStream traits)
+[ |chunkHeader chunkMatch length trailers|
+  response body: ExtensibleByteArray new.
+  [
+    chunkHeader: (hc readLineFrom: stream).
+    chunkMatch: hc chunkHeaderRegex clone.
+    (chunkMatch match: chunkHeader) = -1 ifTrue: [error: 'error reading chunk header: ' ; chunkHeader].
+    length: ((chunkMatch subexpression: 0) as: Integer &radix: 16)
+    inform: 'reading chunk len: ' ; length printString. 
+    len = 0 ifTrue: [trailers: (hc readHeaders: stream).
+                     response headers addAll: trailers.
+                     ^ Nil
+                     ].
+    response body addAllLast: (stream next: length).
+    stream next = $\r code /\ [stream next = $\n code] ifFalse: [error: 'expected CRLF after chunk'].
+  ] loop.
+].
+
+
+hc@(Net HttpClient traits) readResponse: stream@(ReadStream traits)
+[ |status re httpVersion statusCode statusReason headers response |
+  status: (hc readLineFrom: stream).
+  re: hc statusResponseRegex clone.
+  (re match: status) = -1
+    ifTrue: [error: 'Invalid status line in http response']
+    ifFalse: [httpVersion: (re subexpression: 0).
+              statusCode: (re subexpression: 1).
+              statusReason: (re subexpression: 2)].
+
+  httpVersion ~= 'HTTP/1.1' ifTrue: [error: 'Only supporting http version 1.1.'].
+  headers: (hc readHeaders: stream).
+  response: (hc newResponseFromHeaders: headers) `>> [version: httpVersion.
+                                                      status: statusCode. 
+                                                      reason: statusReason. ].
+  hc readBodyInto: response from: stream.
+  response
+  
+].
+
+Net define: #AsyncHttpLineReader &parents: {Net AsyncReceiveUntilOperation}.
+
+_@(Net AsyncHttpLineReader traits) new
+[
+  (Net AsyncReceiveUntilOperation newOn: Nil &until: $\n code
+          &resultModifier: [|:res| ((res last: 2) as: String) = '\r\n' ifFalse: [error: 'malformed line in http response.'].
+                                       (res allButLast: 2) as: String])
+].
+
+Net define: #AsyncHttpReader &parents: {Net AsyncBlockOperation}
+&slots: {#handle}.
+
+_@(Net AsyncHttpReader traits) new
+[ |o statusReader headerReader bodyReader re httpVersion statusCode statusReason headers|
+  o: resend.
+  re: Net HttpClient statusResponseRegex clone.
+  statusReader: Net AsyncHttpLineReader new.
+  headerReader: (Net AsyncHttpHeaderReader new).
+  statusReader completionBlock: [|:me|
+                                   headerReader handle: me handle.
+                                   (re match: me result) = -1
+                                                      ifTrue: [error: 'Invalid status line in http response']
+                                                      ifFalse: [httpVersion: (re subexpression: 0).
+                                                                statusCode: (re subexpression: 1).
+                                                                statusReason: (re subexpression: 2)].
+                                   httpVersion ~= 'HTTP/1.1' ifTrue: [error: 'Only supporting http version 1.1.'].
+                                   o workBlock: [headerReader workOn]].
+  
+  bodyReader: (Net AsyncHttpBodyReader new).
+
+  headerReader completionBlock: [|:me|
+                                   bodyReader handle: me handle.
+                                   headers: me result.
+                                   bodyReader headers: headers.
+                                   o workBlock: [bodyReader workOn]].
+
+  bodyReader completionBlock:
+  [|:me|
+     headers addAll: me trailers.
+     o complete &result: (Net SimpleHttpResponse new `>> [version: httpVersion.
+                                                          status: statusCode. 
+                                                          reason: statusReason.
+                                                          headers: headers.
+                                                          body: me result. ]).
+   o workBlock: []].
+  
+  o workBlock: [statusReader handle: o handle.
+                  o workBlock: [statusReader workOn].
+                  o workOn].
+  o
+].
+
+Net define: #AsyncHttpHeaderReader &parents: {Net AsyncBlockOperation}
+&slots: {#handle}.
+
+_@(Net AsyncHttpHeaderReader traits) new
+[ |o re headers lineReader|
+  o: resend.
+  re: Net HttpClient headerResponseRegex clone.
+  headers: Dictionary new.
+  lineReader: Net AsyncHttpLineReader new.
+  
+  lineReader completionBlock:
+    [|:me|
+       me result isEmpty
+       ifTrue: [o workBlock: [].
+                o complete &result: headers]
+       ifFalse: [(re match: me result) = -1
+                      ifTrue: [error: 'Invalid header line in http response']
+                      ifFalse: [headers at: (re subexpression: 0) toLowercase put: (re subexpression: 1).
+                                lineReader reset]]
+       
+         ].
+  
+  o workBlock: [lineReader handle: o handle.
+                  o workBlock: [lineReader workOn].
+                  o workOn].
+  o
+].
+
+
+Net define: #AsyncHttpBodyReader &parents: {Net AsyncBlockOperation}
+&slots: {#handle. #headers. #trailers}.
+
+_@(Net AsyncHttpBodyReader traits) new
+[ |o re lineReader chunkReader headerReader body tc|
+  o: resend.
+  re: Net HttpClient chunkHeaderRegex clone.
+  lineReader: Net AsyncHttpLineReader new.
+  chunkReader: Net AsyncReceiveUntilOperation new.
+  headerReader: (Net AsyncHttpHeaderReader new). "chunked encoding has trailers"
+  body: ExtensibleByteArray new.
+  o trailers: Dictionary new.
+  o workBlock:
+  [lineReader handle: o handle.
+   chunkReader handle: o handle.
+   headerReader handle: o handle.
+   (o headers at: 'content-length' ifAbsent: [Nil])
+       ifNil: [tc: (o headers at: 'transfer-coding'). "error if not there"
+               tc ifNotNil: [(tc first: 7) toLowercase = 'chunked'
+                                           ifFalse: [error: 'unknown http transfer encoding']].
+               "we know it's chunked transfer"
+               headerReader completionBlock: [|:me|
+                                                o trailers: me result.
+                                                o workBlock: [].
+                                                o complete &result: body].
+
+               lineReader completionBlock:
+                 [|:me length| (re match: me result) = -1 ifTrue: [error: 'error reading chunk header: ' ; me result]
+                    length: ((chunkMatch subexpression: 0) as: Integer &radix: 16).
+                    inform: 'reading chunk len: ' ; length printString.
+                    chunkReader reset.
+                    chunkReader amount: length + 2. "plus CRLF"
+                    o workBlock: [chunkReader workOn].
+                    ].
+               chunkReader completionBlock:
+                 [|:me|
+                    amount = 2 ifTrue: [o workBlock: [headerReader workOn].
+                    
+                                        
+                                        ]
+                               ifFalse: [((me result last: 2) as: String) = '\r\n' ifFalse: [error: 'bad http chunk'].
+                                         body addAllLast: (me result allButLast: 2).
+                                         lineReader reset.
+                                         o workBlock: [lineReader workOn]
+                                           ]
+                    ]
+               o workBlock: [lineReader workOn].
+               ]
+
+      ifNotNil: [chunkReader amount: ((o headers at: 'content-length'
+                                        ifAbsent: [error: 'Content-Length field required'])
+                                       as: Integer).
+                 o workBlock: [chunkReader workOn].
+                 chunkReader completionBlock: [ |:me| o complete &result: me result]].
+   o workOn].
+  o
+].
+

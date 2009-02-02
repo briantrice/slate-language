@@ -115,6 +115,15 @@ int socket_lookup_domain(word_t domain) {
   }
 }
 
+int socket_reverse_lookup_domain(word_t domain) {
+  switch (domain) {
+  case AF_LOCAL: return SLATE_DOMAIN_LOCAL;
+  case AF_INET: return SLATE_DOMAIN_IPV4;
+  case AF_INET6: return SLATE_DOMAIN_IPV6;
+  default: return SLATE_DOMAIN_IPV4;
+  }
+}
+
 int socket_lookup_type(word_t type) {
   switch (type) {
   case SLATE_TYPE_STREAM: return SOCK_STREAM;
@@ -122,7 +131,20 @@ int socket_lookup_type(word_t type) {
   }
 }
 
+int socket_reverse_lookup_type(word_t type) {
+  switch (type) {
+  case SOCK_STREAM: return SLATE_TYPE_STREAM;
+  default: return SLATE_TYPE_STREAM;
+  }
+}
+
 int socket_lookup_protocol(word_t protocol) {
+  switch (protocol) {
+  default: return 0;
+  }
+}
+
+int socket_reverse_lookup_protocol(word_t protocol) {
   switch (protocol) {
   default: return 0;
   }
@@ -137,3 +159,72 @@ int socket_set_nonblocking(int fd) {
 }
 
 
+int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags) {
+  int i, pret;
+  pthread_t thread;
+#if 0
+  pthread_mutex_lock(&oh->socketTicketMutex);
+#endif
+  for (i = 0; i < oh->socketTicketCount; i++) {
+    if (oh->socketTickets[i].inUse == 0) {
+      /*use this one*/
+      oh->socketTickets[i].inUse = 1;
+      oh->socketTickets[i].result = 0;
+      oh->socketTickets[i].finished = 0;
+      oh->socketTickets[i].addrResult = 0;
+      oh->socketTickets[i].family = family;
+      oh->socketTickets[i].type = type;
+      oh->socketTickets[i].protocol = protocol;
+      oh->socketTickets[i].flags = flags;
+      oh->socketTickets[i].oh = oh;
+      oh->socketTickets[i].ticketNumber = i;
+      if (hostnameSize == 0) {
+        oh->socketTickets[i].hostname = NULL;
+      } else {
+        oh->socketTickets[i].hostname = calloc(hostnameSize, 1);
+        extractCString(hostname, (byte_t*)oh->socketTickets[i].hostname, hostnameSize);
+      }
+      if (serviceSize == 0) {
+        oh->socketTickets[i].service = NULL;
+      } else {
+        oh->socketTickets[i].service = calloc(hostnameSize, 1);
+        extractCString(service, (byte_t*)oh->socketTickets[i].service, serviceSize);
+      }
+
+#if 0
+      pthread_mutex_unlock(&oh->socketTicketMutex);
+#endif
+      pret = pthread_create(&thread, NULL, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i]);
+      if (pret != 0) {
+        free(oh->socketTickets[i].hostname);
+        free(oh->socketTickets[i].service);
+        oh->socketTickets[i].hostname = NULL;
+        oh->socketTickets[i].service = NULL;
+        return -1;
+      }
+      return i;
+    }
+  }
+#if 0
+  pthread_mutex_unlock(&oh->socketTicketMutex);
+#endif
+
+  return -1;
+
+}
+
+
+void *socket_getaddrinfo_callback( void *ptr ) {
+  struct slate_addrinfo_request* req = ptr;
+  /*  struct object_heap* oh = req->oh;*/
+  struct addrinfo ai;
+  memset(&ai, sizeof(ai), 0);
+  ai.ai_flags = req->flags;
+  ai.ai_family = socket_lookup_domain(req->family);
+  ai.ai_socktype = socket_lookup_type(req->type);
+  ai.ai_protocol = socket_lookup_protocol(req->protocol);
+  
+  req->result = getaddrinfo(req->hostname, req->service, &ai, &req->addrResult);
+  req->finished = 1;
+  return NULL;
+}
