@@ -559,3 +559,27 @@ objects as needed."
   es contents at: tgt put: obj.
   es
 ].
+
+"this will call the correct #as function when converting to strings"
+collections define: #ExtensibleByteArray &parents: {ExtensibleArray}.
+ExtensibleByteArray contents: ByteArray new.
+
+es@(ExtensibleByteArray traits) elementType [SmallInteger].
+
+es@(ExtensibleByteArray traits) as: s@(String traits)
+[| newS |
+  newS: (s newSizeOf: es).
+  es doWithIndex:
+    [| :each :index | newS at: index put: (each as: s elementType)].
+  newS
+
+].
+
+s@(ASCIIString traits) as: a@(ExtensibleByteArray traits)
+[| newA |
+  newA: (a new &capacity: s size).
+  s do: [| :each | newA add: (each as: a elementType)].
+  newA
+].
+
+

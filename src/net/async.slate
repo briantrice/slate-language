@@ -9,10 +9,12 @@ Net define: #AsyncOperation &parents: {Cloneable}
 &slots: {#dependsOn -> ExtensibleArray new.
          #result -> Nil.
          #finished -> False.
-         #canStart -> False. "false=dependsOn has unfinished. true=dependsOn all finished"
+         #canStart -> True. "false=dependsOn has unfinished. true=dependsOn all finished"
          #observers -> ExtensibleArray new.
          #completionBlock -> Nil.
          }.
+
+o@(Net AsyncOperation traits) new [resend `>> [dependsOn: ExtensibleArray new. observers: ExtensibleArray new. ]].
 
 o@(Net AsyncOperation traits) workOn [overrideThis].
 
@@ -28,6 +30,11 @@ o@(Net AsyncOperation traits) dependenciesFinished
   o dependsOn allSatisfy: #finished `er
 ].
 
+o@(Net AsyncOperation traits) reset
+[
+  o finished: False.
+  o result: Nil.
+].
 
 o@(Net AsyncOperation traits) complete &result: result
 [
@@ -43,7 +50,8 @@ Net define: #AsyncBlockOperation &parents: {Net AsyncOperation}
          #notifyBlock
          }.
 
-o@(Net AsyncBlockOperation traits) workOn [o canStart ifTrue: [o workBlock do]].
+o@(Net AsyncBlockOperation traits) workOn [o canStart ifTrue: [o workBlock do]. o].
+
 o@(Net AsyncOperation traits) noteCompletionOf: obj
 [
   resend.
@@ -63,6 +71,13 @@ o@(Net AsyncSendOperation traits) newOn: handle buffer: buf &start: start &end: 
   o new `>> [handle: handle. buffer: buf. start: start. end: end. ]
 ].
 
+str@(String traits) as: o@(Net AsyncSendOperation traits)
+[ |buf|
+  buf: (str as: ByteArray).
+  o new `>> [buffer: buf. start: 0. end: buf size. ]
+].
+
+
 o@(Net AsyncSendOperation traits) workOn
 [ |fds return i | 
   o canStart ifFalse: [^ Nil].
@@ -78,20 +93,40 @@ o@(Net AsyncSendOperation traits) workOn
 ].
 
 Net define: #AsyncReceiveUntilOperation &parents: {Net AsyncOperation}
-&slots: {#handle. #buffer. #untilCode
+&slots: {#handle. #buffer. #untilCode. #amount. #count. #resultModifier
          }.
 
-o@(Net AsyncReceiveUntilOperation traits) newOn: handle until: code
+_@(Net AsyncReceiveUntilOperation traits) new
 [
-  o new `>> [handle: handle. buffer: (ByteArray new as: ExtensibleArray). untilCode: code. ]
+  resend `>> [reset. ]
+].
+
+o@(Net AsyncReceiveUntilOperation traits) newOn: handle &until: code &count: amount &resultModifier: rm
+[
+  amount `defaultsTo: PositiveInfinity.
+  o new `>> [handle: handle.
+             buffer: ExtensibleByteArray new. 
+             count: 0.
+             untilCode: code.
+             resultModifier: rm.
+             amount: amount. ]
+].
+
+o@(Net AsyncReceiveUntilOperation traits) reset
+[
+  o buffer: ExtensibleByteArray new.
+  o count: 0.
+  resend
 ].
 
 o@(Net AsyncReceiveUntilOperation traits) workOn
 [ |fds ret buffer char |
   o canStart ifFalse: [^ Nil].
-  buffer: ByteArray newSize: 1.
+  buffer: (ByteArray newSize: 1).
   [
-    fds: ({s resource handle} selectOnReadPipesFor: 0).
+    o count >= o amount 
+      ifTrue: [^ (o complete &result: (o resultModifier ifNil: [o buffer] ifNotNilDo: [|:m| m applyWith: o buffer]))].
+    fds: ({o handle} selectOnReadPipesFor: 0).
     fds isEmpty ifTrue: [^ Nil].
     ret: (buffer readFromPipe: o handle start: 0 end: 1).
     ret = 0 ifTrue: [error: 'receiveuntil read failed'].
@@ -99,13 +134,20 @@ o@(Net AsyncReceiveUntilOperation traits) workOn
 
     char: (buffer at: 0).
     o buffer addLast: char.
-    char = o untilCode ifTrue: [^ (o complete &result: o buffer)].
+    o count: o count + 1.
+    char = o untilCode 
+         ifTrue: [^ (o complete &result: (o resultModifier ifNil: [o buffer] ifNotNilDo: [|:m| m applyWith: o buffer]))].
   ] loop.
 ].
 
 Net define: #AsyncConnectOperation &parents: {Net AsyncOperation}
 &slots: {#address. #handle. #connectAttempted
          }.
+
+_@(Net AsyncConnectOperation traits) new
+[
+  resend `>> [connectAttempted: False. ]
+].
 
 "the format returned by the resolve function"
 o@(Net AsyncConnectOperation traits) newOn: array@(Sequence traits)
@@ -144,7 +186,7 @@ o@(Net AsyncConnectOperation traits) workOn
   fds isEmpty ifTrue: [^ Nil].
   ret: o handle socketGetError.
   ret ~= 0 ifTrue: [Net Socket throwError: ret].
-  o complete
+  o complete &result: o handle
 ].
 
 
