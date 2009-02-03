@@ -243,11 +243,141 @@ void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
+void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t fd = object_to_smallint(args[0]);
+  word_t ret;
+  int optval;
+  socklen_t optlen;
+  optlen = 4;
+  ASSURE_SMALLINT_ARG(0);
+
+  ret = getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, (socklen_t*)&optlen);
+
+  if (ret == 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(optval);
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+  }
+
+}
+
+void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* hostname = (struct ByteArray*)args[1];
+  struct ByteArray* service = (struct ByteArray*)args[2];
+  word_t family = object_to_smallint(args[3]);
+  word_t type = object_to_smallint(args[4]);
+  word_t protocol = object_to_smallint(args[5]);
+  word_t flags = object_to_smallint(args[6]);
+  word_t ret, serviceSize, hostnameSize;
+
+  ASSURE_SMALLINT_ARG(3);
+  ASSURE_SMALLINT_ARG(4);
+  ASSURE_SMALLINT_ARG(5);
+  ASSURE_SMALLINT_ARG(6);
+
+  if ((struct Object*)hostname == oh->cached.nil) {
+    hostnameSize = 0;
+  } else {
+    hostnameSize = byte_array_size(hostname)+1;
+  }
+
+  if ((struct Object*)service == oh->cached.nil) {
+    serviceSize = 0;
+  } else {
+    serviceSize = byte_array_size(service)+1;
+  }
+
+  ret = socket_getaddrinfo(oh, hostname, hostnameSize, service, serviceSize, family, type, protocol, flags);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
+
+}
+
+
+void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t ticket = object_to_smallint(args[0]);
+  if (ticket >= oh->socketTicketCount || ticket < 0
+      || oh->socketTickets[ticket].inUse == 0 || oh->socketTickets[ticket].finished == 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+  if (oh->socketTickets[ticket].result < 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(oh->socketTickets[ticket].result);
+  } else {
+    /*fixme convert to arrays*/
+    word_t count, i;
+    struct addrinfo* ai = oh->socketTickets[ticket].addrResult;
+    struct addrinfo* current = ai;
+    struct OopArray* retval;
+    count = 0;
+    while (current != NULL) {
+      current = current->ai_next;
+      count++;
+    }
+    current = ai;
+    retval = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count);
+    heap_fixed_add(oh, (struct Object*)retval);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)retval;
+    heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)retval);
+    
+    for (i = 0; i < count; i++) {
+      struct OopArray* aResult = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 6);
+      struct ByteArray* aResultAddr;
+      struct ByteArray* aResultCanonName;
+      word_t canonNameLen = (current->ai_canonname == NULL)? 0 : strlen(current->ai_canonname);
+      retval->elements[i] = (struct Object*)aResult;
+      heap_store_into(oh, (struct Object*)retval, retval->elements[i]);
+      aResult->elements[0] = smallint_to_object(current->ai_flags);
+      aResult->elements[1] = smallint_to_object(socket_reverse_lookup_domain(current->ai_family));
+      aResult->elements[2] = smallint_to_object(socket_reverse_lookup_type(current->ai_socktype));
+      aResult->elements[3] = smallint_to_object(socket_reverse_lookup_protocol(current->ai_protocol));
+
+      aResultAddr = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), current->ai_addrlen);
+      aResult->elements[4] = (struct Object*)aResultAddr;
+      heap_store_into(oh, (struct Object*)aResult, aResult->elements[4]);
+      copy_bytes_into((byte_t*)current->ai_addr, current->ai_addrlen, aResultAddr->elements);
+      if (canonNameLen == 0) {
+        aResult->elements[5] = oh->cached.nil;
+      } else {
+        aResultCanonName = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), canonNameLen);
+        aResult->elements[5] = (struct Object*)aResultCanonName;
+        heap_store_into(oh, (struct Object*)aResult, aResult->elements[5]);
+        copy_bytes_into((byte_t*)current->ai_canonname, canonNameLen, aResultCanonName->elements);
+      }
+
+      current = current->ai_next;
+    }
+
+    heap_fixed_remove(oh, (struct Object*)retval);
+
+
+  }
+}
+
+void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t ticket = object_to_smallint(args[0]);
+  if (ticket >= oh->socketTicketCount || ticket < 0
+      || oh->socketTickets[ticket].inUse == 0 || oh->socketTickets[ticket].finished == 0) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
+  free(oh->socketTickets[ticket].hostname);
+  oh->socketTickets[ticket].hostname = 0;
+  free(oh->socketTickets[ticket].service);
+  oh->socketTickets[ticket].service = 0;
+  freeaddrinfo(oh->socketTickets[ticket].addrResult);
+  oh->socketTickets[ticket].addrResult = 0;
+  
+  oh->socketTickets[ticket].inUse = 0;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+}
+
+
 void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
   struct Object* address = args[1];
   word_t port = object_to_smallint(args[2]);
-  struct OopArray* options = (struct OopArray*) args[3];
+  /*  struct OopArray* options = (struct OopArray*) args[3];*/
   struct sockaddr_in* sin;
   struct sockaddr_in6* sin6;
   struct sockaddr_un* sun;
@@ -288,6 +418,23 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
     break;
 
     /*fixme ipv6*/
+  case SLATE_DOMAIN_IPV6:
+    ASSURE_SMALLINT_ARG(2);
+    if (object_array_size(address) < 16) {
+      ret = (struct ByteArray*)oh->cached.nil;
+      break;
+    }
+    ret = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), sizeof(struct sockaddr_in6));
+    sin6 = (struct sockaddr_in6*)byte_array_elements(ret);
+    sin6->sin6_family = socket_lookup_domain(domain);
+    sin6->sin6_port = htons((uint16_t)port);
+    ASSURE_TYPE_ARG(1, TYPE_OOP_ARRAY);
+    {
+      int i;
+      for (i = 0; i < 16; i++)
+        sin6->sin6_addr.s6_addr[i] = object_to_smallint(object_array_get_element(address, i)) & 0xFF;
+    }
+    break;
     
   default:
     ret = (struct ByteArray*)oh->cached.nil;
@@ -1521,7 +1668,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
- /*30-9*/ prim_smallIntegerMaximum, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 

@@ -1,7 +1,9 @@
 
 lobby ensureNamespace: #Net.
 
-"Slate based sockets"
+"Slate based sockets. For maximum performance, you should use the async operations
+classes to handle more than one operation at a time. These basically turn non-blocking
+operations into blocking ones."
 
 "fixme, i just changed this to an externalresource from cloneable so i need to make sure i
 add back the right methods"
@@ -279,7 +281,8 @@ s@(Net SocketStream traits) flushWriteBuffer
       fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
       (return = 0) ifTrue: [error: 'write failed']. 
       return < 0 /\ [return ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
-      i: i + return].
+      return > 0 ifTrue: [i: i + return].
+      ].
   s internalWriteBuffer clear.
 ].
 
@@ -295,6 +298,8 @@ s@(Net SocketStream traits) next: n putInto: seq startingAt: start
                   ret: (s buffer readFromPipe: s resource handle start: 0 end: s buffer size).
                   "inform: 'ret ' ; ret printString."
                   ret = 0 ifTrue: [s exhausted. ^ 0].
+                  ret < 0 ifTrue: [s throwError: ret].
+
                   "inform: 'read bytes: ' ; s buffer printString."
                   writer next: ret putAll: s buffer].
   readSize: (s internalReadBuffer size min: n).
