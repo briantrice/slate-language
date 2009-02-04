@@ -11,6 +11,65 @@ visitor@(LLVM Visitor traits) new [
 	visitor clone `>> [ contexts: visitor contexts new. ]
 ].
 
+LLVM Visitor traits define: #Context &parents: {Cloneable} &slots:
+  {#isClosure -> False "Whether the method being compiled is a closure.".
+   #method -> CompiledMethod new "The method the context targets.".
+   #codeWriter "The stream for writing bytecodes to the method.".
+   #debugMap -> ExtensibleArray new
+   "Gathers the method's debug map; must be indexable at all times.".
+   #registerValues -> ExtensibleArray new
+   "The current register values.".
+   #labels -> ExtensibleArray new
+   "label serials -> code index.".
+   #relocations -> Dictionary new
+   "code index -> label serials".
+   #currentRegister -> 0
+   "The last assigned register value.. or the count?"
+   }.
+
+c@(LLVM Visitor Context traits) newOn: method
+"FIXME change method code to array instead of bytearray."
+[
+  method code: Array new.
+  c cloneSettingSlots: #(method codeWriter debugMap registerValues relocations labels currentRegister)
+   to: {method. method code writer.
+	method debugMap as: c debugMap.
+        c registerValues new.
+        c relocations new.
+        c labels new.
+	method inputVariables + method localVariables}
+].
+
+c@(LLVM Visitor Context traits) copy
+[resend `>> [registerValues: c registerValues copy.
+             relocations: c relocations copy.
+             labels: c labels copy.
+             currentRegister: c currentRegister]].
+
+c@(LLVM Visitor Context traits) resolveLabel: label at: index
+[
+  (c labels at: label) - index
+].
+
+c@(LLVM Visitor Context traits) resolveLabels
+"This takes the labels Dictionary and uses it to replace the temporary ID's
+placed in the jump fields with actual offsets."
+[| code |
+  code: c method code.
+  c relocations keysAndValuesDo:
+    [| :index :label offset |
+     offset: (c resolveLabel: label at: index).
+     code at: index put: offset]
+].
+
+c@(LLVM Visitor Context traits) flush
+[
+  c method code: c codeWriter contents.
+  c method debugMap: (c debugMap as: Array).
+  c resolveLabels.
+  c
+].
+
 visitor@(LLVM Visitor traits) currentContext [
 	visitor contexts top
 ].
@@ -79,10 +138,9 @@ and push it onto the stack."
 visitor@(LLVM Visitor traits) visit: def@(Syntax MethodDefinition traits) [
 "Translate method definitions to equivalent asMethod:on: invocations."
   	visitor contexts isEmpty ifTrue: [ ^ resend ].
-	def roles do: [ 
-		|:role |
-		visitor visit: role
-	]
+  	#visit: sendTo: {gen. def} through: {gen. Syntax Block}.
+	def roles do: [ |:role | visitor visit: role ].
+	"directSendMessage"
 ].
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax Resend traits) [
@@ -119,7 +177,7 @@ visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnClose traits) [
     ((visitor contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
       ifNil:
         [error: '^ must be used within a method definition.']).
-  visitor visit: r by: lexOffset result: resultRegister
+  visitor visit: r by: lexOffset
 ].
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnFar traits) [
@@ -137,6 +195,7 @@ visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnLevel traits) [
 ].
 
 visitor@(LLVM Visitor traits) visit: literal@(Syntax Literal traits) [
+	inform: ('Literal: '; literal printString).
 ].
 
 visitor@(LLVM Visitor traits) visit: n@(Syntax CompoundStatement traits) [
@@ -196,7 +255,7 @@ visitor@(LLVM Visitor traits) visit: msg@(Syntax Message traits) &optionals: opt
 ].
 
 visitor@(LLVM Visitor traits) visit: macro@(Syntax Macro traits) &optionals: opts [
-  "visitor visit: (macro macroExpand &optionals: opts &environment: visitor currentMethod sourceTree) result: result"
+  "visitor visit: (macro macroExpand &optionals: opts &environment: visitor currentMethod sourceTree)"
 	error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
