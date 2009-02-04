@@ -45,14 +45,8 @@ v@(GLib Value traits) as: _@(Boolean traits) [
 ].
 
 v@(GLib Value traits) as: _@(GLib Boxed traits) [
-	| type |
-	"FIXME: should be automatically deduced from its name"
-	type: (v type name caseOf: {
-		'GtkTextIter' -> [ Gtk TextIter ].
-		'GdkEvent' -> [ Gdk Event ]
-	} otherwise: [ 
-		error: (v type name ; ' is an unknown type') 
-	]).
+	| type handle |
+	type: (GLib Object typeFromName: v type name).
 	type newWithHandle: (
 		GLib Lib primitives g_value_get_boxed applyTo: { v handle }
 	)

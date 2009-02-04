@@ -21,21 +21,32 @@ o@(GLib Object traits) when: aSignalName send: selector to: object [
 	o when: aSignalName do: [ | *parameters  | selector sendTo: ( {object} ; parameters ) ]
 ].
 
+o@(GLib Object traits) typeFromName: name@(String traits) [
+	| aName nameSpace trait |
+	aName: name.
+	(name beginsWith: 'Gtk')
+		ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gtk ]
+		ifFalse: [
+			(name beginsWith: 'Gdk')
+				ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gdk ]
+				ifFalse: [
+					(name beginsWith: 'G')
+						ifTrue: [ aName: (name allButFirst: 1). nameSpace: GLib ]
+						ifFalse: [ warning: 'Unknown type'. ^ Nil ]
+				]
+		].
+	aName: aName intern.
+	(nameSpace hasSlotNamed: aName)
+		ifTrue: [ trait: (nameSpace atSlotNamed: aName) ]
+		ifFalse: [ warning: 'Unknown Trait'. ^ Nil ].
+	trait
+].
+
 o@(GLib Object traits) objectFromHandle: aHandle [
 	| name nameSpace trait |
 	aHandle ifNil: [ warning: 'Handle is null'. ^ Nil ].
 	name: (o newWithHandle: aHandle) type name.
-	(name beginsWith: 'Gtk')
-		ifTrue: [ name: (name allButFirst: 3). nameSpace: Gtk ]
-		ifFalse: [
-			(name beginsWith: 'G')
-				ifTrue: [ name: (name allButFirst: 1). nameSpace: GLib ]
-				ifFalse: [ warning: 'Unknown type'. ^ Nil ]
-		].
-	name: name intern.
-	(nameSpace hasSlotNamed: name)
-		ifTrue: [ trait: (nameSpace atSlotNamed: name) ]
-		ifFalse: [ warning: 'Unknown Trait'. ^ Nil ].
+	trait: (o typeFromName: name). 
 	trait newWithHandle: aHandle
 ].
 
