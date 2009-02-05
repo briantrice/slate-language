@@ -1,0 +1,21 @@
+LLVM define: #Module &parents: {LLVM Pointer}.
+LLVM Module traits atSlotNamed: #printName put: 'LLVM Module'. 
+
+m@(LLVM Module traits) new [
+	m shouldNotImplement
+].
+
+m@(LLVM Module traits) newWithID: id@(String traits) [
+	m newWithHandle: (LLVM Lib primitives llvm_module_create_with_name applyTo: {id})
+].
+
+m@(LLVM Module traits) dispose [
+	m newWithHandle: (LLVM Lib primitives llvm_dispose_module applyTo: {m handle}).
+	Nil
+].
+
+m@(LLVM Module traits) dump [
+	m newWithHandle: (LLVM Lib primitives llvm_dump_module applyTo: {m handle}).
+	m
+].
+ 

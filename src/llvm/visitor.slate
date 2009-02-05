@@ -1,5 +1,3 @@
-ensureNamespace: #LLVM.
- 
 block@(Syntax Block traits) translate [
 "Invoke the LLVM compiler."
 	LLVM Visitor new visit: block
@@ -11,21 +9,21 @@ visitor@(LLVM Visitor traits) new [
 	visitor clone `>> [ contexts: visitor contexts new. ]
 ].
 
-LLVM Visitor traits define: #Context &parents: {Cloneable} &slots:
-  {#isClosure -> False "Whether the method being compiled is a closure.".
-   #method -> CompiledMethod new "The method the context targets.".
-   #codeWriter "The stream for writing bytecodes to the method.".
-   #debugMap -> ExtensibleArray new
-   "Gathers the method's debug map; must be indexable at all times.".
-   #registerValues -> ExtensibleArray new
-   "The current register values.".
-   #labels -> ExtensibleArray new
-   "label serials -> code index.".
-   #relocations -> Dictionary new
-   "code index -> label serials".
-   #currentRegister -> 0
-   "The last assigned register value.. or the count?"
-   }.
+LLVM Visitor traits define: #Context &parents: {Cloneable} &slots: {
+	#isClosure -> False "Whether the method being compiled is a closure.".
+	#method -> CompiledMethod new "The method the context targets.".
+	#codeWriter "The stream for writing bytecodes to the method.".
+	#debugMap -> ExtensibleArray new
+	"Gathers the method's debug map; must be indexable at all times.".
+	#registerValues -> ExtensibleArray new
+	"The current register values.".
+	#labels -> ExtensibleArray new
+	"label serials -> code index.".
+	#relocations -> Dictionary new
+	"code index -> label serials".
+	#currentRegister -> 0
+	"The last assigned register value.. or the count?"
+}.
 
 c@(LLVM Visitor Context traits) newOn: method
 "FIXME change method code to array instead of bytearray."
@@ -100,6 +98,7 @@ a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
 	| newBlock isClosure statements |
+	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	newBlock: CompiledMethod new.
 	newBlock environment: (visitor contexts isEmpty
@@ -137,6 +136,7 @@ and push it onto the stack."
 
 visitor@(LLVM Visitor traits) visit: def@(Syntax MethodDefinition traits) [
 "Translate method definitions to equivalent asMethod:on: invocations."
+	inform: 'MethodDefinition'.
   	visitor contexts isEmpty ifTrue: [ ^ resend ].
   	#visit: sendTo: {gen. def} through: {gen. Syntax Block}.
 	def roles do: [ |:role | visitor visit: role ].
@@ -145,6 +145,7 @@ visitor@(LLVM Visitor traits) visit: def@(Syntax MethodDefinition traits) [
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax Resend traits) [
 	| lexOffset scope |
+	inform: 'Resend'.
 	scope: visitor currentMethod sourceTree.
 	lexOffset: visitor contexts indexLast -
 		((visitor contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
@@ -162,6 +163,7 @@ visitor@(LLVM Visitor traits) visit: r@(Syntax Return traits) [
 ].
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax Return traits) by: lexOffset [ 
+	inform: 'Return'.
 	lexOffset > 0
 		ifTrue:
 		[(visitor contexts fromTop: lexOffset) method heapAllocate: True.
@@ -173,16 +175,18 @@ visitor@(LLVM Visitor traits) visit: r@(Syntax Return traits) by: lexOffset [
 visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnClose traits) [
 "Exits the first enclosing named method in the lexical scope."
 	| lexOffset |
-  lexOffset: visitor contexts indexLast -
-    ((visitor contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
-      ifNil:
-        [error: '^ must be used within a method definition.']).
-  visitor visit: r by: lexOffset
+	inform: 'ReturnClose'.
+  	lexOffset: visitor contexts indexLast -
+		((visitor contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+		ifNil:
+			[error: '^ must be used within a method definition.']).
+	visitor visit: r by: lexOffset
 ].
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnFar traits) [
 "Exits the last enclosing named method in the lexical scope."
 	| lexOffset |
+	inform: 'ReturnFar'.
 	lexOffset: visitor contexts indexLast -
 		((visitor contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
 			ifNil: [error: '^^ must be used within a method definition.']).
@@ -191,6 +195,7 @@ visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnFar traits) [
 
 visitor@(LLVM Visitor traits) visit: r@(Syntax ReturnLevel traits) [
 	"Exits the Nth enclosing lexical scope."
+	inform: 'ReturnLevel'.
 	visitor visit: r by: r level
 ].
 
@@ -200,6 +205,7 @@ visitor@(LLVM Visitor traits) visit: literal@(Syntax Literal traits) [
 
 visitor@(LLVM Visitor traits) visit: n@(Syntax CompoundStatement traits) [
 "return the registers that the values were saved into"
+	inform: 'CompoundStatement'.
 	n statements do: [
 		| :node |
 		visitor visit: node
@@ -208,6 +214,7 @@ visitor@(LLVM Visitor traits) visit: n@(Syntax CompoundStatement traits) [
 
 visitor@(LLVM Visitor traits) visit: n@(Syntax Parenthesis traits) [
 "return the registers that the values were saved into"
+	inform: 'Parenthesis'.
 	n statements do: [
 		| :node |
 		visitor visit: node
@@ -215,6 +222,7 @@ visitor@(LLVM Visitor traits) visit: n@(Syntax Parenthesis traits) [
 ].
 
 visitor@(LLVM Visitor traits) visit: i@(Syntax ImplicitArgument traits) [
+	inform: 'ImplicitArgument'.
 ].
 
 visitor@(LLVM Visitor traits) visit: _@(Syntax Namespace traits) [
@@ -223,6 +231,7 @@ visitor@(LLVM Visitor traits) visit: _@(Syntax Namespace traits) [
 
 visitor@(LLVM Visitor traits) visit: load@(Syntax LoadVariable traits) [
 	| scope lexOffset varIndex |
+	inform: 'LoadVariable'.
 	scope: load variable scope.
 	varIndex: (scope localVariables indexOf: load variable).
 	lexOffset: visitor contexts indexLast -
@@ -232,6 +241,7 @@ visitor@(LLVM Visitor traits) visit: load@(Syntax LoadVariable traits) [
 
 visitor@(LLVM Visitor traits) visit: store@(Syntax StoreVariable traits) [
 	| scope lexOffset varIndex |
+	inform: 'StoreVariable'.
 	scope: store variable scope.
 	varIndex: (scope localVariables indexOf: store variable).
 	lexOffset: visitor contexts indexLast -
@@ -242,15 +252,18 @@ visitor@(LLVM Visitor traits) visit: store@(Syntax StoreVariable traits) [
 visitor@(LLVM Visitor traits) visit: array@(Syntax Array traits) [
 "Generate the code to push the element expression results on the stack,
 then the appropriate literal-array constructor bytecode."
+	inform: 'Array'.
 ].
 
 visitor@(LLVM Visitor traits) visit: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) [
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
+	inform: ('Selector: '; selector).
 	args do: [| :arg | visitor visit: arg].
 ].
 
 visitor@(LLVM Visitor traits) visit: msg@(Syntax Message traits) &optionals: opts [
+	inform: 'Message'.
 	visitor visit: msg selector on: msg arguments from: (opts ifNil: [msg])
 ].
 
@@ -261,6 +274,7 @@ visitor@(LLVM Visitor traits) visit: macro@(Syntax Macro traits) &optionals: opt
 
 visitor@(LLVM Visitor traits) visit: def@(Syntax Deferred traits) &optionals: opts [
 	| block message |
+	inform: 'Deferred'.
 	block: Syntax Block new `>> [parentScope: visitor currentMethod sourceTree. ].
 	def arguments size timesRepeat: #addInputVariable `er <- block.
 	message: (Syntax Message sending: def selector to:
@@ -280,6 +294,7 @@ visitor@(LLVM Visitor traits) visit: def@(Syntax Deferred traits) &optionals: op
 visitor@(LLVM Visitor traits) visit: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) [ 
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
+	inform: 'OptionalKeywords+'.
 	args do: [| :arg | visitor visit: arg ].
 	opts keywords with: opts arguments do: [
 		| :key :arg |
@@ -288,6 +303,7 @@ the push for the selector, and then the appropriate message send bytecode."
 ].
 
 visitor@(LLVM Visitor traits) visit: opts@(Syntax OptionalKeywords traits) [
+	inform: 'OptionalKeywords'.
 	visitor visit: opts message &optionals: opts
 ].
 
