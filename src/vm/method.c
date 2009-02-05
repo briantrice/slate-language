@@ -408,7 +408,7 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
   }
 
   if (object_to_smallint(callee->cachedInCallersCount) >= array_size(callee->cachedInCallers)) {
-    struct OopArray* newArray = callee->cachedInCallers = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), array_size(callee->cachedInCallers) * 2);
+    struct OopArray* newArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), array_size(callee->cachedInCallers) * 2);
     copy_words_into(callee->cachedInCallers->elements, array_size(callee->cachedInCallers), newArray->elements);
     callee->cachedInCallers = newArray;
     heap_store_into(oh, (struct Object*)callee, (struct Object*)callee->cachedInCallers);
