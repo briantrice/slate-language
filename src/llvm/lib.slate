@@ -1,16 +1,32 @@
-LLVM define: #Lib -> (
-	ExternalInterface newForLibrary: 'llvm' primitives: #(
-		(Pointer LLVMModuleCreateWithName(CString))	
-		(Void LLVMDisposeModule(Pointer))	
+LLVM ensureNamespace: #Lib &delegate: False.
+
+LLVM Lib define: #System -> (
+	ExternalInterface newForLibrary: 'libLLVMSystem' primitives: #(
+	)
+).
+
+LLVM Lib System enable.
+
+LLVM Lib define: #Support -> (
+	ExternalInterface newForLibrary: 'libLLVMSupport' primitives: #(
+	)
+).
+
+LLVM Lib Support enable.
+
+LLVM Lib define: #Core -> (
+	ExternalInterface newForLibrary: 'libLLVMCore' primitives: #(
+		(Pointer LLVMModuleCreateWithName(CString))
+		(Void LLVMDisposeModule(Pointer))
 		(Void LLVMDumpModule(Pointer))
-		(CString LLVMGetDataLayout(Pointer))	
+		(CString LLVMGetDataLayout(Pointer))
 		(Void LLVMGetDataLayout(Pointer CString))
-		(CString LLVMGetTarget(Pointer))	
+		(CString LLVMGetTarget(Pointer))
 		(Void LLVMSetTarget(Pointer CString))
 		(Void LLVMDeleteTypeName(Pointer CString))
 		(Int LLVMAddTypeName(Pointer CString Pointer))
 	)
 ).
 
-LLVM Lib enable.
+LLVM Lib Core enable.
  
