@@ -10,7 +10,6 @@
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Target.h>
-#include "llvm/Config/config.h"
 
 EXPORT LLVMModuleRef llvm_module_create_with_name(char *moduleID) {
 	return LLVMModuleCreateWithName(moduleID);
