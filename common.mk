@@ -98,7 +98,7 @@ LDFLAGS_gdk-wrapper.lo=`pkg-config --libs gdk-2.0` `pkg-config --libs gthread-2.
 CFLAGS_gtk-wrapper.c=`pkg-config --cflags gtk+-2.0`
 LDFLAGS_gtk-wrapper.lo=`pkg-config --libs gtk+-2.0`
 CFLAGS_llvm.c=`llvm-config --cflags`
-LDFLAGS_llvm.lo=`lvm-config --libs`
+LDFLAGS_llvm.lo=-L`llvm-config --libdir` -Wl,-whole-archive `llvm-config --libs core` -Wl,-no-whole-archive -lstdc++
 
 #CFLAGS_socket.c=
 
