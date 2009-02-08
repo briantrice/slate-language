@@ -5,44 +5,100 @@ m@(LLVM Module traits) new [
 	m shouldNotImplement
 ].
 
+"-------------------------------Create and destroy modules------------------------------------"
+
+"LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);"
 m@(LLVM Module traits) newWithID: id@(String traits) [
-	m newWithHandle: (LLVM Lib primitives LLVMModuleCreateWithName applyTo: {id})
+	m newWithHandle: (
+		LLVM Lib primitives LLVMModuleCreateWithName applyTo: {id}
+	)
 ].
 
+"void LLVMDisposeModule(LLVMModuleRef M);"
 m@(LLVM Module traits) dispose [
 	LLVM Lib primitives LLVMDisposeModule applyTo: {m handle}.
 	m
 ].
 
+"void LLVMDumpModule(LLVMModuleRef M);"
 m@(LLVM Module traits) dump [
 	LLVM Lib primitives LLVMDumpModule applyTo: {m handle}.
 	m
 ].
  
+"const char *LLVMGetDataLayout(LLVMModuleRef M);"
 m@(LLVM Module traits) dataLayout [
 	LLVM Lib primitives LLVMGetDataLayout applyTo: {m handle}
 ].
- 
+
+"void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);"
 m@(LLVM Module traits) dataLayout: triple@(String traits) [
 	LLVM Lib primitives LLVMSetDataLayout applyTo: {m handle. triple}.
 	m
 ].
- 
+
+"const char *LLVMGetTarget(LLVMModuleRef M);"
 m@(LLVM Module traits) target [
 	LLVM Lib primitives LLVMGetTarget applyTo: {m handle}
 ].
  
+"void LLVMSetTarget(LLVMModuleRef M, const char *Triple);" 
 m@(LLVM Module traits) target: triple@(String traits) [
 	LLVM Lib primitives LLVMSetTarget applyTo: {m handle. triple}.
 	m
 ].
- 
-m@(LLVM Module traits) deleteType: name@(String traits) [
+
+"void LLVMDeleteTypeName(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) deleteTypeNamed: name@(String traits) [
 	LLVM Lib primitives LLVMDeleteTypeName applyTo: {m handle. name }.
 	m
 ].
  
-m@(LLVM Module traits) addType: type@(LLVM Type traits) name: name@(String traits) [
+"int LLVMAddTypeName(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty);"
+m@(LLVM Module traits) addTypeNamed: name@(String traits) type: type@(LLVM Type traits) [
 	LLVM Lib primitives LLVMAddTypeName applyTo: {m handle. name. type handle }
 ].
+
+"LLVMModuleProviderRef
+LLVMCreateModuleProviderForExistingModule(LLVMModuleRef M);"
+m@(LLVM Module traits) provider [
+	LLVM ModuleProvider newWithHandle: (
+		LLVM Lib primitives LLVMCreateModuleProviderForExistingModule applyTo: {m handle }
+	)
+].
+
+"-------------------------------Operations on global variables------------------------------------"
+
+"LLVMValueRef LLVMAddGlobal(LLVMModuleRef M, LLVMTypeRef Ty, const char *Name);"
+m@(LLVM Module traits) addGlobalNamed: name@(String traits) type: type@(LLVM Type traits) [
+	LLVM Value Global newWithHandle: (
+		LLVM Lib primitives LLVMAddGlobal applyTo: {m handle. type handle. name }
+	)
+].
+
+"LLVMValueRef LLVMGetNamedGlobal(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) globalNamed: name@(String traits) [
+	LLVM Value Global newWithHandle: (
+		LLVM Lib primitives LLVMGetNamedGlobal applyTo: {m handle. name }
+	)
+].
+
+"-------------------------------Operations on function variables------------------------------------"
+
+"LLVMValueRef LLVMAddFunction(LLVMModuleRef M, const char *Name,
+                             LLVMTypeRef FunctionTy);"
+m@(LLVM Module traits) addFunctionNamed: name@(String traits) type: type@(LLVM Type Function traits) [
+	LLVM Value Function newWithHandle: (
+		LLVM Lib primitives LLVMAddFunction applyTo: {m handle. name. type handle }
+	)
+].
+
+"LLVMValueRef LLVMGetNamedFunction(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) functionNamed: name@(String traits) [
+	LLVM Value Function newWithHandle: (
+		LLVM Lib primitives LLVMGetNamedFunction applyTo: {m handle. name }
+	)
+].
+
+
  

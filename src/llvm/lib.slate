@@ -1,5 +1,6 @@
 LLVM define: #Lib -> (
 	ExternalInterface newForLibrary: 'llvm' primitives: #(
+"Create and destroy modules"
 		(Pointer LLVMModuleCreateWithName(CString))
 		(Void LLVMDisposeModule(Pointer))
 		(Void LLVMDumpModule(Pointer))
@@ -9,6 +10,74 @@ LLVM define: #Lib -> (
 		(Void LLVMSetTarget(Pointer CString))
 		(Void LLVMDeleteTypeName(Pointer CString))
 		(Int LLVMAddTypeName(Pointer CString Pointer))
+		(Pointer LLVMCreateModuleProviderForExistingModule(Pointer))
+
+		(Void LLVMDisposeModuleProvider(Pointer))
+
+"Operations on global variables"
+		(Pointer LLVMAddGlobal(Pointer Pointer CString))
+		(Pointer LLVMGetNamedGlobal(Pointer CString))
+
+"Operations on function variables"
+		(Pointer LLVMAddFunction(Pointer CString Pointer))
+		(Pointer LLVMGetNamedFunction(Pointer CString))
+
+"Operations on integer types"
+		(Pointer LLVMInt1Type())
+		(Pointer LLVMInt8Type())
+		(Pointer LLVMInt16Type())
+		(Pointer LLVMInt32Type())
+		(Pointer LLVMInt64Type())
+		(Pointer LLVMIntType(Int))
+		
+"Operations on function types "
+		(Pointer LLVMFunctionType(Pointer Bytes Int Boolean))
+
+"Operations on other types"
+		(Pointer LLVMVoidType())
+		(Pointer LLVMLabelType())
+		(Pointer LLVMOpaqueType())
+
+"Instruction builders"
+		(Pointer LLVMCreateBuilder())
+		(Void LLVMDisposeBuilder(Pointer))
+		(Void LLVMPositionBuilderAtEnd(Pointer Pointer))
+		
+"Terminators"
+		(Pointer LLVMBuildRetVoid(Pointer))
+		(Pointer LLVMBuildRet(Pointer Pointer))
+		
+"Arithmetic"
+		(Pointer LLVMBuildAdd(Pointer Pointer Pointer CString))
+
+"Miscellaneous instructions"
+		(Pointer LLVMBuildCall(Pointer Pointer Bytes Int CString))
+
+"Operations on all values"
+		(CString LLVMGetValueName(Pointer))
+		(Void LLVMSetValueName(Pointer CString))
+
+"Operations on parameters"
+		(Int LLVMCountParams(Pointer))
+		(Pointer LLVMGetParam(Pointer Int))
+
+"Operations on scalar constants"
+		(Pointer LLVMConstInt(Pointer Int Boolean))
+		(Pointer LLVMCreateGenericValueOfInt(Pointer Int Boolean))
+
+"Operations on basic blocks"
+		(Pointer LLVMAppendBasicBlock(Pointer CString))
+		
+"Operations on functions"
+		(Boolean wrapper_LLVMVerifyFunction(Pointer))
+
+"Execution Engine"
+		(Pointer wrapper_LLVMCreateExecutionEngine(Pointer))
+		(Void LLVMDisposeExecutionEngine(Pointer))
+		(Pointer LLVMRunFunction(Pointer Pointer Int Bytes))
+
+		(Void LLVMDisposeGenericValue(Pointer))
+		(Int LLVMGenericValueToInt(Pointer Boolean))
 	)
 ).
 

@@ -1,0 +1,64 @@
+LLVM define: #IRBuilder &parents: {LLVM Pointer}.
+LLVM IRBuilder traits atSlotNamed: #printName put: 'LLVM IRBuilder'.
+
+"--------------------------------Instruction builders------------------------------"
+
+"LLVMBuilderRef LLVMCreateBuilder(void);"
+irb@(LLVM IRBuilder traits) new [
+	irb newWithHandle: (
+		LLVM Lib primitives LLVMCreateBuilder do
+	)
+].
+
+"void LLVMDisposeBuilder(LLVMBuilderRef Builder);"
+irb@(LLVM IRBuilder traits) dispose [
+	LLVM Lib primitives LLVMDisposeBuilder applyTo: {irb handle}.
+	irb
+].
+
+"void LLVMPositionBuilderAtEnd(LLVMBuilderRef Builder, LLVMBasicBlockRef Block);"
+irb@(LLVM IRBuilder traits) insertPoint: block@(LLVM Value Block traits) [
+	LLVM Lib primitives LLVMPositionBuilderAtEnd applyTo: {irb handle. block handle}.
+	irb
+].
+
+"--------------------------------Terminators------------------------------"
+
+"LLVMValueRef LLVMBuildRetVoid(LLVMBuilderRef);"
+"LLVMValueRef LLVMBuildRet(LLVMBuilderRef, LLVMValueRef V);"
+irb@(LLVM IRBuilder traits) ret &value: value [
+	value
+		ifNil: [
+			LLVM Lib primitives LLVMBuildRetVoid applyTo: {irb handle}
+		]
+		ifNotNil: [
+			LLVM Lib primitives LLVMBuildRet applyTo: {irb handle. value handle}
+		]
+].
+
+"--------------------------------Arithmetic------------------------------"
+
+"LLVMValueRef LLVMBuildAdd(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,
+                          const char *Name);"
+irb@(LLVM IRBuilder traits) add: values@(Tuple traits) &name: name [
+	name `defaultsTo: 'addtmp'.
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMBuildAdd applyTo: {irb handle. values first handle. values second handle. name }
+	)
+].
+
+"--------------------------------Miscellaneous instructions------------------------------"
+
+"LLVMValueRef LLVMBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
+                           LLVMValueRef *Args, unsigned NumArgs,
+                           const char *Name)"
+irb@(LLVM IRBuilder traits) call: function@(LLVM Value Function traits) arguments: arguments@(Sequence traits) &name: name [
+	| args |
+	name `defaultsTo: 'calltmp'.
+	args: (arguments collect: [ | :each | each handle ]).
+	args: (args reduce: #; `er).
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMBuildCall applyTo: { irb handle. function handle. args. arguments size. name }
+	)
+].
+                       

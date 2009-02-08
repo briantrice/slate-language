@@ -1,4 +1,4 @@
-Gtk define: #Debugger &parents: {Cloneable} &slots: { #condition. #view }. 
+Gtk define: #Debugger &parents: {Cloneable} &slots: { #condition. #view. #debugger }.
 Gtk Debugger traits atSlotNamed: #printName put: 'Gtk Debugger'. 
 
 d@(Gtk Debugger traits) newFor: condition [
@@ -6,6 +6,9 @@ d@(Gtk Debugger traits) newFor: condition [
 			
 	debugger: d new.
 	debugger condition: condition.
+	condition ifNotNil: [
+	  	debugger debugger: (Debugger newFor: d condition).
+	].
 	debugger buildView.
 	debugger
 ].
@@ -56,17 +59,34 @@ d@(Gtk Debugger traits) buildStackView [
 	
 	stackView gridLines: Gtk TreeViewGridLines Both.
 	d loadStackIn: stackView model.
+	stackView when: #row-activated send: #onStackView:rowActivated:column: to: d.
 	Gtk ScrolledWindow newWithChild: stackView	
 ].
 
 d@(Gtk Debugger traits) loadStackIn: model [
 	model clear.
-	d condition ifNotNil: [
-	  | debugger |
-	  debugger: (Debugger newFor: d condition).
-	  debugger frameList do: [ 
+	d debugger ifNotNil: [
+	 	d debugger frameList do: [
 			| :each |
 			model append: (Nil -> { 'gtk-execute'. each method printString })
 		].
 	].
+].
+
+d@(Gtk Debugger traits) onStackView: stackView rowActivated: path column: column [
+	| iter index selectedMethod |
+	d debugger ifNil: [ ^ Nil ].
+	iter: stackView selection selected.
+	iter ifNil: [ ^ Nil ].
+	index: ((stackView model stringFromIter: iter) as: Integer).
+	selectedMethod: (d debugger frameList at: index) method.
+	(selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
+	selectedMethod sourceTree ifNil: [ ^ Nil ].
+	(selectedMethod sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+	(selectedMethod sourceTree source hasSlotNamed: #resource) ifTrue: [
+		| workspace |
+		workspace: (Gtk Workspace new &fileName: (selectedMethod sourceTree source resource locator as: String)).
+		workspace goToLineNumber: selectedMethod sourceTree lineNumber.
+		workspace show.
+	]
 ].

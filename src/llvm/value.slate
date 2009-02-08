@@ -1,0 +1,70 @@
+LLVM define: #Value &parents: {LLVM Pointer}.
+LLVM Value traits atSlotNamed: #printName put: 'LLVM Value'.
+
+v@(LLVM Value traits) new [
+	v shouldNotImplement
+].
+
+"------------------------------------Operations on all values-----------------------------------------"
+
+"const char *LLVMGetValueName(LLVMValueRef Val);"
+v@(LLVM Value traits) name [
+	LLVM Lib primitives LLVMGetValueName applyTo: {v handle}
+].
+
+"void LLVMSetValueName(LLVMValueRef Val, const char *Name);"
+v@(LLVM Value traits) name: name@(String traits) [
+	LLVM Lib primitives LLVMSetValueName applyTo: {v handle. name }.
+	v
+].
+
+"------------------------------------Operations on parameters-----------------------------------------"
+
+LLVM Value define: #Function &parents: {LLVM Value}.
+LLVM Value Function traits atSlotNamed: #printName put: 'LLVM Value Function'.
+
+"unsigned LLVMCountParams(LLVMValueRef Fn);"
+f@(LLVM Value Function traits) parameterCount [
+	LLVM Lib primitives LLVMCountParams applyTo: {f handle}
+].
+
+"LLVMValueRef LLVMGetParam(LLVMValueRef Fn, unsigned Index);"
+f@(LLVM Value Function traits) parameterAt: index@(Integer traits) [
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMGetParam applyTo: {f handle. index}
+	)
+].
+
+f@(LLVM Value Function traits) parameters [
+	| parameters parameterCount |
+	parameterCount: f parameterCount.
+	parameters: (Array new &capacity: parameterCount).
+	0 below: parameterCount do: [ | :index |
+		parameters at: index put: (f parameterAt: index)
+	].
+	parameters
+].
+
+LLVM Value define: #Global &parents: {LLVM Value}.
+LLVM Value Global traits atSlotNamed: #printName put: 'LLVM Value Global'.
+
+LLVM Value define: #Block &parents: {LLVM Value}.
+LLVM Value Block traits atSlotNamed: #printName put: 'LLVM Value Block'.
+
+"------------------------------------Operations on basic blocks-----------------------------------------"
+
+"LLVMBasicBlockRef LLVMAppendBasicBlock(LLVMValueRef Fn, const char *Name);"
+f@(LLVM Value Function traits) addBlockNamed: name@(String traits) [
+	LLVM Value Block newWithHandle: (
+		LLVM Lib primitives LLVMAppendBasicBlock applyTo: {f handle. name }
+	)
+].
+
+"------------------------------------Operations on basic blocks-----------------------------------------"
+
+"int wrapper_LLVMVerifyFunction(LLVMValueRef Fn);"
+f@(LLVM Value Function traits) verify [
+	LLVM Lib primitives wrapper_LLVMVerifyFunction applyTo: {f handle}
+].
+
+

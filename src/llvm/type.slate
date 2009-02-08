@@ -1,3 +1,161 @@
 LLVM define: #Type &parents: {LLVM Pointer}.
 LLVM Type traits atSlotNamed: #printName put: 'LLVM Type'. 
 
+t@(LLVM Type traits) new [
+	t shouldNotImplement
+].
+
+"-------------------------------Operations on integer types------------------------------------"
+
+LLVM Type define: #Integer &parents: {LLVM Type}.
+LLVM Type Integer traits atSlotNamed: #printName put: 'LLVM Type Integer'.
+
+"LLVMTypeRef LLVMIntType(unsigned NumBits);"
+i@(LLVM Type Integer traits) newWithBits: numBits@(Integer traits) [
+	i newWithHandle: (
+		LLVM Lib primitives LLVMIntType applyTo: { numBits }
+	)
+].
+
+LLVM Type define: #Integer1 &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Integer1 traits atSlotNamed: #printName put: 'LLVM Type Integer1'.
+
+"LLVMTypeRef LLVMInt1Type(void);"
+i1@(LLVM Type Integer1 traits) initialize [
+	i1 handle: (
+		LLVM Lib primitives LLVMInt1Type do
+	)
+].
+
+LLVM Type Integer1 initialize.
+
+LLVM Type define: #Integer8 &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Integer8 traits atSlotNamed: #printName put: 'LLVM Type Integer8'.
+
+"LLVMTypeRef LLVMInt8Type(void);"
+i8@(LLVM Type Integer8 traits) initialize [
+	i8 handle: (
+		LLVM Lib primitives LLVMInt8Type do
+	)
+].
+
+LLVM Type Integer8 initialize.
+
+LLVM Type define: #Integer16 &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Integer16 traits atSlotNamed: #printName put: 'LLVM Type Integer16'.
+
+"LLVMTypeRef LLVMInt16Type(void);"
+i16@(LLVM Type Integer16 traits) initialize [
+	i16 handle: (
+		LLVM Lib primitives LLVMInt16Type do
+	)
+].
+
+LLVM Type Integer16 initialize.
+
+LLVM Type define: #Integer32 &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Integer32 traits atSlotNamed: #printName put: 'LLVM Type Integer32'.
+
+"LLVMTypeRef LLVMInt32Type(void);"
+i32@(LLVM Type Integer32 traits) initialize [
+	i32 handle: (
+		LLVM Lib primitives LLVMInt32Type do
+	)
+].
+
+LLVM Type Integer32 initialize.
+
+LLVM Type define: #Integer64 &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Integer64 traits atSlotNamed: #printName put: 'LLVM Type Integer64'.
+
+"LLVMTypeRef LLVMInt64Type(void);"
+i64@(LLVM Type Integer64 traits) initialize [
+	i64 handle: (
+		LLVM Lib primitives LLVMInt64Type do
+	)
+].
+
+LLVM Type Integer64 initialize.
+
+"-------------------------------Operations on function types------------------------------------"
+
+LLVM Type define: #Function &parents: {LLVM Type}.
+LLVM Type Function traits atSlotNamed: #printName put: 'LLVM Type Function'. 
+
+"LLVMTypeRef LLVMFunctionType(LLVMTypeRef ReturnType,
+                             LLVMTypeRef *ParamTypes, unsigned ParamCount,
+                             int IsVarArg);"
+f@(LLVM Type Function traits) new &returnType: returnType &paramaterTypes: parameterTypes &isVarAgr: isVarArg [
+	| parameters |
+	returnType `defaultsTo: LLVM Type void.
+	parameterTypes `defaultsTo: {}.
+	isVarArg `defaultsTo: False.
+	parameters: (parameterTypes collect: [ | :each | each handle ]).
+	parameters: (parameters reduce: #; `er).
+	f newWithHandle: (
+		LLVM Lib primitives LLVMFunctionType applyTo: { returnType handle. parameters. parameterTypes size. isVarArg }
+	)
+].
+
+"-------------------------------Operations on other types------------------------------------"
+
+LLVM Type define: #Void &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Void traits atSlotNamed: #printName put: 'LLVM Type Void'.
+
+"LLVMTypeRef LLVMInt64Type(void);"
+i64@(LLVM Type Void traits) initialize [
+	i64 handle: (
+		LLVM Lib primitives LLVMInt64Type do
+	)
+].
+
+LLVM Type Void initialize.
+
+LLVM Type define: #Label &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Label traits atSlotNamed: #printName put: 'LLVM Type Label'.
+
+"LLVMTypeRef LLVMInt64Type(void);"
+i64@(LLVM Type Label traits) initialize [
+	i64 handle: (
+		LLVM Lib primitives LLVMInt64Type do
+	)
+].
+
+LLVM Type Label initialize.
+
+LLVM Type define: #Opaque &parents: {Oddball. LLVM Type Integer}.
+LLVM Type Opaque traits atSlotNamed: #printName put: 'LLVM Type Opaque'.
+
+"LLVMTypeRef LLVMInt64Type(void);"
+i64@(LLVM Type Opaque traits) initialize [
+	i64 handle: (
+		LLVM Lib primitives LLVMInt64Type do
+	)
+].
+
+LLVM Type Opaque initialize.
+
+"-------------------------------Operations on scalar constants------------------------------------"
+
+"LLVMValueRef LLVMConstInt(LLVMTypeRef IntTy, unsigned long long N,
+                          int SignExtend);"
+t@(LLVM Type Integer traits) value: value@(Integer traits) signed: signed@(Boolean traits) [
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMConstInt applyTo: { t handle. value. signed }
+	)
+].
+
+"LLVMGenericValueRef LLVMCreateGenericValueOfInt(LLVMTypeRef Ty,
+                                                unsigned long long N,
+                                                int IsSigned);"
+t@(LLVM Type Integer traits) genericValue: value@(Integer traits) signed: signed@(Boolean traits) [
+	LLVM GenericValue newWithHandle: (
+		LLVM Lib primitives LLVMCreateGenericValueOfInt applyTo: { t handle. value. signed }
+	)
+].
+
+
+                        
+
+
+
