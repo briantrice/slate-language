@@ -59,6 +59,29 @@ d@(Derivable traits) orderTraits &mixins: mixins
 
 ].
 
+"this one ignores the d object"
+d@(Derivable traits) orderTraits: mixins
+[| tally order index fixedOrder |
+  tally: mixins size.
+  mixins do: [| :mixin | tally: tally + mixin traitsTally].
+  order: (Array newSize: tally).
+
+  mixins doWithIndex: [| :each :i | order at: i + 1 put: each traits].
+
+  index: mixins size + 1.
+
+  mixins do:
+    [| :mixin |
+     mixin traitsDo:
+       [| :traits |
+        (order includes: traits)
+          ifFalse:
+            [order at: index put: traits. index: index + 1]]].
+
+  (order first: index) reversed
+
+].
+
 
 d@(Derivable traits) derive &mixins: mixins &rejects: rejectSlots
 "Constructs and returns a new prototype based on the argument with a new
@@ -82,14 +105,16 @@ except for those named rejects."
   newObj
 ].
 
-x@(Root traits) addPrototype: protoName &parents: parents &immutable: immutable
+x@(Root traits) addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn
 "Creates a new prototype with the given name, handles derive calls
 transparently, and sets the traits name slot to the name for convenience."
 [| newProto |
   immutable `defaultsTo: False.
+  basedOn `defaultsTo: Cloneable.
   parents `defaultsTo: {Cloneable}.
   parents size = 0 ifTrue: [error: 'Parent objects must be supplied.'].
-  newProto: ((parents at: 0) derive &mixins: (parents allButFirst: 1)).
+  "newProto: ((parents at: 0) derive &mixins: (parents allButFirst: 1))."
+  newProto: (basedOn derive &mixins: parents).
   immutable ifTrue: [newProto: newProto immutably].
   "ensureSlot:is: may return the old value if =, but always returns what
   is installed after the method is done."
@@ -123,9 +148,9 @@ x@(Root traits) printDelegates
   x traitsWindow _delegates do: [|:d| inform: d printName].
 ].
 
-x@(Root traits) addPrototype: protoName derivedFrom: parents
+x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn: basedOn
 "Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
-[x addPrototype: protoName &parents: parents].
+[x addPrototype: protoName &parents: parents &basedOn: basedOn].
 
 x@(Root traits) define: slotName using: builder
 "Creates a conservative new immutable slot holding the results of the block.
@@ -145,11 +170,12 @@ existing object. This is essentially a conservative object-slot tree builder."
 
 x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
   &builder: builder &namespace: ns &owner: obj &immutable: immutable
+  &basedOn: basedOn
 "Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
 [| proto |
   immutable `defaultsTo: False.
   slotSpecs `defaultsTo: #().
-  proto: (builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable]
+  proto: (builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn]
 		  ifNotNil: [x define: protoName using: builder]).
   slotSpecs do:
     [| :each | (each is: Association)

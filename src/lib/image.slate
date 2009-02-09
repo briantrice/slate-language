@@ -102,10 +102,11 @@ i@Image objectCount
 
 _@globals executionArguments
 "Answer the arguments that Slate was invoked with, as an Array of Strings."
-[| buffer n |
-  buffer: (ByteArray newSize: 1024).
-  n: (lobby runArgsInto: buffer).
-  ((buffer first: n) as: String) splitWith: $\0
+[| array argc |
+  argc: lobby vmArgCount.
+  array: (Array newSize: argc).
+  0 below: argc do: [|:i| array at: i put: ((lobby vmArg: i) as: String)].
+  array
 ].
 
 Image startupActions at: #StartupArguments put:

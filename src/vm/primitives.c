@@ -942,12 +942,31 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struc
 
 }
 
+/*obsolete*/
 void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   struct ByteArray* arguments = (struct ByteArray*)args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = 
                          smallint_to_object(write_args_into(oh, (char*)byte_array_elements(arguments), byte_array_size(arguments)));
 
   
+}
+
+void prim_vmArgCount(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(oh->argcSaved);
+}
+
+void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  word_t i;
+  int len;
+  struct ByteArray* array;
+  ASSURE_SMALLINT_ARG(1);  
+  i = object_to_smallint(args[1]);
+  len = strlen(oh->argvSaved[i]);
+
+  array = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), len);
+  copy_bytes_into((byte_t*)oh->argvSaved[i], len, array->elements);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
 }
 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
@@ -1668,7 +1687,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
- /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_fixme, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
