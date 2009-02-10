@@ -16,13 +16,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void *currentLiteralsArray;
-
 EXPORT int wrapper_LLVMVerifyFunction(LLVMValueRef Fn) {
   	LLVMVerifyFunction(Fn, LLVMReturnStatusAction) == 0;
 }
 
-LLVMExecutionEngineRef wrapper_LLVMCreateExecutionEngine(LLVMModuleProviderRef MP) {
+EXPORT LLVMExecutionEngineRef wrapper_LLVMCreateExecutionEngine(LLVMModuleProviderRef MP) {
 	LLVMExecutionEngineRef Interp;
 	char *Error;
 	if( LLVMCreateExecutionEngine(&Interp, MP, &Error) ) {
@@ -31,3 +29,4 @@ LLVMExecutionEngineRef wrapper_LLVMCreateExecutionEngine(LLVMModuleProviderRef M
 	}
 	return Interp;
 }
+
