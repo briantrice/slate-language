@@ -1,5 +1,5 @@
 LLVM define: #Lib -> (
-	ExternalInterface newForLibrary: 'llvm' primitives: #(
+	ExternalInterface newForLibrary: 'llvm-lib' primitives: #(
 "Create and destroy modules"
 		(Pointer LLVMModuleCreateWithName(CString))
 		(Void LLVMDisposeModule(Pointer))
@@ -63,23 +63,21 @@ LLVM define: #Lib -> (
 
 "Operations on scalar constants"
 		(Pointer LLVMConstInt(Pointer Int Boolean))
-		(Pointer LLVMCreateGenericValueOfInt(Pointer Int Boolean))
 
 "Operations on basic blocks"
 		(Pointer LLVMAppendBasicBlock(Pointer CString))
-		
+
 "Operations on functions"
-		(Boolean wrapper_LLVMVerifyFunction(Pointer))
-
-"Execution Engine"
-		(Pointer wrapper_LLVMCreateExecutionEngine(Pointer))
-		(Void LLVMDisposeExecutionEngine(Pointer))
-		(Pointer LLVMRunFunction(Pointer Pointer Int Bytes))
-
-		(Void LLVMDisposeGenericValue(Pointer))
-		(Int LLVMGenericValueToInt(Pointer Boolean))
+		(Boolean LLVMVerifyFunction(Pointer Int))
 	)
 ).
 
 LLVM Lib enable.
- 
+
+LLVM define: #Wrapper -> (
+	ExternalInterface newForLibrary: 'llvm-wrapper' primitives: #(
+	)
+).
+
+LLVM Wrapper enable.
+

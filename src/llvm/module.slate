@@ -100,5 +100,14 @@ m@(LLVM Module traits) functionNamed: name@(String traits) [
 	)
 ].
 
+"int LLVMModuleCopyBitcodeToBuffer(LLVMModuleRef M);"
+m@(LLVM Module traits) bitcode [
+	| size buffer |
+	size: (LLVM Lib primitives LLVMModuleCopyBitcodeToBuffer applyTo: {m handle}).
+	buffer: (ByteArray new &capacity: size).
+	LLVM Lib primitives LLVMGetBitcodeBuffer applyTo: {buffer}.
+	buffer
+].
+
 
  

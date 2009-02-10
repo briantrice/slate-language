@@ -63,8 +63,9 @@ f@(LLVM Value Function traits) addBlockNamed: name@(String traits) [
 "------------------------------------Operations on basic blocks-----------------------------------------"
 
 "int wrapper_LLVMVerifyFunction(LLVMValueRef Fn);"
-f@(LLVM Value Function traits) verify [
-	LLVM Lib primitives wrapper_LLVMVerifyFunction applyTo: {f handle}
+f@(LLVM Value Function traits) verify &failureAction: failureAction [
+	failureAction `defaultsTo: LLVM VerifierFailureAction ReturnStatus.
+	LLVM Lib primitives LLVMVerifyFunction applyTo: { f handle. failureAction }
 ].
 
 
