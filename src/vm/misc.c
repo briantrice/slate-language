@@ -126,7 +126,7 @@ word_t max(word_t x, word_t y) {
 
 
 
-
+/*obsolete*/
 word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
 
   word_t i, iLen, totalLen;
@@ -141,6 +141,7 @@ word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
   return totalLen;
 
 }
+
 
 
 word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)
