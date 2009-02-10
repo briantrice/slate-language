@@ -66,9 +66,9 @@ d@(Derivable traits) orderTraits: mixins
   mixins do: [| :mixin | tally: tally + mixin traitsTally].
   order: (Array newSize: tally).
 
-  mixins doWithIndex: [| :each :i | order at: i + 1 put: each traits].
+  mixins doWithIndex: [| :each :i | order at: i put: each traits].
 
-  index: mixins size + 1.
+  index: mixins size.
 
   mixins do:
     [| :mixin |
@@ -94,7 +94,8 @@ except for those named rejects."
   rejectSlots `defaultsTo: #().
   newWindow: Cloneable clone.
   newWindow restrictDelegation.
-  newWindow _delegates: (d orderTraits &mixins: mixins).
+  "newWindow _delegates: (d orderTraits &mixins: mixins)."
+  newWindow _delegates: (d orderTraits: mixins).
   newWindow addDelegate: Cloneable clone. "the traits for this object"
   newObj: d clone.
   newObj _delegates: {newWindow}.
