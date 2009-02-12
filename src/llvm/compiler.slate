@@ -1,12 +1,25 @@
 block@(Syntax Block traits) compile2 [
-"Invoke the LLVM compiler."
+"Invoke the LLVM c."
 	LLVM Compiler new generate: block
 ].
 
-LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new}.
+LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder}.
 
-compiler@(LLVM Compiler traits) new [
-	compiler clone `>> [ contexts: compiler contexts new. ]
+LLVM Compiler define: #DefaultModule -> (
+	LLVM Module newWithID: 'slate'
+).
+
+c@(LLVM Compiler traits) new &module: useModule [
+	useModule `defaultsTo: LLVM Compiler DefaultModule.
+	c clone `>> [ 
+		contexts: c contexts new.
+		module: useModule.
+		builder: LLVM IRBuilder new.
+	]
+].
+
+c@(LLVM Compiler traits) intern: si@(SmallInteger) [
+	si << 1 bitOr: 1
 ].
 
 LLVM Compiler traits define: #Context &parents: {Cloneable} &slots: {
@@ -41,45 +54,45 @@ c@(LLVM Compiler Context traits) flush
   c
 ].
 
-compiler@(LLVM Compiler traits) currentContext [
-	compiler contexts top
+c@(LLVM Compiler traits) currentContext [
+	c contexts top
 ].
 
-compiler@(LLVM Compiler traits) currentMethod [
-	compiler currentContext method
+c@(LLVM Compiler traits) currentMethod [
+	c currentContext method
 ].
 
-compiler@(LLVM Compiler traits) literal: obj [
+c@(LLVM Compiler traits) literal: obj [
 "Ensure that the literal object is included in the literals array. If it is
 not present already, it is appended to the end, thus ensuring that no other
 indices require shifting. Answer the literal's index."
-	(compiler contexts top literals 
+	(c contexts top literals 
 		indexOfFirstSatisfying: 
 		[| :literal | obj = literal /\ [obj isSameAs: literal]])
 		ifNil:
 		[| index |
-			index: compiler contexts top literals size.
-			compiler contexts top literals addLast: obj.
+			index: c contexts top literals size.
+			c contexts top literals addLast: obj.
 			index]
 ].
 
-compiler@(LLVM Compiler traits) selector: selector [
+c@(LLVM Compiler traits) selector: selector [
 "Ensure that the literal object is included in the selectors array. If it is
 not present already, it is appended to the end, thus ensuring that no other
 indices require shifting. Answer the selector's index."
-	compiler contexts top selectors `>> [include: selector. indexOf: selector]
+	c contexts top selectors `>> [include: selector. indexOf: selector]
 ].
 
 _@(LLVM Compiler traits) generate: _@(Syntax Node traits) [
 "Do nothing in the default case, for comments and annotations and such."
 ].
 
-compiler@(LLVM Compiler traits) generate: ann@(Syntax Annotation traits) [
+c@(LLVM Compiler traits) generate: ann@(Syntax Annotation traits) [
 "Generate the annotation's value."
-  compiler generate: ann value
+  c generate: ann value
 ].
 
-compiler@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLevel [
+c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLevel [
 "Encountering a new block, build a new CompiledMethod object and push it and
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
@@ -88,17 +101,17 @@ and push it onto the stack."
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	newBlock: CompiledMethod new.
-	newBlock environment: (compiler contexts isEmpty
+	newBlock environment: (c contexts isEmpty
 		ifTrue: [block parentScope topLevel namespace]
-		ifFalse: [compiler currentMethod environment]).
+		ifFalse: [c currentMethod environment]).
 	  newBlock sourceTree: block.
-	compiler contexts push: (compiler Context newOn: newBlock).
+	c contexts push: (c Context newOn: newBlock).
 	  "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
-	statements: (block statements collect: [| :statement | statement macroExpand &environment: compiler currentMethod sourceTree]).
-	statements allButLastDo: [| :node | compiler generate: node].
+	statements: (block statements collect: [| :statement | statement macroExpand &environment: c currentMethod sourceTree]).
+	statements allButLastDo: [| :node | c generate: node].
 	statements size > 0
-		ifTrue: [ "returnRegister" compiler generate: statements last ]
-		ifFalse: [ "returnValue" ].
+		ifTrue: [ c builder ret &value: (c generate: statements last) ]
+		ifFalse: [ "returnValue" inform: 'Return: Nil' ].
 	
 	"Set the variable information after generation, just in case it was modified."
 	newBlock `>>
@@ -106,160 +119,172 @@ and push it onto the stack."
 		localVariables: block localVariables size.
 		restVariable: block restVariable isNotNil.
 		optionalKeywords: block optionalKeywords.].
-	isClosure: compiler currentContext isClosure.
+	isClosure: c currentContext isClosure.
 	
-	compiler contexts pop flush.
+	c contexts pop flush.
 	"Forces the newBlock to record all the remaining stream input correctly."
 	
-	compiler contexts isEmpty \/ [topLevel] ifFalse: [
+	c contexts isEmpty \/ [topLevel] ifFalse: [
 		isClosure
 			ifTrue: ["newClosure" ]
 			ifFalse: ["loadLiteral"]
 	].	
 ].
 
-compiler@(LLVM Compiler traits) generate: def@(Syntax MethodDefinition traits) [
+c@(LLVM Compiler traits) generate: def@(Syntax MethodDefinition traits) [
 "Translate method definitions to equivalent asMethod:on: invocations."
+	| functionType function |
 	inform: 'MethodDefinition'.
-  	compiler contexts isEmpty ifTrue: [ ^ resend ].
-  	#visit: sendTo: {gen. def} through: {gen. Syntax Block}.
-	def roles do: [ |:role | compiler generate: role ].
+	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
+	function: (c module addFunctionNamed: 'doSomething' type: functionType).
+	(function parameterAt: 0) `>> [ name: 'arg1' ].
+	(function parameterAt: 1) `>> [ name: 'arg2' ].	
+  	c builder insertPoint: (function addBlockNamed: 'entry').
+  	
+	c contexts isEmpty ifTrue: [ ^ resend ].
+  	#generate: sendTo: {c. def} through: {c. Syntax Block}.
+	def roles do: [ |:role | c generate: role ].
 	"directSendMessage"
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax Resend traits) [
+c@(LLVM Compiler traits) generate: r@(Syntax Resend traits) [
 	| lexOffset scope |
 	inform: 'Resend'.
-	scope: compiler currentMethod sourceTree.
-	lexOffset: compiler contexts indexLast -
-		((compiler contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+	scope: c currentMethod sourceTree.
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
 		ifNil:
 			[error: 'resend must be used within a method definition.']).
 	lexOffset > 0
 		ifTrue:
-		[(compiler contexts fromTop: lexOffset) method heapAllocate: True.
-			(compiler contexts top: lexOffset) do: #isClosure: `er <-* True].
+		[(c contexts fromTop: lexOffset) method heapAllocate: True.
+			(c contexts top: lexOffset) do: #isClosure: `er <-* True].
 	"resendMessage"
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax Return traits) [
+c@(LLVM Compiler traits) generate: r@(Syntax Return traits) [
 	overrideThis
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax Return traits) by: lexOffset [ 
+c@(LLVM Compiler traits) generate: r@(Syntax Return traits) by: lexOffset [ 
 	inform: 'Return'.
 	lexOffset > 0
 		ifTrue:
-		[(compiler contexts fromTop: lexOffset) method heapAllocate: True.
-		(compiler contexts top: lexOffset) do: [| :x | x isClosure: True]].
-	compiler generate: r value.
+		[(c contexts fromTop: lexOffset) method heapAllocate: True.
+		(c contexts top: lexOffset) do: [| :x | x isClosure: True]].
+	c generate: r value.
 	"returnFrom"
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax ReturnClose traits) [
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnClose traits) [
 "Exits the first enclosing named method in the lexical scope."
 	| lexOffset |
 	inform: 'ReturnClose'.
-  	lexOffset: compiler contexts indexLast -
-		((compiler contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+  	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
 		ifNil:
 			[error: '^ must be used within a method definition.']).
-	compiler generate: r by: lexOffset
+	c generate: r by: lexOffset
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax ReturnFar traits) [
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnFar traits) [
 "Exits the last enclosing named method in the lexical scope."
 	| lexOffset |
 	inform: 'ReturnFar'.
-	lexOffset: compiler contexts indexLast -
-		((compiler contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
 			ifNil: [error: '^^ must be used within a method definition.']).
-	compiler generate: r by: lexOffset
+	c generate: r by: lexOffset
 ].
 
-compiler@(LLVM Compiler traits) generate: r@(Syntax ReturnLevel traits) [
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnLevel traits) [
 	"Exits the Nth enclosing lexical scope."
 	inform: 'ReturnLevel'.
-	compiler generate: r by: r level
+	c generate: r by: r level
 ].
 
-compiler@(LLVM Compiler traits) generate: literal@(Syntax Literal traits) [
-	inform: ('Literal[' ; (compiler literal: literal) printString ; ']: ' ; literal printString).
+c@(LLVM Compiler traits) generate: literal@(Syntax Literal traits) [
+	| value |
+	inform: ('Literal[' ; (c literal: literal) printString ; ']: ' ; literal printString).
+	value: literal value.
+	(value is: SmallInteger)
+		ifTrue: [ LLVM Type Integer32 value: (c intern: value) signed: True ]
+		ifFalse: [ shouldImplement ]
 ].
 
-compiler@(LLVM Compiler traits) generate: n@(Syntax CompoundStatement traits) [
+c@(LLVM Compiler traits) generate: n@(Syntax CompoundStatement traits) [
 "return the registers that the values were saved into"
 	inform: 'CompoundStatement'.
 	n statements do: [
 		| :node |
-		compiler generate: node
+		c generate: node
 	]
 ].
 
-compiler@(LLVM Compiler traits) generate: n@(Syntax Parenthesis traits) [
+c@(LLVM Compiler traits) generate: n@(Syntax Parenthesis traits) [
 "return the registers that the values were saved into"
 	inform: 'Parenthesis'.
 	n statements do: [
 		| :node |
-		compiler generate: node
+		c generate: node
 	]
 ].
 
-compiler@(LLVM Compiler traits) generate: i@(Syntax ImplicitArgument traits) [
+c@(LLVM Compiler traits) generate: i@(Syntax ImplicitArgument traits) [
 	inform: 'ImplicitArgument'.
 ].
 
-compiler@(LLVM Compiler traits) generate: _@(Syntax Namespace traits) [
+c@(LLVM Compiler traits) generate: _@(Syntax Namespace traits) [
 	shouldNotImplement
 ].
 
-compiler@(LLVM Compiler traits) generate: load@(Syntax LoadVariable traits) [
+c@(LLVM Compiler traits) generate: load@(Syntax LoadVariable traits) [
 	| scope lexOffset varIndex |
 	inform: 'LoadVariable'.
 	scope: load variable scope.
 	varIndex: (scope localVariables indexOf: load variable).
-	lexOffset: compiler contexts indexLast -
-		((compiler contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
 			ifNil: [error: 'Could not determine variable scope.']).
 ].
 
-compiler@(LLVM Compiler traits) generate: store@(Syntax StoreVariable traits) [
+c@(LLVM Compiler traits) generate: store@(Syntax StoreVariable traits) [
 	| scope lexOffset varIndex |
 	inform: 'StoreVariable'.
 	scope: store variable scope.
 	varIndex: (scope localVariables indexOf: store variable).
-	lexOffset: compiler contexts indexLast -
-		((compiler contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
 			ifNil:[ error: 'Could not determine variable scope.']).
 ].
 
-compiler@(LLVM Compiler traits) generate: array@(Syntax Array traits) [
+c@(LLVM Compiler traits) generate: array@(Syntax Array traits) [
 "Generate the code to push the element expression results on the stack,
 then the appropriate literal-array constructor bytecode."
 	inform: 'Array'.
 ].
 
-compiler@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) [
+c@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) [
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 	inform: ('Selector: '; selector).
-	args do: [| :arg | compiler generate: arg].
+	args do: [| :arg | c generate: arg].
 ].
 
-compiler@(LLVM Compiler traits) generate: msg@(Syntax Message traits) &optionals: opts [
+c@(LLVM Compiler traits) generate: msg@(Syntax Message traits) &optionals: opts [
 	inform: 'Message'.
-	compiler generate: msg selector on: msg arguments from: (opts ifNil: [msg])
+	c generate: msg selector on: msg arguments from: (opts ifNil: [msg])
 ].
 
-compiler@(LLVM Compiler traits) generate: macro@(Syntax Macro traits) &optionals: opts [
-  "compiler generate: (macro macroExpand &optionals: opts &environment: compiler currentMethod sourceTree)"
+c@(LLVM Compiler traits) generate: macro@(Syntax Macro traits) &optionals: opts [
+  "c generate: (macro macroExpand &optionals: opts &environment: c currentMethod sourceTree)"
 	error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
-compiler@(LLVM Compiler traits) generate: def@(Syntax Deferred traits) &optionals: opts [
+c@(LLVM Compiler traits) generate: def@(Syntax Deferred traits) &optionals: opts [
 	| block message |
 	inform: 'Deferred'.
-	block: Syntax Block new `>> [parentScope: compiler currentMethod sourceTree. ].
+	block: Syntax Block new `>> [parentScope: c currentMethod sourceTree. ].
 	def arguments size timesRepeat: #addInputVariable `er <- block.
 	message: (Syntax Message sending: def selector to:
 		(block inputVariables collect: [| :var | Syntax LoadVariable from: var])).
@@ -269,25 +294,25 @@ compiler@(LLVM Compiler traits) generate: def@(Syntax Deferred traits) &optional
 			((Syntax OptionalArguments for: message)
 			`>> [arguments: (opts arguments deepCopy: block). ])].
 	block statements: {message}.
-	compiler generate:
+	c generate:
 		(Syntax KeywordMessage
 		sending: #whenFulfilled:
 		to: {def arguments as: Syntax Array. block})
 ].
 
-compiler@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) [ 
+c@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) [ 
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 	inform: 'OptionalKeywords+'.
-	args do: [| :arg | compiler generate: arg ].
+	args do: [| :arg | c generate: arg ].
 	opts keywords with: opts arguments do: [
 		| :key :arg |
-		compiler generate: arg
+		c generate: arg
 	]
 ].
 
-compiler@(LLVM Compiler traits) generate: opts@(Syntax OptionalKeywords traits) [
+c@(LLVM Compiler traits) generate: opts@(Syntax OptionalKeywords traits) [
 	inform: 'OptionalKeywords'.
-	compiler generate: opts message &optionals: opts
+	c generate: opts message &optionals: opts
 ].
 
