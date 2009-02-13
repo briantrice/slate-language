@@ -97,9 +97,15 @@ c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLev
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
-	| newBlock isClosure statements |
+	| newBlock isClosure statements functionType function |
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
+	topLevel ifTrue: [
+		functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 ).
+		function: (c module addFunctionNamed: 'unnamedBlock' type: functionType).
+		c builder insertPoint: (function addBlockNamed: 'entry').
+	].
+  	
 	newBlock: CompiledMethod new.
 	newBlock environment: (c contexts isEmpty
 		ifTrue: [block parentScope topLevel namespace]
@@ -133,14 +139,6 @@ and push it onto the stack."
 
 c@(LLVM Compiler traits) generate: def@(Syntax MethodDefinition traits) [
 "Translate method definitions to equivalent asMethod:on: invocations."
-	| functionType function |
-	inform: 'MethodDefinition'.
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
-	function: (c module addFunctionNamed: 'doSomething' type: functionType).
-	(function parameterAt: 0) `>> [ name: 'arg1' ].
-	(function parameterAt: 1) `>> [ name: 'arg2' ].	
-  	c builder insertPoint: (function addBlockNamed: 'entry').
-  	
 	c contexts isEmpty ifTrue: [ ^ resend ].
   	#generate: sendTo: {c. def} through: {c. Syntax Block}.
 	def roles do: [ |:role | c generate: role ].
