@@ -54,8 +54,11 @@ irb@(LLVM IRBuilder traits) add: values@(Tuple traits) &name: name [
                            const char *Name)"
 irb@(LLVM IRBuilder traits) call: function@(LLVM Value Function traits) arguments: arguments@(Sequence traits) &name: name [
 	| args |
-	name `defaultsTo: 'calltmp'.
-	args: (arguments collect: [ | :each | each handle ]).
+	name `defaultsTo: ''.
+	args: (arguments collect: [ | :each |
+		(each is: LLVM Value) ifFalse: [ error: 'argument is not a LLVM Value' ].
+		each handle
+	]).
 	args: (args reduce: #; `er).
 	LLVM Value newWithHandle: (
 		LLVM Lib primitives LLVMBuildCall applyTo: { irb handle. function handle. args. arguments size. name }
