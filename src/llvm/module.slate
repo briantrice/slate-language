@@ -1,17 +1,15 @@
-LLVM define: #Module &parents: {LLVM Pointer}.
+LLVM define: #Module &parents: {LLVM Pointer} &slots: { #name }.
 LLVM Module traits atSlotNamed: #printName put: 'LLVM Module'. 
 
-m@(LLVM Module traits) new [
-	m shouldNotImplement
-].
-
-"-------------------------------Create and destroy modules------------------------------------"
-
 "LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);"
-m@(LLVM Module traits) newWithID: id@(String traits) [
-	m newWithHandle: (
-		LLVM Lib primitives LLVMModuleCreateWithName applyTo: {id}
-	)
+m@(LLVM Module traits) new &name: name [
+	| newModule |
+	name `defaultsTo: 'default'.
+	newModule: (m newWithHandle: (
+		LLVM Lib primitives LLVMModuleCreateWithName applyTo: {name}
+	) ).
+	newModule name: name.
+	newModule
 ].
 
 "void LLVMDisposeModule(LLVMModuleRef M);"
@@ -25,6 +23,14 @@ m@(LLVM Module traits) dump [
 	LLVM Lib primitives LLVMDumpModule applyTo: {m handle}.
 	m
 ].
+
+"int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);"
+m@(LLVM Module traits) save &fileName: fileName [
+	fileName `defaultsTo: (m name ; '.bc').
+	LLVM Lib primitives LLVMWriteBitcodeToFile applyTo: {m handle. fileName}
+].
+
+
  
 "const char *LLVMGetDataLayout(LLVMModuleRef M);"
 m@(LLVM Module traits) dataLayout [
@@ -59,14 +65,6 @@ m@(LLVM Module traits) addTypeNamed: name@(String traits) type: type@(LLVM Type 
 	LLVM Lib primitives LLVMAddTypeName applyTo: {m handle. name. type handle }
 ].
 
-"LLVMModuleProviderRef
-LLVMCreateModuleProviderForExistingModule(LLVMModuleRef M);"
-m@(LLVM Module traits) provider [
-	LLVM ModuleProvider newWithHandle: (
-		LLVM Lib primitives LLVMCreateModuleProviderForExistingModule applyTo: {m handle }
-	)
-].
-
 "-------------------------------Operations on global variables------------------------------------"
 
 "LLVMValueRef LLVMAddGlobal(LLVMModuleRef M, LLVMTypeRef Ty, const char *Name);"
@@ -98,15 +96,6 @@ m@(LLVM Module traits) functionNamed: name@(String traits) [
 	LLVM Value Function newWithHandle: (
 		LLVM Lib primitives LLVMGetNamedFunction applyTo: {m handle. name }
 	)
-].
-
-"int LLVMModuleCopyBitcodeToBuffer(LLVMModuleRef M);"
-m@(LLVM Module traits) bitcode [
-	| size buffer |
-	size: (LLVM Lib primitives LLVMModuleCopyBitcodeToBuffer applyTo: {m handle}).
-	buffer: (ByteArray new &capacity: size).
-	LLVM Lib primitives LLVMGetBitcodeBuffer applyTo: {buffer}.
-	buffer
 ].
 
 
