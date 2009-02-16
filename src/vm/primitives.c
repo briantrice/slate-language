@@ -270,6 +270,7 @@ void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arit
   word_t flags = object_to_smallint(args[6]);
   word_t ret, serviceSize, hostnameSize;
 
+  ASSURE_TYPE_ARG(1, TYPE_BYTE_ARRAY);
   ASSURE_SMALLINT_ARG(3);
   ASSURE_SMALLINT_ARG(4);
   ASSURE_SMALLINT_ARG(5);
@@ -284,6 +285,7 @@ void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arit
   if ((struct Object*)service == oh->cached.nil) {
     serviceSize = 0;
   } else {
+    ASSURE_TYPE_ARG(2, TYPE_BYTE_ARRAY);
     serviceSize = byte_array_size(service)+1;
   }
 
@@ -302,9 +304,8 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     return;
   }
   if (oh->socketTickets[ticket].result < 0) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(oh->socketTickets[ticket].result);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = socket_return(oh->socketTickets[ticket].result);
   } else {
-    /*fixme convert to arrays*/
     word_t count, i;
     struct addrinfo* ai = oh->socketTickets[ticket].addrResult;
     struct addrinfo* current = ai;
