@@ -5,13 +5,13 @@ block@(Syntax Block traits) compile2 [
 
 LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder}.
 
-LLVM Compiler define: #DefaultModule -> (
-	(LLVM Module new &name: 'slate')
-).
-
-module@(LLVM Compiler DefaultModule) init [
-	LLVM Compiler init: module
+(LLVM Compiler hasSlotNamed: #DefaultModule) ifTrue: [
+	LLVM Compiler DefaultModule dispose.
 ].
+
+LLVM Compiler define: #DefaultModule -> (
+	(LLVM SlateModule new &name: 'slate')
+).
 
 module@(LLVM Compiler DefaultModule) shutdown [
 	module dispose.
@@ -24,53 +24,6 @@ c@(LLVM Compiler traits) new &module: useModule [
 		module: useModule.
 		builder: LLVM IRBuilder new.
 	]
-].
-
-_@(LLVM Compiler traits) init: module@(LLVM Module traits) [
-	| functionType function |
-	"declare: oop environment()"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 ).
-	function: (module addFunctionNamed: 'environment' type: functionType).
-
-	"declare: oop literalAt( ooi index )"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'literalAt' type: functionType).
-	(function parameterAt: 0) name: 'index'.
-
-	"declare: oop variableAt( ooi index )"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'variableAt' type: functionType).
-	(function parameterAt: 0) name: 'index'.
-
-	"declare: void variableAtPut( ooi index, oop value )"
-	functionType: (LLVM Type Function new &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'variableAtPut' type: functionType).
-	(function parameterAt: 0) name: 'index'.
-	(function parameterAt: 1) name: 'value'.
-
-	"declare: oop sendWith( oop selector, oop parameter0 )"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32
-		&paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'sendWith' type: functionType).
-	(function parameterAt: 0) name: 'selector'.
-	(function parameterAt: 1) name: 'parameter0'.
-
-	"declare: oop sendWithWith( oop selector, oop parameter0, oop parameter1 )"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32
-		&paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32. LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'sendWithWith' type: functionType).
-	(function parameterAt: 0) name: 'selector'.
-	(function parameterAt: 1) name: 'parameter0'.
-	(function parameterAt: 2) name: 'parameter1'.
-
-	"declare: oop sendWithWithWith( oop selector, oop parameter0, oop parameter1, oop parameter2 )"
-	functionType: (LLVM Type Function new &returnType: LLVM Type Integer32
-		&paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32. LLVM Type Integer32. LLVM Type Integer32 } ).
-	function: (module addFunctionNamed: 'sendWithWithWith' type: functionType).
-	(function parameterAt: 0) name: 'selector'.
-	(function parameterAt: 1) name: 'parameter0'.
-	(function parameterAt: 2) name: 'parameter1'.
-	(function parameterAt: 3) name: 'parameter2'.
 ].
 
 LLVM Compiler traits define: #Context &parents: {Cloneable} &slots: {
