@@ -111,7 +111,7 @@ and push it onto the stack."
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	topLevel ifTrue: [
-		functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 ).
+		functionType: (LLVM Type Function new &returnType: c module structObjectPtr ).
 		function: (c module addFunctionNamed: 'unnamedBlock' type: functionType).
 		c builder insertPoint: (function addBlockNamed: 'entry').
 	].
@@ -147,7 +147,7 @@ and push it onto the stack."
 	].	
 
 	topLevel ifTrue: [ function verify &failureAction: LLVM VerifierFailureAction PrintMessage ].
-	newBlock reserved5: function name.
+	newBlock reserved5: function name intern.
 	newBlock
 ].
 

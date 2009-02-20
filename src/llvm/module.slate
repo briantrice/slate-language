@@ -143,18 +143,18 @@ m@(LLVM SlateModule traits) declareFunctions [
 	functionType: (LLVM Type Function new &returnType: m structObjectPtr ).
 	m environmentFunction: (m addFunctionNamed: 'environment' type: functionType).
 
-	"struct Object *literalAt( word_t index )"
-	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { LLVM Type Integer32 } ).
+	"struct Object *literalAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
 	m literalAtFunction: (m addFunctionNamed: 'literalAt' type: functionType).
 	(m literalAtFunction parameterAt: 0) name: 'index'.
 
-	"struct Object *variableAt( word_t index )"
-	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { LLVM Type Integer32 } ).
+	"struct Object *variableAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
 	m variableAtFunction: (m addFunctionNamed: 'variableAt' type: functionType).
 	(m variableAtFunction parameterAt: 0) name: 'index'.
 
-	"void variableAtPut( word_t index, struct Object *value )"
-	functionType: (LLVM Type Function new &paramaterTypes: { LLVM Type Integer32. m structObjectPtr } ).
+	"void variableAtPut( struct Object *index, struct Object *value )"
+	functionType: (LLVM Type Function new &paramaterTypes: { m structObjectPtr. m structObjectPtr } ).
 	m variableAtPutFunction: (m addFunctionNamed: 'variableAtPut' type: functionType).
 	(m variableAtPutFunction parameterAt: 0) name: 'index'.
 	(m variableAtPutFunction parameterAt: 1) name: 'value'.
