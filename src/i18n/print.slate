@@ -21,10 +21,10 @@ s@(UnicodeString traits) printOn: o &encodedIn: encoding &makeEncoder: makeEncod
 "FIXME: this currently relies on the fact that every unprintable character
 is in 8-bit range. That might change."
 [| encoder |
-   makeEncoder `defaultsTo: False.
-   encoding `defaultsTo: UTF8.
-   encoder: (makeEncoder ifTrue: [encoding Encoder newOn: o] ifFalse: [o]).
-  '\'' printOn: encoder.
+  makeEncoder `defaultsTo: False.
+  encoding `defaultsTo: UTF8.
+  encoder: (makeEncoder ifTrue: [encoding Encoder newOn: o] ifFalse: [o]).
+  encoder nextPut: ($' as: UnicodeCharacter).
   s doWithIndex:
     [| :c :index |
       index >= o stringLimit
@@ -49,6 +49,6 @@ is in 8-bit range. That might change."
               ['\\x' printOn: encoder.
                 (c as: Integer) // 16 printOn: o radix: 16.
                 (c as: Integer) \\ 16 printOn: o radix: 16]]].
-  '\'' printOn: encoder.
+  encoder nextPut: ($' as: UnicodeCharacter).
   o
 ].
