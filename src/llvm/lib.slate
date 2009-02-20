@@ -3,6 +3,7 @@ LLVM define: #Lib -> (
 "Create and destroy modules"
 		(Pointer LLVMModuleCreateWithName(CString))
 		(Void LLVMDisposeModule(Pointer))
+		(Int LLVMVerifyModule(Pointer Int Bytes))
 		(Void LLVMDumpModule(Pointer))
 		(Int LLVMWriteBitcodeToFile(Pointer CString))
 		(CString LLVMGetDataLayout(Pointer))
@@ -11,9 +12,6 @@ LLVM define: #Lib -> (
 		(Void LLVMSetTarget(Pointer CString))
 		(Void LLVMDeleteTypeName(Pointer CString))
 		(Int LLVMAddTypeName(Pointer CString Pointer))
-		(Pointer LLVMCreateModuleProviderForExistingModule(Pointer))
-
-		(Void LLVMDisposeModuleProvider(Pointer))
 
 "Operations on global variables"
 		(Pointer LLVMAddGlobal(Pointer Pointer CString))
@@ -39,6 +37,20 @@ LLVM define: #Lib -> (
 		(Pointer LLVMVoidType())
 		(Pointer LLVMLabelType())
 		(Pointer LLVMOpaqueType())
+
+"Operations on struct types"
+		(Pointer LLVMStructType(Bytes Int Boolean))
+		(Void LLVMRefineType(Pointer Pointer))
+
+"Operations on array, pointer, and vector types (sequence types)"
+		(Pointer LLVMPointerType(Pointer Int))
+		(Pointer LLVMArrayType(Pointer Int))
+		(Pointer LLVMVectorType(Pointer Int))
+
+"Operations on type handles"
+		(Pointer LLVMCreateTypeHandle(Pointer))
+		(Void LLVMDisposeTypeHandle(Pointer))
+		(Pointer LLVMResolveTypeHandle(Pointer))
 
 "Instruction builders"
 		(Pointer LLVMCreateBuilder())
@@ -71,6 +83,9 @@ LLVM define: #Lib -> (
 
 "Operations on functions"
 		(Boolean LLVMVerifyFunction(Pointer Int))
+		
+"Error handling"
+		(Void LLVMDisposeMessage(Pointer))
 	)
 ).
 

@@ -18,6 +18,19 @@ m@(LLVM Module traits) dispose [
 	m
 ].
 
+"int LLVMVerifyModule(LLVMModuleRef M, LLVMVerifierFailureAction Action,
+                     char **OutMessage);"
+m@(LLVM Module traits) verify &failureAction: failureAction [
+	| returnValue message |
+	failureAction `defaultsTo: LLVM VerifierFailureAction ReturnStatus.
+	message: (ByteArray new &capacity: bytesPerWord).
+	returnValue: (LLVM Lib primitives LLVMVerifyModule applyTo: { m handle. failureAction. message }).
+	message = (ByteArray new &capacity: bytesPerWord) ifFalse: [
+		LLVM Lib primitives LLVMDisposeMessage applyTo: { message }.
+	].
+	returnValue
+].
+
 "void LLVMDumpModule(LLVMModuleRef M);"
 m@(LLVM Module traits) dump [
 	LLVM Lib primitives LLVMDumpModule applyTo: {m handle}.
@@ -98,5 +111,79 @@ m@(LLVM Module traits) functionNamed: name@(String traits) [
 	)
 ].
 
+LLVM define: #SlateModule &parents: {LLVM Module} &slots: { #structObject. #structObjectPtr. #environmentFunction. #literalAtFunction. #variableAtFunction. #variableAtPutFunction. #sendWithFunction. #sendWithWithFunction. #sendWithWithWithFunction }.
+LLVM SlateModule traits atSlotNamed: #printName put: 'LLVM SlateModule'. 
 
- 
+m@(LLVM SlateModule traits) new &name: name [
+	resend `>> [ declarestructures. declareFunctions. ]
+].
+
+m@(LLVM SlateModule traits) declarestructures [
+	| objectOpaque |
+	
+	objectOpaque: LLVM Type Opaque new holder.
+	m structObject: (LLVM Type Struct new &elementTypes: { 
+		LLVM Type Integer32.	"header"
+		LLVM Type Integer32.	"objectSize"
+		LLVM Type Integer32.	"payloadSize"
+		(LLVM Type Pointer newFor: objectOpaque resolve)	"map"
+	}).
+	objectOpaque resolve refineTo: m structObject.
+	m structObject: objectOpaque resolve.
+	m addTypeNamed: 'struct.Object' type: m structObject.
+	m structObjectPtr: (LLVM Type Pointer newFor: m structObject).
+	
+	m
+].
+
+m@(LLVM SlateModule traits) declareFunctions [
+	| functionType |	
+	
+	"struct Object *environment( void )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr ).
+	m environmentFunction: (m addFunctionNamed: 'environment' type: functionType).
+
+	"struct Object *literalAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
+	m literalAtFunction: (m addFunctionNamed: 'literalAt' type: functionType).
+	(m literalAtFunction parameterAt: 0) name: 'index'.
+
+	"struct Object *variableAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
+	m variableAtFunction: (m addFunctionNamed: 'variableAt' type: functionType).
+	(m variableAtFunction parameterAt: 0) name: 'index'.
+
+	"void variableAtPut( struct Object *index, struct Object *value )"
+	functionType: (LLVM Type Function new &paramaterTypes: { m structObjectPtr. m structObjectPtr } ).
+	m variableAtPutFunction: (m addFunctionNamed: 'variableAtPut' type: functionType).
+	(m variableAtPutFunction parameterAt: 0) name: 'index'.
+	(m variableAtPutFunction parameterAt: 1) name: 'value'.
+
+	"struct Object *sendWith( struct Object *selector, struct Object *parameter0 )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr
+		&paramaterTypes: { m structObjectPtr. m structObjectPtr } ).
+	m sendWithFunction: (m addFunctionNamed: 'sendWith' type: functionType).
+	(m sendWithFunction parameterAt: 0) name: 'selector'.
+	(m sendWithFunction parameterAt: 1) name: 'parameter0'.
+
+	"struct Object *sendWithWith( struct Object *selector, struct Object *parameter0, 
+			struct Object *parameter1 )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr
+		&paramaterTypes: { m structObjectPtr. m structObjectPtr. m structObjectPtr } ).
+	m sendWithWithFunction: (m addFunctionNamed: 'sendWithWith' type: functionType).
+	(m sendWithWithFunction parameterAt: 0) name: 'selector'.
+	(m sendWithWithFunction parameterAt: 1) name: 'parameter0'.
+	(m sendWithWithFunction parameterAt: 2) name: 'parameter1'.
+
+	"struct Object *sendWithWithWith( struct Object *selector, struct Object *parameter0, 
+			struct Object *parameter1, struct Object *parameter2 )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr
+		&paramaterTypes: { m structObjectPtr. m structObjectPtr. m structObjectPtr. m structObjectPtr } ).
+	m sendWithWithWithFunction: (m addFunctionNamed: 'sendWithWithWith' type: functionType).
+	(m sendWithWithWithFunction parameterAt: 0) name: 'selector'.
+	(m sendWithWithWithFunction parameterAt: 1) name: 'parameter0'.
+	(m sendWithWithWithFunction parameterAt: 2) name: 'parameter1'.
+	(m sendWithWithWithFunction parameterAt: 3) name: 'parameter2'.
+	
+	m
+].
