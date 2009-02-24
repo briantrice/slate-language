@@ -1,5 +1,4 @@
 LLVM define: #Value &parents: {LLVM Pointer}.
-LLVM Value traits atSlotNamed: #printName put: 'LLVM Value'.
 
 v@(LLVM Value traits) new [
 	v shouldNotImplement
@@ -18,10 +17,15 @@ v@(LLVM Value traits) name: name@(String traits) [
 	v
 ].
 
+LLVM Value traits define: #User &parents: {LLVM Value}.
+
+LLVM Value traits define: #Constant &parents: {LLVM Value User}.
+
+LLVM Value traits define: #GlobalValue &parents: {LLVM Value Constant}.
+
 "------------------------------------Operations on parameters-----------------------------------------"
 
-LLVM Value traits define: #Function &parents: {LLVM Value}.
-LLVM Value Function traits atSlotNamed: #printName put: 'LLVM Value Function'.
+LLVM Value traits define: #Function &parents: {LLVM Value GlobalValue}.
 
 "unsigned LLVMCountParams(LLVMValueRef Fn);"
 f@(LLVM Value Function traits) parameterCount [
@@ -45,17 +49,15 @@ f@(LLVM Value Function traits) parameters [
 	parameters
 ].
 
-LLVM Value traits define: #Global &parents: {LLVM Value}.
-LLVM Value Global traits atSlotNamed: #printName put: 'LLVM Value Global'.
+LLVM Value traits define: #GlobalVariable &parents: {LLVM Value GlobalValue}.
 
-LLVM Value traits define: #Block &parents: {LLVM Value}.
-LLVM Value Block traits atSlotNamed: #printName put: 'LLVM Value Block'.
+LLVM Value traits define: #BasicBlock &parents: {LLVM Value}.
 
 "------------------------------------Operations on basic blocks-----------------------------------------"
 
 "LLVMBasicBlockRef LLVMAppendBasicBlock(LLVMValueRef Fn, const char *Name);"
 f@(LLVM Value Function traits) addBlockNamed: name@(String traits) [
-	LLVM Value Block newWithHandle: (
+	LLVM Value BasicBlock newWithHandle: (
 		LLVM Lib primitives LLVMAppendBasicBlock applyTo: {f handle. name }
 	)
 ].
@@ -67,5 +69,19 @@ f@(LLVM Value Function traits) verify &failureAction: failureAction [
 	failureAction `defaultsTo: LLVM VerifierFailureAction ReturnStatus.
 	LLVM Lib primitives LLVMVerifyFunction applyTo: { f handle. failureAction }
 ].
+
+"------------------------------------Constant expressions-----------------------------------------"
+
+LLVM Value traits define: #ConstantInt &parents: {LLVM Value Constant}.
+
+"LLVMValueRef LLVMConstIntToPtr(LLVMValueRef ConstantVal, LLVMTypeRef ToType);"
+ci@(LLVM Value ConstantInt traits) as: pointer@(LLVM Type Pointer traits) [
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMConstIntToPtr applyTo: {ci handle. pointer handle}
+	)
+].
+
+
+
 
 

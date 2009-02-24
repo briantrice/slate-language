@@ -227,10 +227,13 @@ c@(LLVM Compiler traits) generate: literal@(Syntax Literal traits) [
 	inform: ('Literal: ' ; literal printString).
 	value: literal value.
 	(value is: SmallInteger)
-		ifTrue: [ LLVM Type Integer32 value: (c number: value) signed: True ]
+		ifTrue: [ | number |
+			number: (LLVM Type Integer32 value: (c number: value) signed: True).
+			number as: c module structObjectPtr
+		]
 		ifFalse: [ | index function |
-			index: (LLVM Type Integer32 value: (c literal: literal value) signed: True).
-			function: (c module functionNamed: 'literalAt').
+			index: (c generate: (Syntax Literal for: (c literal: value))).
+			function: c module literalAtFunction.
 			c builder call: function arguments: { index } &name: 'literal'
  		]
 ].
