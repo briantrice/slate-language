@@ -354,23 +354,20 @@ the push for the selector, and then the appropriate message send bytecode."
  	| argRegisters function |
  	name `defaultsTo: 'send'.
 	inform: 'Message++'.
- 	function: (argRegisters size caseOf: {
- 		1 -> [ c module functionNamed: 'sendWith' ].
- 		2 -> [ c module functionNamed: 'sendWithWith' ].
- 		3 -> [ c module functionNamed: 'sendWithWithWith' ]
-		} otherwise: [ shouldImplement ]
-	).
-	c builder call: function arguments: { selector } ; argRegisters &name: name
+	shouldImplement
 ].
 
 c@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) [
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
- 	| argRegisters selectorRegister function |
+ 	| argRegisters selectorRegister function arityRegister methodIP |
 	inform: 'Message+'.
 	selectorRegister: (c emitSelector: selector).
   	argRegisters: ( args collect: [ | :arg | c generate: arg ] ).
-	c emitSendSelector: selectorRegister on: argRegisters &name: selector
+  	function: (c module functionNamed: 'getMethodIP').
+  	arityRegister: (c generate: (Syntax Literal for: argRegisters size)).
+	methodIP: (c builder call: function arguments: { selectorRegister. arityRegister } ; argRegisters &name: 'methodIP').
+	c builder call: methodIP arguments: argRegisters &name: selector name
 ].
 
 c@(LLVM Compiler traits) generate: msg@(Syntax Message traits) &optionals: opts [
