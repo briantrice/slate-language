@@ -64,4 +64,29 @@ irb@(LLVM IRBuilder traits) call: function@(LLVM Value traits) arguments: argume
 		LLVM Lib primitives LLVMBuildCall applyTo: { irb handle. function handle. args. arguments size. name }
 	)
 ].
+
+"--------------------------------Memory instructions------------------------------"
+
+"LLVMValueRef LLVMBuildAlloca(LLVMBuilderRef, LLVMTypeRef Ty, const char *Name);"
+irb@(LLVM IRBuilder traits) allocA: type@(LLVM Type traits) name: name [
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMBuildAlloca applyTo: { irb handle. type handle. name }
+	)
+].
+
+"LLVMValueRef LLVMBuildStore(LLVMBuilderRef, LLVMValueRef Val, LLVMValueRef Ptr);"
+irb@(LLVM IRBuilder traits) store: value@(LLVM Value traits) at: pointer@(LLVM Value traits) [
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMBuildStore applyTo: { irb handle. value handle. pointer handle }
+	)
+].
+
+"LLVMValueRef LLVMBuildLoad(LLVMBuilderRef, LLVMValueRef PointerVal,
+                           const char *Name);"
+irb@(LLVM IRBuilder traits) load: pointer@(LLVM Value traits) &name: name [
+	name `defaultsTo: 'load'.
+	LLVM Value newWithHandle: (
+		LLVM Lib primitives LLVMBuildLoad applyTo: { irb handle. pointer handle. name }
+	)
+].
                        

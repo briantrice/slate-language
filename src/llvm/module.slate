@@ -111,14 +111,17 @@ m@(LLVM Module traits) functionNamed: name@(String traits) [
 	)
 ].
 
-LLVM define: #SlateModule &parents: {LLVM Module} &slots: { #structObject. #structObjectPtr. #environmentFunction. #literalAtFunction. #variableAtFunction. #variableAtPutFunction. #findMethodAndSendWithArgs }.
+LLVM define: #SlateModule &parents: {LLVM Module} &slots: {
+	#structObject. #structObjectPtr. #environmentFunction. #literalAtFunction.
+	#findMethodAndSendWithArgs.	#nilObject. #falseObject. #trueObject
+}.
 LLVM SlateModule traits atSlotNamed: #printName put: 'LLVM SlateModule'. 
 
 m@(LLVM SlateModule traits) new &name: name [
-	resend `>> [ declarestructures. declareFunctions. ]
+	resend `>> [ declareStructures. declareGlobalVariables. declareFunctions. ]
 ].
 
-m@(LLVM SlateModule traits) declarestructures [
+m@(LLVM SlateModule traits) declareStructures [
 	| objectOpaque |
 	
 	objectOpaque: LLVM Type Opaque new holder.
@@ -136,6 +139,14 @@ m@(LLVM SlateModule traits) declarestructures [
 	m
 ].
 
+m@(LLVM SlateModule traits) declareGlobalVariables [
+	m nilObject: (m addGlobalNamed: 'Nil' type: m structObjectPtr).
+	m trueObject: (m addGlobalNamed: 'True' type: m structObjectPtr).
+	m falseObject: (m addGlobalNamed: 'False' type: m structObjectPtr).
+	
+	m
+].
+
 m@(LLVM SlateModule traits) declareFunctions [
 	| functionType |	
 	
@@ -148,17 +159,6 @@ m@(LLVM SlateModule traits) declareFunctions [
 	m literalAtFunction: (m addFunctionNamed: 'literalAt' type: functionType).
 	(m literalAtFunction parameterAt: 0) name: 'index'.
 
-	"struct Object *variableAt( struct Object *index )"
-	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
-	m variableAtFunction: (m addFunctionNamed: 'variableAt' type: functionType).
-	(m variableAtFunction parameterAt: 0) name: 'index'.
-
-	"void variableAtPut( struct Object *index, struct Object *value )"
-	functionType: (LLVM Type Function new &paramaterTypes: { m structObjectPtr. m structObjectPtr } ).
-	m variableAtPutFunction: (m addFunctionNamed: 'variableAtPut' type: functionType).
-	(m variableAtPutFunction parameterAt: 0) name: 'index'.
-	(m variableAtPutFunction parameterAt: 1) name: 'value'.
-	
 	"struct Object *findMethodAndSendWithArgs( struct Object *selector, struct Object *arity, ... )"
 	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr. m structObjectPtr } &isVarArg: True ).
 	m findMethodAndSendWithArgs: (m addFunctionNamed: 'findMethodAndSendWithArgs' type: functionType).

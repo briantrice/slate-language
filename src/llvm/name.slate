@@ -42,21 +42,21 @@ or argument types."
 	sel isUnarySelector ifTrue: [
 		sel name first = $_
 			ifTrue: [result ; sel name]
-			ifFalse: [result ; (sel cNameForRole: roleObjects first) ; '_' ; sel name]
+			ifFalse: [result ; roleObjects first asLLVMName ; '_' ; sel name]
 	].
 	sel isBinarySelector ifTrue: [
-		result ; (sel cNameForRole: roleObjects first)
+		result ; roleObjects first asLLVMName 
 		; '_' ; (sel binarySelectorLLVMNames at: sel)
-		; '_' ; (sel cNameForRole: roleObjects second)
+		; '_' ; roleObjects second asLLVMName
 	].
 	"Now handle the keyword case."
 	sel isKeywordSelector ifTrue: [
-		result ; (sel cNameForRole: roleObjects first) ; '_'.
+		result ; roleObjects first asLLVMName  ; '_'.
 		roleObjects allButFirst: 1 do: [
 			| :arg selPart |
 			selPart: (selReader upTo: $:).
 			(selPart beginsWith: '&') ifTrue: [ selPart: selPart contents allButFirst ].
-			result ; selPart ; '_' ; (sel cNameForRole: arg).
+			result ; selPart ; '_' ; arg asLLVMName.
  			selReader isAtEnd ifFalse: [ result ; '_' ].
 		]
 	].

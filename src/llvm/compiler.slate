@@ -3,7 +3,7 @@ block@(Syntax Block traits) compile2 [
 	LLVM Compiler new generate: block
 ].
 
-LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder}.
+LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder. #variables}.
 
 (LLVM Compiler hasSlotNamed: #DefaultModule) ifTrue: [
 	LLVM Compiler DefaultModule dispose.
@@ -107,15 +107,10 @@ c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLev
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
-	| newBlock isClosure statements functionType function |
+	| newBlock isClosure statements function |
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	llvmName `defaultsTo: 'unnamedBlock'.
- 	topLevel ifTrue: [
-		functionType: (LLVM Type Function new &returnType: c module structObjectPtr ).
-		function: (c module addFunctionNamed: llvmName type: functionType).
-		c builder insertPoint: (function addBlockNamed: 'entry').
-	].
   	
 	newBlock: CompiledMethod new.
 	newBlock environment: (c contexts isEmpty
@@ -125,17 +120,43 @@ and push it onto the stack."
 	c contexts push: (c Context newOn: newBlock).
 	  "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
 	statements: (block statements collect: [| :statement | statement macroExpand &environment: c currentMethod sourceTree]).
+	"Set the variable information after generation, just in case it was modified."
+	newBlock `>> [
+		inputVariables: block inputVariables size.
+		localVariables: block localVariables size.
+		restVariable: block restVariable isNotNil.
+		optionalKeywords: block optionalKeywords.
+	].
+	
+ 	topLevel ifTrue: [
+ 		| parameterTypes functionType |
+ 		c variables: Dictionary new.
+ 		parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
+ 		parameterTypes atAllPut: c module structObjectPtr.
+		functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
+		function: (c module addFunctionNamed: llvmName type: functionType).
+		c builder insertPoint: (function addBlockNamed: 'entry').
+		block localVariables doWithIndex: [ | :each :index variable parameter |
+			(index < parameterTypes size)
+				ifTrue: [ "is an arg"
+					parameter: (function parameterAt: index).
+					parameter name: each name.
+					variable: (c builder allocA: c module structObjectPtr name: (each name ; '_addr')).
+				]
+				ifFalse: [	"is a temp var"					
+					parameter: (c builder load: c module nilObject &name: 'nil_addr').
+					variable: (c builder allocA: c module structObjectPtr name: each name).
+				].
+			c builder store: parameter at: variable.
+			c variables at: each name put: variable.
+ 		].
+	].
+	
 	statements allButLastDo: [| :node | c generate: node].
 	statements size > 0
 		ifTrue: [ c builder ret &value: (c generate: statements last) ]
 		ifFalse: [ "returnValue" inform: 'Return: Nil' ].
 	
-	"Set the variable information after generation, just in case it was modified."
-	newBlock `>>
-	[inputVariables: block inputVariables size.
-		localVariables: block localVariables size.
-		restVariable: block restVariable isNotNil.
-		optionalKeywords: block optionalKeywords.].
 	isClosure: c currentContext isClosure.
 	
 	c contexts pop flush.
@@ -285,10 +306,9 @@ c@(LLVM Compiler traits) generate: load@(Syntax LoadVariable traits) [
 			ifNil: [error: 'Could not determine variable scope.']).
 
   lexOffset isZero
-    ifTrue: [ | index function |
-		index: (c generate: (Syntax Literal for: varIndex)).
-		function: (c module functionNamed: 'variableAt').
-		c builder call: function arguments: { index } &name: 'variable'
+    ifTrue: [ | variable |
+    	variable: (c variables at: load variable name ifAbsent: [ error: 'unknown variable ' ; load variable name ]).
+    	c builder load: variable &name: (load variable name ; '_')
 	]
     ifFalse: [
 		shouldImplement.
@@ -309,12 +329,10 @@ c@(LLVM Compiler traits) generate: store@(Syntax StoreVariable traits) [
 			ifNil:[ error: 'Could not determine variable scope.']).
   
   lexOffset isZero
-    ifTrue: [ | index value function |
-		index: (c generate: (Syntax Literal for: varIndex)).
+    ifTrue: [ | value variable |
+    	variable: (c variables at: store variable name ifAbsent: [ error: 'unknown variable ' ; store variable name ]).
 		value: (c generate: store value).
-		function: (c module functionNamed: 'variableAtPut').
-		c builder call: function arguments: { index. value }.
-		value
+		c builder store: value at: variable
 	]
     ifFalse: [
     	shouldImplement.
