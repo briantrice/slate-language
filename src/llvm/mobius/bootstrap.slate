@@ -162,7 +162,9 @@ Image Bootstrap define: #CompiledMethod &parents: {Image Bootstrap Object}.
    #littleEndian -> True.
    #bytesPerWord -> Image Bootstrap BytesPerWord.
    #nextHash -> 0.
-   #imageSize -> 0})
+   #imageSize -> 0.
+   #llvmModule -> Nil
+	})
    `>> [addSlot: #objects valued: Namespace clone. ].
 
 gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &bitSize: bitSize
@@ -180,6 +182,8 @@ gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &bitSize:
 	   gen symbols new.
            bitSize // 8.
 	   littleEndian ifNil: [gen littleEndian]}).
+  newGen llvmModule: (LLVM SlateModule new).
+
   newGen insertDelegate: newGen objects.
   newGen
 ].
@@ -203,7 +207,11 @@ will be interpreted immediately upon loading the image."
   inform: 'Generating maps'.
   gen generateMaps.
   inform: 'Generating linkage'.
-  gen generateLinkage
+  gen generateLinkage.
+  inform: 'Save LLVM Module'.
+  gen llvmModule verify.
+  gen llvmModule dump.
+  gen llvmModule save.
 ].
 
 
@@ -490,53 +498,60 @@ gen@(Image Bootstrap Generator traits) cloneOf: proto sized: size
 gen@(Image Bootstrap Generator traits) cloneOf: proto elements: elements
 [(gen cloneOf: proto) `>> [elements: (elements as: proto elements). ]].
 
-gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj
-[| accessor selector |
-  accessor: (gen cloneOf: gen CompiledMethodProto).
-  selector: (obj accessorNameFor: slotName).
-  accessor setSlot: #method to: accessor.
-  accessor setSlot: #selector to: (gen generateLiteral: selector).
-  accessor setSlot: #inputVariables to: 1.
-  accessor setSlot: #localVariables to: 1.
-  accessor setSlot: #registerCount to: 3.
-  accessor setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
-  accessor setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:}).
-  accessor setSlot: #code to:
-    (gen cloneOf: gen ArrayProto
-      elements:
-        {
-          VM SSACode loadVariable. 0.
-          VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
-          VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
-          VM SSACode returnRegister. 0
-        }).
-  (accessor addMethodNamed: selector on: {obj}) slotAccessor: slotName.
-  accessor
+gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj [
+	| accessor selector compiler llvmName block |
+	accessor: (gen cloneOf: gen CompiledMethodProto).
+	selector: (obj accessorNameFor: slotName).
+	accessor setSlot: #method to: accessor.
+	accessor setSlot: #selector to: (gen generateLiteral: selector).
+	accessor setSlot: #inputVariables to: 1.
+	accessor setSlot: #localVariables to: 1.
+	accessor setSlot: #registerCount to: 3.
+	accessor setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
+	accessor setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:}).
+	
+	inform: '1'.
+	llvmName: (slotName asLLVMNameOn: {obj}).	
+	inform: llvmName.
+	compiler: (LLVM Compiler new &module: gen llvmModule).
+	inform: compiler printString.
+	block: (Syntax Parser newOn: '[ | :var | var atSlotNamed: ' ; slotName printString ; ' ]') next.
+	inform: block printString.
+	c generate: block &topLevel: True &llvmName: llvmName.
+	inform: '5'.
+	accessor setSlot: #backendName to: (gen generateLiteral: llvmName ).    
+	inform: '6'.
+	   
+	(accessor addMethodNamed: selector on: {obj}) slotAccessor: slotName.
+ 	accessor
 ].
 
-gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj
-[| mutator selector |
-  mutator: (gen cloneOf: gen CompiledMethodProto).
-  selector: (obj mutatorNameFor: slotName).
-  mutator setSlot: #method to: mutator.
-  mutator setSlot: #selector to: (gen generateLiteral: selector).
-  mutator setSlot: #inputVariables to: 2.
-  mutator setSlot: #localVariables to: 1.
-  mutator setSlot: #registerCount to: 4.
-  mutator setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
-  mutator setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:put:}).
-  mutator setSlot: #code to:
-    (gen cloneOf: gen ArrayProto
-      elements:
-        {
-          VM SSACode loadVariable. 0.
-          VM SSACode loadVariable. 1.
-          VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
-          VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
-          VM SSACode returnRegister. 0
-        }).
-  (mutator addMethodNamed: selector on: {obj. Nil}) slotAccessor: slotName.
-  mutator
+gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj [
+	| mutator selector compiler llvmName block |
+	mutator: (gen cloneOf: gen CompiledMethodProto).
+	selector: (obj mutatorNameFor: slotName).
+	mutator setSlot: #method to: mutator.
+	mutator setSlot: #selector to: (gen generateLiteral: selector).
+	mutator setSlot: #inputVariables to: 2.
+	mutator setSlot: #localVariables to: 1.
+	mutator setSlot: #registerCount to: 4.
+	mutator setSlot: #literals to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: slotName}).
+	mutator setSlot: #selectors to: (gen cloneOf: gen ArrayProto elements: {gen generateLiteral: #atSlotNamed:put:}).
+	
+	inform: '7'.
+	llvmName: (slotName asLLVMNameOn: {obj}).	
+	inform: '8'.
+	compiler: (LLVM Compiler new &module: gen llvmModule).
+	inform: '9'.
+	block: (Syntax Parser newOn: '[ | :var :value | var atSlotNamed: ' ; slotName printString ; ' put: value ]') next.
+	inform: '10'.
+	c generate: block &topLevel: True &llvmName: llvmName.
+	inform: '11'.
+	mutator setSlot: #backendName to: (gen generateLiteral: llvmName ).    
+	inform: '12'.
+	   
+	(mutator addMethodNamed: selector on: {obj. Nil}) slotAccessor: slotName.
+	mutator
 ].
 
 gen@(Image Bootstrap Generator traits) addAccessorsFor: slotName on: obj
@@ -704,9 +719,8 @@ gen@(Image Bootstrap Generator traits) generateKernel
 ].
 
 gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
-[| compiler llvmModule stackObj stackSize methodObj codeSize |
-  llvmModule: (LLVM SlateModule new).
-  compiler: (LLVM Compiler new &module: llvmModule).
+[| stackObj stackSize methodObj codeSize compiler |  
+  compiler: (LLVM Compiler new &module: gen llvmModule).
   
   _@compiler branchTableHash: key
   [| literal |
@@ -717,11 +731,7 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   ].
   inform: 'The LLVM Compiler is compiling the syntax tree with bootstrap code and libraries.'.
   
-  method: (compiler generate: method &topLevel: True) `>> [heapAllocate: False. ].
-
-  llvmModule verify.
-  llvmModule dump.
-  llvmModule save.
+  method: (compiler generate: method &topLevel: True &llvmName: 'bootMethod') `>> [heapAllocate: False. ].
 
   methodObj: (gen generateLiteral: method).
 

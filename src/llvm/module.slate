@@ -111,7 +111,7 @@ m@(LLVM Module traits) functionNamed: name@(String traits) [
 	)
 ].
 
-LLVM define: #SlateModule &parents: {LLVM Module} &slots: { #structObject. #structObjectPtr. #environmentFunction. #literalAtFunction. #variableAtFunction. #variableAtPutFunction. #getMethodIP }.
+LLVM define: #SlateModule &parents: {LLVM Module} &slots: { #structObject. #structObjectPtr. #environmentFunction. #literalAtFunction. #variableAtFunction. #variableAtPutFunction. #findMethodAndSendWithArgs }.
 LLVM SlateModule traits atSlotNamed: #printName put: 'LLVM SlateModule'. 
 
 m@(LLVM SlateModule traits) new &name: name [
@@ -159,11 +159,11 @@ m@(LLVM SlateModule traits) declareFunctions [
 	(m variableAtPutFunction parameterAt: 0) name: 'index'.
 	(m variableAtPutFunction parameterAt: 1) name: 'value'.
 	
-	functionType: (LLVM Type Pointer newFor: (LLVM Type Function new &returnType: m structObjectPtr &isVarArg: True)) .
-	functionType: (LLVM Type Function new &returnType: functionType &paramaterTypes: { m structObjectPtr. m structObjectPtr } &isVarArg: True ).
-	m getMethodIP: (m addFunctionNamed: 'getMethodIP' type: functionType).
-	(m getMethodIP parameterAt: 0) name: 'selector'.
-	(m getMethodIP parameterAt: 1) name: 'arity'.
-	
+	"struct Object *findMethodAndSendWithArgs( struct Object *selector, struct Object *arity, ... )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr. m structObjectPtr } &isVarArg: True ).
+	m findMethodAndSendWithArgs: (m addFunctionNamed: 'findMethodAndSendWithArgs' type: functionType).
+	(m findMethodAndSendWithArgs parameterAt: 0) name: 'selector'.
+	(m findMethodAndSendWithArgs parameterAt: 1) name: 'arity'.
+		
 	m
 ].

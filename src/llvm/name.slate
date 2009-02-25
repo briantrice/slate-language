@@ -1,0 +1,64 @@
+Symbol traits define: #binarySelectorLLVMNames &builder: [IdentityDictionary new &capacity: 17].
+
+{
+	#= -> 'isEqualTo'.
+	#+ -> 'plus'.
+	#- -> 'minus'.
+	#* -> 'times'.
+	#/ -> 'divideBy'.
+	#\\ -> 'remainderWith'.
+	#>> -> 'rightArithmeticShiftBy'.
+	#>> -> 'rightShiftBy'.
+	#<< -> 'leftShiftBy'.
+	#/\ -> 'and'.
+	#\/ -> 'or'.
+	#< -> 'isLessThan'.
+	#> -> 'isGreaterThan'.
+	#<= -> 'isLessOrEqualThan'.
+	#>= -> 'isGreaterOrEqualThan'
+} do: [ | :each | 
+	Symbol traits binarySelectorLLVMNames add: each
+].
+
+obj@(Root traits) asLLVMName [
+"The word used in a function name to delineate the dispatch variation for the object."
+  obj == NoRole
+    ifTrue: ['']
+    ifFalse: [ 
+    	| str |
+    	str: obj printName asAn.
+ 	 	(str includesAnyOf: ' ')
+    		ifTrue: [ str: ((str splitWith: $\s) reduce: [| :x :y | x ; y capitalize]) ].
+    	str
+	]
+].
+    
+sel@(Symbol traits) asLLVMNameOn: roleObjects [
+"Generates a String function name for the method, using selector and arguments
+or argument types."
+	| selReader result |
+	selReader: sel name reader.
+	result: (String newSizeOf: selReader collection) writer.
+	sel isUnarySelector ifTrue: [
+		sel name first = $_
+			ifTrue: [result ; sel name]
+			ifFalse: [result ; (sel cNameForRole: roleObjects first) ; '_' ; sel name]
+	].
+	sel isBinarySelector ifTrue: [
+		result ; (sel cNameForRole: roleObjects first)
+		; '_' ; (sel binarySelectorLLVMNames at: sel)
+		; '_' ; (sel cNameForRole: roleObjects second)
+	].
+	"Now handle the keyword case."
+	sel isKeywordSelector ifTrue: [
+		result ; (sel cNameForRole: roleObjects first) ; '_'.
+		roleObjects allButFirst: 1 do: [
+			| :arg selPart |
+			selPart: (selReader upTo: $:).
+			(selPart beginsWith: '&') ifTrue: [ selPart: selPart contents allButFirst ].
+			result ; selPart ; '_' ; (sel cNameForRole: arg).
+ 			selReader isAtEnd ifFalse: [ result ; '_' ].
+		]
+	].
+	result contents intern
+].
