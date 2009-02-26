@@ -107,7 +107,7 @@ c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLev
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
-	| newBlock isClosure statements function |
+	| newBlock isClosure statements function parameterTypes functionType |
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	llvmName `defaultsTo: 'unnamedBlock'.
@@ -128,47 +128,46 @@ and push it onto the stack."
 		optionalKeywords: block optionalKeywords.
 	].
 	
- 	topLevel ifTrue: [
- 		| parameterTypes functionType |
- 		c variables: Dictionary new.
- 		parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
- 		parameterTypes atAllPut: c module structObjectPtr.
-		functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
-		function: (c module addFunctionNamed: llvmName type: functionType).
-		c builder insertPoint: (function addBlockNamed: 'entry').
-		block localVariables doWithIndex: [ | :each :index variable parameter |
-			(index < parameterTypes size)
-				ifTrue: [ "is an arg"
-					parameter: (function parameterAt: index).
-					parameter name: each name.
-					variable: (c builder allocA: c module structObjectPtr name: (each name ; '_addr')).
-				]
-				ifFalse: [	"is a temp var"					
-					parameter: (c builder load: c module nilObject &name: 'nil_addr').
-					variable: (c builder allocA: c module structObjectPtr name: each name).
-				].
-			c builder store: parameter at: variable.
-			c variables at: each name put: variable.
- 		].
+	c variables: Dictionary new.
+	parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
+	parameterTypes atAllPut: c module structObjectPtr.
+	functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
+	function: (c module addFunctionNamed: llvmName type: functionType).
+	c builder insertPoint: (function addBlockNamed: 'entry').
+	block localVariables doWithIndex: [ | :each :index variable parameter |
+		(index < parameterTypes size)
+			ifTrue: [ "is an arg"
+				parameter: (function parameterAt: index).
+				parameter name: each name.
+				variable: (c builder allocA: c module structObjectPtr name: (each name ; '_addr')).
+			]
+			ifFalse: [	"is a temp var"					
+				parameter: (c generate: (Syntax Literal for: Nil)).
+				variable: (c builder allocA: c module structObjectPtr name: each name).
+			].
+		c builder store: parameter at: variable.
+		c variables at: each name put: variable.
 	].
 	
 	statements allButLastDo: [| :node | c generate: node].
 	statements size > 0
 		ifTrue: [ c builder ret &value: (c generate: statements last) ]
-		ifFalse: [ "returnValue" inform: 'Return: Nil' ].
+		ifFalse: [ c builder ret &value: (c generate: (Syntax Literal for: Nil)) ].
 	
 	isClosure: c currentContext isClosure.
 	
 	c contexts pop flush.
 	"Forces the newBlock to record all the remaining stream input correctly."
 	
-	c contexts isEmpty \/ [topLevel] ifFalse: [
-		isClosure
-			ifTrue: ["newClosure" shouldImplement ]
-			ifFalse: ["loadLiteral" shouldImplement ]
-	].	
+	c contexts isEmpty \/ [topLevel] 
+		ifFalse: [ 
+			isClosure
+				ifTrue: [ inform: 'newClosure'. shouldImplement ]
+				ifFalse: [ c generate: (Syntax Literal for: newBlock) ].
+			
+		].
 
-	topLevel ifTrue: [ function verify &failureAction: LLVM VerifierFailureAction PrintMessage ].
+	function verify &failureAction: LLVM VerifierFailureAction PrintMessage.
 	newBlock reserved5: function name intern.
 	newBlock
 ].
@@ -253,10 +252,17 @@ c@(LLVM Compiler traits) generate: literal@(Syntax Literal traits) [
 			number: (LLVM Type Integer32 value: (c number: value) signed: True).
 			number as: c module structObjectPtr
 		]
-		ifFalse: [ | index function |
-			index: (c generate: (Syntax Literal for: (c literal: value))).
-			function: c module literalAtFunction.
-			c builder call: function arguments: { index } &name: 'literal'
+		ifFalse: [ 
+			value caseOf: {
+				Nil -> [ c builder load: c module nilObject &name: 'nil_addr' ].
+				True -> [ c builder load: c module nilObject &name: 'true_addr' ].
+				False -> [ c builder load: c module nilObject &name: 'false_addr' ]
+			}
+			otherwise: [ | index function |
+				index: (c generate: (Syntax Literal for: (c literal: value))).
+				function: c module literalAtFunction.
+				c builder call: function arguments: { index } &name: value
+			]
  		]
 ].
 
@@ -362,9 +368,10 @@ then the appropriate literal-array constructor bytecode."
 ].
 
 c@(LLVM Compiler traits) emitSelector: selector@(Symbol traits) [
-  	"declare the selector, but access it as a literal"
-	c selector: selector.
-	c generate: (Syntax Literal for: selector)
+	| index function |
+	index: (c generate: (Syntax Literal for: (c selector: selector))).
+	function: c module selectorAtFunction.
+	c builder call: function arguments: { index } &name: selector
 ].
 
 c@(LLVM Compiler traits) emitSendSelector: selector@(LLVM Value traits) on: argRegisters &name: name [
