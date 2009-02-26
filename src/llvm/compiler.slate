@@ -3,7 +3,7 @@ block@(Syntax Block traits) compile2 [
 	LLVM Compiler new generate: block
 ].
 
-LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder. #variables}.
+LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module. #builder. #variables. #function}.
 
 (LLVM Compiler hasSlotNamed: #DefaultModule) ifTrue: [
 	LLVM Compiler DefaultModule dispose.
@@ -107,69 +107,76 @@ c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLev
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
-	| newBlock isClosure statements function parameterTypes functionType |
+	| newBlock isClosure statements parameterTypes functionType |
 	inform: 'Block'.
 	topLevel `defaultsTo: False.
 	llvmName `defaultsTo: 'unnamedBlock'.
   	
-	newBlock: CompiledMethod new.
-	newBlock environment: (c contexts isEmpty
-		ifTrue: [block parentScope topLevel namespace]
-		ifFalse: [c currentMethod environment]).
-	  newBlock sourceTree: block.
-	c contexts push: (c Context newOn: newBlock).
-	  "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
-	statements: (block statements collect: [| :statement | statement macroExpand &environment: c currentMethod sourceTree]).
-	"Set the variable information after generation, just in case it was modified."
-	newBlock `>> [
-		inputVariables: block inputVariables size.
-		localVariables: block localVariables size.
-		restVariable: block restVariable isNotNil.
-		optionalKeywords: block optionalKeywords.
-	].
-	
-	c variables: Dictionary new.
-	parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
-	parameterTypes atAllPut: c module structObjectPtr.
-	functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
-	function: (c module addFunctionNamed: llvmName type: functionType).
-	c builder insertPoint: (function addBlockNamed: 'entry').
-	block localVariables doWithIndex: [ | :each :index variable parameter |
-		(index < parameterTypes size)
-			ifTrue: [ "is an arg"
-				parameter: (function parameterAt: index).
-				parameter name: each name.
-				variable: (c builder allocA: c module structObjectPtr name: (each name ; '_addr')).
-			]
-			ifFalse: [	"is a temp var"					
-				parameter: (c generate: (Syntax Literal for: Nil)).
-				variable: (c builder allocA: c module structObjectPtr name: each name).
+	topLevel
+		ifTrue: [
+			newBlock: CompiledMethod new.
+			newBlock environment: (c contexts isEmpty
+				ifTrue: [block parentScope topLevel namespace]
+				ifFalse: [c currentMethod environment]).
+			newBlock sourceTree: block.
+			c contexts push: (c Context newOn: newBlock).
+			"we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
+			statements: (block statements collect: [| :statement | statement macroExpand &environment: c currentMethod sourceTree]).
+			"Set the variable information after generation, just in case it was modified."
+			newBlock `>> [
+				inputVariables: block inputVariables size.
+				localVariables: block localVariables size.
+				restVariable: block restVariable isNotNil.
+				optionalKeywords: block optionalKeywords.
 			].
-		c builder store: parameter at: variable.
-		c variables at: each name put: variable.
-	].
-	
-	statements allButLastDo: [| :node | c generate: node].
-	statements size > 0
-		ifTrue: [ c builder ret &value: (c generate: statements last) ]
-		ifFalse: [ c builder ret &value: (c generate: (Syntax Literal for: Nil)) ].
-	
-	isClosure: c currentContext isClosure.
-	
-	c contexts pop flush.
-	"Forces the newBlock to record all the remaining stream input correctly."
-	
-	c contexts isEmpty \/ [topLevel] 
-		ifFalse: [ 
-			isClosure
-				ifTrue: [ inform: 'newClosure'. shouldImplement ]
-				ifFalse: [ c generate: (Syntax Literal for: newBlock) ].
-			
-		].
 
-	function verify &failureAction: LLVM VerifierFailureAction PrintMessage.
-	newBlock reserved5: function name intern.
-	newBlock
+			c variables: Dictionary new.
+			parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
+			parameterTypes atAllPut: c module structObjectPtr.
+			functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
+			c function: (c module addFunctionNamed: llvmName type: functionType).
+			c builder insertPoint: (c function addBlockNamed: 'entry').
+			block localVariables doWithIndex: [ | :each :index variable parameter |
+				(index < parameterTypes size)
+					ifTrue: [ "is an arg"
+						parameter: (c function parameterAt: index).
+						parameter name: each name.
+						variable: (c builder allocA: c module structObjectPtr name: (each name ; '_addr')).
+					]
+					ifFalse: [	"is a temp var"
+						parameter: (c generate: (Syntax Literal for: Nil)).
+						variable: (c builder allocA: c module structObjectPtr name: each name).
+					].
+				c builder store: parameter at: variable.
+				c variables at: each name put: variable.
+			].
+
+			statements allButLastDo: [| :node | c generate: node].
+			statements size > 0
+				ifTrue: [ c builder ret &value: (c generate: statements last) ]
+				ifFalse: [ c builder ret &value: (c generate: (Syntax Literal for: Nil)) ].
+
+			isClosure: c currentContext isClosure.
+
+			c contexts pop flush.
+			"Forces the newBlock to record all the remaining stream input correctly."
+
+			c contexts isEmpty \/ [topLevel]
+				ifFalse: [
+					isClosure
+						ifTrue: [ inform: 'newClosure'. shouldImplement ]
+						ifFalse: [ inform: 'newLiteral'. "c generate: (Syntax Literal for: newBlock)" ].
+				].
+
+			c function verify &failureAction: LLVM VerifierFailureAction PrintMessage.
+			newBlock reserved5: c function name intern.
+			newBlock
+		]
+		ifFalse: [ | newCompiler |
+			newCompiler: (c new &module: c module).
+			c generate: block &llvmName: (llvmName ; '_literal')
+		]
+  	
 ].
 
 c@(LLVM Compiler traits) generate: def@(Syntax MethodDefinition traits) [
