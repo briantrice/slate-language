@@ -23,6 +23,7 @@ p@(Parsing LLParser traits) parse
 p@(Parsing LLParser traits) parseRule: rule
 [
   (rule is: Integer) ifTrue: [^ (Parsing CharacterRule new `>> [character: rule.])].
+  (rule = #'.') ifTrue: [^ (Parsing AnythingRule new)].
   (rule is: Symbol) ifTrue: [p rules at: rule ifAbsent: [error: 'Bad reference to ' ; rule printString].
                              ^ (Parsing ReferenceRule new `>> [ref: rule.])].
   (rule is: String) ifTrue: [^ (Parsing StringRule new `>> [string: rule.])].
@@ -42,6 +43,7 @@ p@(Parsing LLParser traits) setRules: list
   d: Dictionary new.
   p rules: d.
   list do: [|:entry|
+              "inform: 'Adding rule ' ; entry key printString."
               d at: entry key put: Nil. "so we can verify references when parsing rules"
               ].
 
@@ -54,6 +56,7 @@ p@(Parsing LLParser traits) setRules: list
 Parsing define: #Rule &parents: {Cloneable} &slots: {#negate. #optional. #repeatable}.
 Parsing define: #NestedRule &parents: {Parsing Rule} &slots: {#children. #matchAll}.
 
+Parsing define: #AnythingRule &parents: {Parsing Rule} &slots: {}. "consume a character"
 Parsing define: #CharacterRule &parents: {Parsing Rule} &slots: {#character}.
 Parsing define: #CharacterRangeRule &parents: {Parsing Rule} &slots: {#start. #end}.
 Parsing define: #StringRule &parents: {Parsing Rule} &slots: {#string}.
@@ -83,11 +86,13 @@ r@(Parsing NestedRule traits) new
   resend `>> [matchAll: True. ]
 ].
 
+"negate shouldn't consume"
+
 p@(Parsing LLParser traits) matchCharacter: c from: pos negate: negate
 [
   pos >= p source size ifTrue: [^ Nil ].
   negate
-   ifTrue: [((p source at: pos) as: Integer) ~= c ifTrue: [pos + 1] ifFalse: [Nil]]
+   ifTrue: [((p source at: pos) as: Integer) ~= c ifTrue: [pos] ifFalse: [Nil]]
    ifFalse: [((p source at: pos) as: Integer) = c ifTrue: [pos + 1] ifFalse: [Nil]]
 ].
 
@@ -96,16 +101,16 @@ p@(Parsing LLParser traits) matchCharacterRange: c1 to: c2 from: pos negate: neg
   pos >= p source size ifTrue: [^ Nil ].
   c: ((p source at: pos) as: Integer).
   negate
-    ifTrue: [c >= c1 /\ [c <= c2] ifTrue: [Nil] ifFalse: [pos + 1]]
+    ifTrue: [c >= c1 /\ [c <= c2] ifTrue: [Nil] ifFalse: [pos]]
     ifFalse: [c >= c1 /\ [c <= c2] ifTrue: [pos + 1] ifFalse: [Nil]]
 ].
 
 p@(Parsing LLParser traits) matchString: str from: pos negate: negate
 [ |i|
-  pos >= p source size ifTrue: [^ Nil ].
+  pos + str size - 1 >= p source size ifTrue: [^ Nil ].
   i: pos.
   str do: [|:c| ((p source at: i) as: Integer) = (c as: Integer)
-                   ifFalse: [negate ifTrue: [^ (pos + 1)] ifFalse: [^ Nil]].
+                   ifFalse: [negate ifTrue: [^ (pos)] ifFalse: [^ Nil]].
            i: i + 1].
   negate ifTrue: [Nil] ifFalse: [i]
 ].
@@ -139,21 +144,36 @@ p@(Parsing LLParser traits) matchData: d@(Parsing StringRule traits) from: pos
 
 p@(Parsing LLParser traits) matchData: d@(Parsing ReferenceRule traits) from: pos
 [
-  inform: 'match ref ' ; d ref printString ; ' at ' ; pos printString.
+  "inform: 'match ref ' ; d ref printString ; ' at ' ; pos printString."
   p matchReference: d ref from: pos
+].
+
+p@(Parsing LLParser traits) matchData: d@(Parsing AnythingRule traits) from: pos
+[
+  pos >= p source size
+      ifTrue: [Nil]
+      ifFalse: [(Parsing Token newOn: p) `>> [rule: d. start: pos. end: pos + 1.]]
 ].
 
 
 p@(Parsing LLParser traits) parseUsing: r@(Parsing Rule traits) from: pos
-[ | i res|
+[ | i res matched continueLoop |
   i: pos.
-  inform: 'Parsing ' ; r printString ; ' at ' ; pos printString.
-  r repeatable ifTrue: [[res: (p matchData: r from: i). res isNotNil] whileTrue: [i: res end.]]
-               ifFalse: [res: (p matchData: r from: i). res isNotNil ifTrue: [i: res end.]].
-  i = pos
-     ifTrue: [r optional ifTrue: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: pos. children: {res}.]]
-                         ifFalse: [Nil]]
-     ifFalse: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: i. children: {res}.]]
+  "inform: 'Parsing ' ; r printString ; ' at ' ; pos printString."
+  r repeatable ifTrue: [continueLoop: True.
+                        [continueLoop] whileTrue:
+                          [res: (p matchData: r from: i).
+                           matched: res isNotNil.
+                           matched not \/ [res end <= i] ifTrue: [continueLoop: False].
+                           i: res end.]]
+               ifFalse: [res: (p matchData: r from: i). 
+                         matched: res isNotNil.
+                         matched ifTrue: [i: res end]].
+  "inform: 'Matched: ' ; matched printString ; ' at: ' ; i printString."
+  matched
+     ifTrue: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: i. children: {res}.]]
+     ifFalse: [r optional ifTrue: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: pos. children: {res}.]]
+                          ifFalse: [Nil]]
 ].
 
 
@@ -167,10 +187,10 @@ p@(Parsing LLParser traits) matchNestedData: d@(Parsing NestedRule traits) from:
     ifTrue: [d matchAll
                ifTrue: [(d children allSatisfy: [|:child| (p parseUsing: child from: curPos) isNotNil])
                           ifTrue: [^ {}]
-                          ifFalse: [^ {(Parsing Token newOn: p) `>> [end: pos + 1.]}]]
+                          ifFalse: [^ {(Parsing Token newOn: p) `>> [end: pos.]}]]
                ifFalse: [(d children anySatisfy: [|:child| (p parseUsing: child from: curPos) isNotNil])
                           ifTrue: [^ {}]
-                          ifFalse: [^ {(Parsing Token newOn: p) `>> [end: pos + 1.]}]]
+                          ifFalse: [^ {(Parsing Token newOn: p) `>> [end: pos.]}]]
             ].
 
 
@@ -189,18 +209,22 @@ p@(Parsing LLParser traits) matchNestedData: d@(Parsing NestedRule traits) from:
 ].
 
 p@(Parsing LLParser traits) parseUsing: r@(Parsing NestedRule traits) from: pos
-[ | i res tokens |
+[ | i res tokens continueLoop |
   i: pos.
   tokens: ExtensibleArray new.
   "inform: 'Parsing nested ' ; r printString ; ' at ' ; pos printString."
-  r repeatable ifTrue: [[res: (p matchNestedData: r from: i).
-                         inform: 'matches: ' ; res printString.
-                         tokens addAll: res.
-                         res isEmpty] whileFalse: [i: res last end.]]
+  r repeatable ifTrue: [continueLoop: True.
+                        [continueLoop] whileTrue:
+                          [res: (p matchNestedData: r from: i).
+                           "inform: 'matches: ' ; res printString ; ' for ' ; r printString."
+                           tokens addAll: res.
+                           res isEmpty \/ [res last end <= i] ifTrue: [continueLoop: False].
+                           res isEmpty ifFalse: [i: res last end]]]
                ifFalse: [res: (p matchNestedData: r from: i).
                          tokens addAll: res.
+                         "inform: 'matches: ' ; res printString ; ' for ' ; r printString."
                          res isEmpty ifFalse: [i: res last end.]].
-  i = pos
+  tokens isEmpty
      ifTrue: [r optional ifTrue: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: pos. children: tokens. ]]
                          ifFalse: [Nil]]
      ifFalse: [(Parsing Token newOn: p) `>> [rule: r. start: pos. end: i. children: tokens. ]]

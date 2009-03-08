@@ -5,6 +5,7 @@ lobby ensureNamespace: #Xml.
 
 Xml define: #Parser &parents: {Parsing LLParser} &slots: {#rootElement}.
 
+". cannot be negated so [^<&]* is like (~ '<' '&' . *)"
 
 Xml Parser setRules: {
 #Document -> #(prolog element (Misc *)).
@@ -18,18 +19,18 @@ Xml Parser setRules: {
 #Names -> #(Name (16r20 Name *)).
 #Nmtoken -> #((NameChar +)).
 #Nmtokens -> #(Nmtoken (16r20 Nmtoken *)).
-#EntityValue -> #(| ('"'  (| (~ '%' '&' '"') PEReference Reference *) '"') ('\'' (| (~ '%' '&' '\'') PEReference Reference *) '\'')).
-#AttValue -> #(| ('"'  (| (~ '<' '&' '"') Reference *) '"')  ('\'' (| (~ '<' '&' '\'') Reference *) '\'')).
-#SystemLiteral -> #(| ('"' (~ '"' *) '"') ('\'' (~ '\'' *) '\'')).
-#PubidLiteral -> #(| ('"' (PubidChar *) '"') ('\'' (PubidChar *) '\'')) "fixme minus".
+#EntityValue -> #(| ('"'  (| (~ '%' '&' '"') PEReference Reference . *) '"') ('\'' (| (~ '%' '&' '\'') PEReference Reference . *) '\'')).
+#AttValue -> #(| ('"'  (| (~ '<' '&' '"') Reference . *) '"')  ('\'' (| (~ '<' '&' '\'') Reference . *) '\'')).
+#SystemLiteral -> #(| ('"' (~ '"' . *) '"') ('\'' (~ '\'' . *) '\'')).
+#PubidLiteral -> #(| ('"' (PubidChar *) '"') ('\'' ((~ '\'') PubidChar *) '\'')).
 #PubidChar -> #(| 16r20 16rD 16rA (16r61 16r7A) (16r41 16r5A) (16r30 16r39) 45 39 40 41 43 44 46 47 58 61 63 59 33 42 35 64 36 95 37).
-#CharData -> #(~ (| 16r3C "<" 16r26 "&" ']]>') *) "#([^<&]* - ([^<&]* ']]>' [^<&]*))".
-#Comment -> #('<!--' (Char *) '-->') "fixme verify".
-#PI -> #('<?' PITarget (S (Char *) ?) '?>') "check for extra nested ?>".
-#PITarget -> #(Name "- (('X' | 'x') ('M' | 'm') ('L' | 'l'))").
+#CharData -> #((~ (| '<' '&' ']]>')) . *).
+#Comment -> #('<!--' ((~ '--' ) Char *) '-->').
+#PI -> #('<?' PITarget (S ((~ '?>') Char *) ?) '?>').
+#PITarget -> #((~ (| 'X' 'x') (| 'M' 'm') (| 'L' 'l')) Name).
 #CDSect -> #( CDStart  CData  CDEnd).
 #CDStart -> #('<![CDATA[').
-#CData -> #((Char *) "- ((Char *) ']]>' (Char *)))"). "fixme"
+#CData -> #((~ ']]>') Char *).
 #CDEnd -> #(']]>').
 #prolog -> #( XMLDecl  (Misc *) (doctypedecl  (Misc *) ?)).
 #XMLDecl -> #('<?xml' VersionInfo (EncodingDecl ?) (SDDecl ?) (S ?) '?>').
@@ -70,7 +71,7 @@ Xml Parser setRules: {
 #includeSect -> #('<![' (S ?) 'INCLUDE' (S ?) '[' extSubsetDecl ']]>' ).
 #ignoreSect -> #('<![' (S ?) 'IGNORE' (S ?) '[' (ignoreSectContents *) ']]>').
 #ignoreSectContents -> #( Ignore ('<![' ignoreSectContents ']]>' Ignore *)).
-#Ignore -> #((Char *) "- ((Char *) (| '<![' ']]>') (Char *)) "). "fixme"
+#Ignore -> #((~ (| '<![' ']]>')) Char *).
 #CharRef -> #(| ('&#' ((16r30 16r39) +) ';') ('&#x' ((16r30 16r39) (16r61 16r66) (16r41 16r46) +) ';')).
 #Reference -> #(| EntityRef CharRef).
 #EntityRef -> #('&' Name ';').
