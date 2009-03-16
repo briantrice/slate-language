@@ -3,7 +3,128 @@
 
 lobby ensureNamespace: #Xml.
 
-Xml define: #Parser &parents: {Parsing LLParser} &slots: {#rootElement}.
+Xml define: #Parser &parents: {Parsing BasicParser} &slots: {#rootElement}.
+
+"this parser won't read any DTD info. it creates the objects below. it's non-conforming"
+Xml define: #SimpleParser &parents: {Parsing BasicParser} &slots: {#rootElement. #dtd. #putBackBuffer}.
+
+Xml define: #Namespace &parents: {Cloneable} &slots: {#uri}.
+Xml define: #Identifier &parents: {Cloneable} &slots: {#name. #namespace}.
+Xml define: #Element &parents: {Cloneable} &slots: {#name. #children. #attributes}.
+Xml define: #Attribute &parents: {Cloneable} &slots: {#name. #text}.
+
+
+
+"simple xml parser"
+
+p@(Xml SimpleParser traits) new
+[
+  resend `>> [putBackBuffer: Stack new. ]
+].
+
+p@(Xml SimpleParser traits) newOn: s@(String traits)
+[
+  p newOn: s reader
+].
+
+p@(Xml SimpleParser traits) reset
+[
+  
+].
+
+p@(Xml SimpleParser traits) readNext
+[
+  p putBackBuffer isEmpty ifTrue: [p source next] ifFalse: [putBackBuffer pop]
+].
+
+p@(Xml SimpleParser traits) putBack: char
+[
+  p putBackBuffer push: char
+].
+
+p@(Xml SimpleParser traits) parse
+[
+  p reset.
+  p rootElement: p readElement
+].
+
+p@(Xml SimpleParser traits) assertNext: char
+[ |next|
+  next: p readNext.
+  next ~= char ifTrue: [error: 'Read: ' ; next printString ; ' expected: ' ; char printString].
+].
+
+p@(Xml SimpleParser traits) eatWhitespace &required: required
+[ |next readAny|
+  required `defaultsTo: False.
+
+  next: p readNext.
+  (#(16r20 16r9 16rD 16rA) includes: (char as: Integer))
+    ifFalse: [p putBack: next.
+              required ifTrue: [error: 'Expected whitespace but found: ' ; next printString]
+                       ifFalse: [^ Nil]].
+
+  [
+    next: p readNext.
+    #(16r20 16r9 16rD 16rA) includes: (char as: Integer)
+  ] whileFalse
+  p putBack: next.
+].
+
+
+p@(Xml SimpleParser traits) readElement
+[ |name temp element |
+  p assertNext: $<.
+  element: Xml Element new `>> [children: ExtensibleArray new. ].
+  element name: p readName.
+  p eatWhitespace.
+  p readAttributesFor: element.
+  temp: p readNext.
+
+  next = $/ ifTrue: [p assertNext: $>. 
+                     element definesNamespace ifTrue: [p currentNamespace pop].
+                     ^ element].
+
+  next = $> ifTrue: [p readElementContentFor: element.
+                     element definesNamespace ifTrue: [p currentNamespace pop].
+                     ^ element].
+  error: 'Read: ' ; next printString ; ' expected end of element marker / or >'.
+  
+].
+
+p@(Xml SimpleParser traits) readName
+[
+  fixme
+].
+
+"read until </element name>"
+p@(Xml SimpleParser traits) readElementContentFor: element
+[
+  fixme
+].
+
+p@(Xml SimpleParser traits) readAttributesFor: element
+[
+  fixme
+].
+
+p@(Xml SimpleParser traits) readName
+[
+  fixme
+].
+
+
+p@(Xml Element traits) definesNamespace
+[
+  False "fixme"
+].
+
+
+
+"main XML parser"
+
+
+"the problem with this LL grammar is that it won't work because of XML entities and such"
 
 ". cannot be negated so [^<&]* is like (~ '<' '&' . *)"
 
@@ -98,7 +219,6 @@ p@(Xml Parser traits) parseDocument
 [
   p parse
 ].
-
 
 
 
