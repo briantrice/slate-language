@@ -12,6 +12,7 @@ Net define: #Socket &parents: {ExternalResource} &slots: {#address}.
 Net define: #SocketServerConnection &parents: {Net Socket} &slots: {#peerAddress -> Nil}.
 Net define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
 Net define: #IP4Address &parents: {Net SocketAddress}.
+Net define: #IP6Address &parents: {Net SocketAddress}.
 Net define: #UnixDomainAddress &parents: {Net SocketAddress}.
 
 Net define: #SocketServer &parents: {Cloneable}
@@ -25,6 +26,7 @@ Net Socket traits ensureNamespace: #Protocols.
 Net Socket traits addSlot: #SelectTimeout valued: lobby timeSinceEpoch.
 Net Socket traits addSlot: #BufferSize valued: 1024.
 
+Net Socket addSlot: #AddressTypes valued: {Net IP4Address. Net IP6Address. Net UnixDomainAddress}.
 
 Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
 
@@ -57,6 +59,11 @@ Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
 conditions define: #SocketError
   &parents: {ExternalResource SeriousCondition}
   &slots: {#error. #errorCode}.
+
+c@(SocketError traits) describeOn: console
+[
+  console ; 'Socket error ' ;  c errorCode printString ; ' (' ; c error printString ; ')' ; '\n' 
+].
 
 
 Net Socket Domains `>> [
@@ -96,6 +103,13 @@ addr@(Net SocketAddress traits) newOn: array port: port
   ret
 ].
 
+_@(Net SocketAddress traits) forDomain: domain
+[ 
+  Net Socket AddressTypes do: [|:at| at domain = domain ifTrue: [^ at]].
+  ^ Nil
+].
+
+
 addr@(Net SocketAddress traits) separatePort: string@(String traits)
 [ |regex|
   regex: (Regex Matcher newOn: '^([^:]+)(\\:(\\d+))?$').
@@ -123,10 +137,26 @@ addr@(Net IP4Address traits) domain
   Net Socket Domains IP4
 ].
 
+addr@(Net IP6Address traits) domain
+[
+  Net Socket Domains IP6
+].
+
 addr@(Net UnixDomainAddress traits) domain
 [
   Net Socket Domains Local
 ].
+
+addr@(Net SocketAddress traits) domain
+[
+  overrideThis
+].
+
+x@(Net SocketAddress traits) as: y@(Net SocketAddress traits)
+[
+  y new `>> [address: x address. ]
+].
+
 
 s@(Net Socket traits) enable
 [ | ret |

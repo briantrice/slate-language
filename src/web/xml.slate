@@ -1,0 +1,224 @@
+
+"XML 1.1 parser"
+
+lobby ensureNamespace: #Xml.
+
+Xml define: #Parser &parents: {Parsing BasicParser} &slots: {#rootElement}.
+
+"this parser won't read any DTD info. it creates the objects below. it's non-conforming"
+Xml define: #SimpleParser &parents: {Parsing BasicParser} &slots: {#rootElement. #dtd. #putBackBuffer}.
+
+Xml define: #Namespace &parents: {Cloneable} &slots: {#uri}.
+Xml define: #Identifier &parents: {Cloneable} &slots: {#name. #namespace}.
+Xml define: #Element &parents: {Cloneable} &slots: {#name. #children. #attributes}.
+Xml define: #Attribute &parents: {Cloneable} &slots: {#name. #text}.
+
+
+
+"simple xml parser"
+
+p@(Xml SimpleParser traits) new
+[
+  resend `>> [putBackBuffer: Stack new. ]
+].
+
+p@(Xml SimpleParser traits) newOn: s@(String traits)
+[
+  p newOn: s reader
+].
+
+p@(Xml SimpleParser traits) reset
+[
+  
+].
+
+p@(Xml SimpleParser traits) readNext
+[
+  p putBackBuffer isEmpty ifTrue: [p source next] ifFalse: [putBackBuffer pop]
+].
+
+p@(Xml SimpleParser traits) putBack: char
+[
+  p putBackBuffer push: char
+].
+
+p@(Xml SimpleParser traits) parse
+[
+  p reset.
+  p rootElement: p readElement
+].
+
+p@(Xml SimpleParser traits) assertNext: char
+[ |next|
+  next: p readNext.
+  next ~= char ifTrue: [error: 'Read: ' ; next printString ; ' expected: ' ; char printString].
+].
+
+p@(Xml SimpleParser traits) eatWhitespace &required: required
+[ |next readAny|
+  required `defaultsTo: False.
+
+  next: p readNext.
+  (#(16r20 16r9 16rD 16rA) includes: (char as: Integer))
+    ifFalse: [p putBack: next.
+              required ifTrue: [error: 'Expected whitespace but found: ' ; next printString]
+                       ifFalse: [^ Nil]].
+
+  [
+    next: p readNext.
+    #(16r20 16r9 16rD 16rA) includes: (char as: Integer)
+  ] whileFalse
+  p putBack: next.
+].
+
+
+p@(Xml SimpleParser traits) readElement
+[ |name temp element |
+  p assertNext: $<.
+  element: Xml Element new `>> [children: ExtensibleArray new. ].
+  element name: p readName.
+  p eatWhitespace.
+  p readAttributesFor: element.
+  temp: p readNext.
+
+  next = $/ ifTrue: [p assertNext: $>. 
+                     element definesNamespace ifTrue: [p currentNamespace pop].
+                     ^ element].
+
+  next = $> ifTrue: [p readElementContentFor: element.
+                     element definesNamespace ifTrue: [p currentNamespace pop].
+                     ^ element].
+  error: 'Read: ' ; next printString ; ' expected end of element marker / or >'.
+  
+].
+
+p@(Xml SimpleParser traits) readName
+[
+  fixme
+].
+
+"read until </element name>"
+p@(Xml SimpleParser traits) readElementContentFor: element
+[
+  fixme
+].
+
+p@(Xml SimpleParser traits) readAttributesFor: element
+[
+  fixme
+].
+
+p@(Xml SimpleParser traits) readName
+[
+  fixme
+].
+
+
+p@(Xml Element traits) definesNamespace
+[
+  False "fixme"
+].
+
+
+
+"main XML parser"
+
+
+"the problem with this LL grammar is that it won't work because of XML entities and such"
+
+". cannot be negated so [^<&]* is like (~ '<' '&' . *)"
+
+Xml Parser setRules: {
+#Document -> #(prolog element (Misc *)).
+#Char -> #(| (16r1 16rD7FF) (16rE000 16rFFFD) (16r10000 16r10FFFF)).
+#RestrictedChar -> #(| (16r1 16r8) (16rB 16rC) (16rE 16r1F) (16r7F 16r84) (16r86 16r9F)).
+#S -> #(| 16r20 16r9 16rD 16rA +).
+#NameStartChar -> #(| 16r3A":" (16r41 16r5A "A-Z") 16r5F "_" (16r61 16r7A"a-z") (16rC0 16rD6) (16rD8 16rF6) (16rF8 16r2FF) (16r370 16r37D) (16r37F 16r1FFF) (16r200C 16r200D) (16r2070 16r218F) (16r2C00 16r2FEF) (16r3001 16rD7FF) (16rF900 16rFDCF) (16rFDF0 16rFFFD) (16r10000 16rEFFFF)).
+#NameNonStartChar -> #(| 16r2D"-" 16r2E"." (16r30 16r39)"(0-9)" 16rB7 (16r0300-16r036F) (16r203F-16r2040)).
+#NameChar -> #(| NameStartChar NameNonStartChar).
+#Name -> #(NameStartChar (NameChar *)).
+#Names -> #(Name (16r20 Name *)).
+#Nmtoken -> #((NameChar +)).
+#Nmtokens -> #(Nmtoken (16r20 Nmtoken *)).
+#EntityValue -> #(| ('"'  (| (~ '%' '&' '"') PEReference Reference . *) '"') ('\'' (| (~ '%' '&' '\'') PEReference Reference . *) '\'')).
+#AttValue -> #(| ('"'  (| (~ '<' '&' '"') Reference . *) '"')  ('\'' (| (~ '<' '&' '\'') Reference . *) '\'')).
+#SystemLiteral -> #(| ('"' (~ '"' . *) '"') ('\'' (~ '\'' . *) '\'')).
+#PubidLiteral -> #(| ('"' (PubidChar *) '"') ('\'' ((~ '\'') PubidChar *) '\'')).
+#PubidChar -> #(| 16r20 16rD 16rA (16r61 16r7A) (16r41 16r5A) (16r30 16r39) 45 39 40 41 43 44 46 47 58 61 63 59 33 42 35 64 36 95 37).
+#CharData -> #((~ (| '<' '&' ']]>')) . *).
+#Comment -> #('<!--' ((~ '--' ) Char *) '-->').
+#PI -> #('<?' PITarget (S ((~ '?>') Char *) ?) '?>').
+#PITarget -> #((~ (| 'X' 'x') (| 'M' 'm') (| 'L' 'l')) Name).
+#CDSect -> #( CDStart  CData  CDEnd).
+#CDStart -> #('<![CDATA[').
+#CData -> #((~ ']]>') Char *).
+#CDEnd -> #(']]>').
+#prolog -> #( XMLDecl  (Misc *) (doctypedecl  (Misc *) ?)).
+#XMLDecl -> #('<?xml' VersionInfo (EncodingDecl ?) (SDDecl ?) (S ?) '?>').
+#VersionInfo -> #(S 'version' Eq (| ('\'' VersionNum '\'') ('"' VersionNum '"'))).
+#Eq -> #((S ?) '=' (S ?)).
+#VersionNum -> #('1.1').
+#Misc -> #(| (Comment PI S)).
+#doctypedecl -> #('<!DOCTYPE' S  Name (S  ExternalID ?) (S ?) ('[' intSubset ']' (S ?) ?) '>').
+#DeclSep -> #(| PEReference S).
+#intSubset -> #(| markupdecl DeclSep *).
+#markupdecl -> #(| elementdecl AttlistDecl EntityDecl NotationDecl PI Comment).
+#extSubset -> #( (TextDecl ?) extSubsetDecl).
+#extSubsetDecl -> #((| markupdecl conditionalSect DeclSep *)).
+#SDDecl -> #(  S   'standalone' Eq (| ('\'' (| 'yes' 'no') '\'') ('"' (| 'yes' 'no') '"'))).
+#element -> #(| (EmptyElemTag) (STag content ETag) ).
+#STag -> #('<' Name (S  Attribute *) (S ?) '>').
+#Attribute -> #( Name  Eq  AttValue  ).
+#ETag -> #('</' Name  (S ?) '>').
+#content -> #( (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *)).
+#EmptyElemTag -> #('<' Name (S  Attribute *) (S ?) '/>').
+#elementdecl -> #('<!ELEMENT' S  Name  S  contentspec  (S ?) '>').
+#contentspec -> #(| ('EMPTY' 'ANY' Mixed children)  ).
+#children -> #((| choice seq) (| '?'  '*' '+' ?)).
+#cp -> #((| Name choice seq) (| '?' '*' '+' ?)).
+#choice -> #('(' (S ?) cp ( (S ?) '|' (S ?) cp +) (S ?) ')').
+#seq -> #('(' (S ?) cp ( (S ?) ',' (S ?) cp *) (S ?) ')').
+#Mixed -> #(| ('(' (S ?) '#PCDATA' ((S ?) '|' (S ?) (Name *)) (S ?) ')*') ('(' (S ?) '#PCDATA' (S ?) ')') ).
+#AttlistDecl -> #('<!ATTLIST' S  Name  (AttDef *) (S ?) '>').
+#AttDef -> #(S Name S AttType S DefaultDecl ).
+#AttType -> #(| StringType TokenizedType EnumeratedType).
+#StringType -> #('CDATA').
+#TokenizedType -> #(| 'ID' 'IDREF' 'IDREFS' 'ENTITY' 'ENTITIES' 'NMTOKEN' 'NMTOKENS').
+#EnumeratedType -> #(| NotationType  Enumeration  ).
+#NotationType -> #('NOTATION' S '(' (S ?) Name ((S ?) '|' (S ?) Name *) (S ?) ')').
+#Enumeration -> #('(' (S ?) Nmtoken ((S ?) '|' (S ?) Nmtoken *) (S ?) ')').
+#DefaultDecl -> #(| '#REQUIRED' '#IMPLIED' (('#FIXED' S ?) AttValue)).
+#conditionalSect -> #(| includeSect ignoreSect).
+#includeSect -> #('<![' (S ?) 'INCLUDE' (S ?) '[' extSubsetDecl ']]>' ).
+#ignoreSect -> #('<![' (S ?) 'IGNORE' (S ?) '[' (ignoreSectContents *) ']]>').
+#ignoreSectContents -> #( Ignore ('<![' ignoreSectContents ']]>' Ignore *)).
+#Ignore -> #((~ (| '<![' ']]>')) Char *).
+#CharRef -> #(| ('&#' ((16r30 16r39) +) ';') ('&#x' ((16r30 16r39) (16r61 16r66) (16r41 16r46) +) ';')).
+#Reference -> #(| EntityRef CharRef).
+#EntityRef -> #('&' Name ';').
+#PEReference -> #('%' Name ';').
+#EntityDecl -> #(| GEDecl  PEDecl).
+#GEDecl -> #('<!ENTITY' S Name S EntityDef (S ?) '>').
+#PEDecl -> #('<!ENTITY' S '%' S Name S PEDef (S ?) '>').
+#EntityDef -> #(| EntityValue (ExternalID (NDataDecl ?))).
+#PEDef -> #(| EntityValue ExternalID ).
+#ExternalID -> #(| ('SYSTEM' S  SystemLiteral) ('PUBLIC' S PubidLiteral S SystemLiteral)).
+#NDataDecl -> #(S 'NDATA' S Name ).
+#TextDecl -> #('<?xml' (VersionInfo ?) EncodingDecl  (S ?) '?>').
+#extParsedEnt -> #(  (  (TextDecl ?) content   ) "-  (  Char* RestrictedChar  Char*  )"  ).
+#EncodingDecl -> #( S 'encoding' Eq (| ('"' EncName '"') ('\'' EncName '\'' ))).
+#EncName -> #((| (16r41 16r5A) (16r61 16r7A)) (| ((16r41 16r5A) (16r61 16r7A) (16r30 16r39) '.' '_' '-') *)).
+#NotationDecl -> #('<!NOTATION' S  Name  S (| ExternalID PublicID) (S ?) '>').
+#PublicID -> #('PUBLIC' S PubidLiteral ).
+
+
+
+}.
+
+p@(Xml Parser traits) parseDocument
+[
+  p parse
+].
+
+
+

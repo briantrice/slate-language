@@ -216,6 +216,11 @@ Net define: #AsyncResolveOperation &parents: {Net AsyncOperation}
 o@(Net AsyncResolveOperation traits) newOn: name
 &service: service &family: family &type: type &protocol: protocol &flags: flags
 [ 
+  family `defaultsTo: Net Socket Domains IP4.
+  type `defaultsTo: Net Socket Types Stream.
+  protocol `defaultsTo: Net Socket Protocols Default.
+  flags `defaultsTo: 0.
+
   o new `>> [name: name. service: service. 
              family: family. type: type. protocol: protocol. flags: flags.
              ticket: Nil.
@@ -231,4 +236,14 @@ o@(Net AsyncResolveOperation traits) workOn
   ret ifNil: [^ Nil].
   (ret is: Sequence) ifTrue: [o ticket freeAddrInfoResult. ^ (o complete &result: ret)].
   Net Socket throwError: ret
+].
+
+o@(Net AsyncResolveOperation traits) result: n as: type@(Net SocketAddress traits)
+[ | resN ret |
+  o result ifNil: [error: 'no result from resolve operation'].
+  o result isEmpty ifTrue: [error: 'resolved address result is empty'].
+  resN: (o result at: n).
+  ret: (type forDomain: resN second) new.
+  ret address: resN fifth.
+  ret
 ].

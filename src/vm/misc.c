@@ -126,23 +126,22 @@ word_t max(word_t x, word_t y) {
 
 
 
-
+/*obsolete*/
 word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
 
-  word_t i, iLen, nRemaining, totalLen;
+  word_t i, iLen, totalLen;
 
-  nRemaining = limit;
   totalLen = 0;
-  for (i=0; i<oh->argcSaved; i++) {
-    iLen = strlen (oh->argvSaved [i]) + 1;
-    memcpy (buffer + totalLen, oh->argvSaved [i], max(iLen, nRemaining));
+  for (i = 0; i < oh->argcSaved; i++) {
+    iLen = strlen(oh->argvSaved[i]) + 1;
+    if (totalLen + iLen >= limit) return totalLen;
+    memcpy (buffer + totalLen, oh->argvSaved[i], iLen);
     totalLen += iLen;
-
-    nRemaining = max(nRemaining - iLen, 0);
   }
   return totalLen;
 
 }
+
 
 
 word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)

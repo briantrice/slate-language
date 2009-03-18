@@ -145,7 +145,7 @@ Net define: #AsyncSimpleHttpRequest &parents: {Net AsyncBlockOperation}
 &slots: {#url. #request}.
 
 _@(Net AsyncSimpleHttpRequest traits) new
-[ |o con discon send recv retval hostname portIp|
+[ |o con discon resolv send recv retval hostname portIp port|
   o: resend.
 
   discon: Net AsyncCloseOperation new. 
@@ -157,15 +157,19 @@ _@(Net AsyncSimpleHttpRequest traits) new
 
   o workBlock: [hostname: o url authority.
                 portIp: (Net SocketAddress separatePort: hostname).
-                portIp second ifNil: [hostname: hostname ; ':80'].
-                con: (Net AsyncConnectOperation newOn: hostname).
-                con completionBlock: [|:me|
-                                        {discon. send. recv. } do: [|:x| x handle: me result].
-                                      o workBlock: [send workOn]].
-                
+                portIp second ifNil: [hostname: hostname ; ':80'. port: '80'] ifNotNil: [port: portIp second].
+                resolv: (Net AsyncResolveOperation newOn: portIp first &service: port).
+                resolv completionBlock:
+                  [|:me| 
+                     con: (Net AsyncConnectOperation newOn: (me result: 0 as: Net SocketAddress)).
+                     con completionBlock: [|:me|
+                                             {discon. send. recv. } do: [|:x| x handle: me result].
+                                           o workBlock: [send workOn]].
+                     o workBlock: [con workOn]].
+
                 send: ((o request as: String) as: Net AsyncSendOperation).
                 send completionBlock: [|:me| o workBlock: [recv workOn]].
-                o workBlock: [con workOn].
+                o workBlock: [resolv workOn].
                 o workOn].
   o
 ].
