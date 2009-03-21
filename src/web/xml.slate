@@ -6,8 +6,13 @@ lobby ensureNamespace: #Xml.
 Xml define: #Parser &parents: {Parsing BasicParser} &slots: {#rootElement}.
 
 "this parser won't read any DTD info. it creates the objects below. it's non-conforming"
-Xml define: #SimpleParser &parents: {Parsing BasicParser} &slots: {#rootElement. #dtd. #putBackBuffer}.
+Xml define: #SimpleParser &parents: {Parsing BasicParser} &slots: {#rootElement. #dtd.
+#whitespaceRange -> #(16r20 16r9 16rD 16rA).
+#startCharacterRange -> #(16r3A":" (16r41 16r5A "A-Z") 16r5F "_" (16r61 16r7A"a-z") (16rC0 16rD6) (16rD8 16rF6) (16rF8 16r2FF) (16r370 16r37D) (16r37F 16r1FFF) (16r200C 16r200D) (16r2070 16r218F) (16r2C00 16r2FEF) (16r3001 16rD7FF) (16rF900 16rFDCF) (16rFDF0 16rFFFD) (16r10000 16rEFFFF)).
+#nonStartCharacterRange -> #(16r2D"-" 16r2E"." (16r30 16r39)"(0-9)" 16rB7 (16r0300-16r036F) (16r203F-16r2040)).
+}.
 
+Xml define: #Dtd &parents: {Cloneable} &slots: {#blah}.
 Xml define: #Namespace &parents: {Cloneable} &slots: {#uri}.
 Xml define: #Identifier &parents: {Cloneable} &slots: {#name. #namespace}.
 Xml define: #Element &parents: {Cloneable} &slots: {#name. #children. #attributes}.
@@ -15,11 +20,12 @@ Xml define: #Attribute &parents: {Cloneable} &slots: {#name. #text}.
 
 
 
+
 "simple xml parser"
 
 p@(Xml SimpleParser traits) new
 [
-  resend `>> [putBackBuffer: Stack new. ]
+  resend `>> [dtd: Xml Dtd new. ]
 ].
 
 p@(Xml SimpleParser traits) newOn: s@(String traits)
@@ -29,57 +35,58 @@ p@(Xml SimpleParser traits) newOn: s@(String traits)
 
 p@(Xml SimpleParser traits) reset
 [
-  
-].
+  p source reset.
 
-p@(Xml SimpleParser traits) readNext
-[
-  p putBackBuffer isEmpty ifTrue: [p source next] ifFalse: [putBackBuffer pop]
-].
-
-p@(Xml SimpleParser traits) putBack: char
-[
-  p putBackBuffer push: char
 ].
 
 p@(Xml SimpleParser traits) parse
 [
   p reset.
+  p readProlog.
   p rootElement: p readElement
 ].
 
-p@(Xml SimpleParser traits) assertNext: char
-[ |next|
-  next: p readNext.
-  next ~= char ifTrue: [error: 'Read: ' ; next printString ; ' expected: ' ; char printString].
+p@(Xml SimpleParser traits) readProlog
+["fixme"
+  p readUntil: '?>'.
+  p source skip: 2.
 ].
 
+
+p@(Xml SimpleParser traits) assertNext: char
+[ |next|
+  next: p source next.
+  next ~= char ifTrue: [p error: 'Read: ' ; next printString ; ' expected: ' ; char printString].
+].
+
+p@(Xml SimpleParser traits) assertNext: str@(String traits)
+[ 
+  (p isNextEqualTo: str) ifTrue: [p source next: str length]
+                         ifFalse: [p error: 'Read: ' ; (p peek: str length) printString ; ' expected: ' ; str printString]
+].
+
+
+
 p@(Xml SimpleParser traits) eatWhitespace &required: required
-[ |next readAny|
+[ |next start end |
   required `defaultsTo: False.
-
-  next: p readNext.
-  (#(16r20 16r9 16rD 16rA) includes: (char as: Integer))
-    ifFalse: [p putBack: next.
-              required ifTrue: [error: 'Expected whitespace but found: ' ; next printString]
-                       ifFalse: [^ Nil]].
-
-  [
-    next: p readNext.
-    #(16r20 16r9 16rD 16rA) includes: (char as: Integer)
-  ] whileFalse
-  p putBack: next.
+  start: p source position.
+  (p readOnly: p whitespaceRange).
+  end: p source position.
+  required /\ [start = end] ifTrue: [p error: 'Expected whitespace but found none '].
 ].
 
 
 p@(Xml SimpleParser traits) readElement
-[ |name temp element |
+[ |name next element |
   p assertNext: $<.
   element: Xml Element new `>> [children: ExtensibleArray new. ].
   element name: p readName.
+  inform: 'element name is: ' ; element name printString.
   p eatWhitespace.
+
   p readAttributesFor: element.
-  temp: p readNext.
+  next: p source next.
 
   next = $/ ifTrue: [p assertNext: $>. 
                      element definesNamespace ifTrue: [p currentNamespace pop].
@@ -88,29 +95,136 @@ p@(Xml SimpleParser traits) readElement
   next = $> ifTrue: [p readElementContentFor: element.
                      element definesNamespace ifTrue: [p currentNamespace pop].
                      ^ element].
-  error: 'Read: ' ; next printString ; ' expected end of element marker / or >'.
+  p error: 'Read: ' ; next printString ; ' expected end of element marker / or >'.
   
 ].
 
+
+p@(Xml SimpleParser traits) readNamespaceOrName
+[ |char name namespace |
+  name: ExtensibleArray new.
+  char: p source next.
+  (p isCharacter: char inRange: p startCharacterRange) ifFalse: [p error: char printString ; ' is not a valid name start character.'].
+  name addLast: char.
+
+  [char: p source next.
+   ((p isCharacter: char inRange: p startCharacterRange) \/ [p isCharacter: char inRange: p nonStartCharacterRange])
+     ifTrue: [name addLast: char]
+     ifFalse: [p source skip: -1. ^ (name as: p source collectionType)].
+  ] loop.
+].
+
+p@(Xml SimpleParser traits) currentNamespace
+[ "fixme"
+  Nil
+].
+
+p@(Xml SimpleParser traits) namespaceFromName: name
+[ "fixme"
+  name
+].
+
 p@(Xml SimpleParser traits) readName
-[
-  fixme
+[ |char name namespace |
+  namespace: p readNamespaceOrName.
+  char: p source peek.
+  (p isCharacter: char inRange: p whitespaceRange) \/ [p isNextEqualTo: '>']
+    ifTrue: [^ (Xml Identifier new `>> [name: namespace. namespace: p currentNamespace. ])].
+  p assertNext: $:.
+  name: p readNamespaceOrName.
+  Xml Identifier new `>> [name: name. namespace: (p namespaceFromName: namespace). ]
+].
+
+
+p@(Xml SimpleParser traits) error: str
+[ "fixme include location"
+  error: str.
+].
+
+"reads until '<' '&' or ']]>' "
+p@(Xml SimpleParser traits) readCharacterData
+[ | str |
+  str: (p readUntilAny: {'<'. '&'. ']]>'}).
+  "fixme expand entities?"
+  str
+].
+
+p@(Xml SimpleParser traits) readCdataSection
+[ |str|
+  p assertNext: '<![CDATA['.
+  str: (p readUntil: ']]>').
+  p assertNext: ']]>'.
+  str
+].
+
+p@(Xml SimpleParser traits) atEndTagFor: element
+[ "fixme namespaces"
+  p isNextEqualTo: '</' ; element name name
+].
+
+p@(Xml SimpleParser traits) assertEndTagFor: element
+[ "fixme namespaces"
+  p assertNext: '</' ; element name name.
+  p eatWhitespace.
+  p assertNext: '>'.
 ].
 
 "read until </element name>"
+"#content -> #( (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *))."
 p@(Xml SimpleParser traits) readElementContentFor: element
-[
-  fixme
+[ | seq cdata |
+  seq: ExtensibleArray new.
+
+  [
+    cdata: p readCharacterData.
+    cdata isEmpty ifFalse: [seq add: cdata].
+
+   (p isNextEqualTo: '</') ifTrue: [(p atEndTagFor: element) ifTrue: [p assertEndTagFor: element. 
+                                                                      element children: seq.
+                                                                      ^ element]
+                                                             ifFalse: [p error: 'End tag expected for ' ; element printString]].
+   (p isNextEqualTo: '<![CDATA[') ifTrue: [seq add: (p readCdataSection)].
+   (p isNextEqualTo: '<?') ifTrue: [seq add: (p readProcessingInstruction)].
+   (p isNextEqualTo: ']]>') ifTrue: [p error: ']]> not expected'].
+   p source isAtEnd ifTrue: [p error: 'Could not end tag: ' ; element printString].
+  ] loop.
+
+  
+  "fixme"
 ].
+
+p@(Xml SimpleParser traits) readAttributeValue
+[ |delim str|
+  delim: p source next.
+  str: (p readUntil: delim).
+  "fixme resolve attributes"
+  str
+].
+
 
 p@(Xml SimpleParser traits) readAttributesFor: element
-[
-  fixme
+[ |attrs name attvalue|
+  attrs: Dictionary new.
+  [p eatWhitespace.
+   (p isNextEqualTo: '>') ifTrue: [element attributes: attrs. ^ element].
+   name: p readName.
+   p eatWhitespace.
+   p assertNext: $=.
+   p eatWhitespace.
+   attvalue: p readAttributeValue.
+   attrs at: name put: attvalue.
+  ] loop.
 ].
 
-p@(Xml SimpleParser traits) readName
-[
-  fixme
+
+p@(Xml SimpleParser traits) isCharacter: char inRange: range
+[ |charInt|
+  charInt: (char as: Integer).
+  range
+   do: [|:item| (item is: Integer)
+                   ifTrue: [item = charInt ifTrue: [^ True]]
+                   ifFalse: [item first <= charInt /\ [item second >= charInt] ifTrue: [^ True]]].
+  False
 ].
 
 
@@ -128,7 +242,8 @@ p@(Xml Element traits) definesNamespace
 
 ". cannot be negated so [^<&]* is like (~ '<' '&' . *)"
 
-Xml Parser setRules: {
+
+"Xml Parser setRules:" {
 #Document -> #(prolog element (Misc *)).
 #Char -> #(| (16r1 16rD7FF) (16rE000 16rFFFD) (16r10000 16r10FFFF)).
 #RestrictedChar -> #(| (16r1 16r8) (16rB 16rC) (16rE 16r1F) (16r7F 16r84) (16r86 16r9F)).
