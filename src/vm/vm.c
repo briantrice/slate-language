@@ -45,6 +45,13 @@ word_t memory_string_to_bytes(char* str) {
 
 }
 
+int globalInterrupt = 0;
+
+void slate_interrupt_handler(int sig) {
+  globalInterrupt = 1;
+}
+
+
 
 int main(int argc, char** argv) {
 
@@ -57,6 +64,8 @@ int main(int argc, char** argv) {
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
   int i;
+  struct sigaction interrupt_action;
+
 
   heap = calloc(1, sizeof(struct object_heap));
 
@@ -128,6 +137,12 @@ int main(int argc, char** argv) {
   heap->stackBottom = &heap;
   heap->argcSaved = argc;
   heap->argvSaved = argv;
+
+  interrupt_action.sa_handler = slate_interrupt_handler;
+  interrupt_action.sa_flags = 0;
+  sigemptyset(&interrupt_action.sa_mask);
+  sigaction(SIGINT, &interrupt_action, NULL);
+
   interpret(heap);
   
   gc_close(heap);

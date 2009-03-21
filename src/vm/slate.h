@@ -22,7 +22,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include <netdb.h>
-
+#include <signal.h>
 
 typedef uintptr_t uword_t;
 typedef intptr_t word_t;
@@ -467,7 +467,7 @@ struct object_heap
 
 #define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
-
+extern int globalInterrupt; /*if this is set to 1, we should break so the user can stop an infinite loop*/
 extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
 
 #define ASSURE_SMALLINT_ARG(XXX) \

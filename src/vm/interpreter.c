@@ -671,6 +671,15 @@ void interpret(struct object_heap* oh) {
       if (oh->interrupt_flag) {
         return;
       }
+
+
+      if (globalInterrupt) {
+        printf("\nInterrupting...\n");
+        interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, object_to_smallint(i->stack->elements[i->framePointer-5]));
+        globalInterrupt = 0;
+      }
+
+
       
       instruction_counter++;
       prevPointer = i->codePointer;

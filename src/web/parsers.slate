@@ -16,24 +16,50 @@ p@(Parsing BasicParser traits) newOn: r
   p new `>> [on: r. ]
 ].
 
-p@(Parsing BasicParser traits) readNext
+
+p@(Parsing BasicParser traits) readUntilAny: strings
+[ |result match |
+  result: (p source upToSatisfying: [|:char| p source skip: -1.
+                                    match: (p isNextEqualToAny: strings).
+                                    p source skip: 1.
+                                    match]).
+  p source skip: -1.
+  "fixme cons"
+  result allButLast
+].
+
+p@(Parsing BasicParser traits) readUntil: range@(Sequence traits)
 [
-  overrideThis
+  p source upToSatisfying: [|:char| p isCharacter: char inRange: range ]
 ].
 
-p@(Parsing BasicParser traits) readUntil: block
-[ | collection item |
-  collection: ExtensibleArray new.
-  [
-    item: p readNext.
-    collection addLast: item.
-    (block applyWith: item) ifTrue: [^ collection].
-    item isNil
-  ] whileFalse.
-
-  collection
+p@(Parsing BasicParser traits) readUntil: str@(String traits)
+[ |result|
+  result: (p source upToSatisfying: [|:char| (char as: p source collectionType) ; (p source peek: str length - 1) = str]) allButLast.
+  p source skip: -1.
+  result
 ].
 
+
+p@(Parsing BasicParser traits) readOnly: range@(Sequence traits)
+[ 
+  p source skipWhile: [|:char| (p isCharacter: char inRange: range) not ].
+  p source skip: -1.
+].
+
+
+p@(Parsing BasicParser traits) isNextEqualTo: str
+[
+  (p source peek: str length) = str
+].
+
+p@(Parsing BasicParser traits) isNextEqualToAny: seq
+[
+  seq anySatisfy: [|:str| p isNextEqualTo: str]
+].
+
+
+" --- ll parser (unfinished?) --- "
 
 
 p@(Parsing LLParser traits) parse
