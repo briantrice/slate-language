@@ -108,7 +108,7 @@ ASSURE_SMALLINT_ARG(1);
 
 int socket_lookup_domain(word_t domain) {
   switch (domain) {
-  case SLATE_DOMAIN_LOCAL: return AF_LOCAL;
+  case SLATE_DOMAIN_LOCAL: return AF_UNIX;
   case SLATE_DOMAIN_IPV4: return AF_INET;
   case SLATE_DOMAIN_IPV6: return AF_INET6;
   default: return AF_INET;
@@ -117,7 +117,7 @@ int socket_lookup_domain(word_t domain) {
 
 int socket_reverse_lookup_domain(word_t domain) {
   switch (domain) {
-  case AF_LOCAL: return SLATE_DOMAIN_LOCAL;
+  case AF_UNIX: return SLATE_DOMAIN_LOCAL;
   case AF_INET: return SLATE_DOMAIN_IPV4;
   case AF_INET6: return SLATE_DOMAIN_IPV6;
   default: return SLATE_DOMAIN_IPV4;

@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
   int i;
-  struct sigaction interrupt_action;
+  struct sigaction interrupt_action, pipe_ignore_action;
 
 
   heap = calloc(1, sizeof(struct object_heap));
@@ -142,6 +142,13 @@ int main(int argc, char** argv) {
   interrupt_action.sa_flags = 0;
   sigemptyset(&interrupt_action.sa_mask);
   sigaction(SIGINT, &interrupt_action, NULL);
+
+
+  pipe_ignore_action.sa_handler = SIG_IGN;
+  pipe_ignore_action.sa_flags = 0;
+  sigemptyset(&pipe_ignore_action.sa_mask);
+  sigaction(SIGPIPE, &pipe_ignore_action, NULL);
+
 
   interpret(heap);
   
