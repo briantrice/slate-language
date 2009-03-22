@@ -1,0 +1,39 @@
+# $Id: $
+PortSystem        1.0
+name              slate
+version           0.3.5
+categories        lang
+platforms         darwin
+maintainers       bpt@tunes.org
+description       A prototype-based object-oriented programming language
+long_description  Slate is a prototype-based object-oriented \
+                  programming language based on Self, CLOS, and \
+                  Smalltalk-80. Slate syntax is intended to be as \
+                  familiar as possible to a Smalltalker, for the \
+                  clarity of messages as phrases. Unlike the Smalltalk \
+                  family, methods within Slate can be assigned to a \
+                  signature of objects, instead of being installed on \
+                  one favored receiver. Slate has also many further \
+                  expansions of the semantics which enable more \
+                  concise and natural ways to express solutions to \
+                  problems.
+homepage          http://slate.tunes.org/
+master_sites      http://slate.tunes.org/downloads/
+checksums         md5 718630cd139b20081d4b6cfe0f4973d8
+
+extract.suffix    .tgz
+configure {}
+#use_configure no
+destroot.destdir "prefix=${destroot}${prefix}"
+set bootstrap_image "${os.endian}.image"
+
+build.args prefix=${prefix}
+
+post-build {
+  system "make -C ${worksrcpath}\" }
+
+destroot.destdir prefix=${destroot}${prefix}
+
+post-destroot {
+  system "make -C ${worksrcpath} install"
+}
