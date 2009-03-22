@@ -40,21 +40,17 @@ nd@(NoDuplicatesCollection traits) includeAll: c
   c
 ].
 
-collections define: #Set &parents: {NoDuplicatesCollection}.
 "An Unordered, Extensible Collection of elements without duplicates. Being
 a duplicate is determined by a binary comparison and associated hash
 function on each object."
-Set addSlot: #tally valued: 0.
-"The number of elements in the set."
-Set addSlot: #contents valued: (Array newSize: 10).
-"The storage area for the set. The non-Nil elements are the objects in the
-Set. A heuristic of at most 75% capacity is usually automatically maintained
-by replacing the array with a larger one as needed."
-Set addSlot: #containsNil valued: False.
-"A semi-workaround since Nil is used as an empty marker in the Set's contents Array."
 
-Set addSlot: #hashBlock valued: #hash`er.
-Set addSlot: #equalsBlock valued: #=`er.
+collections define: #Set &parents: {NoDuplicatesCollection} &slots: {
+#tally -> 0. 
+#contents -> (Array newSize: 10).
+#containsNil -> False.
+#hashBlock -> (#hash `er) .
+#equalsBlock -> (#= `er) .
+}.
 
 collections define: #IdentitySet &builder:
   [Set cloneSettingSlots: #(hashBlock equalsBlock)

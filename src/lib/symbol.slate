@@ -48,10 +48,10 @@ s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
       addImmutableSlot: #Symbols
       valued: (Dictionary new &capacity: bootstrapSymbols size * 2).
       bootstrapSymbols
-        do: [| :each | globals Symbols at: each name put: each]].
+        do: [| :each | globals Symbols at: each name put: each].
+      "Remove the bootstrap kluge."
+      #intern: removeMethodFrom: {lobby. ASCIIString traits}].
 
-"Remove the bootstrap kluge."
-#intern: removeMethodFrom: {lobby. ASCIIString traits}.
 
 _@lobby intern: s@(String traits)
 "Answer a Symbol object with the string as its name. This will identify any

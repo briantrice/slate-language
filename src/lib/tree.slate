@@ -119,14 +119,13 @@ ot@(OrderedTree traits) remove: ch ifAbsent: block
 ].
 
 collections define: #Trie
-	    &parents: {OrderedTree. NoDuplicatesCollection. Mapping}.
+	    &parents: {OrderedTree. NoDuplicatesCollection. Mapping} &slots: {#element}.
 "A trie is a Set of Sequences encoded as a left-to-right element search tree.
 At nodes whose path represents a Sequence that is an element, the node is
 tagged with the element. To use a Trie as a Set, the element should be the
 Sequence itself, handled by the add:/remove: protocol; otherwise it can be
 used as a Dictionary."
-Trie addSlot: #element valued: Nil.
-"Records the element that the trie node encodes, if it does at all. The
+"element: Records the element that the trie node encodes, if it does at all. The
 element should consist of the sequence of all the keys used in order to access
 the given node. As a result, trie nodes must be root-aware."
 Trie children: IdentityDictionary new.

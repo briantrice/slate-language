@@ -48,9 +48,12 @@ name@(Symbol traits) isFoundOn: args
   (name findOn: args) isNotNil
 ].
 
-name@(Symbol traits) removeMethodFrom: args
+name@(Symbol traits) removeMethodFrom: args &ifNotFound: block
 "Removes the method with the given selector from the arguments."
-[((name findOn: args) ifNil: [name notFoundOn: args]) removeFrom: args].
+[
+  block `defaultsTo: [name notFoundOn: args].
+  (name findOn: args) ifNil: block ifNotNilDo: [|:method| method removeFrom: args ]
+].
 
 name@(Symbol traits) findsSameMethodOn: args1 asOn: args2
 "Answers whether lookup returns the exact same method for two different
@@ -394,8 +397,8 @@ for any method f. The practical use is allowing the definition of anonymous
 recursive Methods from Methods which define the individual step (and take an
 extra argument which is the Method to recurse on when appropriate)."
 
-(Method traits define: #SequentialComposition &parents: {Method})
- `>> [addSlot: #methods valued: {}].
+Method traits define: #SequentialComposition &parents: {Method} &slots: {#methods -> {}}.
+
 "A Method's SequentialComposition takes several methods with compatible
 signatures and applies them in order to the same arguments."
 
@@ -405,8 +408,7 @@ mc@(Method SequentialComposition traits) newForAll: c
 mc@(Method SequentialComposition traits) applyTo: args
 [mc contents do: #applyTo: `er <-* args].
 
-(Method traits define: #Converse &parents: {Method})
- `>> [addSlot: #method valued: []].
+Method traits define: #Converse &parents: {Method} &slots: {#method -> []}.
 "A Method's converse takes the arguments in reverse to produce the same
 result. This implementation works on any method arity, but the client needs
 to be aware of this arity, naturally."

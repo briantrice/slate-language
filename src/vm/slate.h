@@ -404,6 +404,7 @@ struct object_heap
 #define SPECIAL_OOP_APPLY_TO 32
 #define SPECIAL_OOP_OPTIONALS 33
 #define SPECIAL_OOP_TYPE_ERROR_ON 34
+#define SPECIAL_OOP_COUNT 35
 
 #define SF_READ				1
 #define SF_WRITE			1 << 1
@@ -520,6 +521,7 @@ struct Object* smallint_to_object(word_t xxx);
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);
 bool_t object_is_smallint(struct Object* xxx);
+bool_t object_is_special(struct object_heap* oh, struct Object* obj);
 word_t object_markbit(struct Object* xxx);
 word_t object_hash(struct Object* xxx);
 word_t object_size(struct Object* xxx);

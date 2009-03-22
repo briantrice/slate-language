@@ -139,12 +139,10 @@ es@(ExtensibleSequence traits) removeLast: n
   newC
 ].
 
-collections define: #ArrayBacked &parents: {ExtensibleSequence}.
+collections define: #ArrayBacked &parents: {ExtensibleSequence} &slots: {#contents -> {}}.
 "This merely provides an area for common methods for various implementation
 extensions of ExtensibleSequence which use a contents Array to store their
 elements."
-ArrayBacked addSlot: #contents valued: {}.
-"The Array used for storage."
 
 es@(ArrayBacked traits) clear
 [es contents clear. ].
@@ -187,13 +185,9 @@ es@(ArrayBacked traits) convertContentsTo: s
   es contents: (es contents as: s). es
 ].
 
-collections define: #ExtensibleArray &parents: {ArrayBacked}.
+collections define: #ExtensibleArray &parents: {ArrayBacked} &slots: {#firstIndex -> 0. #lastIndex -> -1}.
 "An ExtensibleArray implemented by an Array with padding on both ends for
 the contents."
-ExtensibleArray addSlot: #firstIndex valued: 0.
-"The first index of the array which contains the Sequence' contents."
-ExtensibleArray addSlot: #lastIndex valued: -1.
-"The last index of the array which contains the Sequence' contents."
 
 es@(ExtensibleArray traits) new &capacity: n
 [resend `>> [firstIndex: 0. lastIndex: -1. ]].

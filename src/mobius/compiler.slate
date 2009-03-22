@@ -14,11 +14,15 @@ m@(CompiledMethod traits) sourceTreeOf: index
 
 m@(CompiledMethod traits) definitionLocation
 [
-  m sourceTree ifNil: [^ Nil].
-  (m sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+  m sourceTree ifNil: [^ 'Nil'].
+  (m sourceTree hasSlotNamed: #source) ifFalse: [^ 'Nil'].
   (m sourceTree source hasSlotNamed: #resource)
-   ifTrue: [(m sourceTree source resource locator as: String) ; ':' ; m sourceTree lineNumber printString]
-   ifFalse: [(m sourceTree source as: String) ; ':' ; m sourceTree lineNumber printString]
+   ifTrue: [m sourceTree source resource locator
+              ifNil: ['stdin:' ; (m sourceTree lineNumber - 2) printString]
+              ifNotNil: [(m sourceTree source resource locator as: String) ; ':' ; m sourceTree lineNumber printString]]
+   ifFalse: [m sourceTree source
+               ifNil: ['Nil']
+               ifNotNil: [(m sourceTree source as: String) ; ':' ; m sourceTree lineNumber printString]]
 ].
 
 

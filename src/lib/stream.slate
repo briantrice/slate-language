@@ -41,9 +41,8 @@ s@(Stream traits) contents
 "Answer what is conceptually being held or accumulated by the Stream."
 [overrideThis].
 
-Stream traits define: #Condition &parents: {Condition}.
+Stream traits define: #Condition &parents: {Condition} &slots: {#stream}.
 "Streaming-specific errors."
-Stream Condition addSlot: #stream.
 
 c@(Stream Condition traits) newFor: s
 [c new `>> [stream: s. ]].
@@ -317,11 +316,9 @@ s@(PeekableStream traits) nextDelimitedBy: separatorBlock
   s nextUntil: separatorBlock
 ].
 
-streams define: #PositionableStream &parents: {PeekableStream}.
+streams define: #PositionableStream &parents: {PeekableStream} &slots: {#position -> 0. #readLimit -> 0}.
 "PositionableStreams have an index and iterate over some sequenced collection,
 but with a specific limit on the stream."
-PositionableStream addSlot: #position valued: 0.
-PositionableStream addSlot: #readLimit valued: 0.
 
 s@(PositionableStream traits) newOn: c from: start to: end
 [
@@ -535,8 +532,7 @@ streams define: #PositionableWriteStream
 streams define: #PositionableReadWriteStream
   &parents: {PositionableStream. ReadStream. WriteStream}.
 
-streams define: #StreamProcessor &parents: {ReadStream}.
-StreamProcessor addSlot: #source valued: Stream clone.
+streams define: #StreamProcessor &parents: {ReadStream} &slots: {#source -> Stream clone}.
 
 s@(StreamProcessor traits) on: source
 [
@@ -554,13 +550,10 @@ source@(ReadStream traits) >> sink@(StreamProcessor traits)
 associatively in expressions for simple processing tasks."
 [sink newOn: source].
 
-streams define: #FilterStream &parents: {StreamProcessor}.
+streams define: #FilterStream &parents: {StreamProcessor} &slots: {#block -> [| :_ | True]. #nextValue -> Nil}.
 "FilterStreams take source streams and apply a test block to each element,
 only returning or acting on elements that satisfy the test."
 "TODO: make a Write- or ReadWrite- variant?"
-FilterStream addSlot: #block valued: [| :_ | True].
-"The default filter, which filters nothing."
-FilterStream addSlot: #nextValue valued: Nil.
 "The result of sending #next is pre-computed, to determine isAtEnd while
 not relying on the source stream being repositionable."
 
@@ -595,11 +588,10 @@ s@(FilterStream traits) next
   result
 ].
 
-streams define: #CollectStream &parents: {StreamProcessor}.
+streams define: #CollectStream &parents: {StreamProcessor} &slots: {#block -> Method Identity}.
 "CollectStreams take source streams and apply a block to each element,
 returning the block's result for each."
-CollectStream addSlot: #block valued: Method Identity.
-"The default action, which is an identity."
+"block: The default action, which is an identity."
 
 s@(ReadStream traits) collect: block
 [(CollectStream newOn: s) `>> [block: block. ]].
@@ -612,9 +604,8 @@ s@(CollectStream traits) next
 s@(ReadStream traits) project: block
 [s collect: [| :each | each -> (block applyWith: each)]].
 
-streams define: #InjectStream &parents: {StreamProcessor}.
-InjectStream addSlot: #accumulator valued: [| :x :_ | x].
-InjectStream addSlot: #currentValue valued: Nil.
+streams define: #InjectStream &parents: {StreamProcessor}
+&slots: {#accumulator -> [| :x :_ | x]. #currentValue -> Nil.}.
 
 s@(Stream traits) inject: init into: accumulator
 [(InjectStream newOn: s) `>> [currentValue: init. accumulator: accumulator. ]].
@@ -635,10 +626,9 @@ source@(ReadStream traits) >> sink@(Method traits)
 in expressions for simple processing tasks."
 [source collect: sink].
 
-Stream traits define: #WrapperStream &parents: {ReadWriteStream}.
+Stream traits define: #WrapperStream &parents: {ReadWriteStream} &slots: {#original -> Stream clone}.
 "A WrapperStream wraps some stream and forwards operations to it where
 applicable. This is an abstraction to be specialized."
-Stream WrapperStream addSlot: #original valued: Stream clone.
 "The stream to be wrapped."
 
 w@(Stream WrapperStream traits) on: s
@@ -654,6 +644,7 @@ w@(Stream WrapperStream traits) next: n [w original next: n].
 w@(Stream WrapperStream traits) nextPut: obj [w original nextPut: obj].
 w@(Stream WrapperStream traits) nextPutAll: seq [w original nextPutAll: seq].
 w@(Stream WrapperStream traits) resource [w original resource].
+w@(Stream WrapperStream traits) resource: r [w original resource: r].
 w@(Stream WrapperStream traits) flush [w original flush].
 w@(Stream WrapperStream traits) position [w original position].
 w@(Stream WrapperStream traits) position: n [w original position: n].
@@ -661,17 +652,18 @@ w@(Stream WrapperStream traits) contents [w original contents].
 w@(Stream WrapperStream traits) elementType [w original elementType].
 w@(Stream WrapperStream traits) collectionType [w original collectionType].
 
-streams define: #LineNumberedReadStreamMixin &parents: {Mixin}.
 "This is a wrapper mixin for streams that calculates line numbers."
-LineNumberedReadStreamMixin addSlot: #eolPositions valued: ExtensibleArray new.
-"The positions of the end of each line."
-LineNumberedReadStreamMixin addSlot: #lastPosition valued: 0.
+streams define: #LineNumberedReadStreamMixin &parents: {Mixin}
+&slots: {#eolPositions -> ExtensibleArray new. "The positions of the end of each line."
+         #lastPosition -> 0.
 "The position of the last character that EOL has been calculated for; we know
 the line number for all characters before this position and nothing about
 those after."
-LineNumberedReadStreamMixin addSlot: #previousWasCR valued: False.
+#previousWasCR -> False.
 "Whether the previous character was a CR, for CR-LF streams. CR-LF in
 combination should only increment the line number by 1."
+}.
+
 
 s@(LineNumberedReadStreamMixin traits) on: r@(ReadStream traits)
 [
@@ -767,13 +759,9 @@ s@(LineNumberedReadStreamMixin traits) position: n
 
 streams define: #LineNumberedReadStream &parents: {LineNumberedReadStreamMixin. Stream WrapperStream}.
 
-streams define: #LineNumberedWriteStreamMixin &parents: {Mixin}.
+streams define: #LineNumberedWriteStreamMixin &parents: {Mixin} &slots: {#currentColumn -> 0. #currentLine -> 0}.
 "This is a wrapper mixin for streams that keeps track of the cursor and
 the number of lines printed."
-LineNumberedWriteStreamMixin `>> [
-  addSlot: #currentColumn valued: 0.
-  addSlot: #currentLine valued: 0.
-].
 
 s@(LineNumberedWriteStreamMixin traits) updateFrom: char
 "Detect \n's and update internal state"

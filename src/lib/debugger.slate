@@ -184,16 +184,19 @@ d@(Debugger traits) signalRestartAt: index
     ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
 ].
 
-d@(Debugger traits) printBacktrace &limit: limit &stream: out
+d@(Debugger traits) printBacktrace &limit: limit &stream: out &showLocation: showLocation
 [ 
   limit `defaultsTo: d maxBacktraceSize.
   out `defaultsTo: d printer.
+  showLocation `defaultsTo: False.
   d frameList doWithIndex:
     [|:frame :index|
        "out ; '<' ; index printString ; '> ' ; (frame method method sourceTreeOf: (0 max: frame instructionPointer - 1)) printString ; '\n'."
        "out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'."
        index > limit ifTrue: [^ Nil].
-       out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'
+       out ; '<' ; index printString ; '> ' ; frame method printString .
+       showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation ; '\n']
+                    ifFalse: [out ; '\n']
        ].
 ].
 
@@ -235,6 +238,7 @@ d@(Debugger traits) printFrame
   out ; 'fp:' ; frame framePointer printString  ; '\n'
     ; 'ip: ' ; frame instructionPointer printString ; '/' ; method code size printString ; '\n'
     ; 'method: ' ; method printString ; '\n'
+    ; 'location: ' ; method definitionLocation ; '\n'
     ; 'call count: ' ; method callCount printString ; '\n'
     ; 'register count: ' ; method registerCount printString ; '\n'
     ; 'source: ' ; method sourceTree printString ; '\n'.
@@ -267,16 +271,20 @@ d@(Debugger traits) installMethods
 [
   _@(d namespace) frame
   [d printFrame].
+  _@(d namespace) True
+  [True].
+  _@(d namespace) False
+  [False].
   _@(d namespace) frame: n
   [d frame: n].
   _@(d namespace) arg: n
   [d currentFrameValueAt: n].
   _@(d namespace) arg: n put: newVal
   [d currentFrameValueAt: n put: newVal].
-  _@(d namespace) backtrace &limit: n
-  [d printBacktrace &limit: n].
-  _@(d namespace) bt &limit: n
-  [d printBacktrace &limit: n].
+  _@(d namespace) backtrace &limit: n &showLocation: showLocation
+  [d printBacktrace &limit: n &showLocation: (showLocation ifNil: [True])].
+  _@(d namespace) bt &limit: n &showLocation: showLocation
+  [d printBacktrace &limit: n &showLocation: (showLocation ifNil: [True])].
   _@(d namespace) restarts
   [d describeRestarts].
   _@(d namespace) restart: index
