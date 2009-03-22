@@ -111,12 +111,14 @@ x@(Root traits) compareAndHashUsingSlots: relevantSlotNames
 "Defines methods for #= and #hash for the simple case of just recursively
 calling them on each value of the slots with the given names.
 NOTE: This is not a macro but relies on the macro facilities."
-[
+[ | xLiteral |
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
+
+  xLiteral: (Syntax Literal new `>> [value: x. ]).
   Syntax Block new
     `>> [statements:
-      {Syntax MethodDefinition of: #= on: {Syntax Literal for: x. Syntax Literal for: x}
+      {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
         from: #(obj1 obj2) to:
           [| :obj1 :obj2 |
 	   "relevantSlotNames collect:
@@ -132,7 +134,7 @@ NOTE: This is not a macro but relies on the macro facilities."
                    [(obj1 `load atSlotNamed: slotName `unquote)
                      = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
-       Syntax MethodDefinition of: #hash on: {Syntax Literal for: x}
+       Syntax MethodDefinition of: #hash on: {xLiteral}
          from: #(obj) to:
            [| :obj |
              relevantSlotNames allButFirst
@@ -151,12 +153,14 @@ calling them on each value of the slots with the given names; uses a resend
 to re-use the more abstract definition.
 NOTE: This is not a macro but relies on the macro facilities."
 "FIXME: The resend results in a compilation error."
-[
+[ |xLiteral|
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
+
+  xLiteral: (Syntax Literal new `>> [value: x. ]).
   Syntax Block new
     `>> [statements:
-      {Syntax MethodDefinition of: #= on: {Syntax Literal for: x. Syntax Literal for: x}
+      {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
         from: #(obj1 obj2) to:
           [| :obj1 :obj2 |
             relevantSlotNames inject: Syntax Resend into:
@@ -165,7 +169,7 @@ NOTE: This is not a macro but relies on the macro facilities."
 	               [(obj1 `load atSlotNamed: slotName `unquote)
 		             = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
-       Syntax MethodDefinition of: #hash on: {Syntax Literal for: x}
+       Syntax MethodDefinition of: #hash on: {xLiteral}
          from: #(obj) to:
            [| :obj |
              relevantSlotNames inject: Syntax Resend into:

@@ -4,8 +4,7 @@ obj@(Root traits) notABoolean
 obj@(Root traits) badTypeError
 [error: obj printString ; ' is not the right type (probably passed a primitive something other than a small integer).'].
 
-(conditions define: #SlotError &parents: {Error})
-  `>> [addSlot: #object. addSlot: #slotName. ].
+conditions define: #SlotError &parents: {Error} &slots: {#object. #slotName}.
 "Errors related to slot manipulations."
 
 conditions define: #SlotNotFound &parents: {SlotError}.
@@ -19,16 +18,14 @@ snf@(SlotNotFound traits) describeOn: out
    ' does not have a slot named ' ; snf slotName printString ; '.\n'
 ].
 
-(conditions define: #SlotTypeError &parents: {SlotError})
-  `>> [addSlot: #type. ].
+conditions define: #SlotTypeError &parents: {SlotError} &slots: {#type}.
 "Results from attempting to assign a value to a slot that is incompatible with
 a specified type for the slot."
 
 conditions define: #ProtocolError &parents: {Error}.
 "A ProtocolError is an Error from not complying with an object's reuse protocol."
 
-(conditions define: #LexicalContextExpired &parents: {ProtocolError})
-  `>> [addSlot: #method. addSlot: #lexicalContext].
+conditions define: #LexicalContextExpired &parents: {ProtocolError} &slots: {#method. #lexicalContext}.
 
 method@(Method traits) mayNotReturnTo: lexicalContext
 [(LexicalContextExpired new `>> [method: method. lexicalContext: lexicalContext. ]) signal].
@@ -38,8 +35,7 @@ lce@(LexicalContextExpired traits) describeOn: out
   out ; 'The method ' ; lce method printString ; ' attempted to access an expired lexical context.\n'
 ].
 
-(conditions define: #WrongInputs &parents: {ProtocolError})
-  `>> [addSlot: #method. addSlot: #arguments. ].
+conditions define: #WrongInputs &parents: {ProtocolError} &slots: {#method. #arguments.}.
 "A WrongInputs is a ProtocolError signaled when the wrong number of arguments are applied to a Method."
 
 args wrongInputsTo: method@(Method traits)
@@ -52,9 +48,7 @@ wi@(WrongInputs traits) describeOn: out
     '\nwhich has an arity of: ' ; wi method arity printString ; '\n'
 ].
 
-(conditions define: #Message &parents: {Cloneable})
-  `>> [addSlot: #selector. addSlot: #arguments.
-       addSlot: #optionals valued: {}. ].
+conditions define: #Message &parents: {Cloneable} &slots: {#selector. #arguments. #optionals -> {}}.
 "A Message describes a message-send at runtime, and usually only exists for
 debugging packaging."
 
@@ -69,9 +63,7 @@ m@(Message traits) send
 "Try to send the message."
 [m selector sendTo: m arguments &optionals: m optionals].
 
-(conditions define: #MethodNotFound &parents: {ProtocolError})
-  `>> [addSlot: #message valued: Message.
-       "The Message describing what send failed."].
+conditions define: #MethodNotFound &parents: {ProtocolError} &slots: {#message -> Message}.
 
 "A MethodNotFound is a ProtocolError signaled when dispatch fails."
 
@@ -101,8 +93,7 @@ mnf@(MethodNotFound traits) describeOn: out
   out ; '\n'
 ].
 
-(conditions define: #MethodResentNotFound &parents: {MethodNotFound})
-  `>> [addSlot: #method valued: []. ].
+conditions define: #MethodResentNotFound &parents: {MethodNotFound} &slots: {#method -> []}.
 "A MethodNotFound when a resend is performed."
 
 selector@(Symbol traits) notFoundOn: arguments after: method &optionals: optionals
@@ -154,8 +145,7 @@ _@lobby shouldNotImplement
   ShouldNotImplement signal
 ].
 
-(conditions define: #ConversionNotFound &parents: {Error})
-  `>> [addSlot: #source. addSlot: #target. ].
+conditions define: #ConversionNotFound &parents: {Error} &slots: {#source. #target.}.
 "A ConversionNotFound is an Error signaled when the use of as: is on arguments
 for which no reasonable conversion exists."
 
@@ -171,8 +161,7 @@ c@(ConversionNotFound traits) describeOn: out
 numerics define: #OperationError &parents: {Error}.
 "A numeric operation error. This offers the ability to continue with some
 value."
-(numerics OperationError define: #ReturnInput &parents: {Restart})
-  `>> [addSlot: #newValue valued: 0. "The value to return from the operation."].
+numerics OperationError define: #ReturnInput &parents: {Restart} &slots: {#newValue -> 0. "The value to return from the operation."}.
 
 r@(OperationError ReturnInput traits) queryFrom: d
 [
@@ -197,8 +186,7 @@ _@(OperationError traits) describeOn: out
 
 "[| :restart | restart condition return: restart newValue]"
 
-(numerics define: #DivideByZero &parents: {numerics OperationError})
-  `>> [addSlot: #dividend valued: 0. "The number which division was taken on."].
+numerics define: #DivideByZero &parents: {numerics OperationError} &slots: {#dividend -> 0. "The number which division was taken on."}.
 "A division by zero error."
 
 e@(DivideByZero traits) describeOn: out
@@ -209,9 +197,7 @@ e@(DivideByZero traits) describeOn: out
 e@(DivideByZero traits) of: x
 [e new `>> [dividend: x. ]].
 
-(Collection traits define: #Condition &parents: {Condition})
- `>> [addSlot: #collection.
-      "The collection that is the subject of this condition."].
+Collection traits define: #Condition &parents: {Condition} &slots: {#collection.}.
 
 cond@(Collection Condition traits) newFor: coll
 [cond new `>> [collection: coll. ]].
@@ -222,8 +208,7 @@ cond@(Collection Condition traits) describeOn: out
    ; ' signaled: ' ; cond name ; '\n'.
 ].
 
-(Collection traits define: #ElementNotFound &parents: {Error. Collection Condition})
-  `>> [addSlot: #element. ].
+Collection traits define: #ElementNotFound &parents: {Error. Collection Condition} &slots: {#element}.
 
 enf@(Collection ElementNotFound traits) describeOn: out
 [
@@ -265,8 +250,7 @@ c@(Collection traits) fullCheck
   c isFull ifTrue: [(c IsFull newFor: c) signal]
 ].
 
-(Mapping traits define: #KeyNotFound &parents: {Error. Collection Condition})
-  `>> [addSlot: #key. ].
+Mapping traits define: #KeyNotFound &parents: {Error. Collection Condition} &slots: {#key.}.
 "A key which was not found in the specified collection."
 
 knf@(Mapping KeyNotFound traits) describeOn: out

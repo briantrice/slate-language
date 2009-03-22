@@ -19,9 +19,7 @@ _@Nothing includes: _ [False].
 as a collection reification of the image, and some means to override it,
 structurally, or using subjectively."
 
-collections define: #Aggregate &parents: {PredicateCollection}.
-Aggregate addSlot: #constituents valued: ExtensibleArray new.
-"The collections aggregated."
+collections define: #Aggregate &parents: {PredicateCollection} &slots: {#constituents -> ExtensibleArray new}.
 
 a@(Aggregate traits) flattened
 [| collector |
@@ -71,10 +69,8 @@ i@(Intersection traits) /\ p@(PredicateCollection)
 p@(PredicateCollection traits) /\ u@(Intersection traits)
 [Intersection of: {p. u}].
 
-collections define: #TestCollection &parents: {PredicateCollection}.
+collections define: #TestCollection &parents: {PredicateCollection} &slots: {#test -> [| :_ | True]}.
 "A PredicateCollection based on applying a block to the value being tested."
-TestCollection addSlot: #test valued: [| :_ | True].
-"Accept everything by default."
 
 t@(TestCollection traits) newFor: block
 [t cloneSettingSlots: #(test) to: {block}].
@@ -103,10 +99,8 @@ m@(Method traits) satisfiers
 "Answer a new TestCollection for the block."
 [TestCollection newFor: m].
 
-collections define: #Complement &parents: {PredicateCollection}.
+collections define: #Complement &parents: {PredicateCollection} &slots: {#basis -> TestCollection clone.}.
 "A PredicateCollection based on the negation of the tests for another."
-Complement addSlot: #basis valued: TestCollection clone.
-"Contain nothing by default."
 
 c@(Complement traits) of: c@(Collection traits)
 [c cloneSettingSlots: #(basis) to: {c}].

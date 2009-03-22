@@ -42,10 +42,10 @@ This should be overridden whenever state is extended."
 
 x@(Root traits) hasSlotNamed: slotName
 "Whether there is a slot defined with the given Symbol name on the object."
-[x slotNames includes: slotName].
+[x slotNames identityIncludes: slotName].
 
 x@(Root traits) hasDelegate: object
-[x _delegates includes: object].
+[x _delegates identityIncludes: object].
 
 x@(Root traits) accessorNameFor: slotName
 "Answer the default name for a Method to access the value of this slot;
@@ -227,7 +227,7 @@ using a seen-Set to avoid multiple visits."
      (x hasSlotNamed: slotName)
        ifTrue:
 	 [| obj |
-	  (seen includes: (obj: (x atSlotNamed: slotName)))
+	  (seen identityIncludes: (obj: (x atSlotNamed: slotName)))
 	    ifFalse:
 	      [seen include: obj.
 	       obj addSlotsFromRecursively: (another atSlotNamed: slotName)
@@ -236,7 +236,8 @@ using a seen-Set to avoid multiple visits."
   x
 ].
 
-_ addSlotsFromRecursively: _@Nil [].
+o@Nil addSlotsFromRecursively: _ [o].
+o addSlotsFromRecursively: _@Nil [o].
 
 n@(SmallInteger traits) addSlotsFromRecursively: another [n].
 
@@ -253,7 +254,7 @@ their values."
   otherSlotNames: another slotNames.
   slotNames
     do: [| :slotName |
-	 (anotherSlotNames includes: slotName)
+	 (anotherSlotNames identityIncludes: slotName)
 	   ifTrue: [x addSlotNamed: slotName from: another]].
   x
 ].
@@ -340,7 +341,7 @@ duplicates."
   seen `defaultsTo: IdentitySet new.
   x delegatesDo:
     [| :delegate |
-      (seen includes: delegate)
+      (seen identityIncludes: delegate)
         ifFalse: [seen include: delegate.
 		  delegate allDelegates &seen: seen]].
   seen
@@ -353,7 +354,7 @@ avoiding circularity and duplicates."
   seen `defaultsTo: IdentitySet new.
   x slotValuesDo:
     [| :obj |
-      (seen includes: obj)
+      (seen identityIncludes: obj)
         ifFalse: [seen include: obj.
 		  block applyWith: obj.
 		  obj allSlotsDo: block &seen: seen]].
@@ -365,7 +366,7 @@ avoiding circularity and duplicates."
 [
   seen `defaultsTo: IdentitySet new.
   x delegatesDo: [| :each |
-    (seen includes: each)
+    (seen identityIncludes: each)
       ifFalse:
 	[seen include: each.
 	 block applyWith: each.
@@ -377,7 +378,7 @@ x@(Root traits) allSlotsAndDelegatesDo: block &seen: seen
   seen `defaultsTo: IdentitySet new.
   x slotValues ; x _delegates do:
     [| :obj |
-      (seen includes: obj)
+      (seen identityIncludes: obj)
         ifFalse: [seen include: obj.
 		  block applyWith: obj.
 		  obj allSlotsAndDelegatesDo: block &seen: seen]].
@@ -396,7 +397,7 @@ x@(Root traits) commonAncestorWith: y@(Root traits)
   x traits
     allDelegatesDo:
       [| :xt |
-        (yts includes: xt)
+        (yts identityIncludes: xt)
           ifTrue: [^ xt]].
   Nil
 ].

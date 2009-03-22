@@ -1360,10 +1360,21 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, st
   struct Object* x = args[0];
   struct Object* y = args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = y;
+  /* since some objects like roleTables store pointers to things like Nil in byte arrays rather than oop arrays,
+   * we must make sure that these special objects do not move.
+   */
+  if (x == get_special(oh, SPECIAL_OOP_NIL) 
+      || x == get_special(oh, SPECIAL_OOP_TRUE)
+      || x == get_special(oh, SPECIAL_OOP_FALSE)) {
+    printf("Error... you cannot call forwardTo on this special object (did you add a slot to Nil/True/False?)\n");
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, resultStackPointer); \
+    return;
+  }
 
   if (!object_is_smallint(x) && !object_is_smallint(y) && x != y) {
     heap_forward(oh, x, y);
     heap_gc(oh);
+    cache_specials(oh);
   }
 
 }

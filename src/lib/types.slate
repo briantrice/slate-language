@@ -116,10 +116,9 @@ none@(Types None traits) intersection: _
 _ intersection: none@(Types None traits)
 [none].
 
-Types define: #Not &parents: {Types Any}.
+Types define: #Not &parents: {Types Any} &slots: {#argument -> Types Any clone}.
 "A complement of a type, which may reduce itself automatically."
-Types Not addSlot: #argument valued: Types Any clone.
-"The complemented type."
+
 
 type@(Types Any traits) complement
 "The most generic type-complementation."
@@ -149,10 +148,7 @@ not@(Types Not traits) intersection: type
     ifFalse: [resend]
 ].
 
-Types define: #Union &parents: {Types Any}.
-"A union of types, which may reduce itself automatically."
-Types Union addSlot: #args valued: ExtensibleArray new.
-"The arguments of the Union."
+Types define: #Union &parents: {Types Any} &slots: {#args -> ExtensibleArray new.}.
 
 union@(Types Union traits) copy
 [union clone `>> [args: union args copy. ]].
@@ -189,10 +185,8 @@ type subsumes: union@(Types Union traits)
   union args allSatisfy: [| :arg | type subsumes: arg]
 ].
 
-Types define: #Intersection &parents: {Types Any}.
+Types define: #Intersection &parents: {Types Any} &slots: {#args -> ExtensibleArray new}.
 "An intersection of types, which may reduce itself automatically."
-Types Intersection addSlot: #args valued: ExtensibleArray new.
-"The arguments of the Intersection."
 
 intersection@(Types Intersection traits) copy
 [intersection clone `>> [args: intersection args copy. ]].
@@ -226,8 +220,7 @@ intersection@(Types Intersection traits) subsumes: type
   intersection args allSatisfy: [| :arg | arg subsumes: type]
 ].
 
-Types define: #Clone &parents: {Types Any}.
-Types Clone addSlot: #prototype.
+Types define: #Clone &parents: {Types Any} &slots: {#prototype.}.
 
 "The Clone type represents clone families, tracking some original prototype."
 
@@ -246,12 +239,9 @@ c@(Types Clone traits) representative
   c prototype
 ].
 
-Types define: #Range &parents: {Types Any}.
+Types define: #Range &parents: {Types Any} &slots: {#type. #start. #end.}.
 "Ranges are parametrizable types over linearly-ordered domains (Magnitudes,
 such as Numbers, Integers, and Characters(?)). They express a range of values."
-Types Range addSlot: #type.
-Types Range addSlot: #start.
-Types Range addSlot: #end.
 
 range@(Types Range traits) representative
 "Use the range's start, coerced to be of the same prototype as the base type's representative."
@@ -292,9 +282,8 @@ x@(Types Range traits) intersection: y@(Types Range traits)
   x of: type from: start to: end
 ].
 
-Types define: #Member &parents: {Types Any}.
+Types define: #Member &parents: {Types Any} &slots: {#elements -> Set new}.
 "The Member type represents the elements of some finite set."
-Types Member addSlot: #elements valued: Set new.
 
 member@(Types Member traits) representative
 "Take any element and call it a representative."
@@ -327,8 +316,7 @@ x@(Types Member traits) intersection: y@(Types Member traits)
     ifFalse: [Types None]
 ].
 
-Types define: #Singleton &parents: {Types Any}.
-Types Singleton addSlot: #identity.
+Types define: #Singleton &parents: {Types Any} &slots: {#identity}.
 
 "The singleton type, representing single objects only."
 
@@ -414,10 +402,9 @@ x@(Types Singleton traits) intersection: y@(Types Singleton traits)
     ifFalse: [Types None] 
 ].
 
-Types define: #Array &parents: {Types Any}.
+Types define: #Array &parents: {Types Any} &slots: {#type}.
 "Array types are parametrized by their element types, and cover arrays of all
 lengths with that element type."
-Types Array addSlot: #type.
 
 array@(Types Array traits) representative
 "Answer an empty Array literal."
@@ -451,11 +438,9 @@ element types, or None if the intersection is None."
   x of: type
 ].
 
-Types define: #Block &parents: {Types Any}.
+Types define: #Block &parents: {Types Any} &slots: {#argumentTypes. #resultType}.
 "The Block type represents code closures, with input types and a return type,
 optionally."
-Types Block addSlot: #argumentTypes.
-Types Block addSlot: #resultType.
 
 block@(Types Block traits) representative
 "The representative block is the do-nothing block."

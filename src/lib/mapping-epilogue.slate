@@ -13,7 +13,7 @@ e@EmptyMapping at: key put: _ [ key keyNotFoundOn: e].
 _@EmptyMapping at: _ ifAbsent: block [block do].
 _@EmptyMapping at: _ ifPresent: _ [].
 
-mappings define: #MapOverlay &parents: {Mapping}.
+mappings define: #MapOverlay &parents: {Mapping} &slots: {#original -> EmptyMapping. #overlay}.
 "This class implements a Mapping that takes an existing mapping
 and 'overlays' it with another existing mapping.
 
@@ -38,11 +38,6 @@ Slate> mo at: 2.
 Slate> mo at: 3.
 'Three'
 "
-MapOverlay addSlot: #original valued: EmptyMapping.
-"The original Mapping to be overlayed."
-MapOverlay addSlot: #overlay.
-"The mapping used as the overlay for the original Mapping."
-
 m1@(Mapping traits) overlayWith: m2@(Mapping traits)
 "Creates a new MapOverlay.  Since Mappings are Sequences, we
 cannot re-use ; for mapping overlays without some confusion."
@@ -122,14 +117,9 @@ of the original."
   m overlay capacity + m original size
 ].
 
-mappings define: #SingleValueMap &parents: {Mapping}.
+mappings define: #SingleValueMap &parents: {Mapping} &slots: {#keys -> Set new. #value}.
 "Maps a set of keys to a single value. This in combination with MapOverlay
 helps to represent sparse Mappings."
-SingleValueMap addSlot: #keys valued: Set new.
-"The set of keys mapped. This could be a Set or a Range (for sparse
-Sequences) Generally, it simply has to be a NoDuplicatesCollection."
-SingleValueMap addSlot: #value.
-"The single value used."
 
 m@(SingleValueMap traits) newFromAll: c to: obj
 "Creates a new SingleValueMap using the collection as keys to access the given

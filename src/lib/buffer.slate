@@ -67,15 +67,10 @@ r@(RingBuffer traits) addAllFirst: seq
   seq
 ].
 
-streams define: #BufferStream &parents: {Stream}.
+streams define: #BufferStream &parents: {Stream} &slots: {#stream -> Stream clone. #buffer -> RingBuffer new}.
 "A BufferStream is a Stream with a buffer array resizable up to a fixed amount,
 with wrap-around semantics to reduce heavy i/o interaction and avoid stressing
 the memory-manager."
-
-BufferStream addSlot: #stream valued: Stream clone.
-"The stream being wrapped."
-BufferStream addSlot: #buffer valued: RingBuffer new.
-"The buffer used."
 
 b@(BufferStream traits) on: s
 [

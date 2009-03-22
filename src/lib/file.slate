@@ -164,8 +164,8 @@ r@(File NotFound CreateFile traits) defaultHandler
   r condition resource create.
 ].
 
-File NotFound traits define: #SpecifyAnotherLocation &parents: {Restart}.
-File NotFound SpecifyAnotherLocation addSlot: #newLocator.
+File NotFound traits define: #SpecifyAnotherLocation &parents: {Restart} &slots: {#newLocator}.
+
 
 r@(File NotFound SpecifyAnotherLocation traits) describeOn: out
 [out ; 'Select a new pathname and retry opening the file\n'].
@@ -187,19 +187,21 @@ r@(File NotFound SpecifyAnotherLocation traits) defaultHandler
        r condition signal]
 ].
 
-File traits define: #Locator &parents: {ExternalResource Locator}.
-File Locator addSlot: #path valued: ExtensibleArray new.
+File traits define: #Locator &parents: {ExternalResource Locator} 
+&slots: {
+#path -> ExtensibleArray new.
 "The Sequence of path accessors (directory names) to reach the file's area."
-File Locator addSlot: #name valued: ''.
+#name -> ''.
 "The name of a file(-group)."
-File Locator addSlot: #fileType.
+#fileType.
 "Corresponds to the filetype or suffix used in many filesystems."
-File Locator addSlot: #version.
+#version.
 "Corresponds to the version of a file, with optional support."
-File Locator addSlot: #host.
+#host.
 "The storage system or logical host of the file."
-File Locator addSlot: #device.
+#device.
 "The logical or physical device hosting the file. (optional)"
+}.
 
 File locator: File Locator.
 
@@ -293,10 +295,10 @@ File Locator traits define: #hereString -> '.'.
 File Locator traits define: #homeString -> '~'.
 File Locator traits define: #dot -> $. .
 
-File traits define: #RelativeLocator &parents: {File Locator}.
+File traits define: #RelativeLocator &parents: {File Locator} &slots: {#basePath -> File Locator}.
 "A path taken relative to an existing one, which may be another RelativeLocator
 but ultimately must be based on an AbsoluteLocator."
-File RelativeLocator addSlot: #basePath valued: File Locator.
+
 "The basis of the path. The other slots are treated as overrides of any
 information in that path, except the #path which is appended to the path of
 the basePath."

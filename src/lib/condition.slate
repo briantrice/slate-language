@@ -4,15 +4,16 @@ conditions addSlot: #conditionStack valued: Stack new.
 "The current active condition stack. This assumes that no concurrency is
 present."
 
-conditions define: #Condition &parents: {Cloneable}.
+conditions define: #Condition &parents: {Cloneable} &slots: {
 "A situation in the call context which is not handled in normal program logic,
 and may require investigative or other special handling."
-Condition addSlot: #handlers valued: {}.
+#handlers -> {}.
 "The ordered group of handlers for the condition."
-Condition addSlot: #exitContinuation valued: [| :result |].
+#exitContinuation -> [| :result |].
 "A continuation which when invoked will exit from the handler."
-Condition addSlot: #returnContinuation valued: [| :result |].
+#returnContinuation -> [| :result |].
 "A continuation which when invoked will return from the point where the condition was signaled."
+}.
 
 c@(Condition traits) new
 "Create and initialize a new condition."
@@ -137,10 +138,9 @@ block@(Method traits) breakOn: c
   block on: c do: [| :inst | inst exit].
 ].
 
-conditions define: #Restart &parents: {Condition}.
+conditions define: #Restart &parents: {Condition} &slots: {#condition}.
 "A Restart is a Condition which is signaled by another Condition for the
 purpose of handling it."
-Restart addSlot: #condition.
 "The actual signaled condition that invoked this restart."
 
 r@(Restart traits) newCondition: c
@@ -198,9 +198,8 @@ _@(Quit traits) defaultHandler
 "Cause Slate to exit with an error code to the underlying system."
 [exit &code: 1].
 
-conditions define: #DescriptiveConditionMixin &parents: {Cloneable}.
+conditions define: #DescriptiveConditionMixin &parents: {Cloneable} &slots: {#description -> 'Undescribed condition'}.
 "Conditions which bear a description."
-DescriptiveConditionMixin addSlot: #description valued: 'Undescribed condition'.
 
 c@(DescriptiveConditionMixin traits) newDescription: description
 [c new `>> [description: description. ]].
@@ -268,9 +267,8 @@ bp@(BreakPoint traits) defaultHandler
     do: [| :bpr | ^ Nil]
 ].
 
-BreakPoint define: #Restart &parents: {Restart}.
+BreakPoint define: #Restart &parents: {Restart} &slots: {#breakPoint}.
 "A BreakPoint Restart is a Restart used to restart from a BreakPoint."
-BreakPoint Restart addSlot: #breakPoint.
 
 bpr@(BreakPoint Restart traits) newBreakPoint: bp
 [bpr cloneSettingSlots: #(breakPoint) to: {bp}].

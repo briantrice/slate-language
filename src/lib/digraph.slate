@@ -174,7 +174,10 @@ node@(Digraph Node traits) transitionsMatch: node2
 ].
 
 Digraph traits define: #Edge &parents: {Cloneable} &slots:
-  { #target "The target of the edge."}.
+  { #target "The target of the edge.".
+#keys -> SortedSet new. "The set of possible keys that can activate the edge as a transition.
+No keys possible means that it is an epsilon transition."
+}.
 
 edge@(Digraph Edge traits) newFrom: source to: target
 [
@@ -249,9 +252,7 @@ node@(KeyedDigraph Node traits) hasTransitionTo: node2 mirroring: edgeBw
 	          ifNone: [^ False]) keys = edgeBw keys]
 ].
 
-KeyedDigraph Edge addSlot: #keys valued: SortedSet new.
-"The set of possible keys that can activate the edge as a transition.
-No keys possible means that it is an epsilon transition."
+
 
 edge@(KeyedDigraph Edge traits) newTo: target
 [resend `>> [keys: Nil. ]].

@@ -15,12 +15,10 @@ _@(DummyStream traits) position [0].
 _@(DummyStream traits) position: _ [].
 _@(DummyStream traits) position: _ [].
 
-Method traits define: #ReadStream &parents: {ReadStream}.
+Method traits define: #ReadStream &parents: {ReadStream} &slots: {#block -> []}.
 "Method ReadStreams take their next element from the recalculation of a code
 closure with no arguments. This is effectively a means to poll some condition
 or to generate a sequence."
-Method ReadStream addSlot: #block valued: [].
-"The calculation for generating the Stream elements."
 
 s@(Stream traits) newFrom: block@(Method traits)
 [block ReadStream newOn: block].
@@ -47,11 +45,9 @@ s@(Method ReadStream traits) next
 s@(Method ReadStream traits) hasAnEnd [False].
 s@(Method ReadStream traits) isAtEnd [False].
 
-Method traits define: #WriteStream &parents: {WriteStream}.
+Method traits define: #WriteStream &parents: {WriteStream} &slots: {#block -> [| :_ |]}.
 "Method WriteStream applies each fed element into the block as its sole
 argument."
-Method WriteStream addSlot: #block valued: [| :_ |].
-"The operation to be performed on each element."
 
 s@(Stream traits) newTo: block@(Method traits)
 [block WriteStream newOn: block].
@@ -74,15 +70,17 @@ s@(Method WriteStream traits) hasAnEnd [False].
 s@(Method WriteStream traits) isAtEnd [False].
 
 streams define: #ConcatenatedReadStream
-	   &parents: {PositionableReadStream}.
+	   &parents: {PositionableReadStream}
+           &slots: {
 "A Stream acting as the result of concatenating all the source streams'
 sources into a single source to be read."
-ConcatenatedReadStream addSlot: #sources valued: ExtensibleArray new.
+#sources -> ExtensibleArray new.
 "The Streams which are concatenated."
-ConcatenatedReadStream addSlot: #currentSource.
+#currentSource.
 "The current Stream being read."
-ConcatenatedReadStream addSlot: #position valued: 0.
+#position -> 0.
 "The overall position of the stream, taken by tabulating."
+}.
 
 s1@(Stream traits) ; s2@(Stream traits)
 [
@@ -120,8 +118,7 @@ s@(ConcatenatedReadStream traits) next
   s currentSource next
 ].
 
-(streams define: #FlattenedReadStream &parents: {ReadStream})
- `>> [addSlot: #sources valued: Stack new. ].
+streams define: #FlattenedReadStream &parents: {ReadStream} &slots: {#sources -> Stack new.}.
 "Allows the use of the flatten message to create a recursive traversal of
 all contained ReadStreams."
 
@@ -156,13 +153,13 @@ s@(FlattenedReadStream traits) next
    ifFalse: [obj]
 ].
 
-(streams define: #GeneratorStream &parents: {ReadStream})
 "A GeneratorStream will generate a stream of values by applying a step
 block to some seed value, and subsequently to what remains of the seed
 value, until the end block is satisfied."
-  `>> [addSlot: #currentValue valued: Nil.
-       addSlot: #step valued: Method Identity.
-       addSlot: #end valued: [| :_ | False]].
+streams define: #GeneratorStream &parents: {ReadStream}
+&slots: {#currentValue -> Nil.
+         #step -> Method Identity.
+         #end -> [| :_ | False]}.
 
 seed@(Root traits) generate: step until: end
 [GeneratorStream cloneSettingSlots: #(currentValue step end)
@@ -185,7 +182,7 @@ s@(GeneratorStream traits) next
   s currentValue: (s step applyWith: s currentValue)
 ].
 
-Stream traits define: #EchoStream &parents: {ReadWriteStream}.
+Stream traits define: #EchoStream &parents: {ReadWriteStream} &slots: {#original. #dribble}.
 "An EchoStream wraps some original stream and duplicates any interaction,
 reading or writing, done on it to another stream. This relies on EchoStream
 having defined all of the stream interaction methods that the client relies
@@ -194,9 +191,6 @@ upon."
 _Using Prototypical Objects to Implement Shared Behavior in Object Oriented Systems_
 and archived at:
 http://lieber.www.media.mit.edu/people/lieber/Lieberary/OOP/Delegation/Delegation.html"
-Stream EchoStream addSlot: #original.
-"The stream to echo."
-Stream EchoStream addSlot: #dribble "valued: Console writer".
 "The target for the echo'ing operation, called dribble after the Lieberman / 
 Lisp terminology."
 
@@ -246,10 +240,9 @@ e@(Stream EchoStream traits) position: n
   e dribble position: (e original position: n)
 ].
 
-streams define: #Counter &parents: {WriteStream}.
+streams define: #Counter &parents: {WriteStream} &slots: {#value -> 0}.
 "Provides a Stream-compatible way to accumulate a value - one for each element
 written; this is useful with an EchoStream."
-Counter addSlot: #value valued: 0.
 
 c@(Counter traits) on: n
 [
@@ -275,10 +268,9 @@ c@(Counter traits) isAtEnd [False].
 c@(Counter traits) contents
 [c value].
 
-ReadStream traits define: #LineStream &parents: {Stream WrapperStream}.
+ReadStream traits define: #LineStream &parents: {Stream WrapperStream} &slots: {#trailingNL -> False}.
 "A stream that reads lines of text from a wrapped stream, terminated by
 an appropriate line-ending (\r, \n or \r\n)."
-ReadStream LineStream addSlot: #trailingNL valued: False.
 
 l@(ReadStream LineStream traits) on: s
 [

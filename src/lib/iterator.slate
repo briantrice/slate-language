@@ -2,9 +2,7 @@
 generally only ReadStreams are provided as attributes, except in the case of
 Sequences."
 
-Collection traits define: #Stream &parents: {PositionableStream}.
-Collection Stream addSlot: #collection.
-"The target or source of the Stream."
+Collection traits define: #Stream &parents: {PositionableStream} &slots: {#collection}.
 
 s@(Collection Stream traits) contents
 "Answer the Stream's contents, in the default case the collection itself."
@@ -51,11 +49,10 @@ Collection traits define: #ReadStream
 		  &parents: {Collection Stream. ReadStream}.
 "The default kind of iterator, a slot on the shared traits of Collection."
 
-ExtensibleCollection traits define: #WriteStream &parents: {WriteStream}.
+ExtensibleCollection traits define: #WriteStream &parents: {WriteStream} &slots: {#collection}.
 "A totally non-Positionable WriteStream variant which just maps the protocol
 to Collection addition protocol."
-ExtensibleCollection WriteStream addSlot: #collection.
-"The target of the WriteStream."
+
 
 ws@(ExtensibleCollection WriteStream traits) on: c
 "Targets the collection."
@@ -232,14 +229,11 @@ cols@(Sequence traits) combinationsInject: start into: block
   result
 ].
 
-Set traits define: #ReadStream &parents: {Collection ReadStream}.
+Set traits define: #ReadStream &parents: {Collection ReadStream}
+&slots: {#collection -> Set new. #position -> 0. "The number of elements passed so far."
+#index -> 0. "The index into the Set's contents Array."}.
 "Set ReadStreams are just Positionable- over the element order in the Set's
 contents Array. They're not very efficient, having to check for Nil's."
-Set ReadStream collection: Set new.
-Set ReadStream addSlot: #position valued: 0.
-"The number of elements passed so far."
-Set ReadStream addSlot: #index valued: 0.
-"The index into the Set's contents Array."
 
 i@(Set ReadStream traits) on: c
 "Retargets to the new Set, and resets position, etc."
@@ -263,10 +257,9 @@ Set would reach the first before the second."
   i position = i collection size \/ [i index = i collection contents indexLast]
 ].
 
-Sequence traits define: #Stream &parents: {PositionableStream}.
+Sequence traits define: #Stream &parents: {PositionableStream} &slots: {#collection -> ExtensibleArray new}.
 "A Stream over a Sequence, where the position corresponds to the index within
 the Sequence."
-Sequence Stream addSlot: #collection valued: ExtensibleArray new.
 
 s@(Sequence Stream traits) on: c
 "Target the stream to the specific collection, and reset the indices."
@@ -371,9 +364,8 @@ rs@(Sequence ReadStream traits) on: c from: start to: end
 [rs `>> [collection: c. readLimit: (end min: c size). position: start. ]].
 
 Sequence traits define: #WriteStream
-		&parents: {Sequence Stream. WriteStream}.
-"A Stream used to write to a new or existing Sequence."
-Sequence WriteStream addSlot: #writeLimit.
+		&parents: {Sequence Stream. WriteStream}
+                &slots: {#writeLimit}.
 
 s@(Stream traits) newTo: obj@(Sequence traits) &position: position
 [obj WriteStream newOn: obj &position: position].

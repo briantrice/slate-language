@@ -77,6 +77,14 @@ struct Map* object_get_map(struct object_heap* oh, struct Object* o) {
 
 word_t object_is_immutable(struct Object* o) {return ((word_t)o->map->flags & MAP_FLAG_IMMUTABLE) != 0; }
 
+bool_t object_is_special(struct object_heap* oh, struct Object* obj) {
+  word_t i;
+  for (i = 0; i < SPECIAL_OOP_COUNT; i++) {
+    if (obj == oh->special_objects_oop->elements[i]) return 1;
+  }
+  return 0;
+}
+
 
 
 word_t object_word_size(struct Object* o) {
