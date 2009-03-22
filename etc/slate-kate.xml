@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<language name="Slate" version="0.3" kateversion="2.2" section="Sources" extensions="*.slate" author="José Pablo Ezequiel 'Pupeno' Fernández (pupeno@pupeno.com)" licence="MIT Public License">
+	<highlighting>
+		<list name="binarySelectorCharacters">
+			<item>#</item>
+			<item>$</item>
+			<item>%</item>
+			<item>*</item>
+			<item>-</item>
+			<item>+</item>
+			<item>=</item>
+			<item>~</item>
+			<item>/</item>
+			<item>\</item>
+			<item>?</item>
+			<item>&lt;</item>
+			<item>&gt;</item>
+			<item>,</item>
+			<item>;</item>
+		</list>
+		<list name="reservedCharacters">
+			<item>@</item>
+			<item>[</item>
+			<item>]</item>
+			<item>(</item>
+			<item>)</item>
+			<item>{</item>
+			<item>}</item>
+			<item>.</item>
+			<item>:</item>
+			<item>!</item>
+			<item>|</item>
+			<item>`</item>
+			<item>&amp;</item>
+		</list>
+		<contexts>
+			<context attribute="Normal" lineEndContext="#stay" name="Normal">
+				<DetectChar attribute="Comment" context="Comment" char="&quot;"/>
+				<DetectChar attribute="String" context="String" char="'"/>
+				<DetectChar attribute="Symbol" context="Symbol" char="#"/> 
+				<!--String="\#+[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*[ \(\)\[\]\{\}\@\.\|\!]" /> -->
+				<RegExpr attribute="KeywordMessage" context="#stay" String="[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*: " />
+				<RegExpr attribute="BinaryMessage" context="#stay" String="[\#\$\%\*\-\+\=\~\/\\\?&lt;&gt;\,\;]+ "/>
+				<RegExpr attribute="Character" context="#stay" String="\$. "/>
+				<DetectChar attribute="SpecialChar" context="BlockHeader" char="|"/>
+				<!--<DetectChar attribute="SpecialChar" context="Type" char="@"/>-->
+				<DetectChar attribute="SpecialChar" context="#stay" char="@"/>
+				<DetectChar attribute="SpecialChar" context="#stay" char="&amp;"/>
+				<Float attribute="Float" context="#stay" />
+				<Int attribute="Decimal" context="#stay" />
+			</context>
+			<context attribute="Comment" name="Comment" lineEndContext="#stay">
+				<DetectChar attribute="Comment" context="#pop" char="&quot;"/>
+			</context>
+			<context attribute="String" name="String" lineEndContext="#stay">
+				<RegExpr attribute="EscapedString" context="#stay" String="\\[enrtb0afvs'\\]" />
+				<DetectChar attribute="String" context="#pop" char="'"/>
+			</context>
+			<context attribute="Symbol" name="Symbol" lineEndContext="#pop">
+				<RegExpr attribute="Normal" context="#pop" String="[ \(\)\[\]\{\}\@\.\|\!]"/>
+			</context>
+			<context attirbute="BlockHeader" name="BlockHeader" lineEndContext="#stay">
+				<DetectChar attribute="SpecialChar" context="#pop" char="|"/>
+				<RegExpr attribute="BlockHeader" context="#stay" String="[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*" />
+			</context>
+<!--			<context attirbute="Type" name="Type" lineEndContext="#stay">
+				<DetectChar attribute="Normal" context="#pop" char=" "/>
+				<DetectChar attribute="Type" context="Type" char="("/>
+				<DetectChar attribute="Type" context="#pop" char=")"/>
+				<RegExpr attribute="Type" context="#stay" String="[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*" />
+			</context>
+			-->
+		</contexts>
+		<itemDatas>
+			<itemData name="Normal"         defStyleNum="dsNormal" />
+			<itemData name="BlockHeader"    defStyleNum="dsKeyword" />
+			<itemData name="KeywordMessage" defStyleNum="dsKeyword"
+			                                color="#0000FF" />
+			<itemData name="BinaryMessage"  defStyleNum="dsKeyword"
+			                                color="#0000FF" />
+			<itemData name="SpecialChar"    defStyleNum="dsKeyword"
+			                                color="#FF0000"
+			                                bold="1"/>
+			<itemData name="Type"           defStyleNum="dsDataType" />
+			<itemData name="Symbol"         defStyleNum="dsKeyword"
+			                                color="#00B000"
+			                                bold="1" />
+			<itemData name="String"         defStyleNum="dsString" />
+			<itemData name="Character"      defStyleNum="dsString" bold="1"/>
+			<itemData name="EscapedString"  defStyleNum="dsString" bold="1"/>
+			<itemData name="Comment"        defStyleNum="dsComment" />
+			<itemData name="Decimal"        defStyleNum="dsFloat" />
+			<itemData name="Float"          defStyleNum="dsFloat" />
+		</itemDatas>
+	</highlighting>
+	<general>
+		<comments>
+			<comment name="multiLine" start="&quot;" end="&quot;" />
+		</comments>
+		<keywords casesensitive="1" />
+	</general>
+</language>
