@@ -35,7 +35,14 @@ p@(Parsing BasicParser traits) readUntil: range@(Sequence traits)
 
 p@(Parsing BasicParser traits) readUntil: str@(String traits)
 [ |result|
-  result: (p source upToSatisfying: [|:char| (char as: p source collectionType) ; (p source peek: str length - 1) = str]) allButLast.
+  result: (p source upToSatisfying: [|:char| (char as: p source collectionType) ; (p source peek: str length - 1) = str]).
+  p source skip: -1.
+  result
+].
+
+p@(Parsing BasicParser traits) readUntil: char@(String Character traits)
+[ |result|
+  result: (p source upTo: char).
   p source skip: -1.
   result
 ].

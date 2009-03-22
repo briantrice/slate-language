@@ -39,7 +39,8 @@ void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t ari
     return;
   }
 
-  retval = recv(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT);
+  retval = recv(handle, byte_array_elements(array)+start, end - start, 0);
+
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
 
@@ -67,11 +68,8 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
     return;
   }
 
-#ifdef linux
-  retval = send(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT | MSG_NOSIGNAL);
-#else
-  retval = send(handle, byte_array_elements(array)+start, end - start, MSG_DONTWAIT);
-#endif
+  retval = send(handle, byte_array_elements(array)+start, end - start, 0);
+
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
 
 }
@@ -304,7 +302,7 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     return;
   }
   if (oh->socketTickets[ticket].result < 0) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = socket_return(oh->socketTickets[ticket].result);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(socket_return(oh->socketTickets[ticket].result));
   } else {
     word_t count, i;
     struct addrinfo* ai = oh->socketTickets[ticket].addrResult;

@@ -74,6 +74,7 @@ p@(Xml SimpleParser traits) eatWhitespace &required: required
   (p readOnly: p whitespaceRange).
   end: p source position.
   required /\ [start = end] ifTrue: [p error: 'Expected whitespace but found none '].
+  end - start
 ].
 
 
@@ -128,8 +129,9 @@ p@(Xml SimpleParser traits) readName
 [ |char name namespace |
   namespace: p readNamespaceOrName.
   char: p source peek.
-  (p isCharacter: char inRange: p whitespaceRange) \/ [p isNextEqualTo: '>']
-    ifTrue: [^ (Xml Identifier new `>> [name: namespace. namespace: p currentNamespace. ])].
+  "(p isCharacter: char inRange: p whitespaceRange) \/ [p isNextEqualTo: '>'] \/ [p isNextEqualTo: '=']"
+  (p isNextEqualTo: ':')
+    ifFalse: [^ (Xml Identifier new `>> [name: namespace. namespace: p currentNamespace. ])].
   p assertNext: $:.
   name: p readNamespaceOrName.
   Xml Identifier new `>> [name: name. namespace: (p namespaceFromName: namespace). ]
@@ -157,6 +159,18 @@ p@(Xml SimpleParser traits) readCdataSection
   str
 ].
 
+p@(Xml SimpleParser traits) readCdataSection
+[ |str|
+  p assertNext: '<!--'.
+  str: (p readUntil: '-->').
+  
+  (str beginsWith: '-' \/ str endsWith: '-' \/ False"fixme be sure string contains no --")
+    ifTrue: [p error: 'Comment contains extra -'].
+  p assertNext: '-->'.
+  str
+].
+
+
 p@(Xml SimpleParser traits) atEndTagFor: element
 [ "fixme namespaces"
   p isNextEqualTo: '</' ; element name name
@@ -176,9 +190,9 @@ p@(Xml SimpleParser traits) readElementContentFor: element
   seq: ExtensibleArray new.
 
   [
-    cdata: p readCharacterData.
-    cdata isEmpty ifFalse: [seq add: cdata].
-
+   cdata: p readCharacterData.
+   cdata isEmpty ifFalse: [seq add: cdata].
+   inform: 'next up: ' ; (p source peek: 5) printString.
    (p isNextEqualTo: '</') ifTrue: [(p atEndTagFor: element) ifTrue: [p assertEndTagFor: element. 
                                                                       element children: seq.
                                                                       ^ element]
@@ -186,17 +200,19 @@ p@(Xml SimpleParser traits) readElementContentFor: element
    (p isNextEqualTo: '<![CDATA[') ifTrue: [seq add: (p readCdataSection)].
    (p isNextEqualTo: '<?') ifTrue: [seq add: (p readProcessingInstruction)].
    (p isNextEqualTo: ']]>') ifTrue: [p error: ']]> not expected'].
+   (p isNextEqualTo: '<!--') ifTrue: [seq add: (p readComment)].
+   (p isNextEqualTo: '<') ifTrue: [seq add: (p readElement)].
    p source isAtEnd ifTrue: [p error: 'Could not end tag: ' ; element printString].
   ] loop.
 
   
-  "fixme"
 ].
 
 p@(Xml SimpleParser traits) readAttributeValue
 [ |delim str|
   delim: p source next.
   str: (p readUntil: delim).
+  p assertNext: delim.
   "fixme resolve attributes"
   str
 ].
@@ -206,7 +222,7 @@ p@(Xml SimpleParser traits) readAttributesFor: element
 [ |attrs name attvalue|
   attrs: Dictionary new.
   [p eatWhitespace.
-   (p isNextEqualTo: '>') ifTrue: [element attributes: attrs. ^ element].
+   (p isNextEqualTo: '>') \/ [p isNextEqualTo: '/'] ifTrue: [element attributes: attrs. ^ element].
    name: p readName.
    p eatWhitespace.
    p assertNext: $=.
