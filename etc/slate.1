@@ -1,24 +1,21 @@
 .Dd March 21, 2009
 .Dt SLATE 1
-.Nm slate 1.0
 .Sh NAME
 .Nm slate
 .Nd the Slate programming language, an interactive object-oriented programming
 language and environment
 .Sh SYNOPSIS
 .Sy slate
-.Op image
-.Op Fl 
-.Op Fl -memory Ar heaplimit
-.Op Oo Fl c Oc Ar scriptfile
-.Op Fl i Ar imagefile
+image
+.Op Fl mo Ar OldGenerationBytes 
+.Op Fl mn Ar NewGenerationBytes
 .Oo
 .Bk
 .Ar image-argument ...
 .Ek
 .Oc
 .Sh COPYRIGHT
-Slate is Copyright (C) 2002-2006 by Lee Salzman and Brian T. Rice
+Slate is Copyright (C) 2002-2009 by Timmy Douglas, Lee Salzman, and Brian T. Rice
 .Sh DESCRIPTION
 .Pp
 Slate is a dynamic, object-oriented programming language and live-object
@@ -58,24 +55,13 @@ Methods and operators can be specialized on any argument.
 .El
 .Sh OPTIONS
 .Bl -tag -width 8n -compact
-.It Fl -help
-Prints out the VM command-line options.
-.It Fl -version
-Prints out the VM version.
+.It Fl mo Oo GB|MB|KB Oc
+Sets the amount old memory for tenured/old objects (Default 400MB)
+.It Fl mn Oo GB|MB|KB Oc
+Sets the amount of new memory for young/new objects (Default 10MB)
 .It Fl -image-help
-Requests to the image heap to print out the command options that it handles.
-.It Fl -memory Ar memory Oo GgMmKk Oc
-Specifies the memory limit to allow beyond the loaded heap size. A suffix for
-memory unit may be specified as (one of) [KkMmGg].
-.It Fl c Ar scriptfile
-.It Fl -script Ar scriptfile
-Execute the script and then exit with a status code for its termination.
-.It Fl i Ar imagefile
-.It Fl -image Ar imagefile
-Runs the VM with the given saved image of Slate objects. Every VM needs an image
-to run. By default it takes
-.Pa ./slate.image or
-.Pa ${datadir}/slate.image .
+Requests to the image heap to print out the command options that it
+handles. This is done after the slate image is loaded.
 .It Fl -load Ar file
 Starts Slate and immediately executes the source in the given file before
 doing anything else.
@@ -96,50 +82,22 @@ and
 .It Pa ${exec_prefix}/share/slate/src/
 The standard library sources.
 .El
-.Sh ENVIRONMENT
-.Bl -tag -width "SLATEPATH" -compact
-.It Ev SLATEPATH
-A colon-separated list of directories that are appended to Slate's default
-library load path.
-.El
-.Sh DIAGNOSTICS
-.Ex -std slate
-.Bl -diag
-.It You must specify an image filename after -i/--image.
-An image filename wasn't given.
-.It Slate: Attempted to grow heap beyond limits
-The VM tried to allocate more memory to accommodate object creation requests,
-but ran into the static memory limit.
-.It Slate: Attempted to shrink heap to zero size
-The VM was requested to shrink the heap size to an invalid amount.
-.It Slate: <imagefile>: Could not open image file
-The VM could not find or open the specified file as a heap.
-.It Slate: <imagefile>: Invalid image header
-The image file had an incorrect header format word. This is usually due to
-using Slate with an image formatted for the opposite-endianness architecture.
-.It Slate: <imagefile>: Failed to allocate memory for image heap
-A memory allocation error occurred while trying to make space for the image
-contents to load into on startup.
-.It Slate: <imagefile>: Could not read image heap
-The heap header reported that it was larger than the rest of the file contents
-were. The VM exited to avoid working with corrupted data.
-.El
 .Sh BUGS
 Slate is stable and regularly tested, but changing rapidly. The
 .Dq BUGS
 file in the Slate source distribution lists open issues.
-.P
 Reporting bugs is usually done via mailing list or IRC. Response is usually
 quick. You can meet many of the contributors in
 .Sy #slate
 on the Freenode network.
 .Sh AUTHORS
+.An "Timmy Douglas" Aq slate@timmy.tmbx.com
 .An "Lee Salzman"
 .An "Brian T. Rice" Aq water@tunes.org
-...and many contributors.
+.An and many contributors.
 .Sh INTERNET RESOURCES
 Main website:
-.Sy http://slate.tunes.org/
+.Sy http://www.slatelanguage.org/
 .Sh LICENSING
 Slate is distributed freely under the Open Source MIT Public License. See
 .Dq LICENSE
