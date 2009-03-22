@@ -2,7 +2,8 @@
 
 echo 'Building Slate package...'
 
-mkdir out/
-cp -a debian out/
-dpkg-deb -b out/
+rm -rf slate/
+mkdir slate/
+cp -a debian slate/DEBIAN
+dpkg-deb -b slate
 
