@@ -99,10 +99,6 @@ void copy_bytes_into(byte_t * src, word_t n, byte_t * dst) {
 #endif
 }
 
-
-
-
-
 void cache_specials(struct object_heap* heap) {
 
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);
@@ -115,16 +111,12 @@ void cache_specials(struct object_heap* heap) {
 
 }
 
-
-
+#ifndef WIN32
 word_t max(word_t x, word_t y) {
   if (x > y) return x;
   return y;
 }
-
-
-
-
+#endif
 
 /*obsolete*/
 word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
@@ -142,8 +134,6 @@ word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit) {
 
 }
 
-
-
 word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffer, word_t bufferSize)
 {
   word_t payloadSize = payload_size((struct Object *) fromArray);
@@ -155,7 +145,6 @@ word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffe
   return payloadSize;
 }
 
-
 word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSize) {
   word_t arrayLength = byte_array_extract_into(array, (byte_t*)buffer, bufferSize - 1);
 
@@ -166,7 +155,6 @@ word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSiz
   return arrayLength;
 }
 
-
 word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n) {
   word_t i;
   word_t hash = (word_t) name;
@@ -176,7 +164,7 @@ word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object*
   return hash;
 }
 
-
+#ifndef WIN32
 /* this keeps us from having to handle sigchld and wait for processes.
    if you don't wait they become zombies */
 int fork2()
@@ -207,5 +195,4 @@ int fork2()
   
   return -1;
 }
-
-
+#endif

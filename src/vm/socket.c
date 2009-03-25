@@ -1,7 +1,11 @@
-
 #include "slate.h"
-
-
+#ifndef WIN32
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#endif
 
 /* remap platform specific errors to slate errors */
 word_t socket_return(word_t ret) {
@@ -9,6 +13,9 @@ word_t socket_return(word_t ret) {
   if (ret >= 0) return ret;
   perror("socket_return");
   switch (-ret) {
+#ifdef WIN32
+	  // TODO WIN32 port
+#else
   case EACCES: return -2;
   case EAFNOSUPPORT: return -3;
   case EINVAL: return -4;
@@ -32,13 +39,12 @@ word_t socket_return(word_t ret) {
   case EISCONN: return -16;
   case ENETUNREACH: return -17;
   case ETIMEDOUT: return -18;
-
+#endif
 
   default: return -1;
   }
 
 }
-
 
 int socket_select_setup(struct OopArray* selectOn, fd_set* fdList, int* maxFD) {
   word_t fdCount, i;
@@ -153,11 +159,14 @@ int socket_reverse_lookup_protocol(word_t protocol) {
 int socket_set_nonblocking(int fd) {
     int flags;
 
-    if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
+#ifdef WIN32
+#pragma message("TODO WIN32 port set-nonblocking on socket")
+#else
+	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
         flags = 0;
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#endif
 }
-
 
 int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags) {
   int i, pret;
@@ -212,7 +221,6 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
   return -1;
 
 }
-
 
 void *socket_getaddrinfo_callback( void *ptr ) {
   struct slate_addrinfo_request* req = ptr;

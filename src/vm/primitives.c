@@ -13,7 +13,11 @@ void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity,
   int retval;
 
   ASSURE_SMALLINT_ARG(0);
+#ifdef WIN32
+  retval = closesocket(handle);
+#else
   retval = close(handle);
+#endif
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(retval);
 
 }
@@ -110,9 +114,11 @@ void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], w
 
 }
 
-
-
 void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+#ifdef WIN32
+#pragma message("TODO WIN32 port forking/cloning the system")
+  return;
+#else
   pid_t retval;
   int pipes[2];
   struct OopArray* array;
@@ -142,8 +148,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
     array->elements[1] = smallint_to_object(pipes[1]);
   }
 
-
-
+#endif
 }
 
 void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -161,7 +166,7 @@ void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t ari
     ret2 = socket_set_nonblocking(ret);
   } else {
     perror("socket create");
-  }
+  };
 
   if (ret2 < 0) {
     perror("set nonblocking");
@@ -387,6 +392,8 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   switch (domain) {
 
   case SLATE_DOMAIN_LOCAL:
+#ifdef WIN32
+#else
     if (byte_array_size((struct ByteArray*)address) > 100) {
       ret = (struct ByteArray*)oh->cached.nil;
       break;
@@ -397,6 +404,7 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
     ASSURE_TYPE_ARG(1, TYPE_BYTE_ARRAY);
     strncpy(sun->sun_path, (char*)byte_array_elements((struct ByteArray*)address), 100);
     sun->sun_path[byte_array_size((struct ByteArray*)address)] = '\0';
+#endif
     break;
 
   case SLATE_DOMAIN_IPV4:
@@ -459,7 +467,6 @@ void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], wo
                          smallint_to_object(fwrite(bytes, 1, size, (object_to_smallint(handle) == 0)? stdout : stderr));
 
 }
-
 
 void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
@@ -526,8 +533,13 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t time;
   struct timeval tv;
+#ifdef WIN32
+#pragma message("TODO WIN32 time-since-epoch")
+  time = 0;
+#else
   gettimeofday(&tv, NULL);
   time = (word_t)tv.tv_sec * 1000000 + (word_t)tv.tv_usec;
+#endif
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(time);
 }
 
@@ -606,8 +618,8 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
   if (object_is_smallint(handle) && object_is_smallint(offset) && byte_array_size(addressBuffer) >= sizeof(word_t)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
                            smallint_to_object(addressOfMemory(oh,
-                                                              object_to_smallint(handle), 
-                                                              object_to_smallint(offset),
+                                                              (int)object_to_smallint(handle), 
+                                                              (int)object_to_smallint(offset),
                                                               byte_array_elements(addressBuffer)));
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
@@ -677,7 +689,7 @@ void prim_newFixedArea(struct object_heap* oh, struct Object* args[], word_t ari
     return;
   }
 
-  handle = openMemory(oh, object_to_smallint(size));
+  handle = (word_t)openMemory(oh, object_to_smallint(size));
   if (handle >= 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(handle);
   } else {

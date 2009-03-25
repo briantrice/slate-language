@@ -1,28 +1,42 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <sys/mman.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-#include <unistd.h>
-#include <dlfcn.h>
+#ifdef WIN32
+// The following must be obtained from http://code.google.com/p/msinttypes/ for Windows:
+#include "stdint.h"
+#include "inttypes.h"
+// The following must be obtained from http://sourceware.org/pthreads-win32/ for Windows:
+#include "pthread.h"
+#else
+#include <stdint.h>
+#include <inttypes.h>
+#endif
 #include <fcntl.h>
-#include <sys/time.h>
 #include <time.h>
 #include <limits.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/select.h>
-#include <netinet/in.h>
+#ifdef WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+typedef size_t socklen_t;
+typedef signed int ssize_t;
+typedef SOCKADDR sockaddr_un;
+#else
+#include <unistd.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <pthread.h>
-#include <netdb.h>
-#include <signal.h>
+#endif
+
+/* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
+#ifndef SLATE_BUILD_TYPE
+#define SLATE_BUILD_TYPE "UNDEFINED"
+#endif
 
 typedef uintptr_t uword_t;
 typedef intptr_t word_t;
@@ -31,6 +45,10 @@ typedef word_t bool_t;
 typedef float float_type;
 
 #define WORDT_MAX INTPTR_MAX
+
+#define KB 1024
+#define MB 1024 * 1024
+#define GB 1024 * 1024 * 1024
 
 struct SlotTable;
 struct Symbol;
@@ -58,9 +76,6 @@ struct slate_image_header {
   word_t special_objects_oop;
   word_t current_dispatch_id;
 };
-
-
-
 struct Object
 {
   word_t header;
@@ -559,7 +574,7 @@ void method_flush_cache(struct object_heap* oh, struct Symbol* selector);
 struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, word_t words);
 struct Object* heap_make_used_space(struct object_heap* oh, struct Object* obj, word_t words);
 bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid);
-void gc_close(struct object_heap* oh);
+void heap_close(struct object_heap* oh);
 bool_t object_is_pinned(struct object_heap* oh, struct Object* x);
 bool_t object_is_remembered(struct object_heap* oh, struct Object* x);
 struct Object* heap_find_first_young_free(struct object_heap* oh, struct Object* obj, word_t bytes);
@@ -632,7 +647,9 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n);
 void error(char* str);
 void cache_specials(struct object_heap* heap);
+#ifndef WIN32
 word_t max(word_t x, word_t y);
+#endif
 word_t write_args_into(struct object_heap* oh, char* buffer, word_t limit);
 word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n);
 void object_set_mark(struct object_heap* oh, struct Object* xxx);

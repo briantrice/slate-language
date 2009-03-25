@@ -1,5 +1,7 @@
 #include "slate.h"
-
+#ifdef SLATE_USE_MMAP
+#include <sys/mman.h>
+#endif
 
 bool_t object_is_old(struct object_heap* oh, struct Object* oop) {
   return (oh->memoryOld <= (byte_t*)oop && (word_t)oh->memoryOld + oh->memoryOldSize > (word_t)oop);
@@ -130,7 +132,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->mark_color = 1;
   oh->file_index_size = 256;
   oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
-  oh->markStackSize = 1024*1024*4;
+  oh->markStackSize = 4 * MB;
   oh->markStackPosition = 0;
   oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
   
@@ -149,11 +151,14 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   return 1;
 }
 
-void gc_close(struct object_heap* oh) {
-
+void heap_close(struct object_heap* oh) {
+#ifdef SLATE_USE_MMAP
   munmap(oh->memoryOld, oh->memoryOldLimit);
   munmap(oh->memoryYoung, oh->memoryYoungLimit);
-
+#else
+  free(oh->memoryOld);
+  free(oh->memoryYoung);
+#endif
 }
 bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
   if (object_is_young(oh, x)) {
