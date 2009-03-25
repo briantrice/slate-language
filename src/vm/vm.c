@@ -25,19 +25,20 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 ***************************/
 
 #include "slate.h"
+#include <signal.h>
 
 word_t memory_string_to_bytes(char* str) {
 
   word_t res = atoi(str);
 
   if (strstr(str, "GB")) {
-    return res * 1024 * 1024 * 1024;
+    return res * GB;
 
   } else if (strstr(str, "MB")) {
-    return res * 1024 * 1024;
+    return res * MB;
 
   } else if (strstr(str, "KB")) {
-    return res * 1024;
+    return res * KB;
 
   } else {
     return res;
@@ -51,30 +52,30 @@ void slate_interrupt_handler(int sig) {
   globalInterrupt = 1;
 }
 
-
-
 int main(int argc, char** argv) {
 
   FILE* file;
   struct slate_image_header sih;
   struct object_heap* heap;
-  word_t memory_limit = 400 * 1024 * 1024;
-  word_t young_limit = 10 * 1024 * 1024;
+  word_t memory_limit = 400 * MB;
+  word_t young_limit = 10 * MB;
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
   int i;
+#ifdef WIN32
+  // TODO WIN32 port set up signal handlers for interrupts.
+#else
   struct sigaction interrupt_action, pipe_ignore_action;
-
+#endif
 
   heap = calloc(1, sizeof(struct object_heap));
 
-
   if (argc < 2) {
-    fprintf(stderr, "Slate build type: %s\n", SLATE_BUILD_TYPE);
+	fprintf(stderr, "Slate build type: %s\n", SLATE_BUILD_TYPE);
     fprintf(stderr, "You must supply an image file as an argument\n");
     fprintf(stderr, "Your platform is %d bit, %s\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little endian" : "big endian");
-    fprintf(stderr, "Usage: ./vm <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB|)]\n");
+    fprintf(stderr, "Usage: %s <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB)]\n", argv[0]);
     fprintf(stderr, "VM Options:\n");
     fprintf(stderr, "  -mo Old memory for tenured/old objects (Default 400MB)\n");
     fprintf(stderr, "  -mn New memory for young/new objects (Default 10MB)\n");
@@ -83,10 +84,11 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  file = fopen(argv[1], "r");
+  file = fopen(argv[1], "rb");
 
   if (file == NULL) {fprintf(stderr, "Open file failed (%d)\n", errno); return 1;}
 
+  // Read in the elements of the Slate Image Header from the file:
   assert(fread(&sih.magic, sizeof(sih.magic), 1, file) == 1);
   assert(fread(&sih.size, sizeof(sih.size), 1, file) == 1);
   assert(fread(&sih.next_hash, sizeof(sih.next_hash), 1, file) == 1);
@@ -96,7 +98,6 @@ int main(int argc, char** argv) {
   if (sih.size == 0) {
     fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wrong WORD_SIZE. Run slate without any options to see your build configuration.\n");
     return 1;
-
   }
 
   /* skip argv[0] and image name */
@@ -108,16 +109,16 @@ int main(int argc, char** argv) {
       young_limit = memory_string_to_bytes(argv[i+1]);
       i++;
     } else {
-      /*it might be an image argument*/
+      /* The VM does not process this argument. The warning is disabled, because the image know how to process it. */
       /*fprintf(stderr, "Illegal argument: %s\n", argv[i]);*/
     }
   }
-  
+
   if (sih.magic != SLATE_IMAGE_MAGIC) {
     fprintf(stderr, "Magic number (0x%" PRIxPTR ") doesn't match (word_t)0xABCDEF43. Make sure you have a valid slate image and it is the correct endianess. Run slate without arguments to see more info.\n", sih.magic);
     return 1;
   }
-  
+
   if (memory_limit < sih.size) {
     fprintf(stderr, "Slate image cannot fit into base allocated memory size. Use -mo with a greater value\n");
     return 1;
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
   printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
   printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
   printf("Image size: %" PRIdPTR " bytes\n", sih.size);
+
   if ((res = fread(heap->memoryOld, 1, sih.size, file)) != sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
     return 1;
@@ -138,6 +140,9 @@ int main(int argc, char** argv) {
   heap->argcSaved = argc;
   heap->argvSaved = argv;
 
+#ifdef WIN32
+  signal(SIGINT, slate_interrupt_handler);
+#else
   interrupt_action.sa_handler = slate_interrupt_handler;
   interrupt_action.sa_flags = 0;
   sigemptyset(&interrupt_action.sa_mask);
@@ -148,11 +153,11 @@ int main(int argc, char** argv) {
   pipe_ignore_action.sa_flags = 0;
   sigemptyset(&pipe_ignore_action.sa_mask);
   sigaction(SIGPIPE, &pipe_ignore_action, NULL);
-
+#endif
 
   interpret(heap);
   
-  gc_close(heap);
+  heap_close(heap);
 
   fclose(file);
 

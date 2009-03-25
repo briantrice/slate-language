@@ -1,12 +1,17 @@
 #include "slate.h"
 
-#if defined(__CYGWIN__)
+#if defined(WIN32) || defined(__CYGWIN__)
 #define DLL_FILE_NAME_EXTENSION ".dll"
 #else
 #define DLL_FILE_NAME_EXTENSION ".so"
 #endif 
 
-
+#ifdef WIN32
+#define SLATE_LIB_HANDLE HMODULE
+#else
+#include <dlfcn.h>
+#define SLATE_LIB_HANDLE void*
+#endif
 
 static char *safe_string(struct ByteArray *s, char const *suffix) {
   size_t len = byte_array_size(s);
@@ -20,7 +25,7 @@ static char *safe_string(struct ByteArray *s, char const *suffix) {
 
 bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle) {
   char *fullname;
-  void *h;
+  SLATE_LIB_HANDLE h;
 
   assert(byte_array_size(handle) >= sizeof(h));
 
@@ -28,12 +33,16 @@ bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, st
   if (fullname == NULL)
     return FALSE;
 
+#ifdef WIN32
+  h = LoadLibrary(fullname);
+#else
   h = dlopen(fullname, RTLD_NOW);
 
   char *message = dlerror();
   if (message != NULL) {
     fprintf (stderr, "openExternalLibrary '%s' error: %s\n", fullname, message);
   }
+#endif
   free(fullname);
 
   if (h == NULL) {
@@ -45,16 +54,20 @@ bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, st
 }
 
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
-  void *h;
+  SLATE_LIB_HANDLE h;
 
   assert(byte_array_size(handle) >= sizeof(h));
   memcpy(&h, handle->elements, sizeof(h));
 
+#ifdef WIN32
+  return FreeLibrary(h) ? TRUE : FALSE;
+#else
   return (dlclose(h) == 0) ? TRUE : FALSE;
+#endif
 }
 
 bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray *handle, struct ByteArray *symname, struct ByteArray *ptr) {
-  void *h;
+  SLATE_LIB_HANDLE h;
   void *fn;
   char *symbol;
 
@@ -66,7 +79,11 @@ bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray *
     return FALSE;
 
   memcpy(&h, handle->elements, sizeof(h));
+#ifdef WIN32
+  fn = (void *) GetProcAddress(h, symbol);
+#else
   fn = (void *) dlsym(h, symbol);
+#endif
   free(symbol);
 
   if (fn == NULL) {
@@ -78,12 +95,29 @@ bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray *
 }
 
 int readExternalLibraryError(struct ByteArray *messageBuffer) {
-  char *message = dlerror();
+  char *message;
+  int len;
+#ifdef WIN32
+  //TODO: do the equivalent of dlerror() on unix and write the string into
+  // the buffer, returning the length.
+  DWORD dw = GetLastError();
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR) &message,
+		0, NULL);
+#else
+  message = dlerror();
+#endif
   if (message == NULL)
     return 0;
-  int len = strlen(message);
+  len = strlen(message);
   assert(byte_array_size(messageBuffer) >= len);
   memcpy(messageBuffer->elements, message, len);
+#ifdef WIN32
+  LocalFree(message);
+#endif
   return len;
 }
 
