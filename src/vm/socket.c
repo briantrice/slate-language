@@ -1,11 +1,4 @@
 #include "slate.h"
-#ifndef WIN32
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#endif
 
 /* remap platform specific errors to slate errors */
 word_t socket_return(word_t ret) {

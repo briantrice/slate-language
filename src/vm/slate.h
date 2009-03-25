@@ -27,6 +27,11 @@ typedef size_t socklen_t;
 typedef signed int ssize_t;
 typedef SOCKADDR sockaddr_un;
 #else
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/un.h>
