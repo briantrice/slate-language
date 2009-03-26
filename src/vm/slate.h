@@ -10,8 +10,6 @@
 // The following must be obtained from http://code.google.com/p/msinttypes/ for Windows:
 #include "stdint.h"
 #include "inttypes.h"
-// The following must be obtained from http://sourceware.org/pthreads-win32/ for Windows:
-#include "pthread.h"
 #else
 #include <stdint.h>
 #include <inttypes.h>
@@ -315,8 +313,11 @@ struct object_heap
 
   struct slate_addrinfo_request*  socketTickets;
   int socketTicketCount;
+#ifdef WIN32
+  HANDLE WINAPI socketThreadMutex;
 #if 0
   pthread_mutex_t socketTicketMutex;
+#endif
 #endif
 
   int argcSaved;
@@ -822,7 +823,6 @@ int socket_reverse_lookup_type(word_t type);
 int socket_lookup_protocol(word_t protocol);
 int socket_reverse_lookup_protocol(word_t protocol);
 int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags);
-void *socket_getaddrinfo_callback( void *ptr );
 
 word_t memory_string_to_bytes(char* str);
 

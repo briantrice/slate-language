@@ -161,11 +161,37 @@ int socket_set_nonblocking(int fd) {
 #endif
 }
 
+#ifdef WIN32
+DWORD WINAPI socket_getaddrinfo_callback(LPVOID ptr) {
+#else
+void *socket_getaddrinfo_callback(void *ptr) {
+#endif
+  struct slate_addrinfo_request* req = ptr;
+  /*  struct object_heap* oh = req->oh;*/
+  struct addrinfo ai;
+  memset(&ai, sizeof(ai), 0);
+  ai.ai_flags = req->flags;
+  ai.ai_family = socket_lookup_domain(req->family);
+  ai.ai_socktype = socket_lookup_type(req->type);
+  ai.ai_protocol = socket_lookup_protocol(req->protocol);
+  
+  req->result = getaddrinfo(req->hostname, req->service, &ai, &req->addrResult);
+  req->finished = 1;
+  return NULL;
+}
+
 int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags) {
-  int i, pret;
+  int i;
+#ifdef WIN32
+  HANDLE thread;
+  DWORD pret;
+  oh->socketThreadMutex = CreateMutex(NULL, FALSE, TEXT("SocketThreadMutex"));
+#else
   pthread_t thread;
+  int pret;
 #if 0
   pthread_mutex_lock(&oh->socketTicketMutex);
+#endif
 #endif
   for (i = 0; i < oh->socketTicketCount; i++) {
     if (oh->socketTickets[i].inUse == 0) {
@@ -193,11 +219,16 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
         extractCString(service, (byte_t*)oh->socketTickets[i].service, serviceSize);
       }
 
+#ifdef WIN32
+	  ReleaseMutex(MUTEX_ALL_ACCESS, FALSE, "SocketThreadMutex");
+	  thread = CreateThread(NULL, 0, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i], NULL, &pret);
+#else
 #if 0
       pthread_mutex_unlock(&oh->socketTicketMutex);
 #endif
       pret = pthread_create(&thread, NULL, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i]);
-      if (pret != 0) {
+#endif
+	  if (pret != 0) {
         free(oh->socketTickets[i].hostname);
         free(oh->socketTickets[i].service);
         oh->socketTickets[i].hostname = NULL;
@@ -207,25 +238,14 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
       return i;
     }
   }
+#ifdef WIN32
+  ReleaseMutex(MUTEX_ALL_ACCESS, FALSE, "SocketThreadMutex");
+#else
 #if 0
   pthread_mutex_unlock(&oh->socketTicketMutex);
+#endif
 #endif
 
   return -1;
 
-}
-
-void *socket_getaddrinfo_callback( void *ptr ) {
-  struct slate_addrinfo_request* req = ptr;
-  /*  struct object_heap* oh = req->oh;*/
-  struct addrinfo ai;
-  memset(&ai, sizeof(ai), 0);
-  ai.ai_flags = req->flags;
-  ai.ai_family = socket_lookup_domain(req->family);
-  ai.ai_socktype = socket_lookup_type(req->type);
-  ai.ai_protocol = socket_lookup_protocol(req->protocol);
-  
-  req->result = getaddrinfo(req->hostname, req->service, &ai, &req->addrResult);
-  req->finished = 1;
-  return NULL;
 }
