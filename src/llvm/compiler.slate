@@ -1,0 +1,450 @@
+block@(Syntax Block traits) compile2 [
+"Invoke the LLVM c."
+	LLVM Compiler new generate: block
+].
+
+LLVM define: #Compiler &parents: {Cloneable} &slots: {#contexts -> Stack new. #module }.
+
+(LLVM Compiler hasSlotNamed: #DefaultModule) ifTrue: [
+	LLVM Compiler DefaultModule dispose.
+].
+
+LLVM Compiler define: #DefaultModule -> (
+	(LLVM SlateModule new &name: 'slate')
+).
+
+module@(LLVM Compiler DefaultModule) shutdown [
+	module dispose.
+].
+
+c@(LLVM Compiler traits) new &module: useModule [
+	useModule `defaultsTo: LLVM Compiler DefaultModule.
+	c clone `>> [ 
+		contexts: c contexts new.
+		module: useModule.
+	]
+].
+
+LLVM Compiler traits define: #Context &parents: {Cloneable} &slots: {
+	#isClosure -> False "Whether the method being compiled is a closure.".
+	#method -> CompiledMethod new "The method the context targets.".
+	#selectors -> ExtensibleArray new.
+	"The gathering collection for the method's literal array; must be indexable
+	before committing."
+	#literals -> ExtensibleArray new.
+	"The gathering collection for the method's selector array; must be indexable
+	before committing."
+	#builder. #variables. #function. #llvmName
+	"LLVM Staff."
+}.
+
+c@(LLVM Compiler Context traits) newOn: method llvmName: llvmName [
+  method code: Array new.
+  c cloneSettingSlots: #(method selectors literals builder llvmName)
+   to: {method. 
+        c selectors new.
+        c literals new.
+		LLVM IRBuilder new.
+		llvmName.
+	}
+].
+
+c@(LLVM Compiler Context traits) copy
+[resend `>> [selectors: c selectors copy.
+             literals: c literals copy]].
+
+c@(LLVM Compiler Context traits) flush
+[
+  c method literals: (c literals as: Array).
+  c method selectors: (c selectors as: Array).
+  c
+].
+
+c@(LLVM Compiler traits) currentContext [
+	c contexts top
+].
+
+c@(LLVM Compiler traits) currentMethod [
+	c currentContext method
+].
+
+c@(LLVM Compiler traits) number: si@(SmallInteger) [
+	si << 1 bitOr: 1
+].
+
+c@(LLVM Compiler traits) literal: obj [
+"Ensure that the literal object is included in the literals array. If it is
+not present already, it is appended to the end, thus ensuring that no other
+indices require shifting. Answer the literal's index."
+	(c currentContext literals 
+		indexOfFirstSatisfying: 
+		[| :literal | obj = literal /\ [obj isSameAs: literal]])
+		ifNil:
+		[| index |
+			index: c currentContext literals size.
+			c currentContext literals addLast: obj.
+			index]
+].
+
+c@(LLVM Compiler traits) selector: selector [
+"Ensure that the literal object is included in the selectors array. If it is
+not present already, it is appended to the end, thus ensuring that no other
+indices require shifting. Answer the selector's index."
+	c currentContext selectors `>> [include: selector. indexOf: selector]
+].
+
+_@(LLVM Compiler traits) generate: _@(Syntax Node traits) [
+"Do nothing in the default case, for comments and annotations and such."
+].
+
+c@(LLVM Compiler traits) generate: ann@(Syntax Annotation traits) [
+"Generate the annotation's value."
+inform: 'Annotation'.
+ 	shouldImplement.
+ c generate: ann value
+].
+
+c@(LLVM Compiler traits) generate: block@(Syntax Block traits) &topLevel: topLevel &llvmName: llvmName [
+"Encountering a new block, build a new CompiledMethod object and push it and
+a new bytecode array writer onto the generator, then go through the underlying
+code and generate that. When done, pop both, set up the block as a literal
+and push it onto the stack."
+	| newBlock isClosure statements parameterTypes functionType |
+	topLevel `defaultsTo: False.
+	inform: 'Block'.
+  	
+	topLevel 
+		ifTrue: [ llvmName `defaultsTo: 'unnamedBlock' ]
+		ifFalse: [ llvmName: (c currentContext llvmName ; '_literal') ].
+	newBlock: CompiledMethod new.
+	newBlock environment: (c contexts isEmpty
+		ifTrue: [block parentScope topLevel namespace]
+		ifFalse: [c currentMethod environment]).
+	newBlock sourceTree: block.
+	c contexts push: (c Context newOn: newBlock llvmName: llvmName).
+	"we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
+	statements: (block statements collect: [| :statement | statement macroExpand &environment: c currentMethod sourceTree]).
+	"Set the variable information after generation, just in case it was modified."
+	newBlock `>> [
+		inputVariables: block inputVariables size.
+		localVariables: block localVariables size.
+		restVariable: block restVariable isNotNil.
+		optionalKeywords: block optionalKeywords.
+	].
+
+	c currentContext variables: Dictionary new.
+	parameterTypes: (Array new &capacity: (block inputVariables size + block optionalKeywords size)).
+	parameterTypes atAllPut: c module structObjectPtr.
+	functionType: (LLVM Type Function new &returnType: c module structObjectPtr &paramaterTypes: parameterTypes ).
+	c currentContext function: (c module addFunctionNamed: c currentContext llvmName type: functionType).
+	c currentContext builder insertPoint: (c currentContext function addBlockNamed: 'entry').
+	block localVariables doWithIndex: [ | :each :index variable parameter |
+		(index < parameterTypes size)
+			ifTrue: [ "is an arg"
+				parameter: (c currentContext function parameterAt: index).
+				parameter name: each name.
+				variable: (c currentContext builder allocA: c module structObjectPtr name: (each name ; '_addr')).
+			]
+			ifFalse: [	"is a temp var"
+				parameter: (c generate: (Syntax Literal for: Nil)).
+				variable: (c currentContext builder allocA: c module structObjectPtr name: each name).
+			].
+		c currentContext builder store: parameter at: variable.
+		c currentContext variables at: each name put: variable.
+	].
+	statements allButLastDo: [| :node | c generate: node].
+	statements size > 0
+		ifTrue: [ c currentContext builder ret &value: (c generate: statements last) ]
+		ifFalse: [ c currentContext builder ret &value: (c generate: (Syntax Literal for: Nil)) ].
+
+	isClosure: c currentContext isClosure.
+
+	c currentContext function verify &failureAction: LLVM VerifierFailureAction PrintMessage.
+	newBlock reserved5: c currentContext function name intern.
+	
+	c contexts pop flush.
+	"Forces the newBlock to record all the remaining stream input correctly."
+
+	c contexts isEmpty \/ [topLevel]
+		ifTrue: [
+			newBlock
+		]
+		ifFalse: [
+			isClosure
+				ifTrue: [ inform: 'newClosure'. shouldImplement ]
+				ifFalse: [ c generate: (Syntax Literal for: newBlock) ]
+		]
+].
+
+c@(LLVM Compiler traits) generate: def@(Syntax MethodDefinition traits) [
+	| blockRegister selectorRegister rolesRegister |
+"Translate method definitions to equivalent asMethod:on: invocations."
+	inform: 'MethodDefinition'.
+
+	c contexts isEmpty ifTrue: [ ^ resend ].
+  	blockRegister: (#generate: sendTo: {c. def} through: {c. Syntax Block}).
+	selectorRegister: (c emitSelector: def selector).
+   	rolesRegister: (c generate: (def roles as: Syntax Array)).
+   	c emitSend: #asMethod:on: onRegisters: {blockRegister. selectorRegister. rolesRegister}
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax Resend traits) [
+	| lexOffset scope |
+	inform: 'Resend'.
+	shouldImplement.
+	scope: c currentMethod sourceTree.
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+		ifNil:
+			[error: 'resend must be used within a method definition.']).
+	lexOffset > 0
+		ifTrue:
+		[(c contexts fromTop: lexOffset) method heapAllocate: True.
+			(c contexts top: lexOffset) do: #isClosure: `er <-* True].
+	"resendMessage"
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax Return traits) [
+	overrideThis
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax Return traits) by: lexOffset [ 
+	inform: 'Return'.
+	shouldImplement.
+	lexOffset > 0
+		ifTrue:
+		[(c contexts fromTop: lexOffset) method heapAllocate: True.
+		(c contexts top: lexOffset) do: [| :x | x isClosure: True]].
+	c generate: r value.
+	"returnFrom"
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnClose traits) [
+"Exits the first enclosing named method in the lexical scope."
+	| lexOffset |
+	inform: 'ReturnClose'.
+ 	shouldImplement.
+ 	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+		ifNil:
+			[error: '^ must be used within a method definition.']).
+	c generate: r by: lexOffset
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnFar traits) [
+"Exits the last enclosing named method in the lexical scope."
+	| lexOffset |
+	inform: 'ReturnFar'.
+	shouldImplement.
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+			ifNil: [error: '^^ must be used within a method definition.']).
+	c generate: r by: lexOffset
+].
+
+c@(LLVM Compiler traits) generate: r@(Syntax ReturnLevel traits) [
+	"Exits the Nth enclosing lexical scope."
+	inform: 'ReturnLevel'.
+	shouldImplement.
+	c generate: r by: r level
+].
+
+c@(LLVM Compiler traits) generate: literal@(Syntax Literal traits) [
+	| value |
+	inform: ('Literal: ' ; literal printString).
+	value: literal value.
+	(value is: SmallInteger)
+		ifTrue: [ | number |
+			number: (LLVM Type Integer32 value: (c number: value) signed: True).
+			number as: c module structObjectPtr
+		]
+		ifFalse: [ 
+			value caseOf: {
+				Nil -> [ c currentContext builder load: c module nilObject &name: 'nil_addr' ].
+				True -> [ c currentContext builder load: c module nilObject &name: 'true_addr' ].
+				False -> [ c currentContext builder load: c module nilObject &name: 'false_addr' ]
+			}
+			otherwise: [ | index function |
+				index: (c generate: (Syntax Literal for: (c literal: value))).
+				function: c module literalAtFunction.
+				c currentContext builder call: function arguments: { index } &name: value
+			]
+ 		]
+].
+
+c@(LLVM Compiler traits) generate: n@(Syntax CompoundStatement traits) [
+"return the registers that the values were saved into"
+	inform: 'CompoundStatement'.
+	n statements size < 1
+    	ifTrue: [
+			{}
+		]
+    	ifFalse: [
+			n statements collect: [ | :node | c generate: node ]
+		]
+].
+
+c@(LLVM Compiler traits) generate: n@(Syntax Parenthesis traits) [
+"return the registers that the values were saved into"
+	inform: 'Parenthesis'.
+	n statements size < 1
+    	ifTrue: [
+			{}
+		]
+    	ifFalse: [
+			n statements allButLastDo: [ | :node | c generate: node ].
+			c generate: n statements last
+		]
+].
+
+c@(LLVM Compiler traits) generate: i@(Syntax ImplicitArgument traits) [
+	| function |
+	inform: 'ImplicitArgument'.	
+	function: (c module functionNamed: 'environment').
+	c currentContext builder call: function arguments: {} &name: 'environment'
+].
+
+c@(LLVM Compiler traits) generate: _@(Syntax Namespace traits) [
+	shouldNotImplement
+].
+
+c@(LLVM Compiler traits) generate: load@(Syntax LoadVariable traits) [
+	| scope lexOffset varIndex |
+	inform: 'LoadVariable'.
+	scope: load variable scope.
+	varIndex: (scope localVariables indexOf: load variable).
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+			ifNil: [error: 'Could not determine variable scope.']).
+
+  lexOffset isZero
+    ifTrue: [ | variable |
+    	variable: (c currentContext variables at: load variable name ifAbsent: [ error: 'unknown variable ' ; load variable name ]).
+    	c currentContext builder load: variable &name: (load variable name ; '_')
+	]
+    ifFalse: [
+		shouldImplement.
+		"result `defaultsTo: gen newRegister.
+       (gen contexts fromTop: lexOffset) method heapAllocate: True.
+       (gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+       gen emitInstruction: gen loadFreeVariable withParameters: {result. lexOffset. varIndex} from: load"
+	]
+].
+
+c@(LLVM Compiler traits) generate: store@(Syntax StoreVariable traits) [
+	| scope lexOffset varIndex |
+	inform: 'StoreVariable'.
+	scope: store variable scope.
+	varIndex: (scope localVariables indexOf: store variable).
+	lexOffset: c contexts indexLast -
+		((c contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
+			ifNil:[ error: 'Could not determine variable scope.']).
+  
+  lexOffset isZero
+    ifTrue: [ | value variable |
+    	variable: (c currentContext variables at: store variable name ifAbsent: [ error: 'unknown variable ' ; store variable name ]).
+		value: (c generate: store value).
+		c currentContext builder store: value at: variable
+	]
+    ifFalse: [
+    	shouldImplement.
+       	"gen generate: store value result: result.
+       	(gen contexts fromTop: lexOffset) method heapAllocate: True.
+       	(gen contexts top: lexOffset) do: #isClosure: `er <-* True.
+        gen emitInstruction: gen storeFreeVariable withParameters: {lexOffset. varIndex} from: store"
+	]
+].
+
+c@(LLVM Compiler traits) generate: array@(Syntax Array traits) [
+"Generate the code to push the element expression results on the stack,
+then the appropriate literal-array constructor bytecode."
+	| valueRegisters arrayRegister |
+	inform: 'Array'.
+	valueRegisters: resend.
+	arrayRegister: (c generate: (Syntax KeywordMessage
+		sending: #newSize:
+		to: { (Syntax UnaryMessage sending: #Array). (Syntax Literal for: array statements size) }
+	)). 	
+   	valueRegisters doWithIndex: [ | :valueRegister :index indexRegister |
+  		indexRegister: (c generate: (Syntax Literal for: index)).
+	   	c emitSend: #at:put: onRegisters: {arrayRegister. indexRegister. valueRegister}
+	].
+	arrayRegister
+].
+
+c@(LLVM Compiler traits) emitSelector: selector@(Symbol traits) [
+	| index function |
+	inform: 'emitSelector'.
+	index: (c generate: (Syntax Literal for: (c selector: selector))).
+	function: c module selectorAtFunction.
+	c currentContext builder call: function arguments: { index } &name: selector
+].
+
+c@(LLVM Compiler traits) emitSend: selector@(Symbol traits) onRegisters: argRegisters [
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+ 	| argRegisters selectorRegister arityRegister |
+	inform: 'Message++'.
+	selectorRegister: (c emitSelector: selector).
+  	arityRegister: (c generate: (Syntax Literal for: argRegisters size)).
+	c currentContext builder call: c module findMethodAndSendWithArgs arguments: { selectorRegister. arityRegister } ; argRegisters &name: selector name
+].
+
+c@(LLVM Compiler traits) emitSend: selector@(Symbol traits) on: args [
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+ 	| argRegisters |
+	inform: 'Message+'.
+  	argRegisters: ( args collect: [ | :arg | c generate: arg ] ).
+  	c emitSend: selector onRegisters: argRegisters
+].
+
+c@(LLVM Compiler traits) generate: msg@(Syntax Message traits) &optionals: opts [
+	inform: 'Message'.
+	opts ifNotNil: [ shouldImplement ].
+	opts `defaultsTo: msg.
+  	c emitSend: msg selector on: msg arguments
+].
+
+c@(LLVM Compiler traits) generate: macro@(Syntax Macro traits) &optionals: opts [
+  "c generate: (macro macroExpand &optionals: opts &environment: c currentMethod sourceTree)"
+	error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
+].
+
+c@(LLVM Compiler traits) generate: def@(Syntax Deferred traits) &optionals: opts [
+	| block message |
+	inform: 'Deferred'.
+	shouldImplement.
+	block: Syntax Block new `>> [parentScope: c currentMethod sourceTree. ].
+	def arguments size timesRepeat: #addInputVariable `er <- block.
+	message: (Syntax Message sending: def selector to:
+		(block inputVariables collect: [| :var | Syntax LoadVariable from: var])).
+	opts
+		ifNotNil:
+		[message:
+			((Syntax OptionalArguments for: message)
+			`>> [arguments: (opts arguments deepCopy: block). ])].
+	block statements: {message}.
+	c generate:
+		(Syntax KeywordMessage
+		sending: #whenFulfilled:
+		to: {def arguments as: Syntax Array. block})
+].
+
+c@(LLVM Compiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) [ 
+"Generate the code to push the argument expression results on the stack, then
+the push for the selector, and then the appropriate message send bytecode."
+	inform: 'OptionalKeywords+'.
+	shouldImplement.
+	args do: [| :arg | c generate: arg ].
+	opts keywords with: opts arguments do: [
+		| :key :arg |
+		c generate: arg
+	]
+].
+
+c@(LLVM Compiler traits) generate: opts@(Syntax OptionalKeywords traits) [
+	inform: 'OptionalKeywords'.
+	c generate: opts message &optionals: opts
+].
+

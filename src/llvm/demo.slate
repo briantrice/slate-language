@@ -1,0 +1,35 @@
+load: 'src/llvm/init.slate'.
+
+addSlot: #module.
+module: (LLVM Module newWithID: 'myModule').
+addSlot: #engine.
+engine: (LLVM ExecutionEngine newWithModule: module provider).
+addSlot: #builder.
+builder: LLVM IRBuilder new.
+addSlot: #functionType.
+functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
+addSlot: #function.
+function: (module addFunctionNamed: 'addFunction' type: functionType).
+addSlot: #arg1.
+arg1: (function parameterAt: 0).
+arg1 name: 'arg1'.
+addSlot: #arg2.
+arg2: (function parameterAt: 1).
+arg2 name: 'arg2'.
+addSlot: #block.
+block: (function addBlockNamed: 'entry').
+builder insertPoint: block.
+addSlot: #addtmp.
+addtmp: (builder add: arg1 , arg2).
+builder ret &value: addtmp.
+function verify.
+module dump.
+
+arg1: (LLVM Type Integer32 genericValue: 7 signed: True).
+arg2: (LLVM Type Integer32 genericValue: 5 signed: True).
+inform: ((engine run: function arguments: {arg1. arg2} ) as: Integer signed: True) printString.
+
+builder dispose.
+engine dispose.
+module dispose.
+

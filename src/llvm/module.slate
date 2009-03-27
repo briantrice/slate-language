@@ -1,0 +1,174 @@
+LLVM define: #Module &parents: {LLVM Pointer} &slots: { #name }.
+LLVM Module traits atSlotNamed: #printName put: 'LLVM Module'. 
+
+"LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);"
+m@(LLVM Module traits) new &name: name [
+	| newModule |
+	name `defaultsTo: 'default'.
+	newModule: (m newWithHandle: (
+		LLVM Lib primitives LLVMModuleCreateWithName applyTo: {name}
+	) ).
+	newModule name: name.
+	newModule
+].
+
+"void LLVMDisposeModule(LLVMModuleRef M);"
+m@(LLVM Module traits) dispose [
+	LLVM Lib primitives LLVMDisposeModule applyTo: {m handle}.
+	m
+].
+
+"int LLVMVerifyModule(LLVMModuleRef M, LLVMVerifierFailureAction Action,
+                     char **OutMessage);"
+m@(LLVM Module traits) verify &failureAction: failureAction [
+	| returnValue message |
+	failureAction `defaultsTo: LLVM VerifierFailureAction ReturnStatus.
+	message: (ByteArray new &capacity: bytesPerWord).
+	returnValue: (LLVM Lib primitives LLVMVerifyModule applyTo: { m handle. failureAction. message }).
+	message = (ByteArray new &capacity: bytesPerWord) ifFalse: [
+		LLVM Lib primitives LLVMDisposeMessage applyTo: { message }.
+	].
+	returnValue
+].
+
+"void LLVMDumpModule(LLVMModuleRef M);"
+m@(LLVM Module traits) dump [
+	LLVM Lib primitives LLVMDumpModule applyTo: {m handle}.
+	m
+].
+
+"int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);"
+m@(LLVM Module traits) save &fileName: fileName [
+	fileName `defaultsTo: (m name ; '.bc').
+	LLVM Lib primitives LLVMWriteBitcodeToFile applyTo: {m handle. fileName}
+].
+
+
+ 
+"const char *LLVMGetDataLayout(LLVMModuleRef M);"
+m@(LLVM Module traits) dataLayout [
+	LLVM Lib primitives LLVMGetDataLayout applyTo: {m handle}
+].
+
+"void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);"
+m@(LLVM Module traits) dataLayout: triple@(String traits) [
+	LLVM Lib primitives LLVMSetDataLayout applyTo: {m handle. triple}.
+	m
+].
+
+"const char *LLVMGetTarget(LLVMModuleRef M);"
+m@(LLVM Module traits) target [
+	LLVM Lib primitives LLVMGetTarget applyTo: {m handle}
+].
+ 
+"void LLVMSetTarget(LLVMModuleRef M, const char *Triple);" 
+m@(LLVM Module traits) target: triple@(String traits) [
+	LLVM Lib primitives LLVMSetTarget applyTo: {m handle. triple}.
+	m
+].
+
+"void LLVMDeleteTypeName(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) deleteTypeNamed: name@(String traits) [
+	LLVM Lib primitives LLVMDeleteTypeName applyTo: {m handle. name }.
+	m
+].
+ 
+"int LLVMAddTypeName(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty);"
+m@(LLVM Module traits) addTypeNamed: name@(String traits) type: type@(LLVM Type traits) [
+	LLVM Lib primitives LLVMAddTypeName applyTo: {m handle. name. type handle }
+].
+
+"-------------------------------Operations on global variables------------------------------------"
+
+"LLVMValueRef LLVMAddGlobal(LLVMModuleRef M, LLVMTypeRef Ty, const char *Name);"
+m@(LLVM Module traits) addGlobalNamed: name@(String traits) type: type@(LLVM Type traits) [
+	LLVM Value GlobalVariable newWithHandle: (
+		LLVM Lib primitives LLVMAddGlobal applyTo: {m handle. type handle. name }
+	)
+].
+
+"LLVMValueRef LLVMGetNamedGlobal(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) globalNamed: name@(String traits) [
+	LLVM Value GlobalVariable newWithHandle: (
+		LLVM Lib primitives LLVMGetNamedGlobal applyTo: {m handle. name }
+	)
+].
+
+"-------------------------------Operations on function variables------------------------------------"
+
+"LLVMValueRef LLVMAddFunction(LLVMModuleRef M, const char *Name,
+                             LLVMTypeRef FunctionTy);"
+m@(LLVM Module traits) addFunctionNamed: name@(String traits) type: type@(LLVM Type Function traits) [
+	LLVM Value Function newWithHandle: (
+		LLVM Lib primitives LLVMAddFunction applyTo: {m handle. name. type handle }
+	)
+].
+
+"LLVMValueRef LLVMGetNamedFunction(LLVMModuleRef M, const char *Name);"
+m@(LLVM Module traits) functionNamed: name@(String traits) [
+	LLVM Value Function newWithHandle: (
+		LLVM Lib primitives LLVMGetNamedFunction applyTo: {m handle. name }
+	)
+].
+
+LLVM define: #SlateModule &parents: {LLVM Module} &slots: {
+	#structObject. #structObjectPtr. #environmentFunction. #literalAtFunction. #selectorAtFunction.
+	#findMethodAndSendWithArgs.	#nilObject. #falseObject. #trueObject
+}.
+LLVM SlateModule traits atSlotNamed: #printName put: 'LLVM SlateModule'. 
+
+m@(LLVM SlateModule traits) new &name: name [
+	resend `>> [ declareStructures. declareGlobalVariables. declareFunctions. ]
+].
+
+m@(LLVM SlateModule traits) declareStructures [
+	| objectOpaque |
+	
+	objectOpaque: LLVM Type Opaque new holder.
+	m structObject: (LLVM Type Struct new &elementTypes: { 
+		LLVM Type Integer32.	"header"
+		LLVM Type Integer32.	"objectSize"
+		LLVM Type Integer32.	"payloadSize"
+		(LLVM Type Pointer newFor: objectOpaque resolve)	"map"
+	}).
+	objectOpaque resolve refineTo: m structObject.
+	m structObject: objectOpaque resolve.
+	m addTypeNamed: 'struct.Object' type: m structObject.
+	m structObjectPtr: (LLVM Type Pointer newFor: m structObject).
+	
+	m
+].
+
+m@(LLVM SlateModule traits) declareGlobalVariables [
+	m nilObject: (m addGlobalNamed: 'nilObject' type: m structObjectPtr).
+	m trueObject: (m addGlobalNamed: 'trueObject' type: m structObjectPtr).
+	m falseObject: (m addGlobalNamed: 'falseObject' type: m structObjectPtr).
+	
+	m
+].
+
+m@(LLVM SlateModule traits) declareFunctions [
+	| functionType |	
+	
+	"struct Object *environment( void )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr ).
+	m environmentFunction: (m addFunctionNamed: 'environment' type: functionType).
+
+	"struct Object *literalAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
+	m literalAtFunction: (m addFunctionNamed: 'literalAt' type: functionType).
+	(m literalAtFunction parameterAt: 0) name: 'index'.
+
+	"struct Object *selectorAt( struct Object *index )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr } ).
+	m selectorAtFunction: (m addFunctionNamed: 'selectorAt' type: functionType).
+	(m selectorAtFunction parameterAt: 0) name: 'index'.
+
+	"struct Object *findMethodAndSendWithArgs( struct Object *selector, struct Object *arity, ... )"
+	functionType: (LLVM Type Function new &returnType: m structObjectPtr &paramaterTypes: { m structObjectPtr. m structObjectPtr } &isVarArg: True ).
+	m findMethodAndSendWithArgs: (m addFunctionNamed: 'findMethodAndSendWithArgs' type: functionType).
+	(m findMethodAndSendWithArgs parameterAt: 0) name: 'selector'.
+	(m findMethodAndSendWithArgs parameterAt: 1) name: 'arity'.
+		
+	m
+].

@@ -97,9 +97,12 @@ CFLAGS_gdk-wrapper.c=`pkg-config --cflags gdk-2.0`
 LDFLAGS_gdk-wrapper.lo=`pkg-config --libs gdk-2.0` `pkg-config --libs gthread-2.0`
 CFLAGS_gtk-wrapper.c=`pkg-config --cflags gtk+-2.0`
 LDFLAGS_gtk-wrapper.lo=`pkg-config --libs gtk+-2.0`
+CFLAGS_llvm-wrapper.c=`llvm-config --cflags`
+LDFLAGS_llvm-wrapper.lo=
 
 #CFLAGS_socket.c=
 
+PRINT_DEBUG_G=-DPRINT_DEBUG_DEFUN -DPRINT_DEBUG_GC_1 -DPRINT_DEBUG_OPCODES  
 PRINT_DEBUG_Y=  -DPRINT_DEBUG_STACK_POINTER  -DPRINT_DEBUG_STACK_PUSH -DPRINT_DEBUG_FOUND_ROLE  -DPRINT_DEBUG_FUNCALL   
 PRINT_DEBUG_X=-DPRINT_DEBUG  -DPRINT_DEBUG_OPCODES -DPRINT_DEBUG_INSTRUCTION_COUNT -DPRINT_DEBUG_CODE_POINTER -DPRINT_DEBUG_DISPATCH 
 PRINT_DEBUG_1=-DPRINT_DEBUG_DEFUN -DPRINT_DEBUG_GC_1 
@@ -175,7 +178,7 @@ endif
 
 ifeq ($(HOST_SYSTEM), Linux)
   LIBS       := -lm -ldl
-  PLUGINS    += gtk-wrapper.so gdk-wrapper.so glib-wrapper.so
+  PLUGINS    += gtk-wrapper.so gdk-wrapper.so glib-wrapper.so llvm-wrapper.so
 endif
 
 ifeq ($(findstring MINGW,$(HOST_SYSTEM)), MINGW)

@@ -1,6 +1,10 @@
 Gtk define: #Widget &parents: {Gtk Object}.
 Gtk Widget traits atSlotNamed: #printName put: 'Gtk Widget'. 
 
+w@(Gtk Widget traits) new [
+	w shouldNotImplement
+].
+
 w@(Gtk Widget traits) show [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_widget_show applyTo: {w handle}
@@ -22,6 +26,13 @@ w@(Gtk Widget traits) destroy [
 w@(Gtk Widget traits) sizeRequest: size@(Tuple traits) [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_widget_set_size_request applyTo: {w handle. size at: 0. size at: 1}
+	].
+	w
+].
+
+w@(Gtk Widget traits) addAccelerator: signal@(String traits) to: accelGroup@(Gtk AccelGroup traits) key: key@(Number traits) modifier: modifier@(Number traits) flags: flags@(Number traits) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_widget_add_accelerator applyTo: {w handle. signal. accelGroup handle. key. modifier. flags }
 	].
 	w
 ].

@@ -1,0 +1,108 @@
+LLVM define: #Lib -> (
+	ExternalInterface newForLibrary: 'llvm-lib' primitives: #(
+"Create and destroy modules"
+		(Pointer LLVMModuleCreateWithName(CString))
+		(Void LLVMDisposeModule(Pointer))
+		(Int LLVMVerifyModule(Pointer Int Bytes))
+		(Void LLVMDumpModule(Pointer))
+		(Int LLVMWriteBitcodeToFile(Pointer CString))
+		(CString LLVMGetDataLayout(Pointer))
+		(Void LLVMGetDataLayout(Pointer CString))
+		(CString LLVMGetTarget(Pointer))
+		(Void LLVMSetTarget(Pointer CString))
+		(Void LLVMDeleteTypeName(Pointer CString))
+		(Int LLVMAddTypeName(Pointer CString Pointer))
+
+"Operations on global variables"
+		(Pointer LLVMAddGlobal(Pointer Pointer CString))
+		(Pointer LLVMGetNamedGlobal(Pointer CString))
+
+"Operations on function variables"
+		(Pointer LLVMAddFunction(Pointer CString Pointer))
+		(Pointer LLVMGetNamedFunction(Pointer CString))
+
+"Operations on integer types"
+		(Pointer LLVMInt1Type())
+		(Pointer LLVMInt8Type())
+		(Pointer LLVMInt16Type())
+		(Pointer LLVMInt32Type())
+		(Pointer LLVMInt64Type())
+		(Pointer LLVMIntType(Int))
+		
+"Operations on function types "
+		(Pointer LLVMFunctionType(Pointer Bytes Int Boolean))
+		(Pointer LLVMGetReturnType(Pointer))
+
+"Operations on other types"
+		(Pointer LLVMVoidType())
+		(Pointer LLVMLabelType())
+		(Pointer LLVMOpaqueType())
+
+"Operations on struct types"
+		(Pointer LLVMStructType(Bytes Int Boolean))
+		(Void LLVMRefineType(Pointer Pointer))
+
+"Operations on array, pointer, and vector types (sequence types)"
+		(Pointer LLVMPointerType(Pointer Int))
+		(Pointer LLVMArrayType(Pointer Int))
+		(Pointer LLVMVectorType(Pointer Int))
+
+"Operations on type handles"
+		(Pointer LLVMCreateTypeHandle(Pointer))
+		(Void LLVMDisposeTypeHandle(Pointer))
+		(Pointer LLVMResolveTypeHandle(Pointer))
+
+"Instruction builders"
+		(Pointer LLVMCreateBuilder())
+		(Void LLVMDisposeBuilder(Pointer))
+		(Void LLVMPositionBuilderAtEnd(Pointer Pointer))
+		
+"Terminators"
+		(Pointer LLVMBuildRetVoid(Pointer))
+		(Pointer LLVMBuildRet(Pointer Pointer))
+		
+"Arithmetic"
+		(Pointer LLVMBuildAdd(Pointer Pointer Pointer CString))
+
+"Miscellaneous instructions"
+		(Pointer LLVMBuildCall(Pointer Pointer Bytes Int CString))
+
+"Operations on all values"
+		(CString LLVMGetValueName(Pointer))
+		(Void LLVMSetValueName(Pointer CString))
+
+"Operations on parameters"
+		(Int LLVMCountParams(Pointer))
+		(Pointer LLVMGetParam(Pointer Int))
+
+"Operations on scalar constants"
+		(Pointer LLVMConstInt(Pointer Int Boolean))
+
+"Operations on basic blocks"
+		(Pointer LLVMAppendBasicBlock(Pointer CString))
+
+"Operations on functions"
+		(Boolean LLVMVerifyFunction(Pointer Int))
+		
+"Error handling"
+		(Void LLVMDisposeMessage(Pointer))
+
+"Constant expressions"
+		(Pointer LLVMConstIntToPtr(Pointer Pointer))
+
+"Memory instructions"
+		(Pointer LLVMBuildAlloca(Pointer Pointer CString))
+		(Pointer LLVMBuildStore(Pointer Pointer Pointer))
+		(Pointer LLVMBuildLoad(Pointer Pointer CString))
+	)
+).
+
+LLVM Lib enable.
+
+LLVM define: #Wrapper -> (
+	ExternalInterface newForLibrary: 'llvm-wrapper' primitives: #(
+	)
+).
+
+LLVM Wrapper enable.
+

@@ -1,9 +1,20 @@
 Gtk define: #Button &parents: {Gtk Bin}.
 Gtk Button traits atSlotNamed: #printName put: 'Gtk Button'. 
 
+b@(Gtk Button traits) new [
+	f newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_button_new do
+	])
+].
+
 b@(Gtk Button traits) newWithLabel: label [
 	b newWithHandle: (Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_button_new_with_label applyTo: {label}
 	])
 ].
 
+b@(Gtk Button traits) newFromStock: stockId@(String traits) [
+	b newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_button_new_from_stock applyTo: {stockId}
+	])
+].
