@@ -17,6 +17,10 @@ EXPORT GtkTextIter *wrapper_gtk_text_iter_new(void) {
 	return g_new0(GtkTextIter, 1);
 }
 
+EXPORT GtkWidget *wrapper_gtk_dialog_get_vbox( GtkDialog *dialog ) {
+	return dialog->vbox;
+}
+
 void wrapper_gtk_main( void ) {
 	gdk_threads_enter(); //The book says to call this begore gtk_main
 	gtk_main();
@@ -26,5 +30,25 @@ void wrapper_gtk_main( void ) {
 EXPORT void wrapper_gtk_lib_init( void ) {
 	gtk_init ( 0, NULL);
 	g_thread_create((GThreadFunc)wrapper_gtk_main, NULL, FALSE, NULL);
+}
+
+EXPORT gchar *wraper_gtk_stock_item_get_stock_id( GtkStockItem *structOop ) {
+	return structOop->stock_id;
+}
+
+EXPORT gchar *wraper_gtk_stock_item_get_label( GtkStockItem *structOop ) {
+	return structOop->label;
+}
+
+EXPORT gint wraper_gtk_stock_item_get_keyval( GtkStockItem *structOop ) {
+	return structOop->keyval;
+}
+
+EXPORT gint wraper_gtk_stock_item_get_modifier( GtkStockItem *structOop ) {
+	return structOop->modifier;
+}
+
+EXPORT GtkStockItem *wraper_gtk_stock_item_new(void) {
+	return g_new0(GtkStockItem, 1);
 }
 

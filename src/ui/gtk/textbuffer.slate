@@ -28,13 +28,6 @@ tb@(Gtk TextBuffer traits) selection [
 		ifFalse: [ Nil ]	
 ].
 
-tb@(Gtk TextBuffer traits) textFrom: start to: end &includeHiddenChars: include [
-	include `defaultsTo: False.
-	Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_text_buffer_get_text applyTo: {tb handle. start handle. end handle. include }
-	]
-].
-
 tb@(Gtk TextBuffer traits) insertMark [
 	Gtk TextMark newWithHandle: (Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_text_buffer_get_insert applyTo: { tb handle }
@@ -104,7 +97,7 @@ tb@(Gtk TextBuffer traits) clear [
 	tb deleteFrom: tb startIter to: tb endIter
 ].
 
-tb@(Gtk TextBuffer traits) deleteFrom: startIter to: endIter [
+tb@(Gtk TextBuffer traits) deleteFrom: startIter@(Gtk TextIter) to: endIter@(Gtk TextIter) [
 	Gdk Lib protectedDo: [
 		Gtk Lib primitives gtk_text_buffer_delete applyTo: { tb handle. startIter handle. endIter handle }
 	].
@@ -113,7 +106,48 @@ tb@(Gtk TextBuffer traits) deleteFrom: startIter to: endIter [
 
 tb@(Gtk TextBuffer traits) text: text [
 	Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_text_buffer_set_text applyTo: { tb handle. text. text size }
+		Gtk Lib primitives gtk_text_buffer_set_text applyTo: { tb handle. text. -1 }
 	].
 	tb
 ].
+
+tb@(Gtk TextBuffer traits) textFrom: start@(Gtk TextIter) to: end@(Gtk TextIter) &includeHiddenChars: include [
+	include `defaultsTo: False.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_get_text applyTo: {tb handle. start handle. end handle. include }
+	]
+].
+
+tb@(Gtk TextBuffer traits) text [
+	tb textFrom: tb startIter
+].
+
+tb@(Gtk TextBuffer traits) textFrom: startIter@(Gtk TextIter) [
+	tb textFrom: startIter to: tb endIter
+].
+
+tb@(Gtk TextBuffer traits) copyTo: clipboard@(Gtk Clipboard traits) [
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_copy_clipboard applyTo: { tb handle. clipboard handle }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) cutTo: clipboard@(Gtk Clipboard traits) &isDefaultEditable: isDefaultEditable [
+	isDefaultEditable `defaultsTo: True.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_cut_clipboard applyTo: { tb handle. clipboard handle. isDefaultEditable }
+	].
+	tb
+].
+
+tb@(Gtk TextBuffer traits) pasteFrom: clipboard@(Gtk Clipboard traits) &isDefaultEditable: isDefaultEditable &at: location [
+	| locationHandle |
+	isDefaultEditable `defaultsTo: True.
+	location ifNotNil: [ locationHandle: location handle ].
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_text_buffer_paste_clipboard applyTo: { tb handle. clipboard handle. locationHandle. isDefaultEditable }
+	].
+	tb
+].
+

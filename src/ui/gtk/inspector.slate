@@ -58,7 +58,9 @@ i@(Gtk Inspector traits) buildDataView [
 i@(Gtk Inspector traits) loadDataIn: buffer [
 	buffer clear.
 	i inspectedVar ifNotNil: [
-		buffer text: i inspectedVar printString.
+		| text |
+		text: ([ i inspectedVar printString ] on: SeriousCondition do: [ | :c | c exit: '' ]).
+		buffer text: text.
 	].
 ].
 
@@ -100,7 +102,7 @@ i@(Gtk Inspector traits) onSlotsView: treeView rowActivated: path column: column
 	index: ((treeView model stringFromIter: iter) as: Integer).
 	i inspectedVar ifNotNil: [
 		| slotName |
-		slotName: (i inspectedVar slotNames at: index).
+		slotName: (i inspectedVar slotNames "sort" at: index).
 		(Gtk Inspector newFor: (i inspectedVar atSlotNamed: slotName) ) show.
 	].	
 ].
@@ -108,9 +110,10 @@ i@(Gtk Inspector traits) onSlotsView: treeView rowActivated: path column: column
 i@(Gtk Inspector traits) loadSlotsIn: model [
 	model clear.
 	i inspectedVar ifNotNil: [
-		i inspectedVar slotNames do: [ 
-			| :each |
-			model append: (Nil -> { 'gtk-execute'. each printString. (i inspectedVar atSlotNamed: each) printString })
+		i inspectedVar slotNames "sort" do: [
+			| :each text |
+			text: ([ (i inspectedVar atSlotNamed: each) printString ] on: SeriousCondition do: [ | :c | c exit: '' ]).
+			model append: (Nil -> { 'gtk-execute'. each printString. text })
 		].
 	].
 ].
