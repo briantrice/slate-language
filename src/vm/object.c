@@ -387,7 +387,7 @@ word_t slot_table_empty_space(struct object_heap* oh, struct SlotTable* slots) {
 
 struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleTable* roles, word_t n, struct MethodDefinition* method) {
   word_t oldSize, newSize, i;
-  struct RoleTable* newRoles;
+  GC_VOLATILE struct RoleTable* newRoles;
 
   oldSize = role_table_capacity(roles);
   newSize = role_table_accommodate(roles, (oldSize / 3 - role_table_empty_space(oh, roles)) + n);
@@ -410,7 +410,7 @@ struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleT
 
 struct SlotTable* slot_table_grow_excluding(struct object_heap* oh, struct SlotTable* slots, word_t n, struct Symbol* excluding) {
   word_t oldSize, newSize, i;
-  struct SlotTable* newSlots;
+  GC_VOLATILE struct SlotTable* newSlots;
 
   oldSize = slot_table_capacity(slots);
   newSize = slot_table_accommodate(slots, (oldSize / 3 - slot_table_empty_space(oh, slots)) + n);
@@ -529,8 +529,8 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
 
 word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Symbol* selector, struct MethodDefinition* method) {
 
-  struct Map* map;
-  struct RoleTable* roles = obj->map->roleTable;
+  GC_VOLATILE struct Map* map;
+  GC_VOLATILE struct RoleTable* roles = obj->map->roleTable;
   word_t i, matches = 0;
 
   for (i = 0; i< role_table_capacity(roles); i++) {
@@ -558,9 +558,9 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
 
 struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* obj, struct Symbol* name, struct Object* value, word_t offset) {
 
-  struct Map *map;
-  struct Object* newObj;
-  struct SlotEntry *entry;
+  GC_VOLATILE struct Map *map;
+  GC_VOLATILE struct Object* newObj;
+  GC_VOLATILE struct SlotEntry *entry;
 
   entry = slot_table_entry_for_name(oh, obj->map->slotTable, name);
   if (entry != NULL) return NULL;
@@ -613,9 +613,9 @@ struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj,
 
 struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, struct Symbol* name) {
   word_t offset;
-  struct Object* newObj;
-  struct Map* map;
-  struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
+  GC_VOLATILE struct Object* newObj;
+  GC_VOLATILE struct Map* map;
+  GC_VOLATILE struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
   if (se == NULL) return obj;
 
   offset = object_to_smallint(se->offset);

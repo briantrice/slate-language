@@ -274,6 +274,7 @@ void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
   printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
 #endif
   method->code = method->oldCode;
+  heap_store_into(oh, (struct Object*) method->code, (struct Object*) method->oldCode);
   method->isInlined = oh->cached.false_object;
   method->calleeCount = (struct OopArray*)oh->cached.nil;
   method->callCount = smallint_to_object(0);
@@ -316,6 +317,8 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 #endif
 
   method->oldCode = method->code;
+  heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
+
   method->isInlined = oh->cached.true_object;
   method_add_optimized(oh, method);
   
@@ -488,9 +491,9 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
-  struct Object* argBuffer[16];
+  GC_VOLATILE struct Object* argBuffer[16];
   word_t positions, i;
-  struct MethodDefinition *def, *oldDef;
+  GC_VOLATILE struct MethodDefinition *def, *oldDef;
 
   def = (struct MethodDefinition*)heap_clone_special(oh, SPECIAL_OOP_METHOD_DEF_PROTO);
   heap_fixed_add(oh, (struct Object*)def);

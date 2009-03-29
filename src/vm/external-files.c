@@ -124,8 +124,8 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags) {
 	return SLATE_ERROR_RETURN;
       }
     }
-    return file;
 #endif
+    return file;
   } else
     return SLATE_ERROR_RETURN;
 }
