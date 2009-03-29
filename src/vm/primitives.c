@@ -81,8 +81,8 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
 /*fixme this is a copy of the last function with only the select call changed*/
 void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 
-  struct OopArray* selectOn = (struct OopArray*) args[0];
-  struct OopArray* readyPipes;
+  GC_VOLATILE struct OopArray* selectOn = (struct OopArray*) args[0];
+  GC_VOLATILE struct OopArray* readyPipes;
   word_t waitTime = object_to_smallint(args[1]);
   int retval, fdCount, maxFD;
   struct timeval tv;
@@ -121,7 +121,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 #else
   pid_t retval;
   int pipes[2];
-  struct OopArray* array;
+  GC_VOLATILE struct OopArray* array;
 
   /* make two pipes that we can use exclusively in each process to talk to the other */
   /*fixme remap fds for safety*/
@@ -195,8 +195,8 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
   word_t ret;
   struct sockaddr_storage addr;
   socklen_t len;
-  struct ByteArray* addrArray;
-  struct OopArray* result;
+  GC_VOLATILE struct ByteArray* addrArray;
+  GC_VOLATILE struct OopArray* result;
 
   ASSURE_SMALLINT_ARG(0);
 
@@ -312,7 +312,7 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     word_t count, i;
     struct addrinfo* ai = oh->socketTickets[ticket].addrResult;
     struct addrinfo* current = ai;
-    struct OopArray* retval;
+    GC_VOLATILE struct OopArray* retval;
     count = 0;
     while (current != NULL) {
       current = current->ai_next;
@@ -325,7 +325,7 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)retval);
     
     for (i = 0; i < count; i++) {
-      struct OopArray* aResult = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 6);
+      GC_VOLATILE struct OopArray* aResult = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 6);
       struct ByteArray* aResultAddr;
       struct ByteArray* aResultCanonName;
       word_t canonNameLen = (current->ai_canonname == NULL)? 0 : strlen(current->ai_canonname);
@@ -385,7 +385,7 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   struct sockaddr_in* sin;
   struct sockaddr_in6* sin6;
   struct sockaddr_un* sun;
-  struct ByteArray* ret;
+  GC_VOLATILE struct ByteArray* ret;
   
   ASSURE_SMALLINT_ARG(0);
 
@@ -938,8 +938,8 @@ void prim_map(struct object_heap* oh, struct Object* args[], word_t n, struct Oo
 }
 
 void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  struct Object* obj;
-  struct Map* map;
+  GC_VOLATILE struct Object* obj;
+  GC_VOLATILE struct Map* map;
   obj = args[0];
   map = (struct Map*)args[1];
   
@@ -969,7 +969,7 @@ void prim_vmArgCount(struct object_heap* oh, struct Object* args[], word_t n, st
 void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   word_t i;
   int len;
-  struct ByteArray* array;
+  GC_VOLATILE struct ByteArray* array;
   ASSURE_SMALLINT_ARG(1);  
   i = object_to_smallint(args[1]);
   len = strlen(oh->argvSaved[i]);
@@ -1422,13 +1422,13 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
 
 void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   struct MethodDefinition* def;
-  struct Object *method = args[0], *roles=args[2];
+  GC_VOLATILE struct Object *method = args[0], *roles=args[2];
   struct Symbol *selector = (struct Symbol*)args[1];
   struct Object* traitsWindow = method->map->delegates->elements[0];
 
    
   if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
-    struct Closure* closure = (struct Closure*)heap_clone(oh, method);
+    GC_VOLATILE struct Closure* closure = (struct Closure*)heap_clone(oh, method);
     heap_fixed_add(oh, (struct Object*)closure);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
     heap_fixed_remove(oh, (struct Object*)closure);
@@ -1437,7 +1437,7 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
     closure->method->selector = selector;
     method = (struct Object*)closure;
   } else {
-    struct CompiledMethod* closure= (struct CompiledMethod*)heap_clone(oh, method);
+    GC_VOLATILE struct CompiledMethod* closure= (struct CompiledMethod*)heap_clone(oh, method);
     closure->method = closure;
     closure->selector = selector;
     method = (struct Object*) closure;
@@ -1575,14 +1575,14 @@ void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t 
 
 
 void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
-  struct Object *method = args[0], *slot = args[2];
+  GC_VOLATILE struct Object *method = args[0], *slot = args[2];
   struct OopArray *roles = (struct OopArray*)args[3];
   struct Symbol* selector = (struct Symbol*)args[1];
   struct Object* traitsWindow = method->map->delegates->elements[0];
   struct MethodDefinition* def;
   
   if (traitsWindow == oh->cached.closure_method_window) {
-    struct Closure* closure = (struct Closure*)heap_clone(oh, method);
+    GC_VOLATILE struct Closure* closure = (struct Closure*)heap_clone(oh, method);
     heap_fixed_add(oh, (struct Object*)closure);
     closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
     heap_fixed_remove(oh, (struct Object*)closure);
@@ -1591,7 +1591,7 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
     closure->method->selector = selector;
     method = (struct Object*)closure;
   } else if (traitsWindow == oh->cached.compiled_method_window){
-    struct CompiledMethod* closure = (struct CompiledMethod*)heap_clone(oh, method);
+    GC_VOLATILE struct CompiledMethod* closure = (struct CompiledMethod*)heap_clone(oh, method);
     closure->method = closure;
     closure->selector = selector;
     method = (struct Object*) closure;

@@ -235,8 +235,8 @@ struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input) {
 
 struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray * fnHandle, struct OopArray * argsFormat, struct Object* callFormat, struct Object* resultFormat, struct OopArray * argsArr) {
   ext_fn0_t fn;
-  word_t args [MAX_ARG_COUNT];
-  struct Object* fixedArgs [MAX_ARG_COUNT]; /*don't gc*/
+  GC_VOLATILE word_t args [MAX_ARG_COUNT];
+  GC_VOLATILE struct Object* fixedArgs [MAX_ARG_COUNT]; /*don't gc*/
   word_t fixedArgsSize = 0;
   word_t result;
   word_t arg, argCount, outArgIndex = 0, outArgCount;

@@ -174,7 +174,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   struct Object** vars;
   struct LexicalContext* lexicalContext;
   struct CompiledMethod* method;
-  struct Object* args[16];
+  GC_VOLATILE struct Object* args[16];
   
 
 #ifdef PRINT_DEBUG
@@ -199,7 +199,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
-    struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
+    GC_VOLATILE struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into(args, n, argsArray->elements);
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL, resultStackPointer);
     return;
@@ -265,7 +265,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   fill_words_with(((word_t*)vars)+inputs, object_to_smallint(method->localVariables) - inputs, (word_t)oh->cached.nil);
 
   if (n > inputs) {
-    struct OopArray* restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
+    GC_VOLATILE struct OopArray* restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
     copy_words_into(args+inputs, n - inputs, restArgs->elements);
     vars[inputs+array_size(method->optionalKeywords)] = (struct Object*) restArgs;
     heap_store_into(oh, (struct Object*)lexicalContext, (struct Object*)restArgs);/*fix, not always right*/
@@ -284,11 +284,11 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
                                                   struct Symbol* selector, struct Object* args[],
                                                   struct Object* dispatchers[], word_t arity, struct OopArray* opts,
                                           word_t resultStackPointer/*where to put the return value in the stack*/) {
-  struct OopArray* argsArray;
+  GC_VOLATILE struct OopArray* argsArray;
   struct Closure* method;
   struct Object* traitsWindow;
-  struct Object* argsStack[16];
-  struct Object* dispatchersStack[16];
+  GC_VOLATILE struct Object* argsStack[16];
+  GC_VOLATILE struct Object* dispatchersStack[16];
   struct MethodDefinition* def;
   struct CompiledMethod* callerMethod;
   word_t addToPic = FALSE;
@@ -354,7 +354,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
-    struct OopArray* optsArray = NULL;
+    GC_VOLATILE struct OopArray* optsArray = NULL;
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
 
@@ -481,11 +481,11 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   struct Object *barrier, *traitsWindow;
   struct Object** args;
   struct Symbol* selector;
-  struct OopArray* argsArray;
+  GC_VOLATILE struct OopArray* argsArray;
   struct Closure* method;
   struct CompiledMethod* resender;
   struct MethodDefinition* def;
-  struct Object* argsStack[16]; /*for pinning*/
+  GC_VOLATILE struct Object* argsStack[16]; /*for pinning*/
 
   if (n == 0) {
     framePointer = i->framePointer;
@@ -541,9 +541,9 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     }
 
   } else {
-    struct OopArray* optsArray;
-    struct OopArray* optKeys;
-    struct OopArray* signalOpts;
+    GC_VOLATILE struct OopArray* optsArray;
+    GC_VOLATILE struct OopArray* optKeys;
+    GC_VOLATILE struct OopArray* signalOpts;
     word_t optKey;
     
     optKeys = resender->optionalKeywords;
@@ -726,7 +726,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optsArrayReg;
           int k;
           struct Object *selector;
-          struct Object* args[16];
+          GC_VOLATILE struct Object* args[16];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
@@ -752,7 +752,7 @@ void interpret(struct object_heap* oh) {
       case OP_NEW_ARRAY_WITH:
         {
           word_t result, size, k;
-          struct OopArray* array;
+          GC_VOLATILE struct OopArray* array;
           result = SSA_NEXT_PARAM_SMALLINT;
           size = SSA_NEXT_PARAM_SMALLINT;
 
@@ -774,8 +774,8 @@ void interpret(struct object_heap* oh) {
       case OP_NEW_CLOSURE:
         {
           word_t result;
-          struct CompiledMethod* block;
-          struct Closure* newClosure;
+          GC_VOLATILE struct CompiledMethod* block;
+          GC_VOLATILE struct Closure* newClosure;
           result = SSA_NEXT_PARAM_SMALLINT;
           block = (struct CompiledMethod*)SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
@@ -794,6 +794,11 @@ void interpret(struct object_heap* oh) {
           newClosure->lexicalWindow[0] = i->lexicalContext;
           newClosure->method = block;
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)i->lexicalContext);
+#if 1
+          if (object_is_free((struct Object*)block)) {
+            /*printf("%d\n", instruction_counter);*/
+          }
+#endif
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)block);
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)newClosure);
 #ifdef PRINT_DEBUG_STACK
@@ -806,7 +811,7 @@ void interpret(struct object_heap* oh) {
       case OP_LOAD_LITERAL:
         {
           word_t destReg;
-          struct Object* literal;
+          GC_VOLATILE struct Object* literal;
           destReg = SSA_NEXT_PARAM_SMALLINT;
           literal = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
@@ -962,7 +967,7 @@ void interpret(struct object_heap* oh) {
       case OP_BRANCH_IF_TRUE:
         {
           word_t condReg, offset;
-          struct Object* val;
+          GC_VOLATILE struct Object* val;
           condReg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
 
@@ -985,7 +990,7 @@ void interpret(struct object_heap* oh) {
       case OP_BRANCH_IF_FALSE:
         {
           word_t condReg, offset;
-          struct Object* val;
+          GC_VOLATILE struct Object* val;
           condReg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
 
@@ -1088,7 +1093,7 @@ void interpret(struct object_heap* oh) {
         }
       case OP_RETURN_VALUE:
         {
-          struct Object* obj;
+          GC_VOLATILE struct Object* obj;
           PRINTOP("op: return obj\n");
           obj = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_STACK

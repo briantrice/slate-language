@@ -95,6 +95,10 @@ struct Object
 #define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
 #define SLATE_IMAGE_MAGIC (word_t)0xABCDEF43
 
+/*this doesn't seem to ensure anything*/
+#define GC_VOLATILE /*volatile*/
+
+
 #define METHOD_CACHE_ARITY 6
 
 struct MethodCacheEntry
