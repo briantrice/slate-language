@@ -79,7 +79,8 @@ WORD_SIZE   := 64
 LDFLAGS     := # -avoid-version
 LIBS        := #-lm -ldl
 #PLUGINS     := platform.so posix.so pipe.so
-PLUGINS     := x-windows.so
+#PLUGINS     := x-windows.so
+PLUGINS     := 
 HOST_SYSTEM := $(shell uname -s)
 LIB_SO_EXT  := .so
 INSTALL_MODE := -m 644
@@ -158,7 +159,7 @@ endif
 ifeq ($(HOST_SYSTEM), Darwin)
 #  LIBTOOL := MACOSX_DEPLOYMENT_TARGET=10.3 glibtool
   LIBTOOL := glibtool
-  PLUGINS := $(subst x-windows,cocoa-windows, $(PLUGINS))
+  PLUGINS := cocoa-windows.so
 endif
 
 ifeq ($(HOST_SYSTEM), DragonFly)
