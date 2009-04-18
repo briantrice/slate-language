@@ -8,6 +8,12 @@
 #include <glib-object.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+
+ 
+typedef  intptr_t slate_int_t;
+
 
 EXPORT gint wrapper_g_value_type( GValue *gValueOop ) {
 	return G_VALUE_TYPE(gValueOop);
@@ -60,6 +66,10 @@ EXPORT void wrapper_g_callback_end( CallbackData* data ) {
 
 EXPORT gint wrapper_g_callback_data_get_block_id( CallbackData* data ) {
 	return data->blockID;
+}
+
+EXPORT slate_int_t wrapper_g_value_get_int(void* data ) {
+  return (slate_int_t)g_value_get_int(data);
 }
 
 EXPORT gint wrapper_g_callback_data_get_parameter_count( CallbackData* data ) {
