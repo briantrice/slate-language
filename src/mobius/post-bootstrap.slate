@@ -16,14 +16,14 @@ inform: 'Performing post-bootstrap actions...'.
 
 _@lobby printOn: s "Convenient lobby printing." [s ; 'lobby'].
 
-ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose
+ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| src retry |
-  src: (File newNamed: fileName).
+  src: (File newNamed: fileName &mode: File Read).
   src exists ifTrue: [retry: Retry clone.
                       _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ;'\n' ].
-                      [ns load: src &in: namespace &verbose: verbose]
+                      [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
                         handlingCases: {retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
 	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
 ].
@@ -38,14 +38,15 @@ globals define: #SlateDir &builder: [Directory current].
 globals define: #defaultPaths &builder:
   [{SlateDir} as: ExtensibleArray].
 
-ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose
+ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
 "A command to open the file, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| oldLoadLevel |
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
+  showLoadMessage `defaultsTo: True.
   LoadLevel timesRepeat: [DebugConsole writer nextPut: $\s].
-  inform: 'Loading ' ; file locator printString &target: DebugConsole.
+  showLoadMessage ifTrue: [inform: 'Loading ' ; file locator printString &target: DebugConsole].
   (file locator isSameAs: file RelativeLocator)
     ifTrue:
       [[file exists] whileFalse:
