@@ -983,7 +983,9 @@ void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t n, struct 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   /*  print_stack_types(oh, 128);*/
   /*  print_backtrace(oh);*/
-  printf("Slate process %d exiting...\n", getpid());
+  if (!oh->quiet) {
+    printf("Slate process %d exiting...\n", getpid());
+  }
   exit(0);
 }
 
@@ -1446,17 +1448,19 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, 
   def->slotAccessor = oh->cached.nil;
   method_flush_cache(oh, selector);
 #ifdef PRINT_DEBUG_DEFUN
-  printf("Defining function '"); print_symbol(selector);
-  printf("' on: ");
-  if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
-  {
-    word_t i;
-    for (i = 1; i < object_array_size(roles); i++) {
-      printf(", ");
-      if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+  if (!oh->quiet) {
+    printf("Defining function '"); print_symbol(selector);
+    printf("' on: ");
+    if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
+    {
+      word_t i;
+      for (i = 1; i < object_array_size(roles); i++) {
+        printf(", ");
+        if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+      }
     }
+    printf("\n");
   }
-  printf("\n");
 #endif
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = method;
@@ -1603,17 +1607,19 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, s
   oh->cached.interpreter->stack->elements[resultStackPointer] = method;
 
 #ifdef PRINT_DEBUG_DEFUN
-  printf("Defining accessor '"); print_symbol(selector);
-  printf("' on: ");
-  if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
-  {
-    word_t i;
-    for (i = 1; i < array_size(roles); i++) {
-      printf(", ");
-      if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+  if (!oh->quiet) {
+    printf("Defining accessor '"); print_symbol(selector);
+    printf("' on: ");
+    if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
+    {
+      word_t i;
+      for (i = 1; i < array_size(roles); i++) {
+        printf(", ");
+        if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+      }
     }
+    printf("\n");
   }
-  printf("\n");
 #endif
 
 }

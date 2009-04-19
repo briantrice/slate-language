@@ -459,7 +459,9 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
     
   }
 #ifdef PRINT_DEBUG_GC_1
-  printf("GC Freed %" PRIdPTR " words and coalesced %" PRIdPTR " times\n", freed_words, coalesce_count);
+  if (!oh->quiet) {
+    printf("GC Freed %" PRIdPTR " words and coalesced %" PRIdPTR " times\n", freed_words, coalesce_count);
+  }
 #endif
 }
 
@@ -533,7 +535,9 @@ void heap_tenure(struct object_heap* oh) {
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_1
-  printf("GC tenured %" PRIdPTR " objects (%" PRIdPTR " words)\n", tenure_count, tenure_words);
+  if (!oh->quiet) {
+    printf("GC tenured %" PRIdPTR " objects (%" PRIdPTR " words)\n", tenure_count, tenure_words);
+  }
 #endif
 
   heap_update_forwarded_pointers(oh, oh->memoryOld, oh->memoryOldSize);
@@ -606,7 +610,9 @@ void heap_sweep_young(struct object_heap* oh) {
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_2
-  printf("GC freed %" PRIdPTR " young objects (%" PRIdPTR " words)\n", young_count, young_word_count);
+  if (!oh->quiet) {
+    printf("GC freed %" PRIdPTR " young objects (%" PRIdPTR " words)\n", young_count, young_word_count);
+  }
 #endif
   oh->nextFree = (struct Object*)oh->memoryYoung;
 
