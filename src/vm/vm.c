@@ -53,13 +53,13 @@ void slate_interrupt_handler(int sig) {
 }
 
 void print_usage (char *progName) {
-  fprintf(stderr, "Usage: %s <image>? [options]\n", progName);
-  //fprintf(stderr, "usage: %s [option] [<image> [<argument>...]]\n", progName);
+  fprintf(stderr, "Usage: %s [options]\n", progName);
   fprintf(stderr, "  -h, --help            Print this help message, then exit\n");
   fprintf(stderr, "  -v, --version         Print the VM version, then exit\n");
   fprintf(stderr, "  -i, --image <image>   Specify a non-default image file to start with\n");
   fprintf(stderr, "  -mo <bytes>(GB|MB|KB) Old memory for tenured/old objects (Default 400MB)\n");
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
+  fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stdout messages)\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
   //fprintf(stderr, "\nNotes:\n");
   //fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_IMGNAME), xstr (SLATE_DATADIR), xstr (SLATE_IMGNAME));
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i;
+  int i, quiet = 0;
 #ifdef WIN32
   // TODO WIN32 port set up signal handlers for interrupts.
 #else
@@ -85,30 +85,35 @@ int main(int argc, char** argv) {
 
   /* skip argv[0] and image name if given first */
   for (i = 1; i < argc; i++) {
-	if ((i == 1) && (strncmp(argv[i], "-", 1) != 0)) {
-	  image_name = argv[i];
-	} else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
-	  print_usage(argv[0]);
-	  return 0;
-	} else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--image") == 0)) {
-      if (++i < argc)
-		image_name = argv[i++];
-      else
-		error("You must specify an image filename after -i/--image.");
-	} else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0)) {
-	  //fprintf(stderr, "Slate version: %s\n", VERSION);
-	  fprintf(stderr, "Slate build type: %s\n", SLATE_BUILD_TYPE);
-	  fprintf(stderr, "Platform word-size: %d bits; byte-order: %s endian\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little" : "big");
-	  return 0;
-	} else if (strcmp(argv[i], "-mo") == 0) {
+    /*if ((i == 1) && (strncmp(argv[i], "-", 1) != 0)) {
+      image_name = argv[i];
+      } else */
+    if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
+      print_usage(argv[0]);
+      return 0;
+    } else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--image") == 0)) {
+      if (++i < argc) {
+        image_name = argv[i++];
+      } else {
+        error("You must specify an image filename after -i/--image.");
+      }
+    } else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0)) {
+      //fprintf(stderr, "Slate version: %s\n", VERSION);
+      fprintf(stderr, "Slate build type: %s\n", SLATE_BUILD_TYPE);
+      fprintf(stderr, "Platform word-size: %d bits; byte-order: %s endian\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little" : "big");
+      return 0;
+    } else if (strcmp(argv[i], "-mo") == 0) {
       memory_limit = memory_string_to_bytes(argv[i+1]);
       i++;
     } else if (strcmp(argv[i], "-mn") == 0) {
       young_limit = memory_string_to_bytes(argv[i+1]);
       i++;
-	} else if (strcmp(argv[i], "--") == 0) {
-	  /* GNU convention to ignore all arguments past a --, allowing the image to process anything beyond that. */
-	  break;
+    } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
+      quiet = 1;
+      i++;
+    } else if (strcmp(argv[i], "--") == 0) {
+      /* GNU convention to ignore all arguments past a --, allowing the image to process anything beyond that. */
+      break;
     } else {
       /* The VM does not process this argument. The warning is disabled, because the image may know how to process it. */
       /*fprintf(stderr, "Illegal argument: %s\n", argv[i]);*/
@@ -116,14 +121,13 @@ int main(int argc, char** argv) {
   }
 
   if (!image_name) {
-    fprintf(stderr, "You must supply an image file as an argument.\n");
-	print_usage(argv[0]);
-    return 1;
+    image_name = SLATE_DEFAULT_IMAGE;
+    quiet = 1;
   }
 
   image_file = fopen(image_name, "rb");
 
-  if (!image_file) {fprintf(stderr, "Open file failed (%d)\n", errno); return 1;}
+  if (!image_file) {fprintf(stderr, "Open file failed (%d), filename: '%s'\n", errno, image_name); return 1;}
 
   // Read in the elements of the Slate Image Header from the image file:
   assert(fread(&sih.magic, sizeof(sih.magic), 1, image_file) == 1);
@@ -139,6 +143,7 @@ int main(int argc, char** argv) {
 
   if (sih.magic != SLATE_IMAGE_MAGIC) {
     fprintf(stderr, "Magic number (0x%" PRIxPTR ") doesn't match (word_t)0xABCDEF43. Make sure you have a valid slate image and it is the correct endianess. Run slate without arguments to see more info.\n", sih.magic);
+    fprintf(stderr, "Image filename: '%s'\n", image_name);
     return 1;
   }
 
@@ -150,10 +155,14 @@ int main(int argc, char** argv) {
   heap = calloc(1, sizeof(struct object_heap));
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
+  
+  heap->quiet = quiet;
 
-  printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
-  printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
-  printf("Image size: %" PRIdPTR " bytes\n", sih.size);
+  if (!heap->quiet) {
+    printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
+    printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
+    printf("Image size: %" PRIdPTR " bytes\n", sih.size);
+  }
 
   if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);

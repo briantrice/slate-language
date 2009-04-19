@@ -293,6 +293,7 @@ struct object_heap
   struct OopArray* special_objects_oop; /*root for gc*/
   word_t current_dispatch_id;
   bool_t interrupt_flag;
+  bool_t quiet; /*suppress excess stdout*/
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
 

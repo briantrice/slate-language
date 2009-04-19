@@ -128,6 +128,12 @@ ifdef ARCH
   CFLAGS += -m$(ARCH)
 endif
 
+ifndef DEFAULT_IMAGE
+  CFLAGS +=-DSLATE_DEFAULT_IMAGE='"/usr/local/share/slate/slate.image"'
+else
+  CFLAGS +=-DSLATE_DEFAULT_IMAGE="\"$(DEFAULT_IMAGE)\""
+endif
+
 
 #ifeq ($(CPU_TYPE), i686)
 #  CFLAGS += -m$(WORD_SIZE)

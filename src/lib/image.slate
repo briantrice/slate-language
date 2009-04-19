@@ -106,7 +106,7 @@ _@globals executionArguments
   argc: lobby vmArgCount.
   array: (Array newSize: argc).
   0 below: argc do: [|:i| array at: i put: ((lobby vmArg: i) as: String)].
-  array
+  array as: ExtensibleArray
 ].
 
 Image startupActions at: #StartupArguments put:
@@ -144,7 +144,11 @@ i@Image handleStandardCommandOptions
 	[| :opt | inform: opt ; '\t' ; (i StartupArgumentDocs at: opt ifAbsent: ['(none provided)'])].
        quit]
     ifFalse:
-      [StartupArguments doWithIndex:
+      ["Implicitly add -c if only called with one argument."
+       StartupArguments size > 1 /\
+         [StartupArguments second first ~= $-] ifTrue:
+         [StartupArguments at: 1 insert: '-c'].
+       StartupArguments doWithIndex:
 	 [| :arg :index |
 	  (i StartupArgumentHandlers at: arg ifAbsent: [])
 	    ifNotNilDo: [| :handler | handler applyWith: index]]].
