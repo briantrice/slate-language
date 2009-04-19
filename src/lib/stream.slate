@@ -117,8 +117,14 @@ s@(ReadStream traits) next: n
   arr
 ].
 
+s@(ReadStream traits) advanceToSatisfying: testBlock
+"Advance the stream to the first object that satisfies the block test."
+[
+  [s isAtEnd \/ [testBlock applyWith: s next]] whileFalse  
+].
+
 s@(ReadStream traits) upToSatisfying: testBlock
-"Answer all objects up to one satisfying the block test."
+"Answer all objects and advance up to one satisfying the block test."
 [| result elem |
   result: s collectionType new writer.
   [s isAtEnd \/ [testBlock applyWith: (elem: s next)]]
@@ -127,15 +133,15 @@ s@(ReadStream traits) upToSatisfying: testBlock
 ].
 
 s@(ReadStream traits) upTo: obj
-"Answer all objects up to one equal to the argument."
+"Answer all objects and advance up to one equal to the argument."
 [s upToSatisfying: [| :each | each = obj]].
 
 s@(ReadStream traits) upToAnyOf: c@(Collection traits)
-"Answer all objects up to one contained by the argument."
+"Answer all objects and advance up to one contained by the argument."
 [s upToSatisfying: [| :each | c includes: each]].
 
 s@(ReadStream traits) upToEnd
-"Supply all the elements up to the end of the stream."
+"Supply all the elements and advance up to the end of the stream."
 [
   [| :result |
    [s isAtEnd] whileFalse: [result nextPut: s next]] writingAs: s collectionType
