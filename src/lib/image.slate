@@ -46,6 +46,7 @@ Image `>>
     to be performed under various scenarios. Identified by
     a descriptive Symbol."
    define: #startupActions &builder: [Dictionary new].
+   define: #argumentActions &builder: [Dictionary new].
    define: #shutdownActions &builder: [Dictionary new].
    define: #saveActions &builder: [Dictionary new].
    ].
@@ -68,6 +69,7 @@ i@Image handleStartup
 "Perform each action/block in the startupActions attribute."
 [
   i startupActions do: [| :action | action on: Abort do: [| :c | c exit]]
+  i argumentActions do: [| :action | action on: Abort do: [| :c | c exit]]
 ].
 
 i@Image handleShutdown
@@ -110,8 +112,11 @@ _@globals executionArguments
 ].
 
 Image startupActions at: #StartupArguments put:
-  [globals define: #StartupArguments -> lobby executionArguments.
+  [globals define: #StartupArguments -> lobby executionArguments].
    Image handleStandardCommandOptions].
+
+Image argumentActions at: #StartupArguments put:
+  [Image handleStandardCommandOptions].
 
 Image define: #StartupArgumentHandlers &builder: [Dictionary new].
 Image define: #StartupArgumentDocs &builder: [Dictionary new].
@@ -131,7 +136,7 @@ Image handleArgument: '--eval' with:
    [p isAtEnd] whileFalse: [p next evaluate]].
 Image documentArgument: '--eval' with: 'Evaluates the following argument. No magic escaping is done.'.
 Image handleArgument: '-c' with:
-  [| :index | [lobby load: (StartupArguments at: index + 1)] unlessCompletes: [exit &value: 1]. quit].
+  [| :index | [lobby load: (StartupArguments at: index + 1) &showLoadMessage: False] unlessCompletes: [exit &value: 1]. quit].
 Image documentArgument: '-c' with: 'Loads the file named by the following argument and then quits.'.
 
 i@Image handleStandardCommandOptions

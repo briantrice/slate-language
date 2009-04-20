@@ -1,0 +1,14 @@
+
+"Cgi define: #Writer &parents: {Parsing BasicParser} &slots: {#rootElement}."
+
+lobby define: #Cgi &parents: {Cloneable} &slots: {#variables. #out}.
+
+Image startupActions
+      at: #Cgi
+      put: [Cgi variables: Dictionary new.
+            lobby environmentVariables do: [|:x s| s: ((x as: String) reader).
+                                            Cgi variables at: (s upTo: $=) put: s upToEnd].
+            Cgi out: Console writer.
+            Cgi out resource handle: 0. "stdout"
+            ].
+

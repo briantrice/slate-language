@@ -297,6 +297,8 @@ struct object_heap
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
 
+  char** envp;
+
   /* contains all the file handles */
   FILE** file_index;
   word_t file_index_size;

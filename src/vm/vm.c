@@ -65,7 +65,7 @@ void print_usage (char *progName) {
   //fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_IMGNAME), xstr (SLATE_DATADIR), xstr (SLATE_IMGNAME));
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv, char **envp) {
 
   char* image_name = NULL;
   FILE* image_file;
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   
   heap->quiet = quiet;
-
+  heap->envp = envp;
   if (!heap->quiet) {
     printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
     printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
