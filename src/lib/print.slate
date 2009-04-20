@@ -87,8 +87,11 @@ x@(Root traits) prettyPrinted
 [(x prettyPrintOn: '') contents].
 
 "Ensure the Console writer and DebugConsole writer are PrettyPrinter objects."
-Console atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: Console writer).
-DebugConsole atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: DebugConsole writer).
+"Only do this once during bootstrap"
+(Console writeStream is: Stream PrettyPrinter)
+  ifFalse: [Console atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: Console writer)].
+(DebugConsole writeStream is: Stream PrettyPrinter)
+  ifFalse: [DebugConsole atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: DebugConsole writer)].
 
 x@(Root traits) printString &radix: radix &precision: prec
 "Utility for pretty-printing to a String."

@@ -980,6 +980,32 @@ void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t n, struct 
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
 }
 
+
+void prim_environmentVariables(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
+  int i, len;
+  word_t lenstr;
+  GC_VOLATILE struct OopArray* array;
+
+  len = 0;
+  while (oh->envp[len]) len++;
+
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), len);
+  heap_fixed_add(oh, (struct Object*)array);
+
+  for (i = 0; i < len; i++) {
+    lenstr = strlen(oh->envp[i]);
+    array->elements[i] = (struct Object*) heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), lenstr);
+    copy_bytes_into((byte_t*)oh->envp[i], lenstr, ((struct ByteArray*)array->elements[i])->elements);
+
+  }
+
+  heap_fixed_remove(oh, (struct Object*)array);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+}
+
+
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) {
   /*  print_stack_types(oh, 128);*/
   /*  print_backtrace(oh);*/
@@ -1715,7 +1741,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
- /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_fixme, prim_fixme, prim_fixme,
+ /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_fixme, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
