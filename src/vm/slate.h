@@ -53,6 +53,12 @@ typedef float float_type;
 #define MB 1024 * 1024
 #define GB 1024 * 1024 * 1024
 
+#define ASSERT(x) assert(x)
+#define str(s) #s
+#define xstr(s) str(s)
+#define MAX(a, b) (a > b ? a : b)
+#define MIN(a, b) (a < b ? a : b)
+
 struct SlotTable;
 struct Symbol;
 struct CompiledMethod;
