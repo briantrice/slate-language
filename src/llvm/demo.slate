@@ -1,26 +1,14 @@
 load: 'src/llvm/init.slate'.
 
-addSlot: #module.
-module: (LLVM Module newWithID: 'myModule').
-addSlot: #engine.
-engine: (LLVM ExecutionEngine newWithModule: module provider).
-addSlot: #builder.
-builder: LLVM IRBuilder new.
-addSlot: #functionType.
-functionType: (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
-addSlot: #function.
-function: (module addFunctionNamed: 'addFunction' type: functionType).
-addSlot: #arg1.
-arg1: (function parameterAt: 0).
-arg1 name: 'arg1'.
-addSlot: #arg2.
-arg2: (function parameterAt: 1).
-arg2 name: 'arg2'.
-addSlot: #block.
-block: (function addBlockNamed: 'entry').
-builder insertPoint: block.
-addSlot: #addtmp.
-addtmp: (builder add: arg1 , arg2).
+define: #module -> (LLVM Module newWithID: 'myModule').
+define: #engine -> (LLVM ExecutionEngine newWithModule: module provider).
+define: #builder -> LLVM IRBuilder new.
+define: #functionType -> (LLVM Type Function new &returnType: LLVM Type Integer32 &paramaterTypes: { LLVM Type Integer32. LLVM Type Integer32 } ).
+define: #function -> (module addFunctionNamed: 'addFunction' type: functionType).
+define: #arg1 -> (function parameterAt: 0) `>> [name: 'arg1'. ].
+define: #arg2 -> (function parameterAt: 1) `>> [name: 'arg2'. ].
+define: #block -> (function addBlockNamed: 'entry') `>> [insertPoint: block. ].
+define: #addtmp -> (builder add: arg1 , arg2).
 builder ret &value: addtmp.
 function verify.
 module dump.
@@ -32,4 +20,3 @@ inform: ((engine run: function arguments: {arg1. arg2} ) as: Integer signed: Tru
 builder dispose.
 engine dispose.
 module dispose.
-
