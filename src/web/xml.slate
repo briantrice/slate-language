@@ -351,5 +351,71 @@ p@(Xml Parser traits) parseDocument
   p parse
 ].
 
+Xml define: #Writer &parents: {WrapperStream} &slots: {#tagStack -> Stack new}.
 
+w@(Xml Writer traits) on: outputStream
+[
+  resend `>> [tagStack: w tagStack new. ]
+].
 
+w@(Xml Writer traits) emitAttribute: key valued: value
+[
+  w original ; ' ' ; key ; '=' ; '\"' ; value ; '\"'.
+].
+
+w@(Xml Writer traits) inTag: tagName do: block &attributes: attributes
+[
+  w original ; '<' ; tagName.
+  ((attributes is: Sequence) ifTrue: [#pairsDo:] ifFalse: [#keysAndValuesDo:])
+    sendTo: {attributes. [| :key :value | w emitAttribute: key valued: value]}.
+  w original ; '>'.
+  w tagStack push: tagName.
+  block applyWith: w.
+  w original ; '</' ; tagName ; '>'.
+  w tagStack pop: tagName.
+].
+
+w@(Xml Writer traits) encodeCharacter: char
+"TODO use generic entity code instead"
+[
+  char caseOf: {
+    $< -> ['&lt;'].
+    $> -> ['&gt;'].
+    $& -> ['&amp;'].
+    $\n -> ['<br/>'].
+    $\r -> ['<br/>'].
+    $\t -> ['&nbsp;&nbsp;&nbsp;'].
+  }.
+].
+
+w@(Xml Writer traits) nextPutAll: c
+"Write the whole String, translating each character."
+[
+  c do: [| :char | w nextPut: char]
+].
+
+w@(Xml Writer traits) nextPut: char
+[
+  (w encodeCharacter: char) ifNil: [resend] ifNotNilDo:
+    [| :encoded | w original ; encoded. w]
+].
+
+w@(Xml Writer traits) emitHeader
+[
+  w original ; '<?xml version="1.0"?>\n'.
+].
+
+Xml define: #XHTMLWriter &parents: {Xml Writer}.
+
+w@(Xml XHTMLWriter traits) inDocumentDo: block
+[
+  w emitHeader.
+  w inTag: 'html' do:
+    [| :w |
+     w inTag: 'head' do: [| :w | ].
+     w inTag: 'body' do:
+       [| :w |
+	block applyWith: w.
+	]
+    ].
+].
