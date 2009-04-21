@@ -89,7 +89,6 @@ int main(int argc, char** argv, char **envp) {
       print_usage(argv[0]);
       return 0;
     } else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--image") == 0)) {
-      fprintf(stderr, "XXX");
       if (++i < argc) {
         image_name = argv[i++];
       } else {
@@ -135,10 +134,10 @@ int main(int argc, char** argv, char **envp) {
     quiet = 1;
   };
 
+  if (verbose)
+    fprintf(stderr, "Loading image: %s\n", image_name);
 
   if (!image_file) {
-    if (verbose)
-      fprintf(stderr, "Loading image: %s\n", image_name);
     image_file = fopen(image_name, "rb");
   };
 
