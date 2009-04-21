@@ -1709,8 +1709,10 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, st
   sih.special_objects_oop = (byte_t*) (forward_pointer_hash_get(forwardPointers, forwardPointerEntryCount, (struct Object*)oh->special_objects_oop)->toObj) - memoryStart;
   sih.current_dispatch_id = oh->current_dispatch_id;
 
-  fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile);
-  fwrite(memoryStart, 1, totalSize, imageFile);
+  if (fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile) != 1
+      || fwrite(memoryStart, 1, totalSize, imageFile) != totalSize) {
+    fprintf(stderr, "Error writing image!\n");
+  }
   fclose(imageFile);
   free(forwardPointers);
   free(memoryStart);

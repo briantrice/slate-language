@@ -124,6 +124,12 @@ int main(int argc, char** argv, char **envp) {
     }
   };
 
+
+  if (!image_name && getenv("SLATE_IMAGE")) {
+    image_name = getenv("SLATE_IMAGE");
+    quiet = 1;
+  }
+
   /* Image name not explicitly given, act quietly and go through defaults: */
   if (!image_name) {
     image_name = xstr (SLATE_DEFAULT_IMAGE);

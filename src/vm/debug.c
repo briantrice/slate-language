@@ -25,7 +25,9 @@ void print_object(struct Object* oop) {
 
 
 void print_symbol(struct Symbol* name) {
-  fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout);
+  if (fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout) != payload_size((struct Object*)name)) {
+    /*handle error*/
+  }
 }
 
 void indent(word_t amount) { word_t i; for (i=0; i<amount; i++) printf("    "); }
