@@ -8,7 +8,7 @@
 	  (push (, item) (, list))))))
 (pushnew (concat slate-dir "/etc") load-path)
 (require 'slate-mode)
-(defconst slate-cmd (concat slate-dir "/vm"))
+(defconst slate-cmd (concat slate-dir "/slate"))
 (defconst slate-args (list "-i" (concat slate-dir "/slate.image")))
 (cd slate-dir)
 (slate-workspace)

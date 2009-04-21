@@ -311,7 +311,7 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   (set-syntax-table slate-mode-syntax-table)
   (setq font-lock-defaults '(slate-inf-font-lock-keywords))
   (font-lock-mode 1)
-  (lazy-lock-mode 1)
+  ;(lazy-lock-mode 1)
   (setq slate-output-buffer nil)
   (setq mode-status "Starting Up")
   (run-hooks 'comint-mode-hook 'slate-inf-mode-hook))
