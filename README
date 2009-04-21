@@ -1,37 +1,48 @@
+Information for the Slate Distribution
+--------------------------------------
 
-See the wiki for more detailed documentation.
+ Slate is a prototype-based, multi-dispatch object-oriented language that
+ runs from a highly-customizable live environment. The implementation is
+ highly portable and relatively lightweight.
 
-http://code.google.com/p/slate-language/w/list
+ The reference site for this Distribution is at http://www.slatelanguage.org
+ and the Google Code project at: http://code.google.com/p/slate-language/
 
+ Bug reports and requests for information can be made via the Slate mailing
+ list, described at: http://groups.google.com/group/slate-language
+
+ See the wiki for more detailed documentation:
+ http://code.google.com/p/slate-language/w/list
+
+ See our bug-tracker for issues:
+ http://code.google.com/p/slate-language/issues/list
 
 Setup
 -----
 
-'make' for regular vm
+'make' builds the VM.
+'make slate.image' builds a standard saved image.
+'make edit' launches the VM and standard image in Emacs with a scratch area.
 
 Read common.mk for more options.
 
-./slate kernel.image                 "initial bootstrap (see below for more details)"
+./slate -i kernel.image                 "initial bootstrap (see below for more details)"
 Image saveNamed: 'my.image'.         "save current image"
 ./slate my.image                     "load a saved image"
-
-
 
 Command Line
 ------------
 
-./slate <image> [-mo <bytes>(GB|MB|KB|)] [-mn <bytes>(GB|MB|KB|)]
+./slate -i <image>
 
 This starts slate using <image>.
 
-Run slate without arguments for more details.
-
+Run 'slate -h' for more details.
 
 Learning Slate
 --------------
 
 Read the TUTORIAL
-
 
 Bootstrapping
 -------------
@@ -57,8 +68,7 @@ Image littleEndian: True bitSize: 32.
 
 Then you will load it like a regular image:
 
-./slate kernel.new.<endian>.<bitsize>.<timestamp>.image
-
+./slate kernel.new.<endian>.<wordsize>.<timestamp>.image
 
 Debugging
 ---------
@@ -73,7 +83,6 @@ See the slate backtrace -> print print_backtrace(oh)
 Inspect an object       -> print print_detail(oh, struct Object*)
 See the stack           -> print print_stack_types(oh, 200)
 
-
 Source directory structure
 --------------------------
 
@@ -84,7 +93,6 @@ src/plugins -> C code for slate FFI calls. `make plugins' to build
 src/ui -> The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
 src/ui/gtk -> The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
 src/net -> The slate networking code. load: 'src/net/init.slate'.
-
 
 Stack format
 ------------
@@ -106,7 +114,6 @@ everything based on fp (interpreter's current fp) except the closure
 and the lexical context which are restored based on the saved
 framepointer (at fp-1) using the previous frame (notice callee
 vs. caller).
-
 
 Compiler
 --------
