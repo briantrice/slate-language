@@ -214,6 +214,7 @@ bool_t endOfFile(struct object_heap* oh, word_t file) {
     return (GetFileSizeEx(oh->file_index[file], &size)
 	    ? pos.QuadPart >= size.QuadPart : SLATE_ERROR_RETURN);
 #else
+  word_t c;
   if (!(valid_handle(oh, file)))
     return TRUE;
   c = fgetc (oh->file_index[file]);
