@@ -22,7 +22,7 @@ install: vm installdirs
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/$(DEFAULT_IMAGE) $(datadir)/$(DEFAULT_IMAGE)
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.h $(includedir)/slate.h
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate-mode.el $(lispdir)/
-	$(SILENT) $(INSTALL) $(INSTALL_MODE) ${slateroot}/etc/slate.1 $(man1dir)/
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1 $(man1dir)/
 
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
