@@ -52,7 +52,7 @@ endif
 
 ## All required executables
 
-CC          := gcc
+#CC          := gcc
 CP          := cp -f
 LIBTOOL     ?= libtool
 ECHO        := echo
@@ -70,12 +70,28 @@ INCLUDES    +=
 CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L
 CFLAGS      += $(COPTFLAGS) -std=c99 -Wall -pedantic -pthread $(PRINT_DEBUG)  $(INCLUDES)
 
+## Determine the host system's byte order.
+## This creates a temporary test executable in the $(slateroot) directory
+## since we can guarantee write permissions there on all platforms. 
+
+BYTE_ORDER  := "int main(){union{long l;char c[sizeof(long)];}u;u.l=1;return(u.c[sizeof(long)-1]==1);}"
+BYTE_ORDER  := $(shell echo $(BYTE_ORDER) > $(slateroot)/byteorder.c)
+BYTE_ORDER  := $(shell $(CC) -o $(slateroot)/byteorder $(slateroot)/byteorder.c)
+BYTE_ORDER  := $(shell $(slateroot)/byteorder; echo $$?)
+BYTE_ORDER_ := $(shell $(RM) $(slateroot)/byteorder.* $(slateroot)/byteorder 1>&2)
+ifeq ($(BYTE_ORDER),0)
+  BYTE_ORDER := LITTLE_ENDIAN
+  BYTE_ORDER_PREFIX := little
+else
+  BYTE_ORDER := BIG_ENDIAN
+  BYTE_ORDER_PREFIX := big
+endif
 
 ## Default variables
 
 PLATFORM    := unix
 CCVERSION   := $(shell $(CC) -dumpversion)
-WORD_SIZE   := 64
+WORD_SIZE   := 32
 LDFLAGS     := # -avoid-version
 LIBS        := #-lm -ldl
 #PLUGINS     := platform.so posix.so pipe.so
@@ -87,6 +103,12 @@ INSTALL_MODE := -m 644
 CPU_TYPE    := `uname -m`
 VM_LIBRARIES = -lm -ldl -lpthread
 
+
+VMDIR       := $(slateroot)/src/vm
+VM          := $(VMDIR)/vm
+DEFAULT_IMAGE := slate.image
+KERNEL_IMAGES := kernel.new.*.$(WORD_SIZE).*.image
+DEFAULT_KERNEL_IMAGE = $(shell ls -t $(KERNEL_IMAGES) | head -1)
 
 CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
 LDFLAGS_x-windows.lo=`pkg-config --libs x11` `pkg-config --libs cairo`
@@ -128,12 +150,11 @@ ifdef ARCH
   CFLAGS += -m$(ARCH)
 endif
 
-ifndef DEFAULT_IMAGE
-  CFLAGS +=-DSLATE_DEFAULT_IMAGE='"/usr/local/share/slate/slate.image"'
-else
-  CFLAGS +=-DSLATE_DEFAULT_IMAGE="\"$(DEFAULT_IMAGE)\""
+ifdef VERSION
+  CFLAGS += -DVERSION="\"$(VERSION)\""
 endif
 
+CFLAGS +=-DSLATE_DEFAULT_IMAGE=$(DEFAULT_IMAGE)
 
 #ifeq ($(CPU_TYPE), i686)
 #  CFLAGS += -m$(WORD_SIZE)

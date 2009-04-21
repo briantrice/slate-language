@@ -21,9 +21,9 @@ t@(Time traits) newForHours: h minutes: m seconds: s
 d@(Duration traits) newForSeconds: n
 [d cloneSettingSlots: #(totalSeconds) to: {n}].
 
-d@(Duration traits) days: n [d newForSeconds: n * SecondsInDay].
-d@(Duration traits) hours: n [d newForSeconds: n * SecondsInHour].
-d@(Duration traits) minutes: n [d newForSeconds: n * SecondsInMinute].
+d@(Duration traits) newForDays: n [d newForSeconds: n * SecondsInDay].
+d@(Duration traits) newForHours: n [d newForSeconds: n * SecondsInHour].
+d@(Duration traits) newForMinutes: n [d newForSeconds: n * SecondsInMinute].
 
 t@(Time traits) as: d@(Duration traits)
 [d newForSeconds: t secondsSinceMidnight].
@@ -156,11 +156,7 @@ d@(Duration traits) printAbsOn: stream
   stream nextPut: $:.
   stream ; (d minutes abs printString truncateTo: 2 paddedBy: $0).
   stream nextPut: $:.
-  tempSecs: d seconds abs.
-  tempSecs < 10 ifTrue: [stream nextPut: $0].
-  tempSecs fractionPart = 0
-    ifTrue: [tempSecs: (tempSecs as: Integer)].
-  stream ; (tempSecs printString).
+  stream ; (d seconds abs printString truncateTo: 2 paddedBy: $0).
   d
 ].
 
@@ -356,6 +352,12 @@ i1@(Instant traits) - i2@(Instant traits)
   (i2 localDate - i1 localDate) + (i2 localTime - i1 localTime)
 ].
 
+i@(Instant traits) now
+[| time |
+  time: lobby timeSinceEpoch.
+  (i cloneSettingSlots: #(localTime) to: {time}) `>> [rationalise. ]
+].
+
 time define: #DaylightEndDate.
 time define: #DaylightOffset.
 time define: #DaylightStartDate.
@@ -384,3 +386,15 @@ TimeZone newNamed: 'Universal Time' offset: 0 abbrev: 'UTC'.
 TimeZone newNamed: 'Greenwich Mean Time' offset: 0 abbrev: 'GMT'.
 TimeZone newNamed: 'Pacific Standard Time' offset: -8 abbrev: 'PST'.
 TimeZone newNamed: 'Pacific Daylight Time' offset: -7 abbrev: 'PDT'.
+
+n@(Number traits) seconds
+[Duration newForSeconds: n].
+
+n@(Number traits) minutes
+[Duration newForMinutes: n].
+
+n@(Number traits) hours
+[Duration newForHours: n].
+
+n@(Number traits) days
+[Duration newForDays: n].

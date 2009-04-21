@@ -59,16 +59,18 @@ void print_usage (char *progName) {
   fprintf(stderr, "  -i, --image <image>   Specify a non-default image file to start with\n");
   fprintf(stderr, "  -mo <bytes>(GB|MB|KB) Old memory for tenured/old objects (Default 400MB)\n");
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
+  //fprintf(stderr, "  -V                    Verbose mode (print extra diagnostic messages)\n");
   fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stdout messages)\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
-  //fprintf(stderr, "\nNotes:\n");
-  //fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_IMGNAME), xstr (SLATE_DATADIR), xstr (SLATE_IMGNAME));
+  fprintf(stderr, "\nNotes:\n");
+  fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_DEFAULT_IMAGE), xstr (SLATE_DATADIR), xstr (SLATE_DEFAULT_IMAGE));
 }
 
 int main(int argc, char** argv, char **envp) {
 
   char* image_name = NULL;
-  FILE* image_file;
+  char global_image_name [1024];
+  FILE* image_file = NULL;
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * MB;
@@ -76,30 +78,27 @@ int main(int argc, char** argv, char **envp) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i, quiet = 0;
-#ifdef WIN32
-  // TODO WIN32 port set up signal handlers for interrupts.
-#else
+  int i, quiet = 1, verbose = 0;
+#ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif
 
-  /* skip argv[0] and image name if given first */
+  /* Scan for and process command-line options: */
   for (i = 1; i < argc; i++) {
-    /*if ((i == 1) && (strncmp(argv[i], "-", 1) != 0)) {
-      image_name = argv[i];
-      } else */
     if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
       print_usage(argv[0]);
       return 0;
     } else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--image") == 0)) {
+      fprintf(stderr, "XXX");
       if (++i < argc) {
         image_name = argv[i++];
       } else {
         error("You must specify an image filename after -i/--image.");
       }
     } else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0)) {
-      //fprintf(stderr, "Slate version: %s\n", VERSION);
-      fprintf(stderr, "Slate build type: %s\n", SLATE_BUILD_TYPE);
+      fprintf(stderr, "Slate VM\n");
+      //fprintf(stderr, "Version: %s\n", VERSION);
+      fprintf(stderr, "Build type: %s\n", SLATE_BUILD_TYPE);
       fprintf(stderr, "Platform word-size: %d bits; byte-order: %s endian\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little" : "big");
       return 0;
     } else if (strcmp(argv[i], "-mo") == 0) {
@@ -108,24 +107,40 @@ int main(int argc, char** argv, char **envp) {
     } else if (strcmp(argv[i], "-mn") == 0) {
       young_limit = memory_string_to_bytes(argv[i+1]);
       i++;
+    } else if (strcmp(argv[i], "-V") == 0) {
+      quiet = 0;
+      verbose = 1;
     } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
       quiet = 1;
-      i++;
+      verbose = 0;
     } else if (strcmp(argv[i], "--") == 0) {
       /* GNU convention to ignore all arguments past a --, allowing the image to process anything beyond that. */
       break;
     } else {
-      /* The VM does not process this argument. The warning is disabled, because the image may know how to process it. */
-      /*fprintf(stderr, "Illegal argument: %s\n", argv[i]);*/
+      /* The VM did not process this argument. The warning is disabled by default, because the image may know how to process it. */
+      if (verbose) {
+	fprintf(stderr, "Illegal argument: %s\n", argv[i]);
+      }
     }
-  }
+  };
 
+  /* Image name not explicitly given, act quietly and go through defaults: */
   if (!image_name) {
-    image_name = SLATE_DEFAULT_IMAGE;
+    image_name = xstr (SLATE_DEFAULT_IMAGE);
+    image_file = fopen(image_name, "rb");
+    if (!image_file) {
+      sprintf (global_image_name, "%s/%s", xstr (SLATE_DATADIR), xstr (SLATE_DEFAULT_IMAGE));
+      image_name = (char *)global_image_name;
+    };
     quiet = 1;
-  }
+  };
 
-  image_file = fopen(image_name, "rb");
+
+  if (!image_file) {
+    if (verbose)
+      fprintf(stderr, "Loading image: %s\n", image_name);
+    image_file = fopen(image_name, "rb");
+  };
 
   if (!image_file) {fprintf(stderr, "Open file failed (%d), filename: '%s'\n", errno, image_name); return 1;}
 

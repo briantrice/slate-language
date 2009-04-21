@@ -217,13 +217,7 @@ bool_t endOfFile(struct object_heap* oh, word_t file) {
   word_t c;
   if (!(valid_handle(oh, file)))
     return TRUE;
-  c = fgetc (oh->file_index[file]);
-  if (c == EOF)
-    return TRUE;
-  else {
-    ungetc (c, oh->file_index[file]);
-    return FALSE;
-  }
+  return (feof (oh->file_index[file]) ? TRUE : FALSE);
 #endif
 }
 

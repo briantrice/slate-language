@@ -456,3 +456,16 @@ TODO: Make it work for arbitrary arity using introspection / *rest args."
   m arity = 2 ifTrue: [[| :b :a | m applyTo: {a. [|:g| g applyTo: {b}]}]]
 	      ifFalse: [error: 'swing can only handle binary methods currently.']
 ].
+
+m@(Method traits) timeToRun
+"Returns the number of seconds to execute the method once."
+[| start end |
+  start: lobby timeSinceEpoch.
+  [m do] ensure: [end: lobby timeSinceEpoch].
+  end - start
+].
+
+m@(Method traits) duration
+[
+  Duration newForSeconds: m timeToRun / 1000
+].
