@@ -101,13 +101,19 @@ reply@(DB PostgresReply traits) newType: type response: response
 ].
 
 
-db@(DB Postgres traits) connectTo: addr
+db@(DB Postgres traits) connectTo: addr@(Net SocketAddress traits)
 [ | socket |
-  socket: (Socket newFor: addr domain type: Socket Types Stream protocol: Socket Protocols Default).
+  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
   socket connectTo: addr.
-  db stream: (SocketStream newOn: socket).
+  db stream: (Net SocketStream newOn: socket).
   db
 ].
+
+db@(DB Postgres traits) connectTo: addr@(String traits)
+[ 
+  db connectTo: (addr as: Net SocketAddress)
+].
+
 
 reply@(DB PostgresReply traits) isNotice
 [
@@ -161,7 +167,7 @@ db@(DB Postgres traits) handleLogin: user password: pw
   authCode = 0 ifTrue: [ ^ True].
   authCode = 5 "md5 with salt on pw"
     ifTrue: [inform: 'salt: ' ; (reply response allButFirst: 4) printString.
-             cmd: (PostgresPasswordMessage new `>> [password: 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
+             cmd: (DB PostgresPasswordMessage new `>> [password: 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
              cmd length: cmd packed size - 1.
              inform: 'sending md5 pw: ' ; cmd password printString.
              db sendCommand: cmd.
@@ -175,7 +181,7 @@ db@(DB Postgres traits) loginAs: user password: pw &database: database
 "Use this command to log into a database"
 [ | cmd |
   database `defaultsTo: user.
-  cmd: (PostgresStartCommand new `>> [user: user. database: database. ]).
+  cmd: (DB PostgresStartCommand new `>> [user: user. database: database. ]).
   cmd length: cmd packed size.
   db sendCommand: cmd.
   (db handleLogin: user password: pw) ifTrue: [inform: 'Login success'].
@@ -202,7 +208,7 @@ db@(DB Postgres traits) waitForQuery
 db@(DB Postgres traits) query: query
 "Use this to do a simple query on the database"
 [ | cmd |
-  cmd: (PostgresQueryCommand new `>> [query: query. ]).
+  cmd: (DB PostgresQueryCommand new `>> [query: query. ]).
   cmd length: cmd packed size - 1.
   db sendCommand: cmd.
   db readQueryResult
@@ -238,7 +244,7 @@ db@(DB Postgres traits) readQueryResult
                 rowDescription: (Array newSize: ((reader next: 2) as: Integer &bigEndian: True)).
                 0 below: rowDescription size do:
                   [ | :i column |
-                     column: PostgresColumnDescription new.
+                     column: DB PostgresColumnDescription new.
                      column name: ((reader nextUntil: [ |:c| c = 0]) as: ASCIIString).
                      reader next. "null terminator"
                      column objectID: ((reader next: 4) as: Integer &bigEndian: True).
