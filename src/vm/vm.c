@@ -78,7 +78,7 @@ int main(int argc, char** argv, char **envp) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i, quiet = 1, verbose = 0;
+  int i, quiet = 0, verbose = 0;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif

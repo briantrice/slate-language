@@ -11,17 +11,17 @@ TODO:
 
 "
 
-networking ensureNamespace: #databases &delegate: True.
+lobby ensureNamespace: #DB &delegate: False.
 
 
-databases define: #Database &parents: {Cloneable}.
-databases define: #DatabaseCommand &parents: {Database} &slots: {}.
-databases define: #DatabaseReply &parents: {Database} &slots: {}.
+DB define: #Database &parents: {Cloneable}.
+DB define: #DatabaseCommand &parents: {DB Database} &slots: {}.
+DB define: #DatabaseReply &parents: {DB Database} &slots: {}.
 
-databases define: #Postgres &parents: {Database} &slots: {#stream -> Nil}.
-databases define: #PostgresReply &parents: {DatabaseReply} &slots: {#type -> Nil. #length -> 0. #response -> Nil}.
-databases define: #PostgresCommand &parents: {DatabaseCommand. StructMixin}.
-databases define: #PostgresStartCommand &parents: {PostgresCommand}
+DB define: #Postgres &parents: {DB Database} &slots: {#stream -> Nil}.
+DB define: #PostgresReply &parents: {DB DatabaseReply} &slots: {#type -> Nil. #length -> 0. #response -> Nil}.
+DB define: #PostgresCommand &parents: {DB DatabaseCommand. StructMixin}.
+DB define: #PostgresStartCommand &parents: {DB PostgresCommand}
   &slots: {#length -> 0. #protocol -> 196608. #user -> 'user'. #database -> 'mydb'.
            #binaryDescription -> #((length Int32)
                                    (protocol Int32)
@@ -31,77 +31,77 @@ databases define: #PostgresStartCommand &parents: {PostgresCommand}
                                    (database CString)
                                    ('\0' Fixed))}.
 
-databases define: #PostgresPasswordMessage &parents: {PostgresCommand}
+DB define: #PostgresPasswordMessage &parents: {DB PostgresCommand}
   &slots: {#length -> 0. #password -> ''.
            #binaryDescription -> #(('p' Fixed)(length Int32)(password CString))}.
 
-databases define: #PostgresQueryCommand &parents: {PostgresCommand}
+DB define: #PostgresQueryCommand &parents: {DB PostgresCommand}
   &slots: {#length -> 0. #query -> ''.
            #binaryDescription -> #(('Q' Fixed)(length Int32)(query CString))}.
 
 
-databases define: #PostgresColumnDescription &parents: {Cloneable}
+DB define: #PostgresColumnDescription &parents: {Cloneable}
  &slots: {#name -> ''. #objectID -> 0. #attributeNumber -> 0. #type -> 0. #typeSize -> 0. #typeModifier -> 0. #format -> 0}.
 
-db@(Database traits) newOn: stream
+db@(DB Database traits) newOn: stream
 [
-OverrideThis
+overrideThis
 ].
 
-db@(Database traits) sendCommand: cmd@(DatabaseCommand traits)
+db@(DB Database traits) sendCommand: cmd@(DB DatabaseCommand traits)
 [
-OverrideThis
+overrideThis
 ].
 
-db@(Database traits) close
+db@(DB Database traits) close
 [
-OverrideThis
+overrideThis
 ].
 
-reply@(DatabaseReply traits) isError
+reply@(DB DatabaseReply traits) isError
 [
-OverrideThis
+overrideThis
 ].
 
 
 " ... Postgresql specific ... "
 
-pc@(PostgresCommand traits) littleEndian
+pc@(DB PostgresCommand traits) littleEndian
 [
   False
 ].
 
-db@(Postgres traits) newOn: stream
+db@(DB Postgres traits) newOn: stream
 [ | ret |
   ret: db new.
   db stream: stream.
   db
 ].
 
-db@(Postgres traits) sendCommand: cmd@(PostgresCommand traits)
+db@(DB Postgres traits) sendCommand: cmd@(DB PostgresCommand traits)
 [
   db stream ; cmd packed.
   db stream flush.
 ].
 
-db@(Postgres traits) close
+db@(DB Postgres traits) close
 [
   inform: 'closing postgres connection'.
   db stream close.
 ].
 
-db@(Postgres traits) hasReply
+db@(DB Postgres traits) hasReply
 [
   db stream socket canRead
 ].
 
-reply@(PostgresReply traits) newType: type response: response
+reply@(DB PostgresReply traits) newType: type response: response
 [ | return |
   reply new `>> [type: type. length: response size. response: response. ]
 ].
 
 
-db@(Postgres traits) connectTo: addr
+db@(DB Postgres traits) connectTo: addr
 [ | socket |
   socket: (Socket newFor: addr domain type: Socket Types Stream protocol: Socket Protocols Default).
   socket connectTo: addr.
@@ -109,18 +109,18 @@ db@(Postgres traits) connectTo: addr
   db
 ].
 
-reply@(PostgresReply traits) isNotice
+reply@(DB PostgresReply traits) isNotice
 [
   reply type = $N code
 ].
 
 
-reply@(PostgresReply traits) isError
+reply@(DB PostgresReply traits) isError
 [
   reply type = $E code
 ].
 
-reply@(PostgresReply traits) printError
+reply@(DB PostgresReply traits) printError
 [
   reply isError \/ [reply isNotice] ifFalse: [^ Nil].
   reply response first = 0
@@ -129,7 +129,7 @@ reply@(PostgresReply traits) printError
 ].
 
 
-db@(Postgres traits) readReply
+db@(DB Postgres traits) readReply
 [ | responseTypeByte responseLength response |
 
 [
@@ -139,18 +139,18 @@ db@(Postgres traits) readReply
                ifTrue: [(db stream next: responseLength - 4)] 
                ifFalse: [error: 'malformed message from ' ; db printString]).
  "fixme coerce to real structure"
-  PostgresReply newType: responseTypeByte response: response
+  DB PostgresReply newType: responseTypeByte response: response
 
 ] on: Stream Exhaustion do: [ |:e| ^ Nil]
 
 ].
 
-db@(Postgres traits) md5Encrypt: pw salt: salt
+db@(DB Postgres traits) md5Encrypt: pw salt: salt
 [
   ((pw as: ByteArray) ; (salt as: ByteArray)) md5String
 ].
 
-db@(Postgres traits) handleLogin: user password: pw
+db@(DB Postgres traits) handleLogin: user password: pw
 [ | cmd reply reply authCode|
   reply: db readReply.
   inform: 'reply: ' ; reply printString.
@@ -171,7 +171,7 @@ db@(Postgres traits) handleLogin: user password: pw
 
 ].
 
-db@(Postgres traits) loginAs: user password: pw &database: database
+db@(DB Postgres traits) loginAs: user password: pw &database: database
 "Use this command to log into a database"
 [ | cmd |
   database `defaultsTo: user.
@@ -183,7 +183,7 @@ db@(Postgres traits) loginAs: user password: pw &database: database
 ].
 
 
-db@(Postgres traits) waitForQuery
+db@(DB Postgres traits) waitForQuery
 "receive messages until readyforquery message"
 [ | reply |
  [
@@ -199,7 +199,7 @@ db@(Postgres traits) waitForQuery
 
 
 
-db@(Postgres traits) query: query
+db@(DB Postgres traits) query: query
 "Use this to do a simple query on the database"
 [ | cmd |
   cmd: (PostgresQueryCommand new `>> [query: query. ]).
@@ -208,13 +208,13 @@ db@(Postgres traits) query: query
   db readQueryResult
 ].
 
-pcd@(PostgresColumnDescription traits) createEntryFrom: value
+pcd@(DB PostgresColumnDescription traits) createEntryFrom: value
 [
   pcd format = 0 ifTrue: [value as: ASCIIString]
                  ifFalse: [value "fixme.. binary serialize"]
 ].
 
-db@(Postgres traits) readQueryResult
+db@(DB Postgres traits) readQueryResult
 [ | reply result rowDescription rows reader columnCount|
  result: ExtensibleArray new.
  rows: ExtensibleArray new.
