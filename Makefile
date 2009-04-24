@@ -17,30 +17,31 @@ installdirs:
 	$(SILENT) $(INSTALL) -d $(exec_prefix) $(lispdir) $(includedir) $(datadir) $(man1dir)
 
 install: vm installdirs
-	$(SECHO) "Installing" # TODO: Plugins and documentation missing
+	$(info Installing) # TODO: Plugins and documentation missing
 	$(SILENT) $(INSTALL) $(VM) $(exec_prefix)/$(execname)
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/$(DEFAULT_IMAGE) $(datadir)/$(DEFAULT_IMAGE)
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.h $(includedir)/slate.h
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate-mode.el $(lispdir)/
-	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1 $(man1dir)/
+	$(SILENT) cat $(slateroot)/etc/slate.1 | sed -e 's/$${prefix}/$(subst /,\/,$(prefix))/g' > $(slateroot)/etc/slate.1.pkg
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.pkg $(man1dir)/slate.1
 
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
 
 installcheck: install
-	$(SECHO) "Checking installation"
+	$(info Checking installation)
         # TODO: A few sanity checks should be run on the installed files
 	$(SILENT) $(ECHO) "3 + 4." | $(exec_prefix)/$(execname)
 
 uninstall:
-	$(SECHO) "Uninstalling"
+	$(info Uninstalling)
 	$(SILENT) $(RM) -f $(exec_prefix)/$(execname)
 	$(SILENT) $(RM) -f $(lispdir)/slate-mode.el
 	$(SILENT) $(RM) -f $(includedir)/slate.h
 	$(SILENT) $(RM) -fr $(datadir)
 
 edit:
-	$(SECHO) "Launching Slate in Emacs"
+	$(info Launching Slate in Emacs)
 	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el
 
 backup: superclean

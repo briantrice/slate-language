@@ -106,9 +106,9 @@ VM_LIBRARIES = -lm -ldl -lpthread
 
 VMDIR       := $(slateroot)/src/vm
 VM          := $(VMDIR)/vm
-DEFAULT_IMAGE := slate.image
+DEFAULT_IMAGE ?= slate.image
 KERNEL_IMAGES := kernel.new.*.$(WORD_SIZE).*.image
-DEFAULT_KERNEL_IMAGE = $(shell ls -t $(KERNEL_IMAGES) | head -1)
+DEFAULT_KERNEL_IMAGE ?= $(shell ls -t $(KERNEL_IMAGES) | head -1)
 
 CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
 LDFLAGS_x-windows.lo=`pkg-config --libs x11` `pkg-config --libs cairo`
