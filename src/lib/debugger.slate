@@ -158,17 +158,19 @@ in the selected option number, returning it if valid."
 	      out ; ']'].
   out ; d basePrompt.
   out flush.
-  [| expr result |
+  [| expr result restartNumeric |
    expr: d parser next.
    result: (expr evaluateIn: d namespace).
+   restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
    "Exclude selections of restarts and other commands from printing."
-   ((expr is: Syntax Literal) /\ [result is: Integer]) \/
+   restartNumeric \/
      [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
       ifFalse:
         [result printOn: out.
           out newLine.
-          out flush]
-  ] on: SeriousCondition
+          out flush].
+   restartNumeric ifTrue: [d signalRestartAt: result].
+   ] on: SeriousCondition
     do: [| :c |
       out ; '\nThe following condition was signaled from within the debugger:\n'.
       c describeOn: d printer.
