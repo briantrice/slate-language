@@ -250,11 +250,14 @@
 (defconst slate-prompt-regexp "^Slate [0-9]+>"
   "Regexp to match prompts in slate buffer.")
 
-(defconst slate-debug-prompt-regexp "^Debug \[[0-9]+[.][.]\]:"
+(defconst slate-debug-prompt-regexp "^Debug \[[0-9]+[.][.][0-9]+\]:"
   "Regexp to match prompts in slate buffer.")
 
 (defconst slate-prompt-line-regexp (concat slate-prompt-regexp " .*")
   "Regexp to match the prompt line in the slate buffer.")
+
+(defconst slate-debug-fileref-regexp " @ \\([-A-z/_.]+:[0-9]+\\)$"
+  "Regexp to match filename:linenumber in the slate buffer.")
 
 (defvar slate-cmd "slate"
   "The name/path of the VM to be executed for the interactive mode.")
@@ -283,10 +286,16 @@
   "The modemap used for interactive Slate sessions.")
 (set-keymap-parent slate-inf-mode-map slate-mode-map)
 
+(defvar slate-fileref-keymap (copy-keymap slate-inf-mode-map))
+(set-keymap-parent slate-fileref-keymap slate-inf-mode-map)
+(define-key slate-fileref-keymap [return] 'slate-follow-name-at-point)
+(define-key slate-fileref-keymap [mouse-1] 'slate-follow-name-at-point)
+
 (defconst slate-inf-font-lock-keywords
   `((,slate-prompt-regexp . italic)	; italicized prompt
     (,slate-debug-prompt-regexp . font-lock-warning-face) ; the debug prompt
     ("^\\(Warning\\|Error\\):" . font-lock-warning-face) ; warnings/errors
+    ;(,slate-debug-fileref-regexp 1 'link) ; filename/lineno debugger reports
     ("^Slate:" . compilation-info-face) ; VM messages
     ,@slate-font-lock-keywords)
   "Simplified and adjusted highlighting matchers for the interaction.")
@@ -301,6 +310,7 @@ editing control characters:
 Entry to this mode calls the value of `slate-inf-mode-hook' with no arguments,
 if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
 `slate-inf-mode-hook' is called after `shell-mode-hook'."
+  (interactive)
   (kill-all-local-variables)
   (comint-mode)
   (setq comint-prompt-regexp slate-prompt-line-regexp)
@@ -341,6 +351,25 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
       (font-lock-mode))
     (pop-to-buffer "*slate-scratch*")))
 
+(defun slate-follow-name-at-point ()
+  "Follows a file reference of the form filename:linenumber at/after the point."
+  (interactive)
+  (push-mark)
+  (setq filename
+	(save-excursion
+	  (skip-chars-forward "^:")
+	  (setq end (point))
+	  (skip-chars-backward "^ ")
+	  (buffer-substring-no-properties (point) end)))
+  (setq line-number
+	(save-excursion
+	  (skip-chars-forward "^:")
+	  (forward-char)
+	  (string-to-number (buffer-substring-no-properties (point) (progn (forward-word 1) (point))))))
+  ;(find-file-at-point)
+  (find-file filename)
+  (goto-line line-number))
+
 (defun inf-slate (cmd &rest args)
   "Run an inferior Slate process `*slate-process*'.
    Input and output via buffer `inferior-slate-buffer-name'."
@@ -366,7 +395,8 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
 	(setq cmd (process-name proc)))
       (goto-char (point-max))
       (set-marker (process-mark proc) (point))
-      (set-process-filter proc 'slate-filter)
+      (set-process-filter proc 'slate-inf-filter)
+      ;(set-process-sentinel proc 'slate-inf-sentinel)
       (slate-inf-mode))
     buffer))
 
@@ -388,7 +418,9 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
       ;; we ate it all and didn't do anything with it
       nil)))
 
-(defun slate-filter (process string)
+;(defun slate-inf-sentinel ())
+
+(defun slate-inf-filter (process string)
   "Make sure that the window continues to show the most recently output
 text."
   (let ((where 0) ch command-str)
@@ -404,12 +436,25 @@ text."
 	      ((= ch ?\C-b)		;start of command
 	       (setq slate-output-buffer "") ;start this off
 	       (setq string (substring string (1+ where)))))))
+    
     (save-excursion
       (set-buffer (process-buffer process))
       (goto-char (point-max))
       (when string
 	(setq mode-status "Idle")
 	(insert string))
+      ; Handle debugger file references:
+      (save-excursion
+	(goto-char (point-min))
+	(let (fileref-end)
+	  (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
+	    (let* ((fileref-overlay (make-overlay (match-beginning 1) fileref-end))
+		   (fileref (match-string 1))
+		   (lineno-begin (re-search-forward ":" nil t)))
+	      (overlay-put fileref-overlay 'face 'link)
+	      (overlay-put fileref-overlay 'mouse-face 'highlight)
+	      (overlay-put fileref-overlay 'keymap slate-fileref-keymap)
+	      (replace-match "" t t)))))
       (when (process-mark process)
 	(set-marker (process-mark process) (point-max)))))
   (let ((buf (current-buffer)))
@@ -482,7 +527,7 @@ into the current buffer after the cursor."
     (process-send-string
      inferior-slate-buffer-name
      (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
-  (set-process-filter *slate-process* 'slate-filter))
+  (set-process-filter *slate-process* 'slate-inf-filter))
 
 (defun slate-quit ()
   "Terminate the Slate session and associated process."
