@@ -16,6 +16,9 @@ inform: 'Performing post-bootstrap actions...'.
 
 _@lobby printOn: s "Convenient lobby printing." [s ; 'lobby'].
 
+"These exist just for bootstrapping purposes, to be replaced by load.slate:"
+"TODO: Simplify these load: stubs to avoid maintenance costs."
+
 ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
@@ -28,44 +31,30 @@ contents within the argument namespace or an optional override."
 	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
 ].
 
-globals addSlot: #LoadLevel valued: 0.
-"How many levels of recursion has load: been invoked on."
-
-"Records the concrete directory where the sources are available and where
-the bootstrap occurred."
-globals define: #SlateDir &builder: [Directory current].
-
-globals define: #defaultPaths &builder:
-  [{SlateDir} as: ExtensibleArray].
-
 ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
 "A command to open the file, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
-[| oldLoadLevel |
+[| defaultPaths |
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
   showLoadMessage `defaultsTo: True.
-  LoadLevel timesRepeat: [DebugConsole writer nextPut: $\s].
   showLoadMessage ifTrue: [inform: 'Loading ' ; file locator printString &target: DebugConsole].
+  defaultPaths: {Directory current}.
   (file locator isSameAs: file RelativeLocator)
     ifTrue:
       [[file exists] whileFalse:
 	[(globals defaultPaths before: file locator basePath)
 	  ifNil: [error: 'Could not find the file relative to any of the default directories.'. ^ Nil]
 	  ifNotNilDo: [| :newL | file locator basePath: newL]]].
-  oldLoadLevel: LoadLevel.
-  LoadLevel: LoadLevel + 1.
-  [file reader sessionDo:
+  file reader sessionDo:
     [| :input aParser |
      "Ignore an initial she-bang line."
      (input peek: 2) = '#!' ifTrue: [input upTo: $\n].
      (aParser: (Syntax Parser newOn: input)) do:
        [| :each |
 	verbose ifTrue:
-	  [LoadLevel timesRepeat: [DebugConsole writer nextPut: $\s].
-	   inform: 'Parsed to line ' ; aParser lexer lineNumber printString &target: DebugConsole].
-	each evaluateIn: namespace]] &mode: file Read]
-    ensure: [LoadLevel: oldLoadLevel].
+	  [inform: 'Parsed to line ' ; aParser lexer lineNumber printString &target: DebugConsole].
+	each evaluateIn: namespace]] &mode: file Read
 ].
 
 
@@ -81,6 +70,8 @@ load: 'src/mobius/quote.slate'.
 load: 'src/mobius/cascade.slate'.
 load: 'src/lib/macro.slate'.
 
+"Improve on the load: facility."
+load: 'src/lib/load.slate'.
 
 "recompile everything with the new compiler so that we have line number info, etc."
 load: 'src/mobius/rebootstrap.slate'.
