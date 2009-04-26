@@ -172,6 +172,7 @@ int main(int argc, char** argv, char **envp) {
     return 1;
   }
 
+  // Create and initialize the heap structure:
   heap = calloc(1, sizeof(struct object_heap));
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
@@ -184,10 +185,14 @@ int main(int argc, char** argv, char **envp) {
     printf("Image size: %" PRIdPTR " bytes\n", sih.size);
   }
 
+  // Read in the heap contents from the image file:
   if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
     return 1;
   }
+
+  // We don't need the image file now, since we've read the content in:
+  fclose(image_file);
 
   adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
   heap->stackBottom = &heap;
@@ -212,8 +217,6 @@ int main(int argc, char** argv, char **envp) {
   interpret(heap);
   
   heap_close(heap);
-
-  fclose(image_file);
 
   return 0;
 }
