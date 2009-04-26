@@ -292,9 +292,10 @@
 (define-key slate-fileref-keymap [mouse-1] 'slate-follow-name-at-point)
 
 (defconst slate-inf-font-lock-keywords
-  `((,slate-prompt-regexp . italic)	; italicized prompt
-    (,slate-debug-prompt-regexp . font-lock-warning-face) ; the debug prompt
-    ("^\\(Warning\\|Error\\):" . font-lock-warning-face) ; warnings/errors
+  `((,slate-prompt-regexp . 'italic)	; italicized prompt
+    (,slate-debug-prompt-regexp . 'font-lock-warning-face) ; the debug prompt
+    ("^\\(Warning\\|Error\\):" . 'font-lock-warning-face) ; warnings/errors
+    ("^\\(Loading\\) " . 'font-lock-warning-face) ; informative
     ;(,slate-debug-fileref-regexp 1 'link) ; filename/lineno debugger reports
     ("^Slate:" . compilation-info-face) ; VM messages
     ,@slate-font-lock-keywords)
@@ -449,9 +450,8 @@ text."
 	(let (fileref-end)
 	  (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
 	    (let* ((fileref-overlay (make-overlay (match-beginning 1) fileref-end))
-		   (fileref (match-string 1))
-		   (lineno-begin (re-search-forward ":" nil t)))
-	      (overlay-put fileref-overlay 'face 'link)
+		   (fileref (match-string 1)))
+	      (overlay-put fileref-overlay 'face 'tool-bar)
 	      (overlay-put fileref-overlay 'mouse-face 'highlight)
 	      (overlay-put fileref-overlay 'keymap slate-fileref-keymap)
 	      (replace-match "" t t)))))
