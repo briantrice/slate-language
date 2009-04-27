@@ -44,6 +44,10 @@ edit:
 	$(info Launching Slate in Emacs)
 	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el
 
+bootstrap:
+	$(info Bootstrapping new images)
+	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image littleEndian: True bitSize: $(WORD_SIZE)" | $(VM) -q -i $(DEFAULT_IMAGE)
+
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
 
