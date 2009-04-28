@@ -1,0 +1,56 @@
+#!/usr/local/bin/slate
+define: #scriptArgs -> (StartupArguments allButFirst: 3).
+
+define: #options -> (scriptArgs select: [| :arg | arg first = $-] collect: #allButFirst`er) join &separator: Nil.
+
+(options detect: [| :each | ('wlcm' includes: each) not])
+  ifNotNilDo: [| :char | error: 'Illegal option - ' ; (char as: String)].
+
+options isEmpty ifTrue: [define: #options -> 'clw'].
+
+define: #rawInputs ->
+((scriptArgs indexOf: [| :each | (each first = $-) not])
+  ifNil: [{Console}]
+  ifNotNilDo:
+    [| :index |
+     ((index below: scriptArgs indexLast)
+       collect: [| :idx | File newNamed: (scriptArgs at: idx)])]).
+
+define: #byteCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
+define: #wordCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
+define: #lineCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
+
+rawInputs doWithIndex:
+  [| :in :idx |
+   in reader sessionDo:
+     [| :r pipe |
+      pipe: r.
+      (options includes: $c) ifTrue: [pipe: (pipe echoTo: (byteCounts at: idx))].
+      (options includes: $l) ifTrue: [pipe: (pipe lines echoTo: (lineCounts at: idx))].
+      (options includes: $w) ifTrue: [pipe: (pipe split echoTo: (wordCounts at: idx))].
+      ]].
+
+_@here printCountsAt: index
+[
+  (options includes: $l)
+    ifTrue: [Console ; '\t' ; (lineCounts at: index) contents printString].
+  (options includes: $w)
+    ifTrue: [Console ; '\t' ; (wordCounts at: index) contents printString].
+  (options includes: $c)
+    ifTrue: [Console ; '\t' ; (byteCounts at: index) contents printString].
+].
+
+rawInputs size > 1
+  ifTrue:
+    [rawInputs doWithIndex:
+      [| :in :index |
+       printCountsAt: index.
+       Console ; ' ' ; ((in is: File) ifTrue: [in filename] ifFalse: ['']) ; '\n'].
+     (options includes: $l)
+       ifTrue: [Console ; '\t' ; ((lineCounts collect: #contents `er) reduce: #+`er) printString].
+     (options includes: $w)
+       ifTrue: [Console ; '\t' ; ((wordCounts collect: #contents `er) reduce: #+`er) printString].
+     (options includes: $c)
+       ifTrue: [Console ; '\t' ; ((byteCounts collect: #contents `er) reduce: #+`er) printString].
+     Console ; ' total\n']
+  ifFalse: [printCountsAt: 0. Console ; '\n'].
