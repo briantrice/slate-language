@@ -20,7 +20,7 @@ conditions define: #Debugger &parents: {Cloneable}
            #baseFramePointer -> Nil.
            #slateFrameSize -> 6.
            #maxBacktraceSize -> 200.
-           #basePrompt -> ': '}.
+           #basePrompt -> '> '}.
 
 conditions define: #DebuggingFrame &parents: {Cloneable}
   &slots: {#resultStackLocation -> Nil.
@@ -29,8 +29,6 @@ conditions define: #DebuggingFrame &parents: {Cloneable}
            #framePointer -> Nil.
            #lexicalContext -> Nil.
            }.
-
-
 
 d@(Debugger traits) refreshWorkspace
 [d namespace: d namespace newSisterSpace. d installMethods].
@@ -80,6 +78,14 @@ d@(Debugger traits) findRestarts
   d restarts
 ].
 
+d@(Debugger traits) describeRestartAt: index
+[| out restart |
+  out: d printer.
+  restart: (d restarts at: index).
+  out ; 'restart: ' ; index printString ; '\t'.
+  restart describeOn: out.
+].
+
 d@(Debugger traits) describeRestarts
 "Describes the restarts available in the context, if any."
 [| out |
@@ -89,13 +95,10 @@ d@(Debugger traits) describeRestarts
   out ; '\n'.
   out ; (d restarts isEmpty
     ifTrue: ['No restarts are available.\n']
-    ifFalse: ['The following restarts are available:\n']).
-  d restarts
-    doWithIndex:
-      [| :restart :index |
-        out ; index printString ; ')\t'.
-        restart describeOn: out].
-  out ; '\nEnter \'help.\' for instructions.\n'
+    ifFalse: ['Available Restarts:\n']).
+  d restarts isEmpty
+    ifTrue: [out ; '(none available)']
+    ifFalse: [d restarts keysDo: [| :index | d describeRestartAt: index]].
 ].
 
 d@(Debugger traits) stackItem: x
@@ -108,10 +111,9 @@ d@(Debugger traits) stackItem: x put: val
   d interpreter stack at: x put: val
 ].
 
-
 d@(Debugger traits) buildFrames
 "build a list of frames return true if you have them all"
-[ |fp ip method lc resultLoc frameList frame|
+[| fp ip method lc resultLoc frameList frame |
  "  {#resultStackLocation -> Nil.
            #instructionPointer -> Nil.
            #method -> Nil.
@@ -142,40 +144,18 @@ d@(Debugger traits) buildFrames
    method: (d stackItem: fp - 3).
    "frameList size > d maxBacktraceSize ifTrue: [d frameList: frameList. ^ False]."
   ] loop.
-    
 ].
 
 d@(Debugger traits) prompt
-"Prints out the restarting options with a prompt and numeric labels, and reads
-in the selected option number, returning it if valid."
-[| out |
-  out: d printer.
-  out ; 'Debug'.
-  d restarts isEmpty
-    ifFalse: [out ; ' [0'.
-	      d restarts size > 1 ifTrue:
-		[out ; '..' ; d restarts indexLast printString].
-	      out ; ']'].
-  out ; d basePrompt.
-  out flush.
-  [| expr result restartNumeric |
-   expr: d parser next.
-   result: (expr evaluateIn: d namespace).
-   restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
-   "Exclude selections of restarts and other commands from printing."
-   restartNumeric \/
-     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
-      ifFalse:
-        [result printOn: out.
-          out newLine.
-          out flush].
-   restartNumeric ifTrue: [d signalRestartAt: result].
-   ] on: SeriousCondition
-    do: [| :c |
-      out ; '\nThe following condition was signaled from within the debugger:\n'.
-      c describeOn: d printer.
-      (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [out ; 'End of input, exiting...\n'. lobby exit].
-      c exit]
+[
+  [| :out |
+   out ; 'slate-debug'.
+   d restarts isEmpty
+     ifFalse: [out ; '[0'.
+	       d restarts size > 1 ifTrue:
+		 [out ; '..' ; d restarts indexLast printString].
+	       out ; ']'].
+   out ; d basePrompt] writingAs: ''
 ].
 
 d@(Debugger traits) signalRestartAt: index
@@ -187,22 +167,25 @@ d@(Debugger traits) signalRestartAt: index
     ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
 ].
 
+d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLocation
+[| frame |
+  out `defaultsTo: d printer.
+  showLocation `defaultsTo: False.
+  frame: (d frameList at: index).
+  out ; 'frame: ' ; index printString ; '\t' ; frame method printString.
+  showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation].
+  out ; '\n'.
+].
+
 d@(Debugger traits) printBacktrace &limit: limit &stream: out &showLocation: showLocation
 [ 
   limit `defaultsTo: d maxBacktraceSize.
   out `defaultsTo: d printer.
   showLocation `defaultsTo: False.
-  d frameList doWithIndex:
-    [|:frame :index|
-       "out ; '<' ; index printString ; '> ' ; (frame method method sourceTreeOf: (0 max: frame instructionPointer - 1)) printString ; '\n'."
-       "out ; '<' ; index printString ; '> ' ; frame method printString ; '\n'."
-       index > limit ifTrue: [^ Nil].
-       out ; '<' ; index printString ; '> ' ; frame method printString .
-       showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation ; '\n']
-                    ifFalse: [out ; '\n']
-       ].
+  out ; 'Backtrace (method @ source): \n'.
+  0 below: (d frameList length min: limit) do:
+    [| :index | d printFrameLineAt: index &showLocation: showLocation].
 ].
-
 
 d@(Debugger traits) frame: n
 [
@@ -231,9 +214,8 @@ d@(Debugger traits) currentFrameValueAt: n put: val
   d stackItem: frame framePointer + n put: val
 ].
 
-
 d@(Debugger traits) printFrame
-[ |out frame method|
+[| out frame method |
   out: d printer.
   frame: d currentFrame.
   frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
@@ -254,7 +236,6 @@ d@(Debugger traits) printFrame
   out ; 'Decompiled: ' ; '\n'.
   VM SSACompiler decompile: method code.
 ].
-
 
 d@(Debugger traits) printHelp
 [
@@ -300,12 +281,36 @@ d@(Debugger traits) installMethods
 
 d@(Debugger traits) enter
 "The main interactive debugger loop."
-[
-  d printer ; 'Debugging: ' ; d condition printName ; '\n'.
+[| out |
+  out: d printer.
+  out ; 'Debugging: ' ; d condition printName ; '\n'.
   d refreshWorkspace.
   d findRestarts.
   d printBacktrace &showLocation: True.
   d describeRestarts.
+  out ; '\nEnter \'help.\' for instructions.\n'.
 
-  [d prompt] loop
+  [
+  "Print out the restarting options with a prompt and numeric labels, and read
+in the selected option number, returning it if valid."
+  out ; d prompt.
+  out flush.
+  [| expr result restartNumeric |
+   expr: d parser next.
+   result: (expr evaluateIn: d namespace).
+   restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
+   "Exclude selections of restarts and other commands from printing."
+   restartNumeric \/
+     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
+      ifFalse:
+        [result printOn: out.
+          out newLine.
+          out flush].
+   restartNumeric ifTrue: [d signalRestartAt: result].
+   ] on: SeriousCondition
+    do: [| :c |
+      out ; '\nThe following condition was signaled from within the debugger:\n'.
+      c describeOn: d printer.
+      (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [out ; 'End of input, exiting...\n'. lobby exit].
+      c exit]] loop.
 ].

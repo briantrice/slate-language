@@ -1,9 +1,8 @@
 ;;; @(#) slate-mode.el --- Slate mode
-;;; @(#) $Id: slate-mode.el,v 1.7 2005/02/16 21:33:45 water Exp $
 
-;; Copyright (C) 2002 Lee Salzman and Brian T. Rice.
+;; Copyright (C) 2002-2009 Lee Salzman and Brian T. Rice.
 
-;; Authors: Brian T. Rice <water@tunes.org>
+;; Authors: Brian T. Rice <BrianTRice@gmail.com>
 ;; Created: August 21, 2002
 ;; Keywords: languages oop
 
@@ -70,7 +69,7 @@
    (list (read-string "Namespace: " "lobby")
 	 (read-string "New Name: " "x")
 	 (read-string "Parent: " "Cloneable")))
-  (insert (format "%s addPrototype: #%s derivedFrom: {%s}."
+  (insert (format "%s define: #%s &parents: {%s}."
 		  namespace proto-name parent))
   (save-excursion
     (insert (format "\n\"A %s is a %s.\"\n" proto-name parent))))
@@ -101,7 +100,7 @@
        (":" . slate-colon)
        ;;("@" . slate-dispatch)
        ;;("\C-c\C-d" . slate-category-definition)
-       ("\C-cc" . slate-compile)
+       ;;("\C-cc" . slate-compile)
        ("\C-cd" . slate-macroexpand-region)
        ("\C-ce" . slate-eval-region)
        ("\C-cf" . slate-filein)
@@ -247,17 +246,23 @@
 
 (require 'comint)
 
-(defconst slate-prompt-regexp "^Slate [0-9]+>"
+(defconst slate-prompt-regexp "^slate[-A-z]*\[[0-9]+\]>"
   "Regexp to match prompts in slate buffer.")
 
-(defconst slate-debug-prompt-regexp "^Debug \[[0-9]+[.][.][0-9]+\]:"
+(defconst slate-debug-prompt-regexp "^slate-debug\[[0-9]+[.]?[.]?[0-9]+?\]>"
   "Regexp to match prompts in slate buffer.")
 
 (defconst slate-prompt-line-regexp (concat slate-prompt-regexp " .*")
   "Regexp to match the prompt line in the slate buffer.")
 
+(defconst slate-debug-frame-regexp "^\\(frame: [0-9]+\\)"
+  "Regexp to match the frame line label in the Slate debugger.")
+
 (defconst slate-debug-fileref-regexp " @ \\([-A-z/_.]+:[0-9]+\\)$"
-  "Regexp to match filename:linenumber in the slate buffer.")
+  "Regexp to match filename:linenumber in the Slate debugger.")
+
+(defconst slate-debug-restart-regexp "^restart: [0-9]+"
+  "Regexp to match restart listings in the Slate debugger.")
 
 (defvar slate-cmd "slate"
   "The name/path of the VM to be executed for the interactive mode.")
@@ -291,11 +296,21 @@
 (define-key slate-fileref-keymap [return] 'slate-follow-name-at-point)
 (define-key slate-fileref-keymap [mouse-1] 'slate-follow-name-at-point)
 
+(defvar slate-frameref-keymap (copy-keymap slate-inf-mode-map))
+(set-keymap-parent slate-frameref-keymap slate-inf-mode-map)
+(define-key slate-frameref-keymap [return] 'slate-run-code-at-point)
+(define-key slate-frameref-keymap [mouse-1] 'slate-run-code-at-point)
+
+(defvar slate-restart-keymap (copy-keymap slate-inf-mode-map))
+(set-keymap-parent slate-restart-keymap slate-inf-mode-map)
+(define-key slate-restart-keymap [return] 'slate-run-code-at-point)
+(define-key slate-restart-keymap [mouse-1] 'slate-run-code-at-point)
+
 (defconst slate-inf-font-lock-keywords
-  `((,slate-prompt-regexp . 'italic)	; italicized prompt
-    (,slate-debug-prompt-regexp . 'font-lock-warning-face) ; the debug prompt
+  `((,slate-prompt-regexp . 'comint-highlight-prompt)	; normal prompt
+    (,slate-debug-prompt-regexp . 'comint-highlight-prompt) ; debug prompt
     ("^\\(Warning\\|Error\\):" . 'font-lock-warning-face) ; warnings/errors
-    ("^\\(Loading\\) " . 'font-lock-warning-face) ; informative
+    ("^[ ]*\\(Loading\\) " . 'font-lock-warning-face) ; informative
     ;(,slate-debug-fileref-regexp 1 'link) ; filename/lineno debugger reports
     ("^Slate:" . compilation-info-face) ; VM messages
     ,@slate-font-lock-keywords)
@@ -315,6 +330,8 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   (kill-all-local-variables)
   (comint-mode)
   (setq comint-prompt-regexp slate-prompt-line-regexp)
+  (setq comint-use-prompt-regexp t)
+  (setq comint-prompt-read-only t)
   (setq major-mode 'slate-inf-mode)
   (setq mode-name "Slate Interaction")
   (use-local-map slate-inf-mode-map)
@@ -351,6 +368,16 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
       (setq mode-name "Slate Workspace")
       (font-lock-mode))
     (pop-to-buffer "*slate-scratch*")))
+
+(defun slate-run-code-at-point ()
+  (interactive)
+  (let* ((overlays (overlays-at (point)))
+	 (first-overlay (car overlays))
+	 (code (buffer-substring-no-properties (overlay-start first-overlay)
+				    (overlay-end first-overlay))))
+    (goto-char (point-max))
+    (insert code)
+    (comint-send-string inferior-slate-buffer-name (concat code ".\n"))))
 
 (defun slate-follow-name-at-point ()
   "Follows a file reference of the form filename:linenumber at/after the point."
@@ -420,6 +447,15 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
       nil)))
 
 ;(defun slate-inf-sentinel ())
+(when (featurep 'xemacs)
+  (require 'overlay))
+
+(defun slate-overlay (begin end face mouse-face action help)
+  (let ((the-overlay (make-overlay begin end)))
+    (overlay-put the-overlay 'face face)
+    (overlay-put the-overlay 'mouse-face mouse-face)
+    (overlay-put the-overlay 'help-echo help)
+    the-overlay))
 
 (defun slate-inf-filter (process string)
   "Make sure that the window continues to show the most recently output
@@ -437,24 +473,31 @@ text."
 	      ((= ch ?\C-b)		;start of command
 	       (setq slate-output-buffer "") ;start this off
 	       (setq string (substring string (1+ where)))))))
-    
     (save-excursion
       (set-buffer (process-buffer process))
       (goto-char (point-max))
       (when string
 	(setq mode-status "Idle")
 	(insert string))
-      ; Handle debugger file references:
+      ; Handle most recent debugger output:
       (save-excursion
-	(goto-char (point-min))
-	(let (fileref-end)
-	  (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
-	    (let* ((fileref-overlay (make-overlay (match-beginning 1) fileref-end))
-		   (fileref (match-string 1)))
-	      (overlay-put fileref-overlay 'face 'tool-bar)
-	      (overlay-put fileref-overlay 'mouse-face 'highlight)
-	      (overlay-put fileref-overlay 'keymap slate-fileref-keymap)
-	      (replace-match "" t t)))))
+	(goto-char (point-max))
+	(re-search-backward "^Debugging: " nil t)
+        ; Handle debugger file references:
+	(save-excursion
+	  (let (fileref-end)
+	    (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
+	      (let ((fileref-overlay (slate-overlay (match-beginning 1) fileref-end 'link 'highlight nil "mouse-1: visit this file and line")))
+		(overlay-put fileref-overlay 'keymap slate-fileref-keymap)))))
+        ; Handle debugger frame references:
+	(while (re-search-forward slate-debug-frame-regexp nil t)
+	  (let ((frameref-overlay (slate-overlay (match-beginning 1) (match-end 1) 'button nil nil "mouse-1: navigate to this frame")))
+	    (overlay-put frameref-overlay 'keymap slate-frameref-keymap)))
+	; Handle debugger restart listing:
+	(let (restart-end)
+	  (while (setq restart-end (re-search-forward slate-debug-restart-regexp nil t))
+	    (let ((restart-overlay (slate-overlay (match-beginning 0) restart-end 'button nil nil "mouse-1: select this restart")))
+	      (overlay-put restart-overlay 'keymap slate-restart-keymap)))))
       (when (process-mark process)
 	(set-marker (process-mark process) (point-max)))))
   (let ((buf (current-buffer)))
@@ -490,7 +533,7 @@ text."
     (goto-char end)
     (slate-backward-whitespace)
     (comint-send-region inferior-slate-buffer-name start (point))
-    (process-send-string
+    (comint-send-string
      inferior-slate-buffer-name
      (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n"))
     (display-buffer inferior-slate-buffer-name t)))
@@ -502,11 +545,11 @@ text."
   (save-excursion
     (goto-char end)
     (slate-backward-whitespace)
-    (process-send-string
+    (comint-send-string
      inferior-slate-buffer-name
      "`(")
     (comint-send-region inferior-slate-buffer-name start (point))
-    (process-send-string
+    (comint-send-string
      inferior-slate-buffer-name
      ") macroExpand.\n")
     (display-buffer inferior-slate-buffer-name t)))
@@ -524,7 +567,7 @@ into the current buffer after the cursor."
     (goto-char end)
     (slate-backward-whitespace)
     (comint-send-region inferior-slate-buffer-name start (point))
-    (process-send-string
+    (comint-send-string
      inferior-slate-buffer-name
      (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
   (set-process-filter *slate-process* 'slate-inf-filter))
@@ -533,23 +576,14 @@ into the current buffer after the cursor."
   "Terminate the Slate session and associated process."
   (interactive)
   (setq mode-status "Quitting")
-  (process-send-string inferior-slate-buffer-name "quit.\n"))
+  (comint-send-eof))
 
 (defun slate-snapshot (filename)
   "Save a Slate snapshot."
   (interactive "FSnapshot name to save:")
   (setq mode-status "Saving")
-  (process-send-string inferior-slate-buffer-name
+  (comint-send-string inferior-slate-buffer-name
 		       (format "Image saveNamed: '%s'.\n"
-			       (expand-file-name filename))))
-
-'(defun slate-compile (filename)
-  "Do a compileFileNamed: on FILENAME."
-  (interactive "FSlate file to compile: ")
-  (slate-ensure-running)
-  (setq mode-status "Compiling")
-  (process-send-string inferior-slate-buffer-name
-		       (format "lobby compileFileNamed: '%s'.\n"
 			       (expand-file-name filename))))
 
 (defun slate-filein (filename)
@@ -557,7 +591,7 @@ into the current buffer after the cursor."
   (interactive "FSlate file to load: ")
   (slate-ensure-running)
   (setq mode-status "Loading")
-  (process-send-string inferior-slate-buffer-name
+  (comint-send-string inferior-slate-buffer-name
 		      (format "load: '%s'.\n" (expand-file-name filename))))
 
 (defun slate-unit-tests (filename)
@@ -565,33 +599,46 @@ into the current buffer after the cursor."
   (interactive "FUnit-test file to load: ")
   (slate-filein filename)
   (setq mode-status "Running tests")
-  (process-send-string inferior-slate-buffer-name
+  (comint-send-string inferior-slate-buffer-name
 		      "load: '%s'.\n" (expand-file-name filename))
-  (process-send-string inferior-slate-buffer-name
+  (comint-send-string inferior-slate-buffer-name
 		      "Tests CurrentUnit testSuite.\n"))
 
-(defun slate-send (str &optional mode)
-  (let (temp-file buf old-buf)
-    (setq temp-file (concat temporary-file-directory (make-temp-name "slate")))
-    (save-excursion
-      (setq buf (get-buffer-create " zap-buffer "))
-      (set-buffer buf)
-      (erase-buffer)
-      (princ str buf)
-      (write-region (point-min) (point-max) temp-file nil 'no-message))
-    (kill-buffer buf)
-    ;; this should probably be conditional
-    (save-window-excursion (slate slate-args))
-    (setq old-buf (current-buffer))
-    (setq buf (process-buffer *slate-process*))
-    (pop-to-buffer buf)
-    (when mode
-      (setq mode-status mode))
-    (goto-char (point-max))
-    (newline)
-    (pop-to-buffer old-buf)
-    (process-send-string *slate-process*
-			   (format "'%s' fileIn.\n" temp-file))))
+(defun slate-send-input (string)
+  (slate-ensure-running)
+  (set-buffer (get-buffer-create inferior-slate-buffer-name))
+  (save-excursion
+    (point-max)
+    (insert string)
+    (insert (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
+  (setq mode-status "Running")
+  (comint-send-string inferior-slate-buffer-name string)
+  (comint-send-string
+   inferior-slate-buffer-name
+   (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
+
+;; (defun slate-send (str &optional mode)
+;;   (let (temp-file buf old-buf)
+;;     (setq temp-file (concat temporary-file-directory (make-temp-name "slate")))
+;;     (save-excursion
+;;       (setq buf (get-buffer-create " zap-buffer "))
+;;       (set-buffer buf)
+;;       (erase-buffer)
+;;       (princ str buf)
+;;       (write-region (point-min) (point-max) temp-file nil 'no-message))
+;;     (kill-buffer buf)
+;;     ;; this should probably be conditional
+;;     (save-window-excursion (slate slate-args))
+;;     (setq old-buf (current-buffer))
+;;     (setq buf (process-buffer *slate-process*))
+;;     (pop-to-buffer buf)
+;;     (when mode
+;;       (setq mode-status mode))
+;;     (goto-char (point-max))
+;;     (newline)
+;;     (pop-to-buffer old-buf)
+;;     (comint-send-string *slate-process*
+;; 			   (format "load: '%s'.\n" temp-file))))
 
 ;; Imenu Support
 ;; =============
