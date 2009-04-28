@@ -4,7 +4,7 @@
 word_t socket_return(word_t ret) {
 
   if (ret >= 0) return ret;
-  perror("socket_return");
+  
   switch (-ret) {
 #ifdef WIN32
 	  // TODO WIN32 port
