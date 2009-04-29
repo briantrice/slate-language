@@ -662,16 +662,62 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeof(word_t));
 }
 
+#ifdef WIN32 // gettimeofday() ported to WIN32 for prim_timeSinceEpoch()
+
+#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+#else
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+#endif
+
+struct timezone 
+{
+  int  tz_minuteswest; /* minutes W of Greenwich */
+  int  tz_dsttime;     /* type of dst correction */
+};
+
+int gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+  FILETIME ft;
+  unsigned __int64 tmpres = 0;
+  static int tzflag = 0;
+
+  if (NULL != tv)
+  {
+    GetSystemTimeAsFileTime(&ft);
+
+    tmpres |= ft.dwHighDateTime;
+    tmpres <<= 32;
+    tmpres |= ft.dwLowDateTime;
+
+    tmpres /= 10;  /*convert into microseconds*/
+    /*converting file time to unix epoch*/
+    tmpres -= DELTA_EPOCH_IN_MICROSECS; 
+    tv->tv_sec = (long)(tmpres / 1000000UL);
+    tv->tv_usec = (long)(tmpres % 1000000UL);
+  }
+
+  if (NULL != tz)
+  {
+    if (!tzflag)
+    {
+      _tzset();
+      tzflag++;
+    }
+    tz->tz_minuteswest = _timezone / 60;
+    tz->tz_dsttime = _daylight;
+  }
+
+  return 0;
+}
+
+#endif
+
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t time;
   struct timeval tv;
-#ifdef WIN32
-#pragma message("TODO WIN32 time-since-epoch")
-  time = 0;
-#else
   gettimeofday(&tv, NULL);
   time = (word_t)tv.tv_sec * 1000000 + (word_t)tv.tv_usec;
-#endif
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(time);
 }
 
