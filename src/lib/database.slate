@@ -14,9 +14,16 @@ TODO:
 lobby ensureNamespace: #DB &delegate: False.
 
 
-DB define: #Database &parents: {Cloneable}.
+DB define: #Database &parents: {Cloneable} &slots: {#verbose -> False}.
 DB define: #DatabaseCommand &parents: {DB Database} &slots: {}.
 DB define: #DatabaseReply &parents: {DB Database} &slots: {}.
+
+
+db@(DB Postgres traits) inform: str
+[
+  db verbose ifTrue: [lobby inform: str].
+].
+
 
 DB define: #Postgres &parents: {DB Database} &slots: {#stream -> Nil}.
 DB define: #PostgresReply &parents: {DB DatabaseReply} &slots: {#type -> Nil. #length -> 0. #response -> Nil}.
@@ -86,7 +93,7 @@ db@(DB Postgres traits) sendCommand: cmd@(DB PostgresCommand traits)
 
 db@(DB Postgres traits) close
 [
-  inform: 'closing postgres connection'.
+  db inform: 'closing postgres connection'.
   db stream close.
 ].
 
@@ -159,17 +166,17 @@ db@(DB Postgres traits) md5Encrypt: pw salt: salt
 db@(DB Postgres traits) handleLogin: user password: pw
 [ | cmd reply reply authCode|
   reply: db readReply.
-  inform: 'reply: ' ; reply printString.
+  db inform: 'reply: ' ; reply printString.
   reply isError ifTrue: [error: 'Login Failed. ' ; reply printError].
   reply type ~= $R code ifTrue: [error: 'Reply from server is not an authentication request'].
   authCode: ((reply response first: 4) as: Integer &bigEndian: True).
-  inform: 'auth code: ' ; authCode printString.
+  db inform: 'auth code: ' ; authCode printString.
   authCode = 0 ifTrue: [ ^ True].
   authCode = 5 "md5 with salt on pw"
-    ifTrue: [inform: 'salt: ' ; (reply response allButFirst: 4) printString.
+    ifTrue: [db inform: 'salt: ' ; (reply response allButFirst: 4) printString.
              cmd: (DB PostgresPasswordMessage new `>> [password: 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
              cmd length: cmd packed size - 1.
-             inform: 'sending md5 pw: ' ; cmd password printString.
+             db inform: 'sending md5 pw: ' ; cmd password printString.
              db sendCommand: cmd.
              ^ (db handleLogin: user password: pw)
              ]
@@ -184,7 +191,7 @@ db@(DB Postgres traits) loginAs: user password: pw &database: database
   cmd: (DB PostgresStartCommand new `>> [user: user. database: database. ]).
   cmd length: cmd packed size.
   db sendCommand: cmd.
-  (db handleLogin: user password: pw) ifTrue: [inform: 'Login success'].
+  (db handleLogin: user password: pw) ifTrue: [db inform: 'Login success'].
   db waitForQuery.
 ].
 
@@ -195,10 +202,10 @@ db@(DB Postgres traits) waitForQuery
  [
   reply: db readReply.
   reply type caseOf: {
-    $S code -> [inform: 'parameter status ' ; reply printString].
+    $S code -> [db inform: 'parameter status ' ; reply printString].
     $E code -> [error: 'Error: ' ; reply printError. ].
-    $K code -> [inform: 'Receiving Key data'].
-    $Z code -> [inform: 'Ready for query'. ^ True].
+    $K code -> [db inform: 'Receiving Key data'].
+    $Z code -> [db inform: 'Ready for query'. ^ True].
   } otherwise: [error: 'unexpected reply: ' ; reply printString]
  ] loop.
 ].
@@ -228,11 +235,11 @@ db@(DB Postgres traits) readQueryResult
   reply: db readReply.
   reader: reply response reader.
   reply type caseOf: {
-    $N code -> [inform: 'Notice: ' ; reply printError].
-    $C code -> [inform: 'Command Complete'. result add: {rowDescription. rows}].
+    $N code -> [db inform: 'Notice: ' ; reply printError].
+    $C code -> [db inform: 'Command Complete'. result add: {rowDescription. rows}].
     $E code -> [error: 'Read Query Result Error: ' ; reply printError. ].
-    $I code -> [inform: 'Empty query response.'].
-    $D code -> [inform: 'Data row'.
+    $I code -> [db inform: 'Empty query response.'].
+    $D code -> [db inform: 'Data row'.
                 columnCount: ((reader next: 2) as: Integer &bigEndian: True).
                 rows add: ((0 below: columnCount)
                                 collect: [ | :col entrySize entry|
@@ -240,7 +247,7 @@ db@(DB Postgres traits) readQueryResult
                                             entrySize < 0 ifTrue: [Nil]
                                                           ifFalse: [(rowDescription at: col) createEntryFrom: (reader next: entrySize)]]).
                 ].
-    $T code -> [inform: 'Row description.'. 
+    $T code -> [db inform: 'Row description.'. 
                 rowDescription: (Array newSize: ((reader next: 2) as: Integer &bigEndian: True)).
                 0 below: rowDescription size do:
                   [ | :i column |
@@ -253,10 +260,10 @@ db@(DB Postgres traits) readQueryResult
                      column typeSize: ((reader next: 2) as: Integer &bigEndian: True).
                      column typeModifier: ((reader next: 4) as: Integer &bigEndian: True).
                      column format: ((reader next: 2) as: Integer &bigEndian: True).
-                     inform: 'column: ' ; column printString.
+                     db inform: 'column: ' ; column printString.
                      rowDescription at: i put: column.
                   ]].
-    $Z code -> [inform: 'Ready for query'. ^ result].
+    $Z code -> [db inform: 'Ready for query'. ^ result].
   } otherwise: [error: 'unexpected reply: ' ; reply printString]
  ] loop.
 ].

@@ -351,7 +351,7 @@ p@(Xml Parser traits) parseDocument
   p parse
 ].
 
-Xml define: #Writer &parents: {WrapperStream} &slots: {#tagStack -> Stack new}.
+Xml define: #Writer &parents: {Stream WrapperStream} &slots: {#tagStack -> Stack new}.
 
 w@(Xml Writer traits) on: outputStream
 [
@@ -365,14 +365,19 @@ w@(Xml Writer traits) emitAttribute: key valued: value
 
 w@(Xml Writer traits) inTag: tagName do: block &attributes: attributes
 [
+  attributes `defaultsTo: #().
   w original ; '<' ; tagName.
-  ((attributes is: Sequence) ifTrue: [#pairsDo:] ifFalse: [#keysAndValuesDo:])
-    sendTo: {attributes. [| :key :value | w emitAttribute: key valued: value]}.
+  attributes do: [| :item | w emitAttribute: item key valued: item value].
   w original ; '>'.
   w tagStack push: tagName.
   block applyWith: w.
   w original ; '</' ; tagName ; '>'.
-  w tagStack pop: tagName.
+  w tagStack pop.
+].
+
+w@(Xml Writer traits) inTag: tagName print: string
+[
+  w inTag: tagName do: [|:w| w nextPutAll: string]
 ].
 
 w@(Xml Writer traits) encodeCharacter: char
@@ -385,7 +390,7 @@ w@(Xml Writer traits) encodeCharacter: char
     $\n -> ['<br/>'].
     $\r -> ['<br/>'].
     $\t -> ['&nbsp;&nbsp;&nbsp;'].
-  }.
+  }
 ].
 
 w@(Xml Writer traits) nextPutAll: c
@@ -405,17 +410,30 @@ w@(Xml Writer traits) emitHeader
   w original ; '<?xml version="1.0"?>\n'.
 ].
 
+w@(Xml Writer traits) writeCharacterData: cdata
+[ "fixme ensure cdata doesn't contain terminator"
+  w original ; '<![CDATA['.
+  w original ; cdata.
+  w original ; ']]>'.
+].
+
+
 Xml define: #XHTMLWriter &parents: {Xml Writer}.
 
-w@(Xml XHTMLWriter traits) inDocumentDo: block
+w@(Xml XHTMLWriter traits) emitHeader
+[
+  w original ; '<?xml version="1.0"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n'.
+].
+
+w@(Xml XHTMLWriter traits) inDocumentDo: block &head: head &attributes: attrib
 [
   w emitHeader.
   w inTag: 'html' do:
     [| :w |
-     w inTag: 'head' do: [| :w | ].
+     w inTag: 'head' do: [| :w | head ifNotNil: [ head applyWith: w]].
      w inTag: 'body' do:
        [| :w |
 	block applyWith: w.
 	]
-    ].
+    ] &attributes: attrib.
 ].
