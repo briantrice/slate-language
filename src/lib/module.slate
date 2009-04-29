@@ -322,24 +322,14 @@ which load those features transparently and return them once done."
     'tree'. 'tokenizer'. 'sortedSet'. 'relation'.
     'singleSet'. 'matrix'. 'wordarray'.
     'terminal'. 'version'. 'test'. 'random'. 'xml'.
-    'suspension'. 'process'. 'promise'.
+    'suspension'. 'process'.
     'graph'. 'digraph'}
     collect: [| :name | 'src/lib/' ; name ; '.slate']) ;
-  "C-generation code."
-  ({'types'. 'syntax'. 'cr'. 'writer'. 'rules'. 'generator'}
-    collect: [| :name | 'src/mobius/c/' ; name ; '.slate']) ;
   "Networking libraries, platform libraries."
-  {'src/lib/net/socket.slate'. 'src/lib/net/http.slate'.
-   'src/plugins/socket/unix/socket.slate'.
-   'src/plugins/platform/platform.slate'} ;
+  {'src/net/sockets.slate'. 'src/net/http.slate'} ;
   "Bootstrapper libraries."
   ({'bootstrap'. 'build'}
-    collect: [| :name | 'src/mobius/vm/' ; name ; '.slate']) ;
-  "UI libraries."
-  ({'color'. 'event'. 'region'. 'transform'. 'graphics'. 'layout'.
-    'colormap'. 'command'. 'curve'. 'ellipse'. 'form'. 'lines'. 'medium'.
-    'morph'. 'path'. 'pen'. 'port'. 'presentation'. 'text'}
-    collect: [| :name | 'src/ui/' ; name ; '.slate']) as: Set)}.
+    collect: [| :name | 'src/mobius/' ; name ; '.slate']) as: Set)}.
 
 l@AutoLoader readFromSourceIn: file
 "Parses the source in the specified file and creates entries for each path
@@ -357,7 +347,9 @@ l@AutoLoader performScan &files: fileList
 to the in-memory database."
 [
   fileList `defaultsTo: l standardFiles.
-  fileList do: [| :file | l readFromSourceIn: file]
+  fileList do: [| :file |
+		inform: 'Scanning \'' ; file ; '\''.
+		l readFromSourceIn: file]
 ].
 
 l@AutoLoader install: m@(Module traits) when: selector isCalledOn: namespace
