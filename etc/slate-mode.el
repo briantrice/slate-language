@@ -298,13 +298,13 @@
 
 (defvar slate-frameref-keymap (copy-keymap slate-inf-mode-map))
 (set-keymap-parent slate-frameref-keymap slate-inf-mode-map)
-(define-key slate-frameref-keymap [return] 'slate-run-code-at-point)
-(define-key slate-frameref-keymap [mouse-1] 'slate-run-code-at-point)
+(define-key slate-frameref-keymap [return] 'slate-run-overlay-at-point)
+(define-key slate-frameref-keymap [mouse-1] 'slate-run-overlay-at-point)
 
 (defvar slate-restart-keymap (copy-keymap slate-inf-mode-map))
 (set-keymap-parent slate-restart-keymap slate-inf-mode-map)
-(define-key slate-restart-keymap [return] 'slate-run-code-at-point)
-(define-key slate-restart-keymap [mouse-1] 'slate-run-code-at-point)
+(define-key slate-restart-keymap [return] 'slate-run-overlay-at-point)
+(define-key slate-restart-keymap [mouse-1] 'slate-run-overlay-at-point)
 
 (defconst slate-inf-font-lock-keywords
   `((,slate-prompt-regexp . 'comint-highlight-prompt)	; normal prompt
@@ -369,7 +369,7 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
       (font-lock-mode))
     (pop-to-buffer "*slate-scratch*")))
 
-(defun slate-run-code-at-point ()
+(defun slate-run-overlay-at-point ()
   (interactive)
   (let* ((overlays (overlays-at (point)))
 	 (first-overlay (car overlays))
@@ -377,7 +377,7 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
 				    (overlay-end first-overlay))))
     (goto-char (point-max))
     (insert code)
-    (comint-send-string inferior-slate-buffer-name (concat code ".\n"))))
+    (slate-send-input code)))
 
 (defun slate-follow-name-at-point ()
   "Follows a file reference of the form filename:linenumber at/after the point."
@@ -460,51 +460,52 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
 (defun slate-inf-filter (process string)
   "Make sure that the window continues to show the most recently output
 text."
-  (let ((where 0) ch command-str)
-    (while (and string where)
-      (when slate-output-buffer
-	(setq string (slate-accum-command string)))
-      (when (and string
-		 (setq where (string-match "\C-a\\|\C-b" string)))
-	(setq ch (aref string where))
-	(cond ((= ch ?\C-a)		;strip these out
-	       (setq string (concat (substring string 0 where)
-				    (substring string (1+ where)))))
-	      ((= ch ?\C-b)		;start of command
-	       (setq slate-output-buffer "") ;start this off
-	       (setq string (substring string (1+ where)))))))
-    (save-excursion
-      (set-buffer (process-buffer process))
-      (goto-char (point-max))
-      (when string
-	(setq mode-status "Idle")
-	(insert string))
-      ; Handle most recent debugger output:
-      (save-excursion
-	(goto-char (point-max))
-	(re-search-backward "^Debugging: " nil t)
-        ; Handle debugger file references:
+  (with-current-buffer (process-buffer process)
+    (when (buffer-name (current-buffer))
+      (let ((where 0) ch command-str
+	    (moving (= (point) (process-mark process))))
+	(while (and string where)
+	  (when slate-output-buffer
+	    (setq string (slate-accum-command string)))
+	  (when (and string
+		     (setq where (string-match "\C-a\\|\C-b" string)))
+	    (setq ch (aref string where))
+	    (cond ((= ch ?\C-a)		;strip these out
+		   (setq string (concat (substring string 0 where)
+					(substring string (1+ where)))))
+		  ((= ch ?\C-b)		       ;start of command
+		   (setq slate-output-buffer "") ;start this off
+		   (setq string (substring string (1+ where)))))))
 	(save-excursion
-	  (let (fileref-end)
-	    (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
-	      (let ((fileref-overlay (slate-overlay (match-beginning 1) fileref-end 'link 'highlight nil "mouse-1: visit this file and line")))
-		(overlay-put fileref-overlay 'keymap slate-fileref-keymap)))))
-        ; Handle debugger frame references:
-	(while (re-search-forward slate-debug-frame-regexp nil t)
-	  (let ((frameref-overlay (slate-overlay (match-beginning 1) (match-end 1) 'button nil nil "mouse-1: navigate to this frame")))
-	    (overlay-put frameref-overlay 'keymap slate-frameref-keymap)))
-	; Handle debugger restart listing:
-	(let (restart-end)
-	  (while (setq restart-end (re-search-forward slate-debug-restart-regexp nil t))
-	    (let ((restart-overlay (slate-overlay (match-beginning 0) restart-end 'button nil nil "mouse-1: select this restart")))
-	      (overlay-put restart-overlay 'keymap slate-restart-keymap)))))
-      (when (process-mark process)
-	(set-marker (process-mark process) (point-max)))))
-  (let ((buf (current-buffer)))
-    (set-buffer (process-buffer process))
-    (goto-char (point-max)) (sit-for 0)
-    (set-window-point (get-buffer-window (current-buffer)) (point-max))
-    (set-buffer buf)))
+	  (goto-char (point-max))
+	  (when string
+	    (setq mode-status "Idle")
+	    (insert string))
+	  (save-excursion	 ; Handle most recent debugger output:
+	    (goto-char (point-max))
+	    (re-search-backward "^Debugging: " nil t)
+	    (save-excursion	    ; Handle debugger file references:
+	      (let (fileref-end)
+		(while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
+		  (let ((fileref-overlay (slate-overlay (match-beginning 1) fileref-end 'link 'highlight nil "mouse-1: visit this file and line")))
+		    (overlay-put fileref-overlay 'keymap slate-fileref-keymap)))))
+					; Handle debugger frame references:
+	    (while (re-search-forward slate-debug-frame-regexp nil t)
+	      (let ((frameref-overlay (slate-overlay (match-beginning 1) (match-end 1) 'button nil nil "mouse-1: navigate to this frame")))
+		(overlay-put frameref-overlay 'keymap slate-frameref-keymap)))
+					; Handle debugger restart listing:
+	    (let (restart-end)
+	      (while (setq restart-end (re-search-forward slate-debug-restart-regexp nil t))
+		(let ((restart-overlay (slate-overlay (match-beginning 0) restart-end 'button nil nil "mouse-1: select this restart")))
+		  (overlay-put restart-overlay 'keymap slate-restart-keymap)))))
+	  (when (process-mark process)
+	    (set-marker (process-mark process) (point-max))))
+	(if moving (goto-char (process-mark process)))
+	(sit-for 0)
+	(set-window-point (get-buffer-window (current-buffer)) (point-max))))))
+
+(defun slate-inf-filter-redirect (process string)
+  )
 
 (defvar slate-interactor-mode-map
   (let ((map (copy-keymap slate-mode-map)))
@@ -532,10 +533,7 @@ text."
   (save-excursion
     (goto-char end)
     (slate-backward-whitespace)
-    (comint-send-region inferior-slate-buffer-name start (point))
-    (comint-send-string
-     inferior-slate-buffer-name
-     (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n"))
+    (slate-send-input (buffer-substring-no-properties start (point)))
     (display-buffer inferior-slate-buffer-name t)))
 
 (defun slate-macroexpand-region (start end)
@@ -558,18 +556,14 @@ text."
   "Performs `slate-eval-region' on the current region and inserts the output
 into the current buffer after the cursor."
   (interactive "r")
-  (let ((orig-buffer (current-buffer)))
-    (slate-ensure-running)
-    (set-process-filter
-     *slate-process*
-     (lambda (proc string) (insert string orig-buffer))))
+  (slate-ensure-running)
+  (set-process-filter *slate-process*
+		      (lambda (proc string) (insert string)))
   (save-excursion
     (goto-char end)
     (slate-backward-whitespace)
-    (comint-send-region inferior-slate-buffer-name start (point))
-    (comint-send-string
-     inferior-slate-buffer-name
-     (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
+    (slate-send-input (buffer-substring-no-properties start (point)) t)
+    (accept-process-output *slate-process*))
   (set-process-filter *slate-process* 'slate-inf-filter))
 
 (defun slate-quit ()
@@ -582,35 +576,32 @@ into the current buffer after the cursor."
   "Save a Slate snapshot."
   (interactive "FSnapshot name to save:")
   (setq mode-status "Saving")
-  (comint-send-string inferior-slate-buffer-name
-		       (format "Image saveNamed: '%s'.\n"
-			       (expand-file-name filename))))
+  (slate-send-input (format "Image saveNamed: '%s'"
+			    (expand-file-name filename))))
 
 (defun slate-filein (filename)
   "Do a load: on FILENAME."
   (interactive "FSlate file to load: ")
   (slate-ensure-running)
   (setq mode-status "Loading")
-  (comint-send-string inferior-slate-buffer-name
-		      (format "load: '%s'.\n" (expand-file-name filename))))
+  (slate-send-input (format "load: '%s'" (expand-file-name filename))))
 
 (defun slate-unit-tests (filename)
   "Load the unit-test file for the current file and run the tests."
   (interactive "FUnit-test file to load: ")
   (slate-filein filename)
   (setq mode-status "Running tests")
-  (comint-send-string inferior-slate-buffer-name
-		      "load: '%s'.\n" (expand-file-name filename))
-  (comint-send-string inferior-slate-buffer-name
-		      "Tests CurrentUnit testSuite.\n"))
+  (slate-send-input (format "load: '%s'" (expand-file-name filename)))
+  (slate-send-input "Tests CurrentUnit testSuite"))
 
-(defun slate-send-input (string)
+(defun slate-send-input (string &optional hide-p)
   (slate-ensure-running)
   (set-buffer (get-buffer-create inferior-slate-buffer-name))
-  (save-excursion
-    (point-max)
-    (insert string)
-    (insert (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n")))
+  (unless hide-p
+    (save-excursion
+      (point-max)
+      (insert string)
+      (insert (if (and (>= (point) 2) (equal (preceding-char) ?.)) "\n" ".\n"))))
   (setq mode-status "Running")
   (comint-send-string inferior-slate-buffer-name string)
   (comint-send-string
