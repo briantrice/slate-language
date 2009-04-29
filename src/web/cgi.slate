@@ -1,15 +1,35 @@
 
 "Cgi define: #Writer &parents: {Parsing BasicParser} &slots: {#rootElement}."
 
-lobby define: #Cgi &parents: {Cloneable} &slots: {#variables. #out. #xhtml}.
+lobby define: #Cgi &parents: {Cloneable} &slots: {#variables. #out. #xhtml. #postString. #getString. #getValues. #postValues}.
+
+
+_@(Cgi traits) parseQueryString: queryString into: dict
+[
+  (queryString splitWithAny: {$&}) do: [|:x s key value| 
+                                          s: ((x as: String) reader).
+                                          key: (s upTo: $=).
+                                          value: (s upToEnd replaceAll: $+ with: $\s). "fixme percent hex codes"
+                                          dict at: key put: value].
+].
 
 Image startupActions
       at: #Cgi
       put: [Cgi variables: Dictionary new.
+            Cgi getValues: Dictionary new.
+            Cgi postValues: Dictionary new.
             lobby environmentVariables do: [|:x s| s: ((x as: String) reader).
                                             Cgi variables at: (s upTo: $=) put: s upToEnd].
             Cgi out: Console writer.
             Cgi out resource handle: 0. "stdout"
             Cgi xhtml: (Xml XHTMLWriter newOn: Cgi out).
+            (Cgi variables at: 'CONTENT_LENGTH' ifAbsent: [Nil])
+               ifNotNilDo: [|:cl| Cgi postString: (Console reader next: (cl as: Integer)).
+                                  Cgi parseQueryString: Cgi postString into: Cgi postValues.
+                            ].
+            (Cgi variables at: 'QUERY_STRING' ifAbsent: [Nil])
+               ifNotNilDo: [|:qs| Cgi getString: qs.
+                                  Cgi parseQueryString: Cgi getString into: Cgi getValues.
+                            ].
             ].
 
