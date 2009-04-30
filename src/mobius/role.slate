@@ -140,10 +140,21 @@ x@(Root traits) methodsNamed: selector
     [| :r | r selector = selector] collect: [| :r | r methodDefinition method]
 ].
 
+x@(Root traits) hasMethodNamed: selector
+[
+  x roleReader anySatisfy: [| :role | role selector == selector]
+].
+
 x@(Root traits) methodsNamed: selector at: dispatchIndex
 [
   (x rolesNamed: selector at: dispatchIndex) select:
     [| :r | r selector = selector] collect: [| :r | r methodDefinition method]
+].
+
+x@(Root traits) hasMethodNamed: selector at: dispatchIndex
+[
+  x roleReader anySatisfy: [| :role | role selector == selector
+			      /\ [role appliesToPosition: dispatchIndex]]
 ].
 
 x@(Root traits) methodsAt: dispatchIndex
