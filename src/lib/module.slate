@@ -142,28 +142,127 @@ m@(Module traits) build
 m@(Module traits) locator
 [overrideThis].
 
-prototypes define: #FileModule &parents: {Module} &slots: {#file -> File}.
+prototypes define: #Load &parents: {Cloneable} &slots: {#source. #parser -> Syntax Parser. #targetNamespace -> lobby. #verbose -> False. #showMessage -> True}.
+Load traits addSlot: #Level valued: 0.
+"How many levels of recursion has load: been invoked on."
+"TODO: This should be a dynamic, not a global."
+Load traits define: #DefaultSourceDir &builder: [Directory current].
+"Records the concrete directory where the sources are available and where
+the bootstrap occurred."
+Load traits define: #defaultPaths &builder: [{Load DefaultSourceDir} as: ExtensibleArray].
+
+l@(Load traits) of: file@(File traits)
+[| oldLevel |
+  l resolvePathOf: file.
+  oldLevel: l Level.
+  l Level: l Level + 1.
+  [file reader sessionDo: [| :input | l process: input] &mode: file Read]
+    ensure: [l Level: oldLevel].
+].
+
+l@(Load traits) resolvePathOf: file@(File traits)
+[
+  (file locator isSameAs: file RelativeLocator)
+    ifTrue:
+      [[file exists] whileFalse:
+	[(l defaultPaths before: file locator basePath)
+	  ifNil: [error: 'Could not find the file relative to any of the default directories.'. ^ Nil]
+	  ifNotNilDo: [| :newL | file locator basePath: newL]]]
+].
+
+l@(Load traits) process: source
+[l source: source. l run].
+
+l@(Load traits) printMessage
+[
+  l Level timesRepeat: [DebugConsole writer nextPut: $\s].
+  inform: 'Loading ' ; l source resource locator printString &target: DebugConsole.
+].
+
+l@(Load traits) skipShebang
+"Ignore an initial she-bang line."
+[
+  (l source peek: 2) = '#!' ifTrue: [l source upTo: $\n].
+].
+
+l@(Load traits) run
+"Evaluate the input from the open source ReadStream."
+[| retry skip |
+  retry: Retry clone.
+  _@retry describeOn: out [ out ; 'Retry loading ' ; fileName printString ;'\n' ].
+  skip: Retry clone.
+  _@skip describeOn: out [ out ; 'Skip loading ' ; fileName printString ; '\n' ].
+  l showMessage ifTrue: [l printMessage].
+  l skipShebang.
+  "Ensure a fresh Parser."
+  [(l parser: (l parser newOn: l source)) do:
+    [| :each |
+     l verbose ifTrue:
+       [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
+	inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
+	each evaluateIn: l targetNamespace]]
+    handlingCases: {retry -> [|:_| ^ (l of: l source resource)].
+                    skip -> [|:_| ^ Nil]}.
+].
+
+_@(Root traits) copyright
+"Describes the copyright for given objects/source. Override this on a per-type
+or per-module basis."
+[
+  (Load DefaultSourceDir / 'LICENSE') sessionDo: [| :in | in >> Console. ].
+].
+
+x@(Root traits) license
+[x copyright].
+
+"Override the more primitive load: commands with high level Module hooks:"
+
+ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
+"A command to open a file with the name, load, and compile/evaluate the
+contents within the argument namespace or an optional override."
+[| src retry skip |
+  src: (File newNamed: fileName &mode: File Read).
+  src exists ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
+	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
+].
+
+ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showMessage
+"A command to open the file, load, and compile/evaluate the
+contents within the argument namespace or an optional override."
+[| oldLevel loader |
+  verbose `defaultsTo: False.
+  namespace `defaultsTo: ns.
+  showMessage `defaultsTo: True.
+  loader: (Load cloneSettingSlots: #(targetNamespace verbose showMessage) to: {namespace. verbose. showMessage}).
+  loader resolvePathOf: file.
+  oldLevel: loader Level.
+  loader Level: loader Level + 1.
+  [file reader sessionDo: [| :input | loader process: input] &mode: file Read]
+    ensure: [loader Level: oldLevel].
+].
+
+prototypes define: #FileModule &parents: {Module} &slots: {#source -> File}.
 "FileModules are Modules which are drastically simplified for the purposes of
 bootstrapping. Requirements and provisions are symbols, and other features are
 ignored."
 
 m@(FileModule traits) newLocated: filename
-[m new `>> [file: (m file newNamed: filename &mode: File Read). ]].
+[m new `>> [source: (m source newNamed: filename &mode: File Read). ]].
 
 f@(File traits) as: m@(Module traits)
-[FileModule new `>> [file: f. ]].
+[FileModule new `>> [source: f. ]].
 
 m@(FileModule traits) locator
-[m file locator].
+[m source locator].
 
 m@(FileModule traits) load &in: namespace
 [
-  lobby load: (m locator as: String) &in: namespace
+  Load of: m source
 ].
 
 m@(FileModule traits) build
 [
-  compileFileNamed: (m locator as: String).
+  m load
 ].
 
 m@(FileModule traits) readDefinitions
@@ -171,7 +270,7 @@ m@(FileModule traits) readDefinitions
 contents."
 "TODO: implement it!"
 [
-  m file
+  m source
     sessionDo: [| :in | ].
   m
 ].
@@ -183,7 +282,7 @@ Module traits define: #DefinitionSelectors
 
 m@(FileModule traits) parseSessionDo: block
 [
-  m file sessionDo:
+  m source sessionDo:
     [| :input | block applyWith: (Syntax Parser newOn: input reader)]
 ].
 
@@ -233,24 +332,14 @@ which load those features transparently and return them once done."
     'tree'. 'tokenizer'. 'sortedSet'. 'relation'.
     'singleSet'. 'matrix'. 'wordarray'.
     'terminal'. 'version'. 'test'. 'random'. 'xml'.
-    'suspension'. 'process'. 'promise'.
+    'suspension'. 'process'.
     'graph'. 'digraph'}
     collect: [| :name | 'src/lib/' ; name ; '.slate']) ;
-  "C-generation code."
-  ({'types'. 'syntax'. 'cr'. 'writer'. 'rules'. 'generator'}
-    collect: [| :name | 'src/mobius/c/' ; name ; '.slate']) ;
   "Networking libraries, platform libraries."
-  {'src/lib/net/socket.slate'. 'src/lib/net/http.slate'.
-   'src/plugins/socket/unix/socket.slate'.
-   'src/plugins/platform/platform.slate'} ;
+  {'src/net/sockets.slate'. 'src/net/http.slate'} ;
   "Bootstrapper libraries."
   ({'bootstrap'. 'build'}
-    collect: [| :name | 'src/mobius/vm/' ; name ; '.slate']) ;
-  "UI libraries."
-  ({'color'. 'event'. 'region'. 'transform'. 'graphics'. 'layout'.
-    'colormap'. 'command'. 'curve'. 'ellipse'. 'form'. 'lines'. 'medium'.
-    'morph'. 'path'. 'pen'. 'port'. 'presentation'. 'text'}
-    collect: [| :name | 'src/ui/' ; name ; '.slate']) as: Set)}.
+    collect: [| :name | 'src/mobius/' ; name ; '.slate']) as: Set)}.
 
 l@AutoLoader readFromSourceIn: file
 "Parses the source in the specified file and creates entries for each path
@@ -268,7 +357,9 @@ l@AutoLoader performScan &files: fileList
 to the in-memory database."
 [
   fileList `defaultsTo: l standardFiles.
-  fileList do: [| :file | l readFromSourceIn: file]
+  fileList do: [| :file |
+		inform: 'Scanning \'' ; file ; '\''.
+		l readFromSourceIn: file]
 ].
 
 l@AutoLoader install: m@(Module traits) when: selector isCalledOn: namespace

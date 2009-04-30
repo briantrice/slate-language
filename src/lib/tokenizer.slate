@@ -4,9 +4,14 @@ prototypes define: #Tokenizer &parents: {StreamProcessor} &slots:
 any of the given separators."
 "FIXME: ASCIIString Character Whitespace is not ASCII specific.
 Being a whitespace needs some abstraction over the actual encoding."
+"TODO: Design extension: parametrize Tokenizer on something more high level that works at the level of overriding #skipSeparators."
 
-s@(Tokenizer traits) newOn: target withSeparators: separators
-[(s newOn: target) `>> [separators: separators. ]].
+s@(Tokenizer traits) newOn: target &separators: separators
+[| newS |
+  newS: resend.
+  separators ifNotNil: [newS separators: separators].
+  newS
+].
 
 s@(ReadStream traits) split
 "Answer a Tokenizer over the input argument with the default separators."
@@ -14,11 +19,11 @@ s@(ReadStream traits) split
 
 s@(ReadStream traits) splitWith: separators
 "Answer a Tokenizer over the input argument with the given separators."
-[Tokenizer newOn: s withSeparators: separators].
+[Tokenizer newOn: s &separators: separators].
 
 s@(Tokenizer traits) skipSeparators
 [
-  [s isSeparator: s source peek]
+  [s source isAtEnd not /\ [s isSeparator: s source peek]]
     whileTrue: [s source next].
   s
 ].
@@ -36,19 +41,32 @@ s@(Tokenizer traits) reset
   s
 ].
 
+s@(Tokenizer traits) contents
+[
+  s reset.
+  s upToEnd
+].
+
 s@(Tokenizer traits) isSeparator: char
 [
   s separators includes: char
 ].
 
+s@(Tokenizer traits) elementType
+"Since a Tokenizer returns sub-Sequences of its source."
+[s source collectionType].
+
+s@(Tokenizer traits) collectionType
+"Answer a generic Sequence, since our elements are themselves Sequences."
+[Array].
+
 s@(Tokenizer traits) next
-[| result |
-  result: s source collectionType new writer.
-  [s skipSeparators.
-    [result nextPut: s source next.
-      s isSeparator: s source peek]
-      whileFalse
-  ] breakOn: Stream Exhaustion.
-  result position isZero ifTrue: [s exhausted].
-  result contents
+[
+  [| :result |
+   [s skipSeparators.
+    [result nextPut: s source next]
+      until: [s source isAtEnd \/ [s isSeparator: s source peek]].
+    ] breakOn: Stream Exhaustion.
+  result position isZero ifTrue: [s exhausted]]
+    writingAs: s elementType
 ].

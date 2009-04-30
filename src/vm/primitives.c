@@ -662,11 +662,56 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeof(word_t));
 }
 
-void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  int x = 1;
-  char little_endian = *(char*)&x;
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (little_endian == 1)? oh->cached.true_object : oh->cached.false_object;
+#ifdef WIN32 // gettimeofday() ported to WIN32 for prim_timeSinceEpoch()
+
+#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+#else
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+#endif
+
+struct timezone 
+{
+  int  tz_minuteswest; /* minutes W of Greenwich */
+  int  tz_dsttime;     /* type of dst correction */
+};
+
+int gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+  FILETIME ft;
+  unsigned __int64 tmpres = 0;
+  static int tzflag = 0;
+
+  if (NULL != tv)
+  {
+    GetSystemTimeAsFileTime(&ft);
+
+    tmpres |= ft.dwHighDateTime;
+    tmpres <<= 32;
+    tmpres |= ft.dwLowDateTime;
+
+    tmpres /= 10;  /*convert into microseconds*/
+    /*converting file time to unix epoch*/
+    tmpres -= DELTA_EPOCH_IN_MICROSECS; 
+    tv->tv_sec = (long)(tmpres / 1000000UL);
+    tv->tv_usec = (long)(tmpres % 1000000UL);
+  }
+
+  if (NULL != tz)
+  {
+    if (!tzflag)
+    {
+      _tzset();
+      tzflag++;
+    }
+    tz->tz_minuteswest = _timezone / 60;
+    tz->tz_dsttime = _daylight;
+  }
+
+  return 0;
 }
+
+#endif
 
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   int64_t time;
@@ -677,13 +722,8 @@ void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t a
 
   timeArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), arraySize);
 
-#ifdef WIN32
-#pragma message("TODO WIN32 time-since-epoch")
-  time = 0;
-#else
   gettimeofday(&tv, NULL);
   time = (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
-#endif
 
   for (i = 0; i < arraySize; i++) {
     timeArray->elements[i] = ((time >> (i * 8)) & 0xFF);
@@ -692,6 +732,15 @@ void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t a
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)timeArray;
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)timeArray);
 }
+
+
+void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  int x = 1;
+  char little_endian = *(char*)&x;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (little_endian == 1)? oh->cached.true_object : oh->cached.false_object;
+}
+
+
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
