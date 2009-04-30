@@ -173,6 +173,39 @@ s1@(ReadStream traits) with: s2 do: block
   s1
 ].
 
+s@(ReadStream traits) detect: succeed ifNone: fail
+"Find an element satisfying a test. Conditionally execute a failure block."
+[
+  s do: [| :element | (succeed applyWith: element) ifTrue: [^ element]].
+  fail do
+].
+
+s@(ReadStream traits) detect: succeed
+[
+  s detect: succeed ifNone: []
+].
+
+s@(ReadStream traits) anySatisfy: predicate
+"Answer whether any elements cause the input block to be True."
+[
+  s do: [| :element | (predicate applyWith: element) ifTrue: [^ True]].
+  False
+].
+
+s@(ReadStream traits) allSatisfy: predicate
+"Answer whether all elements cause the input block to be True."
+[
+  s do: [| :element | (predicate applyWith: element) ifFalse: [^ False]].
+  True
+].
+
+s@(ReadStream traits) noneSatisfy: predicate
+"Answer whether none of s's elements cause the input block to be True."
+[
+  s do: [| :element | (predicate applyWith: element) ifTrue: [^ False]].
+  True
+].
+
 streams define: #WriteStream &parents: {Stream}.
 "Streams that write to some target."
 
