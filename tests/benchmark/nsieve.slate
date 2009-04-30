@@ -1,0 +1,20 @@
+
+m@(Integer traits) nsieve
+[| count isPrime |
+  count: 0.
+  isPrime: (Array newSize: (m + 2)).
+  isPrime atAllPut: True.
+  2 upTo: m do: [| :i |
+    (isPrime at: i) ifTrue: [
+      ((i + i) to: m by: i) do: [| :k | isPrime at: k put: False].
+      count: count + 1.
+    ].
+  ].
+  count
+].
+
+n@(Integer traits) primes
+[| m |
+  m: (2 raisedTo: n) * 10000.
+  m nsieve
+].

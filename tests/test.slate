@@ -1,0 +1,144 @@
+testing UnitTests addPrototype: #SUnit derivedFrom: {TestCase}.
+"This is both an example of writing tests and a self test for the SUnit.
+The tests here are pretty strange, since you want to make sure things don't blow up.
+You should not generally have to write tests this complicated in structure,
+although they will be far more complicated in terms of your own objects-
+more assertions, more complicated setup."
+UnitTests SUnit addSlot: #hasRun valued: False.
+UnitTests SUnit addSlot: #hasSetup valued: False.
+UnitTests SUnit addSlot: #hasRanOnce valued: False.
+
+t@(UnitTests SUnit traits) setUp
+[
+  t hasSetup: True.
+].
+
+t@(UnitTests SUnit traits) error
+[3 zork].
+
+t@(UnitTests SUnit traits) noop
+[].
+
+t@(UnitTests SUnit traits) fail
+[t assert: False].
+
+t@(UnitTests SUnit traits) setRun
+[
+  t hasRun: True.
+].
+
+t@(UnitTests SUnit traits) assertForTestResult: result runs: ran passed: passed
+  failed: failed errors: broke
+[
+  t assert: result runCount = ran.
+  t assert: result passedCount = passed.
+  t assert: result failureCount = failed.
+  t assert: result errorCount = broke.
+].
+
+t@(UnitTests SUnit traits) testAssert
+[
+  t assert: True.
+  t deny: False.
+].
+
+t@(UnitTests SUnit traits) testDebugger
+"Disabled, so that running all tests passes. Uncomment to enable.
+This test should break."
+["3 zork"].
+
+t@(UnitTests SUnit traits) testDefects
+[| result suite error failure |
+  suite: TestSuite new.
+  suite tests include: (error: (t newForSelector: #error)).
+  suite tests include: (failure: (t newForSelector: #fail)).
+  error logErrors: False.
+  failure logErrors: False.
+  result: suite run.
+  t assert: result defects = {error. failure}.
+  t assertForTestResult: result
+    runs: 2 passed: 0 failed: 1 errors: 1.
+].
+
+t@(UnitTests SUnit traits) testException
+[
+  t should: [t signalFailureDescription: 'Foo'] raise: TestFailure.
+  t should: [TestResult signalFailureDescription: 'Foo'] raise: Error.
+  t shouldnt: [TestResult signalFailureDescription: 'Foo'] raise: TestFailure.
+].
+
+t@(UnitTests SUnit traits) testError
+[| case result |
+  case: (t newForSelector: #error).
+  case logErrors: False.
+  result: case run.
+  t assertForTestResult: result
+    runs: 1 passed: 0 failed: 0 errors: 1.
+].
+
+t@(UnitTests SUnit traits) testFail
+[| case result |
+  case: (t newForSelector: #fail).
+  case logErrors: False.
+  result: case run.
+  t assertForTestResult: result
+    runs: 1 passed: 0 failed: 1 errors: 0.
+].
+
+t@(UnitTests SUnit traits) testFailDebugger
+"Disabled, so running all tests passes. Uncomment to enable.
+This test should fail."
+["t fail"].
+
+t@(UnitTests SUnit traits) testIsNotRerunOnDebug
+[| case |
+  case: (t newForSelector: #testRanOnlyOnce).
+  case run.
+  "case invokeDebugger."
+].
+
+t@(UnitTests SUnit traits) testShould
+[
+  t should: [True].
+  t shouldnt: [False].
+].
+
+t@(UnitTests SUnit traits) testRan
+[| case |
+  case: (t newForSelector: #setRun).
+  case run.
+  t assert: case hasSetup.
+  t assert: case hasRun.
+].
+
+t@(UnitTests SUnit traits) testRanOnlyOnce
+[
+  t assert: t hasRanOnce ~= True.
+  t hasRanOnce: True.
+].
+
+t@(UnitTests SUnit traits) testResult
+[| case result |
+  case: (t newForSelector: #noop).
+  result: case run.
+  t assertForTestResult: result
+    runs: 1 passed: 1 failed: 0 errors: 0.
+  "Ensure prototype isn't modified"
+  t assertForTestResult: TestResult
+    runs: 0 passed: 0 failed: 0 errors: 0.
+].
+
+t@(UnitTests SUnit traits) suite
+[t suiteForSelectors: {
+  #testResult.
+  #testRanOnlyOnce.
+  #testShould.
+  #testIsNotRerunOnDebug.
+  #testFailDebugger.
+  #testFail.
+  #testError.
+  #testAssert.
+  #testDebugger.
+  #testDefects.
+  #testException.
+}].

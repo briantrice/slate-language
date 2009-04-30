@@ -1,0 +1,47 @@
+
+i1@(Integer traits) matrixA: i2@(Integer traits)
+[
+  1.0 / (i1 + i2 * (i1 + i2 + 1) / 2 + i1 + 1)
+].
+
+a@(Array traits) multiplyAv
+[| n av |
+  n: a size.
+  av: ((Array new &capacity: n) atAllPut: 0.0).
+  0 below: n do: [| :i |
+    0 below: n do: [| :j |
+      av at: i put: (av at: i) + ((i matrixA: j) * (a at: j))]].
+  av
+].
+
+a@(Array traits) multiplyAtv
+[| n atv |
+  n: a size.
+  atv: ((Array new &capacity: n) atAllPut: 0.0).
+  0 below: n do: [| :i |
+    0 below: n do: [| :j |
+      atv at: i put: (atv at: i) + ((j matrixA: i) * (a at: j))]].
+  atv
+].
+
+a@(Array traits) multiplyAtAv
+[
+  a multiplyAv multiplyAtv
+].
+
+n@(Integer traits) spectralnorm
+[| n u v vBv vv |
+  u: ((Array new &capacity: n) atAllPut: 1.0).
+  v: ((Array new &capacity: n) atAllPut: 0.0).
+  1 upTo: 10 do: [| :i |
+    v: u multiplyAtAv.
+    u: v multiplyAtAv.
+  ].
+  vBv: 0.0.
+  vv: 0.0.
+  0 below: n do: [| :i |
+    vBv: vBv + ((u at: i) * (v at: i)).
+    vv: vv + ((v at: i) * (v at: i)).
+  ].
+  (vBv / vv) sqrt printString &precision: 9
+].

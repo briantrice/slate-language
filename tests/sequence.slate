@@ -1,0 +1,25 @@
+testing UnitTests define: #Sequence &parents: {TestCase}.
+
+tc@(UnitTests Sequence traits) testCopyReplaceAll
+[ | s1 s2 |
+  s1: 'slate'.
+  
+  s2: (s1 copyReplaceAll: 's' with: 'S').
+  tc assert: (s2 = 'Slate').
+  
+  s2: (s1 copyReplaceAll: 'e' with: 'ed').
+  tc assert: (s2 = 'slated').
+  
+  s1: 'SlSlate'.
+  s2: (s1 copyReplaceAll: 'SlSl' with: 'Sl').
+  tc assert: (s2 = 'Slate').
+  
+  s1: 'Slete'.
+  s2: ((s1 copyReplaceAll: 'e' with: 'a') copyReplaceAll: 'ta' with: 'te').
+  tc assert: (s2 = 'Slate').
+].
+
+tc@(UnitTests Sequence traits) suite
+[tc suiteForSelectors: {
+  #testCopyReplaceAll.
+}].

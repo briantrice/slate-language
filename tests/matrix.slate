@@ -1,0 +1,33 @@
+UnitTests define: #Matrix &parents: {TestCase} &slots: {
+"3x3 Matrices"
+#affineScale -> (Matrix newFromArrayOfArrays: {{2 . 0 . 0} . {0 . 2 . 0} . {0 . 0 . 1}}).
+#affineTranslate -> (Matrix newFromArrayOfArrays: {{1 . 0 . 0} . {0 . 1 . 0} . {2 . 2 . 1}}).
+#affineRotate -> (Matrix newFromArrayOfArrays: {{2 . 2 . 0} . {-3 . 3 . 0} . {0 . 0 . 1}}).
+#affineReflect -> (Matrix newFromArrayOfArrays: {{1 . 0 . 0} . {0 . -1 . 0} . {0 . 0 . 1}}).
+#affineShear -> (Matrix newFromArrayOfArrays: {{1 . 2 . 0} . {0 . 1 . 0} . {0 . 0 . 1}}).
+#affineTransform -> (UnitTests Matrix affineScale * UnitTests Matrix affineTranslate * UnitTests Matrix affineRotate * UnitTests Matrix affineReflect * UnitTests Matrix affineShear).
+#zero -> (Matrix newRows: 3 columns: 3).
+#identity -> (Matrix newIdentitySize: 3).
+"2x3 Matrices"
+"Column Vectors"
+"Bezier Curves"
+#bezierPoints -> (Matrix newFromArrayOfArrays: {{1} . {2} . {3} . {4}}).
+"From wikipedia http://en.wikipedia.org/wiki/B%E9zier_curve"
+#bezierMatrix -> (Matrix newFromArrayOfArrays: {{1 . 0 . 0 . 0} . {(1 / 2) . (1 / 2) . 0 . 0} . {(1 / 4) . (2 / 4) . (1 / 4) . 0} . {(1 / 8) . (3 / 8) . (3 / 8) . (1 / 8)}})
+}.
+
+t@(UnitTests Matrix traits) testAddition
+[
+  t assert: t affineScale + t affineRotate = (Matrix newFromArrayOfArrays: {{4 . 2 . 0} . {-3 . 5 . 0} . {0 . 0 . 2}}).
+].
+
+t@(UnitTests Matrix traits) testMultiplication
+[
+  t assert: t bezierMatrix * t bezierPoints = (Matrix newFromArrayOfArrays: {{1} . {(3 / 2)} . {2} . {(5 / 2)}}).
+].
+
+t@(UnitTests Matrix traits) suite
+[t suiteForSelectors: {
+  #testAddition.
+  #testMultiplication.
+}].

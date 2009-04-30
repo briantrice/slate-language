@@ -1,0 +1,35 @@
+UnitTests addPrototype: #MapOverlay derivedFrom: { TestCase }.
+
+"Tests the MapOverlay class"
+
+t@(UnitTests MapOverlay traits) setUp
+[
+  t addSlot: #d1 valued: Dictionary new
+   `>> [ add: 'one' -> 'Uno'. add: 'two' -> 'dos'. ].
+  t addSlot: #d2 valued: Dictionary new
+    `>> [ add: 'two' -> 'Dos'. add: 'three' -> 'Tres'. ].
+
+  t addSlot: #mapOverlay valued: (t d1 overlayWith: t d2).
+].
+
+t@(UnitTests MapOverlay traits) testAccess
+[
+  t assert: ((t mapOverlay at: 'one') = 'Uno').
+  t assert: ((t mapOverlay at: 'two') = 'Dos').
+  t assert: ((t mapOverlay at: 'three') = 'Tres').
+  t should: [t mapOverlay at: 'four'] raise: MapOverlay KeyNotFound.
+].
+
+t@(UnitTests MapOverlay traits) testAddition
+[
+  t mapOverlay add: 'five' -> 'Cinco'.
+  t assert: ((t mapOverlay at: 'five') = 'Cinco').
+  t assert: ((t d2 at: 'five') = 'Cinco').
+  t should: [t d1 at: 'five'] raise: MapOverlay KeyNotFound.
+].
+
+t@(UnitTests MapOverlay traits) suite
+[t suiteForSelectors: {
+  #testAccess.
+  #testAddition.
+}].

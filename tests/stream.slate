@@ -1,0 +1,28 @@
+testing UnitTests define: #Stream &parents: {TestCase}.
+"Unit tests for Stream semantics."
+
+"---------------------------------------------------------------------------"
+"The build... methods can be overridden in subinstances to allow
+testing of different kinds of stream. The tests in the base stream
+class exercise just the common stream protocols."
+
+tc@(UnitTests Stream traits) buildEmptyReader
+['' reader].
+
+tc@(UnitTests Stream traits) buildReader
+['hello' reader].
+
+tc@(UnitTests Stream traits) expectedReaderFirstElement
+[$h].
+
+tc@(UnitTests Stream traits) testExhaustionOnEmptyReader
+[tc should: ['' reader next] raise: Stream Exhaustion].
+
+tc@(UnitTests Stream traits) testReaderFirstElement
+[tc assert: (tc buildReader next = tc expectedReaderFirstElement)].
+
+tc@(UnitTests Stream traits) suite
+[tc suiteForSelectors: {
+  #testExhaustionOnEmptyReader.
+  #testReaderFirstElement.
+}].

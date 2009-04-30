@@ -1,0 +1,36 @@
+UnitTests addPrototype: #File derivedFrom: {TestCase}.
+"Unit test for file functionality."
+
+UnitTests File addSlot: #inputFileName valued: ('LICENSE' as: File Locator).
+UnitTests File addSlot: #outputFileName valued: ('LICENSE.copy' as: File Locator).
+
+t@(UnitTests File traits) testLocatorConversion
+"Note this test avoids using '~' in the filenames so that the platform library isn't required"
+[| filenames |
+  filenames: {'src/lib/file.slate'. '/'. '/usr'. 'foo.bar'}.
+  filenames do: [| :filename |
+  t assert: (filename isSuffixOf: ((filename as: File Locator) as: filename))
+    description: 'Parsing and printing a filename failed: ' ; filename].
+].
+
+t@(UnitTests File traits) testIdentityCompare
+[
+  t assert: (t inputFileName with: t inputFileName sessionDo: 
+      [| :file1 :file2 | file1 hasSameContentsAs: file2] &mode: File Read)
+    description: 'Comparing the contents of \'' ; (t inputFileName as: String) ; '\' with itself failed'.
+].
+
+t@(UnitTests File traits) testCopy
+[
+  t inputFileName with: t outputFileName sessionDo:
+    [| :file1 :file2 | file1 copyContentsTo: file2] &mode1: File Read &mode2: File CreateWrite.
+  t assert: (t inputFileName with: t outputFileName sessionDo: 
+      [| :file1 :file2 | file1 hasSameContentsAs: file2] &mode: File Read)
+].
+
+t@(UnitTests File traits) suite
+[t suiteForSelectors: {
+  #testLocatorConversion.
+  #testIdentityCompare.
+  #testCopy.
+}].

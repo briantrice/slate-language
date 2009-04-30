@@ -1,0 +1,99 @@
+
+prototypes ensureNamespace: #benchmark &delegate: True.
+
+benchmark define: #Transformation &slots: {
+  #q -> 0. #r -> 0. #s -> 0. #t -> 0. #k -> 0.
+}.
+
+benchmark define: #PiDigitSpigot &slots: {
+  #z. #x. #inverse.
+}.
+
+t@(Transformation traits) unity
+[
+  t clone `>> [q: 1. r: 0. s: 0. t: 1.]
+].
+
+t1@(Transformation traits) * t2@(Transformation traits)
+[
+  t1 clone `>> [
+    q: ((t1 q) * (t2 q)).
+    r: ((t1 q) * (t2 r) + ((t1 r) * (t2 t))).
+    s: ((t1 s) * (t2 q) + ((t1 t) * (t2 s))).
+    t: ((t1 s) * (t2 r) + ((t1 t) * (t2 t))).]
+].
+
+t@(Transformation traits) extract: i@(Integer traits)
+[
+  (((t q) * i + (t r)) / ((t s) * i + (t t))) floor
+].
+
+t@(Transformation traits) next
+[
+  t `>> [ k: (t k + 1). q: (t k). r: (4 * t k + 2). s: 0. t: (2 * t k + 1).]
+].
+
+s@(PiDigitSpigot traits) new
+[
+  s clone `>> [
+    z: Transformation unity.
+    x: Transformation clone.
+    inverse: Transformation clone.]
+].
+
+s@(PiDigitSpigot traits) next
+[| y |
+  y: s digit.
+  (s isSafe: y)
+    ifTrue: [s z: (s produce: y). y]
+    ifFalse: [s z: (s consume: (s x next)). s next]
+].
+
+s@(PiDigitSpigot traits) digit
+[
+  s z extract: 3
+].
+
+s@(PiDigitSpigot traits) isSafe: i@(Integer traits)
+[
+  i = (s z extract: 4)
+].
+
+s@(PiDigitSpigot traits) produce: i@(Integer traits)
+[| inv |
+  inv: s inverse.
+  inv `>> [q: 10. r: -10 * i. s: 0. t: 1.].
+  inv * (s z)
+].
+
+s@(PiDigitSpigot traits) consume: t@(Transformation traits)
+[
+  s z * t
+].
+
+n@(Integer traits) piDigitsTo: s@(Stream traits)
+[| length pidigits stream i |
+  length: 10.
+  i: 0.
+  pidigits: PiDigitSpigot new.
+  [n > 0] whileTrue: [
+    (n < length)
+      ifTrue: [
+        n timesRepeat: [s ; (pidigits next as: String)].
+		n upTo: length - 1 do: [| :each | s ; ' '].
+        i: i + n.
+      ]
+      ifFalse: [
+        length timesRepeat: [s ; (pidigits next as: String)].
+        i: i + length.
+      ].
+    s ; '\t :' ; (i as: String) ; '\n'.
+    n: n - length.
+  ].
+].
+
+n@(Integer traits) pidigits
+[
+  (File newNamed: 'tests/benchmark/pidigits.out' &mode: File CreateWrite)
+    sessionDo: [| :f | n piDigitsTo: (f writer)]
+].

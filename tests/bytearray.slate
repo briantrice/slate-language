@@ -1,0 +1,99 @@
+UnitTests addPrototype: #ByteArray derivedFrom: {TestCase}.
+UnitTests ByteArray `>> [
+  addSlot: #width16 valued: ({16r01. 16r02} as: ByteArray).
+  addSlot: #width32 valued: ({16r01. 16r02. 16r04. 16r08} as: ByteArray).
+  addSlot: #width64 valued: ({16r01. 16r02. 16r04. 16r08. 16r10. 16r20. 16r40. 16r80} as: ByteArray)].
+
+"a@(ByteArray traits) int64At: offset
+a@(ByteArray traits) int64At: offset put: value
+a@(ByteArray traits) bigEndianInt64At: offset
+a@(ByteArray traits) bigEndianInt64At: offset put: word
+a@(ByteArray traits) littleEndianInt64At: offset
+a@(ByteArray traits) littleEndianInt64At: offset put: word"
+
+
+tc@(UnitTests ByteArray traits) int16At
+[
+ "TODO: Change this to use the Platform object"
+  UnitTests ByteArray width16 isLittleEndian
+    ifTrue: [tc assert: ((UnitTests ByteArray width16 int16At: 0) = 16r0201) description: '#int16At: read wrong value from #as: ByteArray']
+    ifFalse: [tc assert: ((UnitTests ByteArray width16 int16At: 0) = 16r0102) description: '#int16At: read wrong value from #as: ByteArray'].
+  tc assert: ((UnitTests ByteArray width16 bigEndianInt16At: 0) = 16r0102) description: '#bigEndianInt16At: read wrong value from #as: ByteArray'.
+  tc assert: ((UnitTests ByteArray width16 littleEndianInt16At: 0) = 16r0201) description: '#littleEndianInt16At: read wrong value from #as: ByteArray'.
+].
+
+tc@(UnitTests ByteArray traits) int16AtPut
+[|b|
+  b: (ByteArray newSize: 2).
+  b int16At: 0 put: 16r0102.
+  b isLittleEndian "TODO: Change this to use the Platform object"
+    ifTrue: [tc assert: (((b byteAt: 0) = 16r02) and: [(b byteAt: 1) = 16r01]) description: '#int16At:put: inserted the wrong value into the new ByteArray']
+    ifFalse: [tc assert: (((b byteAt: 0) = 16r01) and: [(b byteAt: 1) = 16r02]) description: '#int16At:put: inserted the wrong value into the new ByteArray'].
+
+  b bigEndianInt16At: 0 put: 16r0102.
+  tc assert: (((b byteAt: 0) = 16r01) and: [(b byteAt: 1) = 16r02]) description: '#bigEndianInt16At:put: inserted wrong value in new ByteArray'.
+   b littleEndianInt16At: 0 put: 16r0102.
+  tc assert: (((b byteAt: 0) = 16r02) and: [(b byteAt: 1) = 16r01]) description: '#littleEndianInt16At: inserted wrong value in new ByteArray'.
+].
+
+
+tc@(UnitTests ByteArray traits) int32At
+[
+ "TODO: Change this to use the Platform object"
+  UnitTests ByteArray width32 isLittleEndian
+    ifTrue: [tc assert: ((UnitTests ByteArray width32 int32At: 0) = 16r08040201) description: '#int32At: read wrong value from #as: ByteArray']
+    ifFalse: [tc assert: ((UnitTests ByteArray width32 int32At: 0) = 16r01020408) description: '#int32At: read wrong value from #as: ByteArray'].
+  tc assert: ((UnitTests ByteArray width32 bigEndianInt32At: 0) = 16r01020408) description: '#bigEndianInt32At: read wrong value from #as: ByteArray'.
+  tc assert: ((UnitTests ByteArray width32 littleEndianInt32At: 0) = 16r08040201) description: '#littleEndianInt32At: read wrong value from #as: ByteArray'.
+].
+
+
+tc@(UnitTests ByteArray traits) int32AtPut
+[|b|
+  b: (ByteArray newSize: 4).
+  b int32At: 0 put: 16r01020408.
+  b isLittleEndian "TODO: Change this to use the Platform object"
+    ifTrue: [tc assert: (b = UnitTests ByteArray width32 reversed) description: '#int32At:put: inserted the wrong value into the new ByteArray']
+    ifFalse: [tc assert: (b = UnitTests ByteArray width32) description: '#int32At:put: inserted the wrong value into the new ByteArray'].
+
+  b bigEndianInt32At: 0 put: 16r01020408.
+  tc assert: (b = UnitTests ByteArray width32) description: '#bigEndianInt32At:put: inserted wrong value in new ByteArray'.
+   b littleEndianInt32At: 0 put: 16r01020408.
+  tc assert: (b = UnitTests ByteArray width32 reversed) description: '#littleEndianInt32AtPut: inserted wrong value in new ByteArray'.
+].
+
+
+tc@(UnitTests ByteArray traits) int64At
+[
+ "TODO: Change this to use the Platform object"
+  UnitTests ByteArray width64 isLittleEndian
+    ifTrue: [tc assert: ((UnitTests ByteArray width64 int64At: 0) = 16r8040201008040201) description: '#int64At: read wrong value from #as: ByteArray']
+    ifFalse: [tc assert: ((UnitTests ByteArray width64 int64At: 0) = 16r0102040810204080) description: '#int64At: read wrong value from #as: ByteArray'].
+  tc assert: ((UnitTests ByteArray width64 bigEndianInt64At: 0) = 16r0102040810204080) description: '#bigEndianInt64At: read wrong value from #as: ByteArray'.
+  tc assert: ((UnitTests ByteArray width64 littleEndianInt64At: 0) = 16r8040201008040201) description: '#littleEndianInt64At: read wrong value from #as: ByteArray'.
+].
+
+tc@(UnitTests ByteArray traits) int64AtPut
+[|b|
+  b: (ByteArray newSize: 8).
+  b int64At: 0 put: 16r0102040810204080.
+  b isLittleEndian "TODO: Change this to use the Platform object"
+    ifTrue: [tc assert: (b = UnitTests ByteArray width64 reversed) description: '#int64At:put: inserted the wrong value into the new ByteArray']
+    ifFalse: [tc assert: (b = UnitTests ByteArray width64) description: '#int64At:put: inserted the wrong value into the new ByteArray'].
+
+  b bigEndianInt64At: 0 put: 16r0102040810204080.
+  tc assert: (b = UnitTests ByteArray width64) description: '#bigEndianInt64At:put: inserted wrong value in new ByteArray'.
+   b littleEndianInt64At: 0 put: 16r0102040810204080.
+  tc assert: (b = UnitTests ByteArray width64 reversed) description: '#littleEndianInt64AtPut: inserted wrong value in new ByteArray'.
+].
+
+
+tc@(UnitTests ByteArray traits) suite
+[tc suiteForSelectors: {
+  #int16At.
+  #int16AtPut.
+  #int32At.
+  #int32AtPut.
+  #int64At.
+  #int64AtPut.
+}].

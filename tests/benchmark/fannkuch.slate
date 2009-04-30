@@ -1,0 +1,49 @@
+
+n@(Integer traits) fannkuch
+[| perm perm0 perm1 count maxPerm maxFlipsCount m r flipsCount k k2 temp i j |
+  perm: (Array newSize: n).
+  perm1: (Array newSize: n).
+  count: (Array newSize: n).
+  maxPerm: (Array newSize: n).
+  maxFlipsCount: -1.
+  m: (n - 1).
+
+  0 below: n do: [| :i | perm1 at: i put: i].
+  r: n.
+  [
+    [r ~= 1] whileTrue: [count at: (r - 1) put: r. r: (r - 1)].
+    (((perm1 at: 0) == 0) \/ ((perm1 at: m) == m)) ifFalse: [
+      0 below: n  do: [| :i | perm at: i put: (perm1 at: i)].
+      flipsCount: 0.
+      k: (perm at: 0).
+      [k ~= 0] whileTrue: [
+        k2: ((k + 1) bitShift: -1).
+        0 below: k2 do: [| :i |
+          temp: (perm at: i). perm at: i put: (perm at: (k - i)). perm at: (k - i) put: temp.
+        ].
+        flipsCount: flipsCount + 1.
+        k: (perm at: 0).
+      ].
+      (flipsCount > maxFlipsCount) ifTrue: [
+        maxFlipsCount: flipsCount.
+        0 below: n do: [| :i |
+          maxPerm at: i put: (perm1 at: i)
+        ].
+      ].
+    ].
+    [
+      (r = n) ifTrue: [^ maxFlipsCount].
+      perm0: (perm1 at: 0).
+      i: 0.
+      [i < r] whileTrue: [
+        j: (i + 1).
+        perm1 at: i put: (perm1 at: j).
+        i: j.
+      ].
+      perm1 at: r put: perm0.
+      count at: r put: ((count at: r) - 1).
+      r: (r + 1).
+    ] until: [((count at: (r - 1)) > 0)].
+    r: (r - 1).
+  ] loop.
+].

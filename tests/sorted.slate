@@ -1,0 +1,30 @@
+
+testing UnitTests define: #SortedArray &parents: {UnitTests ExtensibleArray}.
+
+tc@(UnitTests SortedArray traits) testIndexForInsertingAsLastElement
+[| se insertIndex |
+  se: SortedArray new.
+  insertIndex: (se indexForInserting: 1). 
+  tc assert: insertIndex = 0 description: 'Empty SortedArray should insert to 0.'.
+  se at: insertIndex insert: 1.
+  2 upTo: 10 do: [| :ind insertAt |
+    insertAt: (se indexForInserting: ind).
+    tc assert: insertAt = (ind - 1) 
+      description: 'SortedArray should maintain sort order for: ' ; (ind as: String).
+    se at: insertAt insert: 1].
+].
+
+tc@(UnitTests SortedArray traits) testAddByInsert
+[| se |
+  se: SortedArray new.
+  0 below: 10 do: [| :ind | se add: ind + 1].
+  tc assert: se size = 10 description: '#add: should increase size.'.
+].
+
+tc@(UnitTests SortedArray traits) suite
+[
+  tc suiteForSelectors: {
+    #testIndexForInsertingAsLastElement.
+    #testAddByInsert
+  }
+].

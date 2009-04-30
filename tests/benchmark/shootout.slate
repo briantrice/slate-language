@@ -1,0 +1,117 @@
+
+BenchmarkTests define: #Shootout &parents: {TestCase}.
+
+"The Computer Language Shootout benchmarks
+   [http://shootout.alioth.debian.org]."
+
+load: 'tests/benchmark/ackermann.slate'.
+load: 'tests/benchmark/binarytrees.slate'.
+load: 'tests/benchmark/fannkuch.slate'.
+load: 'tests/benchmark/harmonic.slate'.
+load: 'tests/benchmark/mandelbrot.slate'.
+load: 'tests/benchmark/nbody.slate'.
+load: 'tests/benchmark/nsieve.slate'.
+load: 'tests/benchmark/nsievebits.slate'.
+load: 'tests/benchmark/pidigits.slate'.
+load: 'tests/benchmark/random.slate'.
+load: 'tests/benchmark/spectralnorm.slate'.
+load: 'tests/benchmark/sumfile.slate'.
+load: 'tests/benchmark/takfp.slate'.
+
+t@(BenchmarkTests Shootout traits) ackermann
+"Integer recursive function performance."
+[
+  3 ackermann: 9
+].
+
+t@(BenchmarkTests Shootout traits) binarytrees
+"Allocate and deallocate many binary trees."
+[
+  "TODO: Causes following tests to hit the max heap limit."
+  "16 binaryTrees"
+].
+
+t@(BenchmarkTests Shootout traits) fannkuch
+"Indexed-access to tiny integer-sequence."
+[
+  9 fannkuch
+].
+
+t@(BenchmarkTests Shootout traits) harmonic
+"Calculate the partial sum of the Harmonic series."
+[
+  10000000 partialSum
+].
+
+t@(BenchmarkTests Shootout traits) mandelbrot
+"Generate Mandelbrot set portable bitmap file."
+[
+  400 mandelbrot
+].
+
+t@(BenchmarkTests Shootout traits) nbody
+"Double-precision N-body simulation."
+[
+  10000 nbodies
+].
+
+t@(BenchmarkTests Shootout traits) nsieve
+"Indexed access to a boolean sequence."
+[
+  9 primes
+].
+
+t@(BenchmarkTests Shootout traits) nsievebits
+"Indexed access to a boolean sequence."
+[
+  9 bitprimes
+].
+
+t@(BenchmarkTests Shootout traits) pidigits
+"Streaming arbitrary-precision arithmetic."
+[
+  "TODO: should be 1000!"
+  27 pidigits
+].
+
+t@(BenchmarkTests Shootout traits) random
+"Generate random floating-point numbers."
+[
+  RandomNumber to: 100 repeat: 900000
+].
+
+t@(BenchmarkTests Shootout traits) spectralnorm
+"Eigenvalue using the power method."
+[
+  500 spectralnorm
+].
+
+t@(BenchmarkTests Shootout traits) sumfile
+"Read lines, parse and sum integers."
+[
+  "TODO: The file should be 8000 times as large!"
+  'tests/benchmark/sumfile.in' sumfile
+].
+
+t@(BenchmarkTests Shootout traits) takfp
+"Floating-point recursive function performance."
+[
+  10 takfp
+].
+
+tc@(BenchmarkTests Shootout traits) suite
+[tc suiteForSelectors: {
+  #ackermann.
+  #binarytrees.
+  #fannkuch.
+  #harmonic.
+  #mandelbrot.
+  #nbody.
+  #nsieve.
+  #nsievebits.
+  #pidigits.
+  #random.
+  #spectralnorm.
+  #sumfile.
+  #takfp.
+}].

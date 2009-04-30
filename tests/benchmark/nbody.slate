@@ -1,0 +1,170 @@
+
+prototypes ensureNamespace: #benchmark &delegate: True.
+
+benchmark define: #NBodySystem &slots: {
+  #bodies.
+}.
+
+benchmark define: #Body &slots: {
+  #x. #y. #z. #vx. #vy. #vz. #mass.
+}.
+
+n@(benchmark NBodySystem traits) new
+[| px py pz s |
+  s: n clone.
+  s bodies: {Body sun. Body jupiter. Body saturn. Body uranus. Body neptune.}.
+  px: 0.0. py: 0.0. pz: 0.0.
+  s bodies do: [| :body |
+    px: px + (body vx * body mass).
+    py: py + (body vy * body mass).
+    pz: pz + (body vz * body mass).
+  ].
+  s bodies first offsetMomentum: px y: py z: pz.
+  s
+].
+
+n@(benchmark NBodySystem traits) advance: dt@(Float traits)
+[| dx dy dz distance mag |
+  0 below: n bodies size do: [| :i |
+    i + 1 below: n bodies size do: [| :j |
+      dx: (n bodies at: i) x - (n bodies at: j) x.
+      dy: (n bodies at: i) y - (n bodies at: j) y.
+      dz: (n bodies at: i) z - (n bodies at: j) z.
+
+      distance: ((dx * dx) + (dy * dy) + (dz * dz)) sqrt.
+      mag: dt / (distance * distance * distance).
+
+      (n bodies at: i) vx: (n bodies at: i) vx - (dx * (n bodies at: j) mass * mag).
+      (n bodies at: i) vy: (n bodies at: i) vy - (dy * (n bodies at: j) mass * mag).
+      (n bodies at: i) vz: (n bodies at: i) vz - (dz * (n bodies at: j) mass * mag).
+
+      (n bodies at: j) vx: (n bodies at: j) vx + (dx * (n bodies at: i) mass * mag).
+      (n bodies at: j) vy: (n bodies at: j) vy + (dy * (n bodies at: i) mass * mag).
+      (n bodies at: j) vz: (n bodies at: j) vz + (dz * (n bodies at: i) mass * mag).
+     ].
+  ].
+  0 below: n bodies size do: [| :i |
+    (n bodies at: i) x: (n bodies at: i) x + (dt * (n bodies at: i) vx).
+    (n bodies at: i) y: (n bodies at: i) y + (dt * (n bodies at: i) vy).
+    (n bodies at: i) z: (n bodies at: i) z + (dt * (n bodies at: i) vz).
+  ].
+].
+
+n@(benchmark NBodySystem traits) energy
+[| dx dy dz distance e b |
+  b: n bodies.
+  e: 0.0.
+  0 below: b size do: [| :i |
+    e: e + (0.5 * (b at: i) mass *
+      (((b at: i) vx * (b at: i) vx) +
+      ((b at: i) vy * (b at: i) vy) +
+      ((b at: i) vz * (b at: i) vz))).
+    i + 1 below: b size do: [| :j |
+      dx: (b at: i) x - (b at: j) x.
+      dy: (b at: i) y - (b at: j) y.
+      dz: (b at: i) z - (b at: j) z.
+      distance: ((dx * dx) + (dy * dy) + (dz * dz)) sqrt.
+      e: e - ((b at: i) mass * (b at: j) mass / distance).
+    ].
+  ].
+  e
+].
+
+_@(benchmark Body) daysPerYear
+[
+  365.24
+].
+
+_@(benchmark Body) pi
+[
+  3.141592653589793
+].
+
+b@(benchmark Body) solarMass
+[
+  4.0 * (b pi) * (b pi)
+].
+
+b@(benchmark Body) sun
+[
+  b clone `>> [
+    x: 0.0.
+    y: 0.0.
+    z: 0.0.
+    vx: 0.0.
+    vy: 0.0.
+    vz: 0.0.
+    mass: b solarMass.]
+].
+
+b@(benchmark Body) jupiter
+[
+  b clone `>> [
+    x: 4.84143144246472090e0.
+    y: -1.16032004402742839e0.
+    z: -1.03622044471123109e-1.
+    vx: 1.66007664274403694e-3 * b daysPerYear.
+    vy: 7.69901118419740425e-3 * b daysPerYear.
+    vz: -6.90460016972063023e-5 * b daysPerYear.
+    mass: 9.54791938424326609e-4 * b solarMass.]
+].
+
+b@(benchmark Body) saturn
+[
+  b clone `>> [
+    x: 8.34336671824457987e0.
+    y: 4.12479856412430479e0.
+    z: -4.03523417114321381e-1.
+    vx: -2.76742510726862411e-3 * b daysPerYear.
+    vy: 4.99852801234917238e-3 * b daysPerYear.
+    vz: 2.30417297573763929e-5 * b daysPerYear.
+    mass: 2.85885980666130812e-4 * b solarMass.]
+].
+
+b@(benchmark Body) uranus
+[
+  b clone `>> [
+    x: 1.28943695621391310e1.
+    y: -1.51111514016986312e1.
+    z: -2.23307578892655734e-1.
+    vx: 2.96460137564761618e-3 * b daysPerYear.
+    vy: 2.37847173959480950e-3 * b daysPerYear.
+    vz: -2.96589568540237556e-5 * b daysPerYear.
+    mass: 4.36624404335156298e-5 * b solarMass.]
+].
+
+b@(benchmark Body) neptune
+[
+  b clone `>> [
+    x: 1.53796971148509165e1.
+    y: -2.59193146099879641e1.
+    z: 1.79258772950371181e-1.
+    vx: 2.68067772490389322e-3 * b daysPerYear.
+    vy: 1.62824170038242295e-3 * b daysPerYear.
+    vz: -9.51592254519715870e-5 * b daysPerYear.
+    mass: 5.15138902046611451e-5 * b solarMass.]
+].
+
+b@(benchmark Body) offsetMomentum: px@(Float traits) y: py@(Float traits) z: pz@(Float traits)
+[| m |
+  m: b solarMass.
+  b `>> [
+    vx: px negated / m.
+    vy: py negated / m.
+    vz: pz negated / m.]
+].
+
+n@(Integer traits) nbodies
+[| bodies |
+  bodies: benchmark NBodySystem new.
+  n timesRepeat: [bodies advance: 0.01].
+  bodies energy
+].
+
+n@(Integer traits) nbody
+[
+  Console writer ; (0 nbodies as: String).
+  Console writer newLine.
+  Console writer ; (n nbodies as: String).
+  Console writer newLine.
+].

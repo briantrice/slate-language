@@ -1,0 +1,338 @@
+UnitTests addPrototype: #Numeric derivedFrom: {TestCase}.
+"100 factorial as determined by bc(1)"
+UnitTests Numeric addSlot: #bigInt valued: 93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000.
+UnitTests Numeric addSlot: #smallInt valued: 100.
+UnitTests Numeric addSlot: #complexZero valued: (Complex zero).
+UnitTests Numeric addSlot: #complexOne valued: (1 plusImaginary: 1).
+UnitTests Numeric addSlot: #complexNegativeOne valued: (-1 plusImaginary: -1).
+UnitTests Numeric addSlot: #complexFraction valued: ((1 / 2) plusImaginary: (1 / 3)).
+UnitTests Numeric addSlot: #complexFloat valued: (2.5 plusImaginary: 0.5).
+UnitTests Numeric addSlot: #complexTriangle valued: (4 plusImaginary: 3).
+
+"Tests involving Floats use numbers which can be represented as binary
+ fractions to avoid precision issues. This isn't a problem since here we're
+ testing coercions, not arithmetic."
+
+t@(UnitTests Numeric traits) testIsZero
+[
+  t assert: 0 isZero.
+  t assert: 0.0 isZero.
+  t assert: (0 / 1) isZero.
+  t deny: 1 isZero.
+  t deny: -1 isZero.
+  t deny: t bigInt isZero.
+  t deny: (1 / 2) isZero.
+
+  t assert: t complexZero isZero.
+  t deny: t complexOne isZero.
+  t deny: t complexNegativeOne isZero.
+  t deny: t complexTriangle isZero.
+].
+
+t@(UnitTests Numeric traits) testIsPositive
+[
+  t assert: t smallInt isPositive.
+  t assert: t bigInt isPositive.
+  t assert: (5 / 10) isPositive.
+  t assert: (-5 / -10) isPositive.
+  t assert: 0.1 isPositive.
+  t deny: 0 isPositive.
+  t deny: t smallInt negated isPositive.
+  t deny: t bigInt negated isPositive.
+  t deny: -0.1 isPositive.
+  t deny: (-5 / 10) isPositive.
+  t deny: (5 / -10) isPositive.
+
+  "Is #isPositive meaningful for complex numbers?"
+].
+
+t@(UnitTests Numeric traits) testIsNegative
+[
+  t deny: t smallInt isNegative.
+  t deny: t bigInt isNegative.
+  t deny: (5 / 10) isNegative.
+  t deny: (-5 / -10) isNegative.
+  t deny: 0.1 isNegative.
+  t deny: 0 isNegative.
+  t assert: -0.1 isNegative.
+  t assert: t smallInt negated isNegative.
+  t assert: t bigInt negated isNegative.
+  t assert: (-5 / 10) isNegative.
+
+  "Is #isNegative meaningful for complex numbers?"
+].
+
+"Integer arithmetic tests."
+
+t@(UnitTests Numeric traits) testIntegerAddition
+"Test addition of Numbers to Integers"
+[
+  t assert: 2 + 2 = 4.
+  t assert: 2 + (1 / 2) = (5 / 2).
+  t assert: 2 + 2.1 = 4.1.
+
+  t assert: 2 + t complexZero = 2.
+  t assert: 2 + t complexOne = (3 plusImaginary: 1).
+  t assert: 2 + t complexFraction = ((5 / 2) plusImaginary: (1 / 3)).
+  t assert: 2 + t complexFloat = (4.5 plusImaginary: 0.5).
+].
+
+t@(UnitTests Numeric traits) testIntegerSubtraction
+"Test subtraction of Numbers from Integers"
+[
+  t assert: 4 - 2 = 2.
+  t assert: 2 - (1 / 2) = (3 / 2).
+  t assert: 2 - 2.5 = -0.5.
+
+  t assert: 2 - t complexZero = (2 plusImaginary: 0).
+  t assert: 2 - t complexOne = (1 plusImaginary: -1).
+  t assert: 2 - t complexFraction = ((3 / 2) plusImaginary: (-1 / 3)).
+  t assert: 2 - t complexFloat = (-0.5 plusImaginary: -0.5).
+].
+
+t@(UnitTests Numeric traits) testIntegerMultiplication
+[
+  t assert: 2 * 2 = 4.
+  t assert: 2 * (3 / 4) = (3 / 2).
+  t assert: 2 * 2.5 = 5.0.
+  t assert: 2 * -2 = -4.
+  t assert: 2 * (-3 / 4) = (-3 / 2).
+  t assert: 2 * -2.5 = -5.0.
+  t assert: -2 * 2 = -4.
+  t assert: -2 * (3 / 4) = (-3 / 2).
+  t assert: -2 * 2.5 = -5.0.
+  t assert: -2 * -2 = 4.
+  t assert: -2 * (-3 / 4) = (3 / 2).
+  t assert: -2 * -2.5 = 5.0.
+  t assert: 2 * 0.0 = 0.0.
+  t assert: -2 * 0.0 = 0.0.
+  t assert: 0 * 2 = 0.
+  "TODO add complex numbers"
+].
+
+t@(UnitTests Numeric traits) testIntegerDivision
+[
+  t assert: 4 / 2 = 2.
+  t assert: 4 / (1 / 2) = 8.
+  t assert: 4 / 0.5 = 8.0.
+  t assert: 4 / t complexOne = (2 plusImaginary: -2).
+  t assert: 4 / t complexNegativeOne = (-2 plusImaginary: 2).
+  t assert: 4 / t complexFraction = ((72 / 13) plusImaginary: (-48 / 13)).
+  t assert: 4 / t complexFloat ~= 0.
+  t assert: 4 / t complexTriangle = ((16 / 25) plusImaginary: (-12 / 25)).
+].
+
+t@(UnitTests Numeric traits) testIntegerEquality
+[
+  t assert: 2 = 2.
+  t assert: 2 = 2.0.
+  t assert: 2 = (4 / 2).
+].
+
+
+"Fraction arithmetic tests."
+
+t@(UnitTests Numeric traits) testFractionAddition
+"Test addition of Numbers to Fractions"
+[
+  t assert: (1 / 2) + 2 = (5 / 2) .
+  t assert: (1 / 2) + (1 / 4) = (3 / 4).
+  t assert: (1 / 2) + 2.1 = 2.6.
+].
+
+t@(UnitTests Numeric traits) testFractionSubtraction
+"Test subtraction of Numbers from Fractions"
+[
+  t assert: (1 / 2) - 2 = (-3 / 2) .
+  t assert: (1 / 2) - (1 / 4) = (1 / 4).
+  t assert: (1 / 4) - 2.5 = -2.25.
+].
+
+t@(UnitTests Numeric traits) testFractionMultiplication
+[
+  t assert: (3 / 4) * 3 = (9 / 4).
+  t assert: (3 / 4) * -3 = (-9 / 4).
+  t assert: (-3 / 4) * 3 = (-9 / 4).
+  t assert: (3 / -4) * -3 = (9 / 4).
+  t assert: (-3 / -4) * -3 = (-9 / 4).
+
+  t assert: (3 / 4) * (1 / 2) = (3 / 8).
+  t assert: (-3 / 4) * (1 / 2) = (-3 / 8).
+  t assert: (3 / 4) * (-1 / 2) = (-3 / 8).
+  t assert: (-3 / 4) * (-1 / 2) = (3 / 8).
+  t assert: (-3 / -4) * (-1 / 2) = (-3 / 8).
+
+  t assert: (1 / 2) * 3.5 = 1.75.
+  t assert: (-1 / 2) * 3.5 = -1.75.
+  t assert: (1 / 2) * -3.5 = -1.75.
+  t assert: (-1 / 2) * -3.5 = 1.75.
+  t assert: (-1 / -2) * -3.5 = -1.75.
+
+  t assert: (3 / 4) * 0 = 0.
+  t assert: (3 / 4) * 0.0 = 0.0.
+].
+
+t@(UnitTests Numeric traits) testFractionDivision
+[
+  t assert: (3 / 4) / 3 = (1 / 4).
+  t assert: (3 / 4) / (1 / 2) = (6 / 4).
+  t assert: (3 / 4) / 0.5 = 1.5.
+  t assert: (3 / 4) / t complexTriangle = ((3 / 25) plusImaginary: (-9 / 100)).
+].
+
+"Float arithmetic tests."
+
+t@(UnitTests Numeric traits) testFloatAddition
+"Test addition of Numbers to Floats"
+[
+  t assert: 2.1 + 2 = 4.1.
+  t assert: 2.1 + (1 / 2) = 2.6.
+  t assert: 2.1 + 2.1 = 4.2.
+].
+
+t@(UnitTests Numeric traits) testFloatSubtraction
+"Test subtraction of Numbers from Floats"
+[
+  t assert: 2.5 - 2 = 0.5.
+  t assert: 2.5 - (3 / 4) = 1.75.
+  t assert: 2.5 - 1.75 = 0.75.
+  t assert: 2.5 - 2.5 = 0.0.
+].
+
+t@(UnitTests Numeric traits) testFloatMultiplication
+[
+  t assert: 3.5 * 2 = 7.0.
+  t assert: -3.5 * 2 = -7.0.
+  t assert: 3.5 * -2 = -7.0.
+  t assert: -3.5 * -2 = 7.0.
+
+  t assert: 3.5 * (1 / 2) = 1.75.
+  t assert: -3.5 * (1 / 2) = -1.75.
+  t assert: 3.5 * (-1 / 2) = -1.75.
+  t assert: -3.5 * (-1 / 2) = 1.75.
+
+  t assert: 3.5 * 1.5 = 5.25.
+  t assert: -3.5 * 1.5 = -5.25.
+  t assert: 3.5 * -1.5 = -5.25.
+  t assert: -3.5 * -1.5 = 5.25.
+
+  t assert: 3.5 * 0 = 0.
+  t assert: 3.5 * 0.0 = 0.0.
+].
+
+t@(UnitTests Numeric traits) testFloatDivision
+[
+  t assert: 3.5 / 2 = 1.75.
+  t assert: -3.5 / 2 = -1.75.
+  t assert: 3.5 / -2 = -1.75.
+  t assert: -3.5 / -2 = 1.75.
+
+  t assert: 3.5 / (1 / 2) = 7.0.
+  t assert: -3.5 / (1 / 2) = -7.0.
+  t assert: 3.5 / (-1 / 2) = -7.0.
+  t assert: -3.5 / (-1 / 2) = 7.0.
+
+  t assert: 3.5 / 1.75 = 2.0.
+  t assert: -3.5 / 1.75 = -2.0.
+  t assert: 3.5 / -1.75 = -2.0.
+  t assert: -3.5 / -1.75 = 2.0.
+
+  t assert: 0 / 3.5 = 0.
+  t assert: 0.0 / 3.5 = 0.0.
+].
+
+t@(UnitTests Numeric traits) testIsCloseTo
+[
+  t deny: (0.1 isCloseTo: 0.0).
+  t deny: (0.0 isCloseTo: 0.1).
+  t assert: (1e-12 isCloseTo: 0.0).
+  t deny: (3.1 isCloseTo: 3).
+  t deny: (3 isCloseTo: 4).
+  t assert: (7 + 1e-12 isCloseTo: 7).
+  t deny: ((1 plusImaginary: -5) isCloseTo: 1).
+  t assert: ((1 plusImaginary: -5) isCloseTo: (1 plusImaginary: -5 + 1e-12)).
+  t assert: (3 isCloseTo: (3 plusImaginary: 0)).
+].
+
+
+"Complex number arithmetic tests."
+
+t@(UnitTests Numeric traits) testComplexAddition
+[ | c1 c2 |
+  c1: (2.5 plusImaginary: -3.5).
+  c2: (-35 plusImaginary: 4.75).
+
+  t assert: (c1 + c2 isCloseTo: (-32.5 plusImaginary: 1.25)).
+  t assert: (c2 + c1 isCloseTo: (-32.5 plusImaginary: 1.25)).
+  t assert: (c1 + 5.3 isCloseTo: (7.8 plusImaginary: -3.5)).
+  t assert: (c2 + 3 isCloseTo: (-32 plusImaginary: 4.75)).
+  t assert: (3 + c2 isCloseTo: (-32 plusImaginary: 4.75)).
+].
+
+t@(UnitTests Numeric traits) testComplexSubtraction
+[ | c1 c2 |
+  c1: (2.5 plusImaginary: -3.5).
+  c2: (-35 plusImaginary: 4.75).
+
+  t assert: (c1 - c2 isCloseTo: (37.5 plusImaginary: -8.25)).
+  t assert: (c2 - c1 isCloseTo: (-37.5 plusImaginary: 8.25)).
+  t assert: (c1 - 5.3 isCloseTo: (-2.8 plusImaginary: -3.5)).
+  t assert: (c2 - 3 isCloseTo: (-38 plusImaginary: 4.75)).
+  t assert: (3 - c2 isCloseTo: (38 plusImaginary: -4.75)).
+].
+
+t@(UnitTests Numeric traits) testComplexMultiplication
+[ | c1 c2 |
+  c1: (2.5 plusImaginary: -3.5).
+  c2: (-35 plusImaginary: 4.75).
+
+  t assert: (c1 * c2 isCloseTo: (-70.875 plusImaginary: 134.375)).
+  t assert: (c2 * c1 isCloseTo: (-70.875 plusImaginary: 134.375)).
+  t assert: (c1 * 5.3 isCloseTo: (13.25 plusImaginary: -18.55)).
+  t assert: (c2 * 3 isCloseTo: (-105 plusImaginary: 14.25)).
+  t assert: (3 * c2 isCloseTo: (-105 plusImaginary: 14.25)).
+].
+
+t@(UnitTests Numeric traits) testComplexDivision
+[ | c1 c2 |
+  c1: (2.5 plusImaginary: -3.5).
+  c2: (-35 plusImaginary: 4.75).
+
+  t assert: (c1 / c2 isCloseTo: (-0.0834627 plusImaginary: 0.0886729)).
+  t assert: (c2 / c1 isCloseTo: (-5.628378 plusImaginary: -5.979729)).
+  t assert: (c1 / 5.3 isCloseTo: (0.471698 plusImaginary: -0.660377)).
+  t assert: (c2 / 3 isCloseTo: (-11.666667 plusImaginary: 1.583333)).
+  t assert: (3 / c2 isCloseTo: (-0.0841641 plusImaginary: -0.0114222)).
+].
+
+
+
+"TODO:"
+"equality"
+"inequalities"
+"raisedTo:"
+
+t@(UnitTests Numeric traits) suite
+[t suiteForSelectors: {
+  #testIsZero.
+  #testIsPositive.
+  #testIsNegative.
+  #testIntegerAddition.
+  #testIntegerSubtraction.
+  #testIntegerMultiplication.
+  #testIntegerDivision.
+  #testIntegerEquality.
+  #testFractionAddition.
+  #testFractionSubtraction.
+  #testFractionMultiplication.
+  #testFractionDivision.
+  #testFloatAddition.
+  #testFloatSubtraction.
+  #testFloatMultiplication.
+  #testFloatDivision.
+  #testIsCloseTo.
+  #testComplexAddition.
+  #testComplexSubtraction.
+  #testComplexMultiplication.
+  #testComplexDivision.
+}].

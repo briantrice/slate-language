@@ -1,0 +1,136 @@
+
+RegressionTests define: #Shootout &parents: {TestCase}.
+
+"Exercise the Computer Language Shootout benchmarks to ensure they are
+running correctly. The benchmarks themselves can be found in
+tests/benchmark/shootout.slate.
+
+The individual benchmarks are loaded independently from
+benchmark/shootout.slate so that there is no requirement
+for the time plugin."
+
+load: 'tests/benchmark/ackermann.slate'.
+load: 'tests/benchmark/binarytrees.slate'.
+load: 'tests/benchmark/fannkuch.slate'.
+load: 'tests/benchmark/harmonic.slate'.
+load: 'tests/benchmark/mandelbrot.slate'.
+load: 'tests/benchmark/nbody.slate'.
+load: 'tests/benchmark/nsieve.slate'.
+load: 'tests/benchmark/nsievebits.slate'.
+load: 'tests/benchmark/pidigits.slate'.
+load: 'tests/benchmark/random.slate'.
+load: 'tests/benchmark/spectralnorm.slate'.
+load: 'tests/benchmark/sumfile.slate'.
+load: 'tests/benchmark/takfp.slate'.
+
+t@(RegressionTests Shootout traits) ackermann
+"Integer recursive function performance."
+[
+  t assert: (3 ackermann: 4) = 125.
+].
+
+t@(RegressionTests Shootout traits) binarytrees
+"Allocate and deallocate many binary trees."
+[| c |
+  t assert: ((benchmark TreeNode bottomUpTree: 0 depth: 7) checkItem) = -1.
+  c: 0.
+  0 below: 10 do: [| :i |
+    c: (c + (benchmark TreeNode bottomUpTree: i depth: 5) checkItem).
+    c: (c + (benchmark TreeNode bottomUpTree: (-1 * i) depth: 5) checkItem).
+  ].
+  t assert: c = -20.
+].
+
+t@(RegressionTests Shootout traits) fannkuch
+"Indexed-access to tiny integer-sequence."
+[
+  t assert: (7 fannkuch) = 16.
+  t assert: (8 fannkuch) = 22.
+].
+
+t@(RegressionTests Shootout traits) harmonic
+"Calculate the partial sum of the Harmonic series."
+[
+  t assert: ((5 partialSum) as: String) = '2.283333'.
+  t assert: ((10 partialSum) as: String) = '2.928968'.
+  t assert: ((20 partialSum) as: String) = '3.597739'.
+  t assert: ((1000 partialSum) as: String) = '7.485478'.
+  t assert: ((10000 partialSum) as: String) = '9.787613'.
+].
+
+t@(RegressionTests Shootout traits) nbody
+"Double-precision N-body simulation."
+[
+  t assert: ((0 nbodies) as: String) = '-0.169075'.
+  t assert: ((1000 nbodies) as: String) = '-0.169086'.
+].
+
+t@(RegressionTests Shootout traits) nsieve
+"Indexed access to a boolean sequence."
+[
+  t assert: (40000 nsieve) = 4203.
+  t assert: (20000 nsieve) = 2262.
+  t assert: (10000 nsieve) = 1229.
+  t assert: (1 primes) = 2262.
+  t assert: (2 primes) = 4203.
+].
+
+t@(RegressionTests Shootout traits) nsievebits
+"Indexed access to a boolean sequence."
+[
+  t assert: (40000 nsievebits) = 4203.
+  t assert: (20000 nsievebits) = 2262.
+  t assert: (10000 nsievebits) = 1229.
+  t assert: (1 bitprimes) = 2262.
+  t assert: (2 bitprimes) = 4203.
+].
+
+t@(RegressionTests Shootout traits) pidigits
+"Streaming arbitrary-precision arithmetic."
+[
+  27 pidigits. "TODO: Diff output with gold file."
+].
+
+t@(RegressionTests Shootout traits) random
+"Generate random floating-point numbers."
+[
+  t assert: ((RandomNumber to: 100 repeat: 1000) as: String) = '8.163295'.
+].
+
+t@(RegressionTests Shootout traits) spectralnorm
+"Eigenvalue using the power method."
+[
+  t assert: (100 spectralnorm) = '1.27422'
+].
+
+t@(RegressionTests Shootout traits) sumfile
+"Read lines, parse and sum integers."
+[
+  t assert: ('tests/benchmark/sumfile.in' sumfile) = 500.
+].
+
+t@(RegressionTests Shootout traits) takfp
+"Floating-point recursive function performance."
+[
+  t assert: (4 takfp) = 5.0.
+  t assert: (5 takfp) = 10.0.
+  t assert: (6 takfp) = 7.0.
+  t assert: (7 takfp) = 14.0.
+  t assert: (8 takfp) = 9.0.
+].
+
+tc@(RegressionTests Shootout traits) suite
+[tc suiteForSelectors: {
+  #ackermann.
+  #binarytrees.
+  #fannkuch.
+  #harmonic.
+  #nbody.
+  #nsieve.
+  #nsievebits.
+  #pidigits.
+  #random.
+  #spectralnorm.
+  #sumfile.
+  #takfp.
+}].

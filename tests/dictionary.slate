@@ -1,0 +1,256 @@
+UnitTests addPrototype: #Dictionary derivedFrom: {TestCase}.
+"TODO only tests base functionality, add SingleValueMap, EmptyMap, etc."
+
+UnitTests Dictionary addSlot: #months1 valued:
+  [| result |
+     result: (Dictionary newSize: 12).
+
+     result add: 'January' -> 31.
+     result at: 'February' put: 29.
+     result at: 'March' put: 31.
+     result add: 'April' -> 30.
+     result at: 'May' put: 31.
+     result at: 'June' put: 30.
+     result add: (Association cloneSettingSlots: #(key value) to: {'July'. 31}).
+     result at: 'August' put: 31.
+     result at: 'September' put: 30.
+     result at: 'October' put: 31.
+     result at: 'November' put: 30.
+     result add: 'December' -> 31.
+
+     result
+  ] do.
+
+UnitTests Dictionary addSlot: #months2 valued:
+  [| result |
+     result: Dictionary new.
+
+     result at: 'January' put: 31.
+     result add: 'February' -> 29.
+     result at: 'March' put: 31.
+     result at: 'April' put: 30.
+     result add: (Association cloneSettingSlots: #(key value) to: {'May'. 31}).
+     result at: 'June' put: 30.
+     result at: 'July' put: 31.
+     result at: 'August' put: 31.
+     result at: 'September' put: 30.
+     result add: 'October' -> 31.
+     result at: 'November' put: 30.
+     result add: (Association cloneSettingSlots: #(key value) to: {'December'. 31}).
+
+     result
+  ] do.
+
+UnitTests Dictionary addSlot: #empty valued: Dictionary new.
+
+
+
+t@(UnitTests Dictionary traits) testSignals
+[| d1 |
+  d1: t months1.
+
+  t should: [d1 at: 'invalidKey'] raise: Mapping KeyNotFound
+    description: 'KeyNotFound is not signaled from at:'.
+
+  t should: [t empty anyOne] raise: Collection IsEmpty
+    description: 'IsEmpty is not signaled from anyOne'.
+].
+
+t@(UnitTests Dictionary traits) testAccess
+[| d1 d2 |
+  d1: t months1.
+  d2: t months2.
+
+  t assert: (d1 at: 'January') = (d2 at: 'January') description: 'Value at January differs'.
+  t assert: (d1 at: 'December') = (d2 at: 'December') description: 'Value at December differs'.
+
+  t assert: (d1 at: 'January' ifAbsent: [t signalFailureDescription: 'at:ifAbsent: block should not get evaluated here']) = 31 description: 'Unexpected value at January'.
+
+  t assert: (d1 keyAtValue: 29) = (d2 keyAtValue: 29) description: 'keyAtValue: 29 differs'.
+
+  t assert: (d1 includes: 29) description: 'd1 includes: 29 failed'.
+  t deny: (d1 includes: 19) description: 'd1 includes: 19'.
+
+  t assert: (d1 includesKey: 'January') description: 'd1 includesKey: \'January\' failed'.
+  t deny: (d1 includesKey: 'foobar') description: 'd1 includesKey: \'foobar\''.
+
+  t assert: (d1 occurrencesOf: 30) = 4 description: '(d1 occurrencesOf: 30) ~= 4'.
+].
+
+t@(UnitTests Dictionary traits) testIteration
+[
+  t months1 keysDo:
+    [| :key |
+       t assert: (t months2 at: key) = (t months1 at: key) description: 'An element differs while iterating on keys'].
+
+  "Unless we can ensure ordering, the following test doesn't make sense. But, if order can be ensured, this test might be useful."
+  "t months1 valuesDo:
+    [| :value |
+      t assert: (t months2 keyAtValue: value) = ( t months1 keyAtValue: value) description: 'An element differs while iterating on values']."
+
+  t months1 keysAndValuesDo:
+    [| :key :value |
+       t assert: (t months2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
+].
+
+t@(UnitTests Dictionary traits) testSize
+[
+  t assert: t months1 size = t months2 size description: 'Sizes differ'.
+].
+
+t@(UnitTests Dictionary traits) testEquality
+[
+  t assert: t months1 = t months2 description: 'Equality failed'.
+  t deny: t months1 = t empty description: 'False equality with empty dictionary'.
+].
+
+t@(UnitTests Dictionary traits) testMutation
+[| d1 d2 |
+  d1: t months1 copy.
+  d2: t months2 copy.
+
+  d1 at: 'January' put: 0.
+  t assert: (d1 occurrencesOf: 31) = 6 description: '(d1 occurrencesOf: 31) ~= 6 after January set to 0'.
+  t deny: (d1 at: 'January') = (d2 at: 'January') description: 'Mutating d1 failed'.
+  t deny: d1 = d2 description: 'd1 = d2 after mutating d1'.
+
+  d2 at: 'January' put: 0.
+  t assert: d1 = d2 description: 'd1 ~= d2 after mutating d2, too'.
+
+  d1 remove: 'February'.
+  t deny: d1 = d2 description: 'd1 = d2 after removing February from d1'.
+  t deny: d1 size = d2 size description: 'd1 size = d2 size after removing February from d1'.
+
+  d2 remove: 'February'.
+  t assert: d1 = d2 description: 'd1 ~= d2 after removing February from d2, too'.
+  t assert: d1 size = d2 size description: 'd1 size ~= d2 size after removing February from d2, too'.
+].
+
+
+t@(UnitTests Dictionary traits) suite
+[t suiteForSelectors: {
+  #testAccess.
+  #testSignals.
+  #testSize.
+  #testEquality.
+  #testMutation.
+  #testIteration.
+}].
+
+
+UnitTests addPrototype: #IdentityDictionary derivedFrom: {TestCase}.
+
+UnitTests IdentityDictionary addSlot: #list1 valued:
+  [| result |
+     result: (IdentityDictionary newSize: 4).
+
+     result add: Boolean -> 10.
+     result at: True put: 20.
+     result add: (Association cloneSettingSlots: #(key value) to: {False. 30}).
+
+     result
+  ] do.
+
+UnitTests IdentityDictionary addSlot: #list2 valued:
+  [| result |
+     result: (IdentityDictionary newSize: 4).
+
+     result at: Boolean put: 10.
+     result add: (Association cloneSettingSlots: #(key value) to: {True. 20}).
+     result add: False -> 30.
+
+     result
+  ] do.
+
+UnitTests IdentityDictionary addSlot: #empty valued: IdentityDictionary new.
+
+
+t@(UnitTests IdentityDictionary traits) testSignals
+[| d1 |
+  d1: t list1.
+
+  t should: [d1 at: 'invalidKey'] raise: Mapping KeyNotFound
+    description: 'KeyNotFound is not signaled from at:'.
+
+  t should: [t empty anyOne] raise: Collection IsEmpty
+    description: 'IsEmpty is not signaled from anyOne'.
+].
+
+t@(UnitTests IdentityDictionary traits) testAccess
+[| d1 d2 |
+  d1: t list1.
+  d2: t list2.
+
+  t assert: (d1 at: Boolean) = (d2 at: Boolean) description: 'Value at Boolean differs'.
+  t assert: (d1 at: True) = (d2 at: True) description: 'Value at True differs'.
+
+  t assert: (d1 at: False ifAbsent: [t signalFailureDescription: 'at:ifAbsent: block should not get evaluated here']) = 30 description: 'Unexpected value at January'.
+
+  t assert: (d1 keyAtValue: 30) = (d2 keyAtValue: 30) description: 'keyAtValue: 30 differs'.
+
+  t assert: (d1 includes: 20) description: 'd1 includes: 20 failed'.
+  t deny: (d1 includes: 100) description: 'd1 includes: 100'.
+
+  t assert: (d1 includesKey: True) description: 'd1 includesKey: True failed'.
+  t deny: (d1 includesKey: Dictionary) description: 'd1 includesKey: Dictionary'.
+
+  t assert: (d1 occurrencesOf: 30) = 1 description: '(d1 occurrencesOf: 30) ~= 1'.
+].
+
+t@(UnitTests IdentityDictionary traits) testIteration
+[
+  t list1 keysDo:
+    [| :key |
+       t assert: (t list2 at: key) = (t list1 at: key) description: 'An element differs while iterating on keys'].
+
+  t list1 valuesDo:
+    [| :value |
+      t assert: (t list2 keyAtValue: value) = ( t list1 keyAtValue: value) description: 'An element differs while iterating on values'].
+
+  t list1 keysAndValuesDo:
+    [| :key :value |
+       t assert: (t list2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
+].
+
+t@(UnitTests IdentityDictionary traits) testSize
+[
+  t assert: t list1 size = t list2 size description: 'Sizes differ'.
+].
+
+t@(UnitTests IdentityDictionary traits) testEquality
+[
+  t assert: t list1 = t list2 description: 'Equality failed'.
+  t deny: t list1 = t empty description: 'False equality with empty dictionary'.
+].
+
+t@(UnitTests IdentityDictionary traits) testMutation
+[| d1 d2 |
+  d1: t list1 copy.
+  d2: t list2 copy.
+
+  d1 at: False put: 0.
+  t assert: (d1 occurrencesOf: 30) = 0 description: '(d1 occurrencesOf: 30) ~= 0 after False (which was set to 30) was set to 0'.
+  t deny: (d1 at: False) = (d2 at: False) description: 'Mutating d1 failed'.
+  t deny: d1 = d2 description: 'd1 = d2 after mutating d1'.
+
+  d2 at: False put: 0.
+  t assert: d1 = d2 description: 'd1 ~= d2 after mutating d2, too'.
+
+  d1 remove: Boolean.
+  t deny: d1 = d2 description: 'd1 = d2 after removing Boolean from d1'.
+  t deny: d1 size = d2 size description: 'd1 size = d2 size after removing Boolean from d1'.
+
+  d2 remove: Boolean.
+  t assert: d1 = d2 description: 'd1 ~= d2 after removing Boolean from d2, too'.
+  t assert: d1 size = d2 size description: 'd1 size ~= d2 size after removing Boolean from d2, too'.
+].
+
+t@(UnitTests IdentityDictionary traits) suite
+[t suiteForSelectors: {
+  #testSignals.
+  #testAccess.
+  #testIteration.
+  #testSize.
+  #testEquality.
+  #testMutation.
+}].

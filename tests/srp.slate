@@ -1,0 +1,146 @@
+lobby ensureNamespace: #UnitTests.
+
+UnitTests define: #SRP &parents: {TestCase}.
+
+s@(UnitTests SRP traits) equalityLiterals
+[
+ "Literals that should compare = when replicated."
+ | a |
+ a: (ExtensibleArray newSize: 1).
+ a add: 'ABC'.
+ a add: 999999999999999.
+ a add: -999999999999999.
+" a add: 1.5 .
+ a add: -1.5 .
+ a add:  1 / 3 .
+ a add: -1 / 3 ."
+ a add: #(name date).
+ a add: ({255. 65. 66. 67. 0.} as: ByteArray).
+ a
+].
+
+s@(UnitTests SRP traits) identityLiterals
+[
+  "Literals that should compare == when replicated."
+
+ { True. False. Nil. #name. $A. 7. -7.}
+"  #(True False Nil $A 7 -7)"
+].
+
+s@(UnitTests SRP traits) testLiteralDefaultReplications
+[
+  s equalityLiterals do: [| :ea |
+    s assert: (SRP Configuration new replicate: ea) = ea.
+    s assert: (SRP NonMappingConfiguration new replicate: ea) = ea.
+"    self assert: (SrpBase64Configuration new replicate: ea) = ea.
+    self assert: (SrtSequenceCheckConfiguration new replicate: ea) = ea."
+  ].
+
+  s identityLiterals do: [| :ea |
+    s assert: (SRP Configuration new replicate: ea) == ea.
+    s assert: ((SRP NonMappingConfiguration new replicate: ea) == ea).
+"    self assert: (SrpBase64Configuration new replicate: ea) == ea.
+    self assert: (SrtSequenceCheckConfiguration new replicate: ea) == ea."
+  ].
+].
+
+s@(UnitTests SRP traits) testStringReplications
+[
+  | stream |
+
+  stream: ((ExtensibleArray newSize: 1) writer).
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream ; '\n'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPut: $A.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream ; '\n'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPutAll: 'ABCD'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream ; '\n'.
+  stream nextPutAll: 'EFGH'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream ; '\n'. stream ; '\n'.
+   stream nextPutAll: 'IJKL'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPut: (10 as: Character).
+   stream ; '\n'.
+  stream nextPutAll: 'MNOP'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPut: (13 as: Character).
+  stream ; '\n'.
+
+  stream nextPutAll: 'QRST'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPut: (13 as: Character). stream nextPut: (13 as: Character). stream ; '\n'. stream nextPutAll: 'UVW'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+
+  stream nextPut: (10 as: Character). stream nextPut: (10 as: Character). stream ; '\n'. stream nextPutAll: 'XYZ'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+  
+  stream ; '\n\n\t\n\n'.
+
+  s assert: (SRP Configuration default replicate: stream contents) = stream contents.
+].
+
+
+s@(UnitTests SRP traits) testSrpDefaultsComplexObject100xWriteRead
+[
+  | ostream method t1 t2 |
+
+  method: s complexObject.
+
+  ostream: SRP Configuration new newStream.
+
+  t1: (t2: 0).
+
+  100 timesRepeat: [
+
+    ostream nextPut: method.
+"    t1 := t1 + (self portal millisecondsToRun: [ostream nextPut: method ]).
+"
+    ostream reset.
+    ostream next.
+"    t2 := t2 + (self portal millisecondsToRun: [ostream next ]).
+"
+    ostream reset.
+
+  ].
+"
+  self reportComment: #testSrpDefaultsComplexObject100xWriteRead, ' save ', t1 printString, 'ms, load ', t2 printString, 'ms.'.
+"
+].
+
+s@(UnitTests SRP traits) complexObject
+[
+ SRP Configuration default loadObjectFromBinaryFilename: '/home/jewel/complexObject'
+].
+
+s@(UnitTests SRP traits) suite
+[s suiteForSelectors: {
+  #testLiteralDefaultReplications.
+  #testStringReplications.
+}].
+
+"UnitTests SRP suite run"
+

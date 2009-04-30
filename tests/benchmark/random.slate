@@ -1,0 +1,24 @@
+
+prototypes ensureNamespace: #benchmark &delegate: True.
+
+benchmark define: #RandomNumber &slots: {
+  #increment  -> 29573.
+  #multiplier -> 3877.
+  #modulus    -> 139968.
+  #fmodulus   -> 139968.0.
+  #seed.
+  #scale.
+}.
+
+r@(benchmark RandomNumber traits) next
+[
+  r seed: (r seed) * (r multiplier) + (r increment) \\ (r modulus).
+  (((r seed) * (r scale)) as: Float) / (r fmodulus)
+].
+
+r@(benchmark RandomNumber traits) to: i@(Integer traits) repeat: n@(Integer traits)
+[
+  r `>> [seed: 42. scale: i].
+  n - 1 timesRepeat: [r next].
+  r next
+].

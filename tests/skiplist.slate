@@ -1,0 +1,145 @@
+
+UnitTests addPrototype: #SkipList derivedFrom: {TestCase}.
+
+tc@(UnitTests SkipList traits) isEmpty
+[| sl |
+  sl: SkipList new.
+  tc assert: sl isEmpty description: 'new SkipList states that it is empty'.
+].
+
+tc@(UnitTests SkipList traits) size
+[| sl |
+  sl: SkipList new.
+  tc assert: sl size = 0 description: 'empty SkipList has non-zero size'.
+].
+
+tc@(UnitTests SkipList traits) newPointerLength
+[| sl sum |
+  sl: SkipList new.
+  sum: 0.
+  10 timesRepeat: [ sum: sum + sl newPointerLength ].
+  tc assert: (sum between: 15 and: 25) description: 
+    'pointerlength average is incorrect'.
+].
+
+tc@(UnitTests SkipList traits) forward
+[| sln |
+  sln: SkipList Node clone.
+  sln pointers: (sln pointers newSize: 5).
+  0 upTo: 4 do: [| :i | sln pointers at: i put: i].
+  0 upTo: 4 do: [| :i | 
+    tc assert: (sln forward: i) = i description: 'forward answers wrong value'.].
+].
+
+tc@(UnitTests SkipList traits) add
+[| sl |
+  sl: SkipList new.
+  sl add: 2.
+  tc assert: (sl size) = 1 description: 'added one item but size is not one'.
+  sl add: 5.
+  tc assert: (sl size) = 2 description: 'could not add item at last place'.
+  sl add: 1.
+  tc assert: (sl size) = 3 description: 'added as first does not increase size'.
+].
+
+tc@(UnitTests SkipList traits) includes
+[| sl |
+  sl: SkipList new.
+  sl add: 2.
+  tc assert: (sl includes: 2) description: 'first added object is not included'.
+  sl add: 5.
+  tc assert: (sl includes: 5) description: 'second added object is not included'.
+  sl add: 1.
+  tc assert: (sl includes: 1) description: 'added as first not included'.
+  sl add: 3.
+  tc assert: (sl includes: 3) description: 'inserted not included'. 
+  tc assert: (sl includes: 4) not description: 'includes unadded object'.
+].
+
+tc@(UnitTests SkipList traits) remove
+[| sl |
+  sl: SkipList new.
+  sl add: 4.
+  sl remove: 4.
+  tc assert: sl isEmpty description: 'not empty after add-remove'.
+  0 upTo: 10 do: [| :i | sl add: i].
+  tc assert: (sl size) = 11 description: 'pre-test check'.
+  sl remove: 3.
+  tc assert: (sl size) = 10 description: 'remove does not decrease size'.
+  tc assert: (sl includes: 3) not description: 'found after removal'.
+].
+
+tc@(UnitTests SkipList traits) do
+[| sl sum counter |
+  sl: SkipList new.
+  0 upTo: 9 do: [| :i | sl add: i].
+  sum: 0.
+  sl do: [| :obj | obj < 5 ifTrue: [sum: sum + obj]].
+  tc assert: sum = 10 description: 'do on first elements failed'.
+  sum: 0.
+  sl do: [| :obj | obj > 4 ifTrue: [sum: sum + obj]].
+  tc assert: sum = 35 description: 'do on last elements failed'.
+  sum: 0.
+  counter: 0.
+  sl do: [| :obj |
+    obj < 5 /\ [counter < 5] 
+      ifTrue: [sum: sum + obj. counter: counter + 1]].
+  tc assert: sum = 10 description: 'summed incorrect elements'.
+].
+
+tc@(UnitTests SkipList traits) reverseDoAndSequence
+"Test reverseDo and sequence of elements."
+[| sl sum counter |
+  sl: SkipList new.
+  0 upTo: 9 do: [| :i | sl add: i].
+  sum: 0.
+  counter: 0.
+  sl reverseDo: [| :obj |
+    counter < 5 ifTrue: [
+      counter: counter + 1.
+      obj < 8 ifTrue: [sum: sum + obj]]].
+  tc assert: sum = 18 description: 'reverse do on selected from first half failed'.
+  sum: 0.
+  counter: 0.
+  sl reverseDo: [| :obj |
+    counter < 8 ifTrue: [
+      counter: counter + 1.
+      obj < 5 ifTrue: [sum: sum + obj]]].
+  tc assert: sum = 9 description: 'reverse do on selection failed'.
+].
+
+tc@(UnitTests SkipList traits) addIfPresent
+[| sl counter |
+  sl: SkipList new.
+  0 upTo: 9 do: [| :i | sl add: i].
+  counter: 0.
+  0 upTo: 9 do: [| :i | sl add: i ifPresent: [counter: counter + 1]].
+  tc assert: counter = 10 description: 'added object when present'.
+].
+
+tc@(UnitTests SkipList traits) removeIfAbsent
+[| sl counter |
+  sl: SkipList new.
+  counter: 0.
+  0 upTo: 9 do: [| :i | 
+    sl remove: i ifAbsent: [
+      counter: counter + 1.
+      sl add: i]].
+  0 upTo: 9 do: [| :i | sl remove: i ifAbsent: [counter: counter - 1]].
+  tc assert: counter = 10 description: 'removing absent object?'.
+].
+
+tc@(UnitTests SkipList traits) suite
+[tc suiteForSelectors: {
+  #size.
+  #newPointerLength.
+  #isEmpty.
+  #forward.
+  #add.
+  #includes.
+  #remove.
+  #do.
+  #reverseDoAndSequence.
+  #addIfPresent.
+  #removeIfAbsent.
+}].

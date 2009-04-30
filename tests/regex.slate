@@ -1,0 +1,34 @@
+load: 'src/lib/regex.slate'.
+
+"UnitTests addPrototype: #Regex derivedFrom: {TestCase}.
+
+tc@(UnitTests Regex traits) shouldMatch: string against: regex withMatches: c
+[| matcher |
+  inform: 'Testing regex: ' ; regex.
+  matcher: (Regex Parser compileRegex: regex).
+  matcher
+    ifNil: [c ifNil: [inform: 'Compilation error as expected.']
+	      ifNotNil: [inform: 'Compilation error, Unexpected!'.
+			 tc failures: tc failures + 1]]
+    ifNotNil: [c ifNil: [inform: 'Compilation succeeded, should have failed!'.
+			 tc failures: tc failures + 1]
+		 ifNotNil: [c do: [| :eachMatch | ]]]
+].
+
+tc@(UnitTests Regex traits) testSimple
+[| src |
+  src: 'abc'.
+  tc shouldMatch: string against: string withMatches: {1. 'abc'}.
+  tc shouldMatch: string against: 'xbc' withMatches: Nil.
+  tc shouldMatch: string against: 'axc' withMatches: Nil.
+  tc shouldMatch: string against: 'abx' withMatches: Nil.
+].
+"
+
+_@lobby testURLMatch
+[| r |
+  r: (Regex Matcher for: '^(([^:/?#]+)X)?(//([^/?#]*))?([^?#]*)(Z([^#]*))?(#(.*))?').
+  (r matches: 'httpX//www.foo.com/ra/ra/raZa=b') printOn: Console writer.
+  1 to: 10 do: [ | :a | Console ; (a as: '') ; ' ' . (r subexpression: a) printOn: Console writer. Console ; '\n'].
+].
+

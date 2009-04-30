@@ -1,0 +1,236 @@
+
+"
+Image saving does not work! If you want to save an image after using SmartConsole
+you have to execute the line below, otherwise the reference to the dll is saved
+which will cause a crash after loading the saved image and using SmartConsole.
+
+CursesConsole traits lib: Nil.
+Image save.
+"
+
+UnitTests addPrototype: #SmartConsole derivedFrom: {Cloneable}.
+"Not a real unit test, it's an object to dispatch on for a few
+methods that test SmartConsole/Terminal functionality with human
+interaction."
+
+_@(UnitTests SmartConsole traits) streamedCommandProcessor
+[
+  SmartConsole new sessionDo: [| :console terminal editor reader |
+    terminal: (Terminal newBasedOn: console).
+    editor: terminal commandEditor.
+    editor prompt: 'Prompt> '.
+    reader: editor reader.
+
+    terminal ; 'This test should echo all lines committed by enters, and exit if a \'q\' character is encountered'.
+
+    [| char |
+      char: reader next.
+      terminal nextPut: char.
+      "char printOn: terminal &radix: 16."
+      terminal flush.
+      char = $q
+    ] whileFalse.
+  ].
+].
+
+_@(UnitTests SmartConsole traits) commandProcessor
+[
+  SmartConsole new sessionDo: [| :console terminal editor |
+    terminal: (Terminal newBasedOn: console).
+    editor: terminal commandEditor.
+    editor prompt: 'Prompt> '.
+    
+    terminal ; 'This test should echo lines ending with a dot and committed with enters; quit with the \'quit.\' command'.
+    terminal newLine.
+    console writer ; 'Also demonstrates editing at any column: '.
+
+    [| line |
+      [ line: editor readLine.
+        ["console writeCursorPositionAt: (console width // 2) , (console height // 2)."
+         line size = 0 \/ [(line at: line indexLast) ~= $. ]]
+          whileTrue: [line: (editor continue)].
+
+        terminal newLine.
+        terminal ; '\'' ; line ; '\''.
+        terminal newLine.
+        terminal flush]
+      on: Stream Exhaustion do: [| :_ |
+        terminal ; '\nStream closed\n'].
+
+     line ~= Nil /\ [line = 'quit.']
+   ] whileFalse.
+  ].
+].
+
+_@(UnitTests SmartConsole traits) dimensionInfo
+[
+  SmartConsole new sessionDo: [| :console |
+    
+    console writer ; 'This test should write the screen dimentions in the center; quit with the Escape key'.
+    [
+      console
+        writePosition: (console width , console height)
+        at: ((console width // 2) , (console height // 2)).
+
+      console events next keyName = #Escape
+    ] whileFalse.
+  ].
+].
+
+_@(UnitTests SmartConsole traits) draw
+[
+  SmartConsole new sessionDo: [| :console |
+    console ; 'Move with arrows, scroll with space, change color with 1-8, type chars, Esc quits\n'.
+
+    console events do: [| :event |
+      event keyName caseOf: {
+        #Escape      -> [^ Nil].
+        #Enter       -> [console moveCursorToBONL].
+        #LeftArrow   -> [console moveCursorLeft].
+        #RightArrow  -> [console moveCursorRight].
+        #UpArrow     -> [console moveCursorUp].
+        #DownArrow   -> [console moveCursorDown].
+      } otherwise: [
+        event char ifNotNil: [
+          ((event char as: Integer) between: 16r31 and: 16r40)
+            ifTrue: [console foregroundColor: (event char as: Integer) - 16r31]
+            ifFalse: [
+              event char = $\s
+                ifTrue: [console scroll]
+                ifFalse: [console writer nextPut: event char]]]].
+      console writeCursorPositionAt: {console width // 2. console height // 2}.
+    ].
+  ].
+].
+
+_@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole ResizeEvent traits) on: terminal
+[| console |
+  console: terminal console.
+  terminal ; 'Console resized to: ' ; (console width as: String) ; 'x' ; (console height as: String).
+  console clearToEOL.
+  terminal newLine.
+  False
+].
+
+_@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole KeyEvent traits) on: terminal
+[| console |
+  console: terminal console.
+  terminal ; 'Key code: ' ; (event keyCode as: String) ; ' - 16r' ;
+    (event keyCode printString &radix: 16).
+  console clearToEOL.
+  terminal newLine.
+
+  terminal ; 'Key name: '.
+  event keyName
+    ifNil: [terminal ; 'Nil']
+    ifNotNil: [terminal ; (event keyName as: terminal collectionType)].
+  console clearToEOL.
+  terminal newLine.
+
+  terminal ; 'Character: '.
+  event char
+    ifNil: [terminal ; 'Nil']
+    ifNotNil: [terminal nextPut: event char].
+  console clearToEOL.
+  terminal newLine.
+
+  terminal ; 'Controls: ' ; event controls printString.
+  console clearToEOL.
+  terminal newLine.
+
+  console writeCursorPositionAt: {console width // 2. console height // 2}.
+
+  event keyName = #Escape
+].
+
+t@(UnitTests SmartConsole traits) echoEvents
+[
+  SmartConsole new sessionDo: [| :console terminal |
+   terminal: (Terminal newBasedOn: console).
+   terminal ; 'Press keys and their event will be printed, quit with Esc\n'.
+
+    [
+"      console moveCursorTo: (0 , 1)."
+      t echoEvent: console events next on: terminal
+    ] whileFalse
+  ]
+].
+
+_@(UnitTests SmartConsole traits) echoRawCursesEvents
+[
+  CursesConsole new sessionDo: [| :console terminal |
+   terminal: (Terminal newBasedOn: console).
+   terminal ; 'Press keys and raw key codes will be printed, quit with Enter\n'.
+
+    [| keyCode |
+      keyCode: (console primitives nextEvent applyTo: {-1}).
+      terminal ; (keyCode as: String) ; ' - 16r' ;
+        (keyCode printString &radix: 16).
+      console clearToEOL.
+      terminal newLine.
+      keyCode = 10 \/ [keyCode = 13]
+    ] whileFalse
+  ]
+].
+
+_@(UnitTests SmartConsole traits) echoRawWindowsEvents &unicode: unicode
+[| available |
+  available: False.
+  [WindowsConsole isAvailable ifTrue: [available: True]]
+    breakOn: Error.
+  available ifFalse: [error: 'Windows console plugin not loaded or otherwise not available'. ^ Nil].
+  unicode ifNil: [unicode: False].
+
+  WindowsConsole clone sessionDo: [| :c record dword |
+    c ; 'Printing out raw console events coming from Windows, quit with Esc\n'.
+    c ; 'Codepage returned by GetConsoleCP: ' ; Windows Kernel GetConsoleCP do printString ; '\n'.
+
+    record: Windows INPUT_RECORD clone.
+    dword: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+    [
+      [| method |
+        unicode
+          ifTrue: [method: Windows Kernel ReadConsoleInputW]
+          ifFalse: [method: Windows Kernel ReadConsoleInputA].
+        method applyTo: {c consoleIn. record. 1. dword}.
+        record EventType = #[Windows KEY_EVENT]
+      ] whileFalse.
+      
+      "record printOn: c writer.
+      c newLine."
+      c ; 'Down ' ; record Event_KeyEvent_bKeyDown printString
+        ; ', Repeat ' ; record Event_KeyEvent_wRepeatCount printString
+        ; ', VKeyCode ' ; record Event_KeyEvent_wVirtualKeyCode printString
+        ; ', VScanCode ' ; record Event_KeyEvent_wVirtualScanCode printString.
+      unicode
+        ifTrue: [c ; ', Unicode ' ; (record Event_KeyEvent_uChar_UnicodeChar printString &radox: 16)]
+        ifFalse: [
+          c ; ', Ascii ' ; (record Event_KeyEvent_uChar_AsciiChar printString &radix: 16).
+          (record Event_KeyEvent_uChar_AsciiChar between: 0 and: 255)
+            ifTrue: [
+              c ; ' ('.
+              c writer nextPut: (record Event_KeyEvent_uChar_AsciiChar as: ASCIICharacter).
+              c ; ')']].
+      c  ; ', Controls ' ; (record Event_KeyEvent_dwControlKeyState printString &radix: 2) ; ' ('.
+      {
+        #RIGHT_ALT_PRESSED.
+        #LEFT_ALT_PRESSED.
+        #RIGHT_CTRL_PRESSED.
+        #LEFT_CTRL_PRESSED.
+        #SHIFT_PRESSED.
+        #NUMLOCK_ON.
+        #SCROLLLOCK_ON.
+        #CAPSLOCK_ON.
+        #ENHANCED_KEY.
+      } inject: 0 into: [| :bitCount :symbol |
+        (record Event_KeyEvent_dwControlKeyState bitAnd: (symbol sendTo: {Windows})) isZero
+          ifTrue: [bitCount]
+          ifFalse: [
+            bitCount isZero ifFalse: [c ; ','].
+            c ; symbol name.
+            bitCount + 1]].
+      c ; ')\n'.
+      record Event_KeyEvent_wVirtualKeyCode = 27
+    ] whileFalse.
+  ]
+].

@@ -1,0 +1,19 @@
+
+testing UnitTests define: #ExtensibleArray &parents: {TestCase}.
+
+tc@(UnitTests ExtensibleArray traits) testAtInsert
+[| ea1 ea2 |
+  ea1: ExtensibleArray new.  
+  ea2: ExtensibleArray new.
+  0 upTo: 10 do: [| :ind |
+    ea1 at: ind insert: ind + 1.
+    ea2 add: ind + 1.
+    tc assert: ea1 = ea2 description: '#add: and #at:insert differ at: ' ; (ind as: String)].
+].
+
+tc@(UnitTests ExtensibleArray traits) suite
+[
+  tc suiteForSelectors: {
+    #testAtInsert
+  }
+].

@@ -1,0 +1,87 @@
+UnitTests addPrototype: #WordArray derivedFrom: {TestCase}.
+
+tc@(UnitTests WordArray traits) isEmpty
+[|wa|
+  wa: WordArray new.
+  tc assert: wa isEmpty description: 'New WordArray is not empty'.
+].
+
+tc@(UnitTests WordArray traits) size
+[|wa|
+  wa: WordArray new.
+  tc assert: wa size = 0 description: 'Empty WordArray has non-zero size'.
+].
+
+tc@(UnitTests WordArray traits) includes
+[|wa|
+  wa: (WordArray new &capacity: 5).
+  wa at: 0 put:  2.
+  tc assert: (wa includes: 2) description: 'First inserted object not found'.
+  wa at: 4 put: 10.  
+  tc assert: (wa includes: 10) description: 'Second inserted object not found'. 
+  tc deny: (wa includes: 4) description: 'Found object which was not added'.
+].
+
+tc@(UnitTests WordArray traits) at
+[|wa|
+  wa: (WordArray new &capacity: 6).
+  wa at: 0 put: 10.
+  wa at: 5 put: 1000.
+  tc assert: (wa at: 0) = 10 description: 'First object retrieved isn\'t object stored'.
+  tc assert: (wa at: 5) = 1000 description: 'Last object retrieved isn\'t object stored'.
+].
+
+tc@(UnitTests WordArray traits) accepts
+[|wa|
+  wa: WordArray new.
+  tc assert: (wa accepts: 16rFFFFFFFF) description: 'Will not accept 2^32'.
+  tc deny: (wa accepts: 16r100000000) description: 'Accepted overlarge value'.
+  tc deny: (wa accepts: -1) description: 'Accepted negative number'.
+].
+
+tc@(UnitTests WordArray traits) endian
+[|wale wabe|
+  wale: (WordArray LittleEndian new &capacity: 1).
+  wabe: (WordArray BigEndian new &capacity: 1).
+  wale at: 0 put: 16r01020408.
+  wabe at: 0 put: 16r01020408.
+  tc assert: ((wale at: 0) = 16r01020408) description: 'Reading LittleEndian value failed'.
+  tc assert: ((wabe at: 0) = 16r01020408) description: 'Reading BigEndian value failed'.
+  tc assert: ((wale bytes at: 0) = 8) description: 'First LittleEndian byte wrong'.
+  tc assert: ((wale bytes at: 1) = 4) description: 'Second LittleEndian byte wrong'.
+  tc assert: ((wale bytes at: 2) = 2) description: 'Third LittleEndian byte wrong'.
+  tc assert: ((wale bytes at: 3) = 1) description: 'Forth LittleEndian byte wrong'.
+  tc assert: ((wabe bytes at: 0) = 1) description: 'First BigEndian byte wrong'.
+  tc assert: ((wabe bytes at: 1) = 2) description: 'Second BigEndian byte wrong'.
+  tc assert: ((wabe bytes at: 2) = 4) description: 'Third BigEndian byte wrong'.
+  tc assert: ((wabe bytes at: 3) = 8) description: 'Forth BigEndian byte wrong'.
+].
+
+
+tc@(UnitTests WordArray traits) do
+[|wa sum counter|
+  sum: 0.
+  counter: 0.
+  wa: (WordArray new &capacity: 12).
+  wa  `>> [
+    at: 0 put: 16r1.
+    at: 1 put: 16r2.
+    at: 3 put: 16r3.
+    at: 5 put: 16r4.
+    at: 7 put: 16r5.].
+  wa do: [|:each| sum: sum + each. counter: counter + 1].
+  tc assert: sum = 15 description: 'Sum of elements failed'.
+  tc assert: counter = 12 description: 'Count of elements failed'.
+].
+
+
+tc@(UnitTests WordArray traits) suite
+[tc suiteForSelectors: {
+  #isEmpty.
+  #size.
+  #accepts.
+  #at.
+  #includes.
+  #do.
+  #endian.
+}].

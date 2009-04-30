@@ -1,0 +1,59 @@
+RegressionTests addPrototype: #CollectionHash derivedFrom: {TestCase}.
+"Checks whether hash value for collections with same elements is equal."
+
+t@(RegressionTests CollectionHash traits) testCollection: c1 against: c2
+[
+  t assert: c1 = c2
+    description: c1 printString ; ' and ' ; c2 printString ; ' are not equal.'.
+  t assert: c1 hash = c2 hash
+    description: c1 printString ; ' and ' ; c2 printString ; ' hashes differ.'
+].
+
+t@(RegressionTests CollectionHash traits) testCollection
+[| c1 c2 |
+  c1: (Set newWith: #a).
+  c2: (Set newWith: #a).
+  t testCollection: c1 against: c2.
+  
+  { 1. 16r10000000. #a. 'string'. {0. 2}. Set. 0. 2. 3. 4. 5. 6. 7. 8.
+    9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20 } do: 
+    [| :e | c1 include: e. c2 include: e].
+  t testCollection: c1 against: c2
+].
+
+t@(RegressionTests CollectionHash traits) testSequence
+[| s1 s2 |
+  s1: {0. 1. 2. #a. 'foo'}.
+  s2: {0. 1. 2. #a. 'foo'}.
+  t testCollection: s1 against: s2.
+
+  s1: (s1 as: ExtensibleArray).
+  s2: (s2 as: ExtensibleArray).
+  s1 addAll: {{}. #k. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0}.
+  s2 addAll: {{}. #k. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0}.
+  t testCollection: s1 against: s2.
+].
+
+t@(RegressionTests CollectionHash traits) suite
+[t suiteForSelectors: {
+  #testCollection.
+  #testSequence.
+}].
+
+RegressionTests addPrototype: #ExtSeqWriter derivedFrom: {TestCase}.
+"Checks whether writer iterator of ExtensibleSequence is actually able to
+extend the sequence."
+
+t@(RegressionTests ExtSeqWriter traits) testWriting
+[| s w |
+  s: ExtensibleArray new.
+  w: s writer.
+  w ; {#a. 0. {}. lobby}.
+  t assert: w contents = s.
+  t assert: s size = 4
+].
+
+t@(RegressionTests ExtSeqWriter traits) suite
+[t suiteForSelectors: {
+  #testWriting.
+}].

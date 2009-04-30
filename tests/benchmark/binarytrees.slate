@@ -1,0 +1,45 @@
+prototypes ensureNamespace: #benchmark &delegate: True.
+
+benchmark define: #TreeNode &slots: {
+  #left.
+  #right.
+  #item.
+}.
+
+n@(benchmark TreeNode traits) bottomUpTree: i@(Integer traits) depth: d@(Integer traits)
+[
+  d > 0
+    ifTrue: [| a b c |
+      a: 2 * i. b: a - 1. c: d - 1.
+      n new &left: (n bottomUpTree: b depth: c) &right: (n bottomUpTree: a depth: c) &item: i]
+    ifFalse: [n new &left: Nil &right: Nil &item: i]
+].
+
+n@(benchmark TreeNode traits) new &left: l &right: r &item: i
+[
+  n clone `>> [left: l. right: r. item: i.]
+].
+
+n@(benchmark TreeNode traits) checkItem
+[
+  n left isNil 
+    ifTrue: [n item] 
+    ifFalse: [n item + ((n left checkItem) - (n right checkItem))]
+].
+
+n@(Integer traits) binaryTrees
+[| minDepth maxDepth stretchDepth check longLivedTree iterations |
+  minDepth: 4.
+  maxDepth: (minDepth + 2 max: n).
+  stretchDepth: maxDepth + 1.
+  check: (benchmark TreeNode bottomUpTree: 0 depth: stretchDepth) checkItem.
+  longLivedTree: (benchmark TreeNode bottomUpTree: 0 depth: maxDepth).
+  minDepth upTo: maxDepth by: 2 do: [| :depth |
+    iterations: (1 bitShift: maxDepth - depth + minDepth).
+    check: 0.
+    1 upTo: iterations do: [| :i |
+      check: (check + (benchmark TreeNode bottomUpTree: i depth: depth) checkItem).
+      check: (check + (benchmark TreeNode bottomUpTree: (-1 * i) depth: depth) checkItem).
+    ].
+  ].
+].

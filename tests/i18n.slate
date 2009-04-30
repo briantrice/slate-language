@@ -1,0 +1,53 @@
+
+_@lobby testRead: filename encoding: encoding
+[|test times|
+  test: ExtensibleArray new.
+  File withOpenNamed: filename
+       do: [| :file decoder |
+	    decoder: (encoding Decoder newOn: file reader).
+	    [decoder isAtEnd] whileFalse: [
+	       test addLast: decoder next]]
+    &mode: File Read.
+ test as: UnicodeString
+].
+
+_@lobby testRW: sourceFileName to: targetFileName inEncoding: inenc outEncoding: outenc &littleEndian: le
+[
+  File withOpenNamed: sourceFileName
+       do: [| :source |
+	      File withOpenNamed: targetFileName
+		   do: [| :target decoder encoder |
+			decoder: (inenc Decoder newOn: source reader).
+			encoder: (outenc Encoder newOn: target writer &littleEndian: le).
+			decoder >> encoder.
+			] &mode: File CreateWrite.
+       ] &mode: File Read.
+].
+
+lobby addSlot: #test valued: (testRead: 'tests/testuni.txt' encoding: UTF8).
+(test at: 0) unicodeSubset.
+(test at: 0) isLetter.
+
+lobby addSlot: #encoder valued: (UTF8 Encoder newOn: Console writer).
+test reader >> encoder.
+
+"The test files aren't here because I'm not sure about copyrights. You can find them at 
+http://jshin.net/i18n/utftest/"
+
+lobby addSlot: #test16BE valued: (testRead: 'tests/nobom.utf16be.html' encoding: UTF16BE).
+lobby addSlot: #test16LE valued: (testRead: 'tests/nobom.utf16le.html' encoding: UTF16LE).
+lobby addSlot: #test16BEBOM valued: (testRead: 'tests/bom.utf16be.html' encoding: UTF16).
+lobby addSlot: #test16LEBOM valued: (testRead: 'tests/bom.utf16le.html' encoding: UTF16).
+
+testRW: 'tests/nobom.utf16be.html' to: 'tests/test-nobom16be' inEncoding: UTF16BE outEncoding: UTF16BE.
+testRW: 'tests/nobom.utf16le.html' to: 'tests/test-nobom16le' inEncoding: UTF16LE outEncoding: UTF16LE.
+testRW: 'tests/bom.utf16be.html' to: 'tests/test-bom16be' inEncoding: UTF16 outEncoding: UTF16.
+testRW: 'tests/bom.utf16le.html' to: 'tests/test-bom16le' inEncoding: UTF16 outEncoding: UTF16 &littleEndian: True.
+
+
+"This just check that the normalization does something. Add tests whether the results are correct."
+
+('kдце' as: UnicodeString) normalizeTo: Unicode NFD.
+('kдце' as: UnicodeString) normalizeTo: Unicode NFKD.
+('kдце' as: UnicodeString) normalizeTo: Unicode NFC.
+('kдце' as: UnicodeString) normalizeTo: Unicode NFKC.
