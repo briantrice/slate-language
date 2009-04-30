@@ -713,12 +713,30 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 
 #endif
 
+void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  int x = 1;
+  char little_endian = *(char*)&x;
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (little_endian == 1)? oh->cached.true_object : oh->cached.false_object;
+}
+
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  word_t time;
+  int64_t time;
+  int i;
   struct timeval tv;
+  GC_VOLATILE struct ByteArray* timeArray;
+  const int arraySize = 8;
+
+  timeArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), arraySize);
+
   gettimeofday(&tv, NULL);
-  time = (word_t)tv.tv_sec * 1000000 + (word_t)tv.tv_usec;
-  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(time);
+  time = (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
+
+  for (i = 0; i < arraySize; i++) {
+    timeArray->elements[i] = ((time >> (i * 8)) & 0xFF);
+  }
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)timeArray;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)timeArray);
 }
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -1921,7 +1939,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_newFixedArea, prim_closeFixedArea, prim_fixedAreaAddRef, prim_fixedWriteFromStarting, prim_fixedReadFromStarting, prim_fixedAreaSize, prim_fixedAreaResize,
  /*10-9*/ prim_addressOf, prim_loadLibrary, prim_closeLibrary, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
- /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_fixme, prim_fixme,
+ /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_isLittleEndian, prim_fixme,
  /*40-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
