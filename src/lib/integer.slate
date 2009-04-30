@@ -12,6 +12,15 @@ NOTE: This should really only be used at compile-time."
 i@(Integer traits) intoByte [i bitAnd: 16rFF].
 i@(Integer traits) byteShift: n [i bitShift: n * 8].
 
+a@(ByteArray traits) as: i@(Integer traits)
+[| result |
+  result: (BigInteger newSizeOf: a).
+  isLittleEndian
+    ifTrue: [a doWithIndex: [| :value :index | result at: index put: value]]
+    ifFalse: [a reverseDoWithIndex: [| :value :index | result at: index put: value]].
+  result
+].
+
 i@(Integer traits) leastGreaterPowerOfTwo
 [| power |
   power: 1.
