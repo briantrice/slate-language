@@ -1,0 +1,124 @@
+prototypes define: #Platform
+  &slots: {#name -> ''.
+	   #nodeName -> ''.
+	   #systemRelease -> ''.
+	   #systemVersion -> ''.
+	   #machine -> ''.
+	   #endianness -> #LittleEndian.
+	   #bytesPerWord -> 4}.
+
+p@(Platform traits) update
+[
+  p `>>
+   [name: (lobby systemPlatform as: String).
+    nodeName: (lobby systemName as: String).
+    systemRelease: (lobby systemRelease as: String).
+    systemVersion: (lobby systemVersion as: String).
+    machine: (lobby systemMachine as: String).
+    endianness: (lobby isLittleEndian ifTrue: [#LittleEndian] ifFalse: [#BigEndian]).
+    bytesPerWord: lobby bytesPerWord. ]
+].
+
+p@(Platform traits) current
+[p clone update].
+
+Platform traits define: #Current &builder: [Platform current].
+
+p@(Platform traits) isPosix
+"Whether the underlying platform implements (enough of?) the POSIX API."
+"TODO: figure out a way to really determine/configure this."
+[True].
+
+p@(Platform traits) run: command
+[lobby systemExecute: command].
+
+Image startupActions at: #Platform put:
+[
+  Platform Current update
+].
+
+globals define: #Environment &parents: {Mapping. ExtensibleCollection}
+&slots: {#variables -> Dictionary new}.
+
+Image startupActions at: #Environment put:
+[Environment update].
+
+e@(Environment traits) update
+[
+  e variables: lobby environmentVariables
+].
+
+e@(Environment traits) size
+[
+  e variables size
+].
+
+e@(Environment traits) capacity
+[
+  e variables capacity
+].
+
+_@(Environment traits) acceptsKey: _
+[False].
+
+_@(Environment traits) acceptsKey: _@(String traits)
+[True].
+
+_@(Environment traits) accepts: _
+[False].
+
+_@(Environment traits) accepts: _@(String traits)
+[True].
+
+_@(Environment traits) defaultElement
+[''].
+
+e@(Environment traits) at: name ifAbsent: block
+[
+  e variables at: name ifAbsent: block
+].
+
+e@(Environment traits) at: name put: value
+[
+  lobby environmentAt: name put: value.
+  e variables at: name put: value
+].
+
+e@(Environment traits) removeKey: name ifAbsent: block
+[
+  (e variables includesKey: name) ifTrue: [lobby environmentRemoveKey: name].
+  e variables removeKey: name ifAbsent: block
+].
+
+e@(Environment traits) keyAtValue: obj ifAbsent: block
+[
+  e variables keyAtValue: obj ifAbsent: block
+].
+
+e@(Environment traits) keysAndValuesDo: block
+[
+  e variables keysAndValuesDo: block
+].
+
+e@(Environment traits) allSatisfy: block
+[
+  e variables allSatisfy: block
+].
+
+e@(Environment traits) printOn: s [s ; e printName].
+
+e@(Environment traits) homePath [e at: 'HOME'].
+e@(Environment traits) currentPath [e at: 'PWD'].
+e@(Environment traits) temporaryPath [e at: 'TMPDIR'].
+e@(Environment traits) includedPaths
+"Where the shell expects to find binary executables."
+[(e at: 'PATH') ifNotNilDo: [| :paths | paths splitWith: $:]].
+e@(Environment traits) userName [e at: 'LOGNAME'].
+e@(Environment traits) terminalType [e at: 'TERM'].
+
+e@(Environment traits) sourcePaths
+"Where Slate expects to find code."
+[(e at: 'SLATEPATH') ifNil: [{}] ifNotNilDo: [| :paths | paths splitWith: $:]].
+
+"Load defaultPaths addAll:
+  (Environment sourcePaths collect: [| :each | each as: File Locator])."
