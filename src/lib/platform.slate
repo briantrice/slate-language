@@ -44,8 +44,16 @@ Image startupActions at: #Environment put:
 [Environment update].
 
 e@(Environment traits) update
-[
-  e variables: lobby environmentVariables
+[| variables |
+  variables: lobby environmentVariables.
+  e variables: (e variables newSizeOf: variables).
+  variables do:
+    [| :each eachString equalsIndex key value |
+     eachString: (each as: String).
+     equalsIndex: (eachString indexOf: $= ifAbsent: [eachString length]).
+     key: (eachString first: equalsIndex).
+     value: (eachString allButFirst: equalsIndex + 1).
+     e variables at: key put: value].
 ].
 
 e@(Environment traits) size
