@@ -68,7 +68,7 @@ EMACS       := emacs
 
 INCLUDES    += 
 CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L
-CFLAGS      += $(COPTFLAGS) -std=c99 -Wall -pedantic -pthread $(PRINT_DEBUG)  $(INCLUDES)
+CFLAGS      += $(COPTFLAGS) -std=c99 -Wall -pedantic -Wno-unknown-pragmas -pthread $(PRINT_DEBUG)  $(INCLUDES)
 
 ## Determine the host system's byte order.
 ## This creates a temporary test executable in the $(slateroot) directory
