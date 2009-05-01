@@ -10,10 +10,9 @@
 #endif
 
 void prim_fixme(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-
-  printf("unimplemented primitive... dying\n");
-  assert(0);
-
+  struct Object* x = args[0];
+  printf("UNIMPLEMENTED PRIMITIVE\n");
+  interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, resultStackPointer);
 }
 
 #pragma mark Root primitives
@@ -1574,76 +1573,83 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
 }
 
+void prim_heap_gc(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  if (!oh->quiet) {
+    printf("Collecting garbage...\n");
+  };
+  heap_full_gc(oh);
+}
+
 void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	char nameString [SLATE_FILE_NAME_LENGTH];
-	struct slate_image_header sih;
-	struct Object* name = args[1];
-	size_t nameLength = payload_size(name);
-	FILE * imageFile;
+  char nameString [SLATE_FILE_NAME_LENGTH];
+  struct slate_image_header sih;
+  struct Object* name = args[1];
+  size_t nameLength = payload_size(name);
+  FILE * imageFile;
 	
-	word_t totalSize, forwardPointerEntryCount;
-	byte_t* memoryStart;
-	struct Object *writeObject;
-	struct ForwardPointerEntry* forwardPointers;
-	/* do a full gc, allocate a new chunk of memory the size of the young and old combined,
-	 * copy all the non-free objects to the new memory while keeping an array of the position changes,
-	 * go through the memory and fix up the pointers, adjust points to start from 0 instead of memoryStart,
-	 * and write the header and the memory out to disk
-	 */
+  word_t totalSize, forwardPointerEntryCount;
+  byte_t* memoryStart;
+  struct Object *writeObject;
+  struct ForwardPointerEntry* forwardPointers;
+  /* do a full gc, allocate a new chunk of memory the size of the young and old combined,
+   * copy all the non-free objects to the new memory while keeping an array of the position changes,
+   * go through the memory and fix up the pointers, adjust points to start from 0 instead of memoryStart,
+   * and write the header and the memory out to disk
+   */
 	
-	/*push true so if it resumes from the save image, it will do init code*/
-	/*fixme*/
-	oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+  /*push true so if it resumes from the save image, it will do init code*/
+  /*fixme*/
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 	
-	if (nameLength >= sizeof(nameString)) {
-		/*interpreter_stack_pop(oh, oh->cached.interpreter);*/
-		/*push nil*/
-		oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
-		return;
-	}
-	memcpy(nameString, (char*)byte_array_elements((struct ByteArray*)name), nameLength);
-	nameString[nameLength] = '\0';
+  if (nameLength >= sizeof(nameString)) {
+    /*interpreter_stack_pop(oh, oh->cached.interpreter);*/
+    /*push nil*/
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+    return;
+  }
+  memcpy(nameString, (char*)byte_array_elements((struct ByteArray*)name), nameLength);
+  nameString[nameLength] = '\0';
 	
-	imageFile = fopen(nameString, "wb");
-	if (!imageFile) {
-		/*interpreter_stack_pop(oh, oh->cached.interpreter);*/
-		/*push nil*/
-		oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  imageFile = fopen(nameString, "wb");
+  if (!imageFile) {
+    /*interpreter_stack_pop(oh, oh->cached.interpreter);*/
+    /*push nil*/
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 		
-		return;
-	}
-	printf("Saving image to %s\n", nameString);
-	heap_full_gc(oh);
-	totalSize = oh->memoryOldSize + oh->memoryYoungSize;
-	forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
-	memoryStart = calloc(1, totalSize);
-	writeObject = (struct Object*)memoryStart;
-	forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
-	assert(memoryStart != NULL);
-	copy_used_objects(oh, &writeObject, oh->memoryOld, oh->memoryOldSize, forwardPointers, forwardPointerEntryCount);
-	copy_used_objects(oh, &writeObject, oh->memoryYoung, oh->memoryYoungSize, forwardPointers, forwardPointerEntryCount);
-	totalSize = (byte_t*)writeObject - memoryStart;
-	adjust_object_fields_with_table(oh, memoryStart, totalSize, forwardPointers, forwardPointerEntryCount);
-	adjust_oop_pointers_from(oh, 0-(word_t)memoryStart, memoryStart, totalSize);
-	sih.magic = SLATE_IMAGE_MAGIC;
-	sih.size = totalSize;
-	sih.next_hash = heap_new_hash(oh);
-	sih.special_objects_oop = (byte_t*) (forward_pointer_hash_get(forwardPointers, forwardPointerEntryCount, (struct Object*)oh->special_objects_oop)->toObj) - memoryStart;
-	sih.current_dispatch_id = oh->current_dispatch_id;
+    return;
+  }
+  printf("Saving image to %s\n", nameString);
+  heap_full_gc(oh);
+  totalSize = oh->memoryOldSize + oh->memoryYoungSize;
+  forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
+  memoryStart = calloc(1, totalSize);
+  writeObject = (struct Object*)memoryStart;
+  forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
+  assert(memoryStart != NULL);
+  copy_used_objects(oh, &writeObject, oh->memoryOld, oh->memoryOldSize, forwardPointers, forwardPointerEntryCount);
+  copy_used_objects(oh, &writeObject, oh->memoryYoung, oh->memoryYoungSize, forwardPointers, forwardPointerEntryCount);
+  totalSize = (byte_t*)writeObject - memoryStart;
+  adjust_object_fields_with_table(oh, memoryStart, totalSize, forwardPointers, forwardPointerEntryCount);
+  adjust_oop_pointers_from(oh, 0-(word_t)memoryStart, memoryStart, totalSize);
+  sih.magic = SLATE_IMAGE_MAGIC;
+  sih.size = totalSize;
+  sih.next_hash = heap_new_hash(oh);
+  sih.special_objects_oop = (byte_t*) (forward_pointer_hash_get(forwardPointers, forwardPointerEntryCount, (struct Object*)oh->special_objects_oop)->toObj) - memoryStart;
+  sih.current_dispatch_id = oh->current_dispatch_id;
 	
-	if (fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile) != 1
-		|| fwrite(memoryStart, 1, totalSize, imageFile) != totalSize) {
-		fprintf(stderr, "Error writing image!\n");
-	}
-	fclose(imageFile);
-	free(forwardPointers);
-	free(memoryStart);
+  if (fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile) != 1
+      || fwrite(memoryStart, 1, totalSize, imageFile) != totalSize) {
+    fprintf(stderr, "Error writing image!\n");
+  }
+  fclose(imageFile);
+  free(forwardPointers);
+  free(memoryStart);
 	
-	oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
-	/*
-	 interpreter_stack_pop(oh, oh->cached.interpreter);
-	 interpreter_push_false(oh, oh->cached.interpreter);
-	 */
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+  /*
+    interpreter_stack_pop(oh, oh->cached.interpreter);
+    interpreter_push_false(oh, oh->cached.interpreter);
+  */
 }
 
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -1913,7 +1919,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_ensure, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
  /*30-9*/ prim_fixme, prim_run_args_into, prim_exit, prim_isIdenticalTo, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
  /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
- /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_bytesPerWord, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
+ /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_heap_gc, prim_bytesPerWord, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
  /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
