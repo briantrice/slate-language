@@ -23,7 +23,7 @@ install: vm installdirs
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.h $(includedir)/slate.h
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate-mode.el $(lispdir)/
 	$(SILENT) cat $(slateroot)/etc/slate.1 | sed -e 's/$${prefix}/$(subst /,\/,$(prefix))/g' | $(GZIP) -c > $(slateroot)/etc/slate.1.gz
-	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.pkg $(man1dir)/slate.1
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.gz $(man1dir)
 
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
