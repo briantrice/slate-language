@@ -15,11 +15,9 @@ _@(Cgi traits) parseQueryString: queryString into: dict
 
 Image startupActions
       at: #Cgi
-      put: [Cgi variables: Dictionary new.
+      put: [Cgi variables: Environment variables.
             Cgi getValues: Dictionary new.
             Cgi postValues: Dictionary new.
-            lobby environmentVariables do: [|:x s| s: ((x as: String) reader).
-                                            Cgi variables at: (s upTo: $=) put: s upToEnd].
             Cgi out: Console writer.
             Cgi out resource handle: 0. "stdout"
             Cgi xhtml: (Xml XHTMLWriter newOn: Cgi out).

@@ -156,8 +156,8 @@ l@(Load traits) of: file@(File traits)
   l resolvePathOf: file.
   oldLevel: l Level.
   l Level: l Level + 1.
-  [file reader sessionDo: [| :input | l process: input] &mode: file Read]
-    ensure: [l Level: oldLevel].
+  [file reader sessionDo: [| :input | l process: input] &mode: file Read] ensure: [l Level: oldLevel]
+    
 ].
 
 l@(Load traits) resolvePathOf: file@(File traits)
@@ -171,7 +171,16 @@ l@(Load traits) resolvePathOf: file@(File traits)
 ].
 
 l@(Load traits) process: source
-[l source: source. l run].
+[ |retry skip| 
+  retry: Retry clone.
+  _@retry describeOn: out [ out ; 'Retry loading ' ; l source resource locator printString ;'\n' ].
+  skip: Retry clone.
+  _@skip describeOn: out [ out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
+  l source: source.
+  [l run] handlingCases: {retry -> [|:_| l source reset. ^ (l process: source)].
+                          skip -> [|:_| ^ Nil]}.
+
+].
 
 l@(Load traits) printMessage
 [
@@ -187,22 +196,17 @@ l@(Load traits) skipShebang
 
 l@(Load traits) run
 "Evaluate the input from the open source ReadStream."
-[| retry skip |
-  retry: Retry clone.
-  _@retry describeOn: out [ out ; 'Retry loading ' ; l source locator printString ;'\n' ].
-  skip: Retry clone.
-  _@skip describeOn: out [ out ; 'Skip loading ' ; l source locator printString ; '\n' ].
+[
   l showMessage ifTrue: [l printMessage].
   l skipShebang.
   "Ensure a fresh Parser."
-  [(l parser: (l parser newOn: l source)) do:
+  (l parser: (l parser newOn: l source)) do:
     [| :each |
      l verbose ifTrue:
        [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
 	inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
-	each evaluateIn: l targetNamespace]]
-    handlingCases: {retry -> [|:_| ^ (l of: l source resource)].
-                    skip -> [|:_| ^ Nil]}.
+	each evaluateIn: l targetNamespace].
+    
 ].
 
 _@(Root traits) copyright
