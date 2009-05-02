@@ -22,8 +22,21 @@ c@(Converter traits) newTo: out
 c@(Converter traits) convert
 [overrideThis].
 
-c@(Converter traits) convert: x
-[c in: x reader. c convert].
+c@(Converter traits) convert: x@(Sequence traits)
+[c convert: x to: (x new &capacity: 0)].
+
+c@(Converter traits) convert: x through: y
+[ | conv |
+  conv: (c newFrom: x to: y).
+  conv convert.
+  conv
+].
+
+c@(Converter traits) convert: x to: y
+[ |conv|
+  conv: (c convert: x through: y).
+  conv out contents
+].
 
 r@(ReadStream traits) >> c@(Converter traits)
 "Sets up a new Converter reading from the given source. This is unlike normal
