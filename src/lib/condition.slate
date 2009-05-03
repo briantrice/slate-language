@@ -97,16 +97,14 @@ c@(Condition traits) tryHandlers
 
 "
 c@(Condition traits) tryHandlers
-[| delegates |
+[
    c returnContinuation: [| :result | ^ result].
-   delegates: c allDelegates.
    conditionStack
-     reverseDoWithIndex:
-       [| :context :index |
-        (delegates includes: context traits)
+     reverseDo:
+       [| :context |
+        c == context
 	  ifTrue:
             [c exitContinuation: context exitContinuation.
-             contextshit
              context handlers do: [| :handler | handler applyWith: c]]].
    c defaultHandler 
 ].

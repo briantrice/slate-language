@@ -170,14 +170,22 @@ l@(Load traits) resolvePathOf: file@(File traits)
 	  ifNotNilDo: [| :newL | file locator basePath: newL]]]
 ].
 
+l@(Load traits) retry
+[
+  l source reset.
+  l process: l source.
+].
+
+
 l@(Load traits) process: source
-[ |retry skip| 
-  retry: Retry clone.
+[ |retry skip ns|
+  ns: Namespace new. 
+  retry: (ns define: #Retry &parents: {Restart}).
   _@retry describeOn: out [ out ; 'Retry loading ' ; l source resource locator printString ;'\n' ].
-  skip: Retry clone.
+  skip: (ns define: #Skip &parents: {Restart}).
   _@skip describeOn: out [ out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
   l source: source.
-  [l run] handlingCases: {retry -> [|:_| l source reset. ^ (l process: source)].
+  [l run] handlingCases: {retry -> [|:_| ^ (l retry)].
                           skip -> [|:_| ^ Nil]}.
 
 ].
