@@ -1,7 +1,43 @@
 #include "slate.h"
 
 // For platform information:
+#ifndef WIN32
 #include <sys/utsname.h>
+#else
+typedef struct utsname {
+  char sysname[256];
+  char nodename[256];
+  char release[256];
+  char version[256];
+  char machine[256];
+};
+
+int uname(struct utsname *un) {
+  DWORD dwVersion = 0;
+  DWORD dwMajorVersion = 0;
+  DWORD dwMinorVersion = 0;
+  DWORD dwBuild = 0;
+#ifdef WIN32
+#ifdef WIN64
+  strcpy(un->sysname,"Win64");
+#else
+  strcpy(un->sysname,"Win32");
+#endif
+#endif
+  dwVersion = GetVersion();
+  if (dwVersion < 0x80000000) dwBuild = (DWORD)(HIWORD(dwVersion)); else dwBuild=0;
+  sprintf(un->release, "%d", dwBuild);
+  sprintf(un->version, "%d %d", (DWORD)(LOBYTE(LOWORD(dwVersion))), (DWORD)(HIBYTE(LOWORD(dwVersion))));
+#ifdef WIN32
+#ifdef WIN64
+  strcpy(un->machine,"x64");
+#else
+  strcpy(un->machine,"x86");
+#endif
+#endif
+  if(gethostname(un->nodename, 256)!=0) strcpy(un->nodename, "localhost");
+};
+#endif
 struct utsname info;
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
@@ -1152,7 +1188,11 @@ void prim_environment_removekey(struct object_heap* oh, struct Object* args[], w
   char key[SLATE_FILE_NAME_LENGTH];
   memcpy(key, (char*)byte_array_elements((struct ByteArray*)keyString), keyLength);
   key[keyLength] = '\0';
+#ifdef WIN32
+  SetEnvironmentVariable(key, "");
+#else
   unsetenv(key);
+#endif
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 }
 
@@ -1162,11 +1202,17 @@ void prim_environment_atput(struct object_heap* oh, struct Object* args[], word_
   size_t keyLength = payload_size(keyString);
   size_t valueLength = payload_size(valueString);
   char key[SLATE_FILE_NAME_LENGTH], value[SLATE_FILE_NAME_LENGTH];
+  int success;
   memcpy(key, (char*)byte_array_elements((struct ByteArray*)keyString), keyLength);
   key[keyLength] = '\0';
   memcpy(value, (char*)byte_array_elements((struct ByteArray*)valueString), valueLength);
   value[valueLength] = '\0';
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (setenv(key, value, 1) ? oh->cached.false_object : oh->cached.true_object);
+#ifdef WIN32
+  success = SetEnvironmentVariable(key, value);
+#else
+  success = setenv(key, value, 1);
+#endif
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (success ? oh->cached.false_object : oh->cached.true_object);
 }
 
 void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
