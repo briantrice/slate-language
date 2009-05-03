@@ -36,9 +36,16 @@ int uname(struct utsname *un) {
 #endif
 #endif
   if(gethostname(un->nodename, 256)!=0) strcpy(un->nodename, "localhost");
+  return 0;
 };
 #endif
 struct utsname info;
+
+#ifdef WIN32
+int getpid() {
+  return GetProcessId();
+}
+#endif
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
 //#define SLATE_PRIM(prim_name) void prim_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer)
