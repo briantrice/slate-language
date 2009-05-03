@@ -43,7 +43,7 @@ struct utsname info;
 
 #ifdef WIN32
 int getpid() {
-  return GetProcessId();
+  return GetCurrentProcessId();
 }
 #endif
 
