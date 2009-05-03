@@ -9,7 +9,7 @@ _@(Cgi traits) parseQueryString: queryString into: dict
   (queryString splitWithAny: {$&}) do: [|:x s key value| 
                                           s: ((x as: String) reader).
                                           key: (s upTo: $=).
-                                          value: (s upToEnd replaceAll: $+ with: $\s). "fixme percent hex codes"
+                                          value: (Net URLPathEncoder convert: s upToEnd).
                                           dict at: key put: value].
 ].
 

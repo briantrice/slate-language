@@ -14,10 +14,11 @@ TODO:
 lobby ensureNamespace: #DB &delegate: False.
 
 
-DB define: #Database &parents: {Cloneable} &slots: {#verbose -> False}.
+DB define: #Database &parents: {Cloneable} &slots: {}.
 DB define: #DatabaseCommand &parents: {DB Database} &slots: {}.
 DB define: #DatabaseReply &parents: {DB Database} &slots: {}.
 
+DB define: #Postgres &parents: {DB Database} &slots: {#stream -> Nil. #verbose -> False}.
 
 db@(DB Postgres traits) inform: str
 [
@@ -25,7 +26,6 @@ db@(DB Postgres traits) inform: str
 ].
 
 
-DB define: #Postgres &parents: {DB Database} &slots: {#stream -> Nil}.
 DB define: #PostgresReply &parents: {DB DatabaseReply} &slots: {#type -> Nil. #length -> 0. #response -> Nil}.
 DB define: #PostgresCommand &parents: {DB DatabaseCommand. StructMixin}.
 DB define: #PostgresStartCommand &parents: {DB PostgresCommand}
