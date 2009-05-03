@@ -27,9 +27,6 @@ Setup
 
 Read common.mk for more options.
 
-./slate -i kernel.image                 "initial bootstrap (see below for more details)"
-Image saveNamed: 'my.image'.         "save current image"
-./slate my.image                     "load a saved image"
 
 Command Line
 ------------
@@ -43,7 +40,13 @@ Run 'slate -h' for more details.
 Learning Slate
 --------------
 
-Read the TUTORIAL
+Read the online tutorials (from newest to oldest):
+
+
+http://www.slatelanguage.com/documentation/Tutorial
+http://code.google.com/p/slate-language/wiki/GettingStarted
+
+
 
 Bootstrapping
 -------------
@@ -52,6 +55,17 @@ If you make changes to core slate files (like adding a new field to
 CompiledMethods), sometimes the only easy way to make those changes
 throughout the system is to bootstrap again. Here is how you generate
 a new kernel image:
+
+Automated:
+
+make bootstrap WORD_SIZE=64 && make slate.image
+
+or
+
+make bootstrap WORD_SIZE=32 && make slate.image
+
+
+Manually:
 
 Run slate to get a repl.
 
@@ -67,17 +81,22 @@ load: 'src/mobius/init.slate'.
 Image littleEndian: True bitSize: 32.
 ] do.
 
-"make bootstrap" will run this code with the WORD_SIZE that is specified there.
-
 Then you will load it like a regular image:
 
-./slate kernel.new.<endian>.<wordsize>.<timestamp>.image
+./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
 
-Debugging
----------
+After the image is loaded, you will want to save it so you
+don't have to go through loading the kernel again:
+
+Image saveNamed: 'slate.image'.
+
+
+Debugging the VM
+----------------
+
 make vmclean && make DEBUG=1
 gdb slate
-r <image-file>
+r -i <image-file>
 (on crash or Ctrl-c)
 bt
 f <n> (change frame to one with an 'oh' object (struct object_heap*))
@@ -85,6 +104,7 @@ f <n> (change frame to one with an 'oh' object (struct object_heap*))
 See the slate backtrace -> print print_backtrace(oh)
 Inspect an object       -> print print_detail(oh, struct Object*)
 See the stack           -> print print_stack_types(oh, 200)
+
 
 Source directory structure
 --------------------------
