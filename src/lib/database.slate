@@ -143,11 +143,15 @@ reply@(DB PostgresReply traits) printError
 
 
 db@(DB Postgres traits) readReply
-[ | responseTypeByte responseLength response |
+[ | responseTypeByte responseLength response responseBA |
 
 [
   responseTypeByte: db stream next.
-  responseLength: ((db stream next: 4) as: Integer &bigEndian: True)."fixme replace with int32 constant size or something"
+  db inform: 'Response type:' ; responseTypeByte printString.
+  responseBA: (db stream next: 4).
+  db inform: 'Response Length BA:' ; responseBA printString.
+  responseLength: (responseBA as: Integer &bigEndian: True)."fixme replace with int32 constant size or something"
+  db inform: 'Response Length:' ; responseLength printString.
   response: ((responseLength >= 4)
                ifTrue: [(db stream next: responseLength - 4)] 
                ifFalse: [error: 'malformed message from ' ; db printString]).
