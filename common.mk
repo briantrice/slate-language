@@ -91,7 +91,7 @@ endif
 
 PLATFORM    := unix
 CCVERSION   := $(shell $(CC) -dumpversion)
-WORD_SIZE   := 32
+#WORD_SIZE   := 32
 LDFLAGS     := # -avoid-version
 LIBS        := #-lm -ldl
 #PLUGINS     := platform.so posix.so pipe.so
@@ -157,7 +157,9 @@ endif
 
 CFLAGS +=-DSLATE_DEFAULT_IMAGE=$(DEFAULT_IMAGE)
 
-CFLAGS += -m$(WORD_SIZE)
+ifdef WORD_SIZE
+  CFLAGS += -m$(WORD_SIZE)
+endif
 #ifeq ($(CPU_TYPE), i686)
 #  CFLAGS += -m$(WORD_SIZE)
 #endif
