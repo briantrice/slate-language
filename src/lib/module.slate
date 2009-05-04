@@ -233,6 +233,7 @@ ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadM
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| src retry skip |
+  (fileName endsWith: '.image') ifTrue: [error: 'Image filename specified where Slate source expected.'].
   src: (File newNamed: fileName &mode: File Read).
   src exists ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
 	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
