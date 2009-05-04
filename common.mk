@@ -52,7 +52,7 @@ endif
 
 ## All required executables
 
-#CC          := gcc
+CC          := gcc
 CP          := cp -f
 LIBTOOL     ?= libtool
 ECHO        := echo
