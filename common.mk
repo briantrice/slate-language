@@ -104,8 +104,9 @@ CPU_TYPE    := `uname -m`
 VM_LIBRARIES = -lm -ldl -lpthread
 
 
+VMNAME      := vm
 VMDIR       := $(slateroot)/src/vm
-VM          := $(VMDIR)/vm
+VM          := $(VMDIR)/$(VMNAME)
 DEFAULT_IMAGE ?= slate.image
 KERNEL_IMAGES := kernel.new.*.$(WORD_SIZE).*.image
 DEFAULT_KERNEL_IMAGE ?= $(shell ls -t $(KERNEL_IMAGES) | head -1)
@@ -156,6 +157,7 @@ endif
 
 CFLAGS +=-DSLATE_DEFAULT_IMAGE=$(DEFAULT_IMAGE)
 
+CFLAGS += -m$(WORD_SIZE)
 #ifeq ($(CPU_TYPE), i686)
 #  CFLAGS += -m$(WORD_SIZE)
 #endif

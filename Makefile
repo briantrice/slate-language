@@ -7,11 +7,13 @@ include $(slateroot)/common.mk
 all: vm
 
 vm:
-	$(MAKE) -C $(VMDIR) vm && cp $(VM) ./$(execname)
+	$(MAKE) -C $(VMDIR) vm
 
 $(DEFAULT_IMAGE): vm
 	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) -q -i $(DEFAULT_KERNEL_IMAGE)
-	$(SILENT) touch $@
+	$(SILENT) touch $(DEFAULT_IMAGE)
+
+release_image: vm $(DEFAULT_IMAGE)
 
 installdirs:
 	$(SILENT) $(INSTALL) -d $(exec_prefix) $(lispdir) $(includedir) $(datadir) $(man1dir)

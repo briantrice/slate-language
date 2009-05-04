@@ -13,7 +13,7 @@ OBJECTS=debug.o external-files.o external-library.o external-memory.o gc.o inter
 	$(CC) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
 
 vm: $(OBJECTS)
-	$(CC) $(LIBS) $(CFLAGS) $(CFLAGS_$<) -o vm $(OBJECTS)
+	$(CC) $(LIBS) $(CFLAGS) $(CFLAGS_$<) -o $(VMNAME) $(OBJECTS)
 
 clean:
-	rm -f *.o vm
+	rm -f *.o $(VMNAME)
