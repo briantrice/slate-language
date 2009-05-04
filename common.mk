@@ -67,7 +67,7 @@ EMACS       := emacs
 ## Platform independent definitions
 
 INCLUDES    += 
-CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L
+CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOURCE=200112L
 CFLAGS      += $(COPTFLAGS) -std=c99 -Wall -pedantic -Wno-unknown-pragmas -pthread $(PRINT_DEBUG)  $(INCLUDES)
 
 ## Determine the host system's byte order.

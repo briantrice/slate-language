@@ -1,51 +1,5 @@
 #include "slate.h"
 
-// For platform information:
-#ifndef WIN32
-#include <sys/utsname.h>
-#else
-typedef struct utsname {
-  char sysname[256];
-  char nodename[256];
-  char release[256];
-  char version[256];
-  char machine[256];
-};
-
-int uname(struct utsname *un) {
-  DWORD dwVersion = 0;
-  DWORD dwMajorVersion = 0;
-  DWORD dwMinorVersion = 0;
-  DWORD dwBuild = 0;
-#ifdef WIN32
-#ifdef WIN64
-  strcpy(un->sysname,"Win64");
-#else
-  strcpy(un->sysname,"Win32");
-#endif
-#endif
-  dwVersion = GetVersion();
-  if (dwVersion < 0x80000000) dwBuild = (DWORD)(HIWORD(dwVersion)); else dwBuild=0;
-  sprintf(un->release, "%d", dwBuild);
-  sprintf(un->version, "%d %d", (DWORD)(LOBYTE(LOWORD(dwVersion))), (DWORD)(HIBYTE(LOWORD(dwVersion))));
-#ifdef WIN32
-#ifdef WIN64
-  strcpy(un->machine,"x64");
-#else
-  strcpy(un->machine,"x86");
-#endif
-#endif
-  if(gethostname(un->nodename, 256)!=0) strcpy(un->nodename, "localhost");
-  return 0;
-};
-#endif
-struct utsname info;
-
-#ifdef WIN32
-int getpid() {
-  return GetCurrentProcessId();
-}
-#endif
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
 //#define SLATE_PRIM(prim_name) void prim_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer)
@@ -1115,17 +1069,17 @@ void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t ari
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeof(word_t));
 }
 
-int slate_refresh_systeminfo() {
-  return !(&info && uname(&info));
+int slate_refresh_systeminfo(struct object_heap* oh) {
+  return !(uname(&oh->platform_info));
 }
 
 void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   GC_VOLATILE struct ByteArray *result;
   int resultLength;
-  if (slate_refresh_systeminfo()) {
-    resultLength = strlen(info.nodename);
-    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(info.nodename));
-    copy_bytes_into((byte_t*)info.nodename, resultLength, result->elements);
+  if (slate_refresh_systeminfo(oh)) {
+    resultLength = strlen(oh->platform_info.nodename);
+    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(oh->platform_info.nodename));
+    copy_bytes_into((byte_t*)oh->platform_info.nodename, resultLength, result->elements);
   } else {
     result = (struct ByteArray*)oh->cached.nil;
   };
@@ -1136,10 +1090,10 @@ void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arit
 void prim_system_release(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   GC_VOLATILE struct ByteArray *result;
   int resultLength;
-  if (slate_refresh_systeminfo()) {
-    resultLength = strlen(info.release);
-    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(info.release));
-    copy_bytes_into((byte_t*)info.release, resultLength, result->elements);
+  if (slate_refresh_systeminfo(oh)) {
+    resultLength = strlen(oh->platform_info.release);
+    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(oh->platform_info.release));
+    copy_bytes_into((byte_t*)oh->platform_info.release, resultLength, result->elements);
   } else {
     result = (struct ByteArray*)oh->cached.nil;
   };
@@ -1150,10 +1104,10 @@ void prim_system_release(struct object_heap* oh, struct Object* args[], word_t a
 void prim_system_version(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   GC_VOLATILE struct ByteArray *result;
   int resultLength;
-  if (slate_refresh_systeminfo()) {
-    resultLength = strlen(info.version);
-    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(info.version));
-    copy_bytes_into((byte_t*)info.version, resultLength, result->elements);
+  if (slate_refresh_systeminfo(oh)) {
+    resultLength = strlen(oh->platform_info.version);
+    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(oh->platform_info.version));
+    copy_bytes_into((byte_t*)oh->platform_info.version, resultLength, result->elements);
   } else {
     result = (struct ByteArray*)oh->cached.nil;
   };
@@ -1164,10 +1118,10 @@ void prim_system_version(struct object_heap* oh, struct Object* args[], word_t a
 void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   GC_VOLATILE struct ByteArray *result;
   int resultLength;
-  if (slate_refresh_systeminfo()) {
-    resultLength = strlen(info.sysname);
-    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(info.sysname));
-    copy_bytes_into((byte_t*)info.sysname, resultLength, result->elements);
+  if (slate_refresh_systeminfo(oh)) {
+    resultLength = strlen(oh->platform_info.sysname);
+    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(oh->platform_info.sysname));
+    copy_bytes_into((byte_t*)oh->platform_info.sysname, resultLength, result->elements);
   } else {
     result = (struct ByteArray*)oh->cached.nil;
   };
@@ -1178,10 +1132,10 @@ void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t 
 void prim_system_machine(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   GC_VOLATILE struct ByteArray *result;
   int resultLength;
-  if (slate_refresh_systeminfo()) {
-    resultLength = strlen(info.machine);
-    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(info.machine));
-    copy_bytes_into((byte_t*)info.machine, resultLength, result->elements);
+  if (slate_refresh_systeminfo(oh)) {
+    resultLength = strlen(oh->platform_info.machine);
+    result = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), strlen(oh->platform_info.machine));
+    copy_bytes_into((byte_t*)oh->platform_info.machine, resultLength, result->elements);
   } else {
     result = (struct ByteArray*)oh->cached.nil;
   };

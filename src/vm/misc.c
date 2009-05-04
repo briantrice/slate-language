@@ -99,6 +99,44 @@ void copy_bytes_into(byte_t * src, word_t n, byte_t * dst) {
 #endif
 }
 
+// For platform information:
+#ifdef WIN32
+
+int uname(struct utsname *un) {
+  DWORD dwVersion = 0;
+  DWORD dwMajorVersion = 0;
+  DWORD dwMinorVersion = 0;
+  DWORD dwBuild = 0;
+#ifdef WIN32
+#ifdef WIN64
+  strcpy(un->sysname,"Win64");
+#else
+  strcpy(un->sysname,"Win32");
+#endif
+#endif
+  dwVersion = GetVersion();
+  if (dwVersion < 0x80000000) dwBuild = (DWORD)(HIWORD(dwVersion)); else dwBuild=0;
+  sprintf(un->release, "%d", dwBuild);
+  sprintf(un->version, "%d %d", (DWORD)(LOBYTE(LOWORD(dwVersion))), (DWORD)(HIBYTE(LOWORD(dwVersion))));
+#ifdef WIN32
+#ifdef WIN64
+  strcpy(un->machine,"x64");
+#else
+  strcpy(un->machine,"x86");
+#endif
+#endif
+  if(gethostname(un->nodename, 256)!=0) strcpy(un->nodename, "localhost");
+  return 0;
+};
+#endif
+
+#ifdef WIN32
+int getpid() {
+  return GetCurrentProcessId();
+}
+#endif
+
+
 void cache_specials(struct object_heap* heap) {
 
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);
