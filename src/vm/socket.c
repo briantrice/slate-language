@@ -154,6 +154,7 @@ int socket_set_nonblocking(int fd) {
 
 #ifdef WIN32
 #pragma message("TODO WIN32 port set-nonblocking on socket")
+	return 0;
 #else
 	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
         flags = 0;
@@ -177,7 +178,11 @@ void *socket_getaddrinfo_callback(void *ptr) {
   
   req->result = getaddrinfo(req->hostname, req->service, &ai, &req->addrResult);
   req->finished = 1;
+#ifdef WIN32
+  return 0;
+#else
   return NULL;
+#endif
 }
 
 int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_t hostnameSize, struct ByteArray* service, word_t serviceSize, word_t family, word_t type, word_t protocol, word_t flags) {
@@ -220,8 +225,8 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
       }
 
 #ifdef WIN32
-	  ReleaseMutex(MUTEX_ALL_ACCESS, FALSE, "SocketThreadMutex");
-	  thread = CreateThread(NULL, 0, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i], NULL, &pret);
+	  ReleaseMutex(oh->socketThreadMutex);
+	  thread = CreateThread(NULL, 0, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i], 0, &pret);
 #else
 #if 0
       pthread_mutex_unlock(&oh->socketTicketMutex);
@@ -239,7 +244,7 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
     }
   }
 #ifdef WIN32
-  ReleaseMutex(MUTEX_ALL_ACCESS, FALSE, "SocketThreadMutex");
+  ReleaseMutex(oh->socketThreadMutex);
 #else
 #if 0
   pthread_mutex_unlock(&oh->socketTicketMutex);

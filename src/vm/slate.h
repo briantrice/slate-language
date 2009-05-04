@@ -265,6 +265,23 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_NETTICKET_MAXIMUM	1024
 
 
+#ifndef WIN32
+#include <sys/utsname.h>
+#else
+typedef struct utsname {
+  char sysname[256];
+  char nodename[256];
+  char release[256];
+  char version[256];
+  char machine[256];
+};
+int uname(struct utsname *un);
+#endif
+
+#ifdef WIN32
+int getpid();
+#endif
+
 
 /*these things below never exist in slate land (so word_t types are their actual value)*/
 
@@ -335,6 +352,8 @@ struct object_heap
 
   int argcSaved;
   char** argvSaved;
+
+  struct utsname platform_info;
 
   struct Object** markStack;
   size_t markStackSize;
