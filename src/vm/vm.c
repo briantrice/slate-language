@@ -78,7 +78,7 @@ int main(int argc, char** argv, char **envp) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i, quiet = 0, verbose = 0;
+  int i, quiet = 0, verbose = 0, fread_num = 0;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif
@@ -150,11 +150,11 @@ int main(int argc, char** argv, char **envp) {
   if (!image_file) {fprintf(stderr, "Open file failed (%d), filename: '%s'\n", errno, image_name); return 1;}
 
   // Read in the elements of the Slate Image Header from the image file:
-  assert(fread(&sih.magic, sizeof(sih.magic), 1, image_file) == 1);
-  assert(fread(&sih.size, sizeof(sih.size), 1, image_file) == 1);
-  assert(fread(&sih.next_hash, sizeof(sih.next_hash), 1, image_file) == 1);
-  assert(fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, image_file) == 1);
-  assert(fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, image_file) == 1);
+  fread_num = fread(&sih.magic, sizeof(sih.magic), 1, image_file); assert(fread_num == 1);
+  fread_num = fread(&sih.size, sizeof(sih.size), 1, image_file); assert(fread_num == 1);
+  fread_num = fread(&sih.next_hash, sizeof(sih.next_hash), 1, image_file); assert(fread_num == 1);
+  fread_num = fread(&sih.special_objects_oop, sizeof(sih.special_objects_oop), 1, image_file); assert(fread_num == 1);
+  fread_num = fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, image_file); assert(fread_num == 1);
 
   if (sih.size == 0) {
     fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wrong WORD_SIZE. Run slate without any options to see your build configuration.\n");
