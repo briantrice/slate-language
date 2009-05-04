@@ -7,7 +7,8 @@ include $(slateroot)/common.mk
 all: vm
 
 vm:
-	$(MAKE) -C $(VMDIR) vm
+	$(SILENT) $(MAKE) -C $(VMDIR) vm
+	$(SILENT) cp $(VMDIR)/$(VMNAME) ./slate
 
 $(DEFAULT_IMAGE): vm
 	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) -q -i $(DEFAULT_KERNEL_IMAGE)
