@@ -1,0 +1,17 @@
+
+"Support functions to help with development"
+
+"#as: implementations do: [|:each| inform: each definitionLocation ]."
+
+"(#parseExpression findOn: {Syntax Parser}) definitionLocation"
+
+"'' allRoles."
+
+
+x@(Root traits) allRoles
+[ |array writer |
+  array: ExtensibleArray new.
+  writer: array writer.
+  x allDelegates do: [|:delegate| delegate roleReader >> [|:r| r selector -> r rolePositions] >> writer].
+  array
+].

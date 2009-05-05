@@ -60,9 +60,24 @@ obj@(Root traits) roleReader [obj _map roleReadStream].
 m@(Map RoleReadStream traits) reset [m index: 0. m].
 
 m@(Map RoleReadStream traits) elementType [RoleEntry].
-
+"
 m@(Map RoleReadStream traits) isAtEnd
 [m index > m map roleTable indexLast].
+"
+
+"there isn't an easy way with the way this is designed to see if we are at the end.
+so we take the current location and go through the list manually and see if there is
+another entry later on before we get to the end of the array."
+m@(Map RoleReadStream traits) isAtEnd
+[ | result index |
+  index: m index.
+  [index > m map roleTable indexLast] whileFalse:
+    [result: (m map roleInTableAt: index).
+     index: index + 4.
+     result ifNotNil: [^ False]].
+  True
+].
+
 
 m@(Map RoleReadStream traits) next
 "TODO: prevent this from returning Nil when it reaches the end... raise Exhaustion?"
