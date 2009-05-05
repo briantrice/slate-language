@@ -1783,10 +1783,11 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
 void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   /*  print_stack_types(oh, 128);*/
   /*  print_backtrace(oh);*/
+  ASSURE_SMALLINT_ARG(1);
   if (!oh->quiet) {
     printf("Slate process %d exiting...\n", getpid());
   }
-  exit(0);
+  exit(object_to_smallint(args[1]));
 }
 
 #pragma mark SmallInteger
