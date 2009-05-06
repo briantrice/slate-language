@@ -1,8 +1,8 @@
-define: #Profile &slots: {#method. #results -> ExtensibleArray new}.
+prototypes define: #Profile &slots: {#method. #results -> ExtensibleArray new}.
 
 m@(Method traits) profile
 [
-  (p newFor: block) `>> [run. showResults. ]
+  (Profile newFor: m) `>> [run. showResults. ]
 ].
 
 p@(Profile traits) newFor: block
@@ -13,7 +13,7 @@ p@(Profile traits) newFor: block
 p@(Profile traits) run
 [
   [lobby startProfiling.
-   block do] ensure:
+   p method do] ensure:
      [lobby stopProfiling].
   p results: p results new.
   lobby profilerStatistics
@@ -21,7 +21,7 @@ p@(Profile traits) run
 	inGroupsOf: 3.
 ].
 
-p@(Profiler traits) showResults
+p@(Profile traits) showResults
 [
   (p results sortBy: [|:a :b| a third >= b third]) do:
     [| :methodInfo :count :time |
