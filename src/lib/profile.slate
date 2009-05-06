@@ -1,0 +1,30 @@
+define: #Profile &slots: {#method. #results -> ExtensibleArray new}.
+
+m@(Method traits) profile
+[
+  (p newFor: block) `>> [run. showResults. ]
+].
+
+p@(Profile traits) newFor: block
+[
+  p cloneSettingSlots: #(method) to: {block}
+].
+
+p@(Profile traits) run
+[
+  [lobby startProfiling.
+   block do] ensure:
+     [lobby stopProfiling].
+  p results: p results new.
+  lobby profilerStatistics
+	do: [| :method :count :time | p results add: {method. count. time}]
+	inGroupsOf: 3.
+].
+
+p@(Profiler traits) showResults
+[
+  (p results sortBy: [|:a :b| a third >= b third]) do:
+    [| :methodInfo :count :time |
+     inform: '(' ; methodInfo method printString ; '@' ; methodInfo method definitionLocation
+       ; ') count: ' ; count printString ; ' time: ' ; time printString] applier.
+].
