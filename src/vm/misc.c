@@ -136,6 +136,11 @@ int getpid() {
 }
 #endif
 
+int64_t getTickCount() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
+}
 
 void cache_specials(struct object_heap* heap) {
 

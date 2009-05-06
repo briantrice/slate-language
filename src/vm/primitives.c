@@ -1247,14 +1247,12 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   int64_t time;
   int i;
-  struct timeval tv;
   GC_VOLATILE struct ByteArray* timeArray;
   const int arraySize = 8;
 
   timeArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), arraySize);
 
-  gettimeofday(&tv, NULL);
-  time = (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
+  time = getTickCount();
 
   for (i = 0; i < arraySize; i++) {
     timeArray->elements[i] = ((time >> (i * 8)) & 0xFF);
@@ -1701,6 +1699,51 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
 }
 
+
+void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
+  profiler_start(oh);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+}
+
+void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
+  profiler_stop(oh);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+}
+
+void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t count, i, arrayEntry;
+  GC_VOLATILE struct OopArray* array;
+  const int entrySize = 3;
+
+  count = 0;
+  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
+    if (oh->profiler_entries[i].method != NULL) count++;
+  }
+
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count * entrySize);
+  heap_fixed_add(oh, (struct Object*)array);
+
+  arrayEntry = 0;
+  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
+    if (oh->profiler_entries[i].method == NULL) continue;
+
+    array->elements[arrayEntry + 0] = oh->profiler_entries[i].method;
+    array->elements[arrayEntry + 1] = smallint_to_object(oh->profiler_entries[i].callCount);
+    array->elements[arrayEntry + 2] = smallint_to_object(oh->profiler_entries[i].callTime);
+    arrayEntry += entrySize;
+  }
+
+  heap_fixed_remove(oh, (struct Object*)array);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+
+}
+
+
+
 void prim_heap_gc(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   if (!oh->quiet) {
     printf("Collecting garbage...\n");
@@ -2046,7 +2089,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*10-9*/ prim_addressOf, prim_library_open, prim_library_close, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
- /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_fixme, prim_fixme, prim_fixme,
+ /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
 };

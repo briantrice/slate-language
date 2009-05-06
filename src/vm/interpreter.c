@@ -205,6 +205,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     return;
   }
 
+
   framePointer = i->stackPointer + FUNCTION_FRAME_SIZE;
   /* we save this so each function call doesn't leak the stack */
   beforeCallStackPointer = i->stackPointer;
@@ -250,6 +251,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   print_detail(oh, i->stack->elements[framePointer - 1]);
 #endif
 
+  profiler_leave_method(oh, (struct Object*)i->closure);
+  profiler_enter_method(oh, (struct Object*)closure);
 
   i->framePointer = framePointer;
   i->method = method;
@@ -448,6 +451,11 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     exit(0);
     return 0;
   }
+
+  profiler_leave_method(oh, (struct Object*)i->closure);
+  profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3]);
+
+
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
   i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - 2];
   i->closure = (struct Closure*) i->stack->elements[i->framePointer - 3];

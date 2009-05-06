@@ -307,6 +307,12 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
     }
   }
 
+  /*we also might want to optimize the removal if we are profiling*/
+  if (oh->currentlyProfiling) {
+    profiler_delete_method(oh, obj);
+
+  }
+
   heap_make_free_space(oh, obj, object_word_size(obj));
 
 }

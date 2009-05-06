@@ -198,7 +198,7 @@ int main(int argc, char** argv, char **envp) {
   heap->stackBottom = &heap;
   heap->argcSaved = argc;
   heap->argvSaved = argv;
-
+  heap->currentlyProfiling = 0;
 #ifdef WIN32
   signal(SIGINT, slate_interrupt_handler);
 #else

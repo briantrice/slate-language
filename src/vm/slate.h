@@ -257,6 +257,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_ERROR_RETURN (-1)
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
+#define PROFILER_ENTRY_COUNT 1024
 #define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
@@ -301,6 +302,13 @@ struct slate_addrinfo_request {
   word_t inUse; /*whether this whole thing is garbage*/
   word_t finished; /*whether getaddrinfo has returned... set this to zero before spawning the thread*/
   struct addrinfo* addrResult; /*this needs to be freed with freeaddrinfo*/
+};
+
+
+struct slate_profiler_entry {
+  struct Object* method; /*null if non-active entry.. this must point to an old generation object (since they don't move)*/
+  word_t callCount; /*this is not a small int... it needs to be converted*/
+  word_t callTime; /*total time spent in this method.... fixme add code for this*/
 };
 
 
@@ -362,6 +370,10 @@ struct object_heap
   word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
   word_t* rememberedYoungObjects; /* old gen -> new gen pointers for incremental GC */
   void* stackBottom;
+
+  bool_t currentlyProfiling;
+  int64_t profilerTimeStart, profilerTimeEnd;
+  struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
 
   /*
    * I call this cached because originally these could move around
@@ -569,7 +581,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
-
+int64_t getTickCount();
 
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);
@@ -886,6 +898,13 @@ int readMemory (struct object_heap* oh, int memory, int memStart, int n, byte_t*
 int sizeOfMemory (struct object_heap* oh, int memory);
 int resizeMemory (struct object_heap* oh, int memory, int size);
 int addressOfMemory (struct object_heap* oh, int memory, int offset, byte_t* addressBuffer);
+
+void profiler_start(struct object_heap* oh);
+void profiler_stop(struct object_heap* oh);
+void profiler_enter_method(struct object_heap* oh, struct Object* method);
+void profiler_leave_method(struct object_heap* oh, struct Object* method);
+void profiler_delete_method(struct object_heap* oh, struct Object* method);
+
 
 bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle);
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle);
