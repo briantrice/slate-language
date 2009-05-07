@@ -58,7 +58,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
 	
 	if (!object_is_smallint(x) && !object_is_smallint(y) && x != y) {
 		heap_forward(oh, x, y);
-		heap_gc(oh);
+		/*heap_gc(oh);*/ /* unnecessary waste of time for one object? */
 		cache_specials(oh);
 	}
 	
