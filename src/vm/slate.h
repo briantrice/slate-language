@@ -257,7 +257,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_ERROR_RETURN (-1)
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
-#define PROFILER_ENTRY_COUNT 1024
+#define PROFILER_ENTRY_COUNT 4096
 #define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
