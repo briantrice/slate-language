@@ -11,7 +11,7 @@ vm:
 	$(SILENT) cp $(VMDIR)/$(VMNAME) ./slate
 
 $(DEFAULT_IMAGE): vm
-	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) -q -i $(DEFAULT_KERNEL_IMAGE)
+	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
 	$(SILENT) touch $(DEFAULT_IMAGE)
 
 release_image: vm $(DEFAULT_IMAGE)
@@ -49,7 +49,7 @@ edit:
 
 bootstrap:
 	$(info Bootstrapping new images)
-	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image littleEndian: True bitSize: $(WORD_SIZE)" | $(VM) -q -i $(DEFAULT_IMAGE)
+	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image littleEndian: True bitSize: $(WORD_SIZE)" | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
 
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm

@@ -257,7 +257,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_ERROR_RETURN (-1)
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
-#define PROFILER_ENTRY_COUNT 1024
+#define PROFILER_ENTRY_COUNT 4096
 #define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
@@ -372,6 +372,7 @@ struct object_heap
   void* stackBottom;
 
   bool_t currentlyProfiling;
+  word_t currentlyProfilingIndex;
   int64_t profilerTimeStart, profilerTimeEnd;
   struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
 
@@ -902,7 +903,8 @@ int addressOfMemory (struct object_heap* oh, int memory, int offset, byte_t* add
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
 void profiler_enter_method(struct object_heap* oh, struct Object* method);
-void profiler_leave_method(struct object_heap* oh, struct Object* method);
+void profiler_leave_current(struct object_heap* oh);
+/*void profiler_leave_method(struct object_heap* oh, struct Object* method);*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
 
 

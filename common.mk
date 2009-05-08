@@ -22,6 +22,9 @@ DEVNULL     := /dev/null
 
 ## Build modes. Set on command line using QUIET=1, DEBUG=1 or PROFILE=1
 
+ifndef QUIETNESS
+  QUIETNESS := -q
+endif
 
 ifdef QUIET
   VERBOSE := 0

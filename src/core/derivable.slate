@@ -153,7 +153,7 @@ x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn: basedOn
 "Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
 [x addPrototype: protoName &parents: parents &basedOn: basedOn].
 
-x@(Root traits) define: slotName using: builder
+x@(Root traits) define: slotName recursivelyFrom: builder
 "Creates a conservative new immutable slot holding the results of the block.
 If such a slot already exists, recursively add slots from the built object
 with their values in cases where the slots do not already exist in the
@@ -167,6 +167,13 @@ existing object. This is essentially a conservative object-slot tree builder."
 	ifNotNilDo: [| :old | old addSlotsFromRecursively: new]]
     ifFalse: [x addImmutableSlot: slotName valued: new].
   x atSlotNamed: slotName
+].
+
+x@(Root traits) define: slotName using: builder
+[| new |
+  new: builder do.
+  x addImmutableSlot: slotName valued: new.
+  new
 ].
 
 x@(Root traits) define: protoName &parents: parents &slots: slotSpecs

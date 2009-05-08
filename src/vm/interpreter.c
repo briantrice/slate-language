@@ -251,7 +251,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   print_detail(oh, i->stack->elements[framePointer - 1]);
 #endif
 
-  profiler_leave_method(oh, (struct Object*)i->closure);
+  profiler_leave_current(oh);
   profiler_enter_method(oh, (struct Object*)closure);
 
   i->framePointer = framePointer;
@@ -353,7 +353,11 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #ifdef PRINT_DEBUG
     printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
+    profiler_leave_current(oh);
+    profiler_enter_method(oh, (struct Object*)method);
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
+    profiler_leave_current(oh);
+    profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
@@ -452,7 +456,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     return 0;
   }
 
-  profiler_leave_method(oh, (struct Object*)i->closure);
+  profiler_leave_current(oh);
   profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3]);
 
 
