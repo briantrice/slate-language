@@ -136,6 +136,11 @@ block@(Method traits) breakOn: c
   block on: c do: [| :inst | inst exit].
 ].
 
+block@(Method traits) ignoring: c
+[
+  block on: c do: [| :w | w return]
+].
+
 conditions define: #Restart &parents: {Condition} &slots: {#condition}.
 "A Restart is a Condition which is signaled by another Condition for the
 purpose of handling it."
@@ -228,7 +233,7 @@ warn@(Warning traits) defaultHandler
 
 m@(Method traits) ignoringWarnings
 [
-  m on: Warning do: [| :w | w return]
+  m ignoring: Warning
 ].
 
 conditions define: #SimpleWarning &parents: {Warning}.
@@ -295,6 +300,9 @@ c@(SeriousCondition traits) defaultHandler
 conditions define: #Error &parents: {SeriousCondition}.
 "An Error is a SeriousCondition which involves some misstep in program logic,
 and raises the need for handlers."
+
+m@(Method traits) ignoringErrors
+[m ignoring: Error].
 
 conditions define: #DescriptiveError &parents: {DescriptiveConditionMixin. Error}.
 "A DescriptiveError is an Error which carries a description.
