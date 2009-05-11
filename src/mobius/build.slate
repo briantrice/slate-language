@@ -1,5 +1,4 @@
 
-
 Image define: #Definition &parents: {Cloneable} &slots:
   {#bootstrapFilenames ->
 "The names of the sources used to build the kernel REPL image, in necessary
@@ -267,19 +266,19 @@ c@(Image Definition traits) generate
   builder
 ].
 
-
-i@Image littleEndian: littleEndian bitSize: bitSize
+i@Image bootstrap &littleEndian: littleEndian &bitSize: bitSize
 "Only to be called during or after fullCleanBootstrap to build new images
 based on the new VM Definition."
 [
+  bitSize &defaultsTo: Platform Current bytePerWord * 8.
+  littleEndian &defaultsTo: (Platform Current endianness == #LittleEndian).
   littleEndian
-   ifTrue: [ i define: #newLittle ->
+   ifTrue: [i define: #newLittle ->
               (i Definition newNamed: 'kernel.new' littleEndian: True bitSize: bitSize).
-            i newLittle generate ]
-   ifFalse: [ i define: #newBig ->
+            i newLittle generate]
+   ifFalse: [i define: #newBig ->
                (i Definition newNamed: 'kernel.new' littleEndian: False bitSize: bitSize).
-             i newBig generate ]
-
+             i newBig generate]
 ].
 
 i@Image generateAmd64Test
@@ -291,4 +290,3 @@ i@Image generateAmd64
 [
   (i Definition newNamed: 'amd64' littleEndian: True bitSize: 64) generate.
 ].
-

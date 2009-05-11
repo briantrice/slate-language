@@ -21,7 +21,7 @@ Setup
 -----
 
 'make' builds the VM.
-'make slate.image' builds a standard saved image.
+'make slate.image' builds a standard saved image from a kernel image.
 'make edit' launches the VM and standard image in Emacs with a scratch area.
 '(sudo) make install' installs the VM and images in global directories (/usr/local/ by default) so that the VM can be invoked as just "slate".
 
@@ -53,35 +53,25 @@ Bootstrapping
 
 If you make changes to core slate files (like adding a new field to
 CompiledMethods), sometimes the only easy way to make those changes
-throughout the system is to bootstrap again. Here is how you generate
-a new kernel image:
+throughout the system is to rebuild Slate completely. Here is how you
+generate a new kernel image:
 
-Automated:
+From the shell:
 
-make bootstrap WORD_SIZE=64 && make slate.image WORD_SIZE=64
-
+ make bootstrap WORD_SIZE=64 && make slate.image WORD_SIZE=64
 or
+ make bootstrap WORD_SIZE=32 && make slate.image WORD_SIZE=32
 
-make bootstrap WORD_SIZE=32 && make slate.image WORD_SIZE=32
+From within Slate:
 
-
-Manually:
-
-Run slate to get a repl.
-
-[
-load: 'src/mobius/init.slate'.
-Image littleEndian: True bitSize: 64.
-] do.
-
+At the Slate REPL, execute:
+ load: 'src/mobius/init.slate'.
+then:
+ Image bootstrap &littleEndian: True &bitSize: 32.
 or
+ Image bootstrap &littleEndian: True &bitSize: 64.
 
-[
-load: 'src/mobius/init.slate'.
-Image littleEndian: True bitSize: 32.
-] do.
-
-Then you will load it like a regular image:
+Then you will load the resulting kernel image like a regular image:
 
 ./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
 
@@ -109,34 +99,21 @@ See the stack           -> print print_stack_types(oh, 200)
 Source directory structure
 --------------------------
 
-src/vm -> The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
+src/vm
+	The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
 src/mobius -> The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
-src/lib -> The core and not-so-core libraries for slate
-src/plugins -> C code for slate FFI calls. `make plugins' to build
-src/ui -> The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
-src/ui/gtk -> The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
-src/net -> The slate networking code. load: 'src/net/init.slate'.
-
-Stack format
-------------
-
-The caller is about to call the callee.
-fp at the time of the activation is equal to the current stack pointer plus the function frame size (6).
-
-stack[fp-6] -> the stack pointer before the stack allocation for this frame + localvars + registers is done
-stack[fp-5] -> the absolute position (stack location) of where the callee should place its result
-stack[fp-4] -> the current code pointer (ip) of the caller
-stack[fp-3] -> the callee's closure/method
-stack[fp-2] -> the callee's lexical context (nil for stack allocated frames)
-stack[fp-1] -> frame pointer of caller
-stack[fp+0] .. stack[fp+lvCount+registerCount] -> local variables + registers
-
-When you return from a function and you want to restore the frame in
-the interpreter object to what it was before the call, you restore
-everything based on fp (interpreter's current fp) except the closure
-and the lexical context which are restored based on the saved
-framepointer (at fp-1) using the previous frame (notice callee
-vs. caller).
+src/core
+	The core libraries for the default slate system.
+src/lib
+	The standard but optional libraries.
+src/plugins
+	C code for slate FFI calls. `make plugins' to build
+src/ui
+	The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
+src/ui/gtk
+	The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
+src/net
+	The slate networking code. load: 'src/net/init.slate'.
 
 Compiler
 --------
