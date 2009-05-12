@@ -165,12 +165,12 @@ f@(Debugger Frame traits) previousStackPointer: sp
 [f stackAtOffset: -6 put: sp].
 
 f@(Debugger Frame traits) describeOn: out
-[
+[| method |
   method: f method method.
   out
-    ; 'frame: ' ; (f debugger frameList indexOf: frame) printString ; '\n'
-    ; '  FP: ' ; frame framePointer printString  ; '\n'
-    ; '  IP: ' ; frame instructionPointer printString ; '\n'
+    ; 'frame: ' ; (f debugger frameList indexOf: f) printString ; '\n'
+    ; '  FP: ' ; f framePointer printString  ; '\n'
+    ; '  IP: ' ; f instructionPointer printString ; '\n'
     ; 'method: ' ; method printString ; ' @ ' ; method definitionLocation ; '\n'
     ; '  call count: ' ; method callCount printString ; '\n'
     ; '  register count: ' ; method registerCount printString ; '\n'
@@ -178,13 +178,13 @@ f@(Debugger Frame traits) describeOn: out
     ; '  source: ' ; method sourceTree printString ; '\n'.
   out ; 'Inputs:\n'.
   0 below: method inputVariables
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (frame stackAtOffset: i) printString ; '\n'].
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
   out ; 'Locals:\n'.
   method inputVariables below: method inputVariables + method localVariables
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (frame stackAtOffset: i) printString ; '\n'].
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
   out ; 'Registers:\n'.
   method inputVariables + method localVariables below: method registerCount
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (frame stackAtOffset: i) printString ; '\n'].
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
   out ; 'Decompiled: ' ; '\n'.
   VM SSACompiler decompile: method code.
 ].
