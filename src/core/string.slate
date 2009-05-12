@@ -294,6 +294,22 @@ boundaries, and joins them using the specified delimiter String."
   words join &separator: delim
 ].
 
+String traits define: #SmallWords -> {'a'. 'an'. 'and'. 'as'. 'at'. 'but'. 'by'. 'en'. 'for'. 'if'. 'in'. 'of'. 'on'. 'or'. 'the'. 'to'. 'v'. 'via'. 'vs'. 'vs.'}.
+
+s@(String traits) titleCase
+[| words |
+  words: s split.
+  words doWithIndex:
+    [| :word :index |
+     (word includes: $&)
+       ifTrue: [word toUppercase]
+       ifFalse:
+	 [(s SmallWords includes: word)
+	    /\ (index > 0) ifTrue: [word toLowercase]
+			   ifFalse: [word capitalize]]].
+  words join &separator: ' '
+].
+
 s@(String traits) abbreviation
 "Answers the usual convention for abbreviation via initials."
 [s toCamelCase select: #isUppercase`er].
