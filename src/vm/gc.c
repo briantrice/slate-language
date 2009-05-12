@@ -732,7 +732,7 @@ void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
   heap_free_object(oh, x);
 }
 
-void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
+SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
   /*  print_object(dest);*/
   if (!object_is_smallint(dest)) {
     assert(object_hash(dest) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
