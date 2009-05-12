@@ -519,7 +519,11 @@ void heap_tenure(struct object_heap* oh) {
   word_t tenure_count = 0, tenure_words = 0;
   struct Object* obj = (struct Object*) oh->memoryYoung;
   struct Object* prev;
+  /* fixme.. can't do this right now */
+  /*  if (oh->gcTenureCount++ % 20 == 0) {*/
   oh->nextOldFree = (struct Object*)oh->memoryOld;
+  /*  }*/
+  
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
     if (!object_is_marked(oh, obj)) {

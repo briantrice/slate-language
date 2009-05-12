@@ -38,18 +38,17 @@ ifdef DEBUG
   COPTFLAGS += -g
   CFLAGS += -DSLATE_BUILD_TYPE="\"Debug\""
 else
-  MODE := optimized
-  CFLAGS += -DSLATE_BUILD_TYPE="\"Optimized\""
-  COPTFLAGS += -O2
+  ifdef PROFILE
+    MODE += profiled
+    COPTFLAGS += -pg -g -O2
+    CFLAGS += -DSLATE_BUILD_TYPE="\"Profile\""
+  else
+    MODE := optimized
+    CFLAGS += -DSLATE_BUILD_TYPE="\"Optimized\""
+    COPTFLAGS += -O2
+  endif
 endif
 
-ifdef PROFILE
-  MODE += profiled
-  COPTFLAGS += -pg -g
-  CFLAGS += -DSLATE_BUILD_TYPE="\"Profile\""
-else
-#  COPTFLAGS += -fomit-frame-pointer 
-endif
 
 
 
