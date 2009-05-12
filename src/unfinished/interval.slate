@@ -1,12 +1,12 @@
 collections define: #Interval &parents: {NoDuplicatesCollection. Comparable}
-  &slots: {#upperBound. #lowerBound. #bestGuess.
+  &slots: {#upperBound -> PositiveInfinity. #lowerBound -> NegativeInfinity. #bestGuess.
 	   #upperInclusive -> True. #lowerInclusive -> True}.
 "The mathematical concept of an interval, all the points between two bounds and
 possibly including either bound. It is also useful for specifying the possible
 bounds of an unknown but algorithmically bound quantity, with the bestGuess
 value to annotate what the likely possibility is.
 It is non-extensible, non-indexable, and non-enumerable.
-Operations f on intervals should answer new intervals including every result
+Operations on intervals should answer new intervals including every result
 of applying the function to every element of the source interval(s)."
 
 i@(Interval traits) newFrom: start to: end
@@ -41,6 +41,43 @@ i@(Interval traits) includes: n
   (n between: i lowerBound and: i upperBound)
    /\ [i upperInclusive ifFalse: [n ~= i upperBound]]
    /\ [i lowerInclusive ifFalse: [n ~= i lowerBound]]
+].
+
+i@(Interval traits) readFrom: src
+"Reads the mathematical notation of brackets for intervals from the stream."
+[| result input |
+  input: src reader.
+  result: i clone.
+  "Look for an open (square or curved) bracket."
+  input next
+    caseOf: {$( -> [result lowerInclusive: False].
+             $[ -> [result lowerInclusive: True]}
+    otherwise: [error: 'Unexpected character; bad interval start notation.'].
+  i lowerBound: (Number readFrom: input).
+  input next = $, ifFalse: [error: 'Expected comma character not found; bad interval separator notation.'].
+  i upperBound: (Number readFrom: input).
+  "Look for a closing (square or curved) bracket."
+  input next
+    caseOf: {$) -> [result upperInclusive: False].
+             $] -> [result upperInclusive: True]}
+    otherwise: [error: 'Unexpected character; bad interval end notation.'].
+  result
+].
+
+s@(String traits) as: c@(Interval traits)
+[c readFrom: s].
+
+c@(Interval traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+[
+  o ; (c lowerInclusive
+    ifTrue: ['[']
+    ifFalse: ['(']).
+  c lowerBound ifNil: [o ; ' '] ifNotNil: [c lowerBound printOn: o].
+  o ; ','.
+  c upperBound ifNil: [o ; ' '] ifNotNil: [c upperBound printOn: o].
+  o ; (c upperInclusive
+    ifTrue: [']']
+    ifFalse: [')']).
 ].
 
 i@(Interval traits) isEmpty

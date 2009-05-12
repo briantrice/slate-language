@@ -15,20 +15,12 @@ conditions define: #Debugger &parents: {Cloneable}
            #parser -> Syntax Parser.
            #printer -> DebugConsole writer.
            #namespace -> lobby newSubSpace.
-           #frameList -> Nil.
+           #frameList -> ExtensibleArray new.
            #currentFrame -> Nil.
            #baseFramePointer -> Nil.
            #slateFrameSize -> 6.
            #maxBacktraceSize -> 200.
            #basePrompt -> '> '}.
-
-conditions define: #DebuggingFrame &parents: {Cloneable}
-  &slots: {#resultStackLocation -> Nil.
-           #instructionPointer -> Nil.
-           #method -> Nil.
-           #framePointer -> Nil.
-           #lexicalContext -> Nil.
-           }.
 
 d@(Debugger traits) refreshWorkspace
 [d namespace: d namespace newSisterSpace. d installMethods].
@@ -59,7 +51,7 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod
        ([repl parser parseInteractively]
 	  on: SeriousCondition do: [| :c | c return: False]).
      baseFramePointer: (d interpreter framePointerOf: symbol).
-     buildFrames.]
+     buildFrames. ]
 ].
 
 c@(Condition traits) invokeDebugger
@@ -101,49 +93,111 @@ d@(Debugger traits) describeRestarts
     ifFalse: [d restarts keysDo: [| :index | d describeRestartAt: index]].
 ].
 
-d@(Debugger traits) stackItem: x
+d@(Debugger traits) stackAt: x
 [
   d interpreter stack at: x
 ].
 
-d@(Debugger traits) stackItem: x put: val
+d@(Debugger traits) stackAt: x put: val
 [
   d interpreter stack at: x put: val
 ].
 
+Debugger traits define: #Frame &parents: {Cloneable}
+  &slots: #(debugger framePointer).
+
+f@(Debugger Frame traits) newOn: d@(Debugger traits) at: fp
+[
+  fp > d slateFrameSize
+    ifTrue: [f cloneSettingSlots: #(debugger framePointer) to: {d. fp}]
+].
+
+f@(Debugger Frame traits) newAtTopOf: d@(Debugger traits)
+[
+  f cloneSettingSlots: #(debugger framePointer) to: {d. d baseFramePointer}
+].
+
+f@(Debugger Frame traits) nextFrame
+[
+  f newOn: f debugger at: f callerFrameIndex
+].
+
+f@(Debugger Frame traits) stackAtOffset: offset
+[f debugger stackAt: f framePointer + offset].
+
+f@(Debugger Frame traits) stackAtOffset: offset put: value
+[f debugger stackAt: f framePointer + offset put: value].
+
+f@(Debugger Frame traits) callerFrameIndex
+[f stackAtOffset: -1].
+
+f@(Debugger Frame traits) lexicalContext
+[f stackAtOffset: -2].
+
+f@(Debugger Frame traits) method
+[f stackAtOffset: -3].
+
+f@(Debugger Frame traits) instructionPointer
+[f stackAtOffset: -4].
+
+f@(Debugger Frame traits) resultStackLocation
+[f stackAtOffset: -5].
+
+f@(Debugger Frame traits) previousStackPointer
+[f stackAtOffset: -6].
+
+f@(Debugger Frame traits) callerFrameIndex: fp
+[f stackAtOffset: -1 put: fp].
+
+f@(Debugger Frame traits) lexicalContext: lc
+[f stackAtOffset: -2 put: lc].
+
+f@(Debugger Frame traits) method: m
+[f stackAtOffset: -3 put: m].
+
+f@(Debugger Frame traits) instructionPointer: ip
+[f stackAtOffset: -4 put: ip].
+
+f@(Debugger Frame traits) resultStackLocation: rp
+[f stackAtOffset: -5 put: rp].
+
+f@(Debugger Frame traits) previousStackPointer: sp
+[f stackAtOffset: -6 put: sp].
+
+f@(Debugger Frame traits) describeOn: out
+[| method |
+  method: f method method.
+  out
+    ; 'frame: ' ; (f debugger frameList indexOf: f) printString ; '\n'
+    ; '  FP: ' ; f framePointer printString  ; '\n'
+    ; '  IP: ' ; f instructionPointer printString ; '\n'
+    ; 'method: ' ; method printString ; ' @ ' ; method definitionLocation ; '\n'
+    ; '  call count: ' ; method callCount printString ; '\n'
+    ; '  register count: ' ; method registerCount printString ; '\n'
+    ; '  code size: ' ; method code size printString ; '\n'
+    ; '  source: ' ; method sourceTree printString ; '\n'.
+  out ; 'Inputs:\n'.
+  0 below: method inputVariables
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
+  out ; 'Locals:\n'.
+  method inputVariables below: method inputVariables + method localVariables
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
+  out ; 'Registers:\n'.
+  method inputVariables + method localVariables below: method registerCount
+    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
+  out ; 'Decompiled: ' ; '\n'.
+  VM SSACompiler decompile: method code.
+].
+
+d@(Debugger traits) topFrame
+[d Frame newAtTopOf: d].
+
 d@(Debugger traits) buildFrames
-"build a list of frames return true if you have them all"
-[| fp ip method lc resultLoc frameList frame |
- "  {#resultStackLocation -> Nil.
-           #instructionPointer -> Nil.
-           #method -> Nil.
-           #lexicalContext -> Nil.
-           }.
-
-"
-  "set up the first frame to browse"
-  d baseFramePointer ifNil: [d printer ; 'Base frame pointer is nil. Cannot build stack frames...\n'. ^ Nil].
-  fp: (d stackItem: d baseFramePointer - 1).
-  ip: (d stackItem: d baseFramePointer - 4).
-  resultLoc: (d stackItem: fp - 5).
-  lc: (d stackItem: fp - 2).
-  method: (d stackItem: fp - 3).
-  frameList: ExtensibleArray new.
-
-  "loop through all the frames and add them to the list"
-  [frameList addLast: (DebuggingFrame new `>> [method: method.
-                                               instructionPointer: ip.
-                                               lexicalContext: lc.
-                                               framePointer: fp.
-                                               resultStackLocation: resultLoc.]).
-   ip: (d stackItem: fp - 4).
-   fp: (d stackItem: fp - 1).
-   fp < d slateFrameSize ifTrue: [d frameList: frameList. ^ True].
-   resultLoc: (d stackItem: fp - 5).
-   lc: (d stackItem: fp - 2).
-   method: (d stackItem: fp - 3).
-   "frameList size > d maxBacktraceSize ifTrue: [d frameList: frameList. ^ False]."
-  ] loop.
+[| frame |
+  d baseFramePointer ifNil: [error: 'Base frame pointer is nil. Cannot build stack frames.\n'. ^ Nil].
+  d frameList: d frameList new.
+  d frameList add: (frame: d topFrame).
+  [(frame: frame nextFrame) isNotNil] whileTrue: [d frameList add: frame].
 ].
 
 d@(Debugger traits) prompt
@@ -172,7 +226,7 @@ d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLoca
   out `defaultsTo: d printer.
   showLocation `defaultsTo: False.
   frame: (d frameList at: index).
-  out ; 'frame: ' ; index printString ; '\t' ; frame method printString.
+  out ; 'frame: ' ; index printString ; (d currentFrame = frame ifTrue: [' *'] ifFalse: ['']) ; '\t' ; frame method printString.
   showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation].
   out ; '\n'.
 ].
@@ -187,80 +241,93 @@ d@(Debugger traits) printBacktrace &limit: limit &stream: out &showLocation: sho
     [| :index | d printFrameLineAt: index &showLocation: showLocation].
 ].
 
-d@(Debugger traits) frame: n
+d@(Debugger traits) frame: index
+"Selects the frame at the given index."
 [
-  d currentFrame: (d frameList at: n ifAbsent: [Nil]).
+  d currentFrame: (d frameList at: index ifAbsent: [Nil]).
   d printFrame
 ].
 
-d@(Debugger traits) currentFrameValueAt: n
-[ |out frame method|
-  out: d printer.
-  frame: d currentFrame.
-  frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
-  method: frame method method.
-  d currentFrame ifNil: [inform: 'Current frame is nil'. ^ Nil].
-  out ; 'register[' 
-    ; n printString 
-    ; ']@'
-    ; (d stackItem: frame framePointer + n) printName
-    ;' = '
-    ; (d stackItem: frame framePointer + n) printString ; '\n'.
-  (d stackItem: frame framePointer + n)
-].
-
-d@(Debugger traits) currentFrameValueAt: n put: val
+d@(Debugger traits) top
 [
-  d stackItem: frame framePointer + n put: val
+  d currentFrame: d frameList first
 ].
 
-d@(Debugger traits) printFrame
+d@(Debugger traits) up
+[
+  (d frameList before: d currentFrame)
+    ifNil: [error: 'You are at the top of the stack and cannot go up a frame']
+    ifNotNilDo: [| :frame | d currentFrame: frame]
+].
+
+d@(Debugger traits) down
+[
+  (d frameList after: d currentFrame)
+    ifNil: [error: 'You are at the bottom of the stack and cannot go down a frame']
+    ifNotNilDo: [| :frame | d currentFrame: frame]
+].
+
+d@(Debugger traits) currentFrameValueAt: n
 [| out frame method |
   out: d printer.
   frame: d currentFrame.
   frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
   method: frame method method.
-  out ; 'fp:' ; frame framePointer printString  ; '\n'
-    ; 'ip: ' ; frame instructionPointer printString ; '/' ; method code size printString ; '\n'
-    ; 'method: ' ; method printString ; '\n'
-    ; 'location: ' ; method definitionLocation ; '\n'
-    ; 'call count: ' ; method callCount printString ; '\n'
-    ; 'register count: ' ; method registerCount printString ; '\n'
-    ; 'source: ' ; method sourceTree printString ; '\n'.
-  0 to: method inputVariables - 1
-    do: [|:i| out ; 'arg[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
-  method inputVariables to: method inputVariables + method localVariables - 1
-    do: [|:i| out ; 'local[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
-  method inputVariables + method localVariables to: method registerCount - 1
-    do: [|:i| out ; 'register[' ; i printString ; '] = ' ; (d stackItem: frame framePointer + i) printString ; '\n'].
-  out ; 'Decompiled: ' ; '\n'.
-  VM SSACompiler decompile: method code.
+  d currentFrame ifNil: [inform: 'Current frame is nil'. ^ Nil].
+  out ; 'register[' ; n printString ; ']@' ; (frame stackAtOffset: n) printName
+    ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
+  frame stackAtOffset: n
+].
+
+d@(Debugger traits) currentFrameValueAt: n put: val
+[
+  d currentFrame stackAtOffset: n put: val
+].
+
+d@(Debugger traits) printFrame
+[| out |
+  out: d printer.
+  d currentFrame
+    ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
+    ifNotNilDo: [| :frame | frame describeOn: d printer]
 ].
 
 d@(Debugger traits) printHelp
 [
   d printer
    ; 'The debugger is a specialized evaluator that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
-   ; ': index. (or restart: index.) - signal the restart at the given index\n'
-   ; 'backtrace (or "bt") - print the backtrace\n'
-   ; 'frame - print the current frame\n'
-   ; 'frame: N - set the current frame\n'
-   ; 'arg: N - evaluates the frame\'s register at index N\n'
-   ; 'arg: N put: - sets the frame\'s register at index N\n'
-   ; 'restarts - print the currently available restarts\n'
-   ; 'help - print this help listing\n'.
+   ; ': index. (or restart: index.)\n\tSignal the restart at the given index\n'
+   ; 'backtrace (or "bt")\n\tPrint the backtrace\n'
+   ; 'frame\n\tPrint the current frame\n'
+   ; 'frame: N\n\tSet the current frame\n'
+   ; 'down\n\tMove down one frame (to the caller)\n'
+   ; 'up\n\tMove up one frame (in the callee direction)\n'
+   ; 'arg: N\n\tDisplays the frame\'s register at index N\n'
+   ; 'arg: N put:\n\tSets the frame\'s register at index N\n'
+   ; 'restarts\n\tPrint the currently available restarts\n'
+   ; 'help\n\tPrint this help listing\n'.
 ].
 
 d@(Debugger traits) installMethods
 [
+  _@(d namespace) debugger
+  [d].
   _@(d namespace) frame
   [d printFrame].
   _@(d namespace) True
   [True].
   _@(d namespace) False
   [False].
+  _@(d namespace) frame
+  [d currentFrame].
   _@(d namespace) frame: n
   [d frame: n].
+  _@(d namespace) top
+  [d top].
+  _@(d namespace) up
+  [d up].
+  _@(d namespace) down
+  [d down].
   _@(d namespace) arg: n
   [d currentFrameValueAt: n].
   _@(d namespace) arg: n put: newVal

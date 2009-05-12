@@ -49,7 +49,7 @@ edit:
 
 bootstrap:
 	$(info Bootstrapping new images)
-	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image littleEndian: True bitSize: $(WORD_SIZE)" | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
+	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE)" | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
 
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
