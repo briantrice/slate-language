@@ -316,13 +316,13 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       if (def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
-        printf("pic miss\n");
+        printf("PIC miss\n");
 #endif
 
       }
       else {
 #ifdef PRINT_DEBUG_PIC_HITS
-        printf("pic hit\n");
+        printf("PIC hit\n");
 #endif
       }
     }
@@ -333,18 +333,30 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
   } else {
 #ifdef PRINT_DEBUG_PIC_HITS
-    printf("using pic over dispatch\n");
+    printf("Using PIC over dispatch\n");
 #endif
   }
 
   if (def == NULL) {
+    // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
     heap_fixed_add(oh, (struct Object*)argsArray);
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, NULL, resultStackPointer);
+    // Export / handle optionals:
+    GC_VOLATILE struct OopArray* optsArray = NULL;
+    if (opts != NULL) {
+      optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+      optsArray->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
+      optsArray->elements[1] = (struct Object*)opts;
+      heap_store_into(oh, (struct Object*)optsArray, (struct Object*)opts);
+    }
+    // Signal notFoundOn:
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, optsArray, resultStackPointer);
+    // Unpin it:
     heap_fixed_remove(oh, (struct Object*)argsArray);
     return;
   }
+
   /*PIC add here*/
   if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
   method = (struct Closure*)def->method;
