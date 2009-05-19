@@ -14,7 +14,7 @@ conditions define: #Debugger &parents: {Cloneable}
            #resource -> DebugConsole.
            #parser -> Syntax Parser.
            #printer -> DebugConsole writer.
-           #namespace -> lobby newSubSpace.
+           #namespace -> Nil.
            #frameList -> ExtensibleArray new.
            #currentFrame -> Nil.
            #baseFramePointer -> Nil.
@@ -22,8 +22,17 @@ conditions define: #Debugger &parents: {Cloneable}
            #maxBacktraceSize -> 200.
            #basePrompt -> '> '}.
 
+Debugger traits define: #Namespace &parents: {Namespace} &slots: {}.
+
+ns@(Debugger Namespace traits) new [Debugger Namespace clone].
+
 d@(Debugger traits) refreshWorkspace
-[d namespace: d namespace newSisterSpace. d installMethods].
+[
+  d namespace: d namespace newSisterSpace.
+  ns@(d namespace) debugger [d].
+].
+
+Debugger atSlotNamed: #namespace put: (Debugger Namespace newDelegatingTo: lobby).
 
 d@(Debugger traits) on: resource
 [
@@ -235,7 +244,7 @@ d@(Debugger traits) printBacktrace &limit: limit &stream: out &showLocation: sho
 [ 
   limit `defaultsTo: d maxBacktraceSize.
   out `defaultsTo: d printer.
-  showLocation `defaultsTo: False.
+  showLocation `defaultsTo: True.
   out ; 'Backtrace (method @ source): \n'.
   0 below: (d frameList length min: limit) do:
     [| :index | d printFrameLineAt: index &showLocation: showLocation].
@@ -267,7 +276,7 @@ d@(Debugger traits) down
     ifNotNilDo: [| :frame | d currentFrame: frame]
 ].
 
-d@(Debugger traits) currentFrameValueAt: n
+d@(Debugger traits) currentFrameAt: n@(Integer traits)
 [| out frame method |
   out: d printer.
   frame: d currentFrame.
@@ -279,22 +288,84 @@ d@(Debugger traits) currentFrameValueAt: n
   frame stackAtOffset: n
 ].
 
-d@(Debugger traits) currentFrameValueAt: n put: val
+d@(Debugger traits) currentFrameAt: n@(Integer traits) put: val
 [
   d currentFrame stackAtOffset: n put: val
+].
+
+d@(Debugger traits) stackOffsetForName: name
+[
+  d currentFrame method sourceTree
+    ifNil: [error: 'No source information available for the current frame.']
+    ifNotNilDo:
+      [| :src |
+       (src inputVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name])
+	 ifNil:
+	   [src localVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name]]]
+].
+
+d@(Debugger traits) currentFrameAt: name
+[
+  (d stackOffsetForName: name)
+    ifNil: [error: 'Input or Local Variable not found']
+    ifNotNilDo: [| :index | d currentFrameAt: index]
+].
+
+d@(Debugger traits) currentFrameAt: name put: val
+[
+  (d stackOffsetForName: name)
+    ifNil: [error: 'Input or Local Variable not found']
+    ifNotNilDo: [| :index | d currentFrameAt: index put: val]
 ].
 
 d@(Debugger traits) printFrame
 [| out |
   out: d printer.
   d currentFrame
-    ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
-    ifNotNilDo: [| :frame | frame describeOn: d printer]
+    ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')]
+    ifNotNilDo: [| :frame | frame describeOn: out]
 ].
 
 d@(Debugger traits) printHelp
 [
-  d printer
+].
+
+ns@(Debugger Namespace traits) frame
+[ns debugger printFrame].
+ns@(Debugger Namespace traits) True
+[True].
+ns@(Debugger Namespace traits) False
+[False].
+ns@(Debugger Namespace traits) frame
+[ns debugger currentFrame].
+ns@(Debugger Namespace traits) frame: n
+[ns debugger frame: n].
+ns@(Debugger Namespace traits) top
+[ns debugger top].
+ns@(Debugger Namespace traits) up
+[ns debugger up].
+ns@(Debugger Namespace traits) down
+[ns debugger down].
+ns@(Debugger Namespace traits) arg: n
+[ns debugger currentFrameAt: n].
+ns@(Debugger Namespace traits) arg: n put: newVal
+[ns debugger currentFrameAt: n put: newVal].
+ns@(Debugger Namespace traits) frames &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) backtrace &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) bt &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) restarts
+[ns debugger describeRestarts].
+ns@(Debugger Namespace traits) restart: index
+[ns debugger signalRestartAt: index].
+ns@(Debugger Namespace traits) : index
+[ns debugger signalRestartAt: index].
+
+ns@(Debugger Namespace traits) help
+[
+  ns debugger printer
    ; 'The debugger is a specialized evaluator that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
    ; ': index. (or restart: index.)\n\tSignal the restart at the given index\n'
    ; 'backtrace (or "bt")\n\tPrint the backtrace\n'
@@ -308,42 +379,19 @@ d@(Debugger traits) printHelp
    ; 'help\n\tPrint this help listing\n'.
 ].
 
-d@(Debugger traits) installMethods
+ns@(Debugger Namespace traits) didNotUnderstand: message at: position
 [
-  _@(d namespace) debugger
-  [d].
-  _@(d namespace) frame
-  [d printFrame].
-  _@(d namespace) True
-  [True].
-  _@(d namespace) False
-  [False].
-  _@(d namespace) frame
-  [d currentFrame].
-  _@(d namespace) frame: n
-  [d frame: n].
-  _@(d namespace) top
-  [d top].
-  _@(d namespace) up
-  [d up].
-  _@(d namespace) down
-  [d down].
-  _@(d namespace) arg: n
-  [d currentFrameValueAt: n].
-  _@(d namespace) arg: n put: newVal
-  [d currentFrameValueAt: n put: newVal].
-  _@(d namespace) backtrace &limit: n &showLocation: showLocation
-  [d printBacktrace &limit: n &showLocation: (showLocation ifNil: [True])].
-  _@(d namespace) bt &limit: n &showLocation: showLocation
-  [d printBacktrace &limit: n &showLocation: (showLocation ifNil: [True])].
-  _@(d namespace) restarts
-  [d describeRestarts].
-  _@(d namespace) restart: index
-  [d signalRestartAt: index].
-  _@(d namespace) : index
-  [d signalRestartAt: index].
-  _@(d namespace) help
-  [d printHelp].
+  position > 0
+   ifTrue: [resend]
+   ifFalse:
+     [| selector keywords firstWord |
+      selector: message selector.
+      keywords: ((selector as: String) splitWith: $:).
+      selector isUnarySelector
+        ifTrue: [firstWord: keywords first].
+      selector isKeywordSelector /\ [selector arity = 2]
+	ifTrue: [firstWord: keywords first].
+      firstWord ifNil: [resend] ifNotNil: [[ns arg: firstWord]]]
 ].
 
 d@(Debugger traits) enter
@@ -353,7 +401,7 @@ d@(Debugger traits) enter
   out ; 'Debugging: ' ; d condition printName ; '\n'.
   d refreshWorkspace.
   d findRestarts.
-  d printBacktrace &showLocation: True.
+  d printBacktrace.
   d describeRestarts.
   out ; '\nEnter \'help.\' for instructions.\n'.
 
