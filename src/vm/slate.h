@@ -104,6 +104,7 @@ struct Object
 /*this doesn't seem to ensure anything*/
 #define GC_VOLATILE /*volatile*/
 
+#define SLATE_INLINE inline
 
 #define METHOD_CACHE_ARITY 6
 
@@ -327,6 +328,7 @@ struct object_heap
   bool_t quiet; /*suppress excess stdout*/
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
+  word_t gcTenureCount;
 
   char** envp;
 

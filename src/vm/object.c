@@ -4,18 +4,18 @@
 #include "slate.h"
 
 
-word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
-struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
+SLATE_INLINE word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
+SLATE_INLINE struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
 
 
-bool_t oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
-bool_t oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-word_t object_markbit(struct Object* xxx)      { return  (((xxx)->header)&MARK_MASK); }
-word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header)>>1)&ID_HASH_MAX);}
-word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
-word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
-word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
+SLATE_INLINE bool_t oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
+SLATE_INLINE bool_t oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
+SLATE_INLINE bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
+SLATE_INLINE word_t object_markbit(struct Object* xxx)      { return  (((xxx)->header)&MARK_MASK); }
+SLATE_INLINE word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header)>>1)&ID_HASH_MAX);}
+SLATE_INLINE word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
+SLATE_INLINE word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
+SLATE_INLINE word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
 
 
 void object_set_mark(struct object_heap* oh, struct Object* xxx) {
@@ -64,11 +64,11 @@ word_t heap_new_hash(struct object_heap* oh) {
 word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
 /*fix i didn't understand the above*/
 
-struct Object* get_special(struct object_heap* oh, word_t special_index) {
+SLATE_INLINE struct Object* get_special(struct object_heap* oh, word_t special_index) {
   return oh->special_objects_oop->elements[special_index];
 }
 
-struct Map* object_get_map(struct object_heap* oh, struct Object* o) {
+SLATE_INLINE struct Map* object_get_map(struct object_heap* oh, struct Object* o) {
   if (object_is_smallint(o)) return get_special(oh, SPECIAL_OOP_SMALL_INT_PROTO)->map;
   return o->map;
 }
@@ -137,19 +137,19 @@ float_type* float_part(struct ByteArray* o) {
   return (float_type*)object_array_elements((struct Object*) o);
 }
 
-word_t object_array_size(struct Object* o) {
+SLATE_INLINE word_t object_array_size(struct Object* o) {
 
   assert(object_type(o) != TYPE_OBJECT);
   return (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
 
 }
 
-word_t byte_array_size(struct ByteArray* o) {
+SLATE_INLINE word_t byte_array_size(struct ByteArray* o) {
   return payload_size((struct Object*)o);
 }
 
 
-word_t array_size(struct OopArray* x) {
+SLATE_INLINE word_t array_size(struct OopArray* x) {
   return object_array_size((struct Object*) x);
 }
 
@@ -163,7 +163,7 @@ word_t role_table_capacity(struct RoleTable* roles) {
 
 
 
-word_t object_byte_size(struct Object* o) {
+SLATE_INLINE word_t object_byte_size(struct Object* o) {
   if (object_type(o) == TYPE_OBJECT) {
     return object_array_offset(o);
   } 
@@ -171,7 +171,7 @@ word_t object_byte_size(struct Object* o) {
 
 }
 
-word_t object_total_size(struct Object* o) {
+SLATE_INLINE word_t object_total_size(struct Object* o) {
   /*IMPORTANT: rounds up to word size*/
 
   return object_word_size(o)*sizeof(word_t);

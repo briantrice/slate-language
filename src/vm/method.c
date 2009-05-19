@@ -1,5 +1,14 @@
 #include "slate.h"
 
+
+word_t method_pic_hash(struct object_heap* oh, struct CompiledMethod* callerMethod, word_t arity, struct Object* args[]) {
+  word_t arraySize = array_size(callerMethod->calleeCount);
+  word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
+  return entryStart;
+}
+
+
+
 void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t n) {
   struct MethodCacheEntry* cacheEntry;
   word_t i;
@@ -424,9 +433,23 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
                            word_t arity, struct Object* args[]) {
+#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
   word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
+#else
+  word_t i = method_pic_hash(oh, callerMethod, arity, args);
+#endif
+
+
+  if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
+    method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+    method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) def->method);
+    return;
+  }
+
+
+#if 0 /*this old slow code will fill up the hash table instead of only looking at the entry where the hash lands us*/
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
     /* if it's nil, we need to insert it*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
@@ -443,14 +466,28 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
       return;
     }
   }
+#endif
 }
+
+
 
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                               struct Symbol* selector, word_t arity, struct Object* args[]) {
+
+  struct MethodDefinition* retval;
+#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
   word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
-  struct MethodDefinition* retval;
+#else
+  word_t i = method_pic_hash(oh, callerMethod, arity, args);
+#endif
+
+  if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
+  if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
+  return NULL; /*only look at first match*/
+
+#if 0 /*this old code goes through the whole hash table which will take a while in a bad case*/
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
    if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
@@ -461,6 +498,7 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
    if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
 
   }
+#endif
   return NULL;
 }
 
