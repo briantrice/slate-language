@@ -1,20 +1,20 @@
 Information for the Slate Distribution
 --------------------------------------
 
- Slate is a prototype-based, multi-dispatch object-oriented language that
- runs from a highly-customizable live environment. The implementation is
- highly portable and relatively lightweight.
+Slate is a prototype-based, multi-dispatch object-oriented language that
+runs from a highly-customizable live environment. The implementation is
+highly portable and relatively lightweight.
 
- The reference site for this Distribution is at http://www.slatelanguage.org
- and the Google Code project at: http://code.google.com/p/slate-language/
+The reference site for this Distribution is at http://www.slatelanguage.org
+and the Google Code project at: http://code.google.com/p/slate-language/
 
- Bug reports and requests for information can be made via the Slate mailing
- list, described at: http://groups.google.com/group/slate-language
+Bug reports and requests for information can be made via the Slate mailing
+list, described at: http://groups.google.com/group/slate-language
 
- See the wiki for more detailed documentation:
+See the wiki for more detailed documentation:
  http://code.google.com/p/slate-language/w/list
 
- See our bug-tracker for issues:
+See our bug-tracker for issues:
  http://code.google.com/p/slate-language/issues/list
 
 Setup
@@ -26,7 +26,6 @@ Setup
 '(sudo) make install' installs the VM and images in global directories (/usr/local/ by default) so that the VM can be invoked as just "slate".
 
 Read common.mk for more options.
-
 
 Command Line
 ------------
@@ -42,11 +41,8 @@ Learning Slate
 
 Read the online tutorials (from newest to oldest):
 
-
-http://slatelanguage.org/tutorial/
-http://code.google.com/p/slate-language/wiki/GettingStarted
-
-
+* http://slatelanguage.org/tutorial/
+* http://code.google.com/p/slate-language/wiki/GettingStarted
 
 Bootstrapping
 -------------
@@ -73,12 +69,12 @@ or
 
 Then you will load the resulting kernel image like a regular image:
 
-./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
+ ./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
 
 After the image is loaded, you will want to save it so you
 don't have to go through loading the kernel again:
 
-Image saveNamed: 'slate.image'.
+ Image saveNamed: 'slate.image'.
 
 
 Debugging the VM
@@ -100,25 +96,38 @@ Source directory structure
 --------------------------
 
 src/vm
-	The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
+: The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
 src/mobius -> The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
 src/core
-	The core libraries for the default slate system.
+: The core libraries for the default slate system.
 src/lib
-	The standard but optional libraries.
+: The standard but optional libraries.
 src/plugins
-	C code for slate FFI calls. `make plugins' to build
+: C code for slate FFI calls. `make plugins' to build
 src/ui
-	The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
+: The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
 src/ui/gtk
-	The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
+: The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
 src/net
-	The slate networking code. load: 'src/net/init.slate'.
+: The slate networking code. load: 'src/net/init.slate'.
+
+Finding source code
+-------------------
+
+Besides using grep, there are a few facilities:
+
+ #as: implementations do: [|:each| each definitionLocation ifNotNilDo: [|:l| inform: (l as: String) ]].
+
+ (#parseExpression findOn: {Syntax Parser}) definitionLocation
+
+See the slate manual for more details.
 
 Compiler
 --------
 
 A simple example:
+
+~~~
 
 [ | :c genCode|
 genCode: (c generate:
@@ -129,10 +138,11 @@ method sourceTree result: Nil &topLevel: True) code.
 c decompile: genCode
 ] applyWith: VM SSACompiler new.
 
-
+~~~
 
 Inside a function definition:
 
+~~~
 
 [ | :c genCode|
 genCode: (c generate:
@@ -150,8 +160,11 @@ method sourceTree result: Nil &topLevel: True) code.
 c decompile: genCode third code
 ] applyWith: VM SSACompiler new.
 
+~~~
 
 Inside the closure:
+
+~~~
 
 [ | :c genCode|
 genCode: (c generate:
@@ -169,19 +182,12 @@ method sourceTree result: Nil &topLevel: True) code.
 c decompile: (genCode third code at: 13) code
 ] applyWith: VM SSACompiler new.
 
+~~~
 
-"see what is getting called"
+See what is getting called:
+
+~~~
+
 VM SSACompiler new decompile: (#handle: findOn: {mainWindow. PaintEvent newContext: mainWindow context}) method code.
 
-
-Finding source code
--------------------
-
-Besides using grep (which is better since it will find bootstrap
-code), there are a few facilities. See the slate manual for more
-details.
-
-#as: implementations do: [|:each| each definitionLocation ifNotNilDo: [|:l| inform: (l as: String) ]].
-
-(#parseExpression findOn: {Syntax Parser}) definitionLocation
-
+~~~
