@@ -282,6 +282,11 @@ d@(Debugger traits) top
   d currentFrame: d frameList first
 ].
 
+d@(Debugger traits) bottom
+[
+  d currentFrame: d frameList last
+].
+
 d@(Debugger traits) up
 [
   (d frameList before: d currentFrame)
@@ -380,6 +385,7 @@ ns@(Debugger Namespace traits) help
    ; 'backtrace (or "bt")\n\tPrint the backtrace\n'
    ; 'frame\n\tPrint the current frame\n'
    ; 'frame: N\n\tSet the current frame\n'
+   ; 'frame restart\n\tResume execution from the start of the current frame\n'
    ; 'down\n\tMove down one frame (to the caller)\n'
    ; 'up\n\tMove up one frame (in the callee direction)\n'
    ; 'arg: N\n\tDisplays the frame\'s register at index N\n'
@@ -411,6 +417,7 @@ d@(Debugger traits) enter
   d printer `cache ; 'Debugging: ' ; d condition printName ; '\n'.
   d refreshWorkspace.
   d findRestarts.
+  d top.
   d printBacktrace.
   d describeRestarts.
   d printer ; '\nEnter \'help.\' for instructions.\n'.
