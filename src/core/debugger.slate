@@ -81,25 +81,20 @@ d@(Debugger traits) findRestarts
 ].
 
 d@(Debugger traits) describeRestartAt: index
-[| out restart |
-  out: d printer.
+[| restart |
   restart: (d restarts at: index).
-  out ; 'restart: ' ; index printString ; '\t'.
-  restart describeOn: out.
+  d printer `cache ; 'restart: ' ; index printString ; '\t'.
+  restart describeOn: d printer.
 ].
 
 d@(Debugger traits) describeRestarts
 "Describes the restarts available in the context, if any."
-[| out |
-  out: d printer.
-  out ; 'The following condition was signaled:\n'.
-  d condition describeOn: out.
-  out ; '\n'.
-  out ; (d restarts isEmpty
-    ifTrue: ['No restarts are available.\n']
-    ifFalse: ['Available Restarts:\n']).
+[
+  d printer `cache ; 'The following condition was signaled:\n'.
+  d condition describeOn: d printer.
+  d printer ; '\nAvailable Restarts:\n'.
   d restarts isEmpty
-    ifTrue: [out ; '(none available)']
+    ifTrue: [d printer ; '(none available)']
     ifFalse: [d restarts keysDo: [| :index | d describeRestartAt: index]].
 ].
 
@@ -186,8 +181,8 @@ f@(Debugger Frame traits) previousStackPointer: sp
 [f stackAtOffset: -6 put: sp].
 
 f@(Debugger Frame traits) describeOn: out
-[| method |
-  method: f method method.
+[
+  f method method `cacheAs: #method.
   out
     ; 'frame: ' ; (f debugger frameList indexOf: f) printString ; '\n'
     ; '  FP: ' ; f framePointer printString  ; '\n'
@@ -215,6 +210,13 @@ f@(Debugger Frame traits) reset
   f instructionPointer: 0.
 ].
 
+f@(Debugger Frame traits) restart
+"Proceed execution from the start of this frame."
+[
+  f reset.
+  f debugger quitFlag: True.
+].
+
 d@(Debugger traits) topFrame
 [d Frame newAtTopOf: d].
 
@@ -235,6 +237,7 @@ d@(Debugger traits) prompt
 	       d restarts size > 1 ifTrue:
 		 [out ; '..' ; d restarts indexLast printString].
 	       out ; ']'].
+   d currentFrame ifNotNilDo: [| :frame | out ; '[frame: ' ; ((d frameList indexOf: frame) as: String) ; ']'].
    out ; d basePrompt] writingAs: ''
 ].
 
@@ -248,10 +251,10 @@ d@(Debugger traits) signalRestartAt: index
 ].
 
 d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLocation
-[| frame |
+[
   out `defaultsTo: d printer.
   showLocation `defaultsTo: False.
-  frame: (d frameList at: index).
+  (d frameList at: index) `cacheAs: #frame.
   out ; 'frame: ' ; index printString ; (d currentFrame = frame ifTrue: [' *'] ifFalse: ['']) ; '\t' ; frame method printString.
   showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation].
   out ; '\n'.
@@ -294,15 +297,16 @@ d@(Debugger traits) down
 ].
 
 d@(Debugger traits) currentFrameAt: n@(Integer traits)
-[| out frame method |
-  out: d printer.
-  frame: d currentFrame.
-  frame ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')].
-  method: frame method method.
-  d currentFrame ifNil: [inform: 'Current frame is nil'. ^ Nil].
-  out ; 'register[' ; n printString ; ']@' ; (frame stackAtOffset: n) printName
-    ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
-  frame stackAtOffset: n
+[
+  d printer `cache.
+  d currentFrame
+    ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
+    ifNotNilDo:
+      [| :frame |
+       frame method method `cacheAs: #method.
+       d printer ; 'register[' ; n printString ; ']@' ; (frame stackAtOffset: n) printName
+	 ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
+       frame stackAtOffset: n]
 ].
 
 d@(Debugger traits) currentFrameAt: n@(Integer traits) put: val
@@ -325,15 +329,10 @@ d@(Debugger traits) currentFrameAt: name put: val
 ].
 
 d@(Debugger traits) printFrame
-[| out |
-  out: d printer.
-  d currentFrame
-    ifNil: [^ (out ; 'No frame currently selected. Use "frame: N"')]
-    ifNotNilDo: [| :frame | frame describeOn: out]
-].
-
-d@(Debugger traits) printHelp
 [
+  d currentFrame
+    ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
+    ifNotNilDo: [| :frame | frame describeOn: d printer]
 ].
 
 ns@(Debugger Namespace traits) frame
@@ -370,6 +369,8 @@ ns@(Debugger Namespace traits) : index
 [ns debugger signalRestartAt: index].
 ns@(Debugger Namespace traits) quit
 [ns debugger quitFlag: True].
+ns@(Debugger Namespace traits) return: value
+[ns debugger return: value].
 
 ns@(Debugger Namespace traits) help
 [
@@ -406,20 +407,18 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
 
 d@(Debugger traits) enter
 "The main interactive debugger loop."
-[| out quitFlag |
-  out: d printer.
-  out ; 'Debugging: ' ; d condition printName ; '\n'.
+[
+  d printer `cache ; 'Debugging: ' ; d condition printName ; '\n'.
   d refreshWorkspace.
   d findRestarts.
   d printBacktrace.
   d describeRestarts.
-  out ; '\nEnter \'help.\' for instructions.\n'.
-  quitFlag: False.
+  d printer ; '\nEnter \'help.\' for instructions.\n'.
   [
   "Print out the restarting options with a prompt and numeric labels, and read
 in the selected option number, returning it if valid."
-  out ; d prompt.
-  out flush.
+  d printer ; d prompt.
+  d printer flush.
   [| expr result restartNumeric |
    expr: d parser next.
    result: (expr evaluateIn: d namespace).
@@ -428,15 +427,15 @@ in the selected option number, returning it if valid."
    restartNumeric \/
      [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
       ifFalse:
-        [result printOn: out.
-          out newLine.
-          out flush].
+        [result printOn: d printer.
+         d printer newLine.
+         d printer flush].
    restartNumeric ifTrue: [d signalRestartAt: result].
    ] on: SeriousCondition
     do: [| :c |
-      out ; '\nThe following condition was signaled from within the debugger:\n'.
+      d printer ; '\nThe following condition was signaled from within the debugger:\n'.
       c describeOn: d printer.
-      (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [out ; 'End of input, exiting...\n'. lobby exit: 1].
+      (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [d printer ; 'End of input, exiting...\n'. lobby exit: 1].
       c exit].
   d quitFlag] whileFalse.
 ].
