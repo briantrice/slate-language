@@ -20,7 +20,8 @@ conditions define: #Debugger &parents: {Cloneable}
            #baseFramePointer -> Nil.
            #slateFrameSize -> 6.
            #maxBacktraceSize -> 200.
-           #basePrompt -> '> '}.
+           #basePrompt -> '> '.
+	   #quitFlag -> False}.
 
 Debugger traits define: #Namespace &parents: {Namespace} &slots: {}.
 
@@ -209,6 +210,11 @@ f@(Debugger Frame traits) describeOn: out
   VM SSACompiler decompile: method code.
 ].
 
+f@(Debugger Frame traits) reset
+[
+  f instructionPointer: 0.
+].
+
 d@(Debugger traits) topFrame
 [d Frame newAtTopOf: d].
 
@@ -362,6 +368,8 @@ ns@(Debugger Namespace traits) restart: index
 [ns debugger signalRestartAt: index].
 ns@(Debugger Namespace traits) : index
 [ns debugger signalRestartAt: index].
+ns@(Debugger Namespace traits) quit
+[ns debugger quitFlag: True].
 
 ns@(Debugger Namespace traits) help
 [
@@ -398,7 +406,7 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
 
 d@(Debugger traits) enter
 "The main interactive debugger loop."
-[| out |
+[| out quitFlag |
   out: d printer.
   out ; 'Debugging: ' ; d condition printName ; '\n'.
   d refreshWorkspace.
@@ -406,7 +414,7 @@ d@(Debugger traits) enter
   d printBacktrace.
   d describeRestarts.
   out ; '\nEnter \'help.\' for instructions.\n'.
-
+  quitFlag: False.
   [
   "Print out the restarting options with a prompt and numeric labels, and read
 in the selected option number, returning it if valid."
@@ -429,5 +437,6 @@ in the selected option number, returning it if valid."
       out ; '\nThe following condition was signaled from within the debugger:\n'.
       c describeOn: d printer.
       (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [out ; 'End of input, exiting...\n'. lobby exit: 1].
-      c exit]] loop.
+      c exit].
+  d quitFlag] whileFalse.
 ].
