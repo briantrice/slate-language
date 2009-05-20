@@ -137,6 +137,17 @@ f@(Debugger Frame traits) stackAtOffset: offset
 f@(Debugger Frame traits) stackAtOffset: offset put: value
 [f debugger stackAt: f framePointer + offset put: value].
 
+f@(Debugger Frame traits) stackOffsetForLocal: name
+[
+  f method sourceTree
+    ifNil: [error: 'No source information available for the current frame.']
+    ifNotNilDo:
+      [| :src |
+       (src inputVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name])
+	 ifNil:
+	   [src localVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name]]]
+].
+
 f@(Debugger Frame traits) callerFrameIndex
 [f stackAtOffset: -1].
 
@@ -293,27 +304,16 @@ d@(Debugger traits) currentFrameAt: n@(Integer traits) put: val
   d currentFrame stackAtOffset: n put: val
 ].
 
-d@(Debugger traits) stackOffsetForName: name
-[
-  d currentFrame method sourceTree
-    ifNil: [error: 'No source information available for the current frame.']
-    ifNotNilDo:
-      [| :src |
-       (src inputVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name])
-	 ifNil:
-	   [src localVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name]]]
-].
-
 d@(Debugger traits) currentFrameAt: name
 [
-  (d stackOffsetForName: name)
+  (d currentFrame stackOffsetForLocal: name)
     ifNil: [error: 'Input or Local Variable not found']
     ifNotNilDo: [| :index | d currentFrameAt: index]
 ].
 
 d@(Debugger traits) currentFrameAt: name put: val
 [
-  (d stackOffsetForName: name)
+  (d currentFrame stackOffsetForLocal: name)
     ifNil: [error: 'Input or Local Variable not found']
     ifNotNilDo: [| :index | d currentFrameAt: index put: val]
 ].
@@ -384,14 +384,16 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
   position > 0
    ifTrue: [resend]
    ifFalse:
-     [| selector keywords firstWord |
+     [| selector keywords |
       selector: message selector.
       keywords: ((selector as: String) splitWith: $:).
+      "Handle an accessor."
       selector isUnarySelector
-        ifTrue: [firstWord: keywords first].
+        ifTrue: [^ [ns arg: keywords first]].
+      "Handle a mutator."
       selector isKeywordSelector /\ [selector arity = 2]
-	ifTrue: [firstWord: keywords first].
-      firstWord ifNil: [resend] ifNotNil: [[ns arg: firstWord]]]
+	ifTrue: [^ [ns arg: keywords first put: message arguments second]].
+      resend]
 ].
 
 d@(Debugger traits) enter
