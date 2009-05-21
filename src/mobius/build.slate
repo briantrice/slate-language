@@ -52,7 +52,8 @@ load-order."
     #filename -> Nil. "The filename for the image."
     #bitSize -> 64. "The bitsize of the image"
     #primitives -> ExtensibleArray new.
-    #littleEndian -> True "Whether to have a little-endian byte-word format."
+    #littleEndian -> True. "Whether to have a little-endian byte-word format."
+    #bootstrapDirectory -> '.' "Where the source filename paths relate to."
   }.
 
 
@@ -219,12 +220,12 @@ Image Definition primitives clear.
 148 -> #stopProfiling -> #(LobbyObject).
 149 -> #profilerStatistics -> #(LobbyObject).
 
-} do: [ | :each | 
-         inform: 'Adding primitive ' ; each printString.
+} do: [| :each | 
+       inform: 'Adding primitive ' ; each printString.
        Image Definition primitives add: 
          each key key -> (Syntax MethodDefinition new `>>
                       [selector: each key value.
-                       roles: (each value collect: [ | :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])].
+                       roles: (each value collect: [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])].
 
 
 Image define: #BareDefinition -> (Image Definition cloneSettingSlots: #(bootstrapFilenames)
@@ -240,28 +241,34 @@ def@(Image Definition traits) newNamed: filename littleEndian: littleEndian bitS
 ].
 
 def@(Image Definition traits) generateFilename &base: base
+"Generates a unique and descriptive image filename based on the definition."
 [
   base `defaultsTo: 'kernel'.
-  def filename: base ; '.' ; (def littleEndian ifTrue: ['little'] ifFalse: ['big'])
-   ; '.' ; def bitSize printString ; '.' ; (lobby timeSinceEpoch as: Integer) printString ; '.image'].
+  base
+    ; '.' ; (def littleEndian ifTrue: ['little'] ifFalse: ['big']) "endianness"
+    ; '.' ; def bitSize printString "bitsize"
+    ; '.' ; (lobby timeSinceEpoch as: Integer) printString "timestamp"
+    ; '.image'
+].
 
-c@(Image Definition traits) generate
+def@(Image Definition traits) generate
 [| builder bootBlock statements |
-  builder: (Image Bootstrap Generator new &littleEndian: c littleEndian &bitSize: c bitSize).
-  c filename ifNil: [c generateFilename].
-  (File newNamed: c filename &mode: File CreateWrite) sessionDo:
-    [| :imageFile image |
+  builder: (Image Bootstrap Generator new &littleEndian: def littleEndian &bitSize: def bitSize).
+  def filename `defaultsTo: def defaultFilename.
+  (File newNamed: def filename &mode: File CreateWrite) sessionDo:
+    [| :imageFile image dir |
      image: imageFile writer.
      bootBlock: Syntax Block new.
      statements: bootBlock statements writer.
-     c bootstrapFilenames do:
-       [| :each |
-        inform: 'Parsing ' ; each printString.
-        (File newNamed: each &mode: File Read) sessionDo:
+     dir: (Directory newNamed: def bootstrapDirectory).
+     (def bootstrapFilenames collect: [| :each | dir / each]) do:
+       [| :fullPath |
+        Inform: 'Parsing: \'' ; fullPath printString ; '\''.
+        (File newNamed: fullPath &mode: File Read) sessionDo:
            [| :file | (Syntax Parser newOn: file reader) >> statements]].
      bootBlock statements: statements contents.
-     inform: 'Building image.'.
-     builder generateImageBooting: bootBlock withPrims: c primitives.
+     inform: 'Building image: \'' ; image ; '\''.
+     builder generateImageBooting: bootBlock withPrims: def primitives.
      builder emitOn: image].
   builder
 ].
