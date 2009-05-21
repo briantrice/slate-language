@@ -133,6 +133,16 @@ f@(Debugger Frame traits) stackAtOffset: offset
 f@(Debugger Frame traits) stackAtOffset: offset put: value
 [f debugger stackAt: f framePointer + offset put: value].
 
+f@(Debugger Frame traits) localForOffset: offset
+[
+  f method sourceTree
+    ifNotNilDo:
+      [| :src |
+       (offset < src inputVariables size
+	 ifTrue: [src inputVariables]
+         ifFalse: [src localVariables]) at: offset ifAbsent: [Nil]]
+].
+
 f@(Debugger Frame traits) stackOffsetForLocal: name
 [
   f method sourceTree
@@ -194,10 +204,16 @@ f@(Debugger Frame traits) describeOn: out
     ; '  source: ' ; method sourceTree printString ; '\n'.
   out ; 'Inputs:\n'.
   0 below: method inputVariables
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
+    do: [| :i | out
+	   ; ' arg: ' ; i printString
+	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :local | local name])
+	   ; ' -> ' ; (f stackAtOffset: i) printString ; '\n'].
   out ; 'Locals:\n'.
   method inputVariables below: method inputVariables + method localVariables
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
+    do: [| :i | out
+	   ; ' arg: ' ; i printString
+	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :local | local name])
+	   ; ' -> ' ; (f stackAtOffset: i) printString ; '\n'].
   out ; 'Registers:\n'.
   method inputVariables + method localVariables below: method registerCount
     do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f stackAtOffset: i) printString ; '\n'].
