@@ -236,11 +236,10 @@ like adding 3 + 4, say."
 
 def@(Image Definition traits) newNamed: filename littleEndian: littleEndian bitSize: bitSize
 [
-  (def cloneSettingSlots: #(littleEndian bitSize) to: {littleEndian. bitSize})
-    `>> [generateFilename &base: filename. ]
+  def cloneSettingSlots: #(littleEndian bitSize filename) to: {littleEndian. bitSize. def defaultFilename &base: filename}
 ].
 
-def@(Image Definition traits) generateFilename &base: base
+def@(Image Definition traits) defaultFilename &base: base
 "Generates a unique and descriptive image filename based on the definition."
 [
   base `defaultsTo: 'kernel'.
@@ -254,7 +253,7 @@ def@(Image Definition traits) generateFilename &base: base
 def@(Image Definition traits) generate
 [| builder bootBlock statements |
   builder: (Image Bootstrap Generator new &littleEndian: def littleEndian &bitSize: def bitSize).
-  def filename `defaultsTo: def defaultFilename.
+  def filename ifNil: [def filename: def defaultFilename].
   (File newNamed: def filename &mode: File CreateWrite) sessionDo:
     [| :imageFile image dir |
      image: imageFile writer.
@@ -262,9 +261,10 @@ def@(Image Definition traits) generate
      statements: bootBlock statements writer.
      dir: (Directory newNamed: def bootstrapDirectory).
      (def bootstrapFilenames collect: [| :each | dir / each]) do:
-       [| :fullPath |
-        Inform: 'Parsing: \'' ; fullPath printString ; '\''.
-        (File newNamed: fullPath &mode: File Read) sessionDo:
+       [| :file |
+        inform: 'Parsing: ' ; file locator printString.
+	file mode: file Read.
+        file sessionDo:
            [| :file | (Syntax Parser newOn: file reader) >> statements]].
      bootBlock statements: statements contents.
      inform: 'Building image: \'' ; image ; '\''.
