@@ -511,7 +511,7 @@ void prim_byteat(struct object_heap* oh, struct Object* args[], word_t arity, st
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 	word_t handle = object_to_smallint(args[1]);
 	ASSURE_SMALLINT_ARG(1);
-	if (endOfFile(oh, handle)) {
+	if (file_isatend(oh, handle)) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 	} else {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
@@ -520,7 +520,7 @@ void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, s
 
 void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 	word_t handle = object_to_smallint(args[1]);
-	word_t retval = sizeOfFile(oh, handle);
+	word_t retval = file_sizeof(oh, handle);
 	ASSURE_SMALLINT_ARG(1);
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
@@ -536,7 +536,7 @@ void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
-	handle = openFile(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE);
+	handle = file_open(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE);
 	if (handle >= 0) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(handle);
 	} else {
@@ -549,7 +549,7 @@ void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t ari
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
-	handle = openFile(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE|SF_CLEAR|SF_CREATE);
+	handle = file_open(oh, (struct ByteArray*)fname, SF_READ|SF_WRITE|SF_CLEAR|SF_CREATE);
 	if (handle >= 0) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(handle);
 	} else {
@@ -562,7 +562,7 @@ void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
-	handle = openFile(oh, (struct ByteArray*)fname, SF_READ);
+	handle = file_open(oh, (struct ByteArray*)fname, SF_READ);
 	if (handle >= 0) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(handle);
 	} else {
@@ -999,7 +999,7 @@ void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, str
   word_t handle = object_to_smallint(args[1]);
   ASSURE_SMALLINT_ARG(1);
 
-  closeFile(oh, handle);
+  file_close(oh, handle);
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 
 }
@@ -1023,7 +1023,7 @@ void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args
   word_t retval;
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(4);
-  retval = readFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
+  retval = file_read(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
@@ -1033,13 +1033,13 @@ void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[
   word_t retval;
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(4);
-  retval = writeFile(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
+  retval = file_write(oh, handle, n, (char*)(byte_array_elements(bytes) + start));
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
 void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
-  word_t retval = seekFile(oh, handle, n);
+  word_t retval = file_seek(oh, handle, n);
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
@@ -1047,20 +1047,46 @@ void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t ar
 
 void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
-  word_t retval = tellFile(oh, handle);
+  word_t retval = file_tell(oh, handle);
   ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
 #pragma mark Directory
 
-void prim_getcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct ByteArray* buf = (struct ByteArray*)args[1];
-	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(getCurrentDirectory(buf));
+void prim_dir_open(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* buf = (struct ByteArray*)args[1];
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_open(oh, buf));
 }
-void prim_setcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct ByteArray* buf = (struct ByteArray*)args[1];
-	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(setCurrentDirectory(buf));
+
+void prim_dir_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t handle = object_to_smallint(args[1]);
+  ASSURE_SMALLINT_ARG(1);
+
+  dir_close(oh, handle);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+}
+
+void prim_dir_read(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  word_t handle = object_to_smallint(args[1]);
+  struct ByteArray* buf = (struct ByteArray*)args[2];
+  word_t retval;
+
+  ASSURE_SMALLINT_ARG(1);
+
+  retval = dir_read(oh, handle, buf);
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
+}
+
+void prim_dir_getcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* buf = (struct ByteArray*)args[1];
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_getcwd(buf));
+}
+
+void prim_dir_setcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  struct ByteArray* buf = (struct ByteArray*)args[1];
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_setcwd(buf));
 }
 
 #pragma mark Platform
@@ -1269,7 +1295,7 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
   ASSURE_SMALLINT_ARG(2);
   if (object_is_smallint(handle) && object_is_smallint(offset) && byte_array_size(addressBuffer) >= sizeof(word_t)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
-                           smallint_to_object(addressOfMemory(oh,
+                           smallint_to_object(memarea_addressof(oh,
                                                               (int)object_to_smallint(handle), 
                                                               (int)object_to_smallint(offset),
                                                               byte_array_elements(addressBuffer)));
@@ -1343,7 +1369,7 @@ void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity
     return;
   }
 
-  handle = (word_t)openMemory(oh, object_to_smallint(size));
+  handle = (word_t)memarea_open(oh, object_to_smallint(size));
   if (handle >= 0) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(handle);
   } else {
@@ -1356,7 +1382,7 @@ void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t ari
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
-    closeMemory(oh, object_to_smallint(handle));
+    memarea_close(oh, object_to_smallint(handle));
   }
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 
@@ -1366,7 +1392,7 @@ void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arit
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeOfMemory(oh, object_to_smallint(handle)));
+    oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(memarea_sizeof(oh, object_to_smallint(handle)));
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
   }
@@ -1377,7 +1403,7 @@ void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t ar
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
-    addRefMemory(oh, object_to_smallint(handle));
+    memarea_addref(oh, object_to_smallint(handle));
   }
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
@@ -1394,7 +1420,7 @@ void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arit
   ASSURE_SMALLINT_ARG(2);
   ASSURE_SMALLINT_ARG(3);
 
-  if (!validMemoryHandle(oh, handle) 
+  if (!memarea_handle_isvalid(oh, handle) 
       || byte_array_size(buf) < amount 
       || startingAt + amount >= oh->memory_sizes [handle]) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(-1);
@@ -1402,7 +1428,7 @@ void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arit
   }
   
   oh->cached.interpreter->stack->elements[resultStackPointer] =
-    smallint_to_object(writeMemory(oh, handle, startingAt, amount, byte_array_elements(buf)));
+    smallint_to_object(memarea_write(oh, handle, startingAt, amount, byte_array_elements(buf)));
 
 }
 
@@ -1416,7 +1442,7 @@ void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t ari
   ASSURE_SMALLINT_ARG(2);
   ASSURE_SMALLINT_ARG(3);
 
-  if (!validMemoryHandle(oh, handle) 
+  if (!memarea_handle_isvalid(oh, handle) 
       || byte_array_size(buf) < amount 
       || startingAt + amount >= oh->memory_sizes [handle]) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(-1);
@@ -1424,7 +1450,7 @@ void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t ari
   }
   
   oh->cached.interpreter->stack->elements[resultStackPointer] = 
-    smallint_to_object(readMemory(oh, handle, startingAt, amount, byte_array_elements(buf)));
+    smallint_to_object(memarea_read(oh, handle, startingAt, amount, byte_array_elements(buf)));
 
 }
 
@@ -1433,7 +1459,7 @@ void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t 
   struct Object* handle = args[1], *size = args[2];
   if (object_is_smallint(handle) && object_is_smallint(size)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = 
-                           smallint_to_object(resizeMemory(oh, object_to_smallint(handle), object_to_smallint(size)));
+                           smallint_to_object(memarea_resize(oh, object_to_smallint(handle), object_to_smallint(size)));
 
   } else {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
@@ -2082,8 +2108,8 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_heap_gc, prim_bytesPerWord, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
- /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_fixme, 
- /*80-9*/ prim_fixme, prim_fixme, prim_getcwd, prim_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
+ /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_dir_open, 
+ /*80-9*/ prim_dir_close, prim_dir_read, prim_dir_getcwd, prim_dir_setcwd, prim_significand, prim_exponent, prim_withSignificand_exponent, prim_float_equals, prim_float_less_than, prim_float_plus, 
  /*90-9*/ prim_float_minus, prim_float_times, prim_float_divide, prim_float_raisedTo, prim_float_ln, prim_float_exp, prim_float_sin, prim_fixme, prim_fixme, prim_fixme, 
  /*00-9*/ prim_fixme, prim_fixme, prim_fixme, prim_memory_new, prim_memory_close, prim_memory_addRef, prim_memory_write, prim_memory_read, prim_memory_size, prim_memory_resizeTo,
  /*10-9*/ prim_addressOf, prim_library_open, prim_library_close, prim_procAddressOf, prim_extlibError, prim_applyExternal, prim_timeSinceEpoch, prim_cloneSystem, prim_readFromPipe, prim_writeToPipe,

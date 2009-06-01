@@ -130,8 +130,6 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->current_dispatch_id = cdid;
   oh->interrupt_flag = 0;
   oh->mark_color = 1;
-  oh->file_index_size = 256;
-  oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
   oh->markStackSize = 4 * MB;
   oh->markStackPosition = 0;
   oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
@@ -140,14 +138,8 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->optimizedMethodsLimit = 1024;
   oh->optimizedMethods = malloc(oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
 
-  oh->socketTicketCount = SLATE_NETTICKET_MAXIMUM;
-  oh->socketTickets = calloc(oh->socketTicketCount * sizeof(struct slate_addrinfo_request), 1);
-#if 0
-  oh->socketTicketMutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
-
   assert(oh->markStack != NULL);
-  initMemoryModule(oh);
+
   return 1;
 }
 

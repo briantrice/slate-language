@@ -214,6 +214,12 @@ int main(int argc, char** argv, char **envp) {
   sigaction(SIGPIPE, &pipe_ignore_action, NULL);
 #endif
 
+  // Modules for external resources:
+  file_module_init(heap);
+  socket_module_init(heap);
+  dir_module_init(heap);
+  memarea_module_init(heap);
+
   interpret(heap);
   
   heap_close(heap);

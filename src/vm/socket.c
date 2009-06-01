@@ -1,5 +1,13 @@
 #include "slate.h"
 
+void socket_module_init(struct object_heap* oh) {
+  oh->socketTicketCount = SLATE_NETTICKET_MAXIMUM;
+  oh->socketTickets = calloc(oh->socketTicketCount * sizeof(struct slate_addrinfo_request), 1);
+#if 0
+  oh->socketTicketMutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+}
+
 /* remap platform specific errors to slate errors */
 word_t socket_return(word_t ret) {
 
