@@ -35,6 +35,7 @@ typedef SOCKADDR sockaddr_un;
 #include <sys/un.h>
 #include <pthread.h>
 #endif
+#include <dirent.h>
 
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
@@ -263,19 +264,21 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
 #define PINNED_CARD_SIZE (sizeof(word_t) * 8)
-#define SLATE_MEMS_MAXIMUM		1024
-#define SLATE_NETTICKET_MAXIMUM	1024
-
+#define SLATE_MEMS_MAXIMUM 1024
+#define SLATE_NETTICKET_MAXIMUM 1024
+#define SLATE_FILES_MAXIMUM 256
+#define SLATE_DIRECTORIES_MAXIMUM 256
+#define MAX_PLATFORM_STRING_LENGTH 256
 
 #ifndef WIN32
 #include <sys/utsname.h>
 #else
 typedef struct utsname {
-  char sysname[256];
-  char nodename[256];
-  char release[256];
-  char version[256];
-  char machine[256];
+  char sysname[MAX_PLATFORM_STRING_LENGTH];
+  char nodename[MAX_PLATFORM_STRING_LENGTH];
+  char release[MAX_PLATFORM_STRING_LENGTH];
+  char version[MAX_PLATFORM_STRING_LENGTH];
+  char machine[MAX_PLATFORM_STRING_LENGTH];
 };
 int uname(struct utsname *un);
 #endif
@@ -335,6 +338,10 @@ struct object_heap
   /* contains all the file handles */
   FILE** file_index;
   word_t file_index_size;
+
+  /* containts all the directory handles */
+  DIR** dir_index;
+  word_t dir_index_size;
 
   struct Object *nextFree;
   struct Object *nextOldFree;
@@ -859,6 +866,8 @@ void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struc
 void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer);
 void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
 void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+
+void socket_module_init(struct object_heap* oh);
 word_t socket_return(word_t ret);
 int socket_select_setup(struct OopArray* selectOn, fd_set* fdList, int* maxFD);
 void socket_select_find_available(struct OopArray* selectOn, fd_set* fdList, struct OopArray* readyPipes, word_t readyCount);
@@ -878,29 +887,35 @@ byte_t byte_array_get_element(struct Object* o, word_t i);
 byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val);
 int fork2();
 
-bool_t valid_handle(struct object_heap* oh, word_t file);
-word_t allocate_file(struct object_heap* oh);
-void closeFile(struct object_heap* oh, word_t file);
-word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags);
-word_t writeFile(struct object_heap* oh, word_t file, word_t n, char * bytes);
-word_t readFile(struct object_heap* oh, word_t file, word_t n, char * bytes);
-word_t sizeOfFile(struct object_heap* oh, word_t file);
-word_t seekFile(struct object_heap* oh, word_t file, word_t offset);
-word_t tellFile(struct object_heap* oh, word_t file);
-bool_t endOfFile(struct object_heap* oh, word_t file);
-int getCurrentDirectory(struct ByteArray *wdBuffer);
-int setCurrentDirectory(struct ByteArray *newWd);
+void file_module_init(struct object_heap* oh);
+bool_t file_handle_isvalid(struct object_heap* oh, word_t file);
+word_t file_allocate(struct object_heap* oh);
+void file_close(struct object_heap* oh, word_t file);
+word_t file_open(struct object_heap* oh, struct ByteArray * name, word_t flags);
+word_t file_write(struct object_heap* oh, word_t file, word_t n, char * bytes);
+word_t file_read(struct object_heap* oh, word_t file, word_t n, char * bytes);
+word_t file_sizeof(struct object_heap* oh, word_t file);
+word_t file_seek(struct object_heap* oh, word_t file, word_t offset);
+word_t file_tell(struct object_heap* oh, word_t file);
+bool_t file_isatend(struct object_heap* oh, word_t file);
 
-void initMemoryModule (struct object_heap* oh);
-int validMemoryHandle (struct object_heap* oh, int memory);
-void closeMemory (struct object_heap* oh, int memory);
-void addRefMemory (struct object_heap* oh, int memory);
-int openMemory (struct object_heap* oh, int size);
-int writeMemory (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes);
-int readMemory (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes);
-int sizeOfMemory (struct object_heap* oh, int memory);
-int resizeMemory (struct object_heap* oh, int memory, int size);
-int addressOfMemory (struct object_heap* oh, int memory, int offset, byte_t* addressBuffer);
+void dir_module_init(struct object_heap* oh);
+int dir_open(struct object_heap* oh, struct ByteArray *dirName);
+int dir_close(struct object_heap* oh, int dirHandle);
+int dir_read(struct object_heap* oh, int dirHandle, struct ByteArray *entNameBuffer);
+int dir_getcwd(struct ByteArray *wdBuffer);
+int dir_setcwd(struct ByteArray *newWd);
+
+void memarea_module_init (struct object_heap* oh);
+int memarea_handle_isvalid (struct object_heap* oh, int memory);
+void memarea_close (struct object_heap* oh, int memory);
+void memarea_addref (struct object_heap* oh, int memory);
+int memarea_open (struct object_heap* oh, int size);
+int memarea_write (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes);
+int memarea_read (struct object_heap* oh, int memory, int memStart, int n, byte_t* bytes);
+int memarea_sizeof (struct object_heap* oh, int memory);
+int memarea_resize (struct object_heap* oh, int memory, int size);
+int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* addressBuffer);
 
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);

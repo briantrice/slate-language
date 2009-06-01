@@ -3,15 +3,20 @@
 static LARGE_INTEGER liZero;
 #endif
 
-bool_t valid_handle(struct object_heap* oh, word_t file) {
+void file_module_init(struct object_heap* oh) {
+  oh->file_index_size = SLATE_FILES_MAXIMUM;
+  oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
+}
+
+bool_t file_handle_isvalid(struct object_heap* oh, word_t file) {
   return (0 <= file && file < oh->file_index_size && oh->file_index[file] != NULL);
 }
 
-word_t allocate_file(struct object_heap* oh) {
+word_t file_allocate(struct object_heap* oh) {
   word_t file;
   word_t initial_size = oh->file_index_size;
   for (file = 0; file < initial_size; ++ file) {
-    if (!(valid_handle(oh, file)))
+    if (!(file_handle_isvalid(oh, file)))
       return file;
   }
   oh->file_index_size *= 2;
@@ -25,8 +30,8 @@ word_t allocate_file(struct object_heap* oh) {
   return initial_size;
 }
 
-void closeFile(struct object_heap* oh, word_t file) {
-  if (valid_handle(oh, file)) {
+void file_close(struct object_heap* oh, word_t file) {
+  if (file_handle_isvalid(oh, file)) {
 #ifdef WIN32
     CloseHandle(oh->file_index[file]);
 #else
@@ -36,7 +41,7 @@ void closeFile(struct object_heap* oh, word_t file) {
   }
 }
 
-word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags) {
+word_t file_open(struct object_heap* oh, struct ByteArray * name, word_t flags) {
   byte_t nameString[SLATE_FILE_NAME_LENGTH];
   word_t nameLength;
 #ifdef WIN32
@@ -53,7 +58,7 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags) {
   if (nameLength <= 0)
     return SLATE_ERROR_RETURN;
 
-  file = allocate_file(oh);
+  file = file_allocate(oh);
   if (file < 0)
     return SLATE_ERROR_RETURN;
 
@@ -114,7 +119,7 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags) {
   oh->file_index[file] = fopen((char*)nameString, mode);
 #endif
 
-  if (valid_handle(oh, file)) {
+  if (file_handle_isvalid(oh, file)) {
 
 #ifdef WIN32
     if (flags & SF_CLEAR) {
@@ -130,35 +135,35 @@ word_t openFile(struct object_heap* oh, struct ByteArray * name, word_t flags) {
     return SLATE_ERROR_RETURN;
 }
 
-word_t writeFile(struct object_heap* oh, word_t file, word_t n, char * bytes) {
+word_t file_write(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesWritten = 0;
   return (WriteFile(oh->file_index[file], bytes, (DWORD)n, &bytesWritten, NULL)
 	  ? bytesWritten : SLATE_ERROR_RETURN);
 #else
-  return (valid_handle(oh, file) ? fwrite (bytes, 1, n, oh->file_index[file])
+  return (file_handle_isvalid(oh, file) ? fwrite (bytes, 1, n, oh->file_index[file])
 	  : SLATE_ERROR_RETURN);
 #endif
 }
 
-word_t readFile(struct object_heap* oh, word_t file, word_t n, char * bytes) {
+word_t file_read(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesRead = 0;
-  return (valid_handle(oh, file) && ReadFile(oh->file_index[file], bytes, (DWORD)n, &bytesRead, NULL)
+  return (file_handle_isvalid(oh, file) && ReadFile(oh->file_index[file], bytes, (DWORD)n, &bytesRead, NULL)
 	  ? bytesRead : SLATE_ERROR_RETURN);
 #else
-  return (valid_handle(oh, file) ? fread (bytes, 1, n, oh->file_index[file])
+  return (file_handle_isvalid(oh, file) ? fread (bytes, 1, n, oh->file_index[file])
 	  : SLATE_ERROR_RETURN);
 #endif
 }
 
-word_t sizeOfFile(struct object_heap* oh, word_t file) {
+word_t file_sizeof(struct object_heap* oh, word_t file) {
 #ifdef WIN32
   LARGE_INTEGER size;
 #else
   word_t pos, size;
 #endif
-  if (!(valid_handle(oh, file)))
+  if (!(file_handle_isvalid(oh, file)))
     return SLATE_ERROR_RETURN;
 #ifdef WIN32
   size.QuadPart = 0;
@@ -172,7 +177,7 @@ word_t sizeOfFile(struct object_heap* oh, word_t file) {
 #endif
 }
 
-word_t seekFile(struct object_heap* oh, word_t file, word_t offset) {
+word_t file_seek(struct object_heap* oh, word_t file, word_t offset) {
 #ifdef WIN32
   LARGE_INTEGER pos;
   LARGE_INTEGER win_offset;
@@ -181,16 +186,16 @@ word_t seekFile(struct object_heap* oh, word_t file, word_t offset) {
   return (SetFilePointerEx(oh->file_index[file], win_offset, &pos, FILE_BEGIN)
 	  ? pos.QuadPart : SLATE_ERROR_RETURN);
 #else
-  return (valid_handle(oh, file) && fseek (oh->file_index[file], offset, SEEK_SET) == 0
+  return (file_handle_isvalid(oh, file) && fseek (oh->file_index[file], offset, SEEK_SET) == 0
 	  ? ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
 #endif
 }
 
-word_t tellFile(struct object_heap* oh, word_t file) {
+word_t file_tell(struct object_heap* oh, word_t file) {
 #ifdef WIN32
   LARGE_INTEGER pos;
 #endif
-  if (!valid_handle(oh, file))
+  if (!file_handle_isvalid(oh, file))
     return SLATE_ERROR_RETURN;
 #ifdef WIN32
   pos.QuadPart = 0;
@@ -201,7 +206,7 @@ word_t tellFile(struct object_heap* oh, word_t file) {
 #endif
 }
 
-bool_t endOfFile(struct object_heap* oh, word_t file) {
+bool_t file_isatend(struct object_heap* oh, word_t file) {
 #ifdef WIN32
   LARGE_INTEGER size;
   LARGE_INTEGER pos;
@@ -215,7 +220,7 @@ bool_t endOfFile(struct object_heap* oh, word_t file) {
 	    ? pos.QuadPart >= size.QuadPart : SLATE_ERROR_RETURN);
 #else
   word_t c;
-  if (!(valid_handle(oh, file)))
+  if (!(file_handle_isvalid(oh, file)))
     return TRUE;
   c = fgetc (oh->file_index[file]);
   if (c == EOF)
@@ -223,43 +228,6 @@ bool_t endOfFile(struct object_heap* oh, word_t file) {
   else {
     ungetc (c, oh->file_index[file]);
     return FALSE;
-  }
-#endif
-}
-
-int getCurrentDirectory(struct ByteArray *pathBuffer) {
-#ifdef WIN32
-  return GetCurrentDirectory((DWORD)payload_size((struct Object *) pathBuffer), pathBuffer->elements);
-#else
-  return ((getcwd((char *)pathBuffer->elements, byte_array_size(pathBuffer)) == NULL)
-	  ? -errno : strlen((const char *)pathBuffer->elements));
-#endif
-}
-
-int setCurrentDirectory(struct ByteArray *newpath) {
-  word_t pathLen = byte_array_size(newpath);
-  char *path = malloc(pathLen + 1);
-#ifdef WIN32
-  if (path == NULL)
-	return GetLastError();
-  pathLen = extractCString(newpath, path, sizeof(path));
-
-  if (pathLen < 0)
-    return SLATE_ERROR_RETURN;
-
-  return SetCurrentDirectory (path);
-#else
-  if (path == NULL)
-    return -errno;
-  memcpy(path, newpath->elements, pathLen);
-  path[pathLen] = '\0';
-  if (chdir(path) == -1) {
-    int savedErrno = errno;
-    free(path);
-    return -savedErrno;
-  } else {
-    free(path);
-    return 0;
   }
 #endif
 }
