@@ -77,7 +77,8 @@ dir@(Directory traits) disable
 [
   dir handle ifNotNil: [| result |
     result: (dir primitiveClose: dir handle).
-    result isZero ifFalse: [error: result negated printString]].
+    result ifNil: []
+	   ifNotNil: [result isZero ifFalse: [error: result negated printString]]].
 ].
 
 dir@(Directory traits) exists
