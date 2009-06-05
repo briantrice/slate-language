@@ -56,32 +56,38 @@ and control."
 [
   _@(repl namespace) repl "Answer the currently used REPL." [repl].
   "Set/clear the editting mode of the Parser."
-  _@(repl namespace) pasteMode [repl parser parseInteractively: False].
-  _@(repl namespace) interactiveMode [repl parser parseInteractively: True].
+  ns@(repl namespace) pasteMode [ns repl parser parseInteractively: False].
+  ns@(repl namespace) interactiveMode [ns repl parser parseInteractively: True].
   (#repl findOn: {repl namespace})
     ifNotNilDo: [| :m | repl namespace addSlot: #previousREPLMethod valued: m].
   "Define quick methods for the last 5 evaluation results."
-  _@(repl namespace) it "The last evaluation result."
-  [repl results first].
-  x@(repl namespace) it1 [x it].
-  _@(repl namespace) it2 [repl results second].
-  _@(repl namespace) it3 [repl results third].
-  _@(repl namespace) it4 [repl results fourth].
-  _@(repl namespace) it5 [repl results fifth].
+  ns@(repl namespace) it "The last evaluation result."
+  [ns repl results first].
+  ns@(repl namespace) it1 [ns it].
+  ns@(repl namespace) it2 [ns repl results second].
+  ns@(repl namespace) it3 [ns repl results third].
+  ns@(repl namespace) it4 [ns repl results fourth].
+  ns@(repl namespace) it5 [ns repl results fifth].
 
-  x@(repl namespace) in: ns [x atSlotNamed: #parentNamespace put: ns].
+  ns@(repl namespace) in: ns [ns atSlotNamed: #parentNamespace put: ns].
 
-  _@(repl namespace) inform: message &target: r
+  ns@(repl namespace) inform: message &target: r
   "A simple way to print a message onto an ExternalResource (by default the Console)."
-  [r `defaultsTo: repl resource.
+  [r `defaultsTo: ns repl resource.
    r writer ; message ; '\n'.
    r writer flush. ].
 
-  _@(repl namespace) query: message &target: r
+  ns@(repl namespace) print: obj &target: r
+  [r `defaultsTo: repl resource.
+   obj printOn: r writer.
+   r writer ; '\n'.
+   r writer flush. ].
+
+  ns@(repl namespace) query: message &target: r
   "A simple way to ask input of the user on an ExternalResource (by default
 the Console) and return a Slate String response."
   [| response |
-   r `defaultsTo: repl resource.
+   r `defaultsTo: ns repl resource.
    r writer ; message.
    r writer flush.
    [response: (r interactor upTo: $\n).
@@ -104,7 +110,7 @@ the Console) and return a Slate String response."
 
   ns@(repl namespace) help &target: r
   [
-    r `defaultsTo: repl resource.
+    r `defaultsTo: ns repl resource.
     r writer ; 'The REPL is an interactive evaluator that parses expressions and prints their results back. It also keeps a return-value history and interaction messages:\n'
       ; 'it\n\tAnswers the last result.\n'
       ; 'itN\n\tAnswers the result from N (1..5) expressions ago in the history.\n'
