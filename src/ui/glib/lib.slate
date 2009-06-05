@@ -1,5 +1,14 @@
+
+GLib define: #LibNames &builder: [{'Windows' -> ({'glib-wrapper' -> 'glib-wrapper'.
+                                                  'glib' -> 'libglib-2.0-0'.
+                                                  'gobject' -> 'libgobject-2.0-0'} as: Dictionary).
+                                   'Linux' -> ({'glib-wrapper' -> 'glib-wrapper'.
+                                                  'glib' -> 'libglib-2.0'.
+                                                  'gobject' -> 'libgobject-2.0'} as: Dictionary).
+ } as: Dictionary].
+
 GLib define: #LibWrapper -> (
-	ExternalInterface newForLibrary: 'glib-wrapper' primitives: #(	
+	ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib-wrapper') primitives: #(	
 		"(Void wrapper_g_object_connect_to_block_id(Pointer CString Int))"
 		
 		(Void wrapper_g_callback_queue_init())			
@@ -29,7 +38,7 @@ GLib define: #LibWrapper -> (
 GLib LibWrapper enable.
 
 GLib define: #Lib -> (
-       ExternalInterface newForLibrary: 'libglib-2.0-0' primitives: #(
+       ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib') primitives: #(
 
  
 
@@ -45,7 +54,7 @@ GLib define: #Lib -> (
 GLib Lib enable.
 
 GLib define: #GObjectLib -> (
-	ExternalInterface newForLibrary: 'libgobject-2.0-0' primitives: #(
+	ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'gobject') primitives: #(
 
 		(CString g_type_name(Int))
 		(Void g_type_init())

@@ -1,5 +1,13 @@
+
+Gdk define: #LibNames &builder: [{'Windows' -> ({'gdk-wrapper' -> 'gdk-wrapper'.
+                                                  'gdk' -> 'libgdk-win32-2.0-0'} as: Dictionary).
+                                   'Linux' -> ({'gdk-wrapper' -> 'gdk-wrapper'.
+                                                  'gdk' -> 'libgdk-x11-2.0'} as: Dictionary).
+ } as: Dictionary].
+
+
 Gdk define: #LibWrapper -> (
-	ExternalInterface newForLibrary: 'gdk-wrapper' primitives: #(		
+	ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk-wrapper') primitives: #(		
 		(Void wrapper_gdk_lib_init())
 		
 	)
@@ -13,7 +21,7 @@ l@(Gdk LibWrapper traits) init [
 
 
 Gdk define: #Lib -> (
-	ExternalInterface newForLibrary: 'libgdk-win32-2.0-0' primitives: #(
+	ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk') primitives: #(
 
 		(Void gdk_threads_enter())
 		(Void gdk_threads_leave())
