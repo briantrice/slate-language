@@ -32,23 +32,23 @@ EXPORT void wrapper_gtk_lib_init( void ) {
 	g_thread_create((GThreadFunc)wrapper_gtk_main, NULL, FALSE, NULL);
 }
 
-EXPORT gchar *wraper_gtk_stock_item_get_stock_id( GtkStockItem *structOop ) {
+EXPORT gchar *wrapper_gtk_stock_item_get_stock_id( GtkStockItem *structOop ) {
 	return structOop->stock_id;
 }
 
-EXPORT gchar *wraper_gtk_stock_item_get_label( GtkStockItem *structOop ) {
+EXPORT gchar *wrapper_gtk_stock_item_get_label( GtkStockItem *structOop ) {
 	return structOop->label;
 }
 
-EXPORT gint wraper_gtk_stock_item_get_keyval( GtkStockItem *structOop ) {
+EXPORT gint wrapper_gtk_stock_item_get_keyval( GtkStockItem *structOop ) {
 	return structOop->keyval;
 }
 
-EXPORT gint wraper_gtk_stock_item_get_modifier( GtkStockItem *structOop ) {
+EXPORT gint wrapper_gtk_stock_item_get_modifier( GtkStockItem *structOop ) {
 	return structOop->modifier;
 }
 
-EXPORT GtkStockItem *wraper_gtk_stock_item_new(void) {
+EXPORT GtkStockItem *wrapper_gtk_stock_item_new(void) {
 	return g_new0(GtkStockItem, 1);
 }
 

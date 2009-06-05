@@ -81,6 +81,7 @@ EXPORT GValue *wrapper_g_callback_data_get_parameter_at( CallbackData* data, gin
 }
 
 static gboolean callback(GObject* object, gpointer blockID, gint parameterCount, const GValue* parameters) {
+	int index;
 	CallbackData *data = g_malloc0( sizeof(CallbackData) + sizeof(GValue *) * (parameterCount + 1) );
 	data->blockID = (gint)blockID;
 	data->parameterCount = parameterCount + 1;
@@ -88,7 +89,6 @@ static gboolean callback(GObject* object, gpointer blockID, gint parameterCount,
 	data->parameters[0] = wrapper_g_value_new();
 	g_value_init( data->parameters[0], G_TYPE_OBJECT );
 	g_value_set_object( data->parameters[0], object );
-	int index;
 	for(index = 0; index < parameterCount; index++) {
 		//We copy the parameters because we may return from the callback before even using this values, the callback generator destorys the data on return
 		data->parameters[index + 1] = wrapper_g_value_new();
@@ -147,3 +147,5 @@ EXPORT GClosure *wrapper_g_cclosure_new(gint blockID) {
 EXPORT gchar *wraper_g_pointer_as_string( gpointer *pointer ) {
 	return (gchar *)pointer;
 }
+
+

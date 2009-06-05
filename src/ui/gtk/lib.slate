@@ -1,5 +1,43 @@
+
+Gtk define: #LibNames &builder: [{'Windows' -> ({'gtk-wrapper' -> 'gtk-wrapper'.
+                                                  'gtk' -> 'libgtk-win32-2.0-0'} as: Dictionary).
+                                   'Linux' -> ({'gtk-wrapper' -> 'gtk-wrapper'.
+                                                  'gtk' -> 'libgtk-x11-2.0'} as: Dictionary).
+ } as: Dictionary].
+
+
+
+
+
+
+Gtk define: #LibWrapper -> (
+	ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk-wrapper') primitives: #(		
+		(Pointer wrapper_gtk_dialog_get_vbox(Pointer))
+
+		(Void wrapper_gtk_lib_init())
+		
+		(Pointer wrapper_gtk_stock_item_new())
+		(CString wrapper_gtk_stock_item_get_stock_id(Pointer))
+		(CString wrapper_gtk_stock_item_get_label(Pointer))
+		(Int wrapper_gtk_stock_item_get_keyval(Pointer))
+		(Int wrapper_gtk_stock_item_get_modifier(Pointer))
+
+		(Pointer wrapper_gtk_text_iter_new())
+
+		(Pointer wrapper_gtk_tree_iter_new())
+
+	)
+).
+
+Gtk LibWrapper enable.
+
+l@(Gtk LibWrapper) init [
+	l primitives wrapper_gtk_lib_init do.
+].
+
 Gtk define: #Lib -> (
-	ExternalInterface newForLibrary: 'gtk-wrapper' primitives: #(		
+       ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk') primitives: #(
+
 		(Pointer gtk_accel_group_new())
 		(Void gtk_accel_group_connect(Pointer Int Int Int Pointer))
 
@@ -32,7 +70,6 @@ Gtk define: #Lib -> (
 		(Pointer gtk_dialog_new_with_buttons(CString Pointer Int Pointer))
 		"(Int gtk_dialog_run(Pointer))"
 		(Pointer gtk_dialog_add_button(Pointer CString Int))
-		(Pointer wrapper_gtk_dialog_get_vbox(Pointer))
 		
 		(Pointer gtk_file_chooser_dialog_new(CString Pointer Int CString))
 		(CString gtk_file_chooser_get_filename(Pointer))
@@ -61,7 +98,6 @@ Gtk define: #Lib -> (
 		(Boolean gtk_label_get_use_underline(Pointer))
 		(Void gtk_label_set_label(Pointer CString))
 
-		(Void wrapper_gtk_lib_init())
 		
 		(Pointer gtk_list_store_newv(Int Bytes))
 		(Void gtk_list_store_clear(Pointer))
@@ -100,11 +136,6 @@ Gtk define: #Lib -> (
 		
 		(Pointer gtk_stock_list_ids())
 		(Boolean gtk_stock_lookup(CString Pointer))
-		(Pointer wraper_gtk_stock_item_new())
-		(CString wraper_gtk_stock_item_get_stock_id(Pointer))
-		(CString wraper_gtk_stock_item_get_label(Pointer))
-		(Int wraper_gtk_stock_item_get_keyval(Pointer))
-		(Int wraper_gtk_stock_item_get_modifier(Pointer))
 				
 		(Pointer gtk_text_buffer_new(Pointer))
 		(Boolean gtk_text_buffer_get_selection_bounds(Pointer Pointer Pointer))
@@ -124,7 +155,6 @@ Gtk define: #Lib -> (
 		(Void gtk_text_buffer_cut_clipboard(Pointer Pointer Boolean))
 		(Void gtk_text_buffer_paste_clipboard(Pointer Pointer Pointer Boolean))
 		
-		(Pointer wrapper_gtk_text_iter_new())
 		(Int gtk_text_iter_get_line(Pointer))
 		(Void gtk_text_iter_set_line(Pointer Int))
 		(Void gtk_text_iter_forward_to_end(Pointer))
@@ -147,7 +177,6 @@ Gtk define: #Lib -> (
 
 		(Pointer gtk_tool_item_new())
 		
-		(Pointer wrapper_gtk_tree_iter_new())
 		
 		(Pointer gtk_tree_model_get_path(Pointer Pointer))
 		(CString gtk_tree_model_get_string_from_iter(Pointer Pointer))
@@ -195,12 +224,8 @@ Gtk define: #Lib -> (
 		(Void gtk_window_set_default_size(Pointer Int Int))
 		(Void gtk_window_set_modal(Pointer Boolean))
 		(Void gtk_window_add_accel_group(Pointer Pointer))
-	)
+       )
 ).
 
 Gtk Lib enable.
-
-l@(Gtk Lib) init [
-	l primitives wrapper_gtk_lib_init do.
-].
 

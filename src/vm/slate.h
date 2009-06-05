@@ -21,7 +21,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
-typedef size_t socklen_t;
+//typedef size_t socklen_t;
 typedef signed int ssize_t;
 typedef SOCKADDR sockaddr_un;
 #else
@@ -35,7 +35,8 @@ typedef SOCKADDR sockaddr_un;
 #include <sys/un.h>
 #include <pthread.h>
 #endif
-#include <dirent.h>
+
+#include <dirent.h>  // on Windows, download from http://www.softagalleria.net/dirent.php
 
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
@@ -105,7 +106,12 @@ struct Object
 /*this doesn't seem to ensure anything*/
 #define GC_VOLATILE /*volatile*/
 
-#define SLATE_INLINE inline
+#ifdef _MSC_VER
+	#define SLATE_INLINE 
+	#pragma warning(disable : 4996)
+#else
+	#define SLATE_INLINE inline
+#endif
 
 #define METHOD_CACHE_ARITY 6
 

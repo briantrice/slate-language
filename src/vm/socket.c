@@ -178,7 +178,7 @@ void *socket_getaddrinfo_callback(void *ptr) {
   struct slate_addrinfo_request* req = ptr;
   /*  struct object_heap* oh = req->oh;*/
   struct addrinfo ai;
-  memset(&ai, sizeof(ai), 0);
+  memset(&ai, 0, sizeof(ai));
   ai.ai_flags = req->flags;
   ai.ai_family = socket_lookup_domain(req->family);
   ai.ai_socktype = socket_lookup_type(req->type);

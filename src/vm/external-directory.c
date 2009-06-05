@@ -66,7 +66,7 @@ int dir_read(struct object_heap* oh, int dirHandle, struct ByteArray *entNameBuf
   if (dirHandle < 0)
     return -EINVAL;
 
-#if defined(__CYGWIN__)
+#if defined(WIN32) || defined(__CYGWIN__)
   result = readdir(oh->dir_index[dirHandle]);
   resultCode = errno;
 #else

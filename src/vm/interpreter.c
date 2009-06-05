@@ -338,12 +338,12 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   }
 
   if (def == NULL) {
+	GC_VOLATILE struct OopArray *optsArray = NULL;
     // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
     heap_fixed_add(oh, (struct Object*)argsArray);
     // Export / handle optionals:
-    GC_VOLATILE struct OopArray* optsArray = NULL;
     if (opts != NULL) {
       optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
       optsArray->elements[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
