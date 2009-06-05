@@ -1,4 +1,4 @@
-GLib define: #Lib -> (
+GLib define: #LibWrapper -> (
 	ExternalInterface newForLibrary: 'glib-wrapper' primitives: #(	
 		"(Void wrapper_g_object_connect_to_block_id(Pointer CString Int))"
 		
@@ -13,14 +13,46 @@ GLib define: #Lib -> (
 		(Boolean wrapper_g_type_is_fundamental(Int))
 		(Int wrapper_g_type_fundamental(Int))
 		(Int wrapper_g_type_from_instance(Pointer))
+		(Pointer wrapper_g_value_new())
+		
+		(Int wrapper_g_value_type(Pointer))
+		(Int wrapper_g_value_get_int(Pointer))
+
+		(CString wraper_g_pointer_as_string(Pointer))
+
+		(Pointer wrapper_g_cclosure_new(Int))
+	)
+).		
+
+"GLib"
+
+GLib LibWrapper enable.
+
+GLib define: #Lib -> (
+       ExternalInterface newForLibrary: 'libglib-2.0-0' primitives: #(
+
+ 
+
+		(Void g_slist_free(Pointer))
+		(Pointer g_slist_nth_data(Pointer Int))
+		(Int g_slist_length(Pointer))
+
+		(Void g_free(Pointer))
+		
+      )
+).
+
+GLib Lib enable.
+
+GLib define: #GObjectLib -> (
+	ExternalInterface newForLibrary: 'libgobject-2.0-0' primitives: #(
+
 		(CString g_type_name(Int))
 		(Void g_type_init())
 		(Int g_gtype_get_type())
 		
-		(Pointer wrapper_g_value_new())
+				
 		(Void g_value_init(Pointer Int))
-		(Int wrapper_g_value_type(Pointer))
-		(Int wrapper_g_value_get_int(Pointer))
 		"(Int g_value_get_int(Pointer))"
 		(Int g_value_get_uint(Pointer))
 		(Int g_value_get_long(Pointer))
@@ -38,18 +70,10 @@ GLib define: #Lib -> (
 		(Void g_value_set_pointer(Pointer Pointer))
 		(Void g_value_set_object(Pointer Pointer))		
 
-		(Void g_slist_free(Pointer))
-		(Pointer g_slist_nth_data(Pointer Int))
-		(Int g_slist_length(Pointer))
-
-		(CString wraper_g_pointer_as_string(Pointer))
-
-		(Void g_free(Pointer))
-
-		(Pointer wrapper_g_cclosure_new(Int))
 		(Int g_signal_connect_closure(Pointer CString Pointer Boolean))
 	)
 ).
 
-GLib Lib enable.
+GLib GObjectLib enable.
 
+ 

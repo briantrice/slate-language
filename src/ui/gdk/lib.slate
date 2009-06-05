@@ -1,7 +1,20 @@
-Gdk define: #Lib -> (
+Gdk define: #LibWrapper -> (
 	ExternalInterface newForLibrary: 'gdk-wrapper' primitives: #(		
 		(Void wrapper_gdk_lib_init())
 		
+	)
+).
+
+Gdk LibWrapper enable.
+
+l@(Gdk LibWrapper traits) init [
+	l primitives wrapper_gdk_lib_init do.
+].
+
+
+Gdk define: #Lib -> (
+	ExternalInterface newForLibrary: 'libgdk-win32-2.0-0' primitives: #(
+
 		(Void gdk_threads_enter())
 		(Void gdk_threads_leave())
 		(Void gdk_flush())
@@ -12,10 +25,6 @@ Gdk define: #Lib -> (
 
 Gdk Lib enable.
 
-l@(Gdk Lib traits) init [
-	l primitives wrapper_gdk_lib_init do.
-].
-
 l@(Gdk Lib traits) protectedDo: aBlock [
 	| r |
 	l primitives gdk_threads_enter do.
@@ -24,4 +33,3 @@ l@(Gdk Lib traits) protectedDo: aBlock [
 	l primitives gdk_threads_leave do.
 	r
 ].
-
