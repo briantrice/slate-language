@@ -864,6 +864,15 @@ digits."
   next
 ].
 
+n@(Integer traits) readFrom: s &radix: radix
+[| next |
+  radix ifNil: [radix: 10].
+  next: ((Syntax Lexer newOn: s reader) readInteger: radix).
+  (next is: n)
+    ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
+  next
+].
+
 "A portable way to represent floating point numbers without loss of precision
 http://research.microsoft.com/~hollasch/cgindex/coding/portfloat.html
 Would be useful in #storeOn: #loadFrom: for floats"
