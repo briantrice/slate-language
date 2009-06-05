@@ -1,0 +1,129 @@
+Stack format / Calling convention
+---------------------------------
+
+We are about to call a function.
+fp at the time of the activation is equal to the current stack pointer plus the function frame size
+(which is 6).
+
+stack[fp-6] -> the stack pointer before the stack allocation for this frame + localvars + registers is done
+stack[fp-5] -> the absolute stack position (stack location) of where the callee should place its result
+stack[fp-4] -> the code pointer (ip) of the caller
+stack[fp-3] -> the callee's closure/method
+stack[fp-2] -> the callee's lexical context (nil for stack allocated frames)
+stack[fp-1] -> frame pointer of caller
+stack[fp+0] .. stack[fp+registerCount+lvCount] -> registers + local variables
+ 
+When you return from a function and you want to restore the frame in
+the interpreter object to what it was before the call, you restore
+everything based on fp (interpreter's current fp) except the closure
+and the lexical context which are restored based on the saved
+framepointer (at fp-1) using the previous frame (notice callee
+vs. caller).
+
+
+basic overview (code summary):
+
+function calling -- interpreter_apply_to_arity_with_optionals():
+
+  framePointer = i->stackPointer + FUNCTION_FRAME_SIZE;
+  /* store the old stack pointer so we know what to return it to after this function ends */
+  beforeCallStackPointer = i->stackPointer;
+  interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE /*frame size in words*/ + object_to_smallint(method->localVariables) + object_to_smallint(method->registerCount));
+  i->stack->elements[framePointer - 6] = smallint_to_object(beforeCallStackPointer);
+  i->stack->elements[framePointer - 5] = smallint_to_object(resultStackPointer);
+  i->stack->elements[framePointer - 4] = smallint_to_object(i->codePointer);
+  i->stack->elements[framePointer - 3] = (struct Object*) closure;
+  i->stack->elements[framePointer - 2] = (struct Object*) lexicalContext;
+  i->stack->elements[framePointer - 1] = smallint_to_object(i->framePointer);
+  i->framePointer = framePointer;
+  i->method = method;
+  i->closure = closure;
+  i->lexicalContext = lexicalContext;
+
+
+function returning -- interpreter_return_result()
+
+
+  framePointer = i->framePointer;
+  resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
+  i->stack->elements[resultStackPointer] = result;
+  i->stackPointer = object_to_smallint(i->stack->elements[framePointer - 6]);
+  i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
+  i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
+  i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - 2];
+  i->closure = (struct Closure*) i->stack->elements[i->framePointer - 3];
+  i->method = i->closure->method;
+  i->codeSize = array_size(i->method->code);
+
+
+
+Compiler
+--------
+
+A simple example:
+
+~~~
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ 1 + 1
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: genCode
+] applyWith: VM SSACompiler new.
+
+~~~
+
+Inside a function definition:
+
+~~~
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ block@(Method traits) on: c@(Condition traits) do: handler
+[| context |
+  context: (c cloneSettingSlots: #(handlers exitContinuation)
+	      to: {{handler}. [| :result | ^ result]}).
+  conditionStack push: context.
+  block ensure: [conditionStack pop]
+].
+
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: genCode third code
+] applyWith: VM SSACompiler new.
+
+~~~
+
+Inside the closure:
+
+~~~
+
+[ | :c genCode|
+genCode: (c generate:
+[
+ block@(Method traits) on: c@(Condition traits) do: handler
+[| context |
+  context: (c cloneSettingSlots: #(handlers exitContinuation)
+	      to: {{handler}. [| :result | ^ result]}).
+  conditionStack push: context.
+  block ensure: [conditionStack pop]
+].
+
+] 
+method sourceTree result: Nil &topLevel: True) code.
+c decompile: (genCode third code at: 13) code
+] applyWith: VM SSACompiler new.
+
+~~~
+
+See what is getting called:
+
+~~~
+
+VM SSACompiler new decompile: (#handle: findOn: {mainWindow. PaintEvent newContext: mainWindow context}) method code.
+
+~~~
+
