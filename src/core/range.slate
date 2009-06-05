@@ -8,6 +8,12 @@ collections define: #Range &parents: {Sequence} &slots: {
 "TODO: find some way to parametrize this on all Comparable types and ensure
 that all three parameters of the Range are comparable."
 
+r@(Range traits) new &capacity: n
+"Default to a reasonably useful concrete type to make a new Sequence."
+[
+  r arrayType new &capacity: n
+].
+
 r@(Range traits) newFrom: start to: end by: step
 [r cloneSettingSlots: #(start end step) to: {start. end. step}].
 
