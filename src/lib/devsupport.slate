@@ -15,3 +15,12 @@ x@(Root traits) allRoles
   x allDelegates do: [|:delegate| delegate roleReader >> [|:r| r selector -> r rolePositions] >> writer].
   array
 ].
+
+d@(Debugger traits) printCurrentStack &limit: limit &stream: out &showLocation: showLocation
+[
+  d clone `>> [baseFramePointer: (d interpreter framePointerOf: #printCurrentStack).
+               buildFrames. 
+               printBacktrace &limit: limit &stream: out &showLocation: showLocation ]
+].
+
+
