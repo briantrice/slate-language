@@ -47,9 +47,8 @@ p@(Xml SimpleParser traits) parse
 ].
 
 p@(Xml SimpleParser traits) readProlog
-["fixme"
-  p readUntil: '?>'.
-  p source skip: 2.
+[
+  (p isNextEqualTo: '<?') ifTrue: [p readUntil: '?>'. p source skip: 2].
 ].
 
 
@@ -83,7 +82,7 @@ p@(Xml SimpleParser traits) readElement
   p assertNext: $<.
   element: Xml Element new `>> [children: ExtensibleArray new. ].
   element name: p readName.
-  inform: 'element name is: ' ; element name printString.
+  "inform: 'element name is: ' ; element name printString."
   p eatWhitespace.
 
   p readAttributesFor: element.
@@ -124,6 +123,18 @@ p@(Xml SimpleParser traits) namespaceFromName: name
 [ "fixme"
   name
 ].
+
+
+xi@(Xml Identifier traits) = s@(String traits)
+[
+  xi name = s
+].
+
+xi@(Xml Identifier traits) as: s@(String traits)
+[
+  xi name
+].
+
 
 p@(Xml SimpleParser traits) readName
 [ |char name namespace |
@@ -192,7 +203,7 @@ p@(Xml SimpleParser traits) readElementContentFor: element
   [
    cdata: p readCharacterData.
    cdata isEmpty ifFalse: [seq add: cdata].
-   inform: 'next up: ' ; (p source peek: 5) printString.
+   "inform: 'next up: ' ; (p source peek: 5) printString."
    (p isNextEqualTo: '</') ifTrue: [(p atEndTagFor: element) ifTrue: [p assertEndTagFor: element. 
                                                                       element children: seq.
                                                                       ^ element]
@@ -228,7 +239,7 @@ p@(Xml SimpleParser traits) readAttributesFor: element
    p assertNext: $=.
    p eatWhitespace.
    attvalue: p readAttributeValue.
-   attrs at: name put: attvalue.
+   attrs at: (name as: String) put: attvalue.
   ] loop.
 ].
 
@@ -373,6 +384,14 @@ w@(Xml Writer traits) inTag: tagName do: block &attributes: attributes
   block applyWith: w.
   w original ; '</' ; tagName ; '>'.
   w tagStack pop.
+].
+
+w@(Xml Writer traits) emitTag: tagName &attributes: attributes
+[
+  attributes `defaultsTo: #().
+  w original ; '<' ; tagName.
+  attributes do: [| :item | w emitAttribute: item key valued: item value].
+  w original ; ' />'.
 ].
 
 w@(Xml Writer traits) inTag: tagName print: string
