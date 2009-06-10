@@ -231,3 +231,29 @@ bool_t file_isatend(struct object_heap* oh, word_t file) {
   }
 #endif
 }
+
+
+bool_t file_delete(struct object_heap* oh, char* filename) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return (unlink(filename) == 0 ? TRUE : FALSE);
+#endif
+}
+
+bool_t file_touch(struct object_heap* oh, char* filename) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return FALSE;
+  /*return (touch(filename) == 0 ? TRUE : FALSE);*/
+#endif
+}
+
+bool_t file_rename_to(struct object_heap* oh, char* src, char* dest) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return FALSE;
+#endif
+}

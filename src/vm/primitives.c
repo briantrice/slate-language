@@ -1005,11 +1005,17 @@ void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, str
 }
 
 void prim_file_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_delete(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_file_touch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_touch(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {

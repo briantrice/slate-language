@@ -904,6 +904,9 @@ word_t file_sizeof(struct object_heap* oh, word_t file);
 word_t file_seek(struct object_heap* oh, word_t file, word_t offset);
 word_t file_tell(struct object_heap* oh, word_t file);
 bool_t file_isatend(struct object_heap* oh, word_t file);
+bool_t file_delete(struct object_heap* oh, char* filename);
+bool_t file_touch(struct object_heap* oh, char* filename);
+
 
 void dir_module_init(struct object_heap* oh);
 int dir_open(struct object_heap* oh, struct ByteArray *dirName);
