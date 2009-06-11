@@ -68,6 +68,15 @@ f@(File traits) sessionDo: block &mode: mode
 	       oldMode: f mode. f mode: mode. resend. f mode: oldMode]
 ].
 
+f@(File traits) touch
+"Opens the file, creating it if necessary, and updating access time."
+[| oldmode |
+  oldmode: f mode.
+  [f mode: f CreateWrite.
+   f sessionDo: [| :_ | ]]
+     ensure: [f mode: oldmode]
+].
+
 f1@(File traits) with: f2@(File traits) sessionDo: block &mode1: mode1 &mode2: mode2 &mode: mode
 "Same as sessionDo, but works with two files.
 If &mode is defined then this mode will be used for both files."
