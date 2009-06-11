@@ -918,7 +918,6 @@ int dir_getcwd(struct ByteArray *wdBuffer);
 int dir_setcwd(struct ByteArray *newWd);
 bool_t dir_make(struct object_heap* oh, char* dir);
 bool_t dir_delete(struct object_heap* oh, char* dir);
-struct Object* dir_contents(struct object_heap* oh, char* dirpath);
 bool_t dir_rename_to(struct object_heap* oh, char* src, char* dest);
 
 

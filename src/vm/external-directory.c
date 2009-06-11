@@ -153,6 +153,8 @@ word_t slate_direntry_type(unsigned char d_type) {
   return d_type;
 }
 
+#if 0 /*this is already implemented with dir_open/read/close */
+/*this code is useful if you want to see how to make a primitive to return nested arrays*/
 struct Object* dir_contents(struct object_heap* oh, char* dirpath) {
 #ifdef WIN32
   return FALSE; /*fixme*/
@@ -194,6 +196,7 @@ struct Object* dir_contents(struct object_heap* oh, char* dirpath) {
   return (struct Object*)array;
 #endif
 }
+#endif
 
 bool_t dir_rename_to(struct object_heap* oh, char* src, char* dest) {
 #ifdef WIN32
