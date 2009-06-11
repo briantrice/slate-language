@@ -34,6 +34,7 @@ typedef SOCKADDR sockaddr_un;
 #include <sys/time.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #endif
 
 #include <dirent.h>  // on Windows, download from http://www.softagalleria.net/dirent.php
@@ -905,7 +906,8 @@ word_t file_seek(struct object_heap* oh, word_t file, word_t offset);
 word_t file_tell(struct object_heap* oh, word_t file);
 bool_t file_isatend(struct object_heap* oh, word_t file);
 bool_t file_delete(struct object_heap* oh, char* filename);
-bool_t file_touch(struct object_heap* oh, char* filename);
+struct Object* file_information(struct object_heap* oh, char* filename);
+bool_t file_rename_to(struct object_heap* oh, char* src, char* dest);
 
 
 void dir_module_init(struct object_heap* oh);
@@ -914,6 +916,11 @@ int dir_close(struct object_heap* oh, int dirHandle);
 int dir_read(struct object_heap* oh, int dirHandle, struct ByteArray *entNameBuffer);
 int dir_getcwd(struct ByteArray *wdBuffer);
 int dir_setcwd(struct ByteArray *newWd);
+bool_t dir_make(struct object_heap* oh, char* dir);
+bool_t dir_delete(struct object_heap* oh, char* dir);
+bool_t dir_rename_to(struct object_heap* oh, char* src, char* dest);
+
+
 
 void memarea_module_init (struct object_heap* oh);
 int memarea_handle_isvalid (struct object_heap* oh, int memory);

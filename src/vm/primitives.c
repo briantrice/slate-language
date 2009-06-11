@@ -1012,34 +1012,45 @@ void prim_file_delete(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 void prim_file_touch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  char filename[SLATE_FILE_NAME_LENGTH];
-  word_t len;
-  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
-  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_touch(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
 }
 
 void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
+  word_t srcLen, destLen;
+  srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
+  destLen = extractCString((struct ByteArray*)args[2], (byte_t*)dest, sizeof(dest));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_file_information(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = file_information(oh, filename);
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
 }
 
 void prim_dir_make(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_make(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_dir_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
+  word_t srcLen, destLen;
+  srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
+  destLen = extractCString((struct ByteArray*)args[2], (byte_t*)dest, sizeof(dest));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_dir_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
-}
-
-void prim_dir_contents(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_delete(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 
@@ -2155,7 +2166,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_dir_contents, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_fixme, prim_fixme, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 

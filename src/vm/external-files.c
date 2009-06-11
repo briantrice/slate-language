@@ -241,12 +241,26 @@ bool_t file_delete(struct object_heap* oh, char* filename) {
 #endif
 }
 
-bool_t file_touch(struct object_heap* oh, char* filename) {
+word_t slate_file_mode(mode_t mode) {
+  /*develop a convention that works with other platforms*/
+  return mode;
+}
+
+struct Object* file_information(struct object_heap* oh, char* filename) {
 #ifdef WIN32
   return FALSE; /*fixme*/
 #else
-  return FALSE;
-  /*return (touch(filename) == 0 ? TRUE : FALSE);*/
+  struct stat fileInfo;
+  struct OopArray* array;
+  if (stat(filename, &fileInfo) != 0) return oh->cached.nil;
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 5);
+  array->elements[0] = smallint_to_object(fileInfo.st_size); /*file size in bytes*/
+  array->elements[1] = smallint_to_object(fileInfo.st_atime); /*access time*/
+  array->elements[2] = smallint_to_object(fileInfo.st_mtime); /*modification time*/
+  array->elements[3] = smallint_to_object(fileInfo.st_ctime); /*creation time/status change*/
+  array->elements[4] = smallint_to_object(slate_file_mode(fileInfo.st_mode)); /*mode or file type*/
+  
+  return (struct Object*)array;
 #endif
 }
 
@@ -254,6 +268,6 @@ bool_t file_rename_to(struct object_heap* oh, char* src, char* dest) {
 #ifdef WIN32
   return FALSE; /*fixme*/
 #else
-  return FALSE;
+  return (rename(src, dest) == 0 ? TRUE : FALSE);
 #endif
 }
