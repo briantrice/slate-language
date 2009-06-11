@@ -1012,34 +1012,54 @@ void prim_file_delete(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 void prim_file_touch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  char filename[SLATE_FILE_NAME_LENGTH];
-  word_t len;
-  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
-  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_touch(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
 }
 
 void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
+  word_t srcLen, destLen;
+  srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
+  destLen = extractCString((struct ByteArray*)args[2], (byte_t*)dest, sizeof(dest));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_file_information(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = file_information(oh, filename);
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
 }
 
 void prim_dir_make(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_make(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_dir_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
+  word_t srcLen, destLen;
+  srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
+  destLen = extractCString((struct ByteArray*)args[2], (byte_t*)dest, sizeof(dest));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_dir_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_delete(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
 void prim_dir_contents(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = dir_contents(oh, filename);
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
+
 }
 
 

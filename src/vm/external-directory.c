@@ -130,3 +130,75 @@ int dir_setcwd(struct ByteArray *newpath) {
   }
 #endif
 }
+
+
+bool_t dir_make(struct object_heap* oh, char* dir) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return (mkdir(dir, 0777) == 0 ? TRUE : FALSE);
+#endif
+}
+
+bool_t dir_delete(struct object_heap* oh, char* dir) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return (rmdir(dir) == 0 ? TRUE : FALSE);
+#endif
+}
+
+word_t slate_direntry_type(unsigned char d_type) {
+    /*develop a convention that works with other platforms*/
+  return d_type;
+}
+
+struct Object* dir_contents(struct object_heap* oh, char* dirpath) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  DIR* dir;
+  int count, i;
+  word_t lenfilename;
+  struct dirent* direntry;
+  struct OopArray* array;
+
+  dir = opendir(dirpath);
+  if (dir == NULL) {
+    return oh->cached.nil;
+  }
+  /*get a count of the number of entries but we can't trust this*/
+  count = 0;
+  while ((direntry = readdir(dir))) count++;
+  rewinddir(dir);
+  i = 0;
+
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count);
+  heap_fixed_add(oh, (struct Object*)array);
+
+  while ((direntry = readdir(dir)) && i < count) {
+    array->elements[i] = (struct Object*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+    heap_store_into(oh, (struct Object*)array, (struct Object*)array->elements[i]);
+    ((struct OopArray*)array->elements[i])->elements[0] = smallint_to_object(slate_direntry_type(direntry->d_type));
+    heap_store_into(oh, (struct Object*)array->elements[i], (struct Object*)((struct OopArray*)array->elements[i])->elements[1]);
+    lenfilename = strlen(direntry->d_name);
+    ((struct OopArray*)array->elements[i])->elements[1] = (struct Object*) heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), lenfilename);
+    copy_bytes_into((byte_t*)direntry->d_name, lenfilename, ((struct ByteArray*)((struct OopArray*)array->elements[i])->elements[1])->elements);
+    i++;
+  }
+
+  closedir(dir);
+
+  heap_fixed_remove(oh, (struct Object*)array);
+
+  return (struct Object*)array;
+#endif
+}
+
+bool_t dir_rename_to(struct object_heap* oh, char* src, char* dest) {
+#ifdef WIN32
+  return FALSE; /*fixme*/
+#else
+  return (rename(src, dest) == 0 ? TRUE : FALSE);
+#endif
+}
