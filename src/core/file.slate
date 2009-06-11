@@ -6,6 +6,9 @@ File traits define: #Read &builder: [Oddball clone].
 File traits define: #Write &builder: [Oddball clone].
 File traits define: #CreateWrite &builder: [Oddball clone].
 File addSlot: #mode valued: File ReadWrite.
+File traits define: #ByLocation &builder: [Dictionary new].
+"Maps locators to File objects, leading to a weak normalization.
+TODO: This currently only maps open File objects, which can lead to conflicts. Weak references could fix this."
 
 f@(File traits) size
 "Get the file size in bytes."
@@ -35,13 +38,35 @@ f@(File traits) at: index
 f@(File traits) at: index put: byte
 [f restoringPositionDo: [| :f | f position: index. f writer nextPut: byte]].
 
-file@(File traits) disable
-[file close: file handle].
+f@(File traits) register
+"Adds the File to the registration dictionary."
+[f ByLocation at: f locator ifAbsentPut: [f]].
+
+f@(File traits) unregister
+"Removes the File from the registration dictionary."
+[
+  f ByLocation at: f locator ifPresent:
+    [| :reg | reg == f ifTrue: [f ByLocation removeKey: f locator]]
+].
+
+f@(File traits) named: filename &mode: mode
+"Accesses or creates the File object associated with the specified Locator.
+Notably, a File created this way needs to be #unregister`ed manually if it
+is never enabled or disabled before being garbage-collected."
+[| locator |
+  locator: (filename as: f Locator).
+  f ByLocation at: locator ifAbsentPut: [f newNamed: locator &mode: mode]
+].
 
 f@(File traits) newNamed: filename &mode: mode
-[
-  f cloneSettingSlots: #(handle locator mode)
-    to: {Nil. filename as: f Locator. mode ifNil: [f mode]}
+"Forces the creation of a new instance of a File for the given Locator. If none
+is registered, this File gets registered, otherwise it does not interfere with
+registration."
+[| locator |
+  mode `defaultsTo: f mode.
+  locator: (filename as: f Locator).
+  f ByLocation at: locator ifPresent: [| :file | ].
+  f cloneSettingSlots: #(handle locator mode) to: {Nil. locator. mode}
 ].
 
 f@(File traits) enable
@@ -55,9 +80,15 @@ f@(File traits) enable
        f ReadWrite -> [f handleFor: filename].
        f CreateWrite -> [f handleForNew: filename]}
 	 otherwise: [error: 'No mode specified.']).
-  f handle ifNil: [f connectionFailure].
+  f handle ifNil: [f connectionFailure]
+	   ifNotNil: [f register]
   f
 ].
+
+file@(File traits) disable
+"Invokes the File close primitive, and also removes it from the registration
+dictionary, to minimize the potential for leaks."
+[file close: file handle. f unregister].
 
 f@(File traits) sessionDo: block &mode: mode
 "Extends the basic sessionDo: with a way to temporarily set the mode."
