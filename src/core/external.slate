@@ -92,6 +92,13 @@ r@(ExternalResource traits) close
   r
 ].
 
+r@(ExternalResource traits) ensureClosed
+"Avoid throwing an error if it is already closed. The caller just wants to
+know that it's closed once this is done."
+[
+  r isOpen ifTrue: [r close]
+].
+
 r@(ExternalResource traits) commit
 "Commit all pending write-out information to the resource."
 [r].

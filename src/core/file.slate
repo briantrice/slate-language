@@ -108,6 +108,26 @@ f@(File traits) touch
      ensure: [f mode: oldmode]
 ].
 
+f@(File traits) create
+"Create a File via #touch if it does not exist."
+[f exists ifFalse: [f touch]].
+
+f@(File traits) delete
+"Deletes the file, ensuring that it is closed first."
+[
+  f ensureClosed.
+  (f deleteFileNamed: (f locator as: String))
+    ifFalse: [error: 'Unable to delete this file.'].
+].
+
+f@(File traits) renameTo: newName
+[
+  f ensureClosed.
+  (f renameFileNamed: (f locator as: String) to: (newName as: String))
+    ifTrue: [f locator: (newName as: f locator)]
+    ifFalse: [error: 'Unable to rename this file.']
+].
+
 f1@(File traits) with: f2@(File traits) sessionDo: block &mode1: mode1 &mode2: mode2 &mode: mode
 "Same as sessionDo, but works with two files.
 If &mode is defined then this mode will be used for both files."

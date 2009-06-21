@@ -91,6 +91,27 @@ if the result is successful. Then answer whether it worked."
        /\ [[dir close] on: dir Closed do: [| :c | c return]. True]]
 ].
 
+dir@(Directory traits) delete
+[
+  dir ensureClosed.
+  (dir deleteDirectoryNamed: (dir locator as: String))
+    ifFalse: [error: 'Unable to delete directory']
+].
+
+dir@(Directory traits) create
+[
+  dir exists
+    ifFalse: [dir createDirectoryNamed: (dir locator as: String)]
+].
+
+dir@(Directory traits) renameTo: newName
+[
+  dir ensureClosed.
+  (dir renameDirectoryNamed: (dir locator as: String) to: (newName as: String))
+    ifTrue: [dir locator: (newName as: dir locator)]
+    ifFalse: [error: 'Unable to delete directory.']
+].
+
 dir@(Directory traits) nextDirEntry
 "Answers the next file entry name. This is stateful and should only be used
 by Directory Streams."
