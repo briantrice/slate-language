@@ -406,7 +406,7 @@ w@(Xml Writer traits) encode: char@(String Character traits)
     $< -> ['&lt;'].
     $> -> ['&gt;'].
     $& -> ['&amp;'].
-    $' -> ['&apos;'].
+    $\' -> ['&apos;'].
     $\n -> ['<br/>'].
     $\r -> ['<br/>'].
     $\t -> ['&nbsp;&nbsp;&nbsp;'].
@@ -466,4 +466,35 @@ w@(Xml XHTMLWriter traits) inDocumentDo: block &head: head &attributes: attrib
 	block applyWith: w.
 	]
     ] &attributes: attrib.
+].
+
+w@(Xml XHTMLWriter traits) didNotUnderstand: message at: position
+[
+  position > 0
+    ifTrue: [resend]
+    ifFalse:
+      [message selector isUnarySelector ifTrue:
+	[| tagName |
+	 "selector = tag-name, attributes = optionals, except for &content: which is innerHTML"
+         w inTag: message selector do:
+	   [| :w |
+	    message optionals pairsDo:
+	      [| :key :value keyString |
+	       ((key as: String) `cache) = 'content'
+		 ifTrue: [w ; (value as: String)]
+		 ifFalse: [w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]].
+       message selector isKeywordSelector ifTrue:
+	 [| keywords args |
+	  "selector's first keyword = tag-name, attributes = optionals, first argument is innerHTML"
+	  keywords: ((message selector as: String) splitWith: $:).
+	  keywords size = 1
+	    ifTrue:
+	      [w inTag: keywords first do:
+		[| :w |
+		 [w ; message arguments second.
+		  message optionals pairsDo:
+		    [| :key :value keyString |
+		     w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]]
+	    ifFalse: "TODO: Support multi-keyword selectors?"
+	      [resend]]]
 ].
