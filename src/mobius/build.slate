@@ -234,7 +234,9 @@ Image Definition primitives clear.
                        roles: (each value collect: [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])].
 
 
-Image define: #BareDefinition -> (Image Definition cloneSettingSlots: #(bootstrapFilenames)
+Image Definition traits define: #cached &builder: [Dictionary new].
+
+Image Definition cached at: 'bare' put: (Image Definition cloneSettingSlots: #(bootstrapFilenames)
  to: {{'src/mobius/pre-bootstrap.slate'}}).
 "An Image Definition consisting of the bare minimum to run some primitive call,
 like adding 3 + 4, say."
@@ -282,21 +284,17 @@ def@(Image Definition traits) generate
 i@Image bootstrap &littleEndian: littleEndian &bitSize: bitSize
 "Only to be called during or after fullCleanBootstrap to build new images
 based on the new VM Definition."
-[
+[| def |
   bitSize `defaultsTo: Platform Current bytesPerWord * 8.
   littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
-  littleEndian
-   ifTrue: [i define: #newLittle ->
-              (i Definition newNamed: 'kernel.new' littleEndian: True bitSize: bitSize).
-            i newLittle generate]
-   ifFalse: [i define: #newBig ->
-               (i Definition newNamed: 'kernel.new' littleEndian: False bitSize: bitSize).
-             i newBig generate]
+  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian bitSize: bitSize).
+  def cached at: ('new-' ; (littleEndian ifTrue: ['little'] ifFalse: ['big']) ; '-' ; bitSize printString) put: def.
+  def generate
 ].
 
 i@Image generateAmd64Test
 [
-  (i BareDefinition newNamed: 'k64' littleEndian: True bitSize: 64) generate.
+  ((i Definition cached at: 'bare') newNamed: 'k64' littleEndian: True bitSize: 64) generate.
 ].
 
 i@Image generateAmd64
