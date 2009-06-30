@@ -244,7 +244,8 @@ like adding 3 + 4, say."
 
 def@(Image Definition traits) newNamed: filename littleEndian: littleEndian bitSize: bitSize
 [
-  def cloneSettingSlots: #(littleEndian bitSize filename) to: {littleEndian. bitSize. def defaultFilename &base: filename}
+  (def cloneSettingSlots: #(littleEndian bitSize) to: {littleEndian. bitSize})
+   `>> [filename: (def defaultFilename &base: filename). ]
 ].
 
 def@(Image Definition traits) defaultFilename &base: base
@@ -288,7 +289,7 @@ based on the new VM Definition."
   bitSize `defaultsTo: Platform Current bytesPerWord * 8.
   littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
   def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian bitSize: bitSize).
-  def cached at: ('new-' ; (littleEndian ifTrue: ['little'] ifFalse: ['big']) ; '-' ; bitSize printString) put: def.
+  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. bitSize} put: def.
   def generate
 ].
 

@@ -233,9 +233,10 @@ ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadM
 contents within the argument namespace or an optional override."
 [| src retry skip |
   (fileName endsWith: '.image') ifTrue: [error: 'Image filename specified where Slate source expected. Make sure you run slate with the -i flag to specify an image.'].
-  src: (File newNamed: fileName &mode: File Read).
+  "Load init.slate if specifying just a directory:"
+  src: (File newNamed: ((fileName endsWith: '/') ifTrue: [fileName: fileName ; 'init.slate'] ifFalse: [fileName]) &mode: File Read).
   src exists ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
-	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Hopefully the argument you passed what was you wanted. Here it is.'. fileName]
+	     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Returning the input: ' ; fileName printString. fileName]
 ].
 
 ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showMessage
