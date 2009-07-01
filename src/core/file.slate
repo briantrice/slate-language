@@ -155,7 +155,7 @@ if the result is successful. Then answer whether it worked."
 [| oldMode |
   oldMode: f mode.
   f isOpen \/
-    [[[f mode: f Read. f open] on: SeriousCondition do: [| :c | ^ False]]
+    [[[f mode: f Read. f open] on: f NotFound do: [| :c | ^ False]]
        ensure: [f isOpen ifTrue: [f close]. f mode: oldMode].
      True]
 ].
