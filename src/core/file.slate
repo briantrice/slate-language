@@ -12,7 +12,10 @@ TODO: This currently only maps open File objects, which can lead to conflicts. W
 
 f@(File traits) size
 "Get the file size in bytes."
-[f sizeOf: f handle].
+[
+  f isOpen ifTrue: [f sizeOf: f handle]
+	   ifFalse: [f fileInfo ifNotNilDo: #fileSize `er]
+].
 
 f@(File traits) position
 "Answer the handle cursor position."
@@ -24,7 +27,7 @@ f@(File traits) position: index
 
 f@(File traits) isAtEnd
 "Whether the file handle cursor is at the end of the file. True also if closed."
-[f atEndOf: f handle].
+[f isOpen ifTrue: [f atEndOf: f handle] ifFalse: [True]].
 
 f@(File traits) restoringPositionDo: block
 [| origPos |
@@ -110,7 +113,7 @@ f@(File traits) touch
 
 f@(File traits) create
 "Create a File via #touch if it does not exist."
-[f exists ifFalse: [f touch]].
+[f exists ifFalse: [f touch]. f].
 
 f@(File traits) delete
 "Deletes the file, ensuring that it is closed first."
@@ -298,7 +301,12 @@ of the path or the filename itself if not empty/Nil."
 
 l@(File Locator traits) openFile &mode: mode
 [
-  (File newNamed: (l as: String) &mode: mode) open
+  (File newNamed: l &mode: mode) open
+].
+
+l@(File Locator traits) fileInfo
+[
+  File informationForFileNamed: (l as: String)
 ].
 
 l@(File Locator traits) sessionDo: block &mode: mode
@@ -600,3 +608,88 @@ file."
 
 fs@(File Stream traits) file
 [fs resource].
+
+File traits define: #Info &parents: {Cloneable} &slots: {#data -> Array new}.
+
+l@(File Info traits) newNamed: locator
+[
+  (File informationForFileNamed: (locator as: String))
+    ifNotNilDo: [| :data | l cloneSettingSlots: #(data) to: {data}]
+].
+
+l@(File Locator traits) fileInfo
+[
+  File Info newNamed: l
+].
+
+f@(File traits) fileInfo
+[
+  f Info newNamed: f locator
+].
+
+i@(File Info traits) fileSize
+[
+  i data first
+].
+
+i@(File Info traits) accessTimestamp
+[
+  i data second
+].
+
+i@(File Info traits) modificationTimestamp
+[
+  i data third
+].
+
+i@(File Info traits) creationTimestamp
+[
+  i data fourth
+].
+
+"We express the bitmask checks in octal to verify against stat.h"
+
+i@(File Info traits) typeBits
+[
+  i data last bitAnd: 8r0170000
+].
+
+i@(File Info traits) isFile
+[
+  i typeBits = 8r100000
+].
+
+i@(File Info traits) isDirectory
+[
+  i typeBits = 8r040000
+].
+
+i@(File Info traits) isLink
+[
+  i typeBits = 8r120000
+].
+
+i@(File Info traits) isFIFO
+[
+  i typeBits = 8r010000
+].
+
+i@(File Info traits) isCharacterDevice
+[
+  i typeBits = 8r020000
+].
+
+i@(File Info traits) isBlockDevice
+[
+  i typeBits = 8r060000
+].
+
+i@(File Info traits) isSocket
+[
+  i typeBits = 8r140000
+].
+
+i@(File Info traits) accessBits
+[
+  i data last bitAnd: 8r777
+].
