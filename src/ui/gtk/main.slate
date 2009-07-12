@@ -6,6 +6,21 @@ _@(Gtk Main) mainQuit [
 	Gtk Lib primitives gtk_main_quit do
 ].
 
+
+m@(Gtk Main) handleCondition: c@(Condition traits)
+[ | stream dialog message |
+  stream: (Stream newTo: String new).
+  c describeOn: stream.
+  message: (stream contents ; 'Debug it?' ).
+  dialog: (Gtk MessageDialog newQuestionMessage: message).
+  dialog when: #response do: [ | :dialog :answer | 
+		                dialog destroy.
+		                answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c) show ]
+	                        ].
+  dialog show.
+].
+
+
 m@(Gtk Main) installDebuggerHook [
   m oldDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
   c@(Condition traits) invokeDebugger [ 
@@ -40,12 +55,12 @@ m@(Gtk Main) init [
 		GLib CallbackRegistry init.
 		Gtk LibWrapper init.
 		m initialized: True.
-		m installDebuggerHook.
+		"m installDebuggerHook."
 	]
 ].
 
 m@(Gtk Main) uninitialize [
-	m uninstallDebuggerHook.
+	"m uninstallDebuggerHook."
 	m oldDebuggerHook: Nil.
 	GLib CallbackRegistry uninitialize.
 	m initialized: False.
@@ -64,11 +79,22 @@ m@(Gtk Main) resetOnStartup [
 	Image startupActions at: m put: [ m uninitialize ].
 ].
 
+m@(Gtk Main) doEventLoopDepth: depth maxDepth: maxDepth
+[
+   [[GLib CallbackRegistry executeNextCallback.
+     m initialized
+    ] whileTrue]
+          on: SeriousCondition
+          do: [|:e| m handleCondition: e.
+                    depth > maxDepth
+                      ifTrue: [inform: 'GUI handle error depth maxed at: ' ; depth printString.
+                               ^ e defaultHandler]
+                      ifFalse: [^ (m doEventLoopDepth: depth + 1 maxDepth: maxDepth)]]
+].
+
+
 m@(Gtk Main) doEventLoop [
-	[	GLib CallbackRegistry executeNextCallback.
-	"initialized will be cleared on startup, and we should not use any pre shutdown object in new images"
-		m initialized
- 	] whileTrue
+  m doEventLoopDepth: 1 maxDepth: 5.
 ].
 
 m@(Gtk Main) do: aBlock [
