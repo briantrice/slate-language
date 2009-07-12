@@ -20,6 +20,7 @@ conditions define: #Debugger &parents: {Cloneable}
            #slateFrameSize -> 6.
            #maxBacktraceSize -> 200.
            #basePrompt -> '> '.
+           #saved -> False. "is the stack live or is it saved?"
 	   #quitFlag -> False}.
 
 Debugger traits define: #Namespace &parents: {Namespace} &slots: {}.
@@ -44,14 +45,16 @@ d@(Debugger traits) on: resource
   d
 ].
 
-d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol
+d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol &save: saved
 [
   interp `defaultsTo: d interpreter.
   resource `defaultsTo: d resource.
+  saved `defaultsTo: True.
   symbol `defaultsTo: #invokeDebugger.
   d clone `>>
     [| :newD |
      on: resource.
+     saved: saved.
      condition: c.
      restarts: d restarts new.
      namespace: d namespace clone.
@@ -109,6 +112,9 @@ d@(Debugger traits) stackAt: x put: val
 
 Debugger traits define: #Frame &parents: {Cloneable}
   &slots: #(debugger framePointer nextFramePointer).
+
+Debugger traits define: #SavedFrame &parents: {Debugger Frame}
+  &slots: #(lexicalContext method instructionPointer resultStackLocation).
 
 f@(Debugger Frame traits) newOn: d@(Debugger traits) at: fp from: nextFp
 [
@@ -195,6 +201,11 @@ f@(Debugger Frame traits) resultStackLocation: rp
 f@(Debugger Frame traits) previousStackPointer: sp
 [f stackAtOffset: -6 put: sp].
 
+f@(Debugger Frame traits) save
+[Debugger SavedFrame cloneSettingSlots: #(lexicalContext method instructionPointer resultStackLocation)
+                     to: {f lexicalContext. f method. f instructionPointer. f resultStackLocation}].
+
+
 f@(Debugger Frame traits) describeOn: out
 [
   f method method `cacheAs: #method.
@@ -246,7 +257,8 @@ d@(Debugger traits) buildFrames
   d baseFramePointer ifNil: [error: 'Base frame pointer is nil. Cannot build stack frames.\n'. ^ Nil].
   d frameList: d frameList new.
   d frameList add: (frame: d topFrame).
-  [(frame: frame nextFrame) isNotNil] whileTrue: [d frameList add: frame].
+  [(frame: frame nextFrame) isNotNil] whileTrue: [d saved ifTrue: [d frameList add: frame save]
+                                                          ifFalse: [d frameList add: frame]].
 ].
 
 d@(Debugger traits) prompt

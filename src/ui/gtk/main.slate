@@ -15,7 +15,7 @@ m@(Gtk Main) handleCondition: c@(Condition traits)
   dialog: (Gtk MessageDialog newQuestionMessage: message).
   dialog when: #response do: [ | :dialog :answer | 
 		                dialog destroy.
-		                answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c) show ]
+		                answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c from: #newFor:from:) show ]
 	                        ].
   dialog show.
 ].
@@ -32,7 +32,7 @@ m@(Gtk Main) installDebuggerHook [
 	dialog: (Gtk MessageDialog newQuestionMessage: message).
 	dialog when: #response do: [ | :dialog :answer | 
 		dialog destroy.
-		answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c) show ]
+		answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c from: #invokeDebugger) show ]
 	].
 	dialog show.
 	Gtk Main doEventLoop.
