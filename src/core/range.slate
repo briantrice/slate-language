@@ -170,15 +170,22 @@ and then whether it is calculably close to an integer step from the start."
    /\ [((n - r start as: Float) / r step) fractionPart isCloseTo: 0.0]
 ].
 
+r@(Range traits) isInfinite
+"Whether the Range includes an infinite number of elements."
+"TODO: guard iteration protocols on this condition."
+[
+  r start isInfinite \/ [r end isInfinite]
+].
+
 r@(Range traits) size
 "Check the 'direction' of the Range to make sure that it's possible to have
 elements at all."
 [
-  r start isInfinite \/ [r end isInfinite]
-    ifTrue: [^ PositiveInfinity].
-  (r step isNegative xor: r start > r end)
-    ifTrue: [0]
-    ifFalse: [r end - r start // r step + 1]
+  r isInfinite
+    ifTrue: [PositiveInfinity]
+    ifFalse: [(r step isNegative xor: r start > r end)
+      ifTrue: [0]
+      ifFalse: [r end - r start // r step + 1]]
 ].
 
 r@(Range traits) collect: block
@@ -226,6 +233,19 @@ r1@(Range traits) intersects: r2@(Range traits)
 [
   (r1 start between: r2 start and: r2 end)
     \/ [r2 start between: r1 start and: r1 end]
+].
+
+r1@(Range traits) /\ r2@(Range traits)
+"Returns the intersection of the two Ranges, or Nil if none."
+[
+  (r1 intersects: r2)
+    ifTrue:
+      [r1 step = r2 step
+	 ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: r1 step]
+	 ifFalse:
+	   [({r1 step. r2 step} includes: (r1 step gcd: r2 step))
+	      ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: (r1 step min: r2 step)]
+	      ifFalse: ["Ranges do not step harmonically."]]]
 ].
 
 "Some very basic range math"
