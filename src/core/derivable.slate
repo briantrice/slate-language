@@ -170,10 +170,11 @@ existing object. This is essentially a conservative object-slot tree builder."
 ].
 
 x@(Root traits) define: slotName using: builder
-[| new |
-  new: builder do.
-  x addImmutableSlot: slotName valued: new.
-  new
+"Defines a new slot based on the result of running a block of code."
+[| result |
+  result: builder do.
+  x addImmutableSlot: slotName valued: result.
+  result
 ].
 
 x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
@@ -203,6 +204,12 @@ x@(Root traits) defineOddball: name &parents: parents
 "Makes a new Oddball."
 "TODO: handle the &parents: option."
 [x define: name &builder: [Oddball clone]].
+
+x@(Root traits) undefine: name
+"Removes a previous slot definition."
+[
+  x removeSlot: name
+].
 
 x@(Root traits) commentTemplate
 "Answers a basic comment as a String for the object based on its definition."
