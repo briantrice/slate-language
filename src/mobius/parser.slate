@@ -27,7 +27,6 @@ p@(Syntax Parser traits) on: source
 "Target the parser to the particular source."
 [
   p lexer: (p lexer newOn: source reader).
-  p currentScope: p surroundings Lobby.
   p reset.
   p
 ].
@@ -191,9 +190,9 @@ p@(Syntax Parser traits) parseLiteral
 p@(Syntax Parser traits) parseTypeOf: node
 [| token oldScope |
   oldScope: p currentScope.
-  p currentScope: (Syntax Namespace for: p typesNamespace).
+  p currentScope: (p currentScope for: p typesNamespace).
   [token: (p nextToken &interactive: p parseInteractively). token isSameAs: p surroundings Token Type]
-    whileTrue: [node type: (p parseAtom evaluateIn: p typesNamespace)].
+    whileTrue: [node type: (p parseAtom ifNil: [^ (p error: 'No type given after type declaration marker.')] ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace])].
   p undoToken: token.
   p currentScope: oldScope.
   node
