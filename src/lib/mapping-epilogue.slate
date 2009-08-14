@@ -53,7 +53,7 @@ m@(MapOverlay traits) at: key ifAbsent: block
 
 m@(MapOverlay traits) at: key put: value
 "Only the overlay is ever modified."
-[ m overlay at: key put: value ].
+[m overlay at: key put: value].
 
 m@(MapOverlay traits) keyAtValue: value ifAbsent: block
 [
@@ -63,7 +63,7 @@ m@(MapOverlay traits) keyAtValue: value ifAbsent: block
 ].
 
 m@(MapOverlay traits) acceptsKey: key
-[ m overlay acceptsKey: key ].
+[m overlay acceptsKey: key].
 
 m@(MapOverlay traits) keysAndValuesDo: block
 "First iterates over all the keys and values in the overlay
@@ -93,19 +93,19 @@ the matching key is defined in the overlay."
 [
   m overlay valuesDo: block.
   m original keysAndValuesDo:
-    [ | :key :value |
-      m overlay at: key ifAbsent: [block applyWith: value]].
+    [| :key :value |
+     m overlay at: key ifAbsent: [block applyWith: value]].
   m
 ].
 
 m@(MapOverlay traits) size
 "Returns the number of key-value pairs in the overlay plus
 the number of distinct key-value pairs in the original."
-[ | originalSize |
+[| originalSize |
   originalSize: 0.
   m original keysDo:
-    [ | :key |
-       m overlay at: key ifAbsent: [ originalSize: originalSize + 1 ]].
+    [| :key |
+     m overlay at: key ifAbsent: [originalSize: originalSize + 1]].
   m overlay size + originalSize
 ].
 
