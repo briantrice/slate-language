@@ -206,6 +206,11 @@ load@(Syntax LoadVariable traits) defaultsTo: default
 the expression in the default."
 [`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
 
+x@(Syntax Node traits) swapWith: y@(Syntax Node traits) &environment: env
+[
+  TODO: 'Determine how to perform a generic variable swap outside of a Method context without a global.'
+].
+
 x@(Syntax LoadVariable traits) swapWith: y@(Syntax LoadVariable traits) &environment: env
 "A macro that expands into simple code swapping the values of two variables
 in the current scope."
@@ -292,6 +297,26 @@ paren@(Syntax Parenthesis traits) setTo: val
 		   result]]
 ].
 
+array@(Syntax Array traits) setTo: vals &environment: env
+"Performs a multiple-assignment."
+[
+  array statements isEmpty
+    ifTrue: [vals]
+    ifFalse:
+      [array statements size = 1
+	 ifTrue: [array statements last setTo: (Syntax UnaryMessage sending: #first to: {vals})]
+	 ifFalse: [| result tmpVar |
+		   tmpVar: env addVariable.
+		   result: array copy.
+		   array statements doWithIndex:
+		     [| :statement :index |
+		      array statements at: index put:
+			(statement setTo: (Syntax KeywordMessage sending: #at: to: {tmpVar load. Syntax Literal for: index}))].
+		   Syntax Parenthesis of:
+		     {tmpVar store: vals.
+                      array}]]
+].
+
 load@(Syntax LoadVariable traits) setTo: val
 "Expands a local variable reference into a store to it."
 [Syntax StoreVariable of: val into: load variable].
@@ -322,4 +347,24 @@ message@(Syntax KeywordMessage traits) setTo: val
   ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
   ifNotNilDo:
     [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+].
+
+node@(Syntax Node traits) += value
+[
+  node setTo: (Syntax BinaryMessage sending: #+ to: {node. value})
+].
+
+node@(Syntax Node traits) -= value
+[
+  node setTo: (Syntax BinaryMessage sending: #- to: {node. value})
+].
+
+node@(Syntax Node traits) *= value
+[
+  node setTo: (Syntax BinaryMessage sending: #* to: {node. value})
+].
+
+node@(Syntax Node traits) /= value
+[
+  node setTo: (Syntax BinaryMessage sending: #/ to: {node. value})
 ].

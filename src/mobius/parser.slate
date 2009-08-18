@@ -262,24 +262,23 @@ p@(Syntax Parser traits) parseKeywordMessage: argument
   token: (p peekToken &interactive: p parseInteractively).
   (token is: p surroundings Token Selector) /\ [token selector isKeywordSelector]
     ifFalse: [^ argument].
-  arguments: {} writer.
-  arguments nextPut: (argument ifNil: [Syntax ImplicitArgument]).
-  [token: (p nextToken &interactive: p parseInteractively). 
-    (token is: Syntax Token Selector)
-      /\ [token selector isOptionalSelector not]]
-    whileTrue:
-      [front ifNil: [front: token].
-       token selector isKeywordSelector
-          ifFalse:
-            [p error: 'Bad keyword message'].
-        selector: (selector
-          ifNil: [token selector name]
-          ifNotNil: [selector ; token selector name]).
-        arguments nextPut: 
-          ((p parseBinaryMessage: Nil)
-            ifNil: [p error: 'Only the first argument to a keyword message may be implicit'])].
-  p undoToken: token.
-  arguments: arguments contents.
+  arguments:
+    ([| :result |
+      result nextPut: (argument ifNil: [Syntax ImplicitArgument]).
+      [token: (p nextToken &interactive: p parseInteractively). 
+       (token is: Syntax Token Selector)
+	 /\ [token selector isOptionalSelector not]]
+         whileTrue:
+	   [front ifNil: [front: token].
+	    token selector isKeywordSelector
+	      ifFalse: [p error: 'Bad keyword message'].
+            selector: (selector
+              ifNil: [token selector name]
+              ifNotNil: [selector ; token selector name]).
+            result nextPut: 
+              ((p parseBinaryMessage: Nil)
+                 ifNil: [p error: 'Only the first argument to a keyword message may be implicit'])].
+      p undoToken: token] writingAs: {}).
   arguments first == Syntax ImplicitArgument /\ [arguments size = 2]
     ifTrue:
       [(p currentScope 
@@ -289,7 +288,7 @@ p@(Syntax Parser traits) parseKeywordMessage: argument
               to: selector size - 2) intern)
         ifNotNilDo:
           [| :variable |
-           ^ ((Syntax StoreVariable of: (arguments at: 1)
+           ^ ((Syntax StoreVariable of: arguments second
                into: variable) readFrom: p)]].
   selector: selector intern.
   (front messageType sending: selector to: arguments) readFrom: p

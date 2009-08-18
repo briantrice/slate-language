@@ -12,7 +12,7 @@ is@(InsertionSequence traits) insertionPoint: n
 around the contents to handle it, so should only be used when necessary.
 If the gap is empty, don't do anything but shift around the start and end."
 [| numToMove |
-  is gapSize = 0 ifTrue: [
+  is isFull ifTrue: [
     ^ (is gapStart: (is gapEnd: n))].
   numToMove: is gapStart - n.
   numToMove positive
@@ -33,7 +33,7 @@ is@(InsertionSequence traits) gapSize
 
 is@(InsertionSequence traits) isFull
 [
-  is gapSize = 0
+  is gapSize isZero
 ].
 
 is@(InsertionSequence traits) growTo: capacity
@@ -77,8 +77,8 @@ is@(InsertionSequence traits) insert: obj
 ].
 
 is@(InsertionSequence traits) insertAll: c
-[| cs |
-  cs: c size.
+[
+  c size `cacheAs: #cs.
   is gapSize > cs
     ifTrue: [| growSize |
       growSize: cs - is gapSize.
