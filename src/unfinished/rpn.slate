@@ -1,0 +1,70 @@
+prototypes define: #RPN &parents: {Cloneable} &slots:
+{#parser -> Nil.
+ #printer -> String writer.
+ #resource -> Console.
+ #basePrompt -> 'RPN> '.
+ #stack -> Stack new.
+ #results -> (RingBuffer new &capacity: 10).
+ #exitFlag -> False.
+}.
+"A simple RPN calculator."
+
+rpn@(RPN traits) prompt
+[
+  rpn basePrompt
+].
+
+rpn@(RPN traits) newBasedOn: resource@(ExternalResource traits)
+"Answer a new RPN targetting the specified resource and reset it."
+[rpn clone `>> [on: resource. reset. ]].
+
+rpn@(RPN traits) on: resource
+"Re-target the RPN to the specified resource."
+[
+  rpn parser: resource reader lines.
+  rpn printer: resource writer.
+  rpn resource: resource.
+  rpn
+].
+
+rpn@(RPN traits) reset
+"Clear out the line number and the evaluation result Collection."
+[
+  rpn stack clear.
+  rpn results clear.
+  rpn exitFlag: False.
+].
+
+rpn@(RPN traits) applyOp: name arity: arity
+[
+  name intern sendTo: (rpn stack pop: arity)
+].
+
+rpn@(RPN traits) parse: word
+[
+  word caseOf:
+    {'+' -> [rpn applyOp: #+ arity: 2].
+     '-' -> [rpn applyOp: #- arity: 2].
+     '*' -> [rpn applyOp: #* arity: 2].
+     '/' -> [rpn applyOp: #/ arity: 2].
+     'quit' -> [rpn exitFlag: True]
+  } otherwise:
+    [Number readFrom: word]
+].
+
+rpn@(RPN traits) enter
+[
+  [| expr |
+   rpn on: rpn resource.
+   rpn printer ; rpn prompt.
+   rpn printer flush.
+   expr: rpn parser next.
+   expr split do:
+     [| :word |
+      (rpn parse: word) ifNotNilDo: [| :result | rpn stack push: result]].
+   rpn printer ; ((rpn stack collect: #printString `er) join &separator: ' ').
+   rpn printer newLine.
+   rpn printer flush.
+   rpn exitFlag] whileFalse.
+  rpn
+].
