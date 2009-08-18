@@ -12,7 +12,11 @@ REPL traits define: #Workspace &parents: {Namespace}.
 "A separate Namespace type for REPL usage."
 
 repl@(REPL traits) refreshWorkspace
-[repl namespace: (repl Workspace newDelegatingTo: lobby). repl installMethods].
+[
+  repl namespace: (repl Workspace newDelegatingTo: lobby).
+  repl installMethods.
+  repl parser currentScope: (repl parser currentScope for: repl namespace).
+].
 
 repl@(REPL traits) prompt
 [
