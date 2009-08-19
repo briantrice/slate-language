@@ -5,7 +5,7 @@ collections define: #ArrayMD &parents: {Collection. Mapping}
 #contents -> (Array newSize: 1)
 "Store the contents in an array of exactly the right size."}.
 
-mda@(ArrayMD traits) new &capacity: n &dimensions: seq
+amd@(ArrayMD traits) new &capacity: n &dimensions: seq
 "&capacity is deprecated for this method. It is meant for compatibility
 with Collection methods that require it, particularly select:-type methods.
 The alternative is to return a new array of the same dimensions and sparsely
@@ -15,126 +15,135 @@ specified by an array or vector of dimension sizes. Dimension size 0 is
 coerced to 1."
 [
   n ifNil:
-    [| size | size: (seq ifNil: [mda size]
+    [| size | size: (seq ifNil: [amd size]
 	 ifNotNil:
-	   [seq inject: 1 into: [| :product :each | product * each]]).
-     mda cloneSettingSlots: #(dimensions contents)
-	 to: {seq ifNil: [mda dimensions]. mda contents new &capacity: size}]
+	   [seq inject: 1 into: #* `er ]).
+     amd cloneSettingSlots: #(dimensions contents)
+	 to: {seq ifNil: [amd dimensions]. amd contents new &capacity: size}]
     ifNotNil: [Bag newSized: n]
 ].
 
-mda@(ArrayMD traits) newWithDimensions: seq defaultElement: x
+amd@(ArrayMD traits) newWithDimensions: seq defaultElement: x
 [
-  (mda new &dimensions: seq) `>> [contents infect: [| :_ | x]. ]
+  (amd new &dimensions: seq) `>> [contents infect: [| :_ | x]. ]
 ].
 
-mda@(ArrayMD traits) size
+amd@(ArrayMD traits) newFrom: seq dimensions: dimensions
+"Use a raw Sequence with some interpretive dimensions to construct an ArrayMD."
 [
-  mda contents size
+  amd cloneSettingSlots: #(contents dimensions) to: {seq. dimensions}
 ].
 
-mda@(ArrayMD traits) numDimensions
+amd@(ArrayMD traits) size
+[
+  amd contents size
+].
+
+amd@(ArrayMD traits) numDimensions
 "Dimensions of size 0 or 1 don't introduce actual variations."
 [
-  mda dimensions count: [| :each | each > 1]
+  amd dimensions count: [| :each | each > 1]
 ].
 
-mda@(ArrayMD traits) at: n@(Integer traits)
-"Return a slice of the mda using an index of the first dimension."
+#rank alias: #numDimensions on: {ArrayMD traits}.
+#dimension alias: #numDimensions on: {ArrayMD traits}.
+
+amd@(ArrayMD traits) dimensionAt: index
+[amd dimensions at: index].
+
+amd@(ArrayMD traits) includesKey: index at: dimension
 [
-
+  key between: 0 and: (amd dimensionAt: dimension) - 1
 ].
 
-mda@(ArrayMD traits) indexOf: sc@(Sequence traits)
+amd@(ArrayMD traits) keySetAt: dimension
+[
+  0 below: (amd dimensionAt: dimension)
+].
+
+amd@(ArrayMD traits) indexOf: sc@(Sequence traits)
 "Returns the place in the contents where the given sequence of coordinates
 maps to. This should not be called repetitively, as it would duplicate
 a lot of calculation."
 [| final offset |
-  sc size = mda dimensions size ifFalse: [mda notYetImplemented].
+  sc size = amd dimensions size ifFalse: [amd notYetImplemented].
   final: 0.
   offset: 1.
-  sc with: mda dimensions do: [| :index :dimSize |
+  sc with: amd dimensions do: [| :index :dimSize |
     final: final + (index * offset).
     offset: offset * dimSize].
   final
 ].
 
-mda@(ArrayMD traits) at: sc@(Sequence traits)
+ArrayMD traits define: #KeyStream &parents: {Collection ReadStream}
+  &slots: {#nextKey}.
+
+s@(ArrayMD KeyStream traits) on: amd
 [
-  mda contents at: (mda indexOf: sc)
+  s collection: amd.
+  resend.
+  s
 ].
 
-mda@(ArrayMD traits) at: sc@(Sequence traits) put: obj
+s@(ArrayMD KeyStream traits) reset
 [
-  mda contents at: (mda indexOf: sc) put: obj
+  s nextKey ifNil: [s nextKey: s collection dimensions newSameSize].
+  s nextKey atAllPut: 0.
 ].
 
-mda@(ArrayMD traits) do: block
+amd@(ArrayMD traits) keyReader
 [
-  mda contents do: block
+  amd KeyStream newOn: amd
 ].
 
-mda@(ArrayMD traits) sliceAt: m in: n
-"Return an array slice, defined by the array of all addresses having
-value m in position n. This works lazily."
+s@(ArrayMD KeyStream traits) collectionType
+[Array].
+
+s@(ArrayMD KeyStream traits) next
+"Increment and return the nextKey."
+[| result keyIndex keyValue incrementedIndex |
+  s nextKey ifNil: [^ s exhausted].
+  result: s nextKey copy.
+  keyIndex: s nextKey indexLast.
+  [keyIndex > 0 /\ incrementedIndex isNil] whileTrue:
+    [keyValue: (s nextKey at: keyIndex).
+     keyValue < (s collection dimensionAt: keyIndex)
+       ifTrue: [s nextKey at: keyIndex put: keyValue + 1.
+                incrementedIndex: keyIndex].
+     keyIndex: keyIndex - 1].
+  incrementedIndex
+    ifNil: [s nextKey: Nil]
+    ifNotNil:
+      [incrementedIndex below: s nextKey indexLast do:
+        [| :keyIndex | s nextKey at: keyIndex put: 0]].
+  result
+].
+
+s@(ArrayMD KeyStream traits) position
 [
-  MDArraySlice for: mda at: m in: n
+  s collection indexOf: s nextKey
 ].
 
-mda@(ArrayMD traits) sliceAt: m in: n do: block
-"Act on all elements having index m in dimension n, in order. This has
-a dimension of one less than mda's."
-[| firstIndex stepIndex |
-  firstIndex: (mda indexOf:
-    ((Array newSize: mda numDimensions) at: n put: m)).
-  stepIndex: (mda dimensions inject: 1 into: [| :step :each |
-    ]).
-  firstIndex below: mda size by: stepIndex do: block.
-].
-
-ArrayMD traits define: #Slice &parents: {Collection} &slots: {
-#array -> {}. "The source array."
-#dimension. "Which dimension is the slice through?"
-#start. "The starting index value."
-#end "The ending value, or Nil for thin slices."
-}.
-"A Slice of a multi-dimensional Array."
-"TODO: handle multi-dimensional Slices (use Range #, to construct keysets)."
-
-as@(ArrayMD Slice traits) for: mda@(ArrayMD traits) at: m in: n
+s@(ArrayMD KeyStream traits) isAtEnd
+"Answers whether the nextKey is the last possible key for the array.
+Implemented using the equivalent of allSatisfy: with the block knowing the
+index per invocation."
 [
-  n > mda numDimensions \/ [m >= (mda dimensions at: n)] ifFalse:
-    [as cloneSettingSlots: #(array dimension start end) to: {mda. n. m. Nil}]
+  s nextKey doWithIndex:
+    [| :keyValue :keyIndex | keyValue < (s collection dimensionAt: keyIndex) ifFalse: [^ True]].
+  False
 ].
 
-as@(ArrayMD Slice traits) for: mda@(ArrayMD traits) from: m to: l in: n
+amd@(ArrayMD traits) keysDo: block
 [
-  n > mda numDimensions ifTrue: [^ Nil].
-  m >= (mda dimensions at: n) ifTrue: [^ Nil].
-  as cloneSettingSlots: #(array dimension start end)
-     to: {mda. n. (m min: l). (l max: m)}
 ].
 
-"
-collections define: #NumericArrayMD &parents: {ArrayMD}.
-NumericArrayMD contents: (NumericArray newSize: 1).
-
-a1@(NumericArrayMD traits) + a2@(NumericArrayMD traits)
+amd@(ArrayMD traits) do: block
 [
-  a1 dimensions = a2 dimensions ifTrue:
-    [a1 cloneSettingSlots: #(contents) to: {a1 contents + a2 contents}]
+  amd contents do: block
 ].
 
-mda@(NumericArrayMD traits) negated
-[mda cloneSettingSlots: #(contents) to: {mda contents negated}].
-
-a1@(NumericArrayMD traits) - a2@(NumericArrayMD traits)
-[
-  a1 + a2 negated
-].
-"
-
-mda@(ArrayMD traits) printDimension: d reader: reader dimensions: dims indentLevel: indent
+amd@(ArrayMD traits) printDimension: d reader: reader dimensions: dims indentLevel: indent
 isLast: isLast on: o separatedBy: block
 "Luckily the elements are in the preferred printing order in the
 container-array, so there's no need to fiddle with indexing etc."
@@ -143,50 +152,50 @@ container-array, so there's no need to fiddle with indexing etc."
     ifTrue:
       [o ; '{'.
        0 to: (dims last - 2)
-	 do: [|:_|
-	      reader next printOn: o.
-	      block do].
+         do: [|:_|
+              reader next printOn: o.
+              block do].
        reader next printOn: o.
        o ; '}'.
        isLast ifFalse: [block do]]
     ifFalse:
       [0 to: ((dims at: d) - 2)
-	 do: [| :i |
-	      d = (dims indexLast - 1) ifFalse: [o ; '{'].
-	      mda printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
-		  isLast: False on: o separatedBy: block.
-	      d = (dims indexLast - 1) ifFalse: [o ; '}'.  isLast ifFalse: [block do]].
-	      o newLine.
-	      indent timesRepeat: [o ; ' ']].
+         do: [| :i |
+              d = (dims indexLast - 1) ifFalse: [o ; '{'].
+              amd printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
+                  isLast: False on: o separatedBy: block.
+              d = (dims indexLast - 1) ifFalse: [o ; '}'.  isLast ifFalse: [block do]].
+              o newLine.
+              indent timesRepeat: [o ; ' ']].
        d = (dims indexLast - 1) ifFalse: [o ; '{'].
-       mda printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
-	   isLast: True on: o separatedBy: block.
+       amd printDimension: d + 1 reader: reader dimensions: dims indentLevel: indent + 1
+           isLast: True on: o separatedBy: block.
        d = (dims indexLast - 1) ifFalse: [o ; '}']].
 ].
 
-mda@(ArrayMD traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+amd@(ArrayMD traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 "ArrayMD prettyPrinting uses its own indention and not the pretty-printers one,
 is because it indents only one character per indentation-level, whereas the
 pretty printer could be set to indent something else. So, changing the
 indentation level of the pretty printer temporarily would mess up the printing
 of the elements."
 [| reader |
- o newLine.
- reader: mda contents reader.
- mda printDimension: 0
-     reader: reader
-     dimensions: mda dimensions reversed
-     indentLevel: 0
-     isLast: False
-     on: o
-     separatedBy: block
+  o newLine.
+  reader: amd contents reader.
+  amd printDimension: 0
+      reader: reader
+      dimensions: amd dimensions reversed
+      indentLevel: 0
+      isLast: False
+      on: o
+      separatedBy: block
 ].
 
 ArrayMD traits define: #Stream &parents: {PositionableStream} &slots:
   {#collection -> ArrayMD new}.
 
 ArrayMD traits define: #ReadStream
-	       &parents: {ArrayMD Stream. ReadStream}.
+               &parents: {ArrayMD Stream. ReadStream}.
 
 s@(ArrayMD ReadStream traits) on: c
 "Target the stream to the specific collection, and reset the indices."
@@ -215,15 +224,15 @@ rs@(ArrayMD ReadStream traits) size
   rs readLimit
 ].
 
-mda@(ArrayMD traits) reduce: binBlock ifEmpty: emptyBlock
+amd@(ArrayMD traits) reduce: binBlock ifEmpty: emptyBlock
 "The order of elements should not be depended on."
 [
-  mda contents reduce: binBlock ifEmpty: emptyBlock
+  amd contents reduce: binBlock ifEmpty: emptyBlock
 ].
 
-mda@(ArrayMD traits) newSameSize
+amd@(ArrayMD traits) newSameSize
 [
-  mda new
+  amd new
 ].
 
 ArrayMD traits define: #WriteStream &parents: {Collection Stream. WriteStream}
@@ -239,5 +248,50 @@ ws@(ArrayMD WriteStream traits) nextPut: obj
   pos >= ws writeLimit
     ifTrue: [ws pastEndPut: obj]
     ifFalse: [ws position: pos + 1.
-	      ws collection contents at: pos put: obj]
+              ws collection contents at: pos put: obj]
 ].
+
+amd@(ArrayMD traits) keySetFilteredBy: filter@(Integer traits) at: dimension
+[
+  ((amd keySetAt: dimension) includes: filter) ifTrue: [filter]
+].
+
+amd@(ArrayMD traits) keySetFilteredBy: filter@(Range traits) at: dimension
+[
+  (amd keySetAt: dimension) /\ filter
+].
+
+amd@(ArrayMD traits) keySetFilteredBy: filter@(Method traits) at: dimension
+[
+  (amd keySetAt: dimension) select: filter
+].
+
+amd@(ArrayMD traits) keySetFilteredBy: filter@(Boolean traits) at: dimension
+[
+  filter ifTrue: [amd keySetAt: dimension] ifFalse: []
+].
+
+amd@(ArrayMD traits) keySetFilteredBy: filter@Nil at: dimension
+[
+  amd keySetAt: dimension
+].
+
+amd@(ArrayMD traits) at: s@(Sequence traits)
+[| filters result |
+  (s includes: Nil) ifFalse: [^ (amd contents at: (amd indexOf: s))].
+  filters: (s collectWithIndex: [| :filter :index | amd keySetFilteredBy: filter at: index]).
+  (filters anySatisfy: #isEmpty `er )
+    ifTrue: [^ Nil].
+  result: (amd new &dimensions: (filters collect: #size `er )).
+  result keysDo:
+    [| :indices |
+     filters].
+  result
+].
+
+amd@(ArrayMD traits) at: s@(Sequence traits) put: value
+[
+  (s includes: Nil) ifFalse: [^ (amd contents at: (amd indexOf: s) put: value)].
+  
+].
+
