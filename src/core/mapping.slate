@@ -269,3 +269,21 @@ values@(Collection traits) reverseProject: keyBlock
 in the Mapping for each key returned by the block, with the value
 stored there."
 [values reverseProject: keyBlock into: (Dictionary newSizeOf: values)].
+
+values@(Collection traits) partition: valueBlock into: map
+"Iterates over the Collection of values creating an entry in the Mapping
+for each key returned by the block, with the set of values stored there."
+[
+  values do:
+    [| :value key | key: (valueBlock applyWith: value).
+     map at: key ifPresent: [| :set | set add: value ]
+                 ifAbsent: [map at: key put: ({value} as: Set)]].
+  map
+].
+
+values@(Collection traits) partition: valueBlock
+"Iterates over the Collection of values creating an entry in the Mapping
+for each key returned by the block, with the set of values stored there."
+[
+  values partition: valueBlock into: Dictionary new
+].
