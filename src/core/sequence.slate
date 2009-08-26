@@ -1224,6 +1224,18 @@ s@(Sequence traits) destructiveStableSort &comparison: block
   s destructiveStableSortBy: (block ifNil: [#<=`er])
 ].
 
+s@(Sequence traits) sortBy: sortBlock attributeBlock: slowBlock
+"This applies the 'Schwartzian Transform', suitable for when a sort needs
+to be performed by comparing the values of an expensive calculation on the
+values. By caching the results of the calculation using Associations,
+the use of the block is limited to O(N). An intermediate Sequence is
+used."
+[
+  ((s collect: [| :each | each -> (slowBlock applyWith: each)])
+    destructiveSortBy: [| :a :b | sortBlock applyTo: {a value. b value}])
+   collect: #key`er
+].
+
 x caseOf: cases@(Sequence traits) otherwise: block
 "A Sequence of Associations between Objects and Blocks is used as a control
 structure. Matching against the first argument causes the respective block
