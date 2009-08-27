@@ -1,40 +1,16 @@
 ensureNamespace: #JSON.
 
-"TODO: use a ReadStream on Strings and update StringGenerator to other Streams."
 "TODO: finish escape hex character reading. see readEscapedHexCharacter"
 "TODO: float precision, see writeFloat"
 "TODO: string encoding"
 
 JSON define: #Reader &parents: {Cloneable}
   &slots: {#stream.
-      	   #generator.
-	   #hexDigits -> (Dictionary newWithAll: {$A -> 10. $B -> 11. $C -> 12. $D -> 13. $E -> 14. $F -> 15})}.
+           #generator}.
 
-JSON define: #StringGenerator &parents: {Cloneable}
-  &slots: {#string. #index}.
+JSON Reader traits define: #HexDigits &builder: [Dictionary newWithAll: {$A -> 10. $B -> 11. $C -> 12. $D -> 13. $E -> 14. $F -> 15}].
 
 JSON define: #IterationError &parents: {DescriptiveError}.
-
-sg@(JSON StringGenerator traits) newWithContent: aString
-[
-  sg clone `>> [string: aString. index: -1.]
-].
-
-sg@(JSON StringGenerator traits) peek
-[| index |
-  index: sg index + 1.
-  index < sg string size
-    ifTrue: [^ (sg string at: index)]
-    ifFalse: [^ Nil].
-].
-
-sg@(JSON StringGenerator traits) next
-[
-  sg index: sg index + 1.
-  sg index < sg string size
-    ifTrue: [^ (sg string at: sg index)]
-    ifFalse: [JSON IterationError signal].
-].
 
 JSON define: #StreamGenerator &slots: {#stream}.
 
@@ -57,9 +33,10 @@ json@(JSON traits) read: aString
   json Reader read: aString
 ].
 
-json@(JSON traits) write: obj &escapedForwardSlash: boolean
+json@JSON write: obj &escapedForwardSlash: boolean
 [
-  json Writer write: obj &escapedForwardSlash: boolean
+  [| :result w | w: (json WriteStream newOn: result).
+   w write: obj &escapedForwardSlash: boolean] writingAs: String
 ].
 
 JSON define: #WriteError &parents: {DescriptiveError}.
@@ -67,8 +44,7 @@ JSON define: #ReadError &parents: {DescriptiveError}.
 
 r@(JSON Reader traits) read: aString
 [
-  r generator: (JSON StringGenerator newWithContent: aString).
-"  r generator: (JSON StreamGenerator newWithContent: aString reader)."
+  r generator: (JSON StreamGenerator newWithContent: aString reader).
   r readItem
 ].
 
@@ -82,68 +58,61 @@ r@(JSON Reader traits) eatWhitespace
   [(peek isNotNil /\ [peek isWhitespace]) \/ [peek = $/]]
     whileTrue: [
       peek = $/ ifTrue: [r readComment]
-		ifFalse: [r next ].
+                ifFalse: [r next].
       peek: r peek].
 ].
 
-r@(JSON Reader traits) readString
-[| answer |
-  answer: ExtensibleArray new writer.
-  r next.
-  [r peek = $\"]
-    whileFalse: [| ch |
-      ch: r next.
-      ch = $\\ 
-      	ifTrue: [
-      	  ch: r next.
-	  ch caseOf: {
-      	    $b -> [answer nextPut: '\b'].
-      	    $f -> [answer nextPut: '\f'].
-      	    $n -> [answer nextPut: '\n'].
-      	    $r -> [answer nextPut: '\r'].
-      	    $t -> [answer nextPut: '\t'].
-	    $u -> [| n |
-      	      	    n: r hexDigit.
-		    n < 128 ifTrue: [answer nextPut: (n as: ASCIIString Character)]
-			    ifFalse: [answer nextPutAll: ((n as: String) as: Array)]].
-	    $\\ -> [answer nextPut: $\\. answer nextPut: $\\]
-      	  }
-	    otherwise: [
-	      ('"/' includes: ch)
-      	      	ifFalse: [(JSON ReadError newDescription: 'Not a valid escaped character') signal].
-	      answer nextPut: ch]]
-	ifFalse: [answer nextPut: ch]].
-  r next.
-  answer contents as: ASCIIString
+s@(String traits) readFrom: r@(JSON Reader traits)
+[
+  [| :result |
+   r next.
+   [r peek = $\"]
+     whileFalse:
+       [| ch |
+        ch: r next.
+        ch = $\\
+           ifTrue:
+             [ch: r next.
+              ('bfnrt\\' includes: ch)
+                ifTrue: [result nextPut: $\\. result nextPut: ch]
+                ifFalse:
+                  [ch = $u
+                     ifTrue: [| n |
+                              n: r hexDigit.
+                              n < 128 ifTrue: [result nextPut: (n as: s Character)]
+                                      ifFalse: [result nextPutAll: ((n as: s) as: Array)]]
+                     ifFalse: [('"/' includes: ch)
+                                 ifFalse: [(JSON ReadError newDescription: 'Not a valid escaped character') signal]].
+              result nextPut: ch]]
+           ifFalse: [result nextPut: ch]].
+   r next] writingAs: s
 ].
 
 r@(JSON Reader traits) nextHexDigitToInt
 [| char |
   char: r next.
-  char isDigit 
-    ifTrue: [char toDigit]
-    ifFalse: 
-      [r hexDigits at: char ifAbsent: [
-      	(JSON ReadError newDescription: 'Not a valid hex character.') signal]] 
+  (char isDigit: 16)
+    ifTrue: [char toDigit: 16]
+    ifFalse:
+      [(JSON ReadError newDescription: 'Not a valid hex character.') signal]
 ].
 
 r@(JSON Reader traits) hexDigit
-[ 
+[
   (4096 * r nextHexDigitToInt) + (256 * r nextHexDigitToInt) + (16 * r nextHexDigitToInt) + r nextHexDigitToInt
 ].
 
 r@(JSON Reader traits) readComment
 [| second |
-  r next.
+  r next. "Eats one forward slash."
   second: r next.
   second = $/
-    ifTrue: [^ r readDoubleSolidusComment]
-    ifFalse: [
-      second = $*
-      	ifTrue: [^ r readCStyleComment]
-      	ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
+    ifTrue: [r readDoubleSolidusComment]
+    ifFalse:
+      [second = $*
+         ifTrue: [r readCStyleComment]
+         ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
 ].
-
 
 r@(JSON Reader traits) readDoubleSolidusComment
 [| ch |
@@ -157,33 +126,33 @@ r@(JSON Reader traits) readCStyleComment
   [[ch = $* /\ (r peek = $/)]
     whileFalse: [
       (ch = $/ /\ [r peek = $*])
-      	ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
-	ifFalse: [ch: r next]].
+              ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
+        ifFalse: [ch: r next]].
     r next] on: JSON IterationError do: [| :c |
       (JSON ReadError newDescription: 'Not a valid JSON comment. CStyle comment unfinished') signal]
 ].
 
-r@(JSON Reader traits) readArray
-[| answer done |
+a@(Array traits) readFrom: r@(JSON Reader traits)
+[| result done |
   r next.
-  answer: ExtensibleArray new.
-  done: r peek = $].
-  [done] whileFalse: [
-    answer add: r readItem.
-    r eatWhitespace.
-    done: r peek = $].
-    done ifFalse: [| ch |
-      ch: r next.
-      ch = $, ifFalse: [
-      	(JSON ReadError newDescription: 'Not a valid JSON array.') signal]]].
-  r next.
-  answer
+  [| :result |
+   done: r peek = $].
+   [done] whileFalse:
+     [result nextPut: r readItem.
+      r eatWhitespace.
+      done: r peek = $].
+      done ifFalse:
+        [| ch |
+         ch: r next.
+         ch = $, ifFalse:
+           [(JSON ReadError newDescription: 'Not a valid JSON array.') signal]]].
+  r next] writingAs: a
 ].
 
-r@(JSON Reader traits) readObject
-[| answer done |
+d@(Dictionary traits) readFrom: r@(JSON Reader traits)
+[| result done |
   r next.
-  answer: Dictionary new.
+  result: d new.
   done: r peek = $}.
   [done] whileFalse: [| key ch |
     key: r readItem.
@@ -192,159 +161,145 @@ r@(JSON Reader traits) readObject
     r eatWhitespace.
     r next = $: ifFalse: [
       (JSON ReadError newDescription: 'Not a valid JSON object. Separate key and value with a colon.') signal].
-    answer at: key put: r readItem.
+    result at: key put: r readItem.
     r eatWhitespace.
     done: r peek = $}.
     done ifFalse: [
       r next = $, ifFalse: [
-      	(JSON ReadError newDescription: 'Not a valid JSON object. Due to...') signal]].].
+              (JSON ReadError newDescription: 'Not a valid JSON object. Due to...') signal]].].
   r next.
-  answer
+  result
 ].
 
-r@(JSON Reader traits) readTrue
+_@True readFrom: r@(JSON Reader traits)
 [
-  r assertNextIs: $t inWord: 'true'.
-  r assertNextIs: $r inWord: 'true'.
-  r assertNextIs: $u inWord: 'true'.
-  r assertNextIs: $e inWord: 'true'.
-  True
+  (r peek: 4) = 'true'
+    ifTrue: [True]
+    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-r@(JSON Reader traits) readFalse
+_@False readFrom: r@(JSON Reader traits)
 [
-  r assertNextIs: $f inWord: 'false'.
-  r assertNextIs: $a inWord: 'false'.
-  r assertNextIs: $l inWord: 'false'.
-  r assertNextIs: $s inWord: 'false'.
-  r assertNextIs: $e inWord: 'false'.
-  False
+  (r peek: 4) = 'false'
+    ifTrue: [False]
+    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-r@(JSON Reader traits) readNull
+_@Nil readFrom: r@(JSON Reader traits)
 [
-  r assertNextIs: $n inWord: 'null'.
-  r assertNextIs: $u inWord: 'null'.
-  r assertNextIs: $l inWord: 'null'.
-  r assertNextIs: $l inWord: 'null'.
-  Nil
+  (r peek: 4) = 'null'
+    ifTrue: [Nil]
+    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-r@(JSON Reader traits) assertNextIs: aChar inWord: aString
-[
-  r next = aChar ifFalse: [
-    (JSON ReadError newDescription: 'Trying to read...') signal].
-].
-
-r@(JSON Reader traits) readNumber
-[| isFloat result peek negate |
+n@(Number traits) readFrom: r@(JSON Reader traits)
+[| isFloat result peek isNegative |
   isFloat: False.
   result: 0.
   peek: r peek.
-  peek = $-
-    ifTrue: [negate: True. r next. peek: r peek]
-    ifFalse: [negate: False].
+  (isNegative: peek = $-) ifTrue: [r next. peek: r peek].
   [peek isNotNil /\
     (peek isDigit \/ (peek = $.))]
       whileTrue: [
-      	peek = $.
-	  ifTrue: [
-	    isFloat ifTrue: [
-      	      (JSON ReadError newDescription: 'Not a valid JSON number.') signal].
-	    isFloat: True. r next. result: (result as: Float)]
-	  ifFalse: [
-	    negate ifTrue: [
-		      isFloat ifTrue: [result: result - (r next toDigit / 10)]
-			      ifFalse: [result: result * 10 - r next toDigit]]
-		   ifFalse: [
-		      isFloat ifTrue: [result: result + (r next toDigit / 10)]
-			      ifFalse: [result: result * 10 + r next toDigit]]].
-	peek: r peek.].
+              peek = $.
+          ifTrue: [
+            isFloat ifTrue: [
+                    (JSON ReadError newDescription: 'Not a valid JSON number.') signal].
+            isFloat: True. r next. result: (result as: Float)]
+          ifFalse: [
+            isNegative ifTrue: [
+                      isFloat ifTrue: [result: result - (r next toDigit / 10)]
+                              ifFalse: [result: result * 10 - r next toDigit]]
+                   ifFalse: [
+                      isFloat ifTrue: [result: result + (r next toDigit / 10)]
+                              ifFalse: [result: result * 10 + r next toDigit]]].
+        peek: r peek].
   result
 ].
 
 r@(JSON Reader traits) readItem
-[| c |
+[
   r eatWhitespace.
-  c: r peek.
-  c caseOf: {
-    ${ -> [r readObject].
-    $[ -> [r readArray].
-    $\" -> [r readString].
-    $t -> [r readTrue].
-    $f -> [r readFalse].
-    $n -> [r readNull].
-    Nil -> [(JSON ReadError newDescription: 'Not valid JSON.') signal]
-  }
-    otherwise: [
-      (c isDigit \/ (c = $-))
-      	ifTrue: [r readNumber]
-      	ifFalse: [(JSON ReadError newDescription: 'Not valid JSON.') signal]]
+  r peek
+    ifNil: [(JSON ReadError newDescription: 'Not valid JSON.') signal]
+    ifNotNilDo:
+      [| :nextChar |
+       nextChar caseOf: {
+         ${ -> [Dictionary readFrom: r].
+         $[ -> [Array readFrom: r].
+         $\" -> [String readFrom: r].
+         $t -> [True readFrom: r].
+         $f -> [False readFrom: r].
+         $n -> [Nil readFrom: r].
+         $- -> [Number readFrom: r].
+       } otherwise:
+         [c isDigit
+            ifTrue: [Number readFrom: r]
+            ifFalse: [(JSON ReadError newDescription: 'Not valid JSON.') signal]]
 ].
 
-JSON define: #Writer &parents: {Cloneable} &slots: {#result. #escapedForwardSlash -> False}.
- 
-w@(JSON Writer traits) write: obj &escapedForwardSlash: boolean
+JSON define: #WriteStream &parents: {Stream PrettyPrinter} &slots: {#escapedForwardSlash -> False}.
+
+w@(JSON WriteStream traits) append: s@(String traits)
 [
-  w result: ExtensibleArray new.
-  boolean ifNil: [w escapedForwardSlash: False]
-	  ifNotNil: [w escapedForwardSlash: boolean].
-  w writeObject: obj.
-  w result as: String
+  s do: [| :ch |
+    ch = $\" \/ [ch = $/ /\ w escapedForwardSlash] ifTrue: [w nextPut: $\\].
+    w nextPut: ch].
 ].
 
-w@(JSON Writer traits) writeObject: obj
+w@(JSON WriteStream traits) write: obj &escapedForwardSlash: escaped
 [
-  (obj is: Dictionary)
-    ifTrue: [| n |
-      n: obj size.
-      w append: ${.
-      obj keysAndValuesDo: [| :k :v |
-	w writeObject: k.
-	w append: $:.
-	w writeObject: v.
-	n: n - 1.
-	n > 0 ifTrue: [w append: $,]].
-      w append: $}]
-    ifFalse: [
-      (obj is: ExtensibleArray)
-      	ifTrue: [| n |
-      	  w append: $[.
-	  n: obj size - 1.
-	  obj doWithIndex: [| :item :index|
-      	    w writeObject: item.
-	    index < n ifTrue: [w append: $,]].
-	  w append: $]]
-	ifFalse: [
-	  (obj is: String)
-      	    ifTrue: [
-      	      w append: $\".
-	      w append: obj.
-	      w append: $\".]
-	    ifFalse: [
-	      (obj is: Number)
-      	      	ifTrue: [w append: (obj as: String)]
-		ifFalse: [
-		  obj isNil ifTrue: [w append: 'null']
-			    ifFalse: [
-			      obj ifTrue: [w append: 'true']
-				  ifFalse: [w append: 'false']]]]]].
+  w escapedForwardSlash: (escaped `defaultsTo: False).
+  obj printOn: w.
 ].
 
-w@(JSON Writer traits) append: aChar@(ASCIIString Character traits)
-[
-  w result add: aChar.
+_@Nil printOn: w@(JSON WriteStream traits) [w ; 'null'].
+
+_@True printOn: w@(JSON WriteStream traits) [w ; 'true'].
+
+_@False printOn: w@(JSON WriteStream traits) [w ; 'false'].
+
+d@(Dictionary traits) printOn: w@(JSON WriteStream traits)
+[| n |
+  n: d size.
+  w nextPut: ${.
+  d keysAndValuesDo:
+    [| :key :value |
+     key printOn: w.
+     w nextPut: $:.
+     value printOn: w.
+     n: n - 1.
+     n isPositive ifTrue: [w nextPut: $,]].
+  w nextPut: $}.
 ].
 
-w@(JSON Writer traits) append: aString@(ASCIIString traits)
+s@(ExtensibleArray traits) printOn: w@(JSON WriteStream traits)
+[| n |
+  w nextPut: $[.
+  n: s indexLast.
+  s do: [| :each | w writeObject: item] separatedBy: [w nextPut: $,].
+  w nextPut: $]
+].
+
+s@(String traits) printOn: w@(JSON WriteStream traits)
 [
-  aString do: [| :ch |
-    ch = $\" \/ [ch = $/ /\ w escapedForwardSlash] ifTrue: [w append: $\\].
-    w append: ch].
+  w nextPut: $\".
+  w append: s.
+  w nextPut: $\".
+].
+
+n@(Number traits) printOn: w@(JSON WriteStream traits)
+[
+  w ; n printString.
+].
+
+x@(Root traits) printOn: w@(JSON WriteStream traits)
+[
+  w writeObject: obj slotNamesAndValues
 ].
 
 UnitTests define: #JSON &parents: {TestCase}.
-"For testing the JSON Reader and Writer."
+"For testing the JSON Reader and WriteStream."
 
 str@(ASCIIString traits) whitespaceRemoved
 [
@@ -506,10 +461,10 @@ tc@(UnitTests JSON traits) readComplexObject
 [| obj req |
   obj: (JSON read: '{ "name": "Marton", "age" : 33, "Employed?":true, "Female?" : false, "grandchildren":null }').
   req: (Dictionary new `>> [at: 'name' put: 'Marton'.
-			    at: 'age' put: 33.
-			    at: 'Employed?' put: True.
-			    at: 'Female?' put: False.
-			    at: 'grandchildren' put: Nil.]).
+                            at: 'age' put: 33.
+                            at: 'Employed?' put: True.
+                            at: 'Female?' put: False.
+                            at: 'grandchildren' put: Nil.]).
   tc assert: obj = req description: 'Reading complex object failed'.
 ].
 
@@ -533,12 +488,12 @@ tc@(UnitTests JSON traits) readBadArray
 tc@(UnitTests JSON traits) readLongArray
 [| obj req |
   obj: (JSON read: '[ "used",
-		       "abused",
-		       "confused",
-		       true, false, null,
-		       1,
-		       2,
-		       [3, 4, 5]
+                       "abused",
+                       "confused",
+                       true, false, null,
+                       1,
+                       2,
+                       [3, 4, 5]
 ]').
   req: ExtensibleArray new.
   req addAll: {'used'. 'abused'. 'confused'. True. False. Nil. 1. 2}.
@@ -550,21 +505,21 @@ tc@(UnitTests JSON traits) readComplexArray
 [| obj  req |
   obj: (JSON read: '[
    { "name": "Marton", "age" : 33,
-     "Employed?":true, "Female?" : false, 
+     "Employed?":true, "Female?" : false,
      "grandchildren":null },
-		      "used",
-		      "abused",
-		      "confused", 
-		      1,
-		      2,
-		      [3, 4, 5]
+                      "used",
+                      "abused",
+                      "confused",
+                      1,
+                      2,
+                      [3, 4, 5]
 ]').
   req: ExtensibleArray new.
   req add: (Dictionary new `>> [add: 'name' -> 'Marton'.
-				add: 'age' -> 33.
-				add: 'Employed?' -> True.
-				add: 'Female?' -> False.
-				add: 'grandchildren' -> Nil.]).
+                                add: 'age' -> 33.
+                                add: 'Employed?' -> True.
+                                add: 'Female?' -> False.
+                                add: 'grandchildren' -> Nil.]).
   req addAll: {'used'. 'abused'. 'confused'. 1. 2}.
   req add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
   tc assert: obj = req description: 'Reading complex array failed'.
@@ -762,17 +717,17 @@ tc@(UnitTests JSON traits) writeSmallArray
 tc@(UnitTests JSON traits) writeFloat
 [
   tc assert: (JSON write: 3.44556677) whitespaceRemoved = '3.445567'
-    description: 'Wrinting float value failed.'.
+    description: 'Writing float value failed.'.
 ].
 
 tc@(UnitTests JSON traits) writeComplexArray
 [| obj req |
   obj: ExtensibleArray new.
   obj add: (Dictionary new `>> [add: 'name' -> 'Marton'.
-				add: 'age' -> 33.
-				add: 'Employed?' -> True.
-				add: 'Female?' -> False.
-				add: 'grandchildren' -> Nil.]).
+                                add: 'age' -> 33.
+                                add: 'Employed?' -> True.
+                                add: 'Female?' -> False.
+                                add: 'grandchildren' -> Nil.]).
   obj addAll: {'used'. 'abused'. 'confused'. 1. 2}.
   obj add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
   req: '[{"Employed?":true,"grandchildren":null,"Female?":false,"age":33,"name":"Marton"},"used","abused","confused",1,2,[3,4,5]]'.
@@ -847,20 +802,20 @@ tc@(UnitTests JSON traits) writeEscapedHexCharacter
 
 tc@(UnitTests JSON traits) peek
 [| gen |
-  gen: (JSON StringGenerator newWithContent: 'blabla').
-  tc assert: gen peek = $b description: 'StringGenerator simple peek does not work.'
+  gen: (JSON StreamGenerator newWithContent: 'blabla' reader).
+  tc assert: gen peek = $b description: 'StreamGenerator simple peek does not work.'
 ].
 
 tc@(UnitTests JSON traits) next
 [| gen |
-  gen: (JSON StringGenerator newWithContent: 'blabla').
+  gen: (JSON StreamGenerator newWithContent: 'blabla' reader).
   tc assert: gen next = $b description: 'Simple next failed.'.
   tc assert: gen peek = $l description: 'Second peek failed.'.
   gen next.
   gen next.
   tc assert: gen next = $b description: 'Second next failed.'.
 ].
- 
+
 tc@(UnitTests JSON traits) whitespaceRemoval
 [
   tc assert: ' d ' whitespaceRemoved = 'd' description: 'Whitespace not removed 1.'.
