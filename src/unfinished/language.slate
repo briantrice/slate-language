@@ -1,0 +1,78 @@
+"A library of methods for working with natural languages."
+
+lobby ensureNamespace: #languages &delegate: True.
+
+languages define: #Language &parents: {Cloneable}.
+
+_@(Language traits) pluralOf: s@(String traits)
+[overrideThis].
+
+_@(Language traits) ordinalOf: n@(Number traits)
+"Answers the printed representation of the number with a suffix for its
+ordinality."
+[overrideThis].
+
+_@(Language traits) ordinateOf: n@(Number traits)
+"Turns the number into the equivalent phrase."
+[overrideThis].
+
+languages define: #LatinFamily &parents: {Language}.
+
+_@(LatinFamily traits) pluralOf: s@(String traits)
+[s ; 's'].
+
+_@(LatinFamily traits) ordinalOf: n@(Number traits)
+[
+  (n as: String) ; 'o'
+].
+
+_@(LatinFamily traits) numeralGroupSize [3].
+
+_@(LatinFamily traits) numeralGroupSeparator ['.'].
+_@(LatinFamily traits) decimal [','].
+
+languages define: #English &parents: {LatinFamily}.
+
+_@(English traits) indicateOneOf: noun@(String traits)
+"Answer a copy of the String prepended with 'a ' or 'an ' in order to treat
+it as specifying the instance of a noun named by the String."
+[
+  s first isVowel ifTrue: ['an ' ; s] ifFalse: ['a ' ; s]
+].
+
+l@(English traits) ordinalOf: n@(Integer traits)
+"Answers the printed representation of the number with a suffix for its
+ordinality."
+[
+  (n as: String) ; ((l ordinalForDigit: (n rem: 100)) ifNil:
+    [(l ordinalForDigit: (n rem: 10)) ifNil: ['th']])
+].
+
+_@(English traits) ordinalForDigit: n@(Integer traits)
+[
+  n caseOf: {
+    [0] -> ['th'].
+    [1] -> ['st'].
+    [2] -> ['nd'].
+    [3] -> ['rd'].
+  } otherwise:
+  [(n between: 4 and: 13)
+     ifTrue: ['th']
+     ifFalse: [Nil]]
+].
+
+English traits define: #NumberWords -> {'zero'. 'one'. 'two'. 'three'. 'four'. 'five'. 'six'. 'seven'. 'eight'. 'nine'. 'ten'. 'eleven'. 'twelve'. 'thirteen'. 'fourteen'. 'fifteen'. 'sixteen'. 'seventeen'. 'eighteen'. 'nineteen'}.
+English traits define: #DecimalPlaceWords -> {Nil. Nil. 'hundred'. 'thousand'. Nil. Nil. 'million'. Nil. Nil. 'billion'. Nil. Nil. 'trillion'. Nil. Nil. 'quadrillion'. Nil. Nil. 'quintillion'. Nil. Nil. 'sextillion'. Nil. Nil. 'octillion'. Nil. Nil. 'nonillion'}.
+English traits define: #TensWords -> {Nil. Nil. 'twenty'. 'thirty'. 'forty'. 'fifty'. 'sixty'. 'seventy'. 'eighty'. 'ninety'}.
+
+l@(English traits) ordinateOf: n@(Integer traits)
+[
+  ((n as: String) inGroupsOf: l numeralGroupSize) `cacheAs: #groups.
+  (groups collect: [| :g | l ordinateOfGroup: g]) join &separator: ' '
+].
+
+l@(English traits) ordinateOfGroup: numerals@(String traits)
+[
+  
+].
+
