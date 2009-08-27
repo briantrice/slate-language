@@ -8,20 +8,24 @@ o@(StructuredPrinterMixin traits) indentString
   '    '
 ].
 
-o@(StructuredPrinterMixin traits) newLine
-"Append a newLine and indent to the current level. TODO: rename this method?"
+o@(StructuredPrinterMixin traits) newLineAndIndent
+"Append a newLine and indent to the current level."
 [
   o nextPut: $\n.
   o level timesRepeat: [o ; o indentString].
   o
 ].
 
+o@(StructuredPrinterMixin traits) newLine
+"Obsolete; change senders to use newLineAndIndent."
+[o newLineAndIndent].
+
 o@(StructuredPrinterMixin traits) newColumn
 "Increment the current column, using wrap-around semantics based on the
 number of columnsPerLine."
 [
   o currentColumn > o columnsPerLine
-    ifTrue: [o newLine]
+    ifTrue: [o newLineAndIndent]
     ifFalse: [o nextPut: $\s]
 ].
 
@@ -68,7 +72,7 @@ o@(PrettyPrinterMixin traits) newElement
 [
   o preferDense
     ifTrue: [o newColumn]
-    ifFalse: [o newLine].
+    ifFalse: [o newLineAndIndent]
 ].
 
 Stream traits define: #PrettyPrinter &parents: {PrettyPrinterMixin. Stream WrapperStream}.
@@ -130,23 +134,23 @@ indented."
     [^ (o ; ')')].
   doPrintName ifTrue:
     [o ; ' '].
-  o level >= o nestingLimit ifTrue: 
+  o level >= o nestingLimit ifTrue:
     [^ (o ; '...)')].
   o indentedDo: [| index |
     index: 0.
     o preferDense
-      ifFalse: [o newLine].
+      ifFalse: [o newLineAndIndent].
     (x slotNames copyWithout: #traitsWindow) do:
       [| :each |
         o ; (each as: String)
           ; ': '.
         (x atSlotNamed: each) printOn: o]
-      separatedBy: 
-        [o ; '.'. 
+      separatedBy:
+        [o ; '.'.
           o newElement.
           index: index + 1.
           index >= o collectionLimit
-            ifTrue: 
+            ifTrue:
               [o ; '...)'. ^ o]]].
   o ; ')'
 ].
@@ -201,7 +205,7 @@ with sign. This works by collecting the digits and a "
   radix < 2 \/ [radix > 36]
     ifTrue: [^ Nil].
   n isNegative
-    ifTrue: 
+    ifTrue:
       [o ; '-'.
        n negated printOn: o &radix: radix.
        ^ o].
@@ -258,7 +262,7 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
   significand: f significand.
   exponent: f exponent.
   exponent = (f bias * 2 + 1)
-    ifTrue: 
+    ifTrue:
       [^ (o ; (f isNegative ifTrue: ['-'] ifFalse: ['+'])
 	    ; (significand isZero ifTrue: ['Inf'] ifFalse: ['NaN']))].
   exponent isZero
@@ -335,14 +339,14 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
   o next: (decimal min: digits size) putAll: digits.
   (decimal - digits size max: 0)
     timesRepeat: [o ; '0'].
-  decimal <= 0 
-    ifTrue: 
+  decimal <= 0
+    ifTrue:
       [o ; '0.'.
         (k negated max: 0)
           timesRepeat: [o ; '0']]
     ifFalse:
       [o ; '.'].
-  decimal >= digits size 
+  decimal >= digits size
     ifTrue: [o ; '0']
     ifFalse:
       [o next: (precision min: digits size - decimal)
@@ -350,7 +354,7 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
          startingAt: decimal].
   k = decimal \/ [decimal <= 0]
     ifFalse:
-      [o ; 'e'. 
+      [o ; 'e'.
        k - decimal printOn: o &radix: radix].
   o
 ].
@@ -419,13 +423,13 @@ c@(Range traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: blo
 [
   c start printOn: o.
   c end = PositiveInfinity
-    ifTrue: 
+    ifTrue:
       [o ; ' ...']
     ifFalse:
       [o ; ' .. '.
         c end printOn: o].
   c step = 1
-    ifFalse: 
+    ifFalse:
       [o ; ' by '.
         c step printOn: o].
   o
@@ -456,7 +460,7 @@ c@(Dictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
     ].
   o
 ].
-  
+
 c@(String Character traits) printOn: o@(PrettyPrinterMixin traits)
 "Consult the table of escapes, then handle normal printing."
 [
