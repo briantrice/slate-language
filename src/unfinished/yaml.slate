@@ -1,0 +1,93 @@
+ensureNamespace: #YAML.
+
+YAML define: #WriteStream &parents: {Stream PrettyPrinter}.
+YAML WriteStream preferDense: False.
+
+y@(YAML WriteStream traits) documentSeparator
+['---'].
+
+y@(YAML WriteStream traits) emitHeader: directives
+[
+  y ; y documentSeparator.
+  y ; ' ' ; directives.
+  y newLineAndIndent.
+].
+
+y@(YAML WriteStream traits) newDocument
+[
+  y level: 0.
+  y newLineAndIndent.
+  y ; y documentSeparator.
+  y newLineAndIndent.
+].
+
+_@Nil printOn: y@(YAML WriteStream traits) [y ; '~'].
+
+_@True printOn: y@(YAML WriteStream traits) [y ; 'true'].
+
+_@False printOn: y@(YAML WriteStream traits) [y ; 'false'].
+
+y@(YAML WriteStream traits) indentString
+[' '].
+
+y@(YAML WriteStream traits) sequenceLeader
+['- '].
+
+y@(YAML WriteStream traits) inlineSeparator
+[', '].
+
+s@(Sequence traits) printOn: y@(YAML WriteStream traits)
+[
+  y indentedDo:
+    [y level isPositive ifTrue: [y newLineAndIndent].
+     y ; y sequenceLeader.
+     s printContentsOn: y separatedBy: [y newElement. y ; y sequenceLeader]]
+].
+
+s@(String traits) printOn: y@(YAML WriteStream traits)
+[
+  y ; s
+].
+
+s@(Symbol traits) printOn: y@(YAML WriteStream traits)
+[
+  y ; s
+].
+
+y@(YAML WriteStream traits) keyValueSeparator
+[': '].
+
+m@(Mapping traits) printOn: y@(YAML WriteStream traits) &inline: inline
+[
+  inline `defaultsTo: False.
+  y indentedDo:
+    [| index |
+     y level isPositive ifTrue: [y newLineAndIndent].
+     index: 0.
+     m size `cache.
+     m keysAndValuesDo:
+       [| :key :value |
+        key printOn: y.
+        y ; y keyValueSeparator.
+        value printOn: y.
+        index: index + 1.
+        index < m size ifTrue: [y newElement]]]
+].
+
+x@(Root traits) printOn: y@(YAML WriteStream traits)
+[
+  x slotCount `cache.
+  y indentedDo:
+    [y newLineAndIndent.
+     x slotNamesAndValuesDo:
+       [| :name :value |
+        name printOn: y.
+        y ; y keyValueSeparator.
+        value printOn: y.
+        y newLineAndIndent.
+        index: index + 1.
+        index < x slotCount ifTrue: [y newElement]]].
+].
+
+YAML define: #ReadStream &parents: {ReadStream WrapperStream}.
+
