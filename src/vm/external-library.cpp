@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 #if defined(WIN32) || defined(__CYGWIN__)
 #define DLL_FILE_NAME_EXTENSION ".dll"
@@ -15,7 +15,7 @@
 
 static char *safe_string(struct ByteArray *s, char const *suffix) {
   size_t len = byte_array_size(s);
-  char *result = malloc(strlen(suffix) + len + 1);
+  char *result = (char*)malloc(strlen(suffix) + len + 1);
   if (result == NULL)
     return NULL;
   memcpy(result, s->elements, len);
@@ -27,7 +27,7 @@ bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, st
   char *fullname;
   SLATE_LIB_HANDLE h;
 
-  assert(byte_array_size(handle) >= sizeof(h));
+  assert((unsigned)byte_array_size(handle) >= sizeof(h));
 
   fullname = safe_string(libname, DLL_FILE_NAME_EXTENSION);
   if (fullname == NULL)
@@ -56,7 +56,7 @@ bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, st
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle) {
   SLATE_LIB_HANDLE h;
 
-  assert(byte_array_size(handle) >= sizeof(h));
+  assert((unsigned)byte_array_size(handle) >= sizeof(h));
   memcpy(&h, handle->elements, sizeof(h));
 
 #ifdef WIN32
@@ -71,8 +71,8 @@ bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray *
   void *fn;
   char *symbol;
 
-  assert(byte_array_size(handle) >= sizeof(h));
-  assert(byte_array_size(ptr) >= sizeof(fn));
+  assert((unsigned)byte_array_size(handle) >= sizeof(h));
+  assert((unsigned)byte_array_size(ptr) >= sizeof(fn));
 
   symbol = safe_string(symname, "");
   if (symbol == NULL)
@@ -241,7 +241,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct Byte
   word_t result;
   word_t arg, argCount, outArgIndex = 0, outArgCount;
 
-  assert (payload_size((struct Object *) fnHandle) >= sizeof (fn));
+  assert ((unsigned)payload_size((struct Object *) fnHandle) >= sizeof (fn));
   memcpy (& fn, fnHandle -> elements, sizeof (fn));
 
   argCount = object_array_size((struct Object *) argsArr);

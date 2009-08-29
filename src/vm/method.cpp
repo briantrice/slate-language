@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 word_t method_pic_hash(struct object_heap* oh, struct CompiledMethod* callerMethod, word_t arity, struct Object* args[]) {
@@ -270,7 +270,7 @@ void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method)
 
   if (oh->optimizedMethodsSize + 1 >= oh->optimizedMethodsLimit) {
     oh->optimizedMethodsLimit *= 2;
-    oh->optimizedMethods = realloc(oh->optimizedMethods, oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
+    oh->optimizedMethods = (struct CompiledMethod**)realloc(oh->optimizedMethods, oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
     assert(oh->optimizedMethods != NULL);
 
   }

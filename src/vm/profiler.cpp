@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 void profiler_start(struct object_heap* oh) {
   word_t i;

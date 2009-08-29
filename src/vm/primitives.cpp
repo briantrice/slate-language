@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
@@ -1343,7 +1343,7 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
-  if (object_is_smallint(handle) && object_is_smallint(offset) && byte_array_size(addressBuffer) >= sizeof(word_t)) {
+  if (object_is_smallint(handle) && object_is_smallint(offset) && (unsigned)byte_array_size(addressBuffer) >= sizeof(word_t)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
                            smallint_to_object(memarea_addressof(oh,
                                                               (int)object_to_smallint(handle), 
@@ -1869,9 +1869,9 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
   heap_full_gc(oh);
   totalSize = oh->memoryOldSize + oh->memoryYoungSize;
   forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
-  memoryStart = calloc(1, totalSize);
+  memoryStart = (byte_t*)calloc(1, totalSize);
   writeObject = (struct Object*)memoryStart;
-  forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
+  forwardPointers = (struct ForwardPointerEntry*)calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
   assert(memoryStart != NULL);
   copy_used_objects(oh, &writeObject, oh->memoryOld, oh->memoryOldSize, forwardPointers, forwardPointerEntryCount);
   copy_used_objects(oh, &writeObject, oh->memoryYoung, oh->memoryYoungSize, forwardPointers, forwardPointerEntryCount);
@@ -1885,7 +1885,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
   sih.current_dispatch_id = oh->current_dispatch_id;
 	
   if (fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile) != 1
-      || fwrite(memoryStart, 1, totalSize, imageFile) != totalSize) {
+      || fwrite(memoryStart, 1, totalSize, imageFile) != (size_t)totalSize) {
     fprintf(stderr, "Error writing image!\n");
   }
   fclose(imageFile);

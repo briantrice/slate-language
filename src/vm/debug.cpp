@@ -1,5 +1,5 @@
 
-#include "slate.h"
+#include "slate.hpp"
 
 /* debugging routines to print objects etc from gdb*/
 
@@ -12,7 +12,7 @@ void print_object(struct Object* oop) {
   if (oop_is_smallint((word_t)oop)) {
     printf("<object int_value: %" PRIdPTR ">\n", object_to_smallint(oop));
   } else {
-    char* typestr=0;
+    const char* typestr=0;
     switch (object_type(oop)) {
     case TYPE_OBJECT: typestr = "normal"; break;
     case TYPE_OOP_ARRAY: typestr = "oop array"; break;
@@ -25,7 +25,7 @@ void print_object(struct Object* oop) {
 
 
 void print_symbol(struct Symbol* name) {
-  if (fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout) != payload_size((struct Object*)name)) {
+  if (fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout) != (size_t)payload_size((struct Object*)name)) {
     /*handle error*/
   }
 }

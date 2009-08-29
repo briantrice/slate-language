@@ -1,6 +1,7 @@
 /*
  * Copyright 2008 Timmy Douglas
  * New VM written in C (rather than pidgin/slang/etc) for slate
+ * Converted to C++ in 2009 for GC updates
  * Based on original by Lee Salzman and Brian Rice
  */
 
@@ -24,7 +25,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 
 ***************************/
 
-#include "slate.h"
+#include "slate.hpp"
 #include <signal.h>
 
 word_t memory_string_to_bytes(char* str) {
@@ -68,7 +69,7 @@ void print_usage (char *progName) {
 
 int main(int argc, char** argv, char **envp) {
 
-  char* image_name = NULL;
+  const char* image_name = NULL;
   char global_image_name [1024];
   FILE* image_file = NULL;
   struct slate_image_header sih;
@@ -173,7 +174,7 @@ int main(int argc, char** argv, char **envp) {
   }
 
   // Create and initialize the heap structure:
-  heap = calloc(1, sizeof(struct object_heap));
+  heap = (struct object_heap*)calloc(1, sizeof(struct object_heap));
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   
@@ -186,7 +187,7 @@ int main(int argc, char** argv, char **envp) {
   }
 
   // Read in the heap contents from the image file:
-  if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != sih.size) {
+  if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != (size_t)sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
     return 1;
   }

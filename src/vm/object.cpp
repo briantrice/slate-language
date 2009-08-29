@@ -1,7 +1,7 @@
 
 /* slate object manipulation */
 
-#include "slate.h"
+#include "slate.hpp"
 
 
 SLATE_INLINE word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
@@ -32,7 +32,7 @@ void object_set_format(struct Object* xxx, word_t type) {
   xxx->header |= (type&3) << 30;
 }
 void object_set_size(struct Object* xxx, word_t size) {
-  assert(size >= HEADER_SIZE_WORDS+1);
+  assert((size_t)size >= HEADER_SIZE_WORDS+1);
   xxx->objectSize = size;
 }
 void object_set_idhash(struct Object* xxx, word_t hash) {

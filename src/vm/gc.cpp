@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 #ifdef SLATE_USE_MMAP
 #include <sys/mman.h>
 #endif
@@ -110,8 +110,8 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOld = (byte_t*)malloc(limit);
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
-  oh->pinnedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
-  oh->rememberedYoungObjects = calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+  oh->pinnedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+  oh->rememberedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
 
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
@@ -132,11 +132,11 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->mark_color = 1;
   oh->markStackSize = 4 * MB;
   oh->markStackPosition = 0;
-  oh->markStack = malloc(oh->markStackSize * sizeof(struct Object*));
+  oh->markStack = (struct Object**)malloc(oh->markStackSize * sizeof(struct Object*));
   
   oh->optimizedMethodsSize = 0;
   oh->optimizedMethodsLimit = 1024;
-  oh->optimizedMethods = malloc(oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
+  oh->optimizedMethods = (struct CompiledMethod**)malloc(oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
 
   assert(oh->markStack != NULL);
 
@@ -369,7 +369,7 @@ void heap_mark(struct object_heap* oh, struct Object* obj) {
 #ifdef PRINT_DEBUG
     printf("Growing mark stack to %" PRIdPTR "\n", oh->markStackSize);
 #endif
-    oh->markStack = realloc(oh->markStack, oh->markStackSize * sizeof(struct Object*));
+    oh->markStack = (struct Object**)realloc(oh->markStack, oh->markStackSize * sizeof(struct Object*));
     assert(oh->markStack);
   }
   oh->markStack[oh->markStackPosition++] = obj;
@@ -623,7 +623,7 @@ void heap_sweep_young(struct object_heap* oh) {
 void heap_pin_c_stack(struct object_heap* oh) {
   /* right now we only pin things in memoryYoung because things in memoryOld never move */
   word_t stackTop;
-  word_t** stack = oh->stackBottom;
+  word_t** stack = (word_t**)oh->stackBottom;
   while ((void*)stack > (void*)&stackTop) {
     heap_pin_young_object(oh, (struct Object*)*stack);
     stack--;

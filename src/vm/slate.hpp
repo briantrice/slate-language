@@ -6,6 +6,13 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+
+// this will make sure to include the PRIdPTR macros in c++
+#define __STDC_FORMAT_MACROS 1
+
+// for INTPTR_MAX
+#define __STDC_LIMIT_MACROS 1
+
 #ifdef WIN32
 // The following must be obtained from http://code.google.com/p/msinttypes/ for Windows:
 #include "stdint.h"
@@ -111,7 +118,9 @@ struct Object
 	#define SLATE_INLINE 
 	#pragma warning(disable : 4996)
 #else
-	#define SLATE_INLINE inline
+//#define SLATE_INLINE inline
+// fixme
+#define SLATE_INLINE 
 #endif
 
 #define METHOD_CACHE_ARITY 6
@@ -712,7 +721,7 @@ void method_pic_setup(struct object_heap* oh, struct CompiledMethod* caller);
 void method_pic_flush_caller_pics(struct object_heap* oh, struct CompiledMethod* callee);
 struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n);
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n);
-void error(char* str);
+void error(const char* str);
 void cache_specials(struct object_heap* heap);
 #ifndef WIN32
 word_t max(word_t x, word_t y);

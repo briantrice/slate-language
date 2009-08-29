@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i, word_t minimum) {
