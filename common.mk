@@ -70,7 +70,7 @@ EMACS       := emacs
 
 INCLUDES    += 
 CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOURCE=200112L
-CFLAGS      += $(COPTFLAGS) -Wall -Wno-unknown-pragmas -pthread $(PRINT_DEBUG)  $(INCLUDES)
+CFLAGS      += $(COPTFLAGS) -Wall -Wno-unknown-pragmas -pthread $(PRINT_DEBUG) $(EXTRACFLAGS)  $(INCLUDES)
 # include -pedantic later fixme
 
 

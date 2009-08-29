@@ -46,6 +46,13 @@ typedef SOCKADDR sockaddr_un;
 
 #include <dirent.h>  // on Windows, download from http://www.softagalleria.net/dirent.php
 
+
+// stl libraries
+#include <set>
+#include <stack>
+#include <vector>
+
+
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
 #define SLATE_BUILD_TYPE "UNDEFINED"
@@ -110,9 +117,6 @@ struct Object
 #define HEADER_SIZE (sizeof(struct Object) - sizeof(struct Map*))
 #define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
 #define SLATE_IMAGE_MAGIC (word_t)0xABCDEF43
-
-/*this doesn't seem to ensure anything*/
-#define GC_VOLATILE /*volatile*/
 
 #ifdef _MSC_VER
 	#define SLATE_INLINE 
@@ -276,7 +280,6 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
 #define PROFILER_ENTRY_COUNT 4096
-#define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
 #define PINNED_CARD_SIZE (sizeof(word_t) * 8)
@@ -363,11 +366,9 @@ struct object_heap
   struct Object *nextOldFree;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
-  struct Object* fixedObjects[MAX_FIXEDS];
 
-  struct CompiledMethod** optimizedMethods;
-  word_t optimizedMethodsSize;
-  word_t optimizedMethodsLimit;
+  // keep track of these so that when a callee gets changed we recompile or unoptimize
+  std::multiset<struct CompiledMethod*> optimizedMethods;
 
   /* memory areas for the primitive memory functions */
   void* memory_areas [SLATE_MEMS_MAXIMUM];
@@ -392,7 +393,6 @@ struct object_heap
   size_t markStackSize;
   size_t markStackPosition;
 
-  word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
   word_t* rememberedYoungObjects; /* old gen -> new gen pointers for incremental GC */
   void* stackBottom;
 
@@ -400,6 +400,9 @@ struct object_heap
   word_t currentlyProfilingIndex;
   int64_t profilerTimeStart, profilerTimeEnd;
   struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
+
+
+  std::multiset<struct Object*> pinnedObjects;
 
   /*
    * I call this cached because originally these could move around
@@ -581,6 +584,11 @@ extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word
   }
 
 
+
+
+
+
+
 /* for any assignment where an old gen object points to a new gen
 object.  call it before the next GC happens. !Before any stack pushes! */
 
@@ -662,7 +670,6 @@ void heap_free_object(struct object_heap* oh, struct Object* obj);
 void heap_finish_gc(struct object_heap* oh);
 void heap_finish_full_gc(struct object_heap* oh);
 void heap_start_gc(struct object_heap* oh);
-void heap_pin_young_object(struct object_heap* oh, struct Object* x);
 void heap_remember_young_object(struct object_heap* oh, struct Object* x);
 void heap_mark(struct object_heap* oh, struct Object* obj);
 void heap_mark_specials(struct object_heap* oh, bool_t mark_old);
@@ -674,14 +681,11 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
 void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_tenure(struct object_heap* oh);
-void heap_mark_pinned_young(struct object_heap* oh);
 void heap_mark_remembered_young(struct object_heap* oh);
 void heap_sweep_young(struct object_heap* oh);
-void heap_pin_c_stack(struct object_heap* oh);
+void heap_mark_pinned(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
 void heap_gc(struct object_heap* oh);
-void heap_fixed_add(struct object_heap* oh, struct Object* x);
-void heap_fixed_remove(struct object_heap* oh, struct Object* x);
 void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize);
 void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y);
 void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest);
@@ -713,7 +717,6 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
 void interpret(struct object_heap* oh);
 void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t n);
 struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbol* selector, struct Object* arguments[], word_t n);
-void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method);
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method);
 void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symbol);
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method);
@@ -997,3 +1000,65 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 keep a list of all the pics that it is in */
 void method_pic_add_callee_backreference(struct object_heap* oh,
                                          struct CompiledMethod* caller, struct CompiledMethod* callee);
+
+
+
+
+
+
+
+
+
+
+/*pinned objects for GC*/
+void heap_pin_object(struct object_heap* oh, struct Object* x);
+void heap_unpin_object(struct object_heap* oh, struct Object* x);
+
+template <class T> class Pinned {
+
+private:
+  Pinned() {}
+
+public:
+  T* value;
+  struct object_heap* oh;
+  Pinned(struct object_heap* oh_) : value(0), oh(oh_) { }
+  Pinned(T* v, struct object_heap* oh_) : value(v), oh(oh_) {
+    if (!object_is_smallint((struct Object*)value))
+      heap_pin_object(oh, (struct Object*)value);
+  }
+  T* operator ->() {return value; }
+  ~Pinned() {
+    if (value != 0 && !object_is_smallint((struct Object*)value)) {
+      heap_unpin_object(oh, (struct Object*)value);
+    }
+  }
+  operator struct Object* () {return (struct Object*)value;}
+  operator struct RoleTable* () {return (struct RoleTable*)value;}
+  operator struct SlotTable* () {return (struct SlotTable*)value;}
+  operator byte_t* () {return (byte_t*)value;}
+  operator struct Map* () {return (struct Map*)value;}
+  operator struct OopArray* () {return (struct OopArray*)value;}
+  operator struct ByteArray* () {return (struct ByteArray*)value;}
+  operator struct CompiledMethod* () {return (struct CompiledMethod*)value;}
+  operator struct MethodDefinition* () {return (struct MethodDefinition*)value;}
+  operator struct Closure* () {return (struct Closure*)value;}
+  operator struct Symbol* () {return (struct Symbol*)value;}
+  const Pinned<T>& operator=(T *v) { 
+    if (v != value) {
+      if (!object_is_smallint((struct Object*)v)) {
+        heap_pin_object(oh, (struct Object*)v);
+      }
+      if (value != 0 && !object_is_smallint((struct Object*)value)) {
+        heap_unpin_object(oh, (struct Object*)value);
+      }
+    }
+    value = v;
+    return *this;
+  }
+
+};
+
+
+
+

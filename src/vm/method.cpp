@@ -266,17 +266,6 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
 
 
-void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method) {
-
-  if (oh->optimizedMethodsSize + 1 >= oh->optimizedMethodsLimit) {
-    oh->optimizedMethodsLimit *= 2;
-    oh->optimizedMethods = (struct CompiledMethod**)realloc(oh->optimizedMethods, oh->optimizedMethodsLimit * sizeof(struct CompiledMethod*));
-    assert(oh->optimizedMethods != NULL);
-
-  }
-  oh->optimizedMethods[oh->optimizedMethodsSize++] = method;
-
-}
 
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_UNOPTIMIZER
@@ -287,20 +276,21 @@ void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
   method->isInlined = oh->cached.false_object;
   method->calleeCount = (struct OopArray*)oh->cached.nil;
   method->callCount = smallint_to_object(0);
+  oh->optimizedMethods.erase(method);
 
 }
 
 
 void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symbol) {
-  word_t i, j;
-  for (i = 0; i < oh->optimizedMethodsSize; i++) {
-    struct CompiledMethod* method = oh->optimizedMethods[i];
+  if (oh->optimizedMethods.empty()) return;
+  for (std::multiset<struct CompiledMethod*>::iterator i = oh->optimizedMethods.begin(); i != oh->optimizedMethods.end(); i++) {
+    struct CompiledMethod* method = *i;
     /*resend?*/
     if (method->selector == symbol) {
       method_unoptimize(oh, method);
       continue;
     }
-    for (j = 0; j < array_size(method->selectors); j++) {
+    for (int j = 0; j < array_size(method->selectors); j++) {
       if (array_elements(method->selectors)[j] == (struct Object*)symbol) {
         method_unoptimize(oh, method);
         break;
@@ -329,7 +319,8 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   method->isInlined = oh->cached.true_object;
-  method_add_optimized(oh, method);
+  oh->optimizedMethods.insert(method);
+
   
 }
 
@@ -529,12 +520,11 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
-  GC_VOLATILE struct Object* argBuffer[16];
   word_t positions, i;
-  GC_VOLATILE struct MethodDefinition *def, *oldDef;
+  Pinned<struct MethodDefinition> def(oh);
+  struct MethodDefinition* oldDef;
 
   def = (struct MethodDefinition*)heap_clone_special(oh, SPECIAL_OOP_METHOD_DEF_PROTO);
-  heap_fixed_add(oh, (struct Object*)def);
   positions = 0;
   for (i = 0; i < n; i++) {
     if (!object_is_smallint(args[i]) && args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
@@ -546,8 +536,8 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   method_remove_optimized_sending(oh, selector);
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
-  copy_words_into(args, n, argBuffer); /*for pinning i presume */
-  oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
+
+  oldDef = method_dispatch_on(oh, selector, args, n, NULL);
   if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
   }
@@ -565,7 +555,6 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
       object_add_role_at(oh, args[i], selector, 1<<i, def);
     }
   }
-  heap_fixed_remove(oh, (struct Object*)def);
   return def;
     
 }

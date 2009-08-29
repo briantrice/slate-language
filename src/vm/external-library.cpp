@@ -235,9 +235,8 @@ struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input) {
 
 struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray * fnHandle, struct OopArray * argsFormat, struct Object* callFormat, struct Object* resultFormat, struct OopArray * argsArr) {
   ext_fn0_t fn;
-  GC_VOLATILE word_t args [MAX_ARG_COUNT];
-  GC_VOLATILE struct Object* fixedArgs [MAX_ARG_COUNT]; /*don't gc*/
-  word_t fixedArgsSize = 0;
+  word_t args[MAX_ARG_COUNT];
+  std::vector<Pinned<struct Object> > fixedArgs(MAX_ARG_COUNT, Pinned<struct Object>(oh));;
   word_t result;
   word_t arg, argCount, outArgIndex = 0, outArgCount;
 
@@ -320,8 +319,6 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct Byte
         memcpy(buffer, (char *) byte_array_elements((struct ByteArray*) element), len-1);
         buffer[len-1] = '\0';
         args[outArgIndex++] = (word_t) buffer;
-        fixedArgs[fixedArgsSize++] = (struct Object*)bufferObject;
-        heap_fixed_add(oh, (struct Object*)bufferObject);
       }
       break;
     case ARG_FORMAT_BYTES:
@@ -462,9 +459,6 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct Byte
     return oh->cached.nil;
   }
 
-  for (arg = 0; arg < fixedArgsSize; ++arg) {
-    heap_fixed_remove(oh, fixedArgs[arg]);
-  }
 
 
   switch ((word_t)resultFormat) { /*preconverted smallint*/
