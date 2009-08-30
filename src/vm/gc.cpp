@@ -282,6 +282,10 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 #endif
   oh->optimizedMethods.erase((struct CompiledMethod*)obj);
 
+#ifdef GC_BUG_CHECK
+  assert(!object_is_pinned(oh, obj));
+#endif
+
   /*we also might want to optimize the removal if we are profiling*/
   if (oh->currentlyProfiling) {
     profiler_delete_method(oh, obj);
@@ -317,6 +321,9 @@ void heap_start_gc(struct object_heap* oh) {
 
 void heap_pin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Pinning %p\n", x);
+
+  assert(object_hash(x) < ID_HASH_RESERVED);
+
   oh->pinnedObjects.insert(x);
 }
 

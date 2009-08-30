@@ -480,6 +480,8 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   struct RoleEntry *entry, *chain;
 
   map = heap_clone_map(oh, obj->map);
+  Pinned<struct RoleTable> mapRoleTable(oh);
+  mapRoleTable = map->roleTable;
   chain = role_table_entry_for_name(oh, obj->map->roleTable, selector);
   object_represent(oh, obj, map);
   
@@ -488,7 +490,8 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
     if (chain->methodDefinition == method) {
 
       /*fix: do we want to copy the roletable*/
-      map->roleTable = role_table_grow_excluding(oh, map->roleTable, 0, NULL);
+      map->roleTable = role_table_grow_excluding(oh, mapRoleTable, 0, NULL);
+      mapRoleTable = map->roleTable;
       heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
 
       /* roleTable is in young memory now so we don't have to store_into*/
@@ -515,10 +518,12 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   }
   
   /*not found, adding role*/
-  map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
+  mapRoleTable = map->roleTable;
+  map->roleTable = role_table_grow_excluding(oh, mapRoleTable, 1, NULL);
+  mapRoleTable = map->roleTable;
   heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
 
-  entry = role_table_insert(oh, map->roleTable, selector);
+  entry = role_table_insert(oh, mapRoleTable, selector);
   entry->name = selector;
   entry->nextRole = oh->cached.nil;
   entry->rolePositions = smallint_to_object(position);
