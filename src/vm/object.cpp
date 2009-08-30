@@ -477,12 +477,16 @@ void object_represent(struct object_heap* oh, struct Object* obj, struct Map* ma
 word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Symbol* selector, word_t position, struct MethodDefinition* method) {
 
   Pinned<struct Map> map(oh);
+  Pinned<struct Map> objMap(oh);
+  Pinned<struct RoleTable> objMapRoleTable(oh);
+  Pinned<struct RoleTable> mapRoleTable(oh);
   struct RoleEntry *entry, *chain;
 
-  map = heap_clone_map(oh, obj->map);
-  Pinned<struct RoleTable> mapRoleTable(oh);
+  objMap = obj->map;
+  objMapRoleTable = obj->map->roleTable;
+  map = heap_clone_map(oh, objMap);
   mapRoleTable = map->roleTable;
-  chain = role_table_entry_for_name(oh, obj->map->roleTable, selector);
+  chain = role_table_entry_for_name(oh, objMapRoleTable, selector);
   object_represent(oh, obj, map);
   
   while (chain != NULL) {
@@ -564,14 +568,17 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
 
   Pinned<struct Map> map(oh);
   Pinned<struct Object> newObj(oh);
-  Pinned<struct SlotEntry> entry(oh);
+  Pinned<struct SlotTable> slotTable(oh);
+  struct SlotEntry* entry;
 
   entry = slot_table_entry_for_name(oh, obj->map->slotTable, name);
   if ((struct Object*)entry != NULL) return NULL;
   map = heap_clone_map(oh, obj->map);
-  map->slotTable = slot_table_grow_excluding(oh, map->slotTable, 1, (struct Symbol*)oh->cached.nil);
-  slot_table_relocate_by(oh, map->slotTable, offset, sizeof(word_t));
-  entry = slot_table_entry_for_inserting_name(oh, map->slotTable, name);
+  slotTable = map->slotTable;
+  map->slotTable = slot_table_grow_excluding(oh, slotTable, 1, (struct Symbol*)oh->cached.nil);
+  slotTable = map->slotTable;
+  slot_table_relocate_by(oh, slotTable, offset, sizeof(word_t));
+  entry = slot_table_entry_for_inserting_name(oh, slotTable, name);
   entry->name = name;
   entry->offset = smallint_to_object(offset);
 
@@ -617,15 +624,18 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
   word_t offset;
   Pinned<struct Object> newObj(oh);
   Pinned<struct Map> map(oh);
-  Pinned<struct SlotEntry> se(oh);
+  Pinned<struct SlotTable> slotTable(oh);
+  struct SlotEntry* se;
   se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
   if ((struct Object*)se == NULL) return obj;
 
   offset = object_to_smallint(se->offset);
   map = heap_clone_map(oh, obj->map);
   map->slotCount = smallint_to_object(object_to_smallint(map->slotCount) - 1);
-  map->slotTable = slot_table_grow_excluding(oh, map->slotTable, -1, se->name);
-  slot_table_relocate_by(oh, map->slotTable, offset, -sizeof(word_t));
+  slotTable = map->slotTable;
+  map->slotTable = slot_table_grow_excluding(oh, slotTable, -1, se->name);
+  slotTable = map->slotTable;
+  slot_table_relocate_by(oh, slotTable, offset, -sizeof(word_t));
 
   if (object_type(obj) == TYPE_OBJECT) {
     newObj = heap_allocate(oh, object_size(obj)-1);

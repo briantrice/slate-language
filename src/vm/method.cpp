@@ -522,7 +522,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
 
   word_t positions, i;
   Pinned<struct MethodDefinition> def(oh);
-  struct MethodDefinition* oldDef;
+  Pinned<struct MethodDefinition> oldDef(oh);
 
   def = (struct MethodDefinition*)heap_clone_special(oh, SPECIAL_OOP_METHOD_DEF_PROTO);
   positions = 0;
@@ -538,21 +538,23 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   assert(n<=16);
 
   oldDef = method_dispatch_on(oh, selector, args, n, NULL);
-  if (oldDef == NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
+  if (oldDef == (struct Object*)NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
   }
-  if (oldDef != NULL) {
+  if (oldDef != (struct Object*)NULL) {
     method_pic_flush_caller_pics(oh, (struct CompiledMethod*)oldDef->method);
   }
   def->method = method;
   heap_store_into(oh, (struct Object*) def, (struct Object*) method);
   def->dispatchPositions = positions;
+  Pinned<struct Object> arg(oh);
   for (i = 0; i < n; i++) {
-    if (!object_is_smallint(args[i]) && args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
-      if (oldDef != NULL) {
-        object_remove_role(oh, args[i], selector, oldDef);
+    arg = args[i];
+    if (!object_is_smallint(arg) && (struct Object*)arg != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
+      if (oldDef != (struct Object*)NULL) {
+        object_remove_role(oh, arg, selector, oldDef);
       }
-      object_add_role_at(oh, args[i], selector, 1<<i, def);
+      object_add_role_at(oh, arg, selector, 1<<i, def);
     }
   }
   return def;

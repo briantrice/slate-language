@@ -1027,13 +1027,22 @@ public:
     if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
-  T* operator ->() {return value; }
+  T* operator ->() {
+#ifdef GC_BUG_CHECK
+
+    assert(object_hash((struct Object*)value) < ID_HASH_RESERVED);
+    
+#endif
+    return value;
+  }
   ~Pinned() {
     if (value != 0 && !object_is_smallint((struct Object*)value)) {
       heap_unpin_object(oh, (struct Object*)value);
     }
   }
-  operator struct Object* () {return (struct Object*)value;}
+  operator struct Object* () {
+    return (struct Object*)value;
+  }
   operator struct RoleTable* () {return (struct RoleTable*)value;}
   operator struct SlotTable* () {return (struct SlotTable*)value;}
   operator byte_t* () {return (byte_t*)value;}
@@ -1046,7 +1055,7 @@ public:
   operator struct Symbol* () {return (struct Symbol*)value;}
   const Pinned<T>& operator=(T *v) { 
     if (v != value) {
-      if (!object_is_smallint((struct Object*)v)) {
+      if (v != NULL && !object_is_smallint((struct Object*)v)) {
         heap_pin_object(oh, (struct Object*)v);
       }
       if (value != 0 && !object_is_smallint((struct Object*)value)) {

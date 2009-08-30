@@ -221,6 +221,11 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
 
   assert(bytes % sizeof(word_t) == 0);
 
+#ifdef GC_BUG_CHECK
+  heap_full_gc(oh);
+  oh->nextFree = (struct Object*)oh->memoryYoung;
+#endif
+
  start:
   if (!object_in_memory(oh, oh->nextFree, oh->memoryYoung, oh->memoryYoungSize)) {
     oh->nextFree = (struct Object*)oh->memoryYoung;
@@ -329,6 +334,8 @@ void heap_pin_object(struct object_heap* oh, struct Object* x) {
 
 void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Unpinning %p\n", x);
+  // don't check the idhash because forwardTo: will free the object
+  //assert(object_hash(x) < ID_HASH_RESERVED);
   oh->pinnedObjects.erase(x);
 }
 
