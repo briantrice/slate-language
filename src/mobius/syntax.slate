@@ -567,6 +567,16 @@ block@(Syntax Block traits) topLevel
   block parentScope topLevel
 ].
 
+block@(Syntax Block traits) outermostBlock
+"Answers the outermost scope that is still a Block or MethodDefinition and not
+a Namespace."
+[| scope |
+  scope: block.
+  [scope parentScope isSameAs: block surroundings Namespace]
+    whileFalse: [scope: scope parentScope].
+  scope
+].
+
 block@(Syntax Block traits) findVariable: name
 "Searches through the current scope, and then upward, for the entry
 corresponding to the given name, and answers what it can find, or Nil if none."

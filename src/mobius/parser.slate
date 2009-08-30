@@ -190,9 +190,12 @@ p@(Syntax Parser traits) parseLiteral
 p@(Syntax Parser traits) parseTypeOf: node
 [| token oldScope |
   oldScope: p currentScope.
-  p currentScope: (p currentScope for: p typesNamespace).
+  p currentScope: (p currentScope topLevel for: p typesNamespace).
   [token: (p nextToken &interactive: p parseInteractively). token isSameAs: p surroundings Token Type]
-    whileTrue: [node type: (p parseAtom ifNil: [^ (p error: 'No type given after type declaration marker.')] ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace])].
+    whileTrue: [node type:
+      (p parseAtom
+        ifNil: [^ (p error: 'No type given after type declaration marker.')]
+        ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace])].
   p undoToken: token.
   p currentScope: oldScope.
   node
