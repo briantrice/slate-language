@@ -1,9 +1,20 @@
 
 prototypes ensureNamespace: #relations &delegate: True.
 relations define: #Relation &parents: {Cloneable}.
-
 "Relations are objects that map objects to an arbitrary number of other
 objects, and include a protocol of relational algebra."
+
+r@(Relation traits) applyTo: x
+[overrideThis].
+
+r@(Relation traits) inverseApplyTo: x
+[overrideThis].
+
+r@(Relation traits) applyToAll: x
+[overrideThis].
+
+r@(Relation traits) inverseApplyToAll: x
+[overrideThis].
 
 relations define: #Top &builder: [Relation clone].
 
@@ -13,33 +24,29 @@ relations define: #IdentityRelation &parents: {Relation}.
 
 ir@(IdentityRelation traits) applyTo: x
 "Identities return the element input."
-[
-  x
-].
+[{x}].
 
 ir@(IdentityRelation traits) inverseApplyTo: x
 "Identities return the element input."
-[
-  x
-].
+[{x}].
+
+ir@(IdentityRelation traits) applyToAll: objs
+[objs].
+
+ir@(IdentityRelation traits) inverseApplyToAll: objs
+[objs].
 
 ir@(IdentityRelation traits) invert
 "The inverse of an identity is that identity."
-[
-  ir
-].
+[ir].
 
 ir@(IdentityRelation traits) transitiveClosure
 "The transitive closure of an identity is that identity."
-[
-  ir
-].
+[ir].
 
 ir@(IdentityRelation traits) reflexiveClosure
 "The reflexive closure of an identity is that identity."
-[
-  ir
-].
+[ir].
 
 relations define: #UnaryArgumentRelation &parents: {Relation}
   &slots: {#relation}.
@@ -49,6 +56,10 @@ uar@(UnaryArgumentRelation traits) newFor: rel
 
 relations define: #InvertedRelation &parents: {UnaryArgumentRelation}.
 "This represents the result of an inversion of a relation."
+
+r@(Relation traits) invert
+[
+].
 
 ir@(InvertedRelation traits) applyTo: obj
 [
@@ -90,11 +101,11 @@ mr@(MappingRelation traits) applyTo: obj
 ].
 
 mr@(MappingRelation traits) inverseApplyTo: obj
-[| result |
-  result: Set new.
-  mr mapping doWithIndex: [| :each :index |
-    each = obj ifTrue: [result add: index]].
-  result
+[
+  [| :result |
+   mr mapping doWithIndex: [| :each :index |
+      each = obj ifTrue: [result add: index]]
+  ] writingAs: Set
 ].
 
 relations define: #AssociationTable &parents: {Relation}
@@ -102,19 +113,73 @@ relations define: #AssociationTable &parents: {Relation}
 "A Set of Associations with no organizational restrictions."
 
 at@(AssociationTable traits) applyTo: obj
-[| result |
-  result: Set new.
-  at associations
-     do: [| :each | each key = obj
-		ifTrue: [result add: each value]].
-  result
+[
+  [| :result |
+   at associations
+     do: [| :each | each key = obj ifTrue: [result add: each value]].
+  ] writingAs: Set
 ].
 
 at@(AssociationTable traits) inverseApplyTo: obj
-[| result |
-  result: Set new.
-  at associations
-     do: [| :each | each value = obj
-		ifTrue: [result add: each key]].
-  result
+[
+  [| :result |
+   at associations
+     do: [| :each | each value = obj ifTrue: [result nextPut: each key]].
+  ] writingAs: Set
+].
+
+relations define: #NAryRelation &parents: {Relation}
+  &slots: {#elements -> {}}.
+
+r@(NAryRelation traits) newFor: rels
+[r cloneSettingSlots: #(elements) to: {rels}].
+
+relations define: #RelationIntersection &parents: {NAryRelation}.
+
+r1@(Relation traits) /\ r2@(Relation traits)
+[RelationIntersection newFor: {r1. r2}].
+
+r@(RelationIntersection traits) applyTo: obj
+[
+  r elements gather: [| :a :b | (a applyTo: obj) /\ (b applyTo: obj)] &initial: {}
+].
+
+r@(RelationIntersection traits) inverseApplyTo: obj
+[
+  r elements gather: [| :a :b | (a inverseApplyTo: obj) /\ (b inverseApplyTo: obj)] &initial: {}
+].
+
+r@(RelationIntersection traits) applyToAll: obj
+[
+  r elements gather: [| :a :b | (a applyToAll: obj) /\ (b applyToAll: obj)] &initial: {}
+].
+
+r@(RelationIntersection traits) inverseApplyToAll: obj
+[
+  r elements gather: [| :a :b | (a inverseApplyToAll: obj) /\ (b inverseApplyToAll: obj)] &initial: {}
+].
+
+relations define: #RelationUnion &parents: {NAryRelation}.
+
+r1@(Relation traits) \/ r2@(Relation traits)
+[RelationUnion newFor: {r1. r2}].
+
+r@(RelationUnion traits) applyTo: obj
+[
+  r elements gather: [| :a :b | (a applyTo: obj) \/ (b applyTo: obj)] &initial: {}
+].
+
+r@(RelationUnion traits) inverseApplyTo: obj
+[
+  r elements gather: [| :a :b | (a inverseApplyTo: obj) \/ (b inverseApplyTo: obj)] &initial: {}
+].
+
+r@(RelationUnion traits) applyToAll: obj
+[
+  r elements gather: [| :a :b | (a applyToAll: obj) \/ (b applyToAll: obj)] &initial: {}
+].
+
+r@(RelationUnion traits) inverseApplyToAll: obj
+[
+  r elements gather: [| :a :b | (a inverseApplyToAll: obj) \/ (b inverseApplyToAll: obj)] &initial: {}
 ].
