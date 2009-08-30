@@ -54,7 +54,8 @@ endif
 
 ## All required executables
 
-CC          := g++
+CC          := gcc
+CPP         := g++
 CP          := cp -f
 LIBTOOL     ?= libtool
 ECHO        := echo
