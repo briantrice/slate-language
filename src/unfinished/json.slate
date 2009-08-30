@@ -4,33 +4,13 @@ ensureNamespace: #JSON.
 "TODO: float precision, see writeFloat"
 "TODO: string encoding"
 
-JSON define: #Reader &parents: {Cloneable}
-  &slots: {#stream.
-           #generator}.
+JSON define: #ReadStream &parents: {ReadStream WrapperStream}.
 
-JSON Reader traits define: #HexDigits &builder: [Dictionary newWithAll: {$A -> 10. $B -> 11. $C -> 12. $D -> 13. $E -> 14. $F -> 15}].
+JSON ReadStream traits define: #HexDigits &builder: [Dictionary newWithAll: {$A -> 10. $B -> 11. $C -> 12. $D -> 13. $E -> 14. $F -> 15}].
 
-JSON define: #IterationError &parents: {DescriptiveError}.
-
-JSON define: #StreamGenerator &slots: {#stream}.
-
-sg@(JSON StreamGenerator traits) newWithContent: aReadStream
+json@(JSON traits) read: src
 [
-  sg clone `>> [stream: aReadStream.]
-].
-
-sg@(JSON StreamGenerator traits) peek
-[
-  sg stream isAtEnd
-    ifTrue: [Nil]
-    ifFalse: [sg stream peek]
-].
-
-sg@(JSON StreamGenerator traits) next [ sg stream next ].
-
-json@(JSON traits) read: aString
-[
-  json Reader read: aString
+  (json ReadStream newOn: src) contents
 ].
 
 json@JSON write: obj &escapedForwardSlash: boolean
@@ -39,20 +19,20 @@ json@JSON write: obj &escapedForwardSlash: boolean
    w write: obj &escapedForwardSlash: boolean] writingAs: String
 ].
 
+json@JSON reader
+[
+  json ReadStream
+].
+
+json@JSON writer
+[
+  json WriteStream
+].
+
 JSON define: #WriteError &parents: {DescriptiveError}.
 JSON define: #ReadError &parents: {DescriptiveError}.
 
-r@(JSON Reader traits) read: aString
-[
-  r generator: (JSON StreamGenerator newWithContent: aString reader).
-  r readItem
-].
-
-r@(JSON Reader traits) next [ r generator next ].
-
-r@(JSON Reader traits) peek [ r generator peek ].
-
-r@(JSON Reader traits) eatWhitespace
+r@(JSON ReadStream traits) eatWhitespace
 [| peek |
   peek: r peek.
   [(peek isNotNil /\ [peek isWhitespace]) \/ [peek = $/]]
@@ -62,11 +42,55 @@ r@(JSON Reader traits) eatWhitespace
       peek: r peek].
 ].
 
-s@(String traits) readFrom: r@(JSON Reader traits)
+r@(JSON ReadStream traits) nextHexDigitToInt
+[| char |
+  char: r next.
+  (char isDigit: 16)
+    ifTrue: [char toDigit: 16]
+    ifFalse:
+      [(JSON ReadError newDescription: 'Not a valid hex character.') signal]
+].
+
+r@(JSON ReadStream traits) hexDigit
+[
+  (4096 * r nextHexDigitToInt) + (256 * r nextHexDigitToInt) + (16 * r nextHexDigitToInt) + r nextHexDigitToInt
+].
+
+r@(JSON ReadStream traits) readComment
+[| second |
+  r next. "Eats one forward slash."
+  second: r next.
+  second = $/
+    ifTrue: [r readDoubleSolidusComment]
+    ifFalse:
+      [second = $*
+         ifTrue: [r readCStyleComment]
+         ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
+].
+
+r@(JSON ReadStream traits) readDoubleSolidusComment
+[| ch |
+  ch: r next.
+  [ch = $\n \/ [ch = $\r]] whileFalse: [ch: r next].
+].
+
+r@(JSON ReadStream traits) readCStyleComment
+[| ch |
+  ch: r next.
+  [[ch = $* /\ (r peek = $/)]
+    whileFalse: [
+      (ch = $/ /\ [r peek = $*])
+              ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
+        ifFalse: [ch: r next]].
+    r next] on: Error do: [| :c |
+      (JSON ReadError newDescription: 'Not a valid JSON comment. CStyle comment unfinished') signal]
+].
+
+s@(String traits) readFrom: r@(JSON ReadStream traits)
 [
   [| :result |
-   r next.
-   [r peek = $\"]
+   r next. "Skip the opening quote."
+   [r peek = $\"] "Terminate on a matching quote."
      whileFalse:
        [| ch |
         ch: r next.
@@ -88,55 +112,11 @@ s@(String traits) readFrom: r@(JSON Reader traits)
    r next] writingAs: s
 ].
 
-r@(JSON Reader traits) nextHexDigitToInt
-[| char |
-  char: r next.
-  (char isDigit: 16)
-    ifTrue: [char toDigit: 16]
-    ifFalse:
-      [(JSON ReadError newDescription: 'Not a valid hex character.') signal]
-].
-
-r@(JSON Reader traits) hexDigit
-[
-  (4096 * r nextHexDigitToInt) + (256 * r nextHexDigitToInt) + (16 * r nextHexDigitToInt) + r nextHexDigitToInt
-].
-
-r@(JSON Reader traits) readComment
-[| second |
-  r next. "Eats one forward slash."
-  second: r next.
-  second = $/
-    ifTrue: [r readDoubleSolidusComment]
-    ifFalse:
-      [second = $*
-         ifTrue: [r readCStyleComment]
-         ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
-].
-
-r@(JSON Reader traits) readDoubleSolidusComment
-[| ch |
-  ch: r next.
-  [ch = $\n \/ [ch = $\r]] whileFalse: [ch: r next].
-].
-
-r@(JSON Reader traits) readCStyleComment
-[| ch |
-  ch: r next.
-  [[ch = $* /\ (r peek = $/)]
-    whileFalse: [
-      (ch = $/ /\ [r peek = $*])
-              ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
-        ifFalse: [ch: r next]].
-    r next] on: JSON IterationError do: [| :c |
-      (JSON ReadError newDescription: 'Not a valid JSON comment. CStyle comment unfinished') signal]
-].
-
-a@(Array traits) readFrom: r@(JSON Reader traits)
+a@(Array traits) readFrom: r@(JSON ReadStream traits)
 [| result done |
-  r next.
+  r next. "Skip the opening bracket."
   [| :result |
-   done: r peek = $].
+   done: r peek = $]. "Terminate on a matching close-bracket."
    [done] whileFalse:
      [result nextPut: r readItem.
       r eatWhitespace.
@@ -149,7 +129,7 @@ a@(Array traits) readFrom: r@(JSON Reader traits)
   r next] writingAs: a
 ].
 
-d@(Dictionary traits) readFrom: r@(JSON Reader traits)
+d@(Dictionary traits) readFrom: r@(JSON ReadStream traits)
 [| result done |
   r next.
   result: d new.
@@ -171,28 +151,28 @@ d@(Dictionary traits) readFrom: r@(JSON Reader traits)
   result
 ].
 
-_@True readFrom: r@(JSON Reader traits)
+_@True readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'true'
     ifTrue: [True]
     ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-_@False readFrom: r@(JSON Reader traits)
+_@False readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'false'
     ifTrue: [False]
     ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-_@Nil readFrom: r@(JSON Reader traits)
+_@Nil readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'null'
     ifTrue: [Nil]
     ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
 ].
 
-n@(Number traits) readFrom: r@(JSON Reader traits)
+n@(Number traits) readFrom: r@(JSON ReadStream traits)
 [| isFloat result peek isNegative |
   isFloat: False.
   result: 0.
@@ -217,7 +197,7 @@ n@(Number traits) readFrom: r@(JSON Reader traits)
   result
 ].
 
-r@(JSON Reader traits) readItem
+r@(JSON ReadStream traits) readItem
 [
   r eatWhitespace.
   r peek
@@ -299,7 +279,7 @@ x@(Root traits) printOn: w@(JSON WriteStream traits)
 ].
 
 UnitTests define: #JSON &parents: {TestCase}.
-"For testing the JSON Reader and WriteStream."
+"For testing the JSON ReadStream and WriteStream."
 
 str@(ASCIIString traits) whitespaceRemoved
 [
@@ -798,22 +778,6 @@ tc@(UnitTests JSON traits) writeEscapedHexCharacter
 [
   tc assert: (JSON write: '\\u1001') whitespaceRemoved = '"\\u1001"'
     description: 'Writing escaped hex character failed.'.
-].
-
-tc@(UnitTests JSON traits) peek
-[| gen |
-  gen: (JSON StreamGenerator newWithContent: 'blabla' reader).
-  tc assert: gen peek = $b description: 'StreamGenerator simple peek does not work.'
-].
-
-tc@(UnitTests JSON traits) next
-[| gen |
-  gen: (JSON StreamGenerator newWithContent: 'blabla' reader).
-  tc assert: gen next = $b description: 'Simple next failed.'.
-  tc assert: gen peek = $l description: 'Second peek failed.'.
-  gen next.
-  gen next.
-  tc assert: gen next = $b description: 'Second next failed.'.
 ].
 
 tc@(UnitTests JSON traits) whitespaceRemoval

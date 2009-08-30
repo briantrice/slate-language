@@ -268,13 +268,13 @@ c@(Counter traits) isAtEnd [False].
 c@(Counter traits) contents
 [c value].
 
-ReadStream traits define: #LineStream &parents: {Stream WrapperStream} &slots: {#trailingNL -> False}.
+ReadStream traits define: #LineStream &parents: {StreamProcessor} &slots: {#trailingNL -> False}.
 "A stream that reads lines of text from a wrapped stream, terminated by
 an appropriate line-ending (\r, \n or \r\n)."
 
 l@(ReadStream LineStream traits) on: s
 [
-  l original: s.
+  l source: s.
   l trailingNL: False.
   l
 ].
@@ -284,7 +284,7 @@ s@(Stream traits) lines [s LineStream newOn: s].
 l@(ReadStream LineStream traits) next
 [
   [| :line |
-    l original `cacheAs: #underlying.
+    l source `cacheAs: #underlying.
     [underlying isAtEnd
         ifTrue: [line collection isEmpty ifTrue: [l exhausted]. False]
         ifFalse: [| char |
