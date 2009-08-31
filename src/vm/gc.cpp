@@ -221,11 +221,6 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
 
   assert(bytes % sizeof(word_t) == 0);
 
-#ifdef GC_BUG_CHECK
-  heap_full_gc(oh);
-  oh->nextFree = (struct Object*)oh->memoryYoung;
-#endif
-
  start:
   if (!object_in_memory(oh, oh->nextFree, oh->memoryYoung, oh->memoryYoungSize)) {
     oh->nextFree = (struct Object*)oh->memoryYoung;
