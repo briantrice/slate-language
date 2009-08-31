@@ -306,7 +306,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       addToPic = TRUE;
     } else {
       def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
-      if (def==NULL) {
+      if ((struct Object*)def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
         printf("PIC miss\n");
@@ -322,7 +322,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     
   }
 
-  if (def == NULL) {
+  if ((struct Object*)def == NULL) {
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
   } else {
 #ifdef PRINT_DEBUG_PIC_HITS
@@ -330,7 +330,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #endif
   }
   Pinned<struct OopArray> optsArray(oh);
-  if (def == NULL) {
+  if ((struct Object*)def == NULL) {
     // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
@@ -520,10 +520,10 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   n = object_to_smallint(resender->inputVariables);
   assert(n <= 16);
   std::vector<Pinned<struct Object> > pinnedArgs(n, Pinned<struct Object>(oh));
-  for (int i = 0; i < n; i++) pinnedArgs[i] = args[i];
+  for (int k = 0; k < n; k++) pinnedArgs[k] = args[k];
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
-  if (def == NULL) {
+  if ((struct Object*)def == NULL) {
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*)args, n, (word_t*)argsArray->elements);
     interpreter_signal_with_with_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON),
@@ -998,8 +998,8 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG_OPCODES
           printf("branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
 #endif
-          table = SSA_REGISTER(tableReg);
-          key = SSA_REGISTER(keyReg);
+          table = (struct OopArray*)SSA_REGISTER(tableReg);
+          key = (struct OopArray*)SSA_REGISTER(keyReg);
 
           interpreter_branch_keyed(oh, i, table, key);
           break;

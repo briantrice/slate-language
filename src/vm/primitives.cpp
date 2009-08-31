@@ -355,7 +355,7 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 	};
 	
 	def = method_is_on_arity(oh, method, selector, array_elements(roles), array_size(roles));
-	if (def == NULL) {
+	if ((struct Object*)def == NULL) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = method;
 		return;
 	};

@@ -1053,6 +1053,8 @@ public:
   operator struct MethodDefinition* () {return (struct MethodDefinition*)value;}
   operator struct Closure* () {return (struct Closure*)value;}
   operator struct Symbol* () {return (struct Symbol*)value;}
+  operator struct LexicalContext* () {return (struct LexicalContext*)value;}
+  operator struct PrimitiveMethod* () {return (struct PrimitiveMethod*)value;}
   const Pinned<T>& operator=(T *v) { 
     if (v != value) {
       if (v != NULL && !object_is_smallint((struct Object*)v)) {

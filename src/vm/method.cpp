@@ -485,19 +485,21 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
 #endif
 
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
-  if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
+  retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
+  if ((struct MethodDefinition*)retval != NULL) return retval;
   return NULL; /*only look at first match*/
 
 #if 0 /*this old code goes through the whole hash table which will take a while in a bad case*/
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
-   if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
+   retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
+   if ((struct MethodDefinition*)retval != NULL) return retval;
   }
   for (i = 0; i < entryStart; i+= CALLER_PIC_ENTRY_SIZE) {
     /*MUST be same as first loop*/
    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
-   if ((retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE))) return retval;
-
+   retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
+   if ((struct MethodDefinition*)retval != NULL) return retval;
   }
 #endif
   return NULL;
