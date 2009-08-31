@@ -20,8 +20,8 @@ m@(Method traits) timeToRun &count: count
   count isNotNil `cacheAs: #countWasGiven.
   count `defaultsTo: 1.
   lobby collectGarbage. "Minimize the dynamic effect of the heap state."
-  countWasGiven ifTrue: [[m do] ensure: [end: time ticksSinceEpoch]]
-                ifFalse: [[count timesRepeat: m] ensure: [end: time ticksSinceEpoch]].
+  countWasGiven ifTrue: [[count timesRepeat: m] ensure: [end: time ticksSinceEpoch]]
+                ifFalse: [[m do] ensure: [end: time ticksSinceEpoch]].
   end - start / time ticksPerSecond / count as: Float
 ].
 
