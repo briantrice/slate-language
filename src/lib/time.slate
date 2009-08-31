@@ -11,12 +11,18 @@ time define: #Time &parents: {Comparable} &slots: {#secondsSinceMidnight -> 0}.
 time define: #Duration &parents: {Comparable} &slots: {#totalSeconds -> 0}.
 "Duration represents a span of time with no particular fixed start point."
 
-m@(Method traits) timeToRun
+_@time ticksSinceEpoch [lobby timeSinceEpoch as: Integer].
+
+m@(Method traits) timeToRun &count: count
 "Returns the number of seconds to execute the method once."
 [| start end |
-  start: (lobby timeSinceEpoch as: Integer).
-  [m do] ensure: [end: (lobby timeSinceEpoch as: Integer)].
-  end - start / time ticksPerSecond as: Float
+  start: time `cache ticksSinceEpoch.
+  count isNotNil `cacheAs: #countWasGiven.
+  count `defaultsTo: 1.
+  lobby collectGarbage. "Minimize the dynamic effect of the heap state."
+  countWasGiven ifTrue: [[m do] ensure: [end: time ticksSinceEpoch]]
+                ifFalse: [[count timesRepeat: m] ensure: [end: time ticksSinceEpoch]].
+  end - start / time ticksPerSecond / count as: Float
 ].
 
 m@(Method traits) duration
@@ -369,7 +375,7 @@ i1@(Instant traits) - i2@(Instant traits)
 
 i@(Instant traits) now
 [
-  i cloneSettingSlots: #(localTime) to: {lobby timeSinceEpoch as: Integer}
+  i cloneSettingSlots: #(localTime) to: i surroundings ticksSinceEpoch
 ].
 
 time define: #DaylightEndDate.
