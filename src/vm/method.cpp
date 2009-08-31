@@ -434,8 +434,12 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 
 
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
+    Pinned<struct OopArray> pinArray(oh);
+    pinArray = callerMethod->calleeCount;
     method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
-    method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) def->method);
+    Pinned<struct CompiledMethod> defMethod(oh);
+    defMethod = (struct CompiledMethod*) def->method;
+    method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) defMethod);
     return;
   }
 
@@ -444,8 +448,12 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
     /* if it's nil, we need to insert it*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
+      Pinned<struct OopArray> pinArray(oh);
+      pinArray = callerMethod->calleeCount;
       method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
-      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) def->method);
+      Pinned<struct CompiledMethod> defMethod(oh);
+      defMethod = (struct CompiledMethod*) def->method;
+      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) defMethod);
       return;
     }
   }
@@ -453,7 +461,9 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
     /*MUST be same as first loop*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
       method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
-      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*)def->method);
+      Pinned<struct CompiledMethod> defMethod(oh);
+      defMethod = (struct CompiledMethod*) def->method;
+      method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*)defMethod);
       return;
     }
   }
@@ -465,7 +475,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                               struct Symbol* selector, word_t arity, struct Object* args[]) {
 
-  struct MethodDefinition* retval;
+  Pinned<struct MethodDefinition> retval(oh);
 #if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
@@ -542,7 +552,9 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
     oldDef = NULL;
   }
   if (oldDef != (struct Object*)NULL) {
-    method_pic_flush_caller_pics(oh, (struct CompiledMethod*)oldDef->method);
+    Pinned<struct CompiledMethod> oldDefMethod(oh);
+    oldDefMethod = (struct CompiledMethod*)oldDef->method;
+    method_pic_flush_caller_pics(oh, (struct CompiledMethod*)oldDefMethod);
   }
   def->method = method;
   heap_store_into(oh, (struct Object*) def, (struct Object*) method);

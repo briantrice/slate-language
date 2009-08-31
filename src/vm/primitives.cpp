@@ -60,7 +60,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
           heap_unpin_object(oh, x);
           heap_forward(oh, x, y);
           /*heap_gc(oh);*/ /* unnecessary waste of time for one object? */
-          cache_specials(oh);
+          //cache_specials(oh);
 	}
 	
 }
@@ -284,14 +284,15 @@ void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t 
 
 /* Method asMethod: selector on: rolesArray */
 void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct MethodDefinition* def;
+        Pinned<struct MethodDefinition> def(oh);
 	Pinned<struct Object> method(oh);
         Pinned<struct Object> roles(oh);
         method = args[0];
         roles = args[2];
 	Pinned<struct Symbol> selector(oh);
         selector = (struct Symbol*)args[1];
-	struct Object* traitsWindow = method->map->delegates->elements[0];
+	Pinned<struct Object> traitsWindow(oh);
+        traitsWindow = method->map->delegates->elements[0];
 	Pinned<struct Object> closure(oh);
 	
 	if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
@@ -339,8 +340,9 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 	
 	struct Object *method = args[0], *traitsWindow;
 	struct OopArray* roles = (struct OopArray*)args[1];
-	struct Symbol* selector = (struct Symbol*)oh->cached.nil;
-	struct MethodDefinition* def;
+	Pinned<struct Symbol> selector(oh);
+        selector = (struct Symbol*)oh->cached.nil;
+	Pinned<struct MethodDefinition> def(oh);
 	word_t i;
 	
 	traitsWindow = method->map->delegates->elements[0];

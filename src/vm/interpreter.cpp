@@ -172,8 +172,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   word_t inputs, framePointer, j, beforeCallStackPointer;
   struct Object** vars;
-  struct LexicalContext* lexicalContext;
-  struct CompiledMethod* method;
+  Pinned<struct LexicalContext> lexicalContext(oh);
+  Pinned<struct CompiledMethod> method(oh);
   
 
 #ifdef PRINT_DEBUG
@@ -286,10 +286,10 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
                                                   struct Object* dispatchers[], word_t arity, struct OopArray* opts,
                                           word_t resultStackPointer/*where to put the return value in the stack*/) {
   Pinned<struct OopArray> argsArray(oh);
-  struct Closure* method;
-  struct Object* traitsWindow;
-  struct MethodDefinition* def;
-  struct CompiledMethod* callerMethod;
+  Pinned<struct Closure> method(oh);
+  Pinned<struct Object> traitsWindow(oh);
+  Pinned<struct MethodDefinition> def(oh);
+  Pinned<struct CompiledMethod> callerMethod(oh);
   word_t addToPic = FALSE;
   callerMethod = oh->cached.interpreter->method;
 
@@ -426,7 +426,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
-    struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
+    Pinned<struct Object> ensureHandler(oh);
+    ensureHandler = i->stack->elements[ensureHandlers+1];
 #ifdef PRINT_DEBUG_ENSURE
   printf("current ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
@@ -491,14 +492,14 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t n, word_t resultStackPointer) {
 
   word_t framePointer;
-  struct LexicalContext* lexicalContext;
-  struct Object *barrier, *traitsWindow;
+  Pinned<struct LexicalContext> lexicalContext(oh);
+  Pinned<struct Object> barrier(oh), traitsWindow(oh);
   struct Object** args;
-  struct Symbol* selector;
+  Pinned<struct Symbol> selector(oh);
   Pinned<struct OopArray> argsArray(oh);
-  struct Closure* method;
-  struct CompiledMethod* resender;
-  struct MethodDefinition* def;
+  Pinned<struct Closure> method(oh);
+  Pinned<struct CompiledMethod> resender(oh);
+  Pinned<struct MethodDefinition> def(oh);
 
   if (n == 0) {
     framePointer = i->framePointer;
@@ -518,6 +519,8 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
   assert(n <= 16);
+  std::vector<Pinned<struct Object> > pinnedArgs(n, Pinned<struct Object>(oh));
+  for (int i = 0; i < n; i++) pinnedArgs[i] = args[i];
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
   if (def == NULL) {
@@ -540,7 +543,8 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   }
 
   if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
-    struct OopArray* optKeys = resender->optionalKeywords;
+    Pinned<struct OopArray> optKeys(oh);
+    optKeys = resender->optionalKeywords;
     interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, NULL, resultStackPointer);
     if (i->closure == method) {
       word_t optKey;
@@ -657,6 +661,13 @@ void interpret(struct object_heap* oh) {
 #endif
 
   cache_specials(oh);
+  std::vector<Pinned<struct Object> > pinnedObjects(6, Pinned<struct Object>(oh));
+  pinnedObjects[0] = (struct Object*) oh->cached.interpreter;
+  pinnedObjects[1] = (struct Object*) oh->cached.true_object;
+  pinnedObjects[2] = (struct Object*) oh->cached.false_object;
+  pinnedObjects[3] = (struct Object*) oh->cached.primitive_method_window;
+  pinnedObjects[4] = (struct Object*) oh->cached.compiled_method_window;
+  pinnedObjects[5] = (struct Object*) oh->cached.closure_method_window;
 
 #ifdef PRINT_DEBUG
   printf("Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
@@ -741,7 +752,7 @@ void interpret(struct object_heap* oh) {
         {
           word_t result, arity, optsArrayReg;
           int k;
-          struct Object *selector;
+          Pinned<struct Object> selector(oh);
           std::vector<Pinned<struct Object> > args(16, Pinned<struct Object>(oh));
           struct Object* argsArray[16];
           Pinned<struct OopArray> optsArray(oh);
@@ -980,11 +991,17 @@ void interpret(struct object_heap* oh) {
           word_t tableReg, keyReg;
           keyReg = SSA_NEXT_PARAM_SMALLINT;
           tableReg = SSA_NEXT_PARAM_SMALLINT;
+
+          Pinned<struct OopArray> table(oh), key(oh);
+
           /*assert(0);*/
 #ifdef PRINT_DEBUG_OPCODES
           printf("branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
 #endif
-          interpreter_branch_keyed(oh, i, (struct OopArray*)SSA_REGISTER(tableReg), SSA_REGISTER(keyReg));
+          table = SSA_REGISTER(tableReg);
+          key = SSA_REGISTER(keyReg);
+
+          interpreter_branch_keyed(oh, i, table, key);
           break;
         }
       case OP_BRANCH_IF_TRUE:
@@ -1073,7 +1090,9 @@ void interpret(struct object_heap* oh) {
           printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, 0, SSA_REGISTER(reg), prevPointer);
+          Pinned<struct Object> result(oh);
+          result = SSA_REGISTER(reg);
+          interpreter_return_result(oh, i, 0, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -1107,7 +1126,9 @@ void interpret(struct object_heap* oh) {
           printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, offset, SSA_REGISTER(reg), prevPointer);
+          Pinned<struct Object> result(oh);
+          result = SSA_REGISTER(reg);
+          interpreter_return_result(oh, i, offset, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
