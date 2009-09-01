@@ -1,6 +1,6 @@
-#include "slate.h"
+#include "slate.hpp"
 
-void error(char* str) {
+void error(const char* str) {
   fprintf(stderr, "%s", str);
   assert(0);
 }

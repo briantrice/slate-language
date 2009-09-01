@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
@@ -57,9 +57,10 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
 	}
 	
 	if (!object_is_smallint(x) && !object_is_smallint(y) && x != y) {
-		heap_forward(oh, x, y);
-		/*heap_gc(oh);*/ /* unnecessary waste of time for one object? */
-		cache_specials(oh);
+          heap_unpin_object(oh, x);
+          heap_forward(oh, x, y);
+          /*heap_gc(oh);*/ /* unnecessary waste of time for one object? */
+          //cache_specials(oh);
 	}
 	
 }
@@ -190,55 +191,64 @@ void prim_map(struct object_heap* oh, struct Object* args[], word_t arity, struc
 }
 
 void prim_set_map(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	GC_VOLATILE struct Object* obj;
-	GC_VOLATILE struct Map* map;
-	obj = args[0];
-	map = (struct Map*)args[1];
-	
-	if (object_is_smallint(obj) || object_is_immutable(obj)) {
-		oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
-	} else {
-		object_change_map(oh, obj, map);
-		heap_store_into(oh, args[0], args[1]);
-		oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)map;
-	}
-	
+  Pinned<struct Object> obj(oh);
+  Pinned<struct Map> map(oh);
+  obj = args[0];
+  map = (struct Map*)args[1];
+  
+  if (object_is_smallint(obj) || object_is_immutable(obj)) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  } else {
+    object_change_map(oh, obj, map);
+    heap_store_into(oh, args[0], args[1]);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)map;
+  }
+  
 }
 
 #pragma mark Method
 
 void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct Closure *method = (struct Closure*)args[0];
-	struct OopArray* argArray = (struct OopArray*) args[1];
-	struct OopArray* real_opts = NULL;
-	
-	if (opts != NULL && opts->elements[1] != oh->cached.nil) {
-		real_opts = (struct OopArray*) opts->elements[1];
-	}
-	interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
-											  argArray->elements, array_size(argArray), real_opts, resultStackPointer);
+  Pinned<struct Closure> method(oh);
+  Pinned<struct OopArray> argArray(oh);
+  Pinned<struct OopArray> real_opts(oh);
+
+  method = (struct Closure*)args[0];
+  argArray = (struct OopArray*) args[1];
+  
+  if (opts != NULL && opts->elements[1] != oh->cached.nil) {
+    real_opts = (struct OopArray*) opts->elements[1];
+  }
+  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
+                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer);
 }
 
 void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct MethodDefinition* def;
-	struct Symbol* selector= (struct Symbol*) args[0];
-	struct OopArray* arguments= (struct OopArray*) args[1];
+  struct MethodDefinition* def;
+  Pinned<struct Symbol> selector(oh);
+  Pinned<struct OopArray> arguments(oh);
 	
-	
-	def = method_dispatch_on(oh, selector, arguments->elements, array_size(arguments), NULL);
-	
-	oh->cached.interpreter->stack->elements[resultStackPointer] = (def == NULL ? oh->cached.nil : (struct Object*) def->method);
+  selector = (struct Symbol*) args[0];
+  arguments = (struct OopArray*) args[1];
+
+  def = method_dispatch_on(oh, selector, arguments->elements, array_size(arguments), NULL);
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = (def == NULL ? oh->cached.nil : (struct Object*) def->method);
 }
 
 void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 	
-	struct Closure* body = (struct Closure*) args[0];
-	struct Object* ensureHandler = args[1];
-	interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL, resultStackPointer);
-	/*the registers are already allocated on the stack so we don't worry about overwriting them*/
-	interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
-	interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
-	oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
+  Pinned<struct Closure> body(oh);
+  Pinned<struct Object> ensureHandler(oh);
+
+  body = (struct Closure*) args[0];
+  ensureHandler = args[1];
+
+  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL, resultStackPointer);
+  /*the registers are already allocated on the stack so we don't worry about overwriting them*/
+  interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
+  interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
+  oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
 #ifdef PRINT_DEBUG_ENSURE
 	printf("ensure handlers at %" PRIdPTR "\n", oh->cached.interpreter->stackPointer - 2);
 #endif
@@ -274,27 +284,35 @@ void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t 
 
 /* Method asMethod: selector on: rolesArray */
 void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct MethodDefinition* def;
-	GC_VOLATILE struct Object *method = args[0], *roles=args[2];
-	struct Symbol *selector = (struct Symbol*)args[1];
-	struct Object* traitsWindow = method->map->delegates->elements[0];
-	
+        Pinned<struct MethodDefinition> def(oh);
+	Pinned<struct Object> method(oh);
+        Pinned<struct Object> roles(oh);
+        method = args[0];
+        roles = args[2];
+	Pinned<struct Symbol> selector(oh);
+        selector = (struct Symbol*)args[1];
+	Pinned<struct Object> traitsWindow(oh);
+        traitsWindow = method->map->delegates->elements[0];
+	Pinned<struct Object> closure(oh);
 	
 	if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
-		GC_VOLATILE struct Closure* closure = (struct Closure*)heap_clone(oh, method);
-		heap_fixed_add(oh, (struct Object*)closure);
-		closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
-		heap_fixed_remove(oh, (struct Object*)closure);
-		heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
-		closure->method->method = closure->method;
-		closure->method->selector = selector;
+                closure = heap_clone(oh, method);
+		((struct Closure*)closure)->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)((struct Closure*)closure)->method);
+		heap_store_into(oh, (struct Object*)closure, (struct Object*)((struct Closure*)closure)->method);
+		((struct Closure*)closure)->method->method = ((struct Closure*)closure)->method;
+		((struct Closure*)closure)->method->selector = selector;
 		method = (struct Object*)closure;
 	} else {
-		GC_VOLATILE struct CompiledMethod* closure= (struct CompiledMethod*)heap_clone(oh, method);
-		closure->method = closure;
-		closure->selector = selector;
+                
+                closure = heap_clone(oh, method);
+		((struct CompiledMethod*)closure)->method = closure;
+		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
+        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+        for (int i = 0; i < object_array_size(roles); i++) {
+          pinnedRoles[i] = ((struct OopArray*)roles)->elements[i];
+        }
 	def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
 	def->slotAccessor = oh->cached.nil;
 	method_flush_cache(oh, selector);
@@ -322,8 +340,9 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 	
 	struct Object *method = args[0], *traitsWindow;
 	struct OopArray* roles = (struct OopArray*)args[1];
-	struct Symbol* selector = (struct Symbol*)oh->cached.nil;
-	struct MethodDefinition* def;
+	Pinned<struct Symbol> selector(oh);
+        selector = (struct Symbol*)oh->cached.nil;
+	Pinned<struct MethodDefinition> def(oh);
 	word_t i;
 	
 	traitsWindow = method->map->delegates->elements[0];
@@ -336,7 +355,7 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 	};
 	
 	def = method_is_on_arity(oh, method, selector, array_elements(roles), array_size(roles));
-	if (def == NULL) {
+	if ((struct Object*)def == NULL) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = method;
 		return;
 	};
@@ -352,28 +371,36 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 }
 
 void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	GC_VOLATILE struct Object *method = args[0], *slot = args[2];
-	struct OopArray *roles = (struct OopArray*)args[3];
-	struct Symbol* selector = (struct Symbol*)args[1];
-	struct Object* traitsWindow = method->map->delegates->elements[0];
-	struct MethodDefinition* def;
+  Pinned<struct Object> method(oh);
+  method = args[0];
+  Pinned<struct Object> slot(oh);
+  slot = args[2];
+  Pinned<struct OopArray> roles(oh);
+  roles = (struct OopArray*)args[3];
+  Pinned<struct Symbol> selector(oh);
+  selector = (struct Symbol*)args[1];
+  struct Object* traitsWindow = method->map->delegates->elements[0];
+  struct MethodDefinition* def;
+  Pinned<struct Object> closure(oh);
 	
 	if (traitsWindow == oh->cached.closure_method_window) {
-		GC_VOLATILE struct Closure* closure = (struct Closure*)heap_clone(oh, method);
-		heap_fixed_add(oh, (struct Object*)closure);
-		closure->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)closure->method);
-		heap_fixed_remove(oh, (struct Object*)closure);
-		heap_store_into(oh, (struct Object*)closure, (struct Object*)closure->method);
-		closure->method->method = closure->method;
-		closure->method->selector = selector;
+	        closure = heap_clone(oh, method);
+		((struct Closure*)closure)->method = (struct CompiledMethod*)heap_clone(oh, (struct Object*)((struct Closure*)closure)->method);
+		heap_store_into(oh, (struct Object*)closure, (struct Object*)((struct Closure*)closure)->method);
+		((struct Closure*)closure)->method->method = ((struct Closure*)closure)->method;
+		((struct Closure*)closure)->method->selector = selector;
 		method = (struct Object*)closure;
 	} else if (traitsWindow == oh->cached.compiled_method_window){
-		GC_VOLATILE struct CompiledMethod* closure = (struct CompiledMethod*)heap_clone(oh, method);
-		closure->method = closure;
-		closure->selector = selector;
+		closure = heap_clone(oh, method);
+		((struct CompiledMethod*)closure)->method = closure;
+		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
-	
+        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+        for (int i = 0; i < object_array_size(roles); i++) {
+          pinnedRoles[i] = roles->elements[i];
+        }
+
 	def = method_define(oh, method, selector, roles->elements, array_size(roles));
 	def->slotAccessor = slot;
 	method_flush_cache(oh, selector);
@@ -644,8 +671,9 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
 /*FIXME this is a copy of the last function with only the select call changed*/
 void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 
-  GC_VOLATILE struct OopArray* selectOn = (struct OopArray*) args[0];
-  GC_VOLATILE struct OopArray* readyPipes;
+  Pinned<struct OopArray> selectOn(oh);
+  selectOn = (struct OopArray*) args[0];
+  Pinned<struct OopArray> readyPipes(oh);
   word_t waitTime = object_to_smallint(args[1]);
   int retval, fdCount, maxFD;
   struct timeval tv;
@@ -723,8 +751,8 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
   word_t ret;
   struct sockaddr_storage addr;
   socklen_t len;
-  GC_VOLATILE struct ByteArray* addrArray;
-  GC_VOLATILE struct OopArray* result;
+  Pinned<struct ByteArray> addrArray(oh);
+  Pinned<struct OopArray> result(oh);
 
   ASSURE_SMALLINT_ARG(0);
 
@@ -738,9 +766,7 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
     return;
   }
   
-  heap_fixed_add(oh, (struct Object*)addrArray);
   result = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
-  heap_fixed_remove(oh, (struct Object*)addrArray);
 
   object_array_set_element(oh, (struct Object*)result, 0, smallint_to_object(ret));
   object_array_set_element(oh, (struct Object*)result, 1, (struct Object*)addrArray);
@@ -839,7 +865,8 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     word_t count, i;
     struct addrinfo* ai = oh->socketTickets[ticket].addrResult;
     struct addrinfo* current = ai;
-    GC_VOLATILE struct OopArray* retval;
+    Pinned<struct OopArray> retval(oh);
+    Pinned<struct OopArray> aResult(oh);
     count = 0;
     while (current != NULL) {
       current = current->ai_next;
@@ -847,12 +874,11 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
     }
     current = ai;
     retval = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count);
-    heap_fixed_add(oh, (struct Object*)retval);
     oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)retval;
     heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)retval);
     
     for (i = 0; i < count; i++) {
-      GC_VOLATILE struct OopArray* aResult = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 6);
+      aResult = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 6);
       struct ByteArray* aResultAddr;
       struct ByteArray* aResultCanonName;
       word_t canonNameLen = (current->ai_canonname == NULL)? 0 : strlen(current->ai_canonname);
@@ -878,9 +904,6 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
 
       current = current->ai_next;
     }
-
-    heap_fixed_remove(oh, (struct Object*)retval);
-
 
   }
 }
@@ -912,7 +935,7 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
   struct sockaddr_in* sin;
   struct sockaddr_in6* sin6;
   struct sockaddr_un* sun;
-  GC_VOLATILE struct ByteArray* ret;
+  Pinned<struct ByteArray> ret(oh);
   
   ASSURE_SMALLINT_ARG(0);
 
@@ -1150,7 +1173,7 @@ int slate_refresh_systeminfo(struct object_heap* oh) {
 }
 
 void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  GC_VOLATILE struct ByteArray *result;
+  struct ByteArray* result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
     resultLength = strlen(oh->platform_info.nodename);
@@ -1164,7 +1187,7 @@ void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 void prim_system_release(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  GC_VOLATILE struct ByteArray *result;
+  struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
     resultLength = strlen(oh->platform_info.release);
@@ -1178,7 +1201,7 @@ void prim_system_release(struct object_heap* oh, struct Object* args[], word_t a
 }
 
 void prim_system_version(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  GC_VOLATILE struct ByteArray *result;
+  struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
     resultLength = strlen(oh->platform_info.version);
@@ -1192,7 +1215,7 @@ void prim_system_version(struct object_heap* oh, struct Object* args[], word_t a
 }
 
 void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  GC_VOLATILE struct ByteArray *result;
+  struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
     resultLength = strlen(oh->platform_info.sysname);
@@ -1206,7 +1229,7 @@ void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t 
 }
 
 void prim_system_machine(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  GC_VOLATILE struct ByteArray *result;
+  struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
     resultLength = strlen(oh->platform_info.machine);
@@ -1323,7 +1346,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   int64_t time;
   int i;
-  GC_VOLATILE struct ByteArray* timeArray;
+  struct ByteArray* timeArray;
   const int arraySize = 8;
 
   timeArray = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), arraySize);
@@ -1343,7 +1366,7 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
-  if (object_is_smallint(handle) && object_is_smallint(offset) && byte_array_size(addressBuffer) >= sizeof(word_t)) {
+  if (object_is_smallint(handle) && object_is_smallint(offset) && (unsigned)byte_array_size(addressBuffer) >= sizeof(word_t)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] =
                            smallint_to_object(memarea_addressof(oh,
                                                               (int)object_to_smallint(handle), 
@@ -1569,7 +1592,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 #else
 	pid_t retval;
 	int pipes[2];
-	GC_VOLATILE struct OopArray* array;
+	struct OopArray* array;
 	
 	/* make two pipes that we can use exclusively in each process to talk to the other */
 	/*FIXME remap fds for safety*/
@@ -1740,7 +1763,7 @@ void prim_vmArgCount(struct object_heap* oh, struct Object* args[], word_t arity
 void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t i;
   int len;
-  GC_VOLATILE struct ByteArray* array;
+  struct ByteArray* array;
   ASSURE_SMALLINT_ARG(1);  
   i = object_to_smallint(args[1]);
   len = strlen(oh->argvSaved[i]);
@@ -1754,22 +1777,19 @@ void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, str
 void prim_environmentVariables(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   int i, len;
   word_t lenstr;
-  GC_VOLATILE struct OopArray* array;
+  Pinned<struct OopArray> array(oh);
 
   len = 0;
   while (oh->envp[len]) len++;
 
   array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), len);
-  heap_fixed_add(oh, (struct Object*)array);
 
   for (i = 0; i < len; i++) {
     lenstr = strlen(oh->envp[i]);
     array->elements[i] = (struct Object*) heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), lenstr);
     copy_bytes_into((byte_t*)oh->envp[i], lenstr, ((struct ByteArray*)array->elements[i])->elements);
-
+    heap_store_into(oh, (struct Object*) array, (struct Object*) array->elements[i]);
   }
-
-  heap_fixed_remove(oh, (struct Object*)array);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
@@ -1790,7 +1810,7 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
 
 void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   word_t count, i, arrayEntry;
-  GC_VOLATILE struct OopArray* array;
+  Pinned<struct OopArray> array(oh);
   const int entrySize = 3;
 
   count = 0;
@@ -1799,7 +1819,6 @@ void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word
   }
 
   array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count * entrySize);
-  heap_fixed_add(oh, (struct Object*)array);
 
   arrayEntry = 0;
   for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
@@ -1810,8 +1829,6 @@ void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word
     array->elements[arrayEntry + 2] = smallint_to_object(oh->profiler_entries[i].callTime);
     arrayEntry += entrySize;
   }
-
-  heap_fixed_remove(oh, (struct Object*)array);
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
@@ -1869,9 +1886,9 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
   heap_full_gc(oh);
   totalSize = oh->memoryOldSize + oh->memoryYoungSize;
   forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
-  memoryStart = calloc(1, totalSize);
+  memoryStart = (byte_t*)calloc(1, totalSize);
   writeObject = (struct Object*)memoryStart;
-  forwardPointers = calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
+  forwardPointers = (struct ForwardPointerEntry*)calloc(1, forwardPointerEntryCount * sizeof(struct ForwardPointerEntry));
   assert(memoryStart != NULL);
   copy_used_objects(oh, &writeObject, oh->memoryOld, oh->memoryOldSize, forwardPointers, forwardPointerEntryCount);
   copy_used_objects(oh, &writeObject, oh->memoryYoung, oh->memoryYoungSize, forwardPointers, forwardPointerEntryCount);
@@ -1885,7 +1902,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
   sih.current_dispatch_id = oh->current_dispatch_id;
 	
   if (fwrite(&sih, sizeof(struct slate_image_header), 1, imageFile) != 1
-      || fwrite(memoryStart, 1, totalSize, imageFile) != totalSize) {
+      || fwrite(memoryStart, 1, totalSize, imageFile) != (size_t)totalSize) {
     fprintf(stderr, "Error writing image!\n");
   }
   fclose(imageFile);

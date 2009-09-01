@@ -55,6 +55,7 @@ endif
 ## All required executables
 
 CC          := gcc
+CPP         := g++
 CP          := cp -f
 LIBTOOL     ?= libtool
 ECHO        := echo
@@ -70,7 +71,9 @@ EMACS       := emacs
 
 INCLUDES    += 
 CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOURCE=200112L
-CFLAGS      += $(COPTFLAGS) -std=c99 -Wall -pedantic -Wno-unknown-pragmas -pthread $(PRINT_DEBUG)  $(INCLUDES)
+CFLAGS      += $(COPTFLAGS) -Wall -Wno-unknown-pragmas -pthread $(PRINT_DEBUG) $(EXTRACFLAGS)  $(INCLUDES)
+# include -pedantic later fixme
+
 
 ## Determine the host system's byte order.
 ## This creates a temporary test executable in the $(slateroot) directory
