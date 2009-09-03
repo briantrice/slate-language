@@ -719,7 +719,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > args(16, Pinned<struct Object>(oh));
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           struct Object* argsArray[16];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
@@ -732,14 +732,12 @@ void interpret(struct object_heap* oh) {
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
             word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            args[k] = SSA_REGISTER(argReg);
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d@%" PRIdPTR "] = ", k, argReg);
             print_type(oh, args[k]);
 #endif
-          }
-          for (int k = 0; k < 16; k++) {
-            argsArray[k] = args[k];
           }
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray, arity, NULL, i->framePointer + result);
 #ifdef PRINT_DEBUG_OPCODES
@@ -753,7 +751,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optsArrayReg;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > args(16, Pinned<struct Object>(oh));
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           struct Object* argsArray[16];
           Pinned<struct OopArray> optsArray(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
@@ -768,14 +766,12 @@ void interpret(struct object_heap* oh) {
 #endif
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
-            args[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            argsArray[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d] = ", k);
             print_type(oh, args[k]);
 #endif
-          }
-          for (int k = 0; k < 16; k++) {
-            argsArray[k] = args[k];
           }
 
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray,

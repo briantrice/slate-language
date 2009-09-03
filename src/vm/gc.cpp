@@ -82,8 +82,8 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   obj->map = NULL;
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
-#if 0
-  fill_words_with((word_t*)(obj+1), words-sizeof(struct Object), 0);
+#ifdef GC_BUG_CHECK
+  fill_words_with((word_t*)(obj+1), words-sizeof(struct Object), 0xFE);
 #endif
   return obj;
 }
@@ -695,6 +695,10 @@ struct Object* heap_allocate(struct object_heap* oh, word_t words) {
 
 struct Object* heap_clone(struct object_heap* oh, struct Object* proto) {
   struct Object* newObj;
+  //usually the caller should pin the objects but here we make an exception
+  //if this got GC'd, then the copy_words_into would get garbage
+  Pinned<struct Object> pinnedProto(oh);
+  pinnedProto = proto;
   
   if (object_type(proto) == TYPE_OBJECT) {
     newObj = heap_allocate(oh, object_size(proto));
