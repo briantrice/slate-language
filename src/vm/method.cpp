@@ -82,10 +82,12 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   dispatch = NULL;
   slotLocation = NULL;
 
+#ifndef SLATE_DISABLE_METHOD_CACHE
   if (resendMethod == NULL && arity <= METHOD_CACHE_ARITY) {
     dispatch = method_check_cache(oh, name, arguments, arity);
     if (dispatch != NULL) return dispatch;
   }
+#endif
 
   oh->current_dispatch_id++;
   bestRank = 0;
@@ -257,9 +259,12 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 #endif
 
   }
+
+#ifndef SLATE_DISABLE_METHOD_CACHE
   if (dispatch != NULL && resendMethod == 0 && arity < METHOD_CACHE_ARITY) {
     method_save_cache(oh, dispatch, name, arguments, arity);
   }
+#endif
 
   return dispatch;
 }
