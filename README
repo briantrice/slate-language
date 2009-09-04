@@ -110,6 +110,29 @@ Inspect an object       -> print print_detail(oh, struct Object*)
 See the stack           -> print print_stack_types(oh, 200)
 
 
+Build flags (e.g.  make vmclean && make DEBUG=1
+EXTRACFLAGS="-DGC_BUG_CHECK -DSLATE_DISABLE_METHOD_OPTIMIZATION
+-DSLATE_DISABLE_PIC_LOOKUP"):
+
+GC_BUG_CHECK: extra features for debugging the GC
+
+SLATE_DISABLE_METHOD_OPTIMIZATION: Don't optimize methods after
+calling them a lot. Right now it sets method->oldCode to the current
+code. In the future it should do inlining.
+
+SLATE_DISABLE_PIC_LOOKUP: At the call site in the current method there
+is a cache of called functions which is checked after the global cache
+when doing method dispatch.
+
+SLATE_USE_MMAP: Use mmap to allocate the object memory. You should be
+able to get constant pointers between runnings so that you can debug
+by learning memory addresses from previous runs.
+
+PRINT_DEBUG and the many PRINT_DEBUG_*: Print more verbose output to
+the console.
+
+See the source for more.
+
 Source directory structure
 --------------------------
 

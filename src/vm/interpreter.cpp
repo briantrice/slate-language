@@ -188,11 +188,12 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   assert(n <= 16);
 
+#ifdef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
   if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
     method_optimize(oh, method);
   }
-
+#endif
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
     Pinned<struct OopArray> argsArray(oh);
@@ -348,7 +349,10 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   }
 
   /*PIC add here*/
+#ifndef SLATE_DISABLE_PIC_LOOKUP
   if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+#endif
+
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {

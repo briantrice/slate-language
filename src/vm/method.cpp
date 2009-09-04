@@ -475,6 +475,10 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                               struct Symbol* selector, word_t arity, struct Object* args[]) {
 
+#ifdef SLATE_DISABLE_PIC_LOOKUP
+  return NULL;
+#endif
+
   Pinned<struct MethodDefinition> retval(oh);
 #if 0
   word_t i;

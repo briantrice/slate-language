@@ -83,7 +83,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
 #ifdef GC_BUG_CHECK
-  fill_words_with((word_t*)(obj+1), words-sizeof(struct Object), 0xFE);
+  fill_bytes_with((byte_t*)(obj+1), words*sizeof(word_t)-sizeof(struct Object), 0xFE);
 #endif
   return obj;
 }
@@ -593,6 +593,7 @@ void heap_sweep_young(struct object_heap* oh) {
 
 void heap_mark_pinned(struct object_heap* oh) {
   if (oh->pinnedObjects.empty()) return;
+  //fixme set iterator or multiset iterator?
   for (std::set<struct Object*>::iterator i = oh->pinnedObjects.begin(); i != oh->pinnedObjects.end(); i++) {
     heap_mark(oh, *i);
   }
