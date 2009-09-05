@@ -522,9 +522,7 @@ struct object_heap
 #define PRINTOP(X)
 #endif
 
-#define inc_ptr(xxx, yyy)     ((byte_t*)xxx + yyy)
-
-
+byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
@@ -1004,7 +1002,7 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 
 
-
+void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
 
 
 
@@ -1023,7 +1021,7 @@ public:
   T* value;
   struct object_heap* oh;
   Pinned(struct object_heap* oh_) : value(0), oh(oh_) { }
-  Pinned(T* v, struct object_heap* oh_) : value(v), oh(oh_) {
+  Pinned(struct object_heap* oh_, T* v) : value(v), oh(oh_) {
     if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
@@ -1035,6 +1033,7 @@ public:
 #endif
     return value;
   }
+
   ~Pinned() {
     if (value != 0 && !object_is_smallint((struct Object*)value)) {
       heap_unpin_object(oh, (struct Object*)value);

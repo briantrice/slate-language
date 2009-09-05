@@ -527,6 +527,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   for (int k = 0; k < n; k++) pinnedArgs[k] = args[k];
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
+  pinnedArgs[0] = args[0];
   if ((struct Object*)def == NULL) {
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*)args, n, (word_t*)argsArray->elements);

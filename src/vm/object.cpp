@@ -101,7 +101,7 @@ word_t object_array_offset(struct Object* o) {
 }
 
 byte_t* byte_array_elements(struct ByteArray* o) {
-  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset((struct Object*)o));
+  byte_t* elements = (byte_t*)inc_ptr((struct Object*)o, object_array_offset((struct Object*)o));
   return elements;
 }
 
@@ -737,7 +737,7 @@ void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, wor
 void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount) {
 
   word_t offset, limit;
-  o->map = (struct Map*) inc_ptr(o->map, shift_amount);
+  o->map = (struct Map*) inc_ptr((struct Object*)o->map, shift_amount);
   offset = object_first_slot_offset(o);
   limit = object_last_oop_offset(o) + sizeof(word_t);
   for (; offset != limit; offset += sizeof(word_t)) {
