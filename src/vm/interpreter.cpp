@@ -662,6 +662,9 @@ void interpret(struct object_heap* oh) {
 
  /* we can set a conditional breakpoint if the vm crash is consistent */
   unsigned long int instruction_counter = 0;
+#if SLATE_CUSTOM_BREAKPOINT
+  word_t myBreakpoint = 0;
+#endif
 
 #ifdef PRINT_DEBUG
   printf("Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
@@ -711,8 +714,12 @@ void interpret(struct object_heap* oh) {
         globalInterrupt = 0;
       }
 
+#ifdef SLATE_CUSTOM_BREAKPOINT
+      if (instruction_counter > 11475843) {
+        myBreakpoint++;
+      }
+#endif
 
-      
       instruction_counter++;
       prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
