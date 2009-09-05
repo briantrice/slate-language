@@ -225,6 +225,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
       heap_store_into(oh, (struct Object*)i->stack, args[j]);
     }
   }
+  //std::vector<Pinned<struct Object> > pinnedVars(n, Pinned<struct Object>(oh));
+  //for (word_t k = 0; k < n; k++) pinnedVars[k] = vars[k];
 
 
   copy_words_into(args, inputs, vars);
@@ -361,6 +363,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #endif
     profiler_leave_current(oh);
     profiler_enter_method(oh, (struct Object*)method);
+    Pinned<struct OopArray> pinnedStack(oh);
+    pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
     profiler_leave_current(oh);
     profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);

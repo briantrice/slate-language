@@ -570,14 +570,14 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   def->method = method;
   heap_store_into(oh, (struct Object*) def, (struct Object*) method);
   def->dispatchPositions = positions;
-  Pinned<struct Object> arg(oh);
+
+
   for (i = 0; i < n; i++) {
-    arg = args[i];
-    if (!object_is_smallint(arg) && (struct Object*)arg != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
+    if (!object_is_smallint(args[i]) && (struct Object*)args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
       if (oldDef != (struct Object*)NULL) {
-        object_remove_role(oh, arg, selector, oldDef);
+        object_remove_role(oh, args[i], selector, oldDef);
       }
-      object_add_role_at(oh, arg, selector, 1<<i, def);
+      object_add_role_at(oh, args[i], selector, 1<<i, def);
     }
   }
   return def;

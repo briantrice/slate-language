@@ -294,6 +294,10 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 	Pinned<struct Object> traitsWindow(oh);
         traitsWindow = method->map->delegates->elements[0];
 	Pinned<struct Object> closure(oh);
+        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+        for (int i = 0; i < object_array_size(roles); i++) {
+          pinnedRoles[i] = ((struct OopArray*)roles)->elements[i];
+        }
 	
 	if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
                 closure = heap_clone(oh, method);
@@ -309,10 +313,6 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
-        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
-        for (int i = 0; i < object_array_size(roles); i++) {
-          pinnedRoles[i] = ((struct OopArray*)roles)->elements[i];
-        }
 	def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
 	def->slotAccessor = oh->cached.nil;
 	method_flush_cache(oh, selector);
@@ -382,6 +382,10 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
   struct Object* traitsWindow = method->map->delegates->elements[0];
   struct MethodDefinition* def;
   Pinned<struct Object> closure(oh);
+  std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+  for (int i = 0; i < object_array_size(roles); i++) {
+    pinnedRoles[i] = roles->elements[i];
+  }
 	
 	if (traitsWindow == oh->cached.closure_method_window) {
 	        closure = heap_clone(oh, method);
@@ -396,10 +400,6 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
 		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
-        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
-        for (int i = 0; i < object_array_size(roles); i++) {
-          pinnedRoles[i] = roles->elements[i];
-        }
 
 	def = method_define(oh, method, selector, roles->elements, array_size(roles));
 	def->slotAccessor = slot;
