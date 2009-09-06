@@ -542,6 +542,7 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
   word_t positions, i;
+  struct Object* argBuffer[16];
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct MethodDefinition> oldDef(oh);
 
@@ -558,7 +559,8 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
 
-  oldDef = method_dispatch_on(oh, selector, args, n, NULL);
+  copy_words_into(args, n, argBuffer); /* method_dispatch_on modifies its arguments (first argument)*/
+  oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
   if (oldDef == (struct Object*)NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
   }

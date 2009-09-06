@@ -683,6 +683,9 @@ void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
 
   heap_forward_from(oh, x, y, oh->memoryOld, oh->memoryOldSize);
   heap_forward_from(oh, x, y, oh->memoryYoung, oh->memoryYoungSize);
+#ifdef GC_BUG_CHECK
+  assert(heap_what_points_to(oh, x, 1) == 0);
+#endif
   heap_free_object(oh, x);
 }
 
