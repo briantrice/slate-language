@@ -601,6 +601,21 @@ void heap_mark_pinned(struct object_heap* oh) {
 }
 
 
+void heap_pin_c_stack_diff(struct object_heap* oh) {
+  word_t stackTop;
+  word_t** stack = (word_t**)oh->stackBottom;
+  while ((void*)stack > (void*)&stackTop) {
+    struct Object* obj = (struct Object*)*stack;
+    if ((object_is_young(oh, obj) || object_is_old(oh, obj))
+        && !object_is_smallint(obj)
+        && !object_is_marked(oh, obj)) {
+      print_object(obj);
+    }
+    stack--;
+   }
+ 
+ }
+
 
 void heap_full_gc(struct object_heap* oh) {
   heap_start_gc(oh);
@@ -610,6 +625,11 @@ void heap_full_gc(struct object_heap* oh) {
   heap_mark_specials(oh, 1);
   heap_mark_interpreter_stack(oh, 1);
   heap_mark_recursively(oh, 1);
+
+#ifdef GC_BUG_CHECK
+  heap_pin_c_stack_diff(oh);
+#endif
+
   /*  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
   heap_tenure(oh);
@@ -630,6 +650,9 @@ void heap_gc(struct object_heap* oh) {
   heap_mark_interpreter_stack(oh, 0);
   heap_mark_remembered_young(oh);
   heap_mark_recursively(oh, 0);
+#ifdef GC_BUG_CHECK
+  heap_pin_c_stack_diff(oh);
+#endif
   /*heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
   heap_sweep_young(oh);
   heap_finish_gc(oh);
