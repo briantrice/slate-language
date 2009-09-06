@@ -95,6 +95,21 @@ struct Object* heap_make_used_space(struct object_heap* oh, struct Object* obj, 
 }
 
 
+void heap_zero_pin_counts_from(struct object_heap* oh, byte_t* memory, word_t memorySize) {
+
+  struct Object* o = (struct Object*)memory;
+
+  while (object_in_memory(oh, o, memory, memorySize)) {
+    if (!object_is_free(o)) {
+      object_zero_pin_count(o);
+    }
+    o = object_after(oh, o);
+  }
+
+
+}
+
+
 bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t young_limit, word_t next_hash, word_t special_oop, word_t cdid) {
 #ifdef SLATE_USE_MMAP
   void* oldStart = (void*)0x10000000;
@@ -153,8 +168,7 @@ void heap_close(struct object_heap* oh) {
 #endif
 }
 bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
-  return oh->pinnedObjects.find(x) != oh->pinnedObjects.end();
-  
+  return object_pin_count(x) > 0;
 }
 
 bool_t object_is_remembered(struct object_heap* oh, struct Object* x) {
@@ -324,14 +338,14 @@ void heap_pin_object(struct object_heap* oh, struct Object* x) {
 
   assert(object_hash(x) < ID_HASH_RESERVED);
 
-  oh->pinnedObjects.insert(x);
+  object_increment_pin_count(x);
 }
 
 void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Unpinning %p\n", x);
   // don't check the idhash because forwardTo: will free the object
   //assert(object_hash(x) < ID_HASH_RESERVED);
-  oh->pinnedObjects.erase(x);
+  object_decrement_pin_count(x);
 }
 
 void heap_remember_young_object(struct object_heap* oh, struct Object* x) {
@@ -592,10 +606,16 @@ void heap_sweep_young(struct object_heap* oh) {
 }
 
 void heap_mark_pinned(struct object_heap* oh) {
-  if (oh->pinnedObjects.empty()) return;
-  //fixme set iterator or multiset iterator?
-  for (std::set<struct Object*>::iterator i = oh->pinnedObjects.begin(); i != oh->pinnedObjects.end(); i++) {
-    heap_mark(oh, *i);
+  struct Object* obj = (struct Object*) oh->memoryYoung;
+  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+    if (object_hash(obj) < ID_HASH_RESERVED && object_pin_count(obj) > 0) heap_mark(oh, obj);
+    obj = object_after(oh, obj);
+  }
+
+  obj = (struct Object*)oh->memoryOld;
+  while (object_in_memory(oh, obj, oh->memoryOld, oh->memoryOldSize)) {
+    if (object_hash(obj) < ID_HASH_RESERVED && object_pin_count(obj) > 0) heap_mark(oh, obj);
+    obj = object_after(oh, obj);
   }
 
 }
@@ -712,6 +732,7 @@ struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, 
   payload_set_size(o, payload_size);
   object_set_size(o, words);
   object_set_mark(oh, o);
+  object_zero_pin_count(o);
   assert(!object_is_free(o));
   return o;
 }

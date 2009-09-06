@@ -16,6 +16,37 @@ SLATE_INLINE word_t object_hash(struct Object* xxx)       { return  ((((xxx)->he
 SLATE_INLINE word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
 SLATE_INLINE word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
 SLATE_INLINE word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
+SLATE_INLINE word_t object_pin_count(struct Object* xxx)     {return     ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);}
+
+void object_increment_pin_count(struct Object* xxx)     {
+  word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
+  assert (count != PINNED_MASK);
+  count++;
+  if (count > 10) {
+    printf("inc %d ", (int)count); print_object(xxx);
+  }
+  if (count == PINNED_MASK) {
+    assert(0);
+  }
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+  xxx->header |= count << PINNED_OFFSET;
+}
+void object_decrement_pin_count(struct Object* xxx)     {
+  word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
+  //this could happen for the forwardTo: call since we manually unpin it
+  //assert (count > 0);
+  if (count > 10) {
+    printf("dec %d ", (int)count); print_object(xxx);
+  }
+  if (count == 0) return;
+  count--;
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+  xxx->header |= count << PINNED_OFFSET;
+}
+
+void object_zero_pin_count(struct Object* xxx)     {
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+}
 
 
 void object_set_mark(struct object_heap* oh, struct Object* xxx) {
