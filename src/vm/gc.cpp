@@ -605,14 +605,16 @@ void heap_sweep_young(struct object_heap* oh) {
 
 }
 
-void heap_mark_pinned(struct object_heap* oh) {
+void heap_mark_pinned_young(struct object_heap* oh) {
   struct Object* obj = (struct Object*) oh->memoryYoung;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     if (object_hash(obj) < ID_HASH_RESERVED && object_pin_count(obj) > 0) heap_mark(oh, obj);
     obj = object_after(oh, obj);
   }
+}
 
-  obj = (struct Object*)oh->memoryOld;
+void heap_mark_pinned_old(struct object_heap* oh) {
+  struct Object* obj = (struct Object*) oh->memoryOld;
   while (object_in_memory(oh, obj, oh->memoryOld, oh->memoryOldSize)) {
     if (object_hash(obj) < ID_HASH_RESERVED && object_pin_count(obj) > 0) heap_mark(oh, obj);
     obj = object_after(oh, obj);
@@ -641,7 +643,8 @@ void heap_full_gc(struct object_heap* oh) {
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryOld, oh->memoryOldSize);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
-  heap_mark_pinned(oh);
+  heap_mark_pinned_young(oh);
+  heap_mark_pinned_old(oh);
   heap_mark_specials(oh, 1);
   heap_mark_interpreter_stack(oh, 1);
   heap_mark_recursively(oh, 1);
@@ -665,7 +668,7 @@ void heap_gc(struct object_heap* oh) {
 #ifndef GC_BUG_CHECK
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
-  heap_mark_pinned(oh);
+  heap_mark_pinned_young(oh);
   heap_mark_specials(oh, 0);
   heap_mark_interpreter_stack(oh, 0);
   heap_mark_remembered_young(oh);

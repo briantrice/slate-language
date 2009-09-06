@@ -687,7 +687,8 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
 void heap_tenure(struct object_heap* oh);
 void heap_mark_remembered_young(struct object_heap* oh);
 void heap_sweep_young(struct object_heap* oh);
-void heap_mark_pinned(struct object_heap* oh);
+void heap_mark_pinned_young(struct object_heap* oh);
+void heap_mark_pinned_old(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
 void heap_gc(struct object_heap* oh);
 void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize);
