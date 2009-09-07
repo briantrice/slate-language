@@ -62,6 +62,7 @@ void print_usage (char *progName) {
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
   //fprintf(stderr, "  -V                    Verbose mode (print extra diagnostic messages)\n");
   fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stdout messages)\n");
+  fprintf(stderr, "  -gc, --show-gc        Show Garbage Collector messages\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
   fprintf(stderr, "\nNotes:\n");
   fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_DEFAULT_IMAGE), xstr (SLATE_DATADIR), xstr (SLATE_DEFAULT_IMAGE));
@@ -79,7 +80,7 @@ int main(int argc, char** argv, char **envp) {
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i, quiet = 0, verbose = 0, fread_num = 0;
+  int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif
@@ -113,6 +114,8 @@ int main(int argc, char** argv, char **envp) {
     } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
       quiet = 1;
       verbose = 0;
+    } else if (strcmp(argv[i], "-gc") == 0 || strcmp(argv[i], "--show-gc") == 0) {
+      quietGC = 0;
     } else if (strcmp(argv[i], "--") == 0) {
       /* GNU convention to ignore all arguments past a --, allowing the image to process anything beyond that. */
       break;
@@ -179,6 +182,7 @@ int main(int argc, char** argv, char **envp) {
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   
   heap->quiet = quiet;
+  heap->quietGC = quietGC;
   heap->envp = envp;
   if (!heap->quiet) {
     printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
