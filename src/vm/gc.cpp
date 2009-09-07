@@ -156,7 +156,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
   oh->rememberedOldObjects.clear();
-
+  oh->doFullGCNext = 1;
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
       || oh->memoryYoung == NULL || oh->memoryYoung == (void*)-1) {
@@ -268,7 +268,11 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
   oh->nextFree = heap_find_first_young_free(oh, oh->nextFree, bytes + sizeof(struct Object));
   if (oh->nextFree == NULL) {
     if (!already_scavenged) {
-      heap_gc(oh);
+      if (oh->doFullGCNext) {
+        heap_full_gc(oh);
+      } else {
+        heap_gc(oh);
+      }
       already_scavenged = 1;
 
     } else if (!already_full_gc) {
@@ -328,7 +332,10 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
   /*we also might want to optimize the removal if we are profiling*/
   if (oh->currentlyProfiling) {
     profiler_delete_method(oh, obj);
+  }
 
+  if (object_is_old(oh, obj)) {
+    oh->rememberedOldObjects.erase(obj);
   }
 
   heap_make_free_space(oh, obj, object_word_size(obj));
@@ -343,6 +350,7 @@ void heap_finish_gc(struct object_heap* oh) {
 
 
 void heap_finish_full_gc(struct object_heap* oh) {
+  oh->doFullGCNext = 0;
   heap_finish_gc(oh);
 }
 
@@ -474,6 +482,11 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
     }
     
   }
+
+  if ((memory == oh->memoryOld) && (object_count / free_count > 2)) {
+    oh->doFullGCNext = 1;
+  }
+
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quiet) {
     printf("GC freed %" PRIdPTR " of %" PRIdPTR " %s objects\n", 

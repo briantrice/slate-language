@@ -401,7 +401,7 @@ struct object_heap
   word_t currentlyProfilingIndex;
   int64_t profilerTimeStart, profilerTimeEnd;
   struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
-
+  word_t doFullGCNext;
 
   /*
    * I call this cached because originally these could move around
