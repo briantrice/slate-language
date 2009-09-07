@@ -82,7 +82,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   obj->map = NULL;
   /*fix should we mark this?*/
   object_set_idhash(obj, ID_HASH_FREE);
-#ifdef GC_BUG_CHECK
+#ifdef GC_MARK_FREED_MEMORY
   fill_bytes_with((byte_t*)(obj+1), words*sizeof(word_t)-sizeof(struct Object), 0xFE);
 #endif
   return obj;
@@ -121,6 +121,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOldSize = size;
   oh->memoryYoungSize = young_limit;
 
+  oh->collectionCycle = 11;
 #ifdef SLATE_USE_MMAP
   assert((byte_t*)oldStart + limit < (byte_t*) youngStart);
   oh->memoryOld = (byte_t*)mmap((void*)oldStart, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
@@ -129,8 +130,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOld = (byte_t*)malloc(limit);
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
-  //  oh->pinnedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
-  oh->rememberedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+  oh->rememberedOldObjects.clear();
 
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
@@ -172,9 +172,8 @@ bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
 }
 
 bool_t object_is_remembered(struct object_heap* oh, struct Object* x) {
-  if (object_is_young(oh, x)) {
-    word_t diff = (byte_t*) x - oh->memoryYoung;
-    return (oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
+  if (object_is_old(oh, x)) {
+    oh->rememberedOldObjects.find(x) != oh->rememberedOldObjects.end();
   }
   return 0;
   
@@ -244,7 +243,12 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
   oh->nextFree = heap_find_first_young_free(oh, oh->nextFree, bytes + sizeof(struct Object));
   if (oh->nextFree == NULL) {
     if (!already_scavenged) {
-      heap_gc(oh);
+      if (oh->collectionCycle > 10) {
+        heap_full_gc(oh);
+        oh->collectionCycle = 0;
+      } else {
+        heap_gc(oh);
+      }
       already_scavenged = 1;
 
     } else if (!already_full_gc) {
@@ -294,7 +298,8 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 #ifdef PRINT_DEBUG_GC_MARKINGS
   printf("freeing "); print_object(obj);
 #endif
-  oh->optimizedMethods.erase((struct CompiledMethod*)obj);
+  //fixme
+  //  oh->optimizedMethods.erase((struct CompiledMethod*)obj);
 
 #ifdef GC_BUG_CHECK
   assert(!object_is_pinned(oh, obj));
@@ -313,8 +318,6 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 
 void heap_finish_gc(struct object_heap* oh) {
   method_flush_cache(oh, NULL);
-  /*unpin the C stack*/
-  //  fill_bytes_with((byte_t*)oh->pinnedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
   /*  cache_specials(oh);*/
 }
 
@@ -322,7 +325,7 @@ void heap_finish_gc(struct object_heap* oh) {
 void heap_finish_full_gc(struct object_heap* oh) {
   heap_finish_gc(oh);
   /*we can forget the remembered set after doing a full GC*/
-  fill_bytes_with((byte_t*)oh->rememberedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
+  oh->rememberedOldObjects.clear();
 }
 
 
@@ -330,7 +333,7 @@ void heap_finish_full_gc(struct object_heap* oh) {
 void heap_start_gc(struct object_heap* oh) {
   oh->mark_color ^= MARK_MASK;
   oh->markStackPosition = 0;
-  
+  oh->collectionCycle++;
 }
 
 void heap_pin_object(struct object_heap* oh, struct Object* x) {
@@ -348,13 +351,12 @@ void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   object_decrement_pin_count(x);
 }
 
-void heap_remember_young_object(struct object_heap* oh, struct Object* x) {
-  if (object_is_young(oh, x) && !object_is_smallint(x)) {
-    word_t diff = (byte_t*) x - oh->memoryYoung;
+void heap_remember_old_object(struct object_heap* oh, struct Object* x) {
+  if (object_is_old(oh, x) && !object_is_smallint(x)) {
 #if 0
     printf("remembering "); print_object(x);
 #endif
-    oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] |= 1 << (diff % PINNED_CARD_SIZE);
+    oh->rememberedOldObjects.insert(x);
   }
   
 }
@@ -435,7 +437,7 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
   word_t freed_words = 0, coalesce_count = 0, free_count = 0, object_count = 0;
   while (object_in_memory(oh, obj, memory, memorySize)) {
     object_count++;
-    if (!object_is_marked(oh, obj)) {
+    if (!object_is_free(obj) && !object_is_marked(oh, obj)) {
       free_count++;
       freed_words += object_word_size(obj);
       heap_free_object(oh, obj);
@@ -452,9 +454,9 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
   }
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quiet) {
-    printf("Full GC freed %" PRIdPTR " of %" PRIdPTR " old objects\n", 
-           free_count, object_count);
-    printf("Full GC coalesced %" PRIdPTR " times\n", coalesce_count);
+    printf("GC freed %" PRIdPTR " of %" PRIdPTR " %s objects\n", 
+           free_count, object_count, ((memory == oh->memoryOld)? "old":"new"));
+    printf("GC coalesced %" PRIdPTR " times\n", coalesce_count);
   }
 #endif
 }
@@ -514,6 +516,11 @@ void heap_tenure(struct object_heap* oh) {
   
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
+    if (object_is_free(obj)) {
+      obj = object_after(oh, obj);
+      continue;
+    }
+
     object_count++;
     if (!object_is_marked(oh, obj)) {
       free_count++;
@@ -571,64 +578,48 @@ void heap_tenure(struct object_heap* oh) {
 }
 
 
-void heap_mark_remembered_young(struct object_heap* oh) {
-  struct Object* obj = (struct Object*) oh->memoryYoung;
+void heap_mark_remembered(struct object_heap* oh) {
   word_t object_count = 0, remember_count = 0;
-  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+
+  for (std::set<struct Object*>::iterator i = oh->rememberedOldObjects.begin();
+       i != oh->rememberedOldObjects.end();
+       i++) {
+    struct Object* o = *i;
+    word_t offset, limit, foundSomething;
     object_count++;
-    if (object_hash(obj) < ID_HASH_RESERVED && object_is_remembered(oh, obj)) {
-      heap_mark(oh, obj);
+    foundSomething = 0;
+
+    if (object_is_young(oh, (struct Object*)o->map)) {
       remember_count++;
+      foundSomething = 1;
+      heap_mark(oh, (struct Object*)o->map);
     }
-    obj = object_after(oh, obj);
-  }
 
-#ifdef PRINT_DEBUG_GC_2
-  if (!oh->quiet) {
-    printf("Young GC found %" PRIdPTR " of %" PRIdPTR " objects were pointed to by old objects\n", 
-           remember_count, object_count);
-  }
-#endif
-
-}
-
-
-void heap_sweep_young(struct object_heap* oh) {
-  word_t young_count = 0, young_word_count = 0, object_count = 0;
-  
-  struct Object* obj = (struct Object*) oh->memoryYoung;
-  struct Object* prev = obj;
-  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
-    object_count++;
-    /* the pinned objects are ones on the C stack or rememberedSet (from heap_store_into)*/
-    if (object_is_free(obj) && !object_is_pinned(oh, obj)) {
-#ifdef GC_BUG_CHECK
-      assert(0 == heap_what_points_to_in(oh, obj, oh->memoryOld, oh->memoryOldSize, 0));
-#endif
-      young_count++;
-      young_word_count += object_word_size(obj);
-      if (object_is_free(prev) && obj != prev) {
-        /*run hooks for free object before coalesce */
-        heap_free_object(oh, obj);
-        heap_make_free_space(oh, prev, object_word_size(obj)+object_word_size(prev));
-        obj = object_after(oh, prev);
-        continue;
-      } else {
-        heap_free_object(oh, obj);
+    offset = object_first_slot_offset(o);
+    limit = object_last_oop_offset(o) + sizeof(word_t);
+    for (; offset != limit; offset += sizeof(word_t)) {
+      struct Object* val = object_slot_value_at_offset(o, offset);
+      if (!object_is_smallint(val) && object_is_young(oh, val)) {
+        remember_count++;
+        foundSomething = 1;
+        heap_mark(oh, val);
       }
     }
-    prev = obj;
-    obj = object_after(oh, obj);
+    if (foundSomething == 0) {
+      oh->rememberedOldObjects.erase(o);
+    }
   }
+
+
 #ifdef PRINT_DEBUG_GC_2
   if (!oh->quiet) {
-    printf("Young GC freed %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " words) (%f%%)\n", 
-           young_count, object_count, young_word_count, (double)100.0*(double)young_count/(double)object_count);
+    printf("Young GC found %" PRIdPTR " old objects pointing to %" PRIdPTR " young objects\n", 
+           object_count, remember_count);
   }
 #endif
-  oh->nextFree = (struct Object*)oh->memoryYoung;
 
 }
+
 
 void heap_mark_pinned_young(struct object_heap* oh) {
   struct Object* obj = (struct Object*) oh->memoryYoung;
@@ -678,8 +669,9 @@ void heap_full_gc(struct object_heap* oh) {
   heap_pin_c_stack_diff(oh);
 #endif
 
-  /*  heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
+  //this frees the old objects
   heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
+  //this frees the young objects and moves them over
   heap_tenure(oh);
 #ifdef GC_BUG_CHECK
   printf("GC integrity check...\n");
@@ -690,19 +682,22 @@ void heap_full_gc(struct object_heap* oh) {
 }
 
 void heap_gc(struct object_heap* oh) {
-#ifndef GC_BUG_CHECK
+#ifndef ALWAYS_FULL_GC
   heap_start_gc(oh);
   heap_unmark_all(oh, oh->memoryYoung, oh->memoryYoungSize);
   heap_mark_pinned_young(oh);
   heap_mark_specials(oh, 0);
   heap_mark_interpreter_stack(oh, 0);
-  heap_mark_remembered_young(oh);
+  heap_mark_remembered(oh);
   heap_mark_recursively(oh, 0);
 #ifdef GC_BUG_CHECK
   heap_pin_c_stack_diff(oh);
 #endif
-  /*heap_print_marks(oh, oh->memoryYoung, oh->memoryYoungSize);*/
-  heap_sweep_young(oh);
+  // this frees the young objects
+  heap_free_and_coalesce_unmarked(oh, oh->memoryYoung, oh->memoryYoungSize);
+
+  oh->nextFree = (struct Object*)oh->memoryYoung;
+
   heap_finish_gc(oh);
 #else
   heap_full_gc(oh);
@@ -744,8 +739,8 @@ SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, st
     assert(object_hash(src) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
   }
 
-  if (/*object_is_young(oh, dest) && (implicit by following cmd)*/ object_is_old(oh, src)) {
-    heap_remember_young_object(oh, dest);
+  if (object_is_young(oh, dest) && object_is_old(oh, src)) {
+    heap_remember_old_object(oh, src);
   }
 }
 
