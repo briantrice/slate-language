@@ -129,8 +129,7 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOld = (byte_t*)malloc(limit);
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
-  oh->rememberedYoungObjectsByteSize = (oh->memoryYoungSize / OLD_TO_NEW_CARD_SIZE + 1) * sizeof(word_t);
-  oh->rememberedYoungObjects = (word_t*)calloc(1, oh->rememberedYoungObjectsByteSize);
+  oh->rememberedOldObjects.clear();
 
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
@@ -172,9 +171,8 @@ bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
 }
 
 bool_t object_is_remembered(struct object_heap* oh, struct Object* x) {
-  if (object_is_young(oh, x)) {
-    word_t diff = (byte_t*) x - oh->memoryYoung;
-    return (oh->rememberedYoungObjects[diff / OLD_TO_NEW_CARD_SIZE] & (1 << (diff % OLD_TO_NEW_CARD_SIZE))) != 0;
+  if (object_is_old(oh, x)) {
+    oh->rememberedOldObjects.find(x) != oh->rememberedOldObjects.end();
   }
   return 0;
   
@@ -320,7 +318,7 @@ void heap_finish_gc(struct object_heap* oh) {
 void heap_finish_full_gc(struct object_heap* oh) {
   heap_finish_gc(oh);
   /*we can forget the remembered set after doing a full GC*/
-  fill_bytes_with((byte_t*)oh->rememberedYoungObjects, oh->rememberedYoungObjectsByteSize, 0);
+  oh->rememberedOldObjects.clear();
 }
 
 
@@ -346,13 +344,12 @@ void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   object_decrement_pin_count(x);
 }
 
-void heap_remember_young_object(struct object_heap* oh, struct Object* x) {
-  if (object_is_young(oh, x) && !object_is_smallint(x)) {
-    word_t diff = (byte_t*) x - oh->memoryYoung;
+void heap_remember_old_object(struct object_heap* oh, struct Object* x) {
+  if (object_is_old(oh, x) && !object_is_smallint(x)) {
 #if 0
     printf("remembering "); print_object(x);
 #endif
-    oh->rememberedYoungObjects[diff / OLD_TO_NEW_CARD_SIZE] |= 1 << (diff % OLD_TO_NEW_CARD_SIZE);
+    oh->rememberedOldObjects.insert(x);
   }
   
 }
@@ -569,22 +566,37 @@ void heap_tenure(struct object_heap* oh) {
 }
 
 
-void heap_mark_remembered_young(struct object_heap* oh) {
-  struct Object* obj = (struct Object*) oh->memoryYoung;
+void heap_mark_remembered(struct object_heap* oh) {
   word_t object_count = 0, remember_count = 0;
-  while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+
+  for (std::set<struct Object*>::iterator i = oh->rememberedOldObjects.begin();
+       i != oh->rememberedOldObjects.end();
+       i++) {
+    struct Object* o = *i;
+    word_t offset, limit;
     object_count++;
-    if (object_hash(obj) < ID_HASH_RESERVED && object_is_remembered(oh, obj)) {
-      heap_mark(oh, obj);
+
+    if (object_is_young(oh, (struct Object*)o->map)) {
       remember_count++;
+      heap_mark(oh, (struct Object*)o->map);
     }
-    obj = object_after(oh, obj);
+
+    offset = object_first_slot_offset(o);
+    limit = object_last_oop_offset(o) + sizeof(word_t);
+    for (; offset != limit; offset += sizeof(word_t)) {
+      struct Object* val = object_slot_value_at_offset(o, offset);
+      if (!object_is_smallint(val) && object_is_young(oh, val)) {
+        remember_count++;
+        heap_mark(oh, val);
+      }
+    }
   }
+
 
 #ifdef PRINT_DEBUG_GC_2
   if (!oh->quiet) {
-    printf("Young GC found %" PRIdPTR " of %" PRIdPTR " objects were pointed to by old objects\n", 
-           remember_count, object_count);
+    printf("Young GC found %" PRIdPTR " old objects pointing to %" PRIdPTR " young objects\n", 
+           object_count, remember_count);
   }
 #endif
 
@@ -694,7 +706,7 @@ void heap_gc(struct object_heap* oh) {
   heap_mark_pinned_young(oh);
   heap_mark_specials(oh, 0);
   heap_mark_interpreter_stack(oh, 0);
-  heap_mark_remembered_young(oh);
+  heap_mark_remembered(oh);
   heap_mark_recursively(oh, 0);
 #ifdef GC_BUG_CHECK
   heap_pin_c_stack_diff(oh);
@@ -742,8 +754,8 @@ SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, st
     assert(object_hash(src) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
   }
 
-  if (/*object_is_young(oh, dest) && (implicit by following cmd)*/ object_is_old(oh, src)) {
-    heap_remember_young_object(oh, dest);
+  if (object_is_young(oh, dest) && object_is_old(oh, src)) {
+    heap_remember_old_object(oh, src);
   }
 }
 
