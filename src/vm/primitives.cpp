@@ -128,8 +128,8 @@ void prim_clone(struct object_heap* oh, struct Object* args[], word_t arity, str
 
 /* Cloneable cloneSettingSlots: slotNamesArray to: valuesArray */
 void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct Object *obj = args[0], *slotArray = args[1], *valueArray = args[2], *newObj;
-	word_t i;
+  Pinned<struct Object> obj(oh, args[0]), slotArray(oh, args[1]), valueArray(oh, args[2]), newObj(oh);
+  word_t i;
 	
 	if (object_is_smallint(obj)) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = obj;
@@ -154,8 +154,8 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
 }
 
 void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct Object* obj = args[0], *value = args[2];
-	struct Symbol* name = (struct Symbol*)args[1];
+  Pinned<struct Object> obj(oh, args[0]), value(oh, args[2]);
+  Pinned<struct Symbol> name(oh, (struct Symbol*)args[1]);
 	
 	if (object_is_smallint(obj)) {
 		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, resultStackPointer);
@@ -165,8 +165,8 @@ void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], 
 }
 
 void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-	struct Object* obj = args[0];
-	struct Symbol* name = (struct Symbol*)args[1];
+  Pinned<struct Object> obj(oh, args[0]);
+  Pinned<struct Symbol> name(oh, (struct Symbol*)args[1]);
 	
 	if (object_is_smallint(obj)) {
 		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, resultStackPointer);
@@ -256,30 +256,30 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, st
 }
 
 void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {
-	struct Symbol* selector = (struct Symbol*)args[0];
-	struct OopArray* opts, *arguments = (struct OopArray*)args[1];
+  Pinned<struct Symbol> selector(oh,(struct Symbol*)args[0]);
+  Pinned<struct OopArray> opts(oh), arguments(oh, (struct OopArray*)args[1]);
 	
-	if (optionals == NULL) {
-		opts = NULL;
-	} else {
-		opts = (struct OopArray*)optionals->elements[1];
-		if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
-	}
-	send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts, resultStackPointer); 
+  if (optionals == NULL) {
+    opts = NULL;
+  } else {
+    opts = (struct OopArray*)optionals->elements[1];
+    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  }
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts, resultStackPointer); 
 }
 
 void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {
-	struct Symbol* selector = (struct Symbol*)args[0];
-	struct OopArray* opts, * arguments = (struct OopArray*)args[1], *dispatchers = (struct OopArray*)args[2];
+  Pinned<struct Symbol> selector(oh, (struct Symbol*)args[0]);
+  Pinned<struct OopArray> opts(oh), arguments(oh, (struct OopArray*)args[1]), dispatchers(oh, (struct OopArray*)args[2]);
 	
-	if (optionals == NULL) {
-		opts = NULL;
-	} else {
-		opts = (struct OopArray*)optionals->elements[1];
-		if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
-	}
-	/*fix check array sizes are the same*/
-	send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts, resultStackPointer); 
+  if (optionals == NULL) {
+    opts = NULL;
+  } else {
+    opts = (struct OopArray*)optionals->elements[1];
+    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  }
+  /*fix check array sizes are the same*/
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts, resultStackPointer); 
 }
 
 /* Method asMethod: selector on: rolesArray */
@@ -294,6 +294,10 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 	Pinned<struct Object> traitsWindow(oh);
         traitsWindow = method->map->delegates->elements[0];
 	Pinned<struct Object> closure(oh);
+        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+        for (int i = 0; i < object_array_size(roles); i++) {
+          pinnedRoles[i] = ((struct OopArray*)roles)->elements[i];
+        }
 	
 	if (traitsWindow == get_special(oh, SPECIAL_OOP_CLOSURE_WINDOW)) {
                 closure = heap_clone(oh, method);
@@ -309,10 +313,6 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
-        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
-        for (int i = 0; i < object_array_size(roles); i++) {
-          pinnedRoles[i] = ((struct OopArray*)roles)->elements[i];
-        }
 	def = method_define(oh, method, (struct Symbol*)selector, ((struct OopArray*)roles)->elements, object_array_size(roles));
 	def->slotAccessor = oh->cached.nil;
 	method_flush_cache(oh, selector);
@@ -338,12 +338,12 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 /* Method removeFrom: rolesArray */
 void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
 	
-	struct Object *method = args[0], *traitsWindow;
-	struct OopArray* roles = (struct OopArray*)args[1];
-	Pinned<struct Symbol> selector(oh);
-        selector = (struct Symbol*)oh->cached.nil;
-	Pinned<struct MethodDefinition> def(oh);
-	word_t i;
+  Pinned<struct Object> method(oh, args[0]), traitsWindow(oh);
+  Pinned<struct OopArray> roles(oh, (struct OopArray*)args[1]);
+  Pinned<struct Symbol> selector(oh);
+  selector = (struct Symbol*)oh->cached.nil;
+  Pinned<struct MethodDefinition> def(oh);
+  word_t i;
 	
 	traitsWindow = method->map->delegates->elements[0];
 	
@@ -379,9 +379,13 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
   roles = (struct OopArray*)args[3];
   Pinned<struct Symbol> selector(oh);
   selector = (struct Symbol*)args[1];
-  struct Object* traitsWindow = method->map->delegates->elements[0];
+  Pinned<struct Object> traitsWindow(oh, method->map->delegates->elements[0]);
   struct MethodDefinition* def;
   Pinned<struct Object> closure(oh);
+  std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
+  for (int i = 0; i < object_array_size(roles); i++) {
+    pinnedRoles[i] = roles->elements[i];
+  }
 	
 	if (traitsWindow == oh->cached.closure_method_window) {
 	        closure = heap_clone(oh, method);
@@ -396,10 +400,6 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
 		((struct CompiledMethod*)closure)->selector = selector;
 		method = (struct Object*) closure;
 	}
-        std::vector<Pinned<struct Object> > pinnedRoles(object_array_size(roles), Pinned<struct Object>(oh));
-        for (int i = 0; i < object_array_size(roles); i++) {
-          pinnedRoles[i] = roles->elements[i];
-        }
 
 	def = method_define(oh, method, selector, roles->elements, array_size(roles));
 	def->slotAccessor = slot;

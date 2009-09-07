@@ -82,10 +82,12 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   dispatch = NULL;
   slotLocation = NULL;
 
+#ifndef SLATE_DISABLE_METHOD_CACHE
   if (resendMethod == NULL && arity <= METHOD_CACHE_ARITY) {
     dispatch = method_check_cache(oh, name, arguments, arity);
     if (dispatch != NULL) return dispatch;
   }
+#endif
 
   oh->current_dispatch_id++;
   bestRank = 0;
@@ -257,9 +259,12 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 #endif
 
   }
+
+#ifndef SLATE_DISABLE_METHOD_CACHE
   if (dispatch != NULL && resendMethod == 0 && arity < METHOD_CACHE_ARITY) {
     method_save_cache(oh, dispatch, name, arguments, arity);
   }
+#endif
 
   return dispatch;
 }
@@ -475,6 +480,10 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                               struct Symbol* selector, word_t arity, struct Object* args[]) {
 
+#ifdef SLATE_DISABLE_PIC_LOOKUP
+  return NULL;
+#endif
+
   Pinned<struct MethodDefinition> retval(oh);
 #if 0
   word_t i;
@@ -533,6 +542,7 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
   word_t positions, i;
+  struct Object* argBuffer[16];
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct MethodDefinition> oldDef(oh);
 
@@ -549,7 +559,8 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
   assert(n<=16);
 
-  oldDef = method_dispatch_on(oh, selector, args, n, NULL);
+  copy_words_into(args, n, argBuffer); /* method_dispatch_on modifies its arguments (first argument)*/
+  oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);
   if (oldDef == (struct Object*)NULL || oldDef->dispatchPositions != positions || oldDef != method_is_on_arity(oh, oldDef->method, selector, args, n)) {
     oldDef = NULL;
   }
@@ -561,14 +572,14 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   def->method = method;
   heap_store_into(oh, (struct Object*) def, (struct Object*) method);
   def->dispatchPositions = positions;
-  Pinned<struct Object> arg(oh);
+
+
   for (i = 0; i < n; i++) {
-    arg = args[i];
-    if (!object_is_smallint(arg) && (struct Object*)arg != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
+    if (!object_is_smallint(args[i]) && (struct Object*)args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
       if (oldDef != (struct Object*)NULL) {
-        object_remove_role(oh, arg, selector, oldDef);
+        object_remove_role(oh, args[i], selector, oldDef);
       }
-      object_add_role_at(oh, arg, selector, 1<<i, def);
+      object_add_role_at(oh, args[i], selector, 1<<i, def);
     }
   }
   return def;

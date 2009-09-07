@@ -8,7 +8,7 @@ all: vm
 
 vm:
 	$(SILENT) $(MAKE) -C $(VMDIR) vm
-	$(SILENT) cp $(VMDIR)/$(VMNAME) ./slate
+	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./slate
 
 $(DEFAULT_IMAGE): vm
 	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)

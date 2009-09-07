@@ -402,8 +402,6 @@ struct object_heap
   struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
 
 
-  std::multiset<struct Object*> pinnedObjects;
-
   /*
    * I call this cached because originally these could move around
    * memory, but now the old objects memory block doesn't move any of
@@ -426,6 +424,8 @@ struct object_heap
 
 
 #define SMALLINT_MASK 0x1
+#define PINNED_MASK 0x3F
+#define PINNED_OFFSET 24
 #define ID_HASH_RESERVED 0x7FFFF0
 #define ID_HASH_FORWARDED ID_HASH_RESERVED
 #define ID_HASH_FREE 0x7FFFFF
@@ -522,9 +522,7 @@ struct object_heap
 #define PRINTOP(X)
 #endif
 
-#define inc_ptr(xxx, yyy)     ((byte_t*)xxx + yyy)
-
-
+byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
@@ -626,6 +624,12 @@ word_t object_hash(struct Object* xxx);
 word_t object_size(struct Object* xxx);
 word_t payload_size(struct Object* xxx);
 word_t object_type(struct Object* xxx);
+word_t object_pin_count(struct Object* xxx);
+void object_increment_pin_count(struct Object* xxx);
+void object_decrement_pin_count(struct Object* xxx);
+void object_zero_pin_count(struct Object* xxx);
+void heap_zero_pin_counts_from(struct object_heap* oh, byte_t* memory, word_t memorySize);
+
 
 void copy_bytes_into(byte_t * src, word_t n, byte_t * dst);
 void copy_words_into(void * src, word_t n, void * dst);
@@ -683,7 +687,8 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
 void heap_tenure(struct object_heap* oh);
 void heap_mark_remembered_young(struct object_heap* oh);
 void heap_sweep_young(struct object_heap* oh);
-void heap_mark_pinned(struct object_heap* oh);
+void heap_mark_pinned_young(struct object_heap* oh);
+void heap_mark_pinned_old(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
 void heap_gc(struct object_heap* oh);
 void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize);
@@ -1004,7 +1009,7 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 
 
-
+void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
 
 
 
@@ -1023,7 +1028,7 @@ public:
   T* value;
   struct object_heap* oh;
   Pinned(struct object_heap* oh_) : value(0), oh(oh_) { }
-  Pinned(T* v, struct object_heap* oh_) : value(v), oh(oh_) {
+  Pinned(struct object_heap* oh_, T* v) : value(v), oh(oh_) {
     if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
@@ -1035,6 +1040,7 @@ public:
 #endif
     return value;
   }
+
   ~Pinned() {
     if (value != 0 && !object_is_smallint((struct Object*)value)) {
       heap_unpin_object(oh, (struct Object*)value);

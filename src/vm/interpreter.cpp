@@ -188,11 +188,12 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   assert(n <= 16);
 
+#ifdef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
   if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
     method_optimize(oh, method);
   }
-
+#endif
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
     Pinned<struct OopArray> argsArray(oh);
@@ -224,6 +225,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
       heap_store_into(oh, (struct Object*)i->stack, args[j]);
     }
   }
+  //std::vector<Pinned<struct Object> > pinnedVars(n, Pinned<struct Object>(oh));
+  //for (word_t k = 0; k < n; k++) pinnedVars[k] = vars[k];
 
 
   copy_words_into(args, inputs, vars);
@@ -348,7 +351,10 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   }
 
   /*PIC add here*/
+#ifndef SLATE_DISABLE_PIC_LOOKUP
   if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+#endif
+
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
@@ -357,6 +363,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #endif
     profiler_leave_current(oh);
     profiler_enter_method(oh, (struct Object*)method);
+    Pinned<struct OopArray> pinnedStack(oh);
+    pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
     profiler_leave_current(oh);
     profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);
@@ -523,6 +531,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   for (int k = 0; k < n; k++) pinnedArgs[k] = args[k];
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
+  pinnedArgs[0] = args[0];
   if ((struct Object*)def == NULL) {
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*)args, n, (word_t*)argsArray->elements);
@@ -653,6 +662,9 @@ void interpret(struct object_heap* oh) {
 
  /* we can set a conditional breakpoint if the vm crash is consistent */
   unsigned long int instruction_counter = 0;
+#if SLATE_CUSTOM_BREAKPOINT
+  word_t myBreakpoint = 0;
+#endif
 
 #ifdef PRINT_DEBUG
   printf("Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
@@ -702,8 +714,12 @@ void interpret(struct object_heap* oh) {
         globalInterrupt = 0;
       }
 
+#ifdef SLATE_CUSTOM_BREAKPOINT
+      if (instruction_counter > 11475843) {
+        myBreakpoint++;
+      }
+#endif
 
-      
       instruction_counter++;
       prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
@@ -719,7 +735,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > args(16, Pinned<struct Object>(oh));
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           struct Object* argsArray[16];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
@@ -732,14 +748,12 @@ void interpret(struct object_heap* oh) {
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
             word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            args[k] = SSA_REGISTER(argReg);
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d@%" PRIdPTR "] = ", k, argReg);
             print_type(oh, args[k]);
 #endif
-          }
-          for (int k = 0; k < 16; k++) {
-            argsArray[k] = args[k];
           }
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray, arity, NULL, i->framePointer + result);
 #ifdef PRINT_DEBUG_OPCODES
@@ -753,7 +767,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optsArrayReg;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > args(16, Pinned<struct Object>(oh));
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           struct Object* argsArray[16];
           Pinned<struct OopArray> optsArray(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
@@ -768,14 +782,12 @@ void interpret(struct object_heap* oh) {
 #endif
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
-            args[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            argsArray[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d] = ", k);
             print_type(oh, args[k]);
 #endif
-          }
-          for (int k = 0; k < 16; k++) {
-            argsArray[k] = args[k];
           }
 
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray,

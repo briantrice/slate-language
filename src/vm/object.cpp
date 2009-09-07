@@ -16,6 +16,37 @@ SLATE_INLINE word_t object_hash(struct Object* xxx)       { return  ((((xxx)->he
 SLATE_INLINE word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
 SLATE_INLINE word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
 SLATE_INLINE word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
+SLATE_INLINE word_t object_pin_count(struct Object* xxx)     {return     ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);}
+
+void object_increment_pin_count(struct Object* xxx)     {
+  word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
+  assert (count != PINNED_MASK);
+  count++;
+  if (count > 10) {
+    printf("inc %d ", (int)count); print_object(xxx);
+  }
+  if (count == PINNED_MASK) {
+    assert(0);
+  }
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+  xxx->header |= count << PINNED_OFFSET;
+}
+void object_decrement_pin_count(struct Object* xxx)     {
+  word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
+  //this could happen for the forwardTo: call since we manually unpin it
+  //assert (count > 0);
+  if (count > 10) {
+    printf("dec %d ", (int)count); print_object(xxx);
+  }
+  if (count == 0) return;
+  count--;
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+  xxx->header |= count << PINNED_OFFSET;
+}
+
+void object_zero_pin_count(struct Object* xxx)     {
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+}
 
 
 void object_set_mark(struct object_heap* oh, struct Object* xxx) {
@@ -101,7 +132,7 @@ word_t object_array_offset(struct Object* o) {
 }
 
 byte_t* byte_array_elements(struct ByteArray* o) {
-  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset((struct Object*)o));
+  byte_t* elements = (byte_t*)inc_ptr((struct Object*)o, object_array_offset((struct Object*)o));
   return elements;
 }
 
@@ -737,7 +768,7 @@ void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, wor
 void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount) {
 
   word_t offset, limit;
-  o->map = (struct Map*) inc_ptr(o->map, shift_amount);
+  o->map = (struct Map*) inc_ptr((struct Object*)o->map, shift_amount);
   offset = object_first_slot_offset(o);
   limit = object_last_oop_offset(o) + sizeof(word_t);
   for (; offset != limit; offset += sizeof(word_t)) {

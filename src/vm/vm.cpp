@@ -196,6 +196,7 @@ int main(int argc, char** argv, char **envp) {
   fclose(image_file);
 
   adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
+  heap_zero_pin_counts_from(heap, heap->memoryOld, heap->memoryOldSize);
   heap->stackBottom = &heap;
   heap->argcSaved = argc;
   heap->argvSaved = argv;
