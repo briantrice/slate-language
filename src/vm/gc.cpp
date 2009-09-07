@@ -432,9 +432,11 @@ void heap_mark_recursively(struct object_heap* oh, bool_t mark_old) {
 void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* obj = (struct Object*) memory;
   struct Object* prev = obj;
-  word_t freed_words = 0, coalesce_count = 0;
+  word_t freed_words = 0, coalesce_count = 0, free_count = 0, object_count = 0;
   while (object_in_memory(oh, obj, memory, memorySize)) {
+    object_count++;
     if (!object_is_marked(oh, obj)) {
+      free_count++;
       freed_words += object_word_size(obj);
       heap_free_object(oh, obj);
     }
@@ -450,7 +452,9 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
   }
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quiet) {
-    printf("GC Freed %" PRIdPTR " words and coalesced %" PRIdPTR " times\n", freed_words, coalesce_count);
+    printf("Full GC freed %" PRIdPTR " of %" PRIdPTR " old objects\n", 
+           free_count, object_count);
+    printf("Full GC coalesced %" PRIdPTR " times\n", coalesce_count);
   }
 #endif
 }
@@ -500,7 +504,7 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
 
 void heap_tenure(struct object_heap* oh) {
   /*bring all marked young objects to old generation*/
-  word_t tenure_count = 0, tenure_words = 0;
+  word_t tenure_count = 0, pin_count = 0, object_count = 0, free_count = 0;
   struct Object* obj = (struct Object*) oh->memoryYoung;
   struct Object* prev;
   /* fixme.. can't do this right now */
@@ -510,27 +514,33 @@ void heap_tenure(struct object_heap* oh) {
   
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
+    object_count++;
     if (!object_is_marked(oh, obj)) {
+      free_count++;
       heap_free_object(oh, obj);
     }
-    if (!object_is_free(obj) && !object_is_pinned(oh, obj)) {
-      struct Object* tenure_start = gc_allocate_old(oh, object_total_size(obj));
-      tenure_count++;
-      tenure_words += object_word_size(obj);
-      copy_words_into((word_t*)obj, object_word_size(obj), (word_t*) tenure_start);
+    if (object_is_pinned(oh, obj)) {
+      pin_count++;
+    } else {
+      if (!object_is_free(obj)) {
+        struct Object* tenure_start = gc_allocate_old(oh, object_total_size(obj));
+        tenure_count++;
+        copy_words_into((word_t*)obj, object_word_size(obj), (word_t*) tenure_start);
 #ifdef PRINT_DEBUG_GC_MARKINGS
-    printf("tenuring from "); print_object(obj);
-    printf("tenuring to "); print_object(tenure_start);
+        printf("tenuring from "); print_object(obj);
+        printf("tenuring to "); print_object(tenure_start);
 #endif
-
-      ((struct ForwardedObject*) obj)->target = tenure_start;
-      object_set_idhash(obj, ID_HASH_FORWARDED);
+        
+        ((struct ForwardedObject*) obj)->target = tenure_start;
+        object_set_idhash(obj, ID_HASH_FORWARDED);
+      }
     }
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quiet) {
-    printf("GC tenured %" PRIdPTR " objects (%" PRIdPTR " words)\n", tenure_count, tenure_words);
+    printf("Full GC freed %" PRIdPTR " young objects and tenured %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " pinned)\n", 
+           free_count, tenure_count, object_count, pin_count);
   }
 #endif
 
@@ -563,19 +573,33 @@ void heap_tenure(struct object_heap* oh) {
 
 void heap_mark_remembered_young(struct object_heap* oh) {
   struct Object* obj = (struct Object*) oh->memoryYoung;
+  word_t object_count = 0, remember_count = 0;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
-    if (object_hash(obj) < ID_HASH_RESERVED && object_is_remembered(oh, obj)) heap_mark(oh, obj);
+    object_count++;
+    if (object_hash(obj) < ID_HASH_RESERVED && object_is_remembered(oh, obj)) {
+      heap_mark(oh, obj);
+      remember_count++;
+    }
     obj = object_after(oh, obj);
   }
+
+#ifdef PRINT_DEBUG_GC_2
+  if (!oh->quiet) {
+    printf("Young GC found %" PRIdPTR " of %" PRIdPTR " objects were pointed to by old objects\n", 
+           remember_count, object_count);
+  }
+#endif
+
 }
 
 
 void heap_sweep_young(struct object_heap* oh) {
-  word_t young_count = 0, young_word_count = 0;
+  word_t young_count = 0, young_word_count = 0, object_count = 0;
   
   struct Object* obj = (struct Object*) oh->memoryYoung;
   struct Object* prev = obj;
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
+    object_count++;
     /* the pinned objects are ones on the C stack or rememberedSet (from heap_store_into)*/
     if (object_is_free(obj) && !object_is_pinned(oh, obj)) {
 #ifdef GC_BUG_CHECK
@@ -598,7 +622,8 @@ void heap_sweep_young(struct object_heap* oh) {
   }
 #ifdef PRINT_DEBUG_GC_2
   if (!oh->quiet) {
-    printf("GC freed %" PRIdPTR " young objects (%" PRIdPTR " words)\n", young_count, young_word_count);
+    printf("Young GC freed %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " words) (%f%%)\n", 
+           young_count, object_count, young_word_count, (double)100.0*(double)young_count/(double)object_count);
   }
 #endif
   oh->nextFree = (struct Object*)oh->memoryYoung;
