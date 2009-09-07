@@ -369,7 +369,8 @@ struct MethodDefinition* method_pic_match_selector(struct object_heap* oh, struc
 }
 
 
-void method_pic_insert(struct object_heap* oh, struct Object* picEntry[], struct MethodDefinition* def,
+void method_pic_insert(struct object_heap* oh, struct OopArray* calleeCount, 
+                       struct Object* picEntry[], struct MethodDefinition* def,
                          word_t arity, struct Object* args[]) {
 
   word_t j;
@@ -378,9 +379,13 @@ void method_pic_insert(struct object_heap* oh, struct Object* picEntry[], struct
   picEntry[PIC_CALLEE_COUNT] = smallint_to_object(1);
   picEntry[PIC_CALLEE_MAPS] = 
     (struct Object*)heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
+
+  heap_store_into(oh, (struct Object*) calleeCount, picEntry[PIC_CALLEE]);
+  heap_store_into(oh, (struct Object*) calleeCount, picEntry[PIC_CALLEE_MAPS]);
   
   for (j = 0; j < arity; j++) {
     ((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j] = (struct Object*)object_get_map(oh, args[j]);
+    heap_store_into(oh, picEntry[PIC_CALLEE_MAPS], ((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j]);
   }
 
 }
@@ -423,6 +428,7 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
   }
 
   callee->cachedInCallers->elements[object_to_smallint(callee->cachedInCallersCount)] = (struct Object*)caller;
+  heap_store_into(oh, (struct Object*)callee->cachedInCallers, (struct Object*)caller);
   callee->cachedInCallersCount =  smallint_to_object(object_to_smallint(callee->cachedInCallersCount) + 1);
 
 }
@@ -441,7 +447,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
     Pinned<struct OopArray> pinArray(oh);
     pinArray = callerMethod->calleeCount;
-    method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+    method_pic_insert(oh, callerMethod->calleeCount, &callerMethod->calleeCount->elements[i], def, arity, args);
     Pinned<struct CompiledMethod> defMethod(oh);
     defMethod = (struct CompiledMethod*) def->method;
     method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) defMethod);

@@ -34,7 +34,7 @@ void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memoryS
 
 
 bool_t object_is_old(struct object_heap* oh, struct Object* oop) {
-  return (oh->memoryOld <= (byte_t*)oop && (word_t)oh->memoryOld + oh->memoryOldSize > (word_t)oop);
+  return (oh->memoryOld <= (byte_t*)oop && (byte_t*)oh->memoryOld + oh->memoryOldSize > (byte_t*)oop);
 
 }
 
