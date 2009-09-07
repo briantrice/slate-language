@@ -75,7 +75,7 @@ int main(int argc, char** argv, char **envp) {
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * MB;
-  word_t young_limit = 10 * MB;
+  word_t young_limit = 5 * MB;
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;

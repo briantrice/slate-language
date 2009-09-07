@@ -394,6 +394,8 @@ struct object_heap
   size_t markStackPosition;
 
   std::set<struct Object*> rememberedOldObjects; /* old gen -> new gen pointers for incremental GC */
+  word_t collectionCycle; /*count of mini gcs*/
+
   
   void* stackBottom;
 
@@ -687,7 +689,6 @@ void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_tenure(struct object_heap* oh);
 void heap_mark_remembered(struct object_heap* oh);
-void heap_sweep_young(struct object_heap* oh);
 void heap_mark_pinned_young(struct object_heap* oh);
 void heap_mark_pinned_old(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
