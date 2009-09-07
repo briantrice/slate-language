@@ -282,7 +282,7 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define PROFILER_ENTRY_COUNT 4096
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
-#define PINNED_CARD_SIZE (sizeof(word_t) * 8)
+#define OLD_TO_NEW_CARD_SIZE (sizeof(word_t) * 8)
 #define SLATE_MEMS_MAXIMUM 1024
 #define SLATE_NETTICKET_MAXIMUM 1024
 #define SLATE_FILES_MAXIMUM 256
@@ -394,6 +394,7 @@ struct object_heap
   size_t markStackPosition;
 
   word_t* rememberedYoungObjects; /* old gen -> new gen pointers for incremental GC */
+  word_t rememberedYoungObjectsByteSize;
   void* stackBottom;
 
   bool_t currentlyProfiling;

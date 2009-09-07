@@ -129,8 +129,8 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOld = (byte_t*)malloc(limit);
   oh->memoryYoung = (byte_t*)malloc(young_limit);
 #endif
-  //  oh->pinnedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
-  oh->rememberedYoungObjects = (word_t*)calloc(1, (oh->memoryYoungSize / PINNED_CARD_SIZE + 1) * sizeof(word_t));
+  oh->rememberedYoungObjectsByteSize = (oh->memoryYoungSize / OLD_TO_NEW_CARD_SIZE + 1) * sizeof(word_t);
+  oh->rememberedYoungObjects = (word_t*)calloc(1, oh->rememberedYoungObjectsByteSize);
 
   /*perror("err: ");*/
   if (oh->memoryOld == NULL || oh->memoryOld == (void*)-1
@@ -174,7 +174,7 @@ bool_t object_is_pinned(struct object_heap* oh, struct Object* x) {
 bool_t object_is_remembered(struct object_heap* oh, struct Object* x) {
   if (object_is_young(oh, x)) {
     word_t diff = (byte_t*) x - oh->memoryYoung;
-    return (oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] & (1 << (diff % PINNED_CARD_SIZE))) != 0;
+    return (oh->rememberedYoungObjects[diff / OLD_TO_NEW_CARD_SIZE] & (1 << (diff % OLD_TO_NEW_CARD_SIZE))) != 0;
   }
   return 0;
   
@@ -313,8 +313,6 @@ void heap_free_object(struct object_heap* oh, struct Object* obj) {
 
 void heap_finish_gc(struct object_heap* oh) {
   method_flush_cache(oh, NULL);
-  /*unpin the C stack*/
-  //  fill_bytes_with((byte_t*)oh->pinnedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
   /*  cache_specials(oh);*/
 }
 
@@ -322,7 +320,7 @@ void heap_finish_gc(struct object_heap* oh) {
 void heap_finish_full_gc(struct object_heap* oh) {
   heap_finish_gc(oh);
   /*we can forget the remembered set after doing a full GC*/
-  fill_bytes_with((byte_t*)oh->rememberedYoungObjects, oh->memoryYoungSize / PINNED_CARD_SIZE * sizeof(word_t), 0);
+  fill_bytes_with((byte_t*)oh->rememberedYoungObjects, oh->rememberedYoungObjectsByteSize, 0);
 }
 
 
@@ -354,7 +352,7 @@ void heap_remember_young_object(struct object_heap* oh, struct Object* x) {
 #if 0
     printf("remembering "); print_object(x);
 #endif
-    oh->rememberedYoungObjects[diff / PINNED_CARD_SIZE] |= 1 << (diff % PINNED_CARD_SIZE);
+    oh->rememberedYoungObjects[diff / OLD_TO_NEW_CARD_SIZE] |= 1 << (diff % OLD_TO_NEW_CARD_SIZE);
   }
   
 }
