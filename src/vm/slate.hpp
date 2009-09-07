@@ -348,6 +348,7 @@ struct object_heap
   word_t current_dispatch_id;
   bool_t interrupt_flag;
   bool_t quiet; /*suppress excess stdout*/
+  bool_t quietGC; /*suppress excess gc messages*/
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
   word_t gcTenureCount;
@@ -369,6 +370,11 @@ struct object_heap
 
   // keep track of these so that when a callee gets changed we recompile or unoptimize
   std::multiset<struct CompiledMethod*> optimizedMethods;
+
+  // these might have to be added to the remembered set if they still
+  // contain pointers to new objects (that were pinned when they were
+  // tenured)
+  std::vector<struct Object*> tenuredObjects;
 
   /* memory areas for the primitive memory functions */
   void* memory_areas [SLATE_MEMS_MAXIMUM];

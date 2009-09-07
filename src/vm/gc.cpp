@@ -488,7 +488,7 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
   }
 
 #ifdef PRINT_DEBUG_GC_1
-  if (!oh->quiet) {
+  if (!oh->quietGC) {
     printf("GC freed %" PRIdPTR " of %" PRIdPTR " %s objects\n", 
            free_count, object_count, ((memory == oh->memoryOld)? "old":"new"));
     printf("GC coalesced %" PRIdPTR " times\n", coalesce_count);
@@ -549,6 +549,8 @@ void heap_tenure(struct object_heap* oh) {
   oh->nextOldFree = (struct Object*)oh->memoryOld;
   /*  }*/
   
+  oh->tenuredObjects.clear();
+
   while (object_in_memory(oh, obj, oh->memoryYoung, oh->memoryYoungSize)) {
     /*if it's still there in the young section, move it to the old section */
     if (object_is_free(obj)) {
@@ -572,6 +574,7 @@ void heap_tenure(struct object_heap* oh) {
         printf("tenuring from "); print_object(obj);
         printf("tenuring to "); print_object(tenure_start);
 #endif
+        oh->tenuredObjects.push_back(tenure_start);
         
         ((struct ForwardedObject*) obj)->target = tenure_start;
         object_set_idhash(obj, ID_HASH_FORWARDED);
@@ -580,7 +583,7 @@ void heap_tenure(struct object_heap* oh) {
     obj = object_after(oh, obj);
   }
 #ifdef PRINT_DEBUG_GC_1
-  if (!oh->quiet) {
+  if (!oh->quietGC) {
     printf("Full GC freed %" PRIdPTR " young objects and tenured %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " pinned)\n", 
            free_count, tenure_count, object_count, pin_count);
   }
@@ -589,6 +592,25 @@ void heap_tenure(struct object_heap* oh) {
   heap_update_forwarded_pointers(oh, oh->memoryOld, oh->memoryOldSize);
   /*fixed objects in the young space need to have their pointers updated also*/
   heap_update_forwarded_pointers(oh, oh->memoryYoung, oh->memoryYoungSize);
+
+  // see what tenured objects need to be added to our remembered set
+  for (size_t i = 0; i < oh->tenuredObjects.size(); i++) {
+    struct Object* o = oh->tenuredObjects[i];
+    word_t offset, limit;
+    if (object_is_young(oh, (struct Object*)o->map)) {
+      heap_remember_old_object(oh, o);
+      continue;
+    }
+    offset = object_first_slot_offset(o);
+    limit = object_last_oop_offset(o) + sizeof(word_t);
+    for (; offset != limit; offset += sizeof(word_t)) {
+      struct Object* val = object_slot_value_at_offset(o, offset);
+      if (!object_is_smallint(val) && object_is_young(oh, val)) {
+        heap_remember_old_object(oh, o);
+        break;
+      }
+    }
+  }
 
 
   /*we coalesce after it has been tenured so we don't erase forwarding pointers */
@@ -648,8 +670,8 @@ void heap_mark_remembered(struct object_heap* oh) {
 
   }
 
-#ifdef PRINT_DEBUG_GC_2
-  if (!oh->quiet) {
+#ifdef PRINT_DEBUG_GC_3
+  if (!oh->quietGC) {
     printf("Removing %" PRIdPTR " entries from the remembered table\n", badRemembered.size());
   }
 #endif
@@ -660,7 +682,7 @@ void heap_mark_remembered(struct object_heap* oh) {
 
 
 #ifdef PRINT_DEBUG_GC_2
-  if (!oh->quiet) {
+  if (!oh->quietGC) {
     printf("Young GC found %" PRIdPTR " old objects pointing to %" PRIdPTR " young objects\n", 
            object_count, remember_count);
   }
