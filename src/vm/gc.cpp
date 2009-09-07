@@ -4,6 +4,32 @@
 #endif
 
 
+#ifdef GC_BUG_CHECK
+void assert_good_object(struct object_heap* oh, struct Object* obj) {
+  assert(obj->payloadSize < 40 * MB);
+  assert(obj->objectSize < 40 * MB);
+  assert(object_is_young(oh, obj) || object_is_old(oh, obj));
+  assert(object_is_young(oh, (struct Object*)obj->map) || object_is_old(oh, (struct Object*)obj->map));
+  assert(!object_is_free(obj));
+  assert(!object_is_free((struct Object*)obj->map));
+}
+
+void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
+  struct Object* o = (struct Object*)memory;
+  printf("GC integrity check...\n");
+
+  while (object_in_memory(oh, o, memory, memorySize)) {
+
+    if (object_is_free(o)) {
+      assert(heap_what_points_to(oh, o, 0) == 0);
+    } else {
+      assert_good_object(oh, o);
+    }
+    o = object_after(oh, o);
+  }
+}
+
+#endif
 
 
 
@@ -121,7 +147,6 @@ bool_t heap_initialize(struct object_heap* oh, word_t size, word_t limit, word_t
   oh->memoryOldSize = size;
   oh->memoryYoungSize = young_limit;
 
-  oh->collectionCycle = 11;
 #ifdef SLATE_USE_MMAP
   assert((byte_t*)oldStart + limit < (byte_t*) youngStart);
   oh->memoryOld = (byte_t*)mmap((void*)oldStart, limit, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|0x20, -1, 0);
@@ -243,12 +268,7 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
   oh->nextFree = heap_find_first_young_free(oh, oh->nextFree, bytes + sizeof(struct Object));
   if (oh->nextFree == NULL) {
     if (!already_scavenged) {
-      if (oh->collectionCycle > 10) {
-        heap_full_gc(oh);
-        oh->collectionCycle = 0;
-      } else {
-        heap_gc(oh);
-      }
+      heap_gc(oh);
       already_scavenged = 1;
 
     } else if (!already_full_gc) {
@@ -324,8 +344,6 @@ void heap_finish_gc(struct object_heap* oh) {
 
 void heap_finish_full_gc(struct object_heap* oh) {
   heap_finish_gc(oh);
-  /*we can forget the remembered set after doing a full GC*/
-  oh->rememberedOldObjects.clear();
 }
 
 
@@ -333,7 +351,6 @@ void heap_finish_full_gc(struct object_heap* oh) {
 void heap_start_gc(struct object_heap* oh) {
   oh->mark_color ^= MARK_MASK;
   oh->markStackPosition = 0;
-  oh->collectionCycle++;
 }
 
 void heap_pin_object(struct object_heap* oh, struct Object* x) {
@@ -362,8 +379,13 @@ void heap_remember_old_object(struct object_heap* oh, struct Object* x) {
 }
 
 
+
 /*adds something to the mark stack and mark it if it isn't marked already*/
 void heap_mark(struct object_heap* oh, struct Object* obj) {
+#ifdef GC_BUG_CHECK
+  assert_good_object(oh, obj);
+#endif
+
   if (object_markbit(obj) == oh->mark_color) return;
 #ifdef PRINT_DEBUG_GC_MARKINGS
   printf("marking "); print_object(obj);
@@ -580,6 +602,7 @@ void heap_tenure(struct object_heap* oh) {
 
 void heap_mark_remembered(struct object_heap* oh) {
   word_t object_count = 0, remember_count = 0;
+  std::vector<struct Object*> badRemembered;
 
   for (std::set<struct Object*>::iterator i = oh->rememberedOldObjects.begin();
        i != oh->rememberedOldObjects.end();
@@ -605,9 +628,21 @@ void heap_mark_remembered(struct object_heap* oh) {
         heap_mark(oh, val);
       }
     }
-    if (foundSomething == 0) {
-      oh->rememberedOldObjects.erase(o);
+    if (foundSomething == 0 || object_is_young(oh, o)) {
+      //oh->rememberedOldObjects.erase(i);
+      badRemembered.push_back(o);
     }
+
+  }
+
+#ifdef PRINT_DEBUG_GC_2
+  if (!oh->quiet) {
+    printf("Removing %" PRIdPTR " entries from the remembered table\n", badRemembered.size());
+  }
+#endif
+
+  for (size_t i = 0; i < badRemembered.size(); i++) {
+    oh->rememberedOldObjects.erase(badRemembered[i]);
   }
 
 
@@ -674,7 +709,6 @@ void heap_full_gc(struct object_heap* oh) {
   //this frees the young objects and moves them over
   heap_tenure(oh);
 #ifdef GC_BUG_CHECK
-  printf("GC integrity check...\n");
   heap_integrity_check(oh, oh->memoryOld, oh->memoryOldSize);
   heap_integrity_check(oh, oh->memoryYoung, oh->memoryYoungSize);
 #endif
@@ -697,6 +731,9 @@ void heap_gc(struct object_heap* oh) {
   heap_free_and_coalesce_unmarked(oh, oh->memoryYoung, oh->memoryYoungSize);
 
   oh->nextFree = (struct Object*)oh->memoryYoung;
+#ifdef GC_BUG_CHECK
+  heap_integrity_check(oh, oh->memoryYoung, oh->memoryYoungSize);
+#endif
 
   heap_finish_gc(oh);
 #else

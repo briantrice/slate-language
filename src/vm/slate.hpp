@@ -394,8 +394,6 @@ struct object_heap
   size_t markStackPosition;
 
   std::set<struct Object*> rememberedOldObjects; /* old gen -> new gen pointers for incremental GC */
-  word_t collectionCycle; /*count of mini gcs*/
-
   
   void* stackBottom;
 
