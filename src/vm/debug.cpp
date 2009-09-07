@@ -459,13 +459,3 @@ void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
   }
 }
 
-void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
-  struct Object* o = (struct Object*)memory;
-
-  while (object_in_memory(oh, o, memory, memorySize)) {
-    if (object_is_free(o)) {
-      assert(heap_what_points_to(oh, o, 0) == 0);
-    }
-    o = object_after(oh, o);
-  }
-}
