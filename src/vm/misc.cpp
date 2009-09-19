@@ -240,6 +240,3 @@ int fork2()
 }
 #endif
 
-byte_t* inc_ptr(struct Object* obj, word_t amt) {
-  return ((byte_t*)obj + amt);
-}

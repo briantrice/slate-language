@@ -33,37 +33,11 @@ void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memoryS
 
 
 
-bool_t object_is_old(struct object_heap* oh, struct Object* oop) {
-  return (oh->memoryOld <= (byte_t*)oop && (byte_t*)oh->memoryOld + oh->memoryOldSize > (byte_t*)oop);
-
-}
-
-bool_t object_is_young(struct object_heap* oh, struct Object* obj) {
-  return (oh->memoryYoung <= (byte_t*)obj && (byte_t*)oh->memoryYoung + oh->memoryYoungSize > (byte_t*)obj);
-  
-}
-
-bool_t object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
-  return (memory <= (byte_t*)oop && (byte_t*)memory + memorySize > (byte_t*)oop);
-
-}
-
-struct Object* object_after(struct object_heap* heap, struct Object* o) {
-
-  assert(object_total_size(o) != 0);
-
-  return (struct Object*)inc_ptr(o, object_total_size(o));
-}
-
 bool_t object_is_marked(struct object_heap* heap, struct Object* o) {
 
   return (object_markbit(o) == heap->mark_color);
 }
 
-bool_t object_is_free(struct Object* o) {
-
-  return (object_hash(o) >= ID_HASH_RESERVED);
-}
 
 void method_flush_cache(struct object_heap* oh, struct Symbol* selector) {
   struct MethodCacheEntry* cacheEntry;
@@ -361,20 +335,6 @@ void heap_start_gc(struct object_heap* oh) {
   oh->markStackPosition = 0;
 }
 
-void heap_pin_object(struct object_heap* oh, struct Object* x) {
-  //  printf("Pinning %p\n", x);
-
-  assert(object_hash(x) < ID_HASH_RESERVED);
-
-  object_increment_pin_count(x);
-}
-
-void heap_unpin_object(struct object_heap* oh, struct Object* x) {
-  //  printf("Unpinning %p\n", x);
-  // don't check the idhash because forwardTo: will free the object
-  //assert(object_hash(x) < ID_HASH_RESERVED);
-  object_decrement_pin_count(x);
-}
 
 void heap_remember_old_object(struct object_heap* oh, struct Object* x) {
   if (object_is_old(oh, x) && !object_is_smallint(x)) {
@@ -804,17 +764,6 @@ void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
   heap_free_object(oh, x);
 }
 
-SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
-  /*  print_object(dest);*/
-  if (!object_is_smallint(dest)) {
-    assert(object_hash(dest) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
-    assert(object_hash(src) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
-  }
-
-  if (object_is_young(oh, dest) && object_is_old(oh, src)) {
-    heap_remember_old_object(oh, src);
-  }
-}
 
 struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, word_t payload_size) {
 
