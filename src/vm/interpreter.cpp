@@ -295,7 +295,6 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   Pinned<struct Object> traitsWindow(oh);
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct CompiledMethod> callerMethod(oh);
-  word_t addToPic = FALSE;
   callerMethod = oh->cached.interpreter->method;
 
   /*make sure they are pinned*/
@@ -303,6 +302,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   def = NULL;
 
+#ifndef SLATE_DISABLE_PIC_LOOKUP
+  word_t addToPic = FALSE;
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
       && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
@@ -326,6 +327,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     }
     
   }
+#endif
 
   if ((struct Object*)def == NULL) {
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);

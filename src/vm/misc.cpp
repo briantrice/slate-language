@@ -198,15 +198,6 @@ word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSiz
   return arrayLength;
 }
 
-word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n) {
-  word_t i;
-  word_t hash = (word_t) name;
-  for (i = 0; i < n; i++) {
-    hash += object_hash((struct Object*)object_get_map(oh, arguments[i]));
-  }
-  return hash;
-}
-
 #ifndef WIN32
 /* this keeps us from having to handle sigchld and wait for processes.
    if you don't wait they become zombies */

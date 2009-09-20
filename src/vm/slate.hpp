@@ -1251,3 +1251,16 @@ SLATE_INLINE struct Object* object_slot_value_at_offset(struct Object* o, word_t
   return (struct Object*)*((word_t*)inc_ptr(o, offset));
 
 }
+
+SLATE_INLINE word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n) {
+  word_t hash = (word_t) name;
+  word_t i;
+  for (i = 0; i < n; i++) {
+    hash += object_hash((struct Object*)object_get_map(oh, arguments[i]));
+  }
+  return hash;
+}
+
+// comment out to disable
+#define SLATE_DISABLE_PIC_LOOKUP ok
+
