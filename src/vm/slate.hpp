@@ -1262,5 +1262,5 @@ SLATE_INLINE word_t hash_selector(struct object_heap* oh, struct Symbol* name, s
 }
 
 // comment out to disable
-#define SLATE_DISABLE_PIC_LOOKUP ok
+//#define SLATE_DISABLE_PIC_LOOKUP ok
 
