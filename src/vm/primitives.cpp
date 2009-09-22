@@ -1797,42 +1797,56 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
 
 
 void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  char filename[SLATE_FILE_NAME_LENGTH];
+  word_t len;
+  if (oh->currentlyProfiling) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
+
+  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
+  oh->profilerFile = fopen(filename, "wb");
+
+  if (oh->profilerFile == NULL) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
 
   profiler_start(oh);
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 }
 
 void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-
+  Pinned<struct OopArray> array(oh);
+  word_t k;
+  if (!oh->currentlyProfiling) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
   profiler_stop(oh);
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+
+  if (oh->profilerFile == NULL) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
+
+  fclose(oh->profilerFile);
+  oh->profilerFile = NULL;
+
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), oh->profiledMethods.size());
+  k = 0;
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    array->elements[k++] = *i;
+  }
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = array;
+  oh->profiledMethods.clear();
 }
 
 void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  word_t count, i, arrayEntry;
-  Pinned<struct OopArray> array(oh);
-  const int entrySize = 3;
-
-  count = 0;
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method != NULL) count++;
-  }
-
-  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count * entrySize);
-
-  arrayEntry = 0;
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method == NULL) continue;
-
-    array->elements[arrayEntry + 0] = oh->profiler_entries[i].method;
-    array->elements[arrayEntry + 1] = smallint_to_object(oh->profiler_entries[i].callCount);
-    array->elements[arrayEntry + 2] = smallint_to_object(oh->profiler_entries[i].callTime);
-    arrayEntry += entrySize;
-  }
-
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
-  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
-
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 }
 
 
@@ -2165,6 +2179,9 @@ void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t arity,
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
+void prim_objectPointerAddress(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object((word_t)args[1]);
+}
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) = {
 
@@ -2183,7 +2200,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_fixme, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_fixme, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 

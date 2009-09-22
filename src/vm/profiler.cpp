@@ -1,14 +1,9 @@
 #include "slate.hpp"
 
 void profiler_start(struct object_heap* oh) {
-  word_t i;
-
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    oh->profiler_entries[i].method = NULL;
-  }
-
   oh->currentlyProfiling = 1;
-  oh->currentlyProfilingIndex = -1;
+  oh->profilerTimeStart = getTickCount();
+  oh->methodCallDepth = calculateMethodCallDepth(oh);
 
 }
 
@@ -19,51 +14,25 @@ void profiler_stop(struct object_heap* oh) {
 
 
 void profiler_enter_method(struct object_heap* oh, struct Object* method) {
-  word_t i;
+  int64_t time;
   if (!oh->currentlyProfiling) return;
   if (!object_is_old(oh, method)) return; /*young objects move in memory*/
+  oh->profiledMethods.insert(method);
 
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method == method) {
-      oh->profiler_entries[i].callCount++;
-      oh->profilerTimeStart = getTickCount();
-      oh->currentlyProfilingIndex = i;
-      return;
-    }
+  if (oh->profilerFile != NULL) {
+    time = getTickCount() - oh->profilerTimeStart;
+    word_t method = (word_t)method;
+    fwrite(&time, sizeof(time), 1, oh->profilerFile);
+    fwrite(&oh->methodCallDepth, sizeof(word_t), 1, oh->profilerFile);
+    fwrite(&method, sizeof(word_t), 1, oh->profilerFile);
   }
-
-  /*not found*/
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method != NULL) continue;
-    /*use this entry*/
-    oh->profiler_entries[i].method = method;
-    oh->profiler_entries[i].callCount = 1;
-    oh->profiler_entries[i].callTime = 0;
-    oh->profilerTimeStart = getTickCount();
-    oh->currentlyProfilingIndex = i;
-
-    return;
-  }
-  /*no free entries if we reach this*/
-
+  
 }
-
-void profiler_leave_current(struct object_heap* oh) {
-  word_t i = oh->currentlyProfilingIndex;
-  if (!oh->currentlyProfiling) return;
-  if (i < 0) return;
-  oh->profilerTimeEnd = getTickCount();
-  oh->profiler_entries[i].callTime += oh->profilerTimeEnd - oh->profilerTimeStart;
-}
-
 
 /*this will be called when the GC deletes or forwards the object*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method) {
-  word_t i;
   if (!oh->currentlyProfiling) return;
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method == method) oh->profiler_entries[i].method = NULL;
-  }
+  oh->profiledMethods.erase(method);
 
 }
 

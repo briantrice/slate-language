@@ -252,7 +252,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 #endif
 
   if (oh->currentlyProfiling) {
-    profiler_leave_current(oh);
+    oh->methodCallDepth++;
     profiler_enter_method(oh, (struct Object*)closure);
   }
 
@@ -369,14 +369,14 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     if (oh->currentlyProfiling) {
-      profiler_leave_current(oh);
+      oh->methodCallDepth++;
       profiler_enter_method(oh, (struct Object*)method);
     }
     Pinned<struct OopArray> pinnedStack(oh);
     pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
     if (oh->currentlyProfiling) {
-      profiler_leave_current(oh);
+      oh->methodCallDepth--;
       profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);
     }
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
@@ -479,7 +479,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   }
 
   if (oh->currentlyProfiling) {
-    profiler_leave_current(oh);
+    oh->methodCallDepth--;
     profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3]);
   }
 

@@ -328,12 +328,6 @@ struct slate_addrinfo_request {
 };
 
 
-struct slate_profiler_entry {
-  struct Object* method; /*null if non-active entry.. this must point to an old generation object (since they don't move)*/
-  word_t callCount; /*this is not a small int... it needs to be converted*/
-  word_t callTime; /*total time spent in this method.... fixme add code for this*/
-};
-
 
 struct object_heap
 {
@@ -404,9 +398,11 @@ struct object_heap
   void* stackBottom;
 
   bool_t currentlyProfiling;
-  word_t currentlyProfilingIndex;
-  int64_t profilerTimeStart, profilerTimeEnd;
-  struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
+  int64_t profilerTimeStart;
+  word_t methodCallDepth;
+  std::set<struct Object*> profiledMethods;
+  FILE* profilerFile;
+
   word_t doFullGCNext;
 
   /*
@@ -916,6 +912,8 @@ byte_t* byte_array_elements(struct ByteArray* o);
 byte_t byte_array_get_element(struct Object* o, word_t i);
 byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val);
 int fork2();
+word_t calculateMethodCallDepth(struct object_heap* oh);
+
 
 void file_module_init(struct object_heap* oh);
 bool_t file_handle_isvalid(struct object_heap* oh, word_t file);
@@ -959,8 +957,6 @@ int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* a
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
 void profiler_enter_method(struct object_heap* oh, struct Object* method);
-void profiler_leave_current(struct object_heap* oh);
-/*void profiler_leave_method(struct object_heap* oh, struct Object* method);*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
 
 

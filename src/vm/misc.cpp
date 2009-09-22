@@ -188,6 +188,21 @@ word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffe
   return payloadSize;
 }
 
+word_t calculateMethodCallDepth(struct object_heap* oh) {
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  word_t depth = 0;
+  do {
+    /*order matters here*/
+    fp = object_to_smallint(i->stack->elements[fp-1]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    depth++;
+  } while (fp >= FUNCTION_FRAME_SIZE);
+
+  return depth;
+}
+
+
 word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSize) {
   word_t arrayLength = byte_array_extract_into(array, (byte_t*)buffer, bufferSize - 1);
 

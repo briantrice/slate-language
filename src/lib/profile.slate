@@ -1,4 +1,4 @@
-prototypes define: #Profile &slots: {#method. #results -> ExtensibleArray new}.
+prototypes define: #Profile &slots: {#method. #outputFilename. #results -> ExtensibleArray new}.
 
 m@(Method traits) profile
 [
@@ -10,21 +10,15 @@ p@(Profile traits) newFor: block
   p cloneSettingSlots: #(method) to: {block}
 ].
 
-p@(Profile traits) run
+p@(Profile traits) run &outputFilename: outfile
 [
-  [lobby startProfiling.
+  outfile `defaultsTo: 'slateprof.out'.
+  [lobby startProfilingTo: outfile.
    p method do] ensure:
-     [lobby stopProfiling].
-  p results: p results new.
-  lobby profilerStatistics
-	do: [| :method :count :time | p results add: {method. count. time}]
-	inGroupsOf: 3.
+     [p results: lobby stopProfiling].
 ].
 
 p@(Profile traits) showResults
 [
-  (p results sortBy: [|:a :b| a third >= b third]) do:
-    [| :methodInfo :count :time |
-     inform: '(' ; methodInfo method printString ; '@' ; methodInfo method definitionLocation
-       ; ') count: ' ; count printString ; ' time: ' ; time printString] applier.
+  p results
 ].
