@@ -21,10 +21,10 @@ void profiler_enter_method(struct object_heap* oh, struct Object* method) {
 
   if (oh->profilerFile != NULL) {
     time = getTickCount() - oh->profilerTimeStart;
-    word_t method = (word_t)method;
+    word_t methodAddr = (word_t)method;
     fwrite(&time, sizeof(time), 1, oh->profilerFile);
     fwrite(&oh->methodCallDepth, sizeof(word_t), 1, oh->profilerFile);
-    fwrite(&method, sizeof(word_t), 1, oh->profilerFile);
+    fwrite(&methodAddr, sizeof(word_t), 1, oh->profilerFile);
   }
   
 }

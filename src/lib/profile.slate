@@ -1,4 +1,4 @@
-prototypes define: #Profile &slots: {#method. #outputFilename. #results -> ExtensibleArray new}.
+prototypes define: #Profile &slots: {#method. #results -> ExtensibleArray new}.
 
 m@(Method traits) profile
 [
@@ -10,15 +10,28 @@ p@(Profile traits) newFor: block
   p cloneSettingSlots: #(method) to: {block}
 ].
 
-p@(Profile traits) run &outputFilename: outfile
+p@(Profile traits) run &outputFilename: outfile &keyFile: keyfile
 [
-  outfile `defaultsTo: 'slateprof.out'.
+  outfile `defaultsTo: 'profcalls.out'.
+  keyfile `defaultsTo: 'profkeys.out'.
   [lobby startProfilingTo: outfile.
    p method do] ensure:
      [p results: lobby stopProfiling].
+  p saveResultsTo: keyfile.
 ].
 
 p@(Profile traits) showResults
 [
   p results
+].
+
+p@(Profile traits) saveResultsTo: filename
+[
+  (File newNamed: filename &mode: File CreateWrite) sessionDo: 
+    [ |:file writer|
+     writer: file writer.
+     p results do: [ |:func| writer ; ((lobby objectPointerAddress: func) as: String).
+                    writer ; ' -> ' ; func selector ; ' @ ' ; func method definitionLocation ; '\n'. ]
+     
+   ]
 ].
