@@ -497,6 +497,15 @@ s@(ASCIIString traits) at: i put: c
 
 _@(ASCIIString traits) defaultElement [$\0].
 
+s@(ASCIIString traits) includes: c@(String Character traits)
+"A pure optimization override to avoid coercing all of the elements to Characters.
+This is about twice as fast as the very generic Sequence method."
+[
+  c code `cache.
+  s keysDo: [| :i | (s byteAt: i) == c code ifTrue: [^ True]].
+  False
+].
+
 _@(ASCIIString traits) accepts: _@(ASCIIString Character traits)
 [True].
 
