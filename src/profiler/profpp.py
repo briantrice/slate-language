@@ -12,7 +12,7 @@ def incrementEntry(dict, entry, amt):
     if entry not in dict:
         dict[entry] = amt
     else:
-        dict[entry] = dict[entry] + amt
+        dict[entry] += amt
         
 
 def readCalls(callsFilename):

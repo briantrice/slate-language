@@ -51,7 +51,8 @@ typedef SOCKADDR sockaddr_un;
 #include <set>
 #include <stack>
 #include <vector>
-
+#include <map>
+#include <algorithm>
 
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
@@ -398,11 +399,18 @@ struct object_heap
   void* stackBottom;
 
   bool_t currentlyProfiling;
-  int64_t profilerTimeStart;
-  word_t methodCallDepth;
+  int64_t profilerTimeStart, profilerTime, profilerLastTime;
   std::set<struct Object*> profiledMethods;
-  FILE* profilerFile;
+  std::map<struct Object*,word_t> profilerCallCounts;
+  std::map<struct Object*,word_t> profilerSelfTime;
+  std::map<struct Object*,word_t> profilerCumTime;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
+  std::vector<struct Object*> profilerCallStack;
+  std::vector<word_t> profilerTimeStack;
 
+  struct Object* profilerLastMethod;
+  
   word_t doFullGCNext;
 
   /*
@@ -956,7 +964,7 @@ int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* a
 
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
-void profiler_enter_method(struct object_heap* oh, struct Object* method);
+void profiler_enter_method(struct object_heap* oh, struct Object* method, bool_t enter);
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
 
 
