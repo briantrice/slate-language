@@ -3,6 +3,11 @@
 prototypes define: #Profile &slots: {#method. #rawResults -> ExtensibleArray new. #results. #totalTime}.
 prototypes define: #ProfilerEntry &slots: {#method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime. #id}.
 
+pe1@(ProfilerEntry traits) <= pe2@(ProfilerEntry traits)
+[
+  pe1 cumulativeTime <= pe2 cumulativeTime
+].
+
 m@(Method traits) profile
 [
   (Profile newFor: m) `>> [run. showResults. ]
@@ -45,21 +50,23 @@ p@(Profile traits) showResults
   p results
 ].
 
-p@(Profile traits) writeDotTo: filename
+p@(Profile traits) writeDotTo: filename &maxCount: maxCount
 [
+  maxCount `defaultsTo: p results size.
   (File newNamed: filename &mode: File CreateWrite) sessionDo: 
-    [ |:file writer|
+    [ |:file writer results resultsMethods|
      writer: file writer.
      writer ; 'digraph {\ngraph [ranksep=0.25, fontname=Arial, nodesep=0.125];\n'
             ; 'node [fontname=Arial, style=\"filled,rounded\", height=0, width=0, shape=box, fontcolor=white];\n'
             ; 'edge [fontname=Arial];\n'.
- 
-     p results do: [ |:entry name totalChildTime | 
+     results: (p results sort last: maxCount).
+     resultsMethods: (results collect: #method `er).
+     results do: [ |:entry name totalChildTime | 
                      name: (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
                      writer ; entry id ; ' [color="#000000", fontcolor="#ffffff", fontsize="10.00", '
-                       ; 'label="' ; name ; '\\n total: ' ; entry cumulativeTime printString ; ' usec ('
+                       ; 'label="' ; name ; '\\n total: ' ; (entry cumulativeTime / 1000000.0) printString ; ' sec ('
                        ; ((entry cumulativeTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\nself: '
-                       ; entry selfTime printString ; ' usec ('
+                       ; (entry selfTime / 1000000.0) printString ; ' sec ('
                        ; ((entry selfTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\ncalled: '
                        ; entry callCount printString ; '"]\n'.
 
@@ -68,12 +75,14 @@ p@(Profile traits) writeDotTo: filename
                      totalChildTime = 0 ifTrue: [totalChildTime: 1].
                      entry childCallCounts keysAndValuesDo:
                        [|:childMethod :childCallCount childTime|
-                          childTime: (entry childCallTime at: childMethod ifAbsent: [0]).
-                          writer ; entry id ; ' -> ' ; (p results at: childMethod) id
-                            ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
-                            ; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'
-                            ; childCallCount printString ; ' calls"]\n'
-                            ]
+                          (resultsMethods identityIncludes: childMethod)
+                            ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [0]).
+                                     writer ; entry id ; ' -> ' ; (p results at: childMethod) id
+                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
+                                       ; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'
+                                       ; childCallCount printString ; ' calls"]\n'
+                                       ]
+                          ]
                        ].
      writer ; '\n}\n'
        ]
