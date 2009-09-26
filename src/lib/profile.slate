@@ -1,4 +1,12 @@
-prototypes define: #Profile &slots: {#method. #outputFilename. #results -> ExtensibleArray new}.
+
+
+prototypes define: #Profile &slots: {#method. #rawResults -> ExtensibleArray new. #results. #totalTime}.
+prototypes define: #ProfilerEntry &slots: {#method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime. #id}.
+
+pe1@(ProfilerEntry traits) <= pe2@(ProfilerEntry traits)
+[
+  pe1 cumulativeTime <= pe2 cumulativeTime
+].
 
 m@(Method traits) profile
 [
@@ -10,15 +18,72 @@ p@(Profile traits) newFor: block
   p cloneSettingSlots: #(method) to: {block}
 ].
 
-p@(Profile traits) run &outputFilename: outfile
+p@(Profile traits) parseResults
+[ | id totalTime |
+  p results: Dictionary new.
+  id: 1.
+  totalTime: 0.
+  p rawResults do: [|:method :callCount :selfTime :cumTime :childCounts :childTimes countDict timeDict|
+                      totalTime: totalTime + selfTime.
+                      countDict: Dictionary new.
+                      timeDict: Dictionary new.
+                      childCounts do: [|:key :val| countDict at: key put: val] inGroupsOf: 2.
+                      childTimes do: [|:key :val| timeDict at: key put: val] inGroupsOf: 2.
+                      p results at: method put: (ProfilerEntry cloneSettingSlots: #(id method callCount selfTime cumulativeTime childCallCounts childCallTime)
+                                                               to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
+                      id: id + 1.
+                      ] inGroupsOf: 6.
+  p totalTime: totalTime.
+
+].
+
+p@(Profile traits) run
 [
-  outfile `defaultsTo: 'slateprof.out'.
-  [lobby startProfilingTo: outfile.
+  [lobby startProfiling.
    p method do] ensure:
-     [p results: lobby stopProfiling].
+     [p rawResults: lobby stopProfiling].
+  p parseResults.
 ].
 
 p@(Profile traits) showResults
 [
   p results
+].
+
+p@(Profile traits) writeDotTo: filename &maxCount: maxCount
+[
+  maxCount `defaultsTo: p results size.
+  (File newNamed: filename &mode: File CreateWrite) sessionDo: 
+    [ |:file writer results resultsMethods|
+     writer: file writer.
+     writer ; 'digraph {\ngraph [ranksep=0.25, fontname=Arial, nodesep=0.125];\n'
+            ; 'node [fontname=Arial, style=\"filled,rounded\", height=0, width=0, shape=box, fontcolor=white];\n'
+            ; 'edge [fontname=Arial];\n'.
+     results: (p results sort last: maxCount).
+     resultsMethods: (results collect: #method `er).
+     results do: [ |:entry name totalChildTime | 
+                     name: (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
+                     writer ; entry id ; ' [color="#000000", fontcolor="#ffffff", fontsize="10.00", '
+                       ; 'label="' ; name ; '\\n total: ' ; (entry cumulativeTime / 1000000.0) printString ; ' sec ('
+                       ; ((entry cumulativeTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\nself: '
+                       ; (entry selfTime / 1000000.0) printString ; ' sec ('
+                       ; ((entry selfTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\ncalled: '
+                       ; entry callCount printString ; '"]\n'.
+
+                     totalChildTime: 0.
+                     entry childCallTime valuesDo: [|:childTime | totalChildTime: totalChildTime + childTime].
+                     totalChildTime = 0 ifTrue: [totalChildTime: 1].
+                     entry childCallCounts keysAndValuesDo:
+                       [|:childMethod :childCallCount childTime|
+                          (resultsMethods identityIncludes: childMethod)
+                            ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [0]).
+                                     writer ; entry id ; ' -> ' ; (p results at: childMethod) id
+                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
+                                       ; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'
+                                       ; childCallCount printString ; ' calls"]\n'
+                                       ]
+                          ]
+                       ].
+     writer ; '\n}\n'
+       ]
 ].

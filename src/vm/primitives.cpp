@@ -1797,17 +1797,7 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
 
 
 void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  char filename[SLATE_FILE_NAME_LENGTH];
-  word_t len;
   if (oh->currentlyProfiling) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
-    return;
-  }
-
-  len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
-  oh->profilerFile = fopen(filename, "wb");
-
-  if (oh->profilerFile == NULL) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
     return;
   }
@@ -1818,6 +1808,7 @@ void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t a
 
 void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   Pinned<struct OopArray> array(oh);
+  std::vector<Pinned<struct OopArray> > pinnedArrays;
   word_t k;
   if (!oh->currentlyProfiling) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
@@ -1825,20 +1816,47 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
   }
   profiler_stop(oh);
 
-  if (oh->profilerFile == NULL) {
-    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
-    return;
-  }
+  /*we don't use heap_store_into below because everything is pinned and should be in the young obj area*/
 
-  fclose(oh->profilerFile);
-  oh->profilerFile = NULL;
 
-  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), oh->profiledMethods.size());
+  /*method, callcount, selftime, cumtime, childCounts, childTimes*/
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                     oh->profiledMethods.size()*6);
   k = 0;
   for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
        i != oh->profiledMethods.end();
        i++) {
-    array->elements[k++] = *i;
+    struct Object* method = *i;
+    int m = 0;
+    Pinned<struct OopArray> childCounts(oh, heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                                        oh->profilerChildCallCount[method].size()*2));
+    Pinned<struct OopArray> childTimes(oh, heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                                        oh->profilerChildCallTime[method].size()*2));
+    
+    m = 0;
+    for (std::map<struct Object*,word_t>::iterator cci = oh->profilerChildCallCount[method].begin();
+         cci != oh->profilerChildCallCount[method].end();
+         cci++) {
+      childCounts->elements[m++] = (*cci).first;
+      childCounts->elements[m++] = smallint_to_object((*cci).second);
+    }
+    m = 0;
+    for (std::map<struct Object*,word_t>::iterator cti = oh->profilerChildCallTime[method].begin();
+         cti != oh->profilerChildCallTime[method].end();
+         cti++) {
+      childTimes->elements[m++] = (*cti).first;
+      childTimes->elements[m++] = smallint_to_object((*cti).second);
+    }
+
+    pinnedArrays.push_back(childCounts);
+    pinnedArrays.push_back(childTimes);
+
+    array->elements[k++] = method;
+    array->elements[k++] = smallint_to_object(oh->profilerCallCounts[method]);
+    array->elements[k++] = smallint_to_object(oh->profilerSelfTime[method]);
+    array->elements[k++] = smallint_to_object(oh->profilerCumTime[method]);
+    array->elements[k++] = childCounts;
+    array->elements[k++] = childTimes;
   }
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = array;
