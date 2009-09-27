@@ -31,8 +31,6 @@ void profiler_start(struct object_heap* oh) {
 
 void profiler_stop(struct object_heap* oh) {
   oh->currentlyProfiling = 0;
-  oh->profilerPinnedMethods.clear();
-  oh->profilerPinnedMethodsChecker.clear();
 }
 
 void profilerIncrement(std::map<struct Object*,word_t>& dict, struct Object* entry, word_t count) {
@@ -43,10 +41,13 @@ void profilerIncrement(std::map<struct Object*,word_t>& dict, struct Object* ent
 void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push) {
   if (!oh->currentlyProfiling) return;
   if (/*!object_is_old(oh, toMethod) && */oh->profilerPinnedMethodsChecker[toMethod] != 1) {
+
     Pinned<struct Object> toPinned(oh, toMethod);
     oh->profilerPinnedMethods.push_back(toPinned);
     oh->profilerPinnedMethodsChecker[toMethod] = 1;
   }
+
+
   //printf("%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
 
   oh->profilerTime = getTickCount();
@@ -100,10 +101,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
       profilerIncrement(oh->profilerParentChildCount, child, -1);
     }
 
-
   }
-
-
 
   oh->profilerLastTime = oh->profilerTime;
 }
@@ -112,7 +110,18 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
 /*this will be called when the GC deletes or forwards the object*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   if (!oh->currentlyProfiling) return;
-  assert(oh->profiledMethods.find(method) == oh->profiledMethods.end());
+  oh->profiledMethods.erase(method);
+  oh->profilerSelfTime.erase(method);
+  oh->profilerCallCounts.erase(method);
+
+  for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallCount.begin();
+       i != oh->profilerChildCallCount.end(); i++) {
+    (*i).second.erase(method);
+  }
+  for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallTime.begin();
+       i != oh->profilerChildCallTime.end(); i++) {
+    (*i).second.erase(method);
+  }
 
 }
 
