@@ -23,16 +23,17 @@ p@(Profile traits) parseResults
   p results: Dictionary new.
   id: 1.
   totalTime: 0.
-  p rawResults do: [|:method :callCount :selfTime :cumTime :childCounts :childTimes countDict timeDict|
+  p rawResults do: [|:method :callCount :selfTime :childCounts :childTimes countDict timeDict cumTime|
                       totalTime: totalTime + selfTime.
+                      cumTime: selfTime.
                       countDict: Dictionary new.
                       timeDict: Dictionary new.
                       childCounts do: [|:key :val| countDict at: key put: val] inGroupsOf: 2.
-                      childTimes do: [|:key :val| timeDict at: key put: val] inGroupsOf: 2.
+                      childTimes do: [|:key :val| timeDict at: key put: val. key == method ifFalse: [cumTime: cumTime + val]] inGroupsOf: 2.
                       p results at: method put: (ProfilerEntry cloneSettingSlots: #(id method callCount selfTime cumulativeTime childCallCounts childCallTime)
                                                                to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
                       id: id + 1.
-                      ] inGroupsOf: 6.
+                      ] inGroupsOf: 5.
   p totalTime: totalTime.
 
 ].

@@ -253,10 +253,11 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
       already_full_gc = 1;
       heap_full_gc(oh);
     } else {
-      heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
-      print_backtrace(oh);
-      printf("Couldn't allocate %" PRIdPTR " bytes\n", bytes + sizeof(struct Object));
-      assert(0);
+      //heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
+      //print_backtrace(oh);
+      printf("Couldn't allocate %" PRIdPTR " bytes... using oldspace\n", bytes + sizeof(struct Object));
+      return gc_allocate_old(oh, bytes);
+      //assert(0);
     }
     oh->nextFree = (struct Object*)oh->memoryYoung;
     goto start;
@@ -443,7 +444,7 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
     
   }
 
-  if ((memory == oh->memoryOld) && (object_count / free_count > 2)) {
+  if ((memory == oh->memoryOld) && (free_count == 0 || (object_count / free_count > 2))) {
     oh->doFullGCNext = 1;
   }
 

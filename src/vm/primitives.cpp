@@ -1819,9 +1819,10 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
   /*we don't use heap_store_into below because everything is pinned and should be in the young obj area*/
 
 
-  /*method, callcount, selftime, cumtime, childCounts, childTimes*/
+  /*method, callcount, selftime, childCounts, childTimes*/
   array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
-                                     oh->profiledMethods.size()*6);
+                                     oh->profiledMethods.size()*5);
+
   k = 0;
   for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
        i != oh->profiledMethods.end();
@@ -1854,13 +1855,20 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
     array->elements[k++] = method;
     array->elements[k++] = smallint_to_object(oh->profilerCallCounts[method]);
     array->elements[k++] = smallint_to_object(oh->profilerSelfTime[method]);
-    array->elements[k++] = smallint_to_object(oh->profilerCumTime[method]);
     array->elements[k++] = childCounts;
     array->elements[k++] = childTimes;
   }
 
-  oh->cached.interpreter->stack->elements[resultStackPointer] = array;
   oh->profiledMethods.clear();
+  oh->profilerPinnedMethods.clear();
+  oh->profilerPinnedMethodsChecker.clear();
+  pinnedArrays.clear();
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = array;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+  //this is probably a mess, we should do a full gc
+  heap_full_gc(oh);
+
 }
 
 void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {

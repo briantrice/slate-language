@@ -252,7 +252,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 #endif
 
   if (oh->currentlyProfiling) {
-    profiler_enter_method(oh, (struct Object*)closure, 1);
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)closure, 1);
   }
 
   i->framePointer = framePointer;
@@ -367,15 +367,21 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #ifdef PRINT_DEBUG
     printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
+    //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
+    
+#if 0
     if (oh->currentlyProfiling) {
-      profiler_enter_method(oh, (struct Object*)method, 1);
+      profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure, (struct Object*)method, 1);
     }
+#endif
     Pinned<struct OopArray> pinnedStack(oh);
     pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
+#if 0
     if (oh->currentlyProfiling) {
-      profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure, 0);
+      profiler_enter_method(oh, (struct Object*)method, (struct Object*)oh->cached.interpreter->closure, 0);
     }
+#endif
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
@@ -461,6 +467,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
     i->codePointer = 0;
     i->framePointer = i->stackPointer;
+
     /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
@@ -476,7 +483,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   }
 
   if (oh->currentlyProfiling) {
-    profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3], 0);
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - 3], 0);
   }
 
 

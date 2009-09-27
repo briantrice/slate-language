@@ -307,6 +307,7 @@ int uname(struct utsname *un);
 int getpid();
 #endif
 
+template <class T> class Pinned;
 
 /*these things below never exist in slate land (so word_t types are their actual value)*/
 
@@ -403,14 +404,16 @@ struct object_heap
   std::set<struct Object*> profiledMethods;
   std::map<struct Object*,word_t> profilerCallCounts;
   std::map<struct Object*,word_t> profilerSelfTime;
-  std::map<struct Object*,word_t> profilerCumTime;
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
-  std::vector<struct Object*> profilerCallStack;
-  std::vector<word_t> profilerTimeStack;
 
-  struct Object* profilerLastMethod;
-  
+  std::vector<Pinned<struct Object> > profilerPinnedMethods;
+  std::map<struct Object*, word_t > profilerPinnedMethodsChecker;
+
+  std::map<struct Object*,struct Object*> profilerParentChildCalls; /*a call from parent to child stored reverse*/
+  std::map<struct Object*,word_t> profilerParentChildTimes;
+  std::map<struct Object*,word_t> profilerParentChildCount; /*only use the above two at the top level to avoid recursion timing*/
+
   word_t doFullGCNext;
 
   /*
@@ -964,7 +967,7 @@ int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* a
 
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
-void profiler_enter_method(struct object_heap* oh, struct Object* method, bool_t enter);
+void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push);
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
 
 
@@ -1042,6 +1045,16 @@ public:
     if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
+
+  Pinned(const Pinned<T>&  v) : value(v.value), oh(v.oh) {
+    if (value != NULL) {
+      if (!object_is_smallint((struct Object*)value)) {
+        heap_pin_object(oh, (struct Object*)value);
+      }
+    }
+  }
+
+
   T* operator ->() {
 #ifdef GC_BUG_CHECK
 
