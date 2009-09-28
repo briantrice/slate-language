@@ -1809,19 +1809,44 @@ void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t a
 void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   Pinned<struct OopArray> array(oh);
   std::vector<Pinned<struct OopArray> > pinnedArrays;
+  std::vector<Pinned<struct Object> > pinnedMethods;
   word_t k;
   if (!oh->currentlyProfiling) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
     return;
   }
-  profiler_stop(oh);
 
   /*we don't use heap_store_into below because everything is pinned and should be in the young obj area*/
 
+  // gc before we allocate so we know how many profiledmethods to keep
+  heap_full_gc(oh);
 
   /*method, callcount, selftime, childCounts, childTimes*/
   array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
                                      oh->profiledMethods.size()*5);
+
+
+#ifdef GC_BUG_CHECK
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    assert(object_hash(*i) < ID_HASH_RESERVED);
+  }
+#endif
+
+
+  //pin all the methods so the next time we iterate over things aren't deleted from the list
+  // while iterating
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    Pinned<struct Object> m(oh, *i);
+    pinnedMethods.push_back(m);
+  }
+
+  // methods are pinned... we don't have to worry about redirecting things anymore after they're freed?
+  profiler_stop(oh);
+
 
   k = 0;
   for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
@@ -1838,6 +1863,9 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
     for (std::map<struct Object*,word_t>::iterator cci = oh->profilerChildCallCount[method].begin();
          cci != oh->profilerChildCallCount[method].end();
          cci++) {
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, (*cci).first);
+#endif
       childCounts->elements[m++] = (*cci).first;
       childCounts->elements[m++] = smallint_to_object((*cci).second);
     }
@@ -1845,12 +1873,21 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
     for (std::map<struct Object*,word_t>::iterator cti = oh->profilerChildCallTime[method].begin();
          cti != oh->profilerChildCallTime[method].end();
          cti++) {
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, (*cti).first);
+#endif
       childTimes->elements[m++] = (*cti).first;
       childTimes->elements[m++] = smallint_to_object((*cti).second);
     }
 
     pinnedArrays.push_back(childCounts);
     pinnedArrays.push_back(childTimes);
+
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, method);
+      assert_good_object(oh, childCounts);
+      assert_good_object(oh, childTimes);
+#endif
 
     array->elements[k++] = method;
     array->elements[k++] = smallint_to_object(oh->profilerCallCounts[method]);
@@ -1860,13 +1897,12 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
   }
 
   oh->profiledMethods.clear();
-  oh->profilerPinnedMethods.clear();
-  oh->profilerPinnedMethodsChecker.clear();
   pinnedArrays.clear();
+  pinnedMethods.clear();
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = array;
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
-  //this is probably a mess, we should do a full gc
+  //this is probably a mess, we should do a full gc so we don't crash
   heap_full_gc(oh);
 
 }

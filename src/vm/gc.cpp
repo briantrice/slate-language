@@ -4,7 +4,6 @@
 #endif
 
 
-#ifdef GC_BUG_CHECK
 void assert_good_object(struct object_heap* oh, struct Object* obj) {
   assert(obj->payloadSize < 40 * MB);
   assert(obj->objectSize < 40 * MB);
@@ -13,6 +12,8 @@ void assert_good_object(struct object_heap* oh, struct Object* obj) {
   assert(!object_is_free(obj));
   assert(!object_is_free((struct Object*)obj->map));
 }
+
+#ifdef GC_BUG_CHECK
 
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*)memory;
@@ -500,6 +501,14 @@ void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word
 
 }
 
+void heap_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to) {
+  if (oh->currentlyProfiling) {
+    //fixme ignore objects that aren't methods
+    profiler_notice_forwarded_object(oh, from, to);
+  }
+}
+
+
 void heap_tenure(struct object_heap* oh) {
   /*bring all marked young objects to old generation*/
   word_t tenure_count = 0, pin_count = 0, object_count = 0, free_count = 0;
@@ -536,7 +545,8 @@ void heap_tenure(struct object_heap* oh) {
         printf("tenuring to "); print_object(tenure_start);
 #endif
         oh->tenuredObjects.push_back(tenure_start);
-        
+
+        heap_notice_forwarded_object(oh, obj, tenure_start);
         ((struct ForwardedObject*) obj)->target = tenure_start;
         object_set_idhash(obj, ID_HASH_FORWARDED);
       }
