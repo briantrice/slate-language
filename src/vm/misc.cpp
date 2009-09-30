@@ -142,6 +142,7 @@ int64_t getTickCount() {
   return (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
 }
 
+
 void cache_specials(struct object_heap* heap) {
 
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);

@@ -626,6 +626,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
 int64_t getTickCount();
+SLATE_INLINE volatile int64_t getRealTimeClock();
 
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);

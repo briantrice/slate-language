@@ -2,7 +2,7 @@
 
 void profiler_start(struct object_heap* oh) {
   oh->currentlyProfiling = 1;
-  oh->profilerTimeStart = getTickCount();
+  oh->profilerTimeStart = getRealTimeClock();
   oh->profilerTime = oh->profilerTimeStart;
   oh->profilerLastTime = oh->profilerTimeStart;
   oh->profiledMethods.clear();
@@ -34,7 +34,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
 
   //printf("%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
 
-  oh->profilerTime = getTickCount();
+  oh->profilerTime = getRealTimeClock();
   word_t timeDiff = oh->profilerTime - oh->profilerLastTime;
 
   oh->profiledMethods.insert(toMethod);
