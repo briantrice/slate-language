@@ -407,8 +407,6 @@ struct object_heap
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
 
-  std::vector<Pinned<struct Object> > profilerPinnedMethods;
-  std::map<struct Object*, word_t > profilerPinnedMethodsChecker;
 
   std::map<struct Object*,struct Object*> profilerParentChildCalls; /*a call from parent to child stored reverse*/
   std::map<struct Object*,word_t> profilerParentChildTimes;
@@ -628,6 +626,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
 int64_t getTickCount();
+SLATE_INLINE volatile int64_t getRealTimeClock();
 
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);
@@ -664,6 +663,7 @@ void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySiz
 word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize, bool_t print);
 word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t print);
 void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize);
+void assert_good_object(struct object_heap* oh, struct Object* obj);
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize);
 struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input);
 bool_t object_is_old(struct object_heap* oh, struct Object* oop);
@@ -969,7 +969,8 @@ void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
 void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push);
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
-
+void heap_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
+void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
 
 bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle);
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle);

@@ -2,7 +2,7 @@
 
 void profiler_start(struct object_heap* oh) {
   oh->currentlyProfiling = 1;
-  oh->profilerTimeStart = getTickCount();
+  oh->profilerTimeStart = getRealTimeClock();
   oh->profilerTime = oh->profilerTimeStart;
   oh->profilerLastTime = oh->profilerTimeStart;
   oh->profiledMethods.clear();
@@ -15,16 +15,6 @@ void profiler_start(struct object_heap* oh) {
   oh->profilerParentChildCalls.clear();
   oh->profilerParentChildTimes.clear();
   oh->profilerParentChildCount.clear();
-
-  oh->profilerPinnedMethods.clear();
-  oh->profilerPinnedMethodsChecker.clear();
-
-  struct Object* method = (struct Object*) oh->cached.interpreter->closure;
-  if (oh->profilerPinnedMethodsChecker[method] != 1) {
-    Pinned<struct Object> toPinned(oh, method);
-    oh->profilerPinnedMethods.push_back(toPinned);
-    oh->profilerPinnedMethodsChecker[method] = 1;
-  }
 
 }
 
@@ -40,17 +30,11 @@ void profilerIncrement(std::map<struct Object*,word_t>& dict, struct Object* ent
 /*push is true if we're calling a method and false if we're returing to something higher on the stack*/
 void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push) {
   if (!oh->currentlyProfiling) return;
-  if (/*!object_is_old(oh, toMethod) && */oh->profilerPinnedMethodsChecker[toMethod] != 1) {
-
-    Pinned<struct Object> toPinned(oh, toMethod);
-    oh->profilerPinnedMethods.push_back(toPinned);
-    oh->profilerPinnedMethodsChecker[toMethod] = 1;
-  }
 
 
   //printf("%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
 
-  oh->profilerTime = getTickCount();
+  oh->profilerTime = getRealTimeClock();
   word_t timeDiff = oh->profilerTime - oh->profilerLastTime;
 
   oh->profiledMethods.insert(toMethod);
@@ -106,10 +90,38 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
   oh->profilerLastTime = oh->profilerTime;
 }
 
+void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to) {
+  if (!oh->currentlyProfiling) return;
+  //printf("pf %p -> %p\n", from, to);
+  if (oh->profiledMethods.find(from) == oh->profiledMethods.end()) return;
+  oh->profiledMethods.erase(from); oh->profiledMethods.insert(to);
 
-/*this will be called when the GC deletes or forwards the object*/
+  oh->profilerSelfTime[to] = oh->profilerSelfTime[from];
+  oh->profilerSelfTime.erase(from);
+
+  oh->profilerCallCounts[to] = oh->profilerCallCounts[from];
+  oh->profilerCallCounts.erase(from);
+
+ 
+  for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallCount.begin();
+       i != oh->profilerChildCallCount.end(); i++) {
+    std::map<struct Object*,word_t>& childSet = (*i).second;
+    childSet[to] = childSet[from];
+    childSet.erase(from);
+  }
+  for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallTime.begin();
+       i != oh->profilerChildCallTime.end(); i++) {
+    std::map<struct Object*,word_t>& childSet = (*i).second;
+    childSet[to] = childSet[from];
+    childSet.erase(from);
+  }
+
+}
+
+/*this will be called when the GC deletes the object*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   if (!oh->currentlyProfiling) return;
+  //printf("pf del %p\n", method);
   oh->profiledMethods.erase(method);
   oh->profilerSelfTime.erase(method);
   oh->profilerCallCounts.erase(method);
