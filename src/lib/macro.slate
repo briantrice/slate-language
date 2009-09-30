@@ -349,6 +349,20 @@ message@(Syntax KeywordMessage traits) setTo: val
     [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
+node@(Syntax Node traits) defaultsTo: value
+"Conditional assignment on the value being Nil or absent.
+This generalizes on Load defaultsTo:."
+[
+  Syntax Message sending: #ifNil: to:
+    {node.
+     Syntax Block newFor: (node setTo: value)}
+].
+
+node@(Syntax Node traits) ?= value
+[
+  node defaultsTo: value
+].
+
 node@(Syntax Node traits) += value
 [
   node setTo: (Syntax BinaryMessage sending: #+ to: {node. value})
