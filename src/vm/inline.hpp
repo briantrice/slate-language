@@ -177,10 +177,14 @@ SLATE_INLINE word_t hash_selector(struct object_heap* oh, struct Symbol* name, s
 }
 
 
-
+#ifdef SLATE_USE_RDTSC
 SLATE_INLINE volatile int64_t getRealTimeClock() {
    register long long TSC asm("eax");
    asm volatile (".byte 15, 49" : : : "eax", "edx");
    return TSC;
 } 
-
+#else
+SLATE_INLINE volatile int64_t getRealTimeClock() {
+  return getTickCount();
+} 
+#endif
