@@ -251,8 +251,9 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   print_detail(oh, i->stack->elements[framePointer - 1]);
 #endif
 
-  profiler_leave_current(oh);
-  profiler_enter_method(oh, (struct Object*)closure);
+  if (oh->currentlyProfiling) {
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)closure, 1);
+  }
 
   i->framePointer = framePointer;
   i->method = method;
@@ -293,7 +294,6 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   Pinned<struct Object> traitsWindow(oh);
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct CompiledMethod> callerMethod(oh);
-  word_t addToPic = FALSE;
   callerMethod = oh->cached.interpreter->method;
 
   /*make sure they are pinned*/
@@ -301,6 +301,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   def = NULL;
 
+#ifndef SLATE_DISABLE_PIC_LOOKUP
+  word_t addToPic = FALSE;
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
       && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
@@ -308,7 +310,10 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       method_pic_setup(oh, callerMethod);
       addToPic = TRUE;
     } else {
-      def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
+      if (arity <= 1) {
+        def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
+      }
+
       if ((struct Object*)def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
@@ -324,6 +329,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     }
     
   }
+#endif
 
   if ((struct Object*)def == NULL) {
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
@@ -352,7 +358,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   /*PIC add here*/
 #ifndef SLATE_DISABLE_PIC_LOOKUP
-  if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+  if (addToPic && arity <= 1) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
 #endif
 
   method = (struct Closure*)def->method;
@@ -361,13 +367,21 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #ifdef PRINT_DEBUG
     printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
-    profiler_leave_current(oh);
-    profiler_enter_method(oh, (struct Object*)method);
+    //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
+    
+#if 0
+    if (oh->currentlyProfiling) {
+      profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure, (struct Object*)method, 1);
+    }
+#endif
     Pinned<struct OopArray> pinnedStack(oh);
     pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
-    profiler_leave_current(oh);
-    profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);
+#if 0
+    if (oh->currentlyProfiling) {
+      profiler_enter_method(oh, (struct Object*)method, (struct Object*)oh->cached.interpreter->closure, 0);
+    }
+#endif
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
@@ -453,6 +467,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
     i->codePointer = 0;
     i->framePointer = i->stackPointer;
+
     /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
@@ -467,8 +482,9 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     return 0;
   }
 
-  profiler_leave_current(oh);
-  profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3]);
+  if (oh->currentlyProfiling) {
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - 3], 0);
+  }
 
 
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);

@@ -1797,42 +1797,118 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
 
 
 void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  if (oh->currentlyProfiling) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
 
   profiler_start(oh);
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 }
 
 void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  Pinned<struct OopArray> array(oh);
+  std::vector<Pinned<struct OopArray> > pinnedArrays;
+  std::vector<Pinned<struct Object> > pinnedMethods;
+  word_t k;
+  if (!oh->currentlyProfiling) {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
+    return;
+  }
 
+  /*we don't use heap_store_into below because everything is pinned and should be in the young obj area*/
+
+  // gc before we allocate so we know how many profiledmethods to keep
+  heap_full_gc(oh);
+
+  /*method, callcount, selftime, childCounts, childTimes*/
+  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                     oh->profiledMethods.size()*5);
+
+
+#ifdef GC_BUG_CHECK
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    assert(object_hash(*i) < ID_HASH_RESERVED);
+  }
+#endif
+
+
+  //pin all the methods so the next time we iterate over things aren't deleted from the list
+  // while iterating
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    Pinned<struct Object> m(oh, *i);
+    pinnedMethods.push_back(m);
+  }
+
+  // methods are pinned... we don't have to worry about redirecting things anymore after they're freed?
   profiler_stop(oh);
-  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
+
+
+  k = 0;
+  for (std::set<struct Object*>::iterator i = oh->profiledMethods.begin();
+       i != oh->profiledMethods.end();
+       i++) {
+    struct Object* method = *i;
+    int m = 0;
+    Pinned<struct OopArray> childCounts(oh, heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                                        oh->profilerChildCallCount[method].size()*2));
+    Pinned<struct OopArray> childTimes(oh, heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO),
+                                                                        oh->profilerChildCallTime[method].size()*2));
+    
+    m = 0;
+    for (std::map<struct Object*,word_t>::iterator cci = oh->profilerChildCallCount[method].begin();
+         cci != oh->profilerChildCallCount[method].end();
+         cci++) {
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, (*cci).first);
+#endif
+      childCounts->elements[m++] = (*cci).first;
+      childCounts->elements[m++] = smallint_to_object((*cci).second);
+    }
+    m = 0;
+    for (std::map<struct Object*,word_t>::iterator cti = oh->profilerChildCallTime[method].begin();
+         cti != oh->profilerChildCallTime[method].end();
+         cti++) {
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, (*cti).first);
+#endif
+      childTimes->elements[m++] = (*cti).first;
+      childTimes->elements[m++] = smallint_to_object((*cti).second);
+    }
+
+    pinnedArrays.push_back(childCounts);
+    pinnedArrays.push_back(childTimes);
+
+#ifdef GC_BUG_CHECK
+      assert_good_object(oh, method);
+      assert_good_object(oh, childCounts);
+      assert_good_object(oh, childTimes);
+#endif
+
+    array->elements[k++] = method;
+    array->elements[k++] = smallint_to_object(oh->profilerCallCounts[method]);
+    array->elements[k++] = smallint_to_object(oh->profilerSelfTime[method]);
+    array->elements[k++] = childCounts;
+    array->elements[k++] = childTimes;
+  }
+
+  oh->profiledMethods.clear();
+  pinnedArrays.clear();
+  pinnedMethods.clear();
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = array;
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+  //this is probably a mess, we should do a full gc so we don't crash
+  heap_full_gc(oh);
+
 }
 
 void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
-  word_t count, i, arrayEntry;
-  Pinned<struct OopArray> array(oh);
-  const int entrySize = 3;
-
-  count = 0;
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method != NULL) count++;
-  }
-
-  array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), count * entrySize);
-
-  arrayEntry = 0;
-  for (i = 0; i < PROFILER_ENTRY_COUNT; i++) {
-    if (oh->profiler_entries[i].method == NULL) continue;
-
-    array->elements[arrayEntry + 0] = oh->profiler_entries[i].method;
-    array->elements[arrayEntry + 1] = smallint_to_object(oh->profiler_entries[i].callCount);
-    array->elements[arrayEntry + 2] = smallint_to_object(oh->profiler_entries[i].callTime);
-    arrayEntry += entrySize;
-  }
-
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
-  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
-
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 }
 
 
@@ -2165,6 +2241,9 @@ void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t arity,
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
+void prim_objectPointerAddress(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object((word_t)args[1]);
+}
 
 void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) = {
 
@@ -2183,7 +2262,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_fixme, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_fixme, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 

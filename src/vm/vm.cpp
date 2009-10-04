@@ -177,7 +177,13 @@ int main(int argc, char** argv, char **envp) {
   }
 
   // Create and initialize the heap structure:
-  heap = (struct object_heap*)calloc(1, sizeof(struct object_heap));
+  heap = new object_heap;
+  memset(heap->delegation_stack, 0, sizeof(heap->delegation_stack));
+  memset(heap->methodCache, 0, sizeof(heap->methodCache));
+  memset(heap->memory_areas, 0, sizeof(heap->memory_areas));
+  memset(heap->memory_sizes, 0, sizeof(heap->memory_sizes));
+  memset(heap->memory_num_refs, 0, sizeof(heap->memory_num_refs));
+
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   

@@ -51,7 +51,8 @@ typedef SOCKADDR sockaddr_un;
 #include <set>
 #include <stack>
 #include <vector>
-
+#include <map>
+#include <algorithm>
 
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
@@ -122,9 +123,9 @@ struct Object
 	#define SLATE_INLINE 
 	#pragma warning(disable : 4996)
 #else
-//#define SLATE_INLINE inline
+#define SLATE_INLINE inline
 // fixme
-#define SLATE_INLINE 
+//#define SLATE_INLINE 
 #endif
 
 #define METHOD_CACHE_ARITY 6
@@ -306,6 +307,7 @@ int uname(struct utsname *un);
 int getpid();
 #endif
 
+template <class T> class Pinned;
 
 /*these things below never exist in slate land (so word_t types are their actual value)*/
 
@@ -327,12 +329,6 @@ struct slate_addrinfo_request {
   struct addrinfo* addrResult; /*this needs to be freed with freeaddrinfo*/
 };
 
-
-struct slate_profiler_entry {
-  struct Object* method; /*null if non-active entry.. this must point to an old generation object (since they don't move)*/
-  word_t callCount; /*this is not a small int... it needs to be converted*/
-  word_t callTime; /*total time spent in this method.... fixme add code for this*/
-};
 
 
 struct object_heap
@@ -404,9 +400,18 @@ struct object_heap
   void* stackBottom;
 
   bool_t currentlyProfiling;
-  word_t currentlyProfilingIndex;
-  int64_t profilerTimeStart, profilerTimeEnd;
-  struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
+  int64_t profilerTimeStart, profilerTime, profilerLastTime;
+  std::set<struct Object*> profiledMethods;
+  std::map<struct Object*,word_t> profilerCallCounts;
+  std::map<struct Object*,word_t> profilerSelfTime;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
+
+
+  std::map<struct Object*,struct Object*> profilerParentChildCalls; /*a call from parent to child stored reverse*/
+  std::map<struct Object*,word_t> profilerParentChildTimes;
+  std::map<struct Object*,word_t> profilerParentChildCount; /*only use the above two at the top level to avoid recursion timing*/
+
   word_t doFullGCNext;
 
   /*
@@ -621,6 +626,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
 int64_t getTickCount();
+SLATE_INLINE volatile int64_t getRealTimeClock();
 
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);
@@ -657,6 +663,7 @@ void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySiz
 word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize, bool_t print);
 word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t print);
 void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize);
+void assert_good_object(struct object_heap* oh, struct Object* obj);
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize);
 struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input);
 bool_t object_is_old(struct object_heap* oh, struct Object* oop);
@@ -916,6 +923,8 @@ byte_t* byte_array_elements(struct ByteArray* o);
 byte_t byte_array_get_element(struct Object* o, word_t i);
 byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val);
 int fork2();
+word_t calculateMethodCallDepth(struct object_heap* oh);
+
 
 void file_module_init(struct object_heap* oh);
 bool_t file_handle_isvalid(struct object_heap* oh, word_t file);
@@ -958,11 +967,10 @@ int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* a
 
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
-void profiler_enter_method(struct object_heap* oh, struct Object* method);
-void profiler_leave_current(struct object_heap* oh);
-/*void profiler_leave_method(struct object_heap* oh, struct Object* method);*/
+void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push);
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
-
+void heap_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
+void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
 
 bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle);
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle);
@@ -1038,6 +1046,16 @@ public:
     if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
+
+  Pinned(const Pinned<T>&  v) : value(v.value), oh(v.oh) {
+    if (value != NULL) {
+      if (!object_is_smallint((struct Object*)value)) {
+        heap_pin_object(oh, (struct Object*)value);
+      }
+    }
+  }
+
+
   T* operator ->() {
 #ifdef GC_BUG_CHECK
 
@@ -1082,6 +1100,8 @@ public:
 
 };
 
+#include "inline.hpp"
 
-
+// comment out to disable
+//#define SLATE_DISABLE_PIC_LOOKUP ok
 
