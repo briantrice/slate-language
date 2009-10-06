@@ -1,11 +1,11 @@
-#include "slate.h"
+#include "slate.hpp"
 #ifdef WIN32
 static LARGE_INTEGER liZero;
 #endif
 
 void file_module_init(struct object_heap* oh) {
   oh->file_index_size = SLATE_FILES_MAXIMUM;
-  oh->file_index = calloc(oh->file_index_size, sizeof(FILE*));
+  oh->file_index = (FILE**)calloc(oh->file_index_size, sizeof(FILE*));
 }
 
 bool_t file_handle_isvalid(struct object_heap* oh, word_t file) {
@@ -20,7 +20,7 @@ word_t file_allocate(struct object_heap* oh) {
       return file;
   }
   oh->file_index_size *= 2;
-  oh->file_index = realloc(oh->file_index, oh->file_index_size * sizeof(FILE*));
+  oh->file_index = (FILE**)realloc(oh->file_index, oh->file_index_size * sizeof(FILE*));
   assert(oh->file_index);
 
   for (file = initial_size; file < oh->file_index_size; file++) {

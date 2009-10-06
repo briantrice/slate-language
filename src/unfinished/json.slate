@@ -32,6 +32,11 @@ json@JSON writer
 JSON define: #WriteError &parents: {DescriptiveError}.
 JSON define: #ReadError &parents: {DescriptiveError}.
 
+r@(JSON ReadStream traits) error: description
+[
+  JSON ReadError signalSaying: description
+].
+
 r@(JSON ReadStream traits) eatWhitespace
 [| peek |
   peek: r peek.
@@ -48,7 +53,7 @@ r@(JSON ReadStream traits) nextHexDigitToInt
   (char isDigit: 16)
     ifTrue: [char toDigit: 16]
     ifFalse:
-      [(JSON ReadError newDescription: 'Not a valid hex character.') signal]
+      [r error: 'Not a valid hex character.']
 ].
 
 r@(JSON ReadStream traits) hexDigit
@@ -65,7 +70,7 @@ r@(JSON ReadStream traits) readComment
     ifFalse:
       [second = $*
          ifTrue: [r readCStyleComment]
-         ifFalse: [(JSON ReadError newDescription: 'Not a valid JSON comment.') signal]].
+         ifFalse: [r error: 'Not a valid JSON comment.']].
 ].
 
 r@(JSON ReadStream traits) readDoubleSolidusComment
@@ -80,10 +85,10 @@ r@(JSON ReadStream traits) readCStyleComment
   [[ch = $* /\ (r peek = $/)]
     whileFalse: [
       (ch = $/ /\ [r peek = $*])
-              ifTrue: [(JSON ReadError newDescription: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.') signal]
+              ifTrue: [r error: 'Not a valid JSON comment: "/*" cannot be embedded in the comment.']
         ifFalse: [ch: r next]].
     r next] on: Error do: [| :c |
-      (JSON ReadError newDescription: 'Not a valid JSON comment. CStyle comment unfinished') signal]
+      r error: 'Not a valid JSON comment. CStyle comment unfinished']
 ].
 
 s@(String traits) readFrom: r@(JSON ReadStream traits)
@@ -106,7 +111,7 @@ s@(String traits) readFrom: r@(JSON ReadStream traits)
                               n < 128 ifTrue: [result nextPut: (n as: s Character)]
                                       ifFalse: [result nextPutAll: ((n as: s) as: Array)]]
                      ifFalse: [('"/' includes: ch)
-                                 ifFalse: [(JSON ReadError newDescription: 'Not a valid escaped character') signal]].
+                                 ifFalse: [r error: 'Not a valid escaped character']].
               result nextPut: ch]]
            ifFalse: [result nextPut: ch]].
    r next] writingAs: s
@@ -125,7 +130,7 @@ a@(Array traits) readFrom: r@(JSON ReadStream traits)
         [| ch |
          ch: r next.
          ch = $, ifFalse:
-           [(JSON ReadError newDescription: 'Not a valid JSON array.') signal]]].
+           [r error: 'Not a valid JSON array.']]].
   r next] writingAs: a
 ].
 
@@ -137,16 +142,16 @@ d@(Dictionary traits) readFrom: r@(JSON ReadStream traits)
   [done] whileFalse: [| key ch |
     key: r readItem.
     (key is: String) ifFalse: [
-      (JSON ReadError newDescription: 'Not a valid JSON object key (key should be string).') signal].
+      r error: 'Not a valid JSON object key (key should be string).'].
     r eatWhitespace.
     r next = $: ifFalse: [
-      (JSON ReadError newDescription: 'Not a valid JSON object. Separate key and value with a colon.') signal].
+      r error: 'Not a valid JSON object. Separate key and value with a colon.'].
     result at: key put: r readItem.
     r eatWhitespace.
     done: r peek = $}.
     done ifFalse: [
       r next = $, ifFalse: [
-              (JSON ReadError newDescription: 'Not a valid JSON object. Due to...') signal]].].
+              r error: 'Not a valid JSON object. Due to...']].].
   r next.
   result
 ].
@@ -155,21 +160,21 @@ _@True readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'true'
     ifTrue: [True]
-    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
+    ifFalse: [r error: 'Trying to read...']
 ].
 
 _@False readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'false'
     ifTrue: [False]
-    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
+    ifFalse: [e error: 'Trying to read...']
 ].
 
 _@Nil readFrom: r@(JSON ReadStream traits)
 [
   (r peek: 4) = 'null'
     ifTrue: [Nil]
-    ifFalse: [(JSON ReadError newDescription: 'Trying to read...') signal]
+    ifFalse: [r error: 'Trying to read...']
 ].
 
 n@(Number traits) readFrom: r@(JSON ReadStream traits)
@@ -183,8 +188,7 @@ n@(Number traits) readFrom: r@(JSON ReadStream traits)
       whileTrue: [
               peek = $.
           ifTrue: [
-            isFloat ifTrue: [
-                    (JSON ReadError newDescription: 'Not a valid JSON number.') signal].
+            isFloat ifTrue: [r error: 'Not a valid JSON number.'].
             isFloat: True. r next. result: (result as: Float)]
           ifFalse: [
             isNegative ifTrue: [
@@ -201,7 +205,7 @@ r@(JSON ReadStream traits) readItem
 [
   r eatWhitespace.
   r peek
-    ifNil: [(JSON ReadError newDescription: 'Not valid JSON.') signal]
+    ifNil: [r error: 'Not valid JSON.']
     ifNotNilDo:
       [| :nextChar |
        nextChar caseOf: {
@@ -215,7 +219,7 @@ r@(JSON ReadStream traits) readItem
        } otherwise:
          [c isDigit
             ifTrue: [Number readFrom: r]
-            ifFalse: [(JSON ReadError newDescription: 'Not valid JSON.') signal]]
+            ifFalse: [r error: 'Not valid JSON.']]]
 ].
 
 JSON define: #WriteStream &parents: {Stream PrettyPrinter} &slots: {#escapedForwardSlash -> False}.

@@ -1,6 +1,6 @@
-#include "slate.h"
+#include "slate.hpp"
 
-void error(char* str) {
+void error(const char* str) {
   fprintf(stderr, "%s", str);
   assert(0);
 }
@@ -142,6 +142,7 @@ int64_t getTickCount() {
   return (int64_t)tv.tv_sec * 1000000 + (int64_t)tv.tv_usec;
 }
 
+
 void cache_specials(struct object_heap* heap) {
 
  heap->cached.interpreter = (struct Interpreter*) get_special(heap, SPECIAL_OOP_INTERPRETER);
@@ -188,6 +189,21 @@ word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffe
   return payloadSize;
 }
 
+word_t calculateMethodCallDepth(struct object_heap* oh) {
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  word_t depth = 0;
+  do {
+    /*order matters here*/
+    fp = object_to_smallint(i->stack->elements[fp-1]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    depth++;
+  } while (fp >= FUNCTION_FRAME_SIZE);
+
+  return depth;
+}
+
+
 word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSize) {
   word_t arrayLength = byte_array_extract_into(array, (byte_t*)buffer, bufferSize - 1);
 
@@ -196,15 +212,6 @@ word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSiz
 
   buffer [arrayLength] = '\0';	
   return arrayLength;
-}
-
-word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n) {
-  word_t i;
-  word_t hash = (word_t) name;
-  for (i = 0; i < n; i++) {
-    hash += object_hash((struct Object*)object_get_map(oh, arguments[i]));
-  }
-  return hash;
 }
 
 #ifndef WIN32
@@ -239,3 +246,4 @@ int fork2()
   return -1;
 }
 #endif
+

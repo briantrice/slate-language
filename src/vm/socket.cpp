@@ -1,8 +1,8 @@
-#include "slate.h"
+#include "slate.hpp"
 
 void socket_module_init(struct object_heap* oh) {
   oh->socketTicketCount = SLATE_NETTICKET_MAXIMUM;
-  oh->socketTickets = calloc(oh->socketTicketCount * sizeof(struct slate_addrinfo_request), 1);
+  oh->socketTickets = (struct slate_addrinfo_request*)calloc(oh->socketTicketCount * sizeof(struct slate_addrinfo_request), 1);
 #if 0
   oh->socketTicketMutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -175,7 +175,7 @@ DWORD WINAPI socket_getaddrinfo_callback(LPVOID ptr) {
 #else
 void *socket_getaddrinfo_callback(void *ptr) {
 #endif
-  struct slate_addrinfo_request* req = ptr;
+  struct slate_addrinfo_request* req = (struct slate_addrinfo_request*)ptr;
   /*  struct object_heap* oh = req->oh;*/
   struct addrinfo ai;
   memset(&ai, 0, sizeof(ai));
@@ -222,13 +222,13 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
       if (hostnameSize == 0) {
         oh->socketTickets[i].hostname = NULL;
       } else {
-        oh->socketTickets[i].hostname = calloc(hostnameSize, 1);
+        oh->socketTickets[i].hostname = (char*)calloc(hostnameSize, 1);
         extractCString(hostname, (byte_t*)oh->socketTickets[i].hostname, hostnameSize);
       }
       if (serviceSize == 0) {
         oh->socketTickets[i].service = NULL;
       } else {
-        oh->socketTickets[i].service = calloc(hostnameSize, 1);
+        oh->socketTickets[i].service = (char*)calloc(hostnameSize, 1);
         extractCString(service, (byte_t*)oh->socketTickets[i].service, serviceSize);
       }
 

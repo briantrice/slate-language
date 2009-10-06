@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 /***************** MEMORY *************************/

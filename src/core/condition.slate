@@ -207,6 +207,11 @@ conditions define: #DescriptiveConditionMixin &parents: {Cloneable} &slots: {#de
 c@(DescriptiveConditionMixin traits) newDescription: description
 [c new `>> [description: description. ]].
 
+c@(DescriptiveConditionMixin traits) signalSaying: description
+[
+  (c newDescription: description) signal
+].
+
 c@(DescriptiveConditionMixin traits) describeOn: console
 [
   console ; c description ; '\n' 
@@ -218,7 +223,7 @@ to be raised for handling, i.e. no action needs to be taken."
 
 _@lobby warn: message
 [
-  (Warning newDescription: message) signal.
+  Warning signalSaying: message
 ].
 
 warn@(Warning traits) describeOn: console
@@ -245,7 +250,7 @@ author have not been followed, which could lead to problems."
 
 _@lobby deprecated
 [
-  (StyleWarning newDescription: 'This method has been deprecated.') signal
+  StyleWarning signalSaying: 'This method has been deprecated.'
 ].
 
 conditions define: #BreakPoint &parents: {Condition}.
@@ -316,5 +321,5 @@ _@(DescriptiveError traits) describeOn: console
 
 _@lobby error: message
 [
-  (DescriptiveError newDescription: message) signal
+  DescriptiveError signalSaying: message
 ].

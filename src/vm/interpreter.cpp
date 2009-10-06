@@ -1,4 +1,4 @@
-#include "slate.h"
+#include "slate.hpp"
 
 
 void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i, word_t minimum) {
@@ -166,15 +166,14 @@ void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter *
 
 
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
-                                               struct Object* argsNotStack[], word_t n, struct OopArray* opts,
+                                               struct Object* args[], word_t n, struct OopArray* opts,
                                                word_t resultStackPointer) {
 
 
   word_t inputs, framePointer, j, beforeCallStackPointer;
   struct Object** vars;
-  struct LexicalContext* lexicalContext;
-  struct CompiledMethod* method;
-  GC_VOLATILE struct Object* args[16];
+  Pinned<struct LexicalContext> lexicalContext(oh);
+  Pinned<struct CompiledMethod> method(oh);
   
 
 #ifdef PRINT_DEBUG
@@ -187,19 +186,18 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   method->callCount = smallint_to_object(object_to_smallint(method->callCount) + 1);
 
 
-  /*make sure they are pinned*/
   assert(n <= 16);
-  copy_words_into(argsNotStack, n, args);
 
-
+#ifdef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
   if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
     method_optimize(oh, method);
   }
-
+#endif
   
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
-    GC_VOLATILE struct OopArray* argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
+    Pinned<struct OopArray> argsArray(oh);
+    argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into(args, n, argsArray->elements);
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL, resultStackPointer);
     return;
@@ -227,6 +225,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
       heap_store_into(oh, (struct Object*)i->stack, args[j]);
     }
   }
+  //std::vector<Pinned<struct Object> > pinnedVars(n, Pinned<struct Object>(oh));
+  //for (word_t k = 0; k < n; k++) pinnedVars[k] = vars[k];
 
 
   copy_words_into(args, inputs, vars);
@@ -251,8 +251,9 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   print_detail(oh, i->stack->elements[framePointer - 1]);
 #endif
 
-  profiler_leave_current(oh);
-  profiler_enter_method(oh, (struct Object*)closure);
+  if (oh->currentlyProfiling) {
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)closure, 1);
+  }
 
   i->framePointer = framePointer;
   i->method = method;
@@ -268,7 +269,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   fill_words_with(((word_t*)vars)+inputs, object_to_smallint(method->localVariables) - inputs, (word_t)oh->cached.nil);
 
   if (n > inputs) {
-    GC_VOLATILE struct OopArray* restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
+    Pinned<struct OopArray> restArgs(oh);
+    restArgs = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n - inputs);
     copy_words_into(args+inputs, n - inputs, restArgs->elements);
     vars[inputs+array_size(method->optionalKeywords)] = (struct Object*) restArgs;
     heap_store_into(oh, (struct Object*)lexicalContext, (struct Object*)restArgs);/*fix, not always right*/
@@ -287,24 +289,20 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
                                                   struct Symbol* selector, struct Object* args[],
                                                   struct Object* dispatchers[], word_t arity, struct OopArray* opts,
                                           word_t resultStackPointer/*where to put the return value in the stack*/) {
-  GC_VOLATILE struct OopArray* argsArray;
-  struct Closure* method;
-  struct Object* traitsWindow;
-  GC_VOLATILE struct Object* argsStack[16];
-  GC_VOLATILE struct Object* dispatchersStack[16];
-  struct MethodDefinition* def;
-  struct CompiledMethod* callerMethod;
-  word_t addToPic = FALSE;
+  Pinned<struct OopArray> argsArray(oh);
+  Pinned<struct Closure> method(oh);
+  Pinned<struct Object> traitsWindow(oh);
+  Pinned<struct MethodDefinition> def(oh);
+  Pinned<struct CompiledMethod> callerMethod(oh);
   callerMethod = oh->cached.interpreter->method;
 
   /*make sure they are pinned*/
   assert(arity <= 16);
-  /*for gc*/
-  copy_words_into(args, arity, argsStack);
-  copy_words_into(dispatchers, arity, dispatchersStack);
 
   def = NULL;
 
+#ifndef SLATE_DISABLE_PIC_LOOKUP
+  word_t addToPic = FALSE;
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
       && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
@@ -312,8 +310,11 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       method_pic_setup(oh, callerMethod);
       addToPic = TRUE;
     } else {
-      def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
-      if (def==NULL) {
+      if (arity <= 1) {
+        def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
+      }
+
+      if ((struct Object*)def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
         printf("PIC miss\n");
@@ -328,21 +329,20 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     }
     
   }
+#endif
 
-  if (def == NULL) {
+  if ((struct Object*)def == NULL) {
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
   } else {
 #ifdef PRINT_DEBUG_PIC_HITS
     printf("Using PIC over dispatch\n");
 #endif
   }
-
-  if (def == NULL) {
-	GC_VOLATILE struct OopArray *optsArray = NULL;
+  Pinned<struct OopArray> optsArray(oh);
+  if ((struct Object*)def == NULL) {
     // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
-    heap_fixed_add(oh, (struct Object*)argsArray);
     // Export / handle optionals:
     if (opts != NULL) {
       optsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
@@ -353,27 +353,39 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     // Signal notFoundOn:
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, optsArray, resultStackPointer);
     // Unpin it:
-    heap_fixed_remove(oh, (struct Object*)argsArray);
     return;
   }
 
   /*PIC add here*/
-  if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+#ifndef SLATE_DISABLE_PIC_LOOKUP
+  if (addToPic && arity <= 1) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+#endif
+
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
     printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
-    profiler_leave_current(oh);
-    profiler_enter_method(oh, (struct Object*)method);
+    //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
+    
+#if 0
+    if (oh->currentlyProfiling) {
+      profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure, (struct Object*)method, 1);
+    }
+#endif
+    Pinned<struct OopArray> pinnedStack(oh);
+    pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
-    profiler_leave_current(oh);
-    profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure);
+#if 0
+    if (oh->currentlyProfiling) {
+      profiler_enter_method(oh, (struct Object*)method, (struct Object*)oh->cached.interpreter->closure, 0);
+    }
+#endif
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
-    GC_VOLATILE struct OopArray* optsArray = NULL;
+    Pinned<struct OopArray> optsArray(oh);
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
 
@@ -436,7 +448,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
-    struct Object* ensureHandler = i->stack->elements[ensureHandlers+1];
+    Pinned<struct Object> ensureHandler(oh);
+    ensureHandler = i->stack->elements[ensureHandlers+1];
 #ifdef PRINT_DEBUG_ENSURE
   printf("current ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
@@ -454,6 +467,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
     i->codePointer = 0;
     i->framePointer = i->stackPointer;
+
     /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, resultStackPointer);
@@ -468,8 +482,9 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     return 0;
   }
 
-  profiler_leave_current(oh);
-  profiler_enter_method(oh, (struct Object*)i->stack->elements[i->framePointer - 3]);
+  if (oh->currentlyProfiling) {
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - 3], 0);
+  }
 
 
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
@@ -501,15 +516,14 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t n, word_t resultStackPointer) {
 
   word_t framePointer;
-  struct LexicalContext* lexicalContext;
-  struct Object *barrier, *traitsWindow;
+  Pinned<struct LexicalContext> lexicalContext(oh);
+  Pinned<struct Object> barrier(oh), traitsWindow(oh);
   struct Object** args;
-  struct Symbol* selector;
-  GC_VOLATILE struct OopArray* argsArray;
-  struct Closure* method;
-  struct CompiledMethod* resender;
-  struct MethodDefinition* def;
-  GC_VOLATILE struct Object* argsStack[16]; /*for pinning*/
+  Pinned<struct Symbol> selector(oh);
+  Pinned<struct OopArray> argsArray(oh);
+  Pinned<struct Closure> method(oh);
+  Pinned<struct CompiledMethod> resender(oh);
+  Pinned<struct MethodDefinition> def(oh);
 
   if (n == 0) {
     framePointer = i->framePointer;
@@ -529,10 +543,12 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
   assert(n <= 16);
-  copy_words_into(args, n, argsStack);
+  std::vector<Pinned<struct Object> > pinnedArgs(n, Pinned<struct Object>(oh));
+  for (int k = 0; k < n; k++) pinnedArgs[k] = args[k];
 
   def = method_dispatch_on(oh, selector, args, n, barrier);
-  if (def == NULL) {
+  pinnedArgs[0] = args[0];
+  if ((struct Object*)def == NULL) {
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*)args, n, (word_t*)argsArray->elements);
     interpreter_signal_with_with_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON),
@@ -552,7 +568,8 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   }
 
   if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
-    struct OopArray* optKeys = resender->optionalKeywords;
+    Pinned<struct OopArray> optKeys(oh);
+    optKeys = resender->optionalKeywords;
     interpreter_apply_to_arity_with_optionals(oh, i, method, args, n, NULL, resultStackPointer);
     if (i->closure == method) {
       word_t optKey;
@@ -565,9 +582,9 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     }
 
   } else {
-    GC_VOLATILE struct OopArray* optsArray;
-    GC_VOLATILE struct OopArray* optKeys;
-    GC_VOLATILE struct OopArray* signalOpts;
+    Pinned<struct OopArray> optsArray(oh);
+    Pinned<struct OopArray> optKeys(oh);
+    Pinned<struct OopArray> signalOpts(oh);
     word_t optKey;
     
     optKeys = resender->optionalKeywords;
@@ -661,6 +678,9 @@ void interpret(struct object_heap* oh) {
 
  /* we can set a conditional breakpoint if the vm crash is consistent */
   unsigned long int instruction_counter = 0;
+#if SLATE_CUSTOM_BREAKPOINT
+  word_t myBreakpoint = 0;
+#endif
 
 #ifdef PRINT_DEBUG
   printf("Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
@@ -669,6 +689,13 @@ void interpret(struct object_heap* oh) {
 #endif
 
   cache_specials(oh);
+  std::vector<Pinned<struct Object> > pinnedObjects(6, Pinned<struct Object>(oh));
+  pinnedObjects[0] = (struct Object*) oh->cached.interpreter;
+  pinnedObjects[1] = (struct Object*) oh->cached.true_object;
+  pinnedObjects[2] = (struct Object*) oh->cached.false_object;
+  pinnedObjects[3] = (struct Object*) oh->cached.primitive_method_window;
+  pinnedObjects[4] = (struct Object*) oh->cached.compiled_method_window;
+  pinnedObjects[5] = (struct Object*) oh->cached.closure_method_window;
 
 #ifdef PRINT_DEBUG
   printf("Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
@@ -703,8 +730,12 @@ void interpret(struct object_heap* oh) {
         globalInterrupt = 0;
       }
 
+#ifdef SLATE_CUSTOM_BREAKPOINT
+      if (instruction_counter > 11475843) {
+        myBreakpoint++;
+      }
+#endif
 
-      
       instruction_counter++;
       prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
@@ -719,8 +750,9 @@ void interpret(struct object_heap* oh) {
         {
           word_t result, arity;
           int k;
-          struct Object *selector;
-          struct Object* args[16];
+          Pinned<struct Object> selector(oh);
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
@@ -732,13 +764,14 @@ void interpret(struct object_heap* oh) {
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
             word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            args[k] = SSA_REGISTER(argReg);
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d@%" PRIdPTR "] = ", k, argReg);
             print_type(oh, args[k]);
 #endif
           }
-          send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, args, args, arity, NULL, i->framePointer + result);
+          send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray, arity, NULL, i->framePointer + result);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -749,12 +782,15 @@ void interpret(struct object_heap* oh) {
         {
           word_t result, arity, optsArrayReg;
           int k;
-          struct Object *selector;
-          GC_VOLATILE struct Object* args[16];
+          Pinned<struct Object> selector(oh);
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16];
+          Pinned<struct OopArray> optsArray(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
           optsArrayReg = SSA_NEXT_PARAM_SMALLINT;
+          optsArray = (struct OopArray*)SSA_REGISTER(optsArrayReg);
 
 #ifdef PRINT_DEBUG_OPCODES
           printf("send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
@@ -762,21 +798,23 @@ void interpret(struct object_heap* oh) {
 #endif
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
-            args[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            argsArray[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+            pinnedArgs[k] = argsArray[k];
 #ifdef PRINT_DEBUG_OPCODES
             printf("args[%d] = ", k);
             print_type(oh, args[k]);
 #endif
           }
-          send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, args, args,
-                                               arity, (struct OopArray*)SSA_REGISTER(optsArrayReg),
+
+          send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray,
+                                               arity, optsArray,
                                                i->framePointer + result);
           break;
         }
       case OP_NEW_ARRAY_WITH:
         {
           word_t result, size, k;
-          GC_VOLATILE struct OopArray* array;
+          Pinned<struct OopArray> array(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
           size = SSA_NEXT_PARAM_SMALLINT;
 
@@ -798,8 +836,8 @@ void interpret(struct object_heap* oh) {
       case OP_NEW_CLOSURE:
         {
           word_t result;
-          GC_VOLATILE struct CompiledMethod* block;
-          GC_VOLATILE struct Closure* newClosure;
+          Pinned<struct CompiledMethod> block(oh);
+          Pinned<struct Closure> newClosure(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
           block = (struct CompiledMethod*)SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
@@ -835,7 +873,7 @@ void interpret(struct object_heap* oh) {
       case OP_LOAD_LITERAL:
         {
           word_t destReg;
-          GC_VOLATILE struct Object* literal;
+          Pinned<struct Object> literal(oh);
           destReg = SSA_NEXT_PARAM_SMALLINT;
           literal = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
@@ -981,17 +1019,23 @@ void interpret(struct object_heap* oh) {
           word_t tableReg, keyReg;
           keyReg = SSA_NEXT_PARAM_SMALLINT;
           tableReg = SSA_NEXT_PARAM_SMALLINT;
+
+          Pinned<struct OopArray> table(oh), key(oh);
+
           /*assert(0);*/
 #ifdef PRINT_DEBUG_OPCODES
           printf("branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
 #endif
-          interpreter_branch_keyed(oh, i, (struct OopArray*)SSA_REGISTER(tableReg), SSA_REGISTER(keyReg));
+          table = (struct OopArray*)SSA_REGISTER(tableReg);
+          key = (struct OopArray*)SSA_REGISTER(keyReg);
+
+          interpreter_branch_keyed(oh, i, table, key);
           break;
         }
       case OP_BRANCH_IF_TRUE:
         {
           word_t condReg, offset;
-          GC_VOLATILE struct Object* val;
+          Pinned<struct Object> val(oh);
           condReg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
 
@@ -1014,7 +1058,7 @@ void interpret(struct object_heap* oh) {
       case OP_BRANCH_IF_FALSE:
         {
           word_t condReg, offset;
-          GC_VOLATILE struct Object* val;
+          Pinned<struct Object> val(oh);
           condReg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
 
@@ -1074,7 +1118,9 @@ void interpret(struct object_heap* oh) {
           printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, 0, SSA_REGISTER(reg), prevPointer);
+          Pinned<struct Object> result(oh);
+          result = SSA_REGISTER(reg);
+          interpreter_return_result(oh, i, 0, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -1108,7 +1154,9 @@ void interpret(struct object_heap* oh) {
           printf("%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
-          interpreter_return_result(oh, i, offset, SSA_REGISTER(reg), prevPointer);
+          Pinned<struct Object> result(oh);
+          result = SSA_REGISTER(reg);
+          interpreter_return_result(oh, i, offset, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
           printf("in function: \n");
           print_type(oh, (struct Object*)i->method);
@@ -1117,7 +1165,7 @@ void interpret(struct object_heap* oh) {
         }
       case OP_RETURN_VALUE:
         {
-          GC_VOLATILE struct Object* obj;
+          Pinned<struct Object> obj(oh);
           PRINTOP("op: return obj\n");
           obj = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_STACK

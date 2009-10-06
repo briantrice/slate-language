@@ -6,6 +6,13 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+
+// this will make sure to include the PRIdPTR macros in c++
+#define __STDC_FORMAT_MACROS 1
+
+// for INTPTR_MAX
+#define __STDC_LIMIT_MACROS 1
+
 #ifdef WIN32
 // The following must be obtained from http://code.google.com/p/msinttypes/ for Windows:
 #include "stdint.h"
@@ -38,6 +45,14 @@ typedef SOCKADDR sockaddr_un;
 #endif
 
 #include <dirent.h>  // on Windows, download from http://www.softagalleria.net/dirent.php
+
+
+// stl libraries
+#include <set>
+#include <stack>
+#include <vector>
+#include <map>
+#include <algorithm>
 
 /* SLATE_BUILD_TYPE should be set by the build system (Makefile, VS project): */
 #ifndef SLATE_BUILD_TYPE
@@ -104,14 +119,13 @@ struct Object
 #define HEADER_SIZE_WORDS (HEADER_SIZE/sizeof(word_t))
 #define SLATE_IMAGE_MAGIC (word_t)0xABCDEF43
 
-/*this doesn't seem to ensure anything*/
-#define GC_VOLATILE /*volatile*/
-
 #ifdef _MSC_VER
 	#define SLATE_INLINE 
 	#pragma warning(disable : 4996)
 #else
-	#define SLATE_INLINE inline
+#define SLATE_INLINE inline
+// fixme
+//#define SLATE_INLINE 
 #endif
 
 #define METHOD_CACHE_ARITY 6
@@ -267,10 +281,9 @@ struct Interpreter /*note the bottom fields are treated as contents in a bytearr
 #define SLATE_FILE_NAME_LENGTH 512
 #define DELEGATION_STACK_SIZE 256
 #define PROFILER_ENTRY_COUNT 4096
-#define MAX_FIXEDS 64
 #define MARK_MASK 1
 #define METHOD_CACHE_SIZE 1024*64
-#define PINNED_CARD_SIZE (sizeof(word_t) * 8)
+#define OLD_TO_NEW_CARD_SIZE (sizeof(word_t) * 8)
 #define SLATE_MEMS_MAXIMUM 1024
 #define SLATE_NETTICKET_MAXIMUM 1024
 #define SLATE_FILES_MAXIMUM 256
@@ -294,6 +307,7 @@ int uname(struct utsname *un);
 int getpid();
 #endif
 
+template <class T> class Pinned;
 
 /*these things below never exist in slate land (so word_t types are their actual value)*/
 
@@ -316,12 +330,6 @@ struct slate_addrinfo_request {
 };
 
 
-struct slate_profiler_entry {
-  struct Object* method; /*null if non-active entry.. this must point to an old generation object (since they don't move)*/
-  word_t callCount; /*this is not a small int... it needs to be converted*/
-  word_t callTime; /*total time spent in this method.... fixme add code for this*/
-};
-
 
 struct object_heap
 {
@@ -336,6 +344,7 @@ struct object_heap
   word_t current_dispatch_id;
   bool_t interrupt_flag;
   bool_t quiet; /*suppress excess stdout*/
+  bool_t quietGC; /*suppress excess gc messages*/
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
   word_t gcTenureCount;
@@ -354,11 +363,14 @@ struct object_heap
   struct Object *nextOldFree;
   struct Object* delegation_stack[DELEGATION_STACK_SIZE];
   struct MethodCacheEntry methodCache[METHOD_CACHE_SIZE];
-  struct Object* fixedObjects[MAX_FIXEDS];
 
-  struct CompiledMethod** optimizedMethods;
-  word_t optimizedMethodsSize;
-  word_t optimizedMethodsLimit;
+  // keep track of these so that when a callee gets changed we recompile or unoptimize
+  std::multiset<struct CompiledMethod*> optimizedMethods;
+
+  // these might have to be added to the remembered set if they still
+  // contain pointers to new objects (that were pinned when they were
+  // tenured)
+  std::vector<struct Object*> tenuredObjects;
 
   /* memory areas for the primitive memory functions */
   void* memory_areas [SLATE_MEMS_MAXIMUM];
@@ -383,14 +395,24 @@ struct object_heap
   size_t markStackSize;
   size_t markStackPosition;
 
-  word_t* pinnedYoungObjects; /* scan the C stack for things we can't move */
-  word_t* rememberedYoungObjects; /* old gen -> new gen pointers for incremental GC */
+  std::set<struct Object*> rememberedOldObjects; /* old gen -> new gen pointers for incremental GC */
+  
   void* stackBottom;
 
   bool_t currentlyProfiling;
-  word_t currentlyProfilingIndex;
-  int64_t profilerTimeStart, profilerTimeEnd;
-  struct slate_profiler_entry profiler_entries[PROFILER_ENTRY_COUNT];
+  int64_t profilerTimeStart, profilerTime, profilerLastTime;
+  std::set<struct Object*> profiledMethods;
+  std::map<struct Object*,word_t> profilerCallCounts;
+  std::map<struct Object*,word_t> profilerSelfTime;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
+  std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
+
+
+  std::map<struct Object*,struct Object*> profilerParentChildCalls; /*a call from parent to child stored reverse*/
+  std::map<struct Object*,word_t> profilerParentChildTimes;
+  std::map<struct Object*,word_t> profilerParentChildCount; /*only use the above two at the top level to avoid recursion timing*/
+
+  word_t doFullGCNext;
 
   /*
    * I call this cached because originally these could move around
@@ -414,6 +436,8 @@ struct object_heap
 
 
 #define SMALLINT_MASK 0x1
+#define PINNED_MASK 0x3F
+#define PINNED_OFFSET 24
 #define ID_HASH_RESERVED 0x7FFFF0
 #define ID_HASH_FORWARDED ID_HASH_RESERVED
 #define ID_HASH_FREE 0x7FFFFF
@@ -510,9 +534,7 @@ struct object_heap
 #define PRINTOP(X)
 #endif
 
-#define inc_ptr(xxx, yyy)     ((byte_t*)xxx + yyy)
-
-
+byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
@@ -572,6 +594,11 @@ extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word
   }
 
 
+
+
+
+
+
 /* for any assignment where an old gen object points to a new gen
 object.  call it before the next GC happens. !Before any stack pushes! */
 
@@ -599,6 +626,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
 int64_t getTickCount();
+SLATE_INLINE volatile int64_t getRealTimeClock();
 
 bool_t oop_is_object(word_t xxx);
 bool_t oop_is_smallint(word_t xxx);
@@ -609,6 +637,12 @@ word_t object_hash(struct Object* xxx);
 word_t object_size(struct Object* xxx);
 word_t payload_size(struct Object* xxx);
 word_t object_type(struct Object* xxx);
+word_t object_pin_count(struct Object* xxx);
+void object_increment_pin_count(struct Object* xxx);
+void object_decrement_pin_count(struct Object* xxx);
+void object_zero_pin_count(struct Object* xxx);
+void heap_zero_pin_counts_from(struct object_heap* oh, byte_t* memory, word_t memorySize);
+
 
 void copy_bytes_into(byte_t * src, word_t n, byte_t * dst);
 void copy_words_into(void * src, word_t n, void * dst);
@@ -629,6 +663,7 @@ void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySiz
 word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize, bool_t print);
 word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t print);
 void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize);
+void assert_good_object(struct object_heap* oh, struct Object* obj);
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize);
 struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input);
 bool_t object_is_old(struct object_heap* oh, struct Object* oop);
@@ -653,8 +688,7 @@ void heap_free_object(struct object_heap* oh, struct Object* obj);
 void heap_finish_gc(struct object_heap* oh);
 void heap_finish_full_gc(struct object_heap* oh);
 void heap_start_gc(struct object_heap* oh);
-void heap_pin_young_object(struct object_heap* oh, struct Object* x);
-void heap_remember_young_object(struct object_heap* oh, struct Object* x);
+void heap_remember_old_object(struct object_heap* oh, struct Object* x);
 void heap_mark(struct object_heap* oh, struct Object* obj);
 void heap_mark_specials(struct object_heap* oh, bool_t mark_old);
 void heap_mark_fixed(struct object_heap* oh, bool_t mark_old);
@@ -665,14 +699,11 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
 void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_update_forwarded_pointers(struct object_heap* oh, byte_t* memory, word_t memorySize);
 void heap_tenure(struct object_heap* oh);
+void heap_mark_remembered(struct object_heap* oh);
 void heap_mark_pinned_young(struct object_heap* oh);
-void heap_mark_remembered_young(struct object_heap* oh);
-void heap_sweep_young(struct object_heap* oh);
-void heap_pin_c_stack(struct object_heap* oh);
+void heap_mark_pinned_old(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
 void heap_gc(struct object_heap* oh);
-void heap_fixed_add(struct object_heap* oh, struct Object* x);
-void heap_fixed_remove(struct object_heap* oh, struct Object* x);
 void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize);
 void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y);
 void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest);
@@ -704,7 +735,6 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
 void interpret(struct object_heap* oh);
 void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t n);
 struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbol* selector, struct Object* arguments[], word_t n);
-void method_add_optimized(struct object_heap* oh, struct CompiledMethod* method);
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method);
 void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symbol);
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method);
@@ -712,7 +742,7 @@ void method_pic_setup(struct object_heap* oh, struct CompiledMethod* caller);
 void method_pic_flush_caller_pics(struct object_heap* oh, struct CompiledMethod* callee);
 struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n);
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n);
-void error(char* str);
+void error(const char* str);
 void cache_specials(struct object_heap* heap);
 #ifndef WIN32
 word_t max(word_t x, word_t y);
@@ -893,6 +923,8 @@ byte_t* byte_array_elements(struct ByteArray* o);
 byte_t byte_array_get_element(struct Object* o, word_t i);
 byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val);
 int fork2();
+word_t calculateMethodCallDepth(struct object_heap* oh);
+
 
 void file_module_init(struct object_heap* oh);
 bool_t file_handle_isvalid(struct object_heap* oh, word_t file);
@@ -935,11 +967,10 @@ int memarea_addressof (struct object_heap* oh, int memory, int offset, byte_t* a
 
 void profiler_start(struct object_heap* oh);
 void profiler_stop(struct object_heap* oh);
-void profiler_enter_method(struct object_heap* oh, struct Object* method);
-void profiler_leave_current(struct object_heap* oh);
-/*void profiler_leave_method(struct object_heap* oh, struct Object* method);*/
+void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push);
 void profiler_delete_method(struct object_heap* oh, struct Object* method);
-
+void heap_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
+void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to);
 
 bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, struct ByteArray *handle);
 bool_t closeExternalLibrary(struct object_heap* oh, struct ByteArray *handle);
@@ -988,3 +1019,89 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 keep a list of all the pics that it is in */
 void method_pic_add_callee_backreference(struct object_heap* oh,
                                          struct CompiledMethod* caller, struct CompiledMethod* callee);
+
+
+
+
+void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
+
+
+
+
+
+/*pinned objects for GC*/
+void heap_pin_object(struct object_heap* oh, struct Object* x);
+void heap_unpin_object(struct object_heap* oh, struct Object* x);
+
+template <class T> class Pinned {
+
+private:
+  Pinned() {}
+
+public:
+  T* value;
+  struct object_heap* oh;
+  Pinned(struct object_heap* oh_) : value(0), oh(oh_) { }
+  Pinned(struct object_heap* oh_, T* v) : value(v), oh(oh_) {
+    if (!object_is_smallint((struct Object*)value))
+      heap_pin_object(oh, (struct Object*)value);
+  }
+
+  Pinned(const Pinned<T>&  v) : value(v.value), oh(v.oh) {
+    if (value != NULL) {
+      if (!object_is_smallint((struct Object*)value)) {
+        heap_pin_object(oh, (struct Object*)value);
+      }
+    }
+  }
+
+
+  T* operator ->() {
+#ifdef GC_BUG_CHECK
+
+    assert(object_hash((struct Object*)value) < ID_HASH_RESERVED);
+    
+#endif
+    return value;
+  }
+
+  ~Pinned() {
+    if (value != 0 && !object_is_smallint((struct Object*)value)) {
+      heap_unpin_object(oh, (struct Object*)value);
+    }
+  }
+  operator struct Object* () {
+    return (struct Object*)value;
+  }
+  operator struct RoleTable* () {return (struct RoleTable*)value;}
+  operator struct SlotTable* () {return (struct SlotTable*)value;}
+  operator byte_t* () {return (byte_t*)value;}
+  operator struct Map* () {return (struct Map*)value;}
+  operator struct OopArray* () {return (struct OopArray*)value;}
+  operator struct ByteArray* () {return (struct ByteArray*)value;}
+  operator struct CompiledMethod* () {return (struct CompiledMethod*)value;}
+  operator struct MethodDefinition* () {return (struct MethodDefinition*)value;}
+  operator struct Closure* () {return (struct Closure*)value;}
+  operator struct Symbol* () {return (struct Symbol*)value;}
+  operator struct LexicalContext* () {return (struct LexicalContext*)value;}
+  operator struct PrimitiveMethod* () {return (struct PrimitiveMethod*)value;}
+  const Pinned<T>& operator=(T *v) { 
+    if (v != value) {
+      if (v != NULL && !object_is_smallint((struct Object*)v)) {
+        heap_pin_object(oh, (struct Object*)v);
+      }
+      if (value != 0 && !object_is_smallint((struct Object*)value)) {
+        heap_unpin_object(oh, (struct Object*)value);
+      }
+    }
+    value = v;
+    return *this;
+  }
+
+};
+
+#include "inline.hpp"
+
+// comment out to disable
+//#define SLATE_DISABLE_PIC_LOOKUP ok
+

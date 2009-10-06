@@ -3,11 +3,11 @@
 #define _POSIX_PTHREAD_SEMANTICS
 #endif
 
-#include "slate.h"
+#include "slate.hpp"
 
 void dir_module_init(struct object_heap* oh) {
   oh->dir_index_size = SLATE_DIRECTORIES_MAXIMUM;
-  oh->dir_index = calloc(oh->dir_index_size, sizeof(DIR*));
+  oh->dir_index = (DIR**)calloc(oh->dir_index_size, sizeof(DIR*));
 }
 
 bool_t dir_handle_isvalid(struct object_heap* oh, word_t dir) {
@@ -29,7 +29,7 @@ int dir_open(struct object_heap* oh, struct ByteArray *dirName) {
     return dirHandle;
   } else {
     size_t nameLen = payload_size((struct Object *) dirName);
-    char *name = malloc(nameLen + 1);
+    char *name = (char*)malloc(nameLen + 1);
     if (name == NULL) {
       return -errno;
     } else {
@@ -105,7 +105,7 @@ int dir_getcwd(struct ByteArray *pathBuffer) {
 
 int dir_setcwd(struct ByteArray *newpath) {
   word_t pathLen = byte_array_size(newpath);
-  char *path = malloc(pathLen + 1);
+  char *path = (char*)malloc(pathLen + 1);
 #ifdef WIN32
   if (path == NULL)
 	return GetLastError();

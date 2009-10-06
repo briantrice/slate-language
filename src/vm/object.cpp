@@ -1,21 +1,13 @@
 
 /* slate object manipulation */
 
-#include "slate.h"
+#include "slate.hpp"
 
 
-SLATE_INLINE word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
-SLATE_INLINE struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
 
-
-SLATE_INLINE bool_t oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
-SLATE_INLINE bool_t oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-SLATE_INLINE bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
-SLATE_INLINE word_t object_markbit(struct Object* xxx)      { return  (((xxx)->header)&MARK_MASK); }
-SLATE_INLINE word_t object_hash(struct Object* xxx)       { return  ((((xxx)->header)>>1)&ID_HASH_MAX);}
-SLATE_INLINE word_t object_size(struct Object* xxx)       {return   xxx->objectSize;}
-SLATE_INLINE word_t payload_size(struct Object* xxx) {return xxx->payloadSize;}
-SLATE_INLINE word_t object_type(struct Object* xxx)     {return     ((((xxx)->header)>>30)&0x3);}
+void object_zero_pin_count(struct Object* xxx)     {
+  xxx->header &= ~(PINNED_MASK << PINNED_OFFSET);
+}
 
 
 void object_set_mark(struct object_heap* oh, struct Object* xxx) {
@@ -32,7 +24,7 @@ void object_set_format(struct Object* xxx, word_t type) {
   xxx->header |= (type&3) << 30;
 }
 void object_set_size(struct Object* xxx, word_t size) {
-  assert(size >= HEADER_SIZE_WORDS+1);
+  assert((size_t)size >= HEADER_SIZE_WORDS+1);
   xxx->objectSize = size;
 }
 void object_set_idhash(struct Object* xxx, word_t hash) {
@@ -64,14 +56,6 @@ word_t heap_new_hash(struct object_heap* oh) {
 word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
 /*fix i didn't understand the above*/
 
-SLATE_INLINE struct Object* get_special(struct object_heap* oh, word_t special_index) {
-  return oh->special_objects_oop->elements[special_index];
-}
-
-SLATE_INLINE struct Map* object_get_map(struct object_heap* oh, struct Object* o) {
-  if (object_is_smallint(o)) return get_special(oh, SPECIAL_OOP_SMALL_INT_PROTO)->map;
-  return o->map;
-}
 
 
 
@@ -87,21 +71,12 @@ bool_t object_is_special(struct object_heap* oh, struct Object* obj) {
 
 
 
-word_t object_word_size(struct Object* o) {
-
-  if (object_type(o) == TYPE_OBJECT) {
-    return object_size(o);
-  } 
-  return object_size(o) + (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t); 
-
-}
-
 word_t object_array_offset(struct Object* o) {
   return object_size((struct Object*)o) * sizeof(word_t);
 }
 
 byte_t* byte_array_elements(struct ByteArray* o) {
-  byte_t* elements = (byte_t*)inc_ptr(o, object_array_offset((struct Object*)o));
+  byte_t* elements = (byte_t*)inc_ptr((struct Object*)o, object_array_offset((struct Object*)o));
   return elements;
 }
 
@@ -137,21 +112,6 @@ float_type* float_part(struct ByteArray* o) {
   return (float_type*)object_array_elements((struct Object*) o);
 }
 
-SLATE_INLINE word_t object_array_size(struct Object* o) {
-
-  assert(object_type(o) != TYPE_OBJECT);
-  return (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
-
-}
-
-SLATE_INLINE word_t byte_array_size(struct ByteArray* o) {
-  return payload_size((struct Object*)o);
-}
-
-
-SLATE_INLINE word_t array_size(struct OopArray* x) {
-  return object_array_size((struct Object*) x);
-}
 
 word_t slot_table_capacity(struct SlotTable* roles) {
   return object_array_size((struct Object*)roles) / ((sizeof(struct SlotEntry) + (sizeof(word_t) - 1)) / sizeof(word_t));
@@ -161,22 +121,6 @@ word_t role_table_capacity(struct RoleTable* roles) {
   return object_array_size((struct Object*)roles) / ((sizeof(struct RoleEntry) + (sizeof(word_t) - 1)) / sizeof(word_t));
 }
 
-
-
-SLATE_INLINE word_t object_byte_size(struct Object* o) {
-  if (object_type(o) == TYPE_OBJECT) {
-    return object_array_offset(o);
-  } 
-  return object_array_offset(o) + payload_size(o);
-
-}
-
-SLATE_INLINE word_t object_total_size(struct Object* o) {
-  /*IMPORTANT: rounds up to word size*/
-
-  return object_word_size(o)*sizeof(word_t);
-
-}
 
 word_t object_first_slot_offset(struct Object* o) {
 
@@ -195,12 +139,6 @@ word_t object_last_oop_offset(struct Object* o) {
     return object_last_slot_offset(o) + payload_size(o);
   }
   return object_last_slot_offset(o);
-}
-
-struct Object* object_slot_value_at_offset(struct Object* o, word_t offset) {
-
-  return (struct Object*)*((word_t*)inc_ptr(o, offset));
-
 }
 
 
@@ -387,14 +325,14 @@ word_t slot_table_empty_space(struct object_heap* oh, struct SlotTable* slots) {
 
 struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleTable* roles, word_t n, struct MethodDefinition* method) {
   word_t oldSize, newSize, i;
-  GC_VOLATILE struct RoleTable* newRoles;
-
+  Pinned<struct RoleTable> newRoles(oh);
+  Pinned<struct Symbol> roleName(oh);
   oldSize = role_table_capacity(roles);
   newSize = role_table_accommodate(roles, (oldSize / 3 - role_table_empty_space(oh, roles)) + n);
   newRoles = (struct RoleTable*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), newSize * ROLE_ENTRY_WORD_SIZE);
 
   for (i = 0; i < oldSize; i++) {
-    struct Symbol* roleName = (struct Symbol*)roles->roles[i].name;
+    roleName = (struct Symbol*)roles->roles[i].name;
     if (roleName != (struct Symbol*)oh->cached.nil && roles->roles[i].methodDefinition != method) {
       struct RoleEntry * role = role_table_insert(oh, newRoles, roleName);
       *role = roles->roles[i];
@@ -410,7 +348,7 @@ struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleT
 
 struct SlotTable* slot_table_grow_excluding(struct object_heap* oh, struct SlotTable* slots, word_t n, struct Symbol* excluding) {
   word_t oldSize, newSize, i;
-  GC_VOLATILE struct SlotTable* newSlots;
+  Pinned<struct SlotTable> newSlots(oh);
 
   oldSize = slot_table_capacity(slots);
   newSize = slot_table_accommodate(slots, (oldSize / 3 - slot_table_empty_space(oh, slots)) + n);
@@ -476,11 +414,17 @@ void object_represent(struct object_heap* oh, struct Object* obj, struct Map* ma
 
 word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Symbol* selector, word_t position, struct MethodDefinition* method) {
 
-  struct Map* map;
+  Pinned<struct Map> map(oh);
+  Pinned<struct Map> objMap(oh);
+  Pinned<struct RoleTable> objMapRoleTable(oh);
+  Pinned<struct RoleTable> mapRoleTable(oh);
   struct RoleEntry *entry, *chain;
 
-  map = heap_clone_map(oh, obj->map);
-  chain = role_table_entry_for_name(oh, obj->map->roleTable, selector);
+  objMap = obj->map;
+  objMapRoleTable = obj->map->roleTable;
+  map = heap_clone_map(oh, objMap);
+  mapRoleTable = map->roleTable;
+  chain = role_table_entry_for_name(oh, objMapRoleTable, selector);
   object_represent(oh, obj, map);
   
   while (chain != NULL) {
@@ -488,7 +432,8 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
     if (chain->methodDefinition == method) {
 
       /*fix: do we want to copy the roletable*/
-      map->roleTable = role_table_grow_excluding(oh, map->roleTable, 0, NULL);
+      map->roleTable = role_table_grow_excluding(oh, mapRoleTable, 0, NULL);
+      mapRoleTable = map->roleTable;
       heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
 
       /* roleTable is in young memory now so we don't have to store_into*/
@@ -515,10 +460,12 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   }
   
   /*not found, adding role*/
-  map->roleTable = role_table_grow_excluding(oh, map->roleTable, 1, NULL);
+  mapRoleTable = map->roleTable;
+  map->roleTable = role_table_grow_excluding(oh, mapRoleTable, 1, NULL);
+  mapRoleTable = map->roleTable;
   heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
 
-  entry = role_table_insert(oh, map->roleTable, selector);
+  entry = role_table_insert(oh, mapRoleTable, selector);
   entry->name = selector;
   entry->nextRole = oh->cached.nil;
   entry->rolePositions = smallint_to_object(position);
@@ -529,8 +476,9 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
 
 word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Symbol* selector, struct MethodDefinition* method) {
 
-  GC_VOLATILE struct Map* map;
-  GC_VOLATILE struct RoleTable* roles = obj->map->roleTable;
+  Pinned<struct Map> map(oh);
+  Pinned<struct RoleTable> roles(oh);
+  roles = obj->map->roleTable;
   word_t i, matches = 0;
 
   for (i = 0; i< role_table_capacity(roles); i++) {
@@ -543,11 +491,9 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
 
   if (matches == 0) return FALSE;
   map = heap_clone_map(oh, obj->map);
-  heap_fixed_add(oh, (struct Object*)map);
   map->roleTable = role_table_grow_excluding(oh, roles, matches, method);
   heap_store_into(oh, (struct Object*)map, (struct Object*)map->roleTable);
   object_represent(oh, obj, map);
-  heap_fixed_remove(oh, (struct Object*)map);
   return TRUE;
 
 }
@@ -558,17 +504,19 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
 
 struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* obj, struct Symbol* name, struct Object* value, word_t offset) {
 
-  GC_VOLATILE struct Map *map;
-  GC_VOLATILE struct Object* newObj;
-  GC_VOLATILE struct SlotEntry *entry;
+  Pinned<struct Map> map(oh);
+  Pinned<struct Object> newObj(oh);
+  Pinned<struct SlotTable> slotTable(oh);
+  struct SlotEntry* entry;
 
   entry = slot_table_entry_for_name(oh, obj->map->slotTable, name);
-  if (entry != NULL) return NULL;
+  if ((struct Object*)entry != NULL) return NULL;
   map = heap_clone_map(oh, obj->map);
-  heap_fixed_add(oh, (struct Object*)map);
-  map->slotTable = slot_table_grow_excluding(oh, map->slotTable, 1, (struct Symbol*)oh->cached.nil);
-  slot_table_relocate_by(oh, map->slotTable, offset, sizeof(word_t));
-  entry = slot_table_entry_for_inserting_name(oh, map->slotTable, name);
+  slotTable = map->slotTable;
+  map->slotTable = slot_table_grow_excluding(oh, slotTable, 1, (struct Symbol*)oh->cached.nil);
+  slotTable = map->slotTable;
+  slot_table_relocate_by(oh, slotTable, offset, sizeof(word_t));
+  entry = slot_table_entry_for_inserting_name(oh, slotTable, name);
   entry->name = name;
   entry->offset = smallint_to_object(offset);
 
@@ -581,7 +529,6 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
   
 
 
-  heap_fixed_remove(oh, (struct Object*) map);
   object_set_idhash(newObj, heap_new_hash(oh));
   copy_bytes_into((byte_t*)obj+ object_first_slot_offset(obj),
                   offset-object_first_slot_offset(obj),
@@ -613,17 +560,20 @@ struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj,
 
 struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, struct Symbol* name) {
   word_t offset;
-  GC_VOLATILE struct Object* newObj;
-  GC_VOLATILE struct Map* map;
-  GC_VOLATILE struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
-  if (se == NULL) return obj;
+  Pinned<struct Object> newObj(oh);
+  Pinned<struct Map> map(oh);
+  Pinned<struct SlotTable> slotTable(oh);
+  struct SlotEntry* se;
+  se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
+  if ((struct Object*)se == NULL) return obj;
 
   offset = object_to_smallint(se->offset);
   map = heap_clone_map(oh, obj->map);
   map->slotCount = smallint_to_object(object_to_smallint(map->slotCount) - 1);
-  heap_fixed_add(oh, (struct Object*)map);
-  map->slotTable = slot_table_grow_excluding(oh, map->slotTable, -1, se->name);
-  slot_table_relocate_by(oh, map->slotTable, offset, -sizeof(word_t));
+  slotTable = map->slotTable;
+  map->slotTable = slot_table_grow_excluding(oh, slotTable, -1, se->name);
+  slotTable = map->slotTable;
+  slot_table_relocate_by(oh, slotTable, offset, -sizeof(word_t));
 
   if (object_type(obj) == TYPE_OBJECT) {
     newObj = heap_allocate(oh, object_size(obj)-1);
@@ -633,7 +583,6 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
     object_set_format(newObj, object_type(obj));
   }
 
-  heap_fixed_remove(oh, (struct Object*) map);
   /*fix we don't need to set the format again, right?*/
   object_set_idhash(newObj, heap_new_hash(oh));
   copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj),
@@ -726,7 +675,7 @@ void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, wor
 void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount) {
 
   word_t offset, limit;
-  o->map = (struct Map*) inc_ptr(o->map, shift_amount);
+  o->map = (struct Map*) inc_ptr((struct Object*)o->map, shift_amount);
   offset = object_first_slot_offset(o);
   limit = object_last_oop_offset(o) + sizeof(word_t);
   for (; offset != limit; offset += sizeof(word_t)) {

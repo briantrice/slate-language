@@ -1,6 +1,7 @@
 /*
  * Copyright 2008 Timmy Douglas
  * New VM written in C (rather than pidgin/slang/etc) for slate
+ * Converted to C++ in 2009 for GC updates
  * Based on original by Lee Salzman and Brian Rice
  */
 
@@ -24,7 +25,7 @@ on objects that have slots. use (byte|object)_array_(get|set)_element
 
 ***************************/
 
-#include "slate.h"
+#include "slate.hpp"
 #include <signal.h>
 
 word_t memory_string_to_bytes(char* str) {
@@ -61,6 +62,7 @@ void print_usage (char *progName) {
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
   //fprintf(stderr, "  -V                    Verbose mode (print extra diagnostic messages)\n");
   fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stdout messages)\n");
+  fprintf(stderr, "  -gc, --show-gc        Show Garbage Collector messages\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
   fprintf(stderr, "\nNotes:\n");
   fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_DEFAULT_IMAGE), xstr (SLATE_DATADIR), xstr (SLATE_DEFAULT_IMAGE));
@@ -68,17 +70,17 @@ void print_usage (char *progName) {
 
 int main(int argc, char** argv, char **envp) {
 
-  char* image_name = NULL;
+  const char* image_name = NULL;
   char global_image_name [1024];
   FILE* image_file = NULL;
   struct slate_image_header sih;
   struct object_heap* heap;
   word_t memory_limit = 400 * MB;
-  word_t young_limit = 10 * MB;
+  word_t young_limit = 5 * MB;
   size_t res;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
-  int i, quiet = 0, verbose = 0, fread_num = 0;
+  int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif
@@ -112,6 +114,8 @@ int main(int argc, char** argv, char **envp) {
     } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
       quiet = 1;
       verbose = 0;
+    } else if (strcmp(argv[i], "-gc") == 0 || strcmp(argv[i], "--show-gc") == 0) {
+      quietGC = 0;
     } else if (strcmp(argv[i], "--") == 0) {
       /* GNU convention to ignore all arguments past a --, allowing the image to process anything beyond that. */
       break;
@@ -173,11 +177,18 @@ int main(int argc, char** argv, char **envp) {
   }
 
   // Create and initialize the heap structure:
-  heap = calloc(1, sizeof(struct object_heap));
+  heap = new object_heap;
+  memset(heap->delegation_stack, 0, sizeof(heap->delegation_stack));
+  memset(heap->methodCache, 0, sizeof(heap->methodCache));
+  memset(heap->memory_areas, 0, sizeof(heap->memory_areas));
+  memset(heap->memory_sizes, 0, sizeof(heap->memory_sizes));
+  memset(heap->memory_num_refs, 0, sizeof(heap->memory_num_refs));
+
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   
   heap->quiet = quiet;
+  heap->quietGC = quietGC;
   heap->envp = envp;
   if (!heap->quiet) {
     printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
@@ -186,7 +197,7 @@ int main(int argc, char** argv, char **envp) {
   }
 
   // Read in the heap contents from the image file:
-  if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != sih.size) {
+  if ((res = fread(heap->memoryOld, 1, sih.size, image_file)) != (size_t)sih.size) {
     fprintf(stderr, "Error fread()ing image. Got %" PRIuPTR "u, expected %" PRIuPTR "u.\n", res, sih.size);
     return 1;
   }
@@ -195,6 +206,7 @@ int main(int argc, char** argv, char **envp) {
   fclose(image_file);
 
   adjust_oop_pointers_from(heap, (word_t)heap->memoryOld, heap->memoryOld, heap->memoryOldSize);
+  heap_zero_pin_counts_from(heap, heap->memoryOld, heap->memoryOldSize);
   heap->stackBottom = &heap;
   heap->argcSaved = argc;
   heap->argvSaved = argv;
