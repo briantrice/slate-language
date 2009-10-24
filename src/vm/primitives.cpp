@@ -1766,12 +1766,16 @@ void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, str
   struct ByteArray* array;
   ASSURE_SMALLINT_ARG(1);  
   i = object_to_smallint(args[1]);
-  len = strlen(oh->argvSaved[i]);
 
-  array = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), len);
-  copy_bytes_into((byte_t*)oh->argvSaved[i], len, array->elements);
-  oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
-  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+  if (i >= 0 && i < oh->argcSaved) {
+    len = strlen(oh->argvSaved[i]);
+    array = heap_clone_byte_array_sized(oh, get_special(oh, SPECIAL_OOP_BYTE_ARRAY_PROTO), len);
+    copy_bytes_into((byte_t*)oh->argvSaved[i], len, array->elements);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)array;
+    heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)array);
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  }
 }
 
 void prim_environmentVariables(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {

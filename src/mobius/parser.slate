@@ -248,11 +248,13 @@ p@(Syntax Parser traits) parseBinaryMessage: argument
 		  (Integer readFrom: token selector allButFirst)])
 	      of: (p parseUnaryMessage: Nil)]
           ifFalse:
-            [token messageType
-              sending: token selector
-              to: {argument ifNil: [p surroundings ImplicitArgument].
-                   (p parseUnaryMessage: Nil)
-                     ifNil: [p error: 'Only the first argument to a binary message may be implicit']}]).
+            [| firstArg |
+             firstArg: (argument ifNil: [p surroundings ImplicitArgument]).
+             token messageType
+               sending: token selector
+               to: ((p parseUnaryMessage: Nil)
+                   ifNil: [{firstArg}]
+                   ifNotNilDo: [| :secondArg | {firstArg. secondArg}])]).
        argument readFrom: p].
   p undoToken: token.
   argument

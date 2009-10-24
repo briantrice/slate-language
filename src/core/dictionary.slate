@@ -18,6 +18,13 @@ d@(Dictionary traits) copy
 d@(Dictionary traits) new &capacity: n
 [resend `>> [| :newD | values: (d values new &capacity: ((n ifNil: [0]) max: newD contents size)). ]].
 
+d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
+[| result |
+  result: (d new &capacity: (keys size min: values size)).
+  keys with: values do: [| :key :value | result at: key put: value].
+  result
+].
+
 collections addSlot: #IdentityDictionary valued: (Dictionary copy `>>
 	    [hashBlock: #identityHash`er.
 	     equalsBlock: #==`er. ]).
