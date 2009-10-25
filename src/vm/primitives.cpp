@@ -227,7 +227,7 @@ void prim_applytoNewStack(struct object_heap* oh, struct Object* args[], word_t 
   Pinned<struct Closure> method(oh);
   Pinned<struct OopArray> argArray(oh);
   Pinned<struct OopArray> real_opts(oh);
-  word_t thisFrameSize;
+  word_t thisFrameSize, shiftOffset;
   struct Interpreter* i = oh->cached.interpreter;
   method = (struct Closure*)args[0];
   argArray = (struct OopArray*) args[1];
@@ -236,8 +236,9 @@ void prim_applytoNewStack(struct object_heap* oh, struct Object* args[], word_t 
     real_opts = (struct OopArray*) opts->elements[1];
   }
 
+  shiftOffset = i->framePointer - FUNCTION_FRAME_SIZE;
   thisFrameSize = FUNCTION_FRAME_SIZE + object_to_smallint(method->method->registerCount);
-  copy_words_into(&i->stack->elements[i->framePointer - FUNCTION_FRAME_SIZE],
+  copy_words_into(&i->stack->elements[shiftOffset],
                   thisFrameSize,
                   &i->stack->elements[0]);
 
@@ -250,7 +251,7 @@ void prim_applytoNewStack(struct object_heap* oh, struct Object* args[], word_t 
 
 
   interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
-                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer);
+                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer - shiftOffset);
 }
 
 void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
