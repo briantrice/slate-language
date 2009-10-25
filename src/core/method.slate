@@ -278,6 +278,12 @@ m@(Method traits) ifCompletes: successBlock
 is no non-local exit so that the first completes normally."
 [m ifCompletes: successBlock ifFails: []].
 
+_@(Root traits) withBreakerDo: m@(Method traits)
+"Allows implementation of single-level block return (as opposed to full
+lexical return which is default) by passing as the argument a block which
+will return from this wrapper when invoked."
+[m applyWith: [^ Nil]].
+
 m@(Method traits) ** n@(Method traits)
 "Answers a new Method whose effect is that of calling the first method
 on the results of the second method applied to whatever arguments are passed.
@@ -446,17 +452,19 @@ mc@(Method Converse traits) applyTo: array
 
 m@(Method traits) swing
 "This is a higher-order function which does a reverse distribution of sorts.
-It was ported from: http://www.haskell.org/hawiki/LicensedPreludeExts.
-There seems to be no other documentation other than that page.
+It was ported from:
+- http://www.haskell.org/hawiki/LicensedPreludeExts
+- http://www.haskell.org/haskellwiki/Pointfree#Swing
 Example: collect: takes a collection of objects and a method,
   #collect:`er swing takes an object and a collection of methods.
-TODO: Improve the documentation, and expand examples.
-TODO: Make it work for arbitrary arity using introspection / *rest args."
+TODO: Improve the documentation, and add examples."
 [
-  m arity = 2 ifTrue: [[| :b :a | m applyTo: {a. [|:g| g applyTo: {b}]}]]
-	      ifFalse: [error: 'swing can only handle binary methods currently.']
+  m arity = 2
+    ifTrue: [[| :b :a | m applyTo: {a. [| :g | g applyTo: {b}]}]]
+    ifFalse:
+      [TODO: 'Implement multi-argument swing.'
+       "[| *args | m applyTo: {args last} ; args allButLast reversed]"]
 ].
-
 
 m@(PrimitiveMethod traits) method
 [
