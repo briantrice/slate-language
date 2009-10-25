@@ -29,9 +29,11 @@ p@(Precedence traits) orderSyntaxNodes: stack
 the different message types (keyword < binary < unary). This makes reordering
 more complicated because these rules might be overridden."
 [
-  p orderInCompoundStatements: stack.
-  {#orderKeywordMessages:. #orderUnaryMessages:. #orderBinaryMessages:}
-    do: #sendTo: `er <-2 {p. stack}.
+  {#orderInCompoundStatements:.
+   #orderKeywordMessages:.
+   #orderUnaryMessages:.
+   #orderBinaryMessages:}
+    do: [| :sel | sel sendTo: {p. stack}].
 ].
 
 p@(Precedence traits) orderKeywordMessages: stack
