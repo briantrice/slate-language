@@ -93,8 +93,24 @@ necessary."
       [body as: Syntax Parenthesis]
     ifNotNil:
       [block inputVariables: {}.
-        block statements: body.
-        Syntax UnaryMessage sending: #do to: {block}]
+       block statements: body.
+       Syntax UnaryMessage sending: #do to: {block}]
+].
+
+source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray &environment: env
+"This generates the kind of input that `>> expects for the simple case of just
+setting a bunch of slot values."
+[| cascade statements |
+  cascade: Syntax Block new.
+  cascade inputVariables: {}.
+  cascade statements:
+    ([| :out |
+      slotsArray value with: valuesArray statements do:
+        [| :name :value |
+         out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
+                                             to: {Syntax ImplicitArgument. value})].
+      out nextPut: (Syntax Literal for: Nil)] writingAs: {}).
+  source >> cascade &environment: env
 ].
 
 node@(Syntax Node traits) substitutingSlotsOf: source for: vars
@@ -147,4 +163,3 @@ source code."
         block statements: body.
         Syntax UnaryMessage sending: #do to: {block}]
 ].
-
