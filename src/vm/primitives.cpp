@@ -223,6 +223,36 @@ void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, s
                                             argArray->elements, array_size(argArray), real_opts, resultStackPointer);
 }
 
+void prim_applytoNewStack(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+  Pinned<struct Closure> method(oh);
+  Pinned<struct OopArray> argArray(oh);
+  Pinned<struct OopArray> real_opts(oh);
+  word_t thisFrameSize;
+  struct Interpreter* i = oh->cached.interpreter;
+  method = (struct Closure*)args[0];
+  argArray = (struct OopArray*) args[1];
+  
+  if (opts != NULL && opts->elements[1] != oh->cached.nil) {
+    real_opts = (struct OopArray*) opts->elements[1];
+  }
+
+  thisFrameSize = FUNCTION_FRAME_SIZE + object_to_smallint(method->method->registerCount);
+  copy_words_into(&i->stack->elements[i->framePointer - FUNCTION_FRAME_SIZE],
+                  thisFrameSize,
+                  &i->stack->elements[0]);
+
+  i->framePointer = FUNCTION_FRAME_SIZE;
+  i->stackPointer = thisFrameSize;
+  i->ensureHandlers = smallint_to_object(0);
+
+  i->stack->elements[i->framePointer - 6] = smallint_to_object(0); // before call stack pointer
+  i->stack->elements[i->framePointer - 5] = smallint_to_object(0); //resultStackPointer
+
+
+  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
+                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer);
+}
+
 void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   struct MethodDefinition* def;
   Pinned<struct Symbol> selector(oh);
@@ -2266,7 +2296,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_applytoNewStack, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
