@@ -267,8 +267,8 @@ void print_backtrace(struct object_heap* oh) {
   word_t fp = i->framePointer;
   word_t sp = i->stackPointer;
   word_t codeSize = i->codeSize;
-  word_t resultStackPointer = object_to_smallint(i->stack->elements[fp-5]);
-  struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp-2];;
+  word_t resultStackPointer = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_RESULT_STACK_POINTER]);
+  struct LexicalContext* lc = (struct LexicalContext*)i->stack->elements[fp - FRAME_OFFSET_LEXICAL_CONTEXT];;
   printf("printing backtrace from fp=%" PRIdPTR ", sp=%" PRIdPTR "\n", fp, i->stackPointer);
   do {
     word_t j;
@@ -315,13 +315,13 @@ void print_backtrace(struct object_heap* oh) {
 
 
     /*order matters here*/
-    codePointer = object_to_smallint(i->stack->elements[fp-4]);
-    fp = object_to_smallint(i->stack->elements[fp-1]);
+    codePointer = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_CODE_POINTER]);
+    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
     if (fp < FUNCTION_FRAME_SIZE) break;
-    sp = object_to_smallint(i->stack->elements[fp-6]);
-    resultStackPointer = object_to_smallint(i->stack->elements[fp-5]);
-    closure = (struct Closure*)i->stack->elements[fp-3];
-    lc = (struct LexicalContext*)i->stack->elements[fp-2];
+    sp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_BEFORE_CALL_STACK_POINTER]);
+    resultStackPointer = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_RESULT_STACK_POINTER]);
+    closure = (struct Closure*)i->stack->elements[fp - FRAME_OFFSET_METHOD];
+    lc = (struct LexicalContext*)i->stack->elements[fp - FRAME_OFFSET_LEXICAL_CONTEXT];
     codeSize = array_size(closure->method->code);
     depth++;
   } while (fp >= FUNCTION_FRAME_SIZE);

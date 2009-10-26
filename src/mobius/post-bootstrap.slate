@@ -79,4 +79,9 @@ loads non-optional but useful libraries."
 load: 'src/mobius/prelude.slate'.
 
 "Invoke the method defined by the prelude as the image startup."
-lobby start
+"lobby start"
+
+"Drop the old bootstrap stack which takes up a lot of space."
+(lobby globals specialOops at: 17) initializeThreadOn: [[lobby start] ensure: [lobby exit: 0]].
+
+

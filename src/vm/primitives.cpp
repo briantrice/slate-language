@@ -223,35 +223,33 @@ void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, s
                                             argArray->elements, array_size(argArray), real_opts, resultStackPointer);
 }
 
-void prim_applytoNewStack(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+// this runs the interpreter in the special oop
+void prim_interrupt(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+
+  oh->interrupt_flag = 1;
+
+}
+
+
+void prim_initializeThreadOn(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
   Pinned<struct Closure> method(oh);
-  Pinned<struct OopArray> argArray(oh);
-  Pinned<struct OopArray> real_opts(oh);
-  word_t thisFrameSize, shiftOffset;
-  struct Interpreter* i = oh->cached.interpreter;
-  method = (struct Closure*)args[0];
-  argArray = (struct OopArray*) args[1];
-  
-  if (opts != NULL && opts->elements[1] != oh->cached.nil) {
-    real_opts = (struct OopArray*) opts->elements[1];
-  }
+  Pinned<struct Interpreter> i(oh);
+  Pinned<struct OopArray> newStack(oh);
+  word_t newStackSize;
 
-  shiftOffset = i->framePointer - FUNCTION_FRAME_SIZE;
-  thisFrameSize = FUNCTION_FRAME_SIZE + object_to_smallint(method->method->registerCount);
-  copy_words_into(&i->stack->elements[shiftOffset],
-                  thisFrameSize,
-                  &i->stack->elements[0]);
+  newStackSize = 16;
+  newStack = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), newStackSize);
+  i = (struct Interpreter*)args[0];
+  method = (struct Closure*)args[1];
 
-  i->framePointer = FUNCTION_FRAME_SIZE;
-  i->stackPointer = thisFrameSize;
+  i->stack = newStack;
+  i->stackSize = newStackSize;
+  i->framePointer = 0;
+  i->stackPointer = 0;
   i->ensureHandlers = smallint_to_object(0);
+  i->codePointer = 0;
 
-  i->stack->elements[i->framePointer - 6] = smallint_to_object(0); // before call stack pointer
-  i->stack->elements[i->framePointer - 5] = smallint_to_object(0); //resultStackPointer
-
-
-  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
-                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer - shiftOffset);
+  interpreter_apply_to_arity_with_optionals(oh, i, method, NULL, 0, NULL, 0);
 }
 
 void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
@@ -1601,13 +1599,13 @@ void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t
 
 
   while (frame > FUNCTION_FRAME_SIZE) {
-    method = (struct CompiledMethod*) i->stack->elements[frame-3];
+    method = (struct CompiledMethod*) i->stack->elements[frame - FRAME_OFFSET_METHOD];
     method = method->method; /*incase it's a closure and not a compiledmethod*/
     if (method->selector == selector) {
       oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(frame);
       return;
     }
-    frame = object_to_smallint(i->stack->elements[frame-1]);
+    frame = object_to_smallint(i->stack->elements[frame - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
   }
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
@@ -2286,7 +2284,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*10-9*/ prim_fixme, prim_fixme, prim_clone_without_slot, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
  /*20-9*/ prim_byteat_put, prim_ooparray_newsize, prim_size, prim_at, prim_at_put, prim_ensure, prim_applyto, prim_send_to, prim_send_to_through, prim_findon, 
  /*30-9*/ prim_fixme, prim_run_args_into, prim_exit, prim_isIdenticalTo, prim_identity_hash, prim_identity_hash_univ, prim_equals, prim_less_than, prim_bitor, prim_bitand, 
- /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_fixme, prim_fixme, prim_frame_pointer_of, 
+ /*40-9*/ prim_bitxor, prim_bitnot, prim_bitshift, prim_plus, prim_minus, prim_times, prim_quo, prim_interrupt, prim_initializeThreadOn, prim_frame_pointer_of, 
  /*50-9*/ prim_fixme, prim_fixme, prim_fixme, prim_heap_gc, prim_bytesPerWord, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, 
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_readConsole_from_into_starting_at, prim_write_to_starting_at, prim_flush_output, prim_handle_for, prim_handle_for_input, prim_fixme, 
  /*70-9*/ prim_handleForNew, prim_close, prim_read_from_into_starting_at, prim_write_to_from_starting_at, prim_reposition_to, prim_positionOf, prim_atEndOf, prim_sizeOf, prim_save_image, prim_dir_open, 
@@ -2297,7 +2295,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_applytoNewStack, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_fixme, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 

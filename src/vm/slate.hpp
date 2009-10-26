@@ -459,6 +459,15 @@ struct object_heap
 #define SLOT_ENTRY_WORD_SIZE ((sizeof(struct SlotEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
 #define FUNCTION_FRAME_SIZE 6
 
+#define FRAME_OFFSET_BEFORE_CALL_STACK_POINTER 6
+#define FRAME_OFFSET_RESULT_STACK_POINTER 5
+#define FRAME_OFFSET_CODE_POINTER 4
+#define FRAME_OFFSET_METHOD 3
+#define FRAME_OFFSET_LEXICAL_CONTEXT 2
+#define FRAME_OFFSET_PREVIOUS_FRAME_POINTER 1
+#define FRAME_OFFSET_FIRST_REGISTER 0
+
+
 #define TRUE 1
 #define FALSE 0
 
@@ -1078,6 +1087,7 @@ public:
   operator byte_t* () {return (byte_t*)value;}
   operator struct Map* () {return (struct Map*)value;}
   operator struct OopArray* () {return (struct OopArray*)value;}
+  operator struct Interpreter* () {return (struct Interpreter*)value;}
   operator struct ByteArray* () {return (struct ByteArray*)value;}
   operator struct CompiledMethod* () {return (struct CompiledMethod*)value;}
   operator struct MethodDefinition* () {return (struct MethodDefinition*)value;}
