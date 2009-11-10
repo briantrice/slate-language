@@ -14,7 +14,7 @@ browsing define: #MetaNode &parents: {Cloneable}
 
 n@(MetaNode traits) new &name: name
 [| newN |
-  newN: (n cloneSettingSlots: #(edges actors) to: {n edges new. n actors new}).
+  newN: (n clone `setting: #(edges actors) to: {n edges new. n actors new}).
   name ifNotNil: [newN name: name].
   newN
 ].
@@ -46,7 +46,7 @@ BrowseNode to obtain further Nodes. It is referred to by the parent MetaNode,
 and refers to the child MetaNode."
 
 e@(MetaEdge traits) newNamed: label selector: selector metaNode: metaNode
-[e cloneSettingSlots: #(label selector metaNode) to: {label. selector. metaNode}].
+[e clone `setting: #(label selector metaNode) to: {label. selector. metaNode}].
 
 e@(MetaEdge traits) nodesFollowing: node
 [(node perform: e selector) `>> [do: [| :each | each metaNode: e metaNode]. ]].
@@ -296,7 +296,7 @@ Root traits define: #BrowseNode &parents: {CodeNode} &slots:
 "Generic object browsing facilities."
 
 n@(Root BrowseNode traits) newOn: obj
-[n cloneSettingSlots: #(object) to: {obj}].
+[n clone `setting: #(object) to: {obj}].
 
 x@(Root traits) browseNode
 [x BrowseNode newOn: x].
@@ -339,7 +339,7 @@ browsing define: #SlotNode &parents: {CodeNode} &slots:
 n@(SlotNode traits) newOn: obj named: slotName
 [
   (obj hasSlotNamed: slotName)
-    ifTrue: [n cloneSettingSlots: #(object slotName) to: {obj. slotName}]
+    ifTrue: [n clone `setting: #(object slotName) to: {obj. slotName}]
 ].
 
 n@(Root BrowseNode traits) slots
@@ -355,7 +355,7 @@ browsing define: #WellKnownNode &parents: {CodeNode} &slots:
 "A BrowseNode representing something canonically reachable from the lobby."
 
 n@(WellKnownNode traits) newOn: path
-[n cloneSettingSlots: #(path) to: (path as: n path)].
+[n clone `setting: #(path) to: (path as: n path)].
 
 _@lobby browseNode
 "Have the lobby represented by a no-Path WellKnownNode."
@@ -383,7 +383,7 @@ browsing define: #SelectorNode &parents: {CodeNode} &slots:
   {#selector -> #''}.
 
 n@(SelectorNode traits) newOn: selector
-[n cloneSettingSlots: #(selector) to: {selector}].
+[n clone `setting: #(selector) to: {selector}].
 
 Sequence traits define: #BrowseNode &parents: {Root BrowseNode}.
 

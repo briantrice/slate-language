@@ -34,13 +34,13 @@ Time traits compareAndHashUsingSlots: #(secondsSinceMidnight).
 Duration traits compareAndHashUsingSlots: #(totalSeconds).
 
 t@(Time traits) newForSeconds: n
-[t cloneSettingSlots: #(secondsSinceMidnight) to: {n}].
+[t clone `setting: #(secondsSinceMidnight) to: {n}].
 
 t@(Time traits) newForHours: h minutes: m seconds: s
-[t cloneSettingSlots: #(secondsSinceMidnight) to: {h * SecondsInHour + (m * SecondsInMinute) + s}].
+[t clone `setting: #(secondsSinceMidnight) to: {h * SecondsInHour + (m * SecondsInMinute) + s}].
 
 d@(Duration traits) newForSeconds: n
-[d cloneSettingSlots: #(totalSeconds) to: {n}].
+[d clone `setting: #(totalSeconds) to: {n}].
 
 d@(Duration traits) newForDays: n [d newForSeconds: n * SecondsInDay].
 d@(Duration traits) newForHours: n [d newForSeconds: n * SecondsInHour].
@@ -197,7 +197,7 @@ time define: #Month &parents: {Cloneable}
   &slots: {#name -> ''. #firstDayWithinYear -> 0. #length -> 0}.
 
 m@(Month traits) newNamed: name startingAt: start length: length
-[m cloneSettingSlots: #(name firstDayWithinYear length)
+[m clone `setting: #(name firstDayWithinYear length)
    to: {name. start. length}].
 
 m@(Month traits) newNamed: name from: start to: end
@@ -341,7 +341,7 @@ i@(Instant traits) offset: d@(Duration traits)
 offset from UTC by the Duration."
 [
   d abs < Day
-    ifTrue: [i cloneSettingSlots: #(localOffsetToUTC) to: {d}]
+    ifTrue: [i clone `setting: #(localOffsetToUTC) to: {d}]
     ifFalse: [i error: 'Invalid UTC-offset.']
 ].
 
@@ -360,7 +360,7 @@ i@(Instant traits) rationalise
 ].
 
 i@(Instant traits) + d@(Duration traits)
-[i cloneSettingSlots: #(localTime) to: {i localTime + d} `>> [rationalise. ]].
+[i clone `setting: #(localTime) to: {i localTime + d} `>> [rationalise. ]].
 
 i@(Instant traits) - d@(Duration traits)
 [
@@ -375,7 +375,7 @@ i1@(Instant traits) - i2@(Instant traits)
 
 i@(Instant traits) now
 [
-  i cloneSettingSlots: #(localTime) to: i surroundings ticksSinceEpoch
+  i clone `setting: #(localTime) to: i surroundings ticksSinceEpoch
 ].
 
 time define: #DaylightEndDate.
@@ -399,7 +399,7 @@ time define: #TimeZone &slots: {#name. #offset. #abbreviation}.
 tz@(TimeZone traits) newNamed: name offset: offset abbrev: abbreviation
 [
   tz traits define: abbreviation intern ->
-   (tz cloneSettingSlots: #(name offset abbreviation) to: {name. offset. abbreviation})
+   (tz clone `setting: #(name offset abbreviation) to: {name. offset. abbreviation})
 ].
 
 TimeZone newNamed: 'Universal Time' offset: 0 abbrev: 'UTC'.

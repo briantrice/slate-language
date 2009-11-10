@@ -29,11 +29,11 @@ a@(Aggregate traits) flattened
      (each is: a)
        ifTrue: [collector nextPutAll: each constituents]
        ifFalse: [collector nextPut: each]].
-  a cloneSettingSlots: #(constituents) to: {collector contents}
+  a clone `setting: #(constituents) to: {collector contents}
 ].
 
 a@(Aggregate traits) of: collections
-[a cloneSettingSlots: #(constituents) to: {collections as: a constituents}].
+[a clone `setting: #(constituents) to: {collections as: a constituents}].
 
 collections define: #Union &parents: {Aggregate}.
 
@@ -73,7 +73,7 @@ collections define: #TestCollection &parents: {PredicateCollection} &slots: {#te
 "A PredicateCollection based on applying a block to the value being tested."
 
 t@(TestCollection traits) newFor: block
-[t cloneSettingSlots: #(test) to: {block}].
+[t clone `setting: #(test) to: {block}].
 
 t@(TestCollection traits) includes: obj
 [t test applyWith: obj].
@@ -103,7 +103,7 @@ collections define: #Complement &parents: {PredicateCollection} &slots: {#basis 
 "A PredicateCollection based on the negation of the tests for another."
 
 c@(Complement traits) of: c@(Collection traits)
-[c cloneSettingSlots: #(basis) to: {c}].
+[c clone `setting: #(basis) to: {c}].
 
 c@(Complement traits) includes: obj
 [(c basis includes: obj) not].

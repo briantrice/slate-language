@@ -18,7 +18,7 @@ coerced to 1."
     [| size | size: (seq ifNil: [amd size]
 	 ifNotNil:
 	   [seq inject: 1 into: #* `er ]).
-     amd cloneSettingSlots: #(dimensions contents)
+     amd clone `setting: #(dimensions contents)
 	 to: {seq ifNil: [amd dimensions]. amd contents new &capacity: size}]
     ifNotNil: [Bag newSized: n]
 ].
@@ -31,7 +31,7 @@ amd@(ArrayMD traits) newWithDimensions: seq defaultElement: x
 amd@(ArrayMD traits) newFrom: seq dimensions: dimensions
 "Use a raw Sequence with some interpretive dimensions to construct an ArrayMD."
 [
-  amd cloneSettingSlots: #(contents dimensions) to: {seq. dimensions}
+  amd clone `setting: #(contents dimensions) to: {seq. dimensions}
 ].
 
 amd@(ArrayMD traits) size
