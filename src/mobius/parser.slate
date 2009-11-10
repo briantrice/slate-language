@@ -7,9 +7,7 @@ Syntax define: #Parser &parents: {ReadStream} &slots:
    #typesNamespace -> Types.
    "Where expressions following ! annotations are evaluated."
    #parseInteractively -> False.
-   "Whether a newline after a complete expression denotes completion."
-   #parseConcatenatively -> False
-   "Whether successive expressions are legal."}.
+   "Whether a newline after a complete expression denotes completion."}.
 "Reads tokens from a Lexer and builds a Syntax Node tree for it."
 
 node readFrom: p@(Syntax Parser traits)
@@ -104,9 +102,7 @@ p@(Syntax Parser traits) error: description
 
 p@(Syntax Parser traits) expected: expected butFound: found@(Syntax Token Token traits)
 [
-  p parseConcatenatively
-    ifTrue: [p undoToken: found. p parseUnaryMessage: found]
-    ifFalse: [p error: 'Expected ' ; expected signifier  ; ' but found ' ; found signifier]
+  p error: 'Expected ' ; expected signifier  ; ' but found ' ; found signifier
 ].
 
 p@(Syntax Parser traits) check: found is: expected@(Syntax Token Token traits)
@@ -119,8 +115,6 @@ p@(Syntax Parser traits) check: found is: expected@(Sequence traits)
 
 p@(Syntax Parser traits) expected: expected@(Sequence traits) butFound: found
 [| expectNames |
-  p parseConcatenatively
-    ifTrue: [^ (p undoToken: found. p parseUnaryMessage: found)].
   expectNames: (expected collect: #signifier `er select: #isNotNil `er).
   expectNames size > 1 ifTrue:
     [expectNames
