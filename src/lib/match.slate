@@ -1,0 +1,21 @@
+_@Nil matches: _@(Root traits) [True].
+_@(Root traits) matches: _@Nil [True].
+
+_@NoRole matches: _@(Root traits) [True].
+_@(Root traits) matches: _@NoRole [True].
+
+x@(Root traits) matches: y@(Root traits)
+[
+  x == y \/
+   [(x isSameAs: y)
+      /\ [x slotNames = y slotNames]
+      /\ [x slotNames allSatisfy:
+        [| :key | (y atSlotNamed: key) matches: (y atSlotNamed: key)]]]
+].
+
+x@(Mapping traits) matches: y@(Mapping traits)
+[
+  x == y \/
+   [x keySet allSatisfy:
+     [| :key | (x at: key) matches: (y at: key)]]
+].
