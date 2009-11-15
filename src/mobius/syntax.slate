@@ -481,8 +481,14 @@ block@(Syntax Block traits) evaluateIn: namespace
 [block compile].
 
 b@(Syntax Block traits) new
-[resend clone `setting: #(inputVariables localVariables optionalKeywords optionalVariables restVariable)
-   to: ({b inputVariables. b localVariables. b optionalKeywords. b optionalVariables} collect: #new `er ) ; {Nil}].
+[
+  resend `>>
+   [inputVariables: b inputVariables new.
+    localVariables: b localVariables new.
+    optionalKeywords: b optionalKeywords new.
+    optionalVariables: b optionalVariables new.
+    restVariable: Nil. ]
+].
 
 b@(Syntax Block traits) body: body@(Syntax Node traits)
 "Makes a given Syntax Node the body."
