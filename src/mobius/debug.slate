@@ -113,14 +113,14 @@ f@(Interpreter Frame traits) clients
    ifNotNilDo: #variables`er
 ].
 
-Interpreter traits define: #FrameMirror &parents: {Interpreter Frame} &slots:
+Interpreter Frame traits define: #Mirror &parents: {Interpreter Frame} &slots:
 {#codeIndex. #context. #method}.
 "A frame representation that is separated from the stack."
 
 f@(Interpreter Frame traits) extracted
 [
-  (Interpreter FrameMirror cloneSettingSlots: #(interpreter stackIndex)
-			  to: {f interpreter. f stackIndex})
+  (f Mirror clone `setting: #(interpreter stackIndex)
+                        to: {f interpreter. f stackIndex})
    `>> [replaceWith: f. ]
 ].
 
@@ -128,7 +128,7 @@ Interpreter traits define: #Debug &parents: {Restart}.
  #interpreter -> globals bootstrapInterpreter.
 
 d@(Interpreter Debug traits) in: interp
-[d cloneSettingSlots: #(interpreter) to: {interp}].
+[d clone `setting: #(interpreter) to: {interp}].
 
 Interpreter traits define: #InspectFrame &parents: {Interpreter Debug}
  &slots: {#targetFrame -> 0}.

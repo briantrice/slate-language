@@ -8,13 +8,13 @@ c@(Sequence traits) sliceFrom: start below: end
 [
   start <= end ifFalse: [error: 'This results in a negative size.'].
   start = 0 /\ [end = c size] ifTrue: [^ c].
-  SubSequence cloneSettingSlots: #(sequence start end) to: {c. start. end}
+  SubSequence clone `setting: #(sequence start end) to: {c. start. end}
 ].
 
 c@(SubSequence traits) sliceFrom: start below: end
 [
   start <= end
-    ifTrue: [c cloneSettingSlots: #(start end)
+    ifTrue: [c clone `setting: #(start end)
 	       to: {c start + start. c start + end}]
     ifFalse: [error: 'This results in a negative size.']
 ].

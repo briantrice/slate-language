@@ -4,7 +4,7 @@ prototypes define: #Path &parents: {Cloneable}
 reach a destination.  Nil represents impossible path."
 
 s@(Sequence traits) as: path@(Path traits)
-[path cloneSettingSlots: #(names) to: {s as: path names}].
+[path clone `setting: #(names) to: {s as: path names}].
 
 Path traits compareAndHashUsingSlots: #(names).
 
@@ -148,7 +148,7 @@ path@(RootedPath traits) from: root to: target
 
 s@(Sequence traits) as: path@(RootedPath traits) &root: root
 [
-  path cloneSettingSlots: #(names root)
+  path clone `setting: #(names root)
        to: {(s collect: [| :each | (each is: Integer)
 				   ifTrue: [each] ifFalse: [each intern]])
 		as: path names.
@@ -261,7 +261,7 @@ prototypes define: #PathFinder &parents: {ReadStream} &slots:
 
 pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock: filterBlock
 [| newPF |
-  newPF: (pf cloneSettingSlots: #(source foundBlock)
+  newPF: (pf clone `setting: #(source foundBlock)
 	     to: {pf source newOn: root. foundBlock}).
   filterBlock ifNotNil: [newPF filterBlock: filterBlock].
   newPF

@@ -195,7 +195,7 @@ word_t calculateMethodCallDepth(struct object_heap* oh) {
   word_t depth = 0;
   do {
     /*order matters here*/
-    fp = object_to_smallint(i->stack->elements[fp-1]);
+    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
     if (fp < FUNCTION_FRAME_SIZE) break;
     depth++;
   } while (fp >= FUNCTION_FRAME_SIZE);

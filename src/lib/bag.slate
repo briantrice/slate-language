@@ -8,7 +8,7 @@ of times they occur; they're excellent for accumulating counts."
 b@(Bag traits) newSized: n
 "This can't really relate to the actual size of the bag, just the number of
 unique element values."
-[b cloneSettingSlots: #(contents) to: {b contents new &capacity: n}].
+[b clone `setting: #(contents) to: {b contents new &capacity: n}].
 
 b@(Bag traits) new &capacity: n
 "This is an approximation included for protocol completeness. The core method
@@ -25,7 +25,7 @@ b@(Bag traits) size
 [b contents inject: 0 into: #+`er].
 
 b@(Bag traits) copy
-[b cloneSettingSlots: #(contents) to: {b contents copy}].
+[b clone `setting: #(contents) to: {b contents copy}].
 
 b@(Bag traits) accepts: obj
 "Answers whether the object can be part of the bag, as determined by the
@@ -103,12 +103,10 @@ b@(Bag traits) removeEvery: obj
 ].
 
 b@(Bag traits) sortedCounts
-"Return a collection of counts in decreasing order."
+"Return a collection of counts in increasing order."
 [| counts |
   counts: (SortedArray newSizeOf: b contents).
-  counts sortBlock: [| :x :y | x >= y].
-  b contents keysAndValuesDo: [| :key :val |
-    counts add: (val -> key)].
+  b contents keysAndValuesDo: [| :elem :count | counts add: count -> elem].
   counts
 ].
 

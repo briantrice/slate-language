@@ -67,7 +67,7 @@ m@(Module traits) newForFileNamed: filename
 ].
 
 m@(Module traits) copy
-[m cloneSettingSlots: #(requirements imports exports objects methods)
+[m clone `setting: #(requirements imports exports objects methods)
    to: {m requirements copy.
 	m imports copy.
 	m exports copy.
@@ -246,7 +246,7 @@ contents within the argument namespace or an optional override."
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
   showMessage `defaultsTo: True.
-  loader: (Load cloneSettingSlots: #(targetNamespace verbose showMessage) to: {namespace. verbose. showMessage}).
+  loader: (Load clone `setting: #(targetNamespace verbose showMessage) to: {namespace. verbose. showMessage}).
   loader resolvePathOf: file.
   oldLevel: loader Level.
   loader Level: loader Level + 1.
@@ -449,7 +449,7 @@ prototypes define: #System &slots: {#modules -> Set new}.
 
 s@(System traits) newForAll: modules
 "Creates a new System object for the given Module objects."
-[(s cloneSettingSlots: #(modules) to: {modules as: s modules}) `>>
+[(s clone `setting: #(modules) to: {modules as: s modules}) `>>
    [| :newS | modules do: [| :each | newS fillRequirementsFor: each]. ]
 ].
 

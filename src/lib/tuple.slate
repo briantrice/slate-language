@@ -5,7 +5,7 @@ and tupling is non-copying. Nilling the size will fix the tuple at that size."
 
 n@(Root traits) , m@(Root traits)
 "Creates a new 2-D Point."
-[Tuple cloneSettingSlots: #(contents actualSize) to: {{n. m}. Nil}].
+[Tuple clone `setting: #(contents actualSize) to: {{n. m}. Nil}].
 
 s@(Sequence traits) as: t@(Tuple traits)
 [| newT |
@@ -17,13 +17,13 @@ s@(Sequence traits) as: t@(Tuple traits)
 t@(Tuple traits) newWith: array
 "This swallows the array, avoiding unnecessary copying at the caller's
 discretion."
-[t cloneSettingSlots: #(contents actualSize) to: {array. Nil}].
+[t clone `setting: #(contents actualSize) to: {array. Nil}].
 
 t@(Tuple traits) new &capacity: n &immutable: bool
 "The default setting is immutable, so that tupling is non-copying in general.
 The contents are set up to grow if mutable."
 [
-  t cloneSettingSlots: #(contents)
+  t clone `setting: #(contents)
     to: {t contents new &capacity:
       n + ((bool ifNil: [False]) ifTrue: [0] ifFalse: [5])}
 ].
@@ -130,5 +130,5 @@ v@(Vector traits) <cross> w@(Vector traits)
 ].
 
 v@(Vector traits) originSized: n
-[(v cloneSettingSlots: #(contents) to: {Array newSize: n}) `>>
+[(v clone `setting: #(contents) to: {Array newSize: n}) `>>
    [contents infect: [| :_ | 0]. ]].

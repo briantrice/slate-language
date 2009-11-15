@@ -47,7 +47,7 @@ dir1@(Directory traits) = dir2@(Directory traits)
 dir@(Directory traits) newNamed: dirname
 "Answer a new Directory with the given name."
 [
-  dir cloneSettingSlots: #(handle locator) to: {Nil. dir Locator readFrom: (dirname as: String)}
+  dir clone `setting: #(handle locator) to: {Nil. dir Locator readFrom: (dirname as: String)}
 ].
 
 dir@(Directory traits) childNamed: name
@@ -196,7 +196,7 @@ a relationship that needs to be resolved at the last possible moment to avoid
 static platform/installation dependency."
 
 dir@(LogicalDirectory traits) newResolving: block
-[(dir cloneSettingSlots: #(locator resolver) to: {Nil. block})
+[(dir clone `setting: #(locator resolver) to: {Nil. block})
    `>> [registerStartupHandler. ]].
 
 x@(LogicalDirectory traits) = y@(LogicalDirectory traits)

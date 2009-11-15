@@ -230,26 +230,15 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 
   copy_words_into(args, inputs, vars);
-  i->stack->elements[framePointer - 6] = smallint_to_object(beforeCallStackPointer);
-  i->stack->elements[framePointer - 5] = smallint_to_object(resultStackPointer);
-  i->stack->elements[framePointer - 4] = smallint_to_object(i->codePointer);
-  i->stack->elements[framePointer - 3] = (struct Object*) closure;
-  i->stack->elements[framePointer - 2] = (struct Object*) lexicalContext;
-  i->stack->elements[framePointer - 1] = smallint_to_object(i->framePointer);
+  i->stack->elements[framePointer - FRAME_OFFSET_BEFORE_CALL_STACK_POINTER] = smallint_to_object(beforeCallStackPointer);
+  i->stack->elements[framePointer - FRAME_OFFSET_RESULT_STACK_POINTER] = smallint_to_object(resultStackPointer);
+  i->stack->elements[framePointer - FRAME_OFFSET_CODE_POINTER] = smallint_to_object(i->codePointer);
+  i->stack->elements[framePointer - FRAME_OFFSET_METHOD] = (struct Object*) closure;
+  i->stack->elements[framePointer - FRAME_OFFSET_LEXICAL_CONTEXT] = (struct Object*) lexicalContext;
+  i->stack->elements[framePointer - FRAME_OFFSET_PREVIOUS_FRAME_POINTER] = smallint_to_object(i->framePointer);
 
   heap_store_into(oh, (struct Object*)i->stack, (struct Object*)closure);
   heap_store_into(oh, (struct Object*)i->stack, (struct Object*)lexicalContext);
-
-#ifdef PRINT_DEBUG_FUNCALL_VERBOSE
-  printf("i->stack->elements[%" PRIdPTR "(fp-4)] = \n", framePointer - 4);
-  print_detail(oh, i->stack->elements[framePointer - 4]);
-  printf("i->stack->elements[%" PRIdPTR "(fp-3)] = \n", framePointer - 3);
-  print_detail(oh, i->stack->elements[framePointer - 3]);
-  printf("i->stack->elements[%" PRIdPTR "(fp-2)] = \n", framePointer - 2);
-  print_detail(oh, i->stack->elements[framePointer - 2]);
-  printf("i->stack->elements[%" PRIdPTR "(fp-1)] = \n", framePointer - 1);
-  print_detail(oh, i->stack->elements[framePointer - 1]);
-#endif
 
   if (oh->currentlyProfiling) {
     profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)closure, 1);
@@ -425,15 +414,15 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   } else {
     struct LexicalContext* targetContext = i->closure->lexicalWindow[context_depth-1];
     framePointer = object_to_smallint(targetContext->framePointer);
-    if (framePointer > i->stackPointer || (struct Object*)targetContext != i->stack->elements[framePointer-2]) {
-      resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
+    if (framePointer > i->stackPointer || (struct Object*)targetContext != i->stack->elements[framePointer - FRAME_OFFSET_LEXICAL_CONTEXT]) {
+      resultStackPointer = (word_t)i->stack->elements[framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]>>1;
       interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_MAY_NOT_RETURN_TO),
                                    (struct Object*)i->closure, (struct Object*) targetContext, NULL, resultStackPointer);
       return 1;
     }
   }
 
-  resultStackPointer = (word_t)i->stack->elements[framePointer - 5]>>1;
+  resultStackPointer = (word_t)i->stack->elements[framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]>>1;
 
   /*store the result before we get interrupted for a possible finalizer... fixme i'm not sure
    if this is right*/
@@ -474,8 +463,8 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     }
     return 1;
   }
-  i->stackPointer = object_to_smallint(i->stack->elements[framePointer - 6]);
-  i->framePointer = object_to_smallint(i->stack->elements[framePointer - 1]);
+  i->stackPointer = object_to_smallint(i->stack->elements[framePointer - FRAME_OFFSET_BEFORE_CALL_STACK_POINTER]);
+  i->framePointer = object_to_smallint(i->stack->elements[framePointer - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
   if (i->framePointer < FUNCTION_FRAME_SIZE) {
     /* returning from the last function on the stack seems to happen when the user presses Ctrl-D */
     exit(0);
@@ -483,13 +472,13 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   }
 
   if (oh->currentlyProfiling) {
-    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - 3], 0);
+    profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD], 0);
   }
 
 
-  i->codePointer = object_to_smallint(i->stack->elements[framePointer - 4]);
-  i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - 2];
-  i->closure = (struct Closure*) i->stack->elements[i->framePointer - 3];
+  i->codePointer = object_to_smallint(i->stack->elements[framePointer - FRAME_OFFSET_CODE_POINTER]);
+  i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - FRAME_OFFSET_LEXICAL_CONTEXT];
+  i->closure = (struct Closure*) i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD];
   heap_store_into(oh, (struct Object*)i, (struct Object*)i->lexicalContext);
   heap_store_into(oh, (struct Object*)i, (struct Object*)i->closure);
   i->method = i->closure->method;
@@ -532,10 +521,10 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     lexicalContext = i->closure->lexicalWindow[n-1];
     framePointer = object_to_smallint(lexicalContext->framePointer);
     /*Attempted to resend without enclosing method definition.*/
-    assert((struct Object*)lexicalContext == i->stack->elements[framePointer-2]);
+    assert((struct Object*)lexicalContext == i->stack->elements[framePointer - FRAME_OFFSET_LEXICAL_CONTEXT]);
   }
 
-  barrier = i->stack->elements[framePointer-3];
+  barrier = i->stack->elements[framePointer - FRAME_OFFSET_METHOD];
   resender = ((struct Closure*) barrier)->method;
   args = (resender->heapAllocate == oh->cached.true_object)? lexicalContext->variables : &i->stack->elements[framePointer];
 
@@ -713,20 +702,23 @@ void interpret(struct object_heap* oh) {
 
   for (;;) {
     word_t op, prevPointer;
-    struct Interpreter* i = oh->cached.interpreter; /*it won't move while we are in here */
+    struct Interpreter* i;
+    cache_specials(oh);
+    i = oh->cached.interpreter; /*it won't move while we are in here */
+    pinnedObjects[0] = (struct Object*) oh->cached.interpreter;
 
     /*while (oh->cached.interpreter->codePointer < oh->cached.interpreter->codeSize) {*/
     /*optimize and make sure every function has manual return opcodes*/
     for(;;) {
       
       if (oh->interrupt_flag) {
-        return;
+        oh->interrupt_flag = 0;
+        break;
       }
-
-
+      
       if (globalInterrupt) {
         printf("\nInterrupting...\n");
-        interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, object_to_smallint(i->stack->elements[i->framePointer-5]));
+        interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, object_to_smallint(i->stack->elements[i->framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]));
         globalInterrupt = 0;
       }
 

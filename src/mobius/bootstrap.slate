@@ -327,13 +327,12 @@ gen@(Image Bootstrap Generator traits) emitInteger: val on: stream byteSize: byt
 "Takes an integer and outputs the binary data value in the correct byte-order
 onto the stream."
 [
-  byteSize <= 0 ifTrue: [^ stream].
-  stream ;
-    ((0 below: byteSize)
-       collect: [|:bytenum| gen littleEndian ifTrue: [(val >> (bytenum * 8)) intoByte]
-                                             ifFalse: [(val >> (byteSize - 1 - bytenum * 8)) intoByte]])
+  byteSize isPositive ifTrue:
+    [stream ;
+       ((0 below: byteSize)
+         collect: [|:bytenum| gen littleEndian ifTrue: [(val >> (bytenum * 8)) intoByte]
+                                               ifFalse: [(val >> (byteSize - 1 - bytenum * 8)) intoByte]])]
 ].
-
 
 gen@(Image Bootstrap Generator traits) emitLong: val on: stream
 "Takes an integer and outputs the binary data value in the correct byte-order
