@@ -1172,16 +1172,25 @@ void interpret(struct object_heap* oh) {
         }
       case OP_PRIMITIVE_DO:
         {
-          word_t primNum, resultReg;
-          Pinned<struct Object> primArgs(oh);
+          word_t primNum, resultReg, arity, k;
+          struct Object* argsArray[16];
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           primNum = object_to_smallint(SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT));
-          primArgs = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+          arity = SSA_NEXT_PARAM_SMALLINT;
           resultReg = SSA_NEXT_PARAM_SMALLINT;
+
+          assert(arity <= 16);
+          for (k=0; k<arity; k++) {
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
+          }
+
 
 #ifdef PRINT_DEBUG_OPCODES
           printf("do primitive %" PRIdPTR "\n", primNum);
 #endif
-          primitives[primNum](oh, object_array_elements(primArgs), object_array_size(primArgs), NULL, i->framePointer + resultReg);
+          primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
           
           break;
         }

@@ -453,6 +453,7 @@ void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
     case 22: printf("return reg "); i += print_code_args(oh, code, 1, i); break;
     case 23: printf("return val "); i += print_code_args(oh, code, 1, i); break;
     case 24: printf("resume "); i += print_code_args(oh, code, 0, i); break;
+    case 25: printf("primitive "); i += print_code_args(oh, code, 3, i + object_to_smallint(code->elements[i+1])); break;
     default: printf("error reading code %" PRIdPTR "... stopping\n", op); return;
     }
     printf("\n");
