@@ -22,8 +22,6 @@ w@(Writer traits) indentedDo: block surroundedBy: str1 and: str2
   w ; str2.
 ].
 
-
-
 Syntax define: #SourceWriter &parents: {Writer} &slots: {
   #printComments -> False.
   "Whether comments are added to the source. The default is not to."
@@ -46,7 +44,7 @@ w@(Syntax SourceWriter traits) print: node@(Syntax Node traits)
 x@(Syntax Node traits) printOn: o
 "Specialize printOn: for syntax nodes"
 [
-  (x surroundings SourceWriter newOn: o) print: x.
+  (Syntax SourceWriter newOn: o) print: x.
   o
 ].
 
@@ -103,7 +101,7 @@ source on the stream."
     (Syntax isUnarySelector: selector)
       ifTrue: [w withSurroundingArity: 1 do:
                 [previousArity isZero /\
-		   [(args first isSameAs: w surroundings ImplicitArgument) not]
+		   [(args first isSameAs: Syntax ImplicitArgument) not]
                     ifTrue: [w nextPut: $(. closeParen: True].
                   (w printAsArgument: args first) ifTrue: [w newColumn].
                   w printSelectorPrefixOf: node.
@@ -143,12 +141,12 @@ source on the stream."
 w@(Syntax SourceWriter traits) print: node@(Syntax StoreVariable traits)
 [
   w print: node sending: (node variable name name ; ':') intern
-		to: {w surroundings ImplicitArgument. node value}
+		to: {Syntax ImplicitArgument. node value}
 ].
 
 w@(Syntax SourceWriter traits) print: node@(Syntax LoadVariable traits)
 [
-  w print: node sending: node variable name to: {w surroundings ImplicitArgument}
+  w print: node sending: node variable name to: {Syntax ImplicitArgument}
 ].
 
 w@(Syntax SourceWriter traits) print: node@(Syntax Variable traits)
@@ -288,7 +286,7 @@ w@(Syntax SourceWriter traits) printAsStatement: node
 w@(Syntax SourceWriter traits) printArg: arg withRole: role
 [
   w ; (arg name as: String).
-  (role is: w surroundings Literal) /\ [role value == NoRole] ifFalse:
+  (role is: Syntax Literal) /\ [role value == NoRole] ifFalse:
     [w ; '@'.
      w printAsRole: role]
 ].
