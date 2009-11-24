@@ -129,7 +129,7 @@ l@(Syntax Lexer traits) readExponent: radix
 ].
 
 l@(Syntax Lexer traits) newLiteralFor: obj
-[Syntax Token Literal clone `setting: #(value) to: {obj}].
+[Syntax LiteralToken for: obj].
 
 "l@(Syntax Lexer traits) newLiteralFor: a@(ByteArray traits)
 [
@@ -237,7 +237,7 @@ Escaping is accounted for."
           (c = $\\
             ifTrue: [l readEscapedCharacter]
             ifFalse: [c])].
-  Syntax Token Comment clone `>> [comment: writeStream contents.]
+  Syntax tokens Comment clone `>> [comment: writeStream contents.]
 ].
 
 l@(Syntax Lexer traits) readSelector: type &emptyToken: emptyToken
@@ -268,9 +268,9 @@ l@(Syntax Lexer traits) readLiteral
         c: l nextCharacter.
         c caseOf:
             {
-              $( -> [^ Syntax Token BeginLiteralParenthesis].
-              ${ -> [^ Syntax Token BeginLiteralArray].
-              $[ -> [^ Syntax Token BeginLiteralBlock].
+              $( -> [^ Syntax BeginLiteralParenthesis].
+              ${ -> [^ Syntax BeginLiteralArray].
+              $[ -> [^ Syntax BeginLiteralBlock].
               $' -> [[c: l nextCharacter. c = $']
                         whileFalse:
                           [writeStream nextPut:
@@ -303,7 +303,7 @@ initializing characters to build the various token objects."
 "TODO: place these dispatch tables in persistent places, much like a Lisp
 read-table."
 [| c |
-  l isAtEnd ifTrue: [^ Syntax Token EndStream].
+  l isAtEnd ifTrue: [^ Syntax EndStream].
   c: l nextCharacter.
   c caseOf:
       {
@@ -311,19 +311,20 @@ read-table."
         $\" -> [l readComment].
         $$ -> [l readCharacter].
         $# -> [l readLiteral].
-        $( -> [Syntax Token BeginParenthesis].
-        $) -> [Syntax Token EndParenthesis].
-        ${ -> [Syntax Token BeginArray].
-        $} -> [Syntax Token EndArray].
-        $[ -> [Syntax Token BeginBlock].
-        $] -> [Syntax Token EndBlock].
-        $@ -> [Syntax Token At].
-        $. -> [Syntax Token EndStatement].
-        $| -> [Syntax Token BeginVariables].
-        $! -> [Syntax Token Type].
-        $` -> [l readSelector: Syntax Token MacroSelector &emptyToken: Syntax Token Quote].
-        $% -> [l readSelector: Syntax Token DeferredSelector &emptyToken: Syntax Token Eventually].
-        $\n -> [Syntax Token EndLine].
+        $( -> [Syntax BeginParenthesis].
+        $) -> [Syntax EndParenthesis].
+        ${ -> [Syntax BeginArray].
+        $} -> [Syntax EndArray].
+        $[ -> [Syntax BeginBlock].
+        $] -> [Syntax EndBlock].
+        $@ -> [Syntax At].
+        $. -> [Syntax EndStatement].
+        $, -> [Syntax Comma].
+        $| -> [Syntax BeginVariables].
+        $! -> [Syntax Type].
+        $` -> [l readSelector: Syntax MacroSelector &emptyToken: Syntax Quote].
+        $% -> [l readSelector: Syntax DeferredSelector &emptyToken: Syntax Eventually].
+        $\n -> [Syntax EndLine].
       }
     otherwise:
       [c = $+ \/ [c = $-] /\ [l peekCharacter isDigit]
@@ -332,7 +333,7 @@ read-table."
             [l undoCharacter: c.
              c isDigit
                ifTrue: [l readNumber]
-               ifFalse: [l readSelector: Syntax Token Selector]]]
+               ifFalse: [l readSelector: Syntax Selector]]]
 ].
 
 l@(Syntax Lexer traits) next
@@ -340,7 +341,7 @@ l@(Syntax Lexer traits) next
   l readToken
 ].
 
-t@(Syntax Token Token traits) readFrom: s
+t@(Syntax tokens Token traits) readFrom: s
 [| next |
   next: (Syntax Lexer newOn: s reader) next.
   (next is: t)

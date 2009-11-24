@@ -533,19 +533,25 @@ the push for the selector, and then the appropriate message send bytecode."
   optsArrayRegister: gen newRegister.
   optsArray: ExtensibleArray new.
   optsWriter: optsArray writer.
-  opts keywords with: opts arguments
-    do: [| :key :arg |
-          optsWriter nextPut: (gen registerFor: key from: opts result: Nil).
-          optsWriter nextPut: (gen generate: arg result: Nil)
-        ].
-  gen emitInstruction: gen newArrayWith withParameters: {optsArrayRegister. optsArray size} ; optsArray from: opts.
-  gen emitInstruction: gen sendMessageWithOptionals withParameters: {result. selector. args size. optsArrayRegister } ; argRegisters from: opts.
+  opts keywords with: opts arguments do:
+    [| :key :arg |
+     optsWriter nextPut: (gen registerFor: key from: opts result: Nil).
+     optsWriter nextPut: (gen generate: arg result: Nil)].
+  gen emitInstruction: gen newArrayWith withParameters:
+    {optsArrayRegister. optsArray size} ; optsArray from: opts.
+  gen emitInstruction: gen sendMessageWithOptionals withParameters:
+    {result. selector. args size. optsArrayRegister } ; argRegisters from: opts.
   result
 ].
 
 gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) result: result
 [
   gen generate: opts message result: result &optionals: opts
+].
+
+gen@(VM SSACompiler traits) generate: rest@(Syntax RestArguments traits) result: result
+[
+  gen generate: rest message result: result
 ].
 
 gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result

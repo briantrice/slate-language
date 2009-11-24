@@ -1,0 +1,245 @@
+Syntax ensureNamespace: #tokens &delegate: True.
+
+Syntax tokens define: #Token &parents: {Cloneable}.
+
+_ nextFrom: _@(Syntax tokens Token traits) [Nil].
+
+_ nextLiteralFrom: _@(Syntax tokens Token traits) [Nil].
+
+t@(Syntax tokens Token traits) signifier
+"Answer a String representing the punctuation/lexical beginning."
+[t printName].
+
+Syntax tokens define: #LiteralToken &parents: {Syntax tokens Token} &slots: {#value}.
+
+_ nextLiteralFrom: token@(Syntax tokens LiteralToken traits) [token value].
+
+_ nextFrom: token@(Syntax tokens LiteralToken traits)
+[Syntax Literal for: token value].
+
+node@(Syntax tokens LiteralToken traits) for: obj
+[node new `setting: #(value) to: {obj}].
+
+Syntax tokens define: #Comment &parents: {Syntax tokens Token} &slots: {#comment}.
+
+_@(Syntax tokens Comment traits) signifier ['"'].
+
+Syntax tokens define: #Selector &parents: {Syntax tokens Token} &slots: {#selector}.
+
+"optimization for the parser"
+_@(Syntax tokens Selector traits) is: _@(Syntax tokens Selector traits) [True].
+_@(Syntax tokens traits) is: _@(Syntax tokens Selector traits) [False].
+
+parser nextLiteralFrom: token@(Syntax tokens Selector traits) [token selector].
+
+parser nextFrom: token@(Syntax tokens Selector traits)
+[
+  (Syntax isUnarySelector: token selector)
+    ifTrue:
+      [(parser currentScope findVariable: token selector)
+        ifNotNilDo:
+          [| :variable | ^ (Syntax LoadVariable from: variable)].
+       token selector = #resend ifTrue: [^ Syntax Resend clone].
+       Syntax UnaryMessage
+         sending: token selector to: {Syntax ImplicitArgument}]
+].
+
+s@(Syntax tokens Selector traits) messageType
+[Syntax Message].
+
+Syntax tokens define: #MacroSelector &parents: {Syntax tokens Selector}.
+
+parser nextFrom: token@(Syntax tokens MacroSelector traits)
+[
+  (Syntax isUnarySelector: token selector) ifTrue:
+    [Syntax UnaryMacro sending: token selector to: {Syntax ImplicitArgument}]
+].
+
+s@(Syntax tokens MacroSelector traits) messageType
+[Syntax Macro].
+
+Syntax tokens define: #DeferredSelector &parents: {Syntax tokens Selector}.
+
+parser nextFrom: token@(Syntax tokens DeferredSelector traits)
+[
+  (Syntax isUnarySelector: token selector) ifTrue:
+    [Syntax UnaryDeferred
+       sending: token selector to: {Syntax ImplicitArgument}]
+].
+
+s@(Syntax tokens DeferredSelector traits) messageType
+[Syntax Deferred].
+
+Syntax tokens define: #Control &parents: {Syntax tokens Token}.
+
+Syntax tokens define: #BeginParenthesis &parents: {Syntax tokens Control}.
+
+parser nextLiteralFrom: _@(Syntax tokens BeginParenthesis traits)
+[parser nextLiteralFrom: Syntax BeginLiteralParenthesis].
+
+parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
+[| token statements |
+  parser nonInteractivelyDo:
+    [statements: {} writer.
+     statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
+     [token: parser nextToken.
+      token isSameAs: Syntax EndParenthesis]
+       whileFalse:
+         [parser check: token is: parser EndParenthesisStatementTokens.
+          statements nextPut:
+            (parser nextAsStatement ifNil: [Syntax Literal Nil])]].
+  statements contents as: Syntax Parenthesis
+].
+
+_@(Syntax tokens BeginParenthesis traits) signifier ['('].
+
+Syntax tokens define: #EndParenthesis &parents: {Syntax tokens Control}.
+
+_@(Syntax tokens EndParenthesis traits) signifier [')'].
+
+Syntax tokens define: #BeginArray &parents: {Syntax tokens Control}.
+
+parser nextLiteralFrom: token@(Syntax tokens BeginArray traits)
+[(parser nextFrom: token) evaluate].
+
+parser nextFrom: _@(Syntax tokens BeginArray traits)
+[| token statements |
+  parser nonInteractivelyDo:
+    [statements: {} writer.
+     [token: parser peekToken.
+      token isSameAs: Syntax EndArray]
+       whileFalse:
+         [statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
+          token: parser peekToken.
+          parser check: token is: parser EndArrayStatementTokens.
+          (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
+     parser nextToken].
+  statements contents as: Syntax Array
+].
+
+_@(Syntax tokens BeginArray traits) signifier ['{'].
+
+Syntax tokens define: #EndArray &parents: {Syntax tokens Control}.
+
+_@(Syntax tokens EndArray traits) signifier ['}'].
+
+Syntax tokens define: #BeginLiteral &parents: {Syntax tokens Control}.
+
+parser nextFrom: token@(Syntax tokens BeginLiteral traits)
+[| node oldScope |
+  oldScope: parser currentScope.
+  parser currentScope: oldScope topLevel.
+  node: (Syntax Literal for: (parser nextLiteralFrom: token)).
+  parser currentScope: oldScope.
+  node
+].
+
+Syntax tokens define: #BeginLiteralArray &parents: {Syntax tokens BeginLiteral}.
+
+parser nextLiteralFrom: _@(Syntax tokens BeginLiteralArray traits)
+[
+  parser nextLiteralFrom: Syntax BeginArray
+].
+
+_@(Syntax tokens BeginLiteralArray traits) signifier ['#{'].
+
+Syntax tokens define: #BeginLiteralParenthesis &parents: {Syntax tokens BeginLiteral}.
+
+parser nextLiteralFrom: _@(Syntax tokens BeginLiteralParenthesis traits)
+[| token elements |
+  parser nonInteractivelyDo:
+    [elements: {} writer.
+     [token: parser peekToken.
+      token isSameAs: Syntax EndParenthesis]
+       whileFalse: [elements nextPut: parser nextLiteral].
+     parser nextToken].
+  elements contents
+].
+
+_@(Syntax tokens BeginLiteralParenthesis traits) signifier ['#('].
+
+Syntax tokens define: #BeginLiteralBlock &parents: {Syntax tokens BeginLiteral}.
+
+parser nextLiteralFrom: _@(Syntax tokens BeginLiteralBlock traits)
+[
+  (parser nextLiteralFrom: Syntax BeginBlock) do
+].
+
+_@(Syntax tokens BeginLiteralBlock traits) signifier ['#['].
+
+Syntax tokens define: #BeginBlock &parents: {Syntax tokens Control}.
+
+parser nextLiteralFrom: token@(Syntax tokens BeginBlock traits)
+[
+  (parser nextFrom: token) evaluate
+].
+
+parser nextFrom: _@(Syntax tokens BeginBlock traits)
+[
+  parser nextBlock
+].
+
+_@(Syntax tokens BeginBlock traits) signifier ['['].
+
+Syntax tokens define: #EndBlock &parents: {Syntax tokens Control}.
+
+_@(Syntax tokens EndBlock traits) signifier [']'].
+
+Syntax tokens define: #At &parents: {Syntax tokens Control}.
+
+_ nextLiteralFrom: _@(Syntax tokens At traits) [#'@'].
+
+_@(Syntax tokens At traits) signifier ['@'].
+
+Syntax tokens define: #EndStatement &parents: {Syntax tokens Control}.
+
+_ nextLiteralFrom: _@(Syntax tokens EndStatement traits) [#'.'].
+
+_@(Syntax tokens EndStatement traits) signifier ['.'].
+
+Syntax tokens define: #Comma &parents: {Syntax tokens Control}.
+
+_ nextLiteralFrom: _@(Syntax tokens Comma traits) [#','].
+
+_@(Syntax tokens Comma traits) signifier [','].
+
+Syntax tokens define: #BeginVariables &parents: {Syntax tokens Control}.
+
+_ nextLiteralFrom: _@(Syntax tokens BeginVariables traits) [#'|'].
+
+_@(Syntax tokens BeginVariables traits) signifier ['|'].
+
+Syntax tokens define: #EndVariables &builder: [Syntax tokens BeginVariables].
+
+Syntax tokens define: #EndStream &parents: {Syntax tokens Control}.
+"The end of the input Stream."
+
+Syntax tokens define: #EndLine &parents: {Syntax tokens Control}.
+"The end of a line of input."
+
+Syntax tokens define: #Type &parents: {Syntax tokens Control}.
+"A type annotation token."
+
+_@(Syntax tokens Type traits) signifier ['!'].
+
+Syntax tokens define: #Quote &parents: {Syntax tokens Control}.
+"Begins a quoted atom, or non-selector syntax prefixed by `."
+
+parser nextFrom: token@(Syntax tokens Quote traits)
+[
+  Syntax UnaryMacro sending: #quote to: {parser nextAtom}
+].
+
+_@(Syntax tokens Quote traits) signifier ['`'].
+
+Syntax tokens define: #Eventually &parents: {Syntax tokens Control}.
+"Begins an eventual atom, or non-selector syntax prefixed by %."
+
+parser nextFrom: token@(Syntax tokens Eventually traits)
+[
+  Syntax UnaryMessage sending: #eventually to:
+    {(Syntax Block newFor: parser nextAtom) `>>
+      [parentScope: parser currentScope. ] recordPositionFrom: parser}
+].
+
+_@(Syntax tokens Eventually traits) signifier ['%'].
