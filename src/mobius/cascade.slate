@@ -97,7 +97,7 @@ necessary."
        Syntax UnaryMessage sending: #do to: {block}]
 ].
 
-source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray@(Syntax CompoundStatement traits) &environment: env
+source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray@(Syntax Array traits) &environment: env
 "This generates the kind of input that `>> expects for the simple case of just
 setting a bunch of slot values."
 [| cascade statements |
@@ -109,7 +109,7 @@ setting a bunch of slot values."
         [| :name :value |
          out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
                                              to: {Syntax ImplicitArgument. value})].
-      out nextPut: (Syntax Literal for: Nil)] writingAs: {}).
+      out nextPut: Syntax Literal Nil] writingAs: {}).
   source >> cascade &environment: env
 ].
 
@@ -123,13 +123,13 @@ source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valu
         [| :name :value |
          out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
                                              to: {Syntax ImplicitArgument. Syntax Literal for: value})].
-      out nextPut: (Syntax Literal for: Nil)] writingAs: {}).
+      out nextPut: Syntax Literal Nil] writingAs: {}).
   source >> cascade &environment: env
 ].
 
 source@(Syntax Node traits) setting: slotsArray to: valuesArray &environment: env
 [
-  Syntax KeywordMessage sending: #cloneSettingSlots:to: to: {slotsArray. valuesArray}
+  Syntax KeywordMessage sending: #cloneSettingSlots:to: to: {source. slotsArray. valuesArray}
 ].
 
 node@(Syntax Node traits) substitutingSlotsOf: source for: vars
