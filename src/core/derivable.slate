@@ -1,5 +1,3 @@
-
-
 d@(Root traits) traitsTally
 [
   d traitsWindow _delegates size
@@ -121,18 +119,18 @@ transparently, and sets the traits name slot to the name for convenience."
   is installed after the method is done."
   (x hasSlotNamed: protoName)
     ifTrue: [| oldProto |
-	     oldProto: (x atSlotNamed: protoName).
-	     newProto: (x ensureSlot: protoName is: newProto
-	       unlessSatisfies:
-		 [| :old oldParents newParents |
-		  "Modified equality using == over each delegate pair."
-		  oldParents: old traitsWindow _delegates.
-		  newParents: newProto traitsWindow _delegates.
-		  oldParents size = newParents size
-		    /\ [oldParents keySet allSatisfy:
-		      [| :index | (oldParents at: index) == (newParents at: index)]]]).
-	     newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
-	     newProto]
+             oldProto: (x atSlotNamed: protoName).
+             newProto: (x ensureSlot: protoName is: newProto
+               unlessSatisfies:
+                 [| :old oldParents newParents |
+                  "Modified equality using == over each delegate pair."
+                  oldParents: old traitsWindow _delegates.
+                  newParents: newProto traitsWindow _delegates.
+                  oldParents size = newParents size
+                    /\ [oldParents keySet allSatisfy:
+                      [| :index | (oldParents at: index) == (newParents at: index)]]]).
+             newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
+             newProto]
     ifFalse: [x addImmutableSlot: protoName valued: newProto].
   (x atSlotNamed: protoName) `>> [addPrintName: protoName name. ]
 ].
@@ -163,8 +161,8 @@ existing object. This is essentially a conservative object-slot tree builder."
   (x hasSlotNamed: slotName)
     ifTrue:
       [(x atSlotNamed: slotName)
-	ifNil: [x atSlotNamed: slotName put: new]
-	ifNotNilDo: [| :old | old addSlotsFromRecursively: new]]
+        ifNil: [x atSlotNamed: slotName put: new]
+        ifNotNilDo: [| :old | old addSlotsFromRecursively: new]]
     ifFalse: [x addImmutableSlot: slotName valued: new].
   x atSlotNamed: slotName
 ].
@@ -185,16 +183,17 @@ x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
   immutable `defaultsTo: False.
   slotSpecs `defaultsTo: #().
   proto: (builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn]
-		  ifNotNil: [x define: protoName using: builder]).
+                  ifNotNil: [x define: protoName using: builder]).
   slotSpecs do:
-    [| :each | (each is: Association)
-	       ifTrue: [(immutable ifTrue: [#addImmutableSlot:valued:] ifFalse: [#addSlot:valued:]) sendTo: {proto. each key. each value}]
-	       ifFalse: [(immutable ifTrue: [#addImmutableSlot:] ifFalse: [#addSlot:]) sendTo: {proto. each}]].
+    [| :each |
+     each ifNotNil: [(each is: Association)
+         ifTrue: [(immutable ifTrue: [#addImmutableSlot:valued:] ifFalse: [#addSlot:valued:]) sendTo: {proto. each key. each value}]
+         ifFalse: [(immutable ifTrue: [#addImmutableSlot:] ifFalse: [#addSlot:]) sendTo: {proto. each}]]].
   builder ifNil:
     [ns
       ifNil: [(x isSameAs: Namespace) /\
-		[(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m applyTo: {proto}) == x]]
-		ifTrue: [[| :_ | x] asMethod: #surroundings on: {proto traits}]]
+                [(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m applyTo: {proto}) == x]]
+                ifTrue: [[| :_ | x] asMethod: #surroundings on: {proto traits}]]
       ifNotNil: [[| :_ | ns] asMethod: #surroundings on: {proto traits}].
      obj ifNotNil: [[| :_ | obj] asMethod: #owner on: {proto traits}]].
   proto
@@ -220,20 +219,20 @@ x@(Root traits) commentTemplate
    x traitsTally > 1
      ifTrue:
        [result ; 'Mixins: '.
-	x traitsDo: [| :trait | result ; trait printName ; ', '].
-	result ; '\n'].
+        x traitsDo: [| :trait | result ; trait printName ; ', '].
+        result ; '\n'].
    (#size findsSameMethodOn: {x} asOn: {Array})
      ifTrue: [result ; 'It has indexable slots.\n'].
    slotNames isEmpty
      ifTrue: [result ; 'It has no named slots.']
      ifFalse:
        [result ; 'It has named slots: '.
-	slotNames do:
-	  [| :name val |
-	   result ; name name.
-	   val: (x atSlotNamed: name).
-	   val ifNotNil: [result ; ' -> ' ; val printString].
-	   result ; '. ']].
+        slotNames do:
+          [| :name val |
+           result ; name name.
+           val: (x atSlotNamed: name).
+           val ifNotNil: [result ; ' -> ' ; val printString].
+           result ; '. ']].
    result ; '\n'
    ] writingAs: ''
 ].
