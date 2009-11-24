@@ -206,16 +206,14 @@ will be interpreted immediately upon loading the image."
   gen generateLinkage
 ].
 
-
 gen@(Image Bootstrap Generator traits) bytesAt: i in: arr put: val numBytes: bytes
 [
   0 below: bytes do:
-    [|:index| arr elements at: i + index
-                           put: (val byteShift: (gen littleEndian ifTrue: [0 - index]
-                                                                  ifFalse: [0 - bytes + index])) intoByte]
-
+    [| :index |
+     arr elements at: i + index put:
+       (val byteShift: (gen littleEndian ifTrue: [0 - index]
+                                         ifFalse: [0 - bytes + index])) intoByte]
 ].
-
 
 gen@(Image Bootstrap Generator traits) shortAt: i in: arr put: val
 [
@@ -757,7 +755,7 @@ gen@(Image Bootstrap Generator traits) generateLobby
 [
   gen addObjectNamed: #PrototypesObject valued: (gen cloneOf: gen NamespaceProto).
   gen LobbyObject addDelegateValued: gen PrototypesObject.
- "timmy: no named delegate slots but name needed for accessor"
+  "timmy: no named delegate slots but name needed for accessor"
   gen LobbyObject makeSlotNamed: #prototypes valued: gen PrototypesObject.
   gen addAccessorFor: #prototypes on: gen LobbyObject.
   "Install slots/accessors in the 'prototypes' namespace,

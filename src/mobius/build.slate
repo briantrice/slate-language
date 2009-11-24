@@ -37,13 +37,14 @@ load-order."
      'core/file'. "File I/O."
      'core/print'. "Print methods, pretty-printing (of objects, not source)."
      'core/types'. "The object-based type system."
-     'mobius/syntax'.
-     'mobius/token'.
-     'mobius/lexer'.
-     'mobius/parser'.
+     'syntax/init'.
+     'syntax/node'.
+     'syntax/token'.
+     'syntax/lexer'.
+     'syntax/parser'.
      'core/debugger'.
-     'mobius/macro'.
-     'mobius/inference'.
+     'syntax/macro'.
+     'syntax/inference'.
      'mobius/compiler'.
      'mobius/debug'.
      'mobius/post-bootstrap'.
@@ -54,7 +55,6 @@ load-order."
     #littleEndian -> True. "Whether to have a little-endian byte-word format."
     #bootstrapDirectory -> '.' "Where the source filename paths relate to."
   }.
-
 
 Image Definition primitives clear.
 
@@ -247,7 +247,7 @@ like adding 3 + 4, say."
 def@(Image Definition traits) newNamed: filename littleEndian: littleEndian bitSize: bitSize
 [
   (def clone `setting: #(littleEndian bitSize) to: {littleEndian. bitSize})
-   `>> [filename: (def defaultFilename &base: filename). ]
+   `>> [| :newDef | filename: (newDef defaultFilename &base: filename). ]
 ].
 
 def@(Image Definition traits) defaultFilename &base: base

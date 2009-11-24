@@ -66,13 +66,12 @@ StartupArguments includes: '--image-help'
 
 "Load macro support libraries, which aren't needed in the bootstrap as macros
 are expanded by the bootstrap generator."
-load: 'src/mobius/quote.slate'.
-load: 'src/mobius/cascade.slate'.
+load: 'src/syntax/quote.slate'.
+load: 'src/syntax/cascade.slate'.
 load: 'src/lib/macro.slate'.
 
 "recompile everything with the new compiler so that we have line number info, etc."
 load: 'src/mobius/rebootstrap.slate'.
-
 
 "Load the prelude, customizable separately from the bootstrap image, which
 loads non-optional but useful libraries."
@@ -83,5 +82,3 @@ load: 'src/mobius/prelude.slate'.
 
 "Drop the old bootstrap stack which takes up a lot of space."
 (lobby globals specialOops at: 17) initializeThreadOn: [[lobby start] ensure: [lobby exit: 0]].
-
-

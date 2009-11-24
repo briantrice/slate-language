@@ -54,7 +54,7 @@ w@(Syntax SourceWriter traits) print: _@(Syntax ImplicitArgument traits)
 "The target of implicit message sends to the context. Prints nothing."
 [].
 
-w@(Syntax SourceWriter traits) print: node@(Syntax Comment traits)
+w@(Syntax SourceWriter traits) print: node@(Syntax nodes Comment traits)
 "(Optionally) print out the comment on the following line."
 [
   w print: node value.
@@ -100,7 +100,7 @@ source on the stream."
   closeParen: False.
   previousArity: w surroundingArity.
 "  w indentedDo: ["
-    (w surroundings isUnarySelector: selector)
+    (Syntax isUnarySelector: selector)
       ifTrue: [w withSurroundingArity: 1 do:
                 [previousArity isZero /\
 		   [(args first isSameAs: w surroundings ImplicitArgument) not]
@@ -108,7 +108,7 @@ source on the stream."
                   (w printAsArgument: args first) ifTrue: [w newColumn].
                   w printSelectorPrefixOf: node.
 	          w ; selector name]].
-    (w surroundings isBinarySelector: selector)
+    (Syntax isBinarySelector: selector)
       ifTrue: [w withSurroundingArity: 2 do:
 	        [(previousArity between: 0 and: 1) ifTrue:
 		    [w nextPut: $(. closeParen: True].
@@ -121,7 +121,7 @@ source on the stream."
      the colons, (at an offset of 1 to synchronize indices for looping),
      and then loop from one to the end, printing the keywords and arguments
      alternately."
-    (w surroundings isKeywordSelector: selector)
+    (Syntax isKeywordSelector: selector)
       ifTrue: [| names |
 	        names: (selector name splitWith: $:).
 	        w withSurroundingArity: 3 do:
@@ -175,6 +175,24 @@ w@(Syntax SourceWriter traits) print: node@(Syntax OptionalKeywords traits)
        w indentedDo:
 	 [w newColumn.
           w ; selector name.
+          w newColumn.
+          w printAsArgument: argument]]].
+  closeParen ifTrue: [w ; ')'].
+  w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax RestArguments traits)
+[| closeParen |
+  closeParen: False.
+  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen: True].
+  w withSurroundingArity: -1 do:
+    [w print: node message].
+  w withSurroundingArity: 2 do:
+    [node arguments do:
+      [| :argument |
+       w indentedDo:
+	 [w newColumn.
+          w ; ','.
           w newColumn.
           w printAsArgument: argument]]].
   closeParen ifTrue: [w ; ')'].
@@ -282,14 +300,14 @@ source on the stream."
   selector: node selector.
   args: node inputVariables.
   w indentedDo: [
-    (w surroundings isUnarySelector: selector) /\ [args size = 1]
+    (Syntax isUnarySelector: selector) /\ [args size = 1]
       ifTrue: [ | role |
                role: (node roles first).
 	       w printArg: args first withRole: role.
 	       w newColumn.
 	       w ; (selector as: String)
               ].
-    (w surroundings isBinarySelector: selector) /\ [args size = 2]
+    (Syntax isBinarySelector: selector) /\ [args size = 2]
       ifTrue: [ | role0 role1 |
 	       role0: (node roles first).
                role1: (node roles second).
@@ -303,7 +321,7 @@ source on the stream."
      the colons, (at an offset of 1 to synchronize indices for looping),
      and then loop from one to the end, printing the keywords and arguments
      alternately."
-    (w surroundings isKeywordSelector: selector)
+    (Syntax isKeywordSelector: selector)
       ifTrue: [| name names |
 	        name: (selector as: String).
 	        names: (name splitWith: $:).

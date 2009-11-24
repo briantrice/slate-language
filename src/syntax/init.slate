@@ -1,0 +1,43 @@
+lobby ensureNamespace: #Syntax.
+
+ns@Syntax isUnarySelector: s@(String traits)
+[s isEmpty not /\ [s first isLetter \/ [s first = $_] /\ [s last ~= $:]]].
+
+ns@Syntax isBinarySelector: s@(String traits)
+[
+  s isEmpty not /\
+    [(s first `cache isLetter \/ [#($_ $& $%) includes: s first]
+       \/ [s last = $:]) not]
+].
+
+ns@Syntax isKeywordSelector: s@(String traits)
+[s first ~= $& /\ [s last = $:]].
+
+ns@Syntax isOptionalSelector: s@(String traits)
+[s first = $&].
+
+ns@Syntax isReturnSelector: s@(String traits)
+[
+  s first = $^ /\
+    [s size = 1 \/ [s size = 2 /\ ['123456789^' includes: s second]]]
+].
+
+ns@Syntax keywordsOf: s@(String traits)
+"Answers a Sequence of substrings of the argument which are the keywords of it
+considered as a Slate selector."
+[
+  (ns isKeywordSelector: s)
+    ifTrue: [((s as: '') splitWith: $:) collect: [| :each | each copyWith: $:]]
+    ifFalse: [#{}]
+].
+
+ns@Syntax arityOf: s@(String traits)
+"Answers in a relatively safe way the number of arguments that such a Symbol
+would take if used as a selector.
+Keyword selectors take one argument per colon."
+[
+  (ns isBinarySelector: s)
+    ifTrue: [2]
+    ifFalse: [1 + ((ns isKeywordSelector: s)
+		ifTrue: [s count: [| :c | c = $:]] ifFalse: [0])]
+].
