@@ -79,6 +79,7 @@ list to use to increment the whole count"
   22 -> (#returnRegister -> {1}). "mark the end of a block"
   23 -> (#returnValue -> {1}). "mark the end of a block"
   24 -> (#resume -> {0}). "I'm not sure what this does yet..used in bootstrap"
+  25 -> (#primitiveDo -> {3}). "call a primitive directly, bypassing method lookup: primNum, primArgs, resultReg"
 }.
 
 VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
@@ -852,6 +853,16 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse on: args from: msg result: r
   gen emitBranchTo: label from: msg.
   gen registerFor: Nil from: msg result: result
 ].
+
+
+gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result: result
+[| indexReg argsReg |
+  result `defaultsTo: gen newRegister.
+  indexReg: (gen generate: args first result: Nil).
+  argsReg: (gen generate: args second result: Nil).
+  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argsReg. result} from: msg.
+].
+
 
 gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
 [| block index var value |

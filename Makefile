@@ -23,7 +23,7 @@ install: vm installdirs
 	$(info Installing) # TODO: Plugins and documentation missing
 	$(SILENT) $(INSTALL) $(VM) $(exec_prefix)/$(execname)
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/$(DEFAULT_IMAGE) $(datadir)/$(DEFAULT_IMAGE)
-	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.h $(includedir)/slate.h
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.hpp $(includedir)/slate.hpp
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate-mode.el $(lispdir)/
 	$(SILENT) cat $(slateroot)/etc/slate.1 | sed -e 's/$${prefix}/$(subst /,\/,$(prefix))/g' | $(GZIP) -c > $(slateroot)/etc/slate.1.gz
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.gz $(man1dir)
@@ -40,16 +40,16 @@ uninstall:
 	$(info Uninstalling)
 	$(SILENT) $(RM) -f $(exec_prefix)/$(execname)
 	$(SILENT) $(RM) -f $(lispdir)/slate-mode.el
-	$(SILENT) $(RM) -f $(includedir)/slate.h
+	$(SILENT) $(RM) -f $(includedir)/slate.hpp
 	$(SILENT) $(RM) -fr $(datadir)
 
 edit:
 	$(info Launching Slate in Emacs)
 	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el
 
-bootstrap:
+bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
-	$(SILENT) $(ECHO) "load: 'src/mobius/init.slate'. Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE)." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
+	$(SILENT) $(ECHO) "Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE)." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate
 
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm

@@ -1170,22 +1170,22 @@ void interpret(struct object_heap* oh) {
 #endif
           break;
         }
-#if 0
-      case OP_ALLOCATE_REGISTERS:
+      case OP_PRIMITIVE_DO:
         {
-          word_t reg;
-          reg = SSA_NEXT_PARAM_SMALLINT;
+          word_t primNum, resultReg;
+          Pinned<struct Object> primArgs(oh);
+          primNum = object_to_smallint(SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT));
+          primArgs = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
+
 #ifdef PRINT_DEBUG_OPCODES
-          printf("allocate %" PRIdPTR " registers\n", reg);
+          printf("do primitive %" PRIdPTR "\n", primNum);
 #endif
-          interpreter_stack_allocate(oh, i, reg);
-#ifdef PRINT_DEBUG_OPCODES
-          printf("new fp: %" PRIdPTR " sp: %" PRIdPTR "\n", i->framePointer, i->stackPointer);
-#endif
+          primitives[primNum](oh, object_array_elements(primArgs), object_array_size(primArgs), NULL, i->framePointer + resultReg);
           
           break;
         }
-#endif
+
       default:
         printf("error bad opcode... %" PRIdPTR "\n", op>>1);
         assert(0);
