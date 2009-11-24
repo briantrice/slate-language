@@ -215,7 +215,7 @@ endif
 
 ifeq ($(HOST_SYSTEM), Linux)
   LIBS       := -lm -ldl
-  PLUGINS    += gtk-wrapper.so gdk-wrapper.so glib-wrapper.so llvm-wrapper.so
+  PLUGINS    += gtk-wrapper.so gdk-wrapper.so glib-wrapper.so llvm-wrapper.so x-windows.so
 endif
 
 ifeq ($(findstring MINGW,$(HOST_SYSTEM)), MINGW)
