@@ -12,9 +12,9 @@ void profiler_start(struct object_heap* oh) {
   oh->profilerChildCallCount.clear();
   oh->profilerChildCallTime.clear();
 
-  oh->profilerParentChildCalls.clear();
-  oh->profilerParentChildTimes.clear();
-  oh->profilerParentChildCount.clear();
+  oh->profilerCallStack.clear();
+  oh->profilerCallStackTimes.clear();
+
 
 }
 
@@ -23,9 +23,6 @@ void profiler_stop(struct object_heap* oh) {
   oh->currentlyProfiling = 0;
 }
 
-void profilerIncrement(std::map<struct Object*,word_t>& dict, struct Object* entry, word_t count) {
-  dict[entry] += count;
-}
 
 /*push is true if we're calling a method and false if we're returing to something higher on the stack*/
 void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push) {
@@ -40,50 +37,49 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
   oh->profiledMethods.insert(toMethod);
 
   /* increment the time for the last method that just finished*/
-  profilerIncrement(oh->profilerSelfTime, fromMethod, timeDiff);
+  oh->profilerSelfTime[fromMethod] += timeDiff;
 
   if (push) {
-    profilerIncrement(oh->profilerCallCounts, toMethod, 1);
+    oh->profilerCallCounts[toMethod] += 1;
 
     /* increment child call count if we have a parent */
     struct Object* parent = fromMethod;
     struct Object* child = toMethod;
 
     if (oh->profilerChildCallCount.find(parent) == oh->profilerChildCallCount.end()) {
-      std::map<struct Object*,word_t> entries;
-      entries[child] = 1;
-      oh->profilerChildCallCount[parent] = entries;
+      oh->profilerChildCallCount[parent][child] = 1;
     } else {
-      profilerIncrement(oh->profilerChildCallCount[parent], child, 1);
+      oh->profilerChildCallCount[parent][child] += 1;
     }
+    
+    oh->profilerCallStack.push_back(child);
+    oh->profilerCallStackTimes.push_back(oh->profilerTime);
 
-    profilerIncrement(oh->profilerParentChildCount, child, 1);
-    if (oh->profilerParentChildCount[child] == 1) {
-      oh->profilerParentChildCalls[child] = parent;
-      oh->profilerParentChildTimes[child] = oh->profilerTime;
-    }
   } else {
     /* returned from fromMethod to toMethod */
-    struct Object* child = fromMethod;
+    struct Object* parent;
+    word_t callStartTime; 
+    struct Object* callMethod;
+    do {
+      callStartTime = oh->profilerCallStackTimes.back();
+      callMethod = oh->profilerCallStack.back();
+      oh->profilerCallStackTimes.pop_back();
+      oh->profilerCallStack.pop_back();
+      
+      parent = oh->profilerCallStack.back(); // should be == toMethod on first loop
 
-    // if there aren't any more instances of this child on the stack...
-    if (oh->profilerParentChildCount[child] == 1) {
-      struct Object* parent = oh->profilerParentChildCalls[child];
-      word_t childStartTime = oh->profilerParentChildTimes[child];
-
+      // tell the parent that this child was called for X time
+      word_t callTimeDiff = oh->profilerTime - callStartTime;
       if (oh->profilerChildCallTime.find(parent) == oh->profilerChildCallTime.end()) {
-        std::map<struct Object*,word_t> entries;
-        entries[child] = oh->profilerTime - childStartTime;
-        oh->profilerChildCallTime[parent] = entries;
+        oh->profilerChildCallTime[parent][callMethod] = callTimeDiff;
       } else {
-        profilerIncrement(oh->profilerChildCallTime[parent], child, oh->profilerTime - childStartTime);
+        oh->profilerChildCallTime[parent][callMethod] += callTimeDiff;
       }
 
-    }
+    } while(callMethod != fromMethod && !oh->profilerCallStack.empty());
 
-    if (oh->profilerParentChildCount[child] > 0) {
-      profilerIncrement(oh->profilerParentChildCount, child, -1);
-    }
+    assert(callMethod == fromMethod || !oh->profilerCallStack.empty());
+
 
   }
 
@@ -106,15 +102,24 @@ void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* fro
   for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallCount.begin();
        i != oh->profilerChildCallCount.end(); i++) {
     std::map<struct Object*,word_t>& childSet = (*i).second;
-    childSet[to] = childSet[from];
-    childSet.erase(from);
+    if (childSet.find(from) != childSet.end()) {
+      childSet[to] = childSet[from];
+      childSet.erase(from);
+    }
   }
   for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallTime.begin();
        i != oh->profilerChildCallTime.end(); i++) {
     std::map<struct Object*,word_t>& childSet = (*i).second;
-    childSet[to] = childSet[from];
-    childSet.erase(from);
+    if (childSet.find(from) != childSet.end()) {
+      childSet[to] = childSet[from];
+      childSet.erase(from);
+    }
   }
+
+  for (size_t i = 0; i < oh->profilerCallStack.size(); i++) {
+    if (oh->profilerCallStack[i] == from) oh->profilerCallStack[i] = to;
+  }
+
 
 }
 
@@ -133,6 +138,10 @@ void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallTime.begin();
        i != oh->profilerChildCallTime.end(); i++) {
     (*i).second.erase(method);
+  }
+
+  for (size_t i = 0; i < oh->profilerCallStack.size(); i++) {
+    if (oh->profilerCallStack[i] == method) oh->profilerCallStack[i] = NULL;
   }
 
 }

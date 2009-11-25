@@ -358,19 +358,9 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #endif
     //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
     
-#if 0
-    if (oh->currentlyProfiling) {
-      profiler_enter_method(oh, (struct Object*)oh->cached.interpreter->closure, (struct Object*)method, 1);
-    }
-#endif
     Pinned<struct OopArray> pinnedStack(oh);
     pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, resultStackPointer);
-#if 0
-    if (oh->currentlyProfiling) {
-      profiler_enter_method(oh, (struct Object*)method, (struct Object*)oh->cached.interpreter->closure, 0);
-    }
-#endif
   } else if (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.closure_method_window) {
     interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method, args, arity, opts, resultStackPointer);
   } else {
@@ -456,6 +446,15 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     interpreter_stack_push(oh, i, smallint_to_object(i->framePointer));
     i->codePointer = 0;
     i->framePointer = i->stackPointer;
+
+    // there are three places (that I know of, heh) where a method is put on or off the stack
+    // 1. interpreter apply to
+    // 2. interpreter return from
+    // 3. Here, manually for ensure markers (not sure about the original point of having these)... probably due to the stack based old vm?
+    if (oh->currentlyProfiling) {
+      profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD], 1);
+    }
+
 
     /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {

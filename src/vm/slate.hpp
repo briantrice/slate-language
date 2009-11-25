@@ -406,11 +406,10 @@ struct object_heap
   std::map<struct Object*,word_t> profilerSelfTime;
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallCount;
   std::map<struct Object*, std::map<struct Object*,word_t> > profilerChildCallTime;
+  std::vector<struct Object*> profilerCallStack;
+  std::vector<word_t> profilerCallStackTimes;
 
 
-  std::map<struct Object*,struct Object*> profilerParentChildCalls; /*a call from parent to child stored reverse*/
-  std::map<struct Object*,word_t> profilerParentChildTimes;
-  std::map<struct Object*,word_t> profilerParentChildCount; /*only use the above two at the top level to avoid recursion timing*/
 
   word_t doFullGCNext;
 

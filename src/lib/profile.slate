@@ -77,10 +77,11 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
      results do: [| :entry name totalChildTime |
                   name: (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
                   out ; entry id ; ' [color="#000000", fontcolor="#ffffff", fontsize="10.00", '
-                      ; 'label="' ; name ; '\\n total: ' ; (entry cumulativeTime / 1000000.0) printString ; ' sec ('
-                      ; ((entry cumulativeTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\nself: '
-                      ; (entry selfTime / 1000000.0) printString ; ' sec ('
-                      ; ((entry selfTime * 100.0 / p totalTime roundTo: 0.01) as: String) ; '%)\\ncalled: '
+                      ; 'label="' ; name ; '\\n total: '
+                      ; (((entry cumulativeTime / 1000000.0) roundTo: 0.01) as: String)
+                      ; ' sec \\nself: '
+                      ; (((entry selfTime / 1000000.0) roundTo: 0.01) as: String)
+                      ; ' sec \\ncalled: '
                       ; entry callCount printString ; '"]\n'.
 
                   totalChildTime: 0.
@@ -92,7 +93,8 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                          ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [0]).
                                   out ; entry id ; ' -> ' ; (p results at: childMethod) id
                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
-                                      ; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'
+                                      "; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'"
+                                      ; (((childTime / 1000000.0) roundTo: 0.01) as: String) ; ' sec\\n'
                                       ; childCallCount printString ; ' calls"]\n'
                                   ]
                     ]
