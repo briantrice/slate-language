@@ -57,7 +57,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
 
   } else {
     /* returned from fromMethod to toMethod */
-    struct Object *child = fromMethod, *parent = toMethod;
+    struct Object* parent;
     word_t callStartTime; 
     struct Object* callMethod;
     do {
@@ -65,17 +65,21 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
       callMethod = oh->profilerCallStack.back();
       oh->profilerCallStackTimes.pop_back();
       oh->profilerCallStack.pop_back();
+      
+      parent = oh->profilerCallStack.back(); // should be == toMethod on first loop
+
+      // tell the parent that this child was called for X time
+      word_t callTimeDiff = oh->profilerTime - callStartTime;
+      if (oh->profilerChildCallTime.find(parent) == oh->profilerChildCallTime.end()) {
+        oh->profilerChildCallTime[parent][callMethod] = callTimeDiff;
+      } else {
+        oh->profilerChildCallTime[parent][callMethod] += callTimeDiff;
+      }
+
     } while(callMethod != fromMethod && !oh->profilerCallStack.empty());
 
     assert(callMethod == fromMethod || !oh->profilerCallStack.empty());
 
-    // tell the parent that this child was called for X time
-    word_t callTimeDiff = oh->profilerTime - callStartTime;
-    if (oh->profilerChildCallTime.find(parent) == oh->profilerChildCallTime.end()) {
-      oh->profilerChildCallTime[parent][child] = callTimeDiff;
-    } else {
-      oh->profilerChildCallTime[parent][child] += callTimeDiff;
-    }
 
   }
 
