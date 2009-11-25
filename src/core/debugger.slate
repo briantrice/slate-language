@@ -297,13 +297,14 @@ d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLoca
   out ; '\n'.
 ].
 
-d@(Debugger traits) printBacktrace &limit: limit &stream: out &showLocation: showLocation
+d@(Debugger traits) printBacktrace &fromFrame: frameIndex &limit: limit &stream: out &showLocation: showLocation
 [ 
   limit `defaultsTo: d maxBacktraceSize.
+  frameIndex `defaultsTo: ((d frameList identityIndexOf: d currentFrame) - (limit // 2) max: 0).
   out `defaultsTo: d printer.
   showLocation `defaultsTo: True.
   out ; 'Backtrace (method @ source): \n'.
-  0 below: (d frameList length min: limit) do:
+  frameIndex below: (d frameList length min: frameIndex + limit) do:
     [| :index | d printFrameLineAt: index &showLocation: showLocation].
 ].
 
@@ -398,12 +399,12 @@ ns@(Debugger Namespace traits) arg: n
 [ns debugger currentFrameAt: n].
 ns@(Debugger Namespace traits) arg: n put: newVal
 [ns debugger currentFrameAt: n put: newVal].
-ns@(Debugger Namespace traits) frames &limit: n &showLocation: showLocation
-[ns debugger printBacktrace &limit: n &showLocation: showLocation].
-ns@(Debugger Namespace traits) backtrace &limit: n &showLocation: showLocation
-[ns debugger printBacktrace &limit: n &showLocation: showLocation].
-ns@(Debugger Namespace traits) bt &limit: n &showLocation: showLocation
-[ns debugger printBacktrace &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) frames &fromFrame: frameIndex &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &fromFrame: frameIndex &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) backtrace &fromFrame: frameIndex &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &fromFrame: frameIndex &limit: n &showLocation: showLocation].
+ns@(Debugger Namespace traits) bt &fromFrame: frameIndex &limit: n &showLocation: showLocation
+[ns debugger printBacktrace &fromFrame: frameIndex &limit: n &showLocation: showLocation].
 ns@(Debugger Namespace traits) restarts
 [ns debugger describeRestarts].
 ns@(Debugger Namespace traits) restart: index
