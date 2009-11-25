@@ -473,7 +473,8 @@ in the selected option number, returning it if valid."
    restartNumeric \/
      [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
       ifFalse:
-        [result printOn: d printer.
+        [[result printOn: d printer]
+           on: Error do: [| :c | d printer ; '<Printing failed>'].
          d printer newLine.
          d printer flush].
    restartNumeric ifTrue: [d signalRestartAt: result].
