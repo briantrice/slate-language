@@ -41,18 +41,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
 
   if (push) {
     oh->profilerCallCounts[toMethod] += 1;
-
-    /* increment child call count if we have a parent */
-    struct Object* parent = fromMethod;
-    struct Object* child = toMethod;
-
-    if (oh->profilerChildCallCount.find(parent) == oh->profilerChildCallCount.end()) {
-      oh->profilerChildCallCount[parent][child] = 1;
-    } else {
-      oh->profilerChildCallCount[parent][child] += 1;
-    }
-    
-    oh->profilerCallStack.push_back(child);
+    oh->profilerCallStack.push_back(toMethod);
     oh->profilerCallStackTimes.push_back(oh->profilerTime);
 
   } else {
@@ -75,6 +64,13 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
       } else {
         oh->profilerChildCallTime[parent][callMethod] += callTimeDiff;
       }
+
+      if (oh->profilerChildCallCount.find(parent) == oh->profilerChildCallCount.end()) {
+        oh->profilerChildCallCount[parent][callMethod] = 1;
+      } else {
+        oh->profilerChildCallCount[parent][callMethod] += 1;
+      }
+
 
     } while(callMethod != fromMethod && !oh->profilerCallStack.empty());
 
