@@ -197,8 +197,8 @@
   `((,(concat "#[^" slate-whitespace-chars "{}()]+")
      . font-lock-reference-face)	; symbol
     ("[^\\]\"[^\\]\"" . font-lock-comment-face) ; comment
-    ("[^#]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    ("\$\\(\\\\[ntsbre0avf]\\|.\\)"
+    ("[^#$]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
+    ("\$\\(\\\\[ntsbre0avf\'\"]\\|.\\)"
      . font-lock-string-face)		; character
     (,(concat "`" slate-binop-regexp)
      . ,(if (boundp 'font-lock-preprocessor-face)
@@ -630,89 +630,6 @@ into the current buffer after the cursor."
 ;;     (pop-to-buffer old-buf)
 ;;     (comint-send-string *slate-process*
 ;; 			   (format "load: '%s'.\n" temp-file))))
-
-;; Imenu Support
-;; =============
-;; INCOMPLETE
-
-(defconst slate-imenu-generic-expression
-  '(("Traits" (format "^.*add[A-Za-z]*Slot: #\\(%s\\) valued: .* derive"
-		      slate-name-regexp) 1)
-    ("Traits" (format "^.*addPrototype: #\\(%s\\) derivedFrom: {.*}\."
-		      slate-name-regexp) 1)
-    ("Methods" "\\(^.*@.*\\)\\(\[\\|$\\)" 1) ; Matches the whole signature.
-    ))
-
-'(defun slate-find-next-decl ()
-  "Find the name, position and type of the declaration at or after
-point.  Returns `((name . (start-position . name-position)) . type)'
-if one exists and nil otherwise.  The start-position is at the start
-of the declaration, and the name-position is at the start of the name
-of the declaration.  The name is a string, the positions are buffer
-positions and the type is one of the symbols `traits' or `method'."
-  (let (name type name-pos
-	     start end
-	     (orig-table (syntax-table)))
-    ;; Change to declaration scanning syntax.
-    (set-syntax-table slate-ds-syntax-table)
-    ;; Stop when we are at the end of the buffer or when a valid
-    ;; declaration is grabbed.
-    (while (not (or (eobp) name))
-      ;; Move forward to next declaration at or after point.
-
-	;; If we did not manage to extract a name, cancel this
-	;; declaration (eg. when line ends in "=> ").
-	(if (string-match "^[ \t]*$" name) (setq name nil))
-	(setq type 'instance)))
-      ;; Move past start of current declaration.
-      (goto-char end)
-    ;; Replace syntax table.
-    (set-syntax-table orig-table)
-    ;; If we have a valid declaration then return it, otherwise return
-    ;; nil.
-    (if name
-	(cons (list* name (copy-marker start t) (copy-marker name-pos t)) type)
-      nil))
-
-'(defun slate-create-imenu-index ()
-  "Finds `imenu' declarations in Slate mode. Finds all Traits (and eventually
-method-definitions in a Slate source file for index inclusion."
-  (let*
-      ((index-alist '())
-       (index-traits-alist '())
-       (index-methods-alist '())
-       (bufname (buffer-name))
-       (progress-divisor (max 1 (/ (point-max) 100)))
-       result)
-        (goto-char (point-min))
-    ;; Loop forwards from the beginning of the buffer through the
-    ;; starts of the top-level declarations.
-    (while (< (point) (point-max))
-      (message "Scanning declarations in %s... (%3d%%)" bufname
-	       (/ (point) progress-divisor))
-      ;; Grab the next declaration.
-      (setq result (slate-generic-find-next-decl))
-      (when result
-	;; If valid, extract the components of the result.
-	(let* ((name-posns (first result))
-	       (name (first name-posns))
-	       (posns (rest name-posns))
-	       (start-pos (first posns))
-	       (type (rest result))
-	       ;; Place `(name . start-pos)' in the correct alist.
-	       (alist (cond
-		       ((eq type 'traits) 'index-traits-alist)
-		       ((eq type 'method) 'index-methods-alist))))
-	  (set alist (cons (cons name start-pos) (eval alist))))))
-    ;; Now sort all the lists, label them, and place them in one list.
-    (message "Sorting declarations in %s..." bufname)
-    (when index-traits-alist
-      (push `("Traits" . ,index-traits-alist)) index-alist)
-    (when index-methods-alist
-      (push `("Methods" . ,index-methods-alist)) index-alist)
-    (message "Sorting declarations in %s...done" bufname)
-    ;; Return the alist.
-    index-alist))
 
 ;; Indentation
 ;; ===========
@@ -1241,6 +1158,19 @@ a list. Note that the first argument must be found by searching backwards."
 	(setq selector (buffer-substring start (point))))
       selector)))
 
+;; Imenu Support
+;; =============
+
+(defconst slate-imenu-generic-expression
+  `(("Slots" ,(format "^.*add[A-Za-z]*Slot: #\\(%s\\) valued: .* derive"
+		       slate-name-regexp) 1)
+    ("Prototypes" ,(format "^.*addPrototype: #\\(%s\\) derivedFrom: {.*}\."
+		       slate-name-regexp) 1)
+    ("Prototypes" ,(format "^.*define: #\\(%s\\) &parents: {.*}"
+		       slate-name-regexp) 1)
+    ("Methods" "^\\([^\[]*@[^\[]*\\)$" 1) ; Matches the whole signature.
+    ))
+
 (defun slate-mode ()
   "Major mode for editing Slate code.
 Type `M-x slate' to open a Slate interaction area.
@@ -1269,7 +1199,8 @@ Notes:
      (comment-indent-function      . slate-comment-indent)
      (parse-sexp-ignore-comments   . nil)
      (local-abbrev-table           . slate-mode-abbrev-table)
-     (imenu-generic-expression     . slate-imenu-generic-expression)))
+     ))
+  (setq imenu-generic-expression slate-imenu-generic-expression)
   (setq font-lock-verbose t)
   (run-hooks 'slate-mode-hook))
 
