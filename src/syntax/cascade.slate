@@ -14,9 +14,8 @@ msg@(Syntax Message traits) cascadedTo: sourceVar
 then replacing it in the arguments as necessary."
 [| replacement |
   replacement: (msg arguments first cascadedTo: sourceVar).
-  replacement == msg arguments first
-    ifFalse:
-      [msg arguments at: 0 put: replacement].
+  (msg arguments at: 0) == replacement ifFalse:
+    [msg arguments at: 0 put: replacement].
   msg
 ].
 
@@ -24,18 +23,25 @@ opts@(Syntax OptionalKeywords traits) cascadedTo: sourceVar
 "Forward the cascade to the enclosed message."
 [| replacement |
   replacement: (opts message cascadedTo: sourceVar).
-  replacement == opts message
-    ifFalse:
-      [opts message: replacement].
+  opts message == replacement ifFalse:
+    [opts message: replacement].
   opts
 ].
+
+"rest@(Syntax RestArguments traits) cascadedTo: sourceVar
+[| replacement |
+  replacement: (rest message cascadedTo: sourceVar).
+  rest message == replacement ifFalse:
+    [rest message: replacement].
+  rest
+]."
 
 store@(Syntax StoreVariable traits) cascadedTo: sourceVar
 "A store to a variable when cascaded is treated as a mutator keyword
 message to a load of it."
 [
   Syntax KeywordMessage
-    sending: (store variable name name ; ':') intern
+    sending: (store mutatorNameFor: store variable name)
     to: {Syntax LoadVariable from: sourceVar. store value}
 ].
 
@@ -48,18 +54,18 @@ message to a load of it."
     to: {Syntax LoadVariable from: sourceVar}
 ].
 
-"
-paren@(Syntax Parenthesis traits) cascadedTo: sourceVar
+"paren@(Syntax Parenthesis traits) cascadedTo: sourceVar
 [| replacement |
   replacement: (paren statements first cascadedTo: sourceVar).
-  replacement == paren statements first
-    ifFalse:
-      [paren statements at: 0 put: replacement].
+  (paren statements at: 0) == replacement ifFalse:
+    [paren statements at: 0 put: replacement].
   paren
-].
-"
+]."
 
 source@(Syntax Node traits) >> cascade@(Syntax Block traits) &environment: env
+[cascade doWithinContextOf: source &environment: env].
+
+cascade@(Syntax Block traits) doWithinContextOf: source@(Syntax Node traits) &environment: env
 "This is the cascading macro. It transforms an expression and a block into
 a form where the top-level statements' expressions are cascaded onto the result
 of evaluating the first at run-time. Technically, it expands into a new block.
@@ -67,27 +73,23 @@ If the cascade block has an input argument, it is bound to this cascaded value
 so it can be explicitly referenced for statements where non-top-level access is
 necessary."
 [| sourceVar body block |
-  env
-    ifNil:
-      [block: Syntax Block new].
-  cascade localVariables size > cascade inputVariables size
-    ifTrue: 
-      [block: cascade].
+  env ifNil:
+    [block: Syntax Block new].
+  cascade localVariables size > cascade inputVariables size ifTrue: 
+    [block: cascade].
   cascade inputVariables isEmpty
     ifTrue: 
       [sourceVar: (block ifNil: [env]) addVariable]
     ifFalse: 
       [sourceVar: cascade inputVariables first.
-        block == cascade
-          ifFalse:
-            [(block ifNil: [env]) addVariable: sourceVar]].
+       block == cascade ifFalse:
+         [(block ifNil: [env]) addVariable: sourceVar]].
   body:
     {Syntax StoreVariable of: source into: sourceVar} ;
       (cascade statements
         collect: [| :statement | statement cascadedTo: sourceVar]).
-  (body last isSameAs: Syntax Literal) /\ [body last value isNil]
-    ifTrue:
-      [body at: body indexLast put: (Syntax LoadVariable from: sourceVar)].
+  (body last isSameAs: Syntax Literal) /\ [body last value isNil] ifTrue:
+    [body at: body indexLast put: (Syntax LoadVariable from: sourceVar)].
   block
     ifNil:
       [body as: Syntax Parenthesis]

@@ -213,55 +213,54 @@ after the initial escape is seen, whether as a character or part of a string."
 l@(Syntax Lexer traits) readString
 "Build a string until the next single-quote character is encountered.
 Escaping is accounted for."
-[| writeStream c | 
-  writeStream: '' writer.
-  [c: l nextCharacter. c = $\']
-    whileFalse:
-      [writeStream 
-        nextPut: 
+[| c |
+  l newLiteralFor: ([| :result |
+    [c: l nextCharacter. c = $\']
+      whileFalse:
+	[result nextPut:
           (c = $\\ 
             ifTrue: [l readEscapedCharacter] 
-            ifFalse: [c])].
-  l newLiteralFor: writeStream contents
+            ifFalse: [c])]] writingAs: String)
 ].
 
 l@(Syntax Lexer traits) readComment
 "Build a comment string until the next double-quote character is encountered.
 Escaping is accounted for."
-[| writeStream c |
-  writeStream: '' writer.
-  [c: l nextCharacter. c = $\"]
-    whileFalse:
-      [writeStream 
-        nextPut:
+[| c |
+  Syntax tokens Comment for: ([| :result |
+    [c: l nextCharacter. c = $\"]
+      whileFalse:
+	[result nextPut:
           (c = $\\
             ifTrue: [l readEscapedCharacter]
-            ifFalse: [c])].
-  Syntax tokens Comment clone `>> [comment: writeStream contents.]
+            ifFalse: [c])]] writingAs: '')
+].
+
+l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
+[| c |
+  [l moreCharacters not
+     \/ [c: l peekCharacter. c isWhitespace]
+     \/ [l specialChars includes: c]]
+    whileFalse: [writeStream nextPut: l nextCharacter]
 ].
 
 l@(Syntax Lexer traits) readSelector: type &emptyToken: emptyToken
 "Read a selector symbol into a token."
-[| writeStream c |
-  writeStream: '' writer.
-  l moreCharacters /\ [l peekCharacter isDigit]
-    ifFalse:
-      [[l moreCharacters not
-          \/ [c: l peekCharacter. c isWhitespace]
-          \/ [l specialChars includes: c]]
-         whileFalse:
-           [writeStream nextPut: l nextCharacter]].
-  writeStream contents isEmpty
+[| result c |
+  result: '' writer.
+  l moreCharacters /\ [l peekCharacter isDigit] ifFalse:
+    [l nextWordCharactersInto: result].
+  result contents isEmpty
     ifTrue: 
       [emptyToken ifNil: [error: 'Message selector must not be empty.']]
     ifFalse:
-      [type clone `>> [selector: writeStream contents intern.]]
+      [type for: result contents intern]
 ].
 
 l@(Syntax Lexer traits) readLiteral
 "This handles the literal brace array syntaxes."
-[| writeStream c |
-  writeStream: '' writer.
+[| result c |
+  result: '' writer.
   l moreCharacters
     ifTrue:
       [
@@ -273,20 +272,16 @@ l@(Syntax Lexer traits) readLiteral
               $[ -> [^ Syntax BeginLiteralBlock].
               $' -> [[c: l nextCharacter. c = $']
                         whileFalse:
-                          [writeStream nextPut:
+                          [result nextPut:
                             (c = $\\
                               ifTrue: [l readEscapedCharacter]
                               ifFalse: [c])].
-                      ^ (l newLiteralFor: writeStream contents intern)].
+                      ^ (l newLiteralFor: result contents intern)].
             }.
         l undoCharacter: c 
       ].
-  [l moreCharacters not
-     \/ [c: l peekCharacter. c isWhitespace]
-     \/ [l specialChars includes: c]]
-    whileFalse:
-      [writeStream nextPut: l nextCharacter].
-  l newLiteralFor: writeStream contents intern
+  l nextWordCharactersInto: result.
+  l newLiteralFor: result contents intern
 ].
 
 l@(Syntax Lexer traits) readCharacter
