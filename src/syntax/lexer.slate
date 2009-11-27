@@ -5,7 +5,7 @@ Syntax define: #Lexer &parents: {StreamProcessor}
 using a buffer as necessary to hold the tokenized contents.
 Also, debugging information is stored for now in terms of the line number that
 the current stream position has reached."
-Syntax Lexer traits define: #specialChars -> '()[]{}@,.|!#$`"\'%'.
+Syntax Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
 l@(Syntax Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
@@ -240,7 +240,7 @@ l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
 [| c |
   [l moreCharacters not
      \/ [c: l peekCharacter. c isWhitespace]
-     \/ [l specialChars includes: c]]
+     \/ [l WordTerminatingTokens includes: c]]
     whileFalse: [writeStream nextPut: l nextCharacter]
 ].
 
