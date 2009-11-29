@@ -1,5 +1,5 @@
 Syntax define: #Lexer &parents: {StreamProcessor}
-  &slots: {#undoBuffer -> ExtensibleArray new.
+  &slots: {#buffer -> ExtensibleArray new.
 	   #lineNumber -> 1 "The current line number."}.
 "The lexer takes an input character Stream and divides it up into Tokens,
 using a buffer as necessary to hold the tokenized contents.
@@ -16,34 +16,37 @@ l@(Syntax Lexer traits) on: stream
 
 l@(Syntax Lexer traits) reset
 [
-  l undoBuffer: l undoBuffer new.
+  l buffer: l buffer new.
   l lineNumber: 1.
 ].
+
+l@(Syntax Lexer traits) isEndOfLine: char [char == $\n].
+l@(Syntax Lexer traits) isEscape: char [char == $\\].
 
 l@(Syntax Lexer traits) isAtEnd
 "The lexer has reached its end when the stream is exhausted and the buffer is
 empty."
 [
-  l undoBuffer isEmpty /\ [l source isAtEnd] \/
+  l buffer isEmpty /\ [l source isAtEnd] \/
   [| c |
    [c: l nextCharacter.
-    l undoBuffer isEmpty /\ [l source isAtEnd]
-      \/ [c isWhitespace not] \/ [c = $\n]] whileFalse.
-   c isWhitespace /\ [c ~= $\n] \/ [l undoCharacter: c. False]]
+    l buffer isEmpty /\ [l source isAtEnd]
+      \/ [c isWhitespace not] \/ [c == $\n]] whileFalse.
+   c isWhitespace /\ [c ~== $\n] \/ [l undoCharacter: c. False]]
 ].
 
-l@(Syntax Lexer traits) moreCharacters
+l@(Syntax Lexer traits) hasMoreCharacters
 [
-  l undoBuffer isNotEmpty \/ [l source isAtEnd not]
+  l buffer isNotEmpty \/ [l source isAtEnd not]
 ].
 
 l@(Syntax Lexer traits) peekCharacter
 "Grab the next character, but leave it in the buffer, so the position is not
 advanced."
 [
-  l undoBuffer isEmpty
+  l buffer isEmpty
     ifTrue: [l undoCharacter: l nextCharacter]
-    ifFalse: [l undoBuffer last]
+    ifFalse: [l buffer last]
 ].
 
 l@(Syntax Lexer traits) nextCharacter
@@ -51,13 +54,13 @@ l@(Syntax Lexer traits) nextCharacter
 stream of characters. Raise an error if this is used at the end, and advance
 the line number if a new-line is reached."
 [| c |
-  c: (l undoBuffer isEmpty
+  c: (l buffer isEmpty
     ifTrue:
       [l source isAtEnd
          ifTrue: [l error: 'Unexpected end of stream'].
        l source next]
-    ifFalse: [l undoBuffer removeLast]).
-  c = $\n ifTrue: [l lineNumber: l lineNumber + 1].
+    ifFalse: [l buffer removeLast]).
+  c == $\n ifTrue: [l lineNumber: l lineNumber + 1].
   c
 ].
 
@@ -65,8 +68,8 @@ l@(Syntax Lexer traits) undoCharacter: c
 "Put the character back into the buffer, and decrement the line number if it's
 a new-line."
 [
-  c = $\n ifTrue: [l lineNumber: l lineNumber - 1].
-  l undoBuffer addLast: c
+  c == $\n ifTrue: [l lineNumber: l lineNumber - 1].
+  l buffer addLast: c
 ].
 
 Syntax Lexer traits define: #Error &parents: {DescriptiveError}
@@ -87,14 +90,11 @@ multiplying the accumulator by the radix and adding the numeric equivalent
 of the character."
 [| number |
   number: 0.
-  [l moreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter = $_]]]
-    whileTrue:
-      [| c |
-        c: l nextCharacter.
-        (c isDigit: radix)
-          ifTrue:
-            [number: number * radix + (c toDigit: radix)]
-      ].
+  [l hasMoreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter == $_]]] whileTrue:
+    [| c |
+     c: l nextCharacter.
+     (c toDigit: radix) ifNotNilDo:
+       [| :digit | number: number * radix + digit]].
   number
 ].
 
@@ -103,29 +103,27 @@ l@(Syntax Lexer traits) readMantissa: radix
 [| number place |
   number: 0.
   place: 1.
-  [l moreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter = $_]]]
-    whileTrue:
-      [| c |
-        c: l nextCharacter.
-        (c isDigit: radix)
-          ifTrue:
-            [number: number * radix + (c toDigit: radix).
-              place: place * radix]
-      ].
+  [l hasMoreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter == $_]]] whileTrue:
+    [| c |
+     c: l nextCharacter.
+     (c toDigit: radix) ifNotNilDo:
+       [| :digit |
+	number: number * radix + digit.
+        place: place * radix]].
   (number as: Float) / (place as: Float)
 ].
 
 l@(Syntax Lexer traits) readExponent: radix
 "Build a floating-point number's exponent as an integer."
-[| sign c |
-  sign: 1.
+[| c |
   c: l nextCharacter.
-  c = $+ \/ [c = $-]
-    ifTrue:
-      [c = $- ifTrue: [sign: -1]]
+  c == $+
+    ifTrue: [l readInteger: radix]
     ifFalse:
-      [l undoCharacter: c].
-  sign * (l readInteger: radix)
+      [c == $-
+	 ifTrue: [l readInteger: radix]
+	 ifFalse: [l undoCharacter: c.
+		   l readInteger: radix]]
 ].
 
 l@(Syntax Lexer traits) newLiteralFor: obj
@@ -140,47 +138,38 @@ l@(Syntax Lexer traits) newLiteralFor: obj
 
 l@(Syntax Lexer traits) readNumber
 "The overall routine for building numbers."
-[| number sign radix c |
-  "Assign the default sign, then override it based on the presence of an
-  explicit sign character."
-  sign: 1.
+[| number isNegative radix c |
+  isNegative: False.
   radix: 10.
   c: l nextCharacter.
-  c = $+ \/ [c = $-]
-    ifTrue: [c = $- ifTrue: [sign: -1]]
-    ifFalse: [l undoCharacter: c].
+  c == $- ifTrue: [isNegative: True]
+	  ifFalse: [c == $+ ifFalse: [l undoCharacter: c]].
   "Now read in all the continuous string of digits possible as an integer."
   number: (l readInteger: radix).
   "Reaching the end of the lexing stream just finalizes the process."
-  l moreCharacters
-    ifFalse:
-      [^ (l newLiteralFor: sign * number)].
+  l hasMoreCharacters ifFalse:
+    [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
   "Conditionalize on the next character: it may set up a radix or a decimal."
   c: l nextCharacter.
-  c = $r \/ [c = $R]
-    ifTrue:
-      [radix: number.
-        (radix between: 2 and: 36)
-          ifFalse:
-            [l error: 'Number radix must be between 2 and 36.'].
-        number: (l readInteger: radix).
-        l moreCharacters
-          ifFalse:
-            [^ (l newLiteralFor: sign * number)].
-        c: l nextCharacter].
-  (c = $. /\ [l moreCharacters] /\ [l peekCharacter isDigit: radix])
-    ifTrue:
-      [number: (number as: Float) + (l readMantissa: radix).
-       l moreCharacters
-         ifFalse:
-           [^ (l newLiteralFor: sign * number)].
-       c: l nextCharacter].
-  c = $e \/ [c = $E]
+  c == $r \/ [c == $R] ifTrue:
+    [radix: number.
+     (radix between: 2 and: 36) ifFalse:
+       [l error: 'Number radix must be between 2 and 36.'].
+     number: (l readInteger: radix).
+     l hasMoreCharacters ifFalse:
+       [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
+     c: l nextCharacter].
+  c == $. /\ [l hasMoreCharacters] /\ [l peekCharacter isDigit: radix] ifTrue:
+    [number: (number as: Float) + (l readMantissa: radix).
+     l hasMoreCharacters ifFalse:
+       [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
+     c: l nextCharacter].
+  c == $e \/ [c == $E]
     ifTrue:
       [number: (number as: Float) * ((radix as: Float) raisedTo: (l readExponent: 10))]
     ifFalse:
       [l undoCharacter: c].
-  l newLiteralFor: sign * number
+  l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number])
 ].
 
 l@(Syntax Lexer traits) readEscapedCharacter
@@ -215,10 +204,10 @@ l@(Syntax Lexer traits) readString
 Escaping is accounted for."
 [| c |
   l newLiteralFor: ([| :result |
-    [c: l nextCharacter. c = $\']
+    [c: l nextCharacter. c == $\']
       whileFalse:
 	[result nextPut:
-          (c = $\\ 
+          (c == $\\ 
             ifTrue: [l readEscapedCharacter] 
             ifFalse: [c])]] writingAs: String)
 ].
@@ -228,27 +217,27 @@ l@(Syntax Lexer traits) readComment
 Escaping is accounted for."
 [| c |
   Syntax tokens Comment for: ([| :result |
-    [c: l nextCharacter. c = $\"]
+    [c: l nextCharacter. c == $\"]
       whileFalse:
 	[result nextPut:
-          (c = $\\
+          (c == $\\
             ifTrue: [l readEscapedCharacter]
             ifFalse: [c])]] writingAs: '')
 ].
 
 l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
 [| c |
-  [l moreCharacters not
+  [l hasMoreCharacters not
      \/ [c: l peekCharacter. c isWhitespace]
      \/ [l WordTerminatingTokens includes: c]]
     whileFalse: [writeStream nextPut: l nextCharacter]
 ].
 
-l@(Syntax Lexer traits) readSelector: type &emptyToken: emptyToken
+l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
 "Read a selector symbol into a token."
 [| result c |
   result: '' writer.
-  l moreCharacters /\ [l peekCharacter isDigit] ifFalse:
+  l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
     [l nextWordCharactersInto: result].
   result contents isEmpty
     ifTrue: 
@@ -261,7 +250,7 @@ l@(Syntax Lexer traits) readLiteral
 "This handles the literal brace array syntaxes."
 [| result c |
   result: '' writer.
-  l moreCharacters
+  l hasMoreCharacters
     ifTrue:
       [
         c: l nextCharacter.
@@ -270,10 +259,10 @@ l@(Syntax Lexer traits) readLiteral
               $( -> [^ Syntax BeginLiteralParenthesis].
               ${ -> [^ Syntax BeginLiteralArray].
               $[ -> [^ Syntax BeginLiteralBlock].
-              $' -> [[c: l nextCharacter. c = $']
+              $' -> [[c: l nextCharacter. c == $']
                         whileFalse:
                           [result nextPut:
-                            (c = $\\
+                            (c == $\\
                               ifTrue: [l readEscapedCharacter]
                               ifFalse: [c])].
                       ^ (l newLiteralFor: result contents intern)].
@@ -288,7 +277,7 @@ l@(Syntax Lexer traits) readCharacter
 "Read in a single character into a token or an escaped one."
 [| c |
   c: l nextCharacter.
-  c = $\\ ifTrue: [c: l readEscapedCharacter].
+  c == $\\ ifTrue: [c: l readEscapedCharacter].
   l newLiteralFor: c
 ].
 
@@ -317,12 +306,12 @@ read-table."
         $, -> [Syntax Comma].
         $| -> [Syntax BeginVariables].
         $! -> [Syntax Type].
-        $` -> [l readSelector: Syntax MacroSelector &emptyToken: Syntax Quote].
-        $% -> [l readSelector: Syntax DeferredSelector &emptyToken: Syntax Eventually].
+        $` -> [l readSelector: Syntax MacroSelector &ifEmpty: Syntax Quote].
+        $% -> [l readSelector: Syntax DeferredSelector &ifEmpty: Syntax Eventually].
         $\n -> [Syntax EndLine].
       }
     otherwise:
-      [c = $+ \/ [c = $-] /\ [l peekCharacter isDigit]
+      [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]
          ifTrue: [l undoCharacter: c. l readNumber]
          ifFalse:
             [l undoCharacter: c.
