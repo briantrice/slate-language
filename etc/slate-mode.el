@@ -43,6 +43,26 @@
   "Abbrev table in use in slate-mode buffers.")
 (define-abbrev-table 'slate-mode-abbrev-table ())
 
+;; Customize Support
+;; =================
+
+(defgroup slate nil
+  "Major mode for editing Slate code."
+  :prefix "slate-"
+  :group 'languages)
+
+(defcustom slate-mode-hook nil
+  "Normal hook run when entering Slate mode."
+  :type 'hook
+  :options '(imenu-add-menubar-index)
+  :group 'slate)
+
+(defcustom slate-indent-amount 2
+  "Amount to adjust indentation by."
+  :type 'integer
+  :options '(2 4)
+  :group 'slate)
+
 ;; Templates
 ;; =========
 
@@ -198,7 +218,7 @@
      . font-lock-reference-face)	; symbol
     ("[^\\]\"[^\\]\"" . font-lock-comment-face) ; comment
     ("[^#$]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    ("\$\\(\\\\[ntsbre0avf\'\"]\\|.\\)"
+    ("\$\\(\\\\[ntsbre0avf\'\"\\]\\|.\\)"
      . font-lock-string-face)		; character
     (,(concat "`" slate-binop-regexp)
      . ,(if (boundp 'font-lock-preprocessor-face)
@@ -237,9 +257,6 @@
      . font-lock-keyword-face)		; globals
    )
   "Slate highlighting matchers.")
-
-(defconst slate-indent-amount 2
-  "*'Tab size'; used for simple indentation alignment.")
 
 ;; Inferior-Mode Support
 ;; =====================
@@ -758,6 +775,55 @@ or non-white space, non-comment character."
            (backward-sexp)
            (decf n)))))
 
+(defun slate-find-statement-begin ()
+  "Leaves the point at the first non-blank, non-comment character of a new
+statement.  If beginning of buffer is reached, then the point is left there.
+This routine only will return with the point pointing at the first non-blank
+on a line; it won't be fooled by multiple statements on a line into stopping
+prematurely.  Also, goes to start of method if we started in the method
+selector."
+  (let (start ch)
+    (when (equal (preceding-char) ?.) ; if we start at eos
+      (backward-char 1))	      ; we find the begin of THAT stmt
+    (while (and (null start) (not (bobp)))
+      (slate-backward-whitespace)
+      (setq ch (preceding-char))
+      (cond ((equal ch ?.)
+	     (let (saved-point)
+	       (setq saved-point (point))
+	       (slate-forward-whitespace)
+	       (if (slate-white-to-bolp)
+		   (setq start (point))
+		 (goto-char saved-point)
+		 (slate-backward-sexp 1))))
+	    ((equal ch ?^)	 ; HACK -- presuming that when we back
+					;up into a return that we're at the
+					;start of a statement
+	     (backward-char 1)
+	     (setq start (point)))
+	    ((equal ch ?\[)
+	     (if (> (current-column) 1)
+		 (setq start (point))
+	       (forward-line 1)
+	       (beginning-of-line)
+	       (slate-forward-whitespace)
+	       (setq start (point))))
+	    ((equal ch ?\{)
+	     (setq start (point)))
+	    ((equal ch ?\()
+	     (backward-char 1))
+	    ((equal ch ?|)
+	     (backward-char 1)
+	     (skip-chars-backward "^[")
+	     (slate-backward-whitespace))
+	    (t
+	     (slate-backward-sexp 1))))
+    (unless start
+      (goto-char (point-min))
+      (slate-forward-whitespace)
+      (setq start (point)))
+    start))
+
 (defun slate-calculate-indent ()
   "The core calculations for indentation."
   (let (indent-amount start-of-line state (parse-sexp-ignore-comments t))
@@ -769,15 +835,17 @@ or non-white space, non-comment character."
 	(cond ((equal (nth 3 state) ?\") ;in a comment
 	       (save-excursion
 		 (slate-backward-comment)
-		 (setq indent-amount (1+ (current-column)))))
+		 (setq indent-amount (+ (current-column) slate-indent-amount))))
 	      ((equal (nth 3 state) ?')	;in a string
-	       (setq indent-amount 0)))
+	       (setq indent-amount 0))
+	      ((equal (nth 3 state) ?\))
+	       (setq indent-amount (+ (current-column) slate-indent-amount))))
 	(when indent-amount
 	  (return-from slate-calculate-indent indent-amount))
 	(slate-narrow-to-method)
 	(beginning-of-line)
 	(setq state (parse-partial-sexp (point-min) (point)))
-;	(slate-narrow-to-paren state)
+	(slate-narrow-to-paren state)
 	(slate-backward-whitespace)
 	(cond ((bobp)	;must be first statement in block or exp
 	       (if (nth 1 state)	;within a paren exp
@@ -792,10 +860,13 @@ or non-white space, non-comment character."
 	      ((equal (preceding-char) ?.) ;at end of statement
 	       (slate-find-statement-begin)
 	       (setq indent-amount (slate-current-column)))
+	      ((equal (preceding-char) ?\()
+	       (setq indent-amount slate-indent-amount))
 	      ((memq (preceding-char) '(?| ?\[))
 	       (backward-char)
-	       (skip-chars-backward "^\[")
+	       (skip-chars-backward "^[")
 	       (slate-backward-whitespace)
+	       (backward-char)
 	       (setq indent-amount (+ (slate-current-column)
 				      slate-indent-amount)))
 	      ((equal (preceding-char) ?:)
@@ -824,10 +895,8 @@ new line, in which case it indents by `slate-indent-amount'."
 	  (slate-backward-whitespace)
 	  (unless (memq (preceding-char) '(?. ?| ?\[ ?\( ?\{))
 	    (setq is-keyword t)))))
-    (if is-keyword
-	(slate-indent-for-colon)
       (setq indent-amount (slate-calculate-indent))
-      (slate-indent-to-column indent-amount))))
+      (slate-indent-to-column indent-amount)))
 
 (defun slate-reindent ()
   (interactive)
@@ -865,46 +934,6 @@ previous one."
 	(slate-forward-whitespace)
 	(slate-backward-sexp 1))
       (slate-begin-of-defun))))		;and go to the next one
-
-(defun slate-find-statement-begin ()
-  "Leaves the point at the first non-blank, non-comment character of a new
-statement.  If beginning of buffer is reached, then the point is left there.
-This routine only will return with the point pointing at the first non-blank
-on a line; it won't be fooled by multiple statements on a line into stopping
-prematurely.  Also, goes to start of method if we started in the method
-selector."
-  (let (start ch)
-    (when (equal (preceding-char) ?.)	;if we start at eos
-      (backward-char 1))		;we find the begin of THAT stmt
-    (while (and (null start) (not (bobp)))
-      (slate-backward-whitespace)
-      (cond ((equal (setq ch (preceding-char)) ?.)
-	     (let (saved-point)
-	       (setq saved-point (point))
-	       (slate-forward-whitespace)
-	       (if (slate-white-to-bolp)
-		   (setq start (point))
-		 (goto-char saved-point)
-		 (slate-backward-sexp 1))))
-	    ((equal ch ?^)		;HACK -- presuming that when we back
-					;up into a return that we're at the
-					;start of a statement
-	     (backward-char 1)
-	     (setq start (point)))
-	    ((equal ch ?\[)
-	     (setq start (point)))
-	    ((equal ch ?|)
-	     (backward-char 1)
-	     (skip-chars-backward "^\[")
-	     (slate-backward-whitespace)
-	     (setq start (point)))
-	    (t
-	     (slate-backward-sexp 1))))
-    (unless start
-      (goto-char (point-min))
-      (slate-forward-whitespace)
-      (setq start (point)))
-    start))
 
 (defun slate-narrow-to-paren (state)
   "Narrows the region to between point and the closest previous open paren.
@@ -1018,6 +1047,7 @@ expressions."
 (defun slate-narrow-to-method ()
   "Narrows the buffer to the contents and signature of the method."
   ; TODO: Make sure the signature plus optional head comment is included.
+  (interactive)
   (let ((end (point))
 	(parse-sexp-ignore-comments t)
 	handled)
@@ -1168,7 +1198,7 @@ a list. Note that the first argument must be found by searching backwards."
 		       slate-name-regexp) 1)
     ("Prototypes" ,(format "^.*define: #\\(%s\\) &parents: {.*}"
 		       slate-name-regexp) 1)
-    ("Methods" "^\\([^\[]*@[^\[]*\\)$" 1) ; Matches the whole signature.
+    ("Methods" "^\\([^\[]*@[^\[\"]*\\)$" 1) ; Matches the whole signature.
     ))
 
 (defun slate-mode ()
