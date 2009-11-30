@@ -57,7 +57,7 @@
   :options '(imenu-add-menubar-index)
   :group 'slate)
 
-(defcustom slate-indent-amount 2
+(defcustom slate-indent-increment 2
   "Amount to adjust indentation by."
   :type 'integer
   :options '(2 4)
@@ -740,9 +740,9 @@ or non-white space, non-comment character."
   (interactive)
   (let (col)
     ;; round up, with overflow
-    (setq col (* (/ (+ (current-column) slate-indent-amount)
-		    slate-indent-amount)
-		 slate-indent-amount))
+    (setq col (* (/ (+ (current-column) slate-indent-increment)
+		    slate-indent-increment)
+		 slate-indent-increment))
     (indent-to-column col)))
 
 ;; Higher-level utilities calling `slate-mode' functions.
@@ -835,11 +835,11 @@ selector."
 	(cond ((equal (nth 3 state) ?\") ;in a comment
 	       (save-excursion
 		 (slate-backward-comment)
-		 (setq indent-amount (+ (current-column) slate-indent-amount))))
+		 (setq indent-amount (+ (current-column) slate-indent-increment))))
 	      ((equal (nth 3 state) ?')	;in a string
 	       (setq indent-amount 0))
 	      ((equal (nth 3 state) ?\))
-	       (setq indent-amount (+ (current-column) slate-indent-amount))))
+	       (setq indent-amount (+ (current-column) slate-indent-increment))))
 	(when indent-amount
 	  (return-from slate-calculate-indent indent-amount))
 	(slate-narrow-to-method)
@@ -850,9 +850,9 @@ selector."
 	(cond ((bobp)	;must be first statement in block or exp
 	       (if (nth 1 state)	;within a paren exp
 		   (setq indent-amount (+ (slate-current-column)
-					  slate-indent-amount))
+					  slate-indent-increment))
 		 ;; we're top level
-		 (setq indent-amount slate-indent-amount)))
+		 (setq indent-amount slate-indent-increment)))
 	      ((equal (nth 0 state) 0) ;at top-level
 	       (beginning-of-line)
 	       (slate-forward-whitespace)
@@ -861,30 +861,37 @@ selector."
 	       (slate-find-statement-begin)
 	       (setq indent-amount (slate-current-column)))
 	      ((equal (preceding-char) ?\()
-	       (setq indent-amount slate-indent-amount))
+	       (setq indent-amount slate-indent-increment))
 	      ((memq (preceding-char) '(?| ?\[))
-	       (backward-char)
 	       (skip-chars-backward "^[")
-	       (slate-backward-whitespace)
-	       (backward-char)
 	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-amount)))
+				      slate-indent-increment)))
 	      ((equal (preceding-char) ?:)
 	       (beginning-of-line)
 	       (slate-forward-whitespace)
 	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-amount)))
+				      slate-indent-increment)))
 	      (t			;must be a statement continuation
 	       (slate-find-statement-begin)
 	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-amount)))))
-      indent-amount)))
+				      slate-indent-increment))))))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (beginning-of-line)
+        (slate-forward-whitespace)
+        (when (memq (following-char) '(?\} ?\) ?\]))
+          (setq indent-amount (max 0 (- indent-amount slate-indent-increment))))
+        (while (memq (following-char) '(?\} ?\) ?\]))
+          (setq indent-amount (max 0 (- indent-amount slate-indent-increment)))
+          (forward-char))))
+    indent-amount))
 
 (defun slate-indent-line ()
   "Sees if the current line is a new statement, in which case indent the same
 as the previous statement, or determine by context. If not the start of a new
 statement, the start of the previous line is used, except if that starts a
-new line, in which case it indents by `slate-indent-amount'."
+new line, in which case it indents by `slate-indent-increment'."
   (let (indent-amount is-keyword)
     (save-excursion
       (beginning-of-line)
@@ -1016,7 +1023,7 @@ expressions."
 	 ((or (eq (setq c (preceding-char)) ?\|)
 	      (eq c ?\[))		; method header before
 	  (skip-chars-backward "^\[")
-	  (setq indent-amount slate-indent-amount))
+	  (setq indent-amount slate-indent-increment))
 	 ((eq c ?.)	; stmt end, indent like it
 	  (slate-find-statement-begin)
 	  (setq indent-amount (slate-current-column)))
@@ -1028,7 +1035,7 @@ expressions."
 	  ;; is one level from statement begin
 	  (setq default-amount
 		(+ (slate-current-column) ;just in case
-		   slate-indent-amount))
+		   slate-indent-increment))
 	  ;; might be at the beginning of a method (the selector), decide
 	  ;; this here
 	  (unless (looking-at slate-keyword-regexp)
