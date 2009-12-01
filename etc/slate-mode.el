@@ -78,19 +78,19 @@
   "Invokes a template, asking for expressions to fill in for a new prototype."
   (interactive
    (list (read-string "Namespace: " "lobby")
-	 (read-string "New Name: " "x")
-	 (read-string "Value: " "Oddball clone")))
+     (read-string "New Name: " "x")
+     (read-string "Value: " "Oddball clone")))
   (insert (format "%s addSlot: #%s valued: %s.\n"
-		  namespace proto-name value)))
+          namespace proto-name value)))
 
 (defun slate-traits-template (namespace proto-name parent)
   "Invokes a template, asking for expressions to fill in for a new traits."
   (interactive
    (list (read-string "Namespace: " "lobby")
-	 (read-string "New Name: " "x")
-	 (read-string "Parent: " "Cloneable")))
+     (read-string "New Name: " "x")
+     (read-string "Parent: " "Cloneable")))
   (insert (format "%s define: #%s &parents: {%s}."
-		  namespace proto-name parent))
+          namespace proto-name parent))
   (save-excursion
     (insert (format "\n\"A %s is a %s.\"\n" proto-name parent))))
 
@@ -98,12 +98,12 @@
   "Invokes a template, asking for expressions to fill in for a new method."
   (interactive
    (list (read-string "First Argument Name: " "_")
-	 (read-string "First Dispatch: " "Cloneable traits")
-	 (read-string "Locals: " "")))
+     (read-string "First Dispatch: " "Cloneable traits")
+     (read-string "Locals: " "")))
   (insert (format "\n%s@(%s) " first-arg first-dispatch))
   (save-excursion
     (insert (format "\n[%s\n  \n].\n" (if (string= locals "") ""
-					(concat "| " locals " |"))))))
+                    (concat "| " locals " |"))))))
 
 (defvar slate-mode-map
   (let ((map (make-sparse-keymap)))
@@ -146,7 +146,7 @@
 
 (defconst slate-globals-regexp
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
-		"resend" "clone" "here" "it") 'words))
+        "resend" "clone" "here" "it") 'words))
 
 (defconst slate-binop-regexp (concat "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)")
   "A regular expression that matches a Slate binary selector")
@@ -215,46 +215,46 @@
 
 (defconst slate-font-lock-keywords
   `((,(concat "#[^" slate-whitespace-chars "{}()]+")
-     . font-lock-reference-face)	; symbol
+     . font-lock-reference-face)    ; symbol
     ("[^\\]\"[^\\]\"" . font-lock-comment-face) ; comment
     ("[^#$]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
     ("\$\\(\\\\[ntsbre0avf\'\"\\]\\|.\\)"
-     . font-lock-string-face)		; character
+     . font-lock-string-face)        ; character
     (,(concat "`" slate-binop-regexp)
      . ,(if (boundp 'font-lock-preprocessor-face)
-	    'font-lock-preprocessor-face
-	  'font-lock-builtin-face)) ; macro call
+        'font-lock-preprocessor-face
+      'font-lock-builtin-face)) ; macro call
     (,(concat "`" slate-name-regexp)
      . ,(if (boundp 'font-lock-preprocessor-face)
-	    'font-lock-preprocessor-face
-	  'font-lock-builtin-face)) ; macro call
+        'font-lock-preprocessor-face
+      'font-lock-builtin-face)) ; macro call
     ("[`]+"
      . ,(if (boundp 'font-lock-preprocessor-face)
-	    'font-lock-preprocessor-face
-	  'font-lock-builtin-face)) ; quotation syntax
+        'font-lock-preprocessor-face
+      'font-lock-builtin-face)) ; quotation syntax
     (,slate-opt-keyword-regexp
-     . font-lock-variable-name-face)	; optional keywords
-    ("#?{" . ,slate-array-face)		; array
+     . font-lock-variable-name-face)    ; optional keywords
+    ("#?{" . ,slate-array-face)        ; array
     ("}" . ,slate-array-face)
     ("\\(?:_\\|[A-Za-z]+[_A-Za-z0-9]*\\)@+?"
-     . font-lock-variable-name-face)	; declaration dispatchings
+     . font-lock-variable-name-face)    ; declaration dispatchings
     (,slate-keyword-regexp . ,slate-keyword-face) ; keyword sends
     ("|[A-Za-z0-9:*!() \n]*|"
-     . font-lock-variable-name-face)	; block local slots
+     . font-lock-variable-name-face)    ; block local slots
     ("\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
-     . font-lock-variable-name-face)	; block input slots
+     . font-lock-variable-name-face)    ; block input slots
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
-     . font-lock-type-face)		; type-declaration
+     . font-lock-type-face)        ; type-declaration
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
-     . font-lock-warning-face)		; statement separators
+     . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
-     . font-lock-type-face)		; traits name
-    ("\\<\\^\\>" . font-lock-warning-face)	; return
+     . font-lock-type-face)        ; traits name
+    ("\\<\\^\\>" . font-lock-warning-face)    ; return
     ("\\<[0-9]+\\>" . font-lock-constant-face) ; integers
     ("\\<[+-]?\\([0-9]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
      . font-lock-constant-face) ; integers and floats
     (,slate-globals-regexp
-     . font-lock-keyword-face)		; globals
+     . font-lock-keyword-face)        ; globals
    )
   "Slate highlighting matchers.")
 
@@ -324,7 +324,7 @@
 (define-key slate-restart-keymap [mouse-1] 'slate-run-overlay-at-point)
 
 (defconst slate-inf-font-lock-keywords
-  `((,slate-prompt-regexp . 'comint-highlight-prompt)	; normal prompt
+  `((,slate-prompt-regexp . 'comint-highlight-prompt)    ; normal prompt
     (,slate-debug-prompt-regexp . 'comint-highlight-prompt) ; debug prompt
     ("^\\(Warning\\|Error\\):" . 'font-lock-warning-face) ; warnings/errors
     ("^[ ]*\\(Loading\\) " . 'font-lock-warning-face) ; informative
@@ -366,7 +366,7 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
    Input and output via buffer `inferior-slate-buffer-name'."
   (interactive
    (list (or slate-cmd
-	     (read-from-minibuffer "Slate toplevel to run: " slate-cmd))))
+         (read-from-minibuffer "Slate toplevel to run: " slate-cmd))))
   (if (eq major-mode 'slate-inf-mode)
       (apply 'inf-slate slate-cmd slate-args)
     (switch-to-buffer-other-window
@@ -389,9 +389,9 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
 (defun slate-run-overlay-at-point ()
   (interactive)
   (let* ((overlays (overlays-at (point)))
-	 (first-overlay (car overlays))
-	 (code (buffer-substring-no-properties (overlay-start first-overlay)
-				    (overlay-end first-overlay))))
+     (first-overlay (car overlays))
+     (code (buffer-substring-no-properties (overlay-start first-overlay)
+                    (overlay-end first-overlay))))
     (goto-char (point-max))
     (insert code)
     (slate-send-input code)))
@@ -401,16 +401,16 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   (interactive)
   (push-mark)
   (setq filename
-	(save-excursion
-	  (skip-chars-forward "^:")
-	  (setq end (point))
-	  (skip-chars-backward "^ ")
-	  (buffer-substring-no-properties (point) end)))
+    (save-excursion
+      (skip-chars-forward "^:")
+      (setq end (point))
+      (skip-chars-backward "^ ")
+      (buffer-substring-no-properties (point) end)))
   (setq line-number
-	(save-excursion
-	  (skip-chars-forward "^:")
-	  (forward-char)
-	  (string-to-number (buffer-substring-no-properties (point) (progn (forward-word 1) (point))))))
+    (save-excursion
+      (skip-chars-forward "^:")
+      (forward-char)
+      (string-to-number (buffer-substring-no-properties (point) (progn (forward-word 1) (point))))))
   ;(find-file-at-point)
   (find-file filename)
   (goto-line line-number))
@@ -419,25 +419,25 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   "Run an inferior Slate process `*slate-process*'.
    Input and output via buffer `inferior-slate-buffer-name'."
   (let ((buffer (get-buffer-create inferior-slate-buffer-name))
-	proc status)
+    proc status)
     (when (setq proc (get-buffer-process buffer))
       (setq status (process-status proc)))
     (save-excursion
       (set-buffer buffer)
       (cd slate-dir)
       (unless (memq status '(run stop))
-	(when proc (delete-process proc))
-	(setq proc
-	      (if (equal window-system "x")
-		  (apply 'start-process
-			 cmd buffer
-			 "env"
-			 (format "TERMCAP=emacs:co#%d:tc=unknown:"
-				 (frame-width))
-			 "TERM=emacs" "EMACS=t"
-			 cmd args)
-		(apply 'start-process cmd buffer cmd args)))
-	(setq cmd (process-name proc)))
+    (when proc (delete-process proc))
+    (setq proc
+          (if (equal window-system "x")
+          (apply 'start-process
+             cmd buffer
+             "env"
+             (format "TERMCAP=emacs:co#%d:tc=unknown:"
+                 (frame-width))
+             "TERM=emacs" "EMACS=t"
+             cmd args)
+        (apply 'start-process cmd buffer cmd args)))
+    (setq cmd (process-name proc)))
       (goto-char (point-max))
       (set-marker (process-mark proc) (point))
       (set-process-filter proc 'slate-inf-filter)
@@ -452,14 +452,14 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   (let (where)
     (setq where (string-match "\C-a" string))
     (setq slate-output-buffer
-	  (concat slate-output-buffer (substring string 0 where)))
+      (concat slate-output-buffer (substring string 0 where)))
     (if where
-	(progn
-	  (unwind-protect		;found the delimiter...do it
-	      (slate-handle-command slate-output-buffer)
-	    (setq slate-output-buffer nil))
-	  ;; return the remainder
-	  (substring string where))
+    (progn
+      (unwind-protect        ;found the delimiter...do it
+          (slate-handle-command slate-output-buffer)
+        (setq slate-output-buffer nil))
+      ;; return the remainder
+      (substring string where))
       ;; we ate it all and didn't do anything with it
       nil)))
 
@@ -480,46 +480,46 @@ text."
   (with-current-buffer (process-buffer process)
     (when (buffer-name (current-buffer))
       (let ((where 0) ch command-str
-	    (moving (= (point) (process-mark process))))
-	(while (and string where)
-	  (when slate-output-buffer
-	    (setq string (slate-accum-command string)))
-	  (when (and string
-		     (setq where (string-match "\C-a\\|\C-b" string)))
-	    (setq ch (aref string where))
-	    (cond ((= ch ?\C-a)		;strip these out
-		   (setq string (concat (substring string 0 where)
-					(substring string (1+ where)))))
-		  ((= ch ?\C-b)		       ;start of command
-		   (setq slate-output-buffer "") ;start this off
-		   (setq string (substring string (1+ where)))))))
-	(save-excursion
-	  (goto-char (point-max))
-	  (when string
-	    (setq mode-status "Idle")
-	    (insert string))
-	  (save-excursion	 ; Handle most recent debugger output:
-	    (goto-char (point-max))
-	    (re-search-backward "^Debugging: " nil t)
-	    (save-excursion	    ; Handle debugger file references:
-	      (let (fileref-end)
-		(while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
-		  (let ((fileref-overlay (slate-overlay (match-beginning 1) fileref-end 'link 'highlight nil "mouse-1: visit this file and line")))
-		    (overlay-put fileref-overlay 'keymap slate-fileref-keymap)))))
-					; Handle debugger frame references:
-	    (while (re-search-forward slate-debug-frame-regexp nil t)
-	      (let ((frameref-overlay (slate-overlay (match-beginning 1) (match-end 1) 'button nil nil "mouse-1: navigate to this frame")))
-		(overlay-put frameref-overlay 'keymap slate-frameref-keymap)))
-					; Handle debugger restart listing:
-	    (let (restart-end)
-	      (while (setq restart-end (re-search-forward slate-debug-restart-regexp nil t))
-		(let ((restart-overlay (slate-overlay (match-beginning 0) restart-end 'button nil nil "mouse-1: select this restart")))
-		  (overlay-put restart-overlay 'keymap slate-restart-keymap)))))
-	  (when (process-mark process)
-	    (set-marker (process-mark process) (point-max))))
-	(if moving (goto-char (process-mark process)))
-	(sit-for 0)
-	(set-window-point (get-buffer-window (current-buffer)) (point-max))))))
+        (moving (= (point) (process-mark process))))
+    (while (and string where)
+      (when slate-output-buffer
+        (setq string (slate-accum-command string)))
+      (when (and string
+             (setq where (string-match "\C-a\\|\C-b" string)))
+        (setq ch (aref string where))
+        (cond ((= ch ?\C-a)        ;strip these out
+           (setq string (concat (substring string 0 where)
+                    (substring string (1+ where)))))
+          ((= ch ?\C-b)               ;start of command
+           (setq slate-output-buffer "") ;start this off
+           (setq string (substring string (1+ where)))))))
+    (save-excursion
+      (goto-char (point-max))
+      (when string
+        (setq mode-status "Idle")
+        (insert string))
+      (save-excursion     ; Handle most recent debugger output:
+        (goto-char (point-max))
+        (re-search-backward "^Debugging: " nil t)
+        (save-excursion        ; Handle debugger file references:
+          (let (fileref-end)
+        (while (setq fileref-end (re-search-forward slate-debug-fileref-regexp nil t))
+          (let ((fileref-overlay (slate-overlay (match-beginning 1) fileref-end 'link 'highlight nil "mouse-1: visit this file and line")))
+            (overlay-put fileref-overlay 'keymap slate-fileref-keymap)))))
+                    ; Handle debugger frame references:
+        (while (re-search-forward slate-debug-frame-regexp nil t)
+          (let ((frameref-overlay (slate-overlay (match-beginning 1) (match-end 1) 'button nil nil "mouse-1: navigate to this frame")))
+        (overlay-put frameref-overlay 'keymap slate-frameref-keymap)))
+                    ; Handle debugger restart listing:
+        (let (restart-end)
+          (while (setq restart-end (re-search-forward slate-debug-restart-regexp nil t))
+        (let ((restart-overlay (slate-overlay (match-beginning 0) restart-end 'button nil nil "mouse-1: select this restart")))
+          (overlay-put restart-overlay 'keymap slate-restart-keymap)))))
+      (when (process-mark process)
+        (set-marker (process-mark process) (point-max))))
+    (if moving (goto-char (process-mark process)))
+    (sit-for 0)
+    (set-window-point (get-buffer-window (current-buffer)) (point-max))))))
 
 (defun slate-inf-filter-redirect (process string)
   )
@@ -575,7 +575,7 @@ into the current buffer after the cursor."
   (interactive "r")
   (slate-ensure-running)
   (set-process-filter *slate-process*
-		      (lambda (proc string) (insert string)))
+              (lambda (proc string) (insert string)))
   (save-excursion
     (goto-char end)
     (slate-backward-whitespace)
@@ -594,7 +594,7 @@ into the current buffer after the cursor."
   (interactive "FSnapshot name to save:")
   (setq mode-status "Saving")
   (slate-send-input (format "Image saveNamed: '%s'"
-			    (expand-file-name filename))))
+                (expand-file-name filename))))
 
 (defun slate-filein (filename)
   "Do a load: on FILENAME."
@@ -646,7 +646,7 @@ into the current buffer after the cursor."
 ;;     (newline)
 ;;     (pop-to-buffer old-buf)
 ;;     (comint-send-string *slate-process*
-;; 			   (format "load: '%s'.\n" temp-file))))
+;;                (format "load: '%s'.\n" temp-file))))
 
 ;; Indentation
 ;; ===========
@@ -657,11 +657,11 @@ into the current buffer after the cursor."
   "This is used by `indent-for-comment' to decide how much to indent a comment
 in Slate code based on its context."
   (if (looking-at "^\"")
-      0				;Existing comment at bol stays there.
+      0                ;Existing comment at bol stays there.
       (save-excursion
         (skip-chars-backward " \t")
-        (max (1+ (current-column))	;Else indent at comment column
-             comment-column))))	; except leave at least one space.
+        (max (1+ (current-column))    ;Else indent at comment column
+             comment-column))))    ; except leave at least one space.
 
 (defun slate-indent-to-column (col)
   (save-excursion
@@ -679,7 +679,7 @@ in Slate code based on its context."
 (defun slate-previous-nonblank-line ()
   (forward-line -1)
   (while (and (not (bobp))
-	      (looking-at "^[ \t]*$"))
+          (looking-at "^[ \t]*$"))
     (forward-line -1)))
 
 (defun slate-in-string ()
@@ -688,34 +688,34 @@ actually inside a string or string like context."
   (let (state)
     (setq state (parse-partial-sexp (point-min) (point)))
     (and (nth 3 state)
-	 (char-to-string (nth 3 state)))))
+     (char-to-string (nth 3 state)))))
 
 (defun slate-white-to-bolp ()
   "Returns T if from the current position to beginning of line is whitespace."
   (let (done is-white line-start-pos)
     (save-excursion
       (save-excursion
-	(beginning-of-line)
-	(setq line-start-pos (point)))
+    (beginning-of-line)
+    (setq line-start-pos (point)))
       (while (not done)
-	(unless (bolp)
-	  (skip-chars-backward " \t"))
-	(cond ((bolp)
-	       (setq done t)
-	       (setq is-white t))
-	      ((equal (char-after (1- (point))) ?\")
-	       (backward-sexp)
-	       (when (< (point) line-start-pos) ;comment is multi line
-		 (setq done t)))
-	      (t
-	       (setq done t))))
+    (unless (bolp)
+      (skip-chars-backward " \t"))
+    (cond ((bolp)
+           (setq done t)
+           (setq is-white t))
+          ((equal (char-after (1- (point))) ?\")
+           (backward-sexp)
+           (when (< (point) line-start-pos) ;comment is multi line
+         (setq done t)))
+          (t
+           (setq done t))))
       is-white)))
 
 (defun slate-backward-comment ()
   "Moves to the beginning of the containing comment, or
 the end of the previous one if not in a comment."
-  (search-backward "\"")		;find its start
-  (while (equal (preceding-char) ?\\)	;skip over escaped ones
+  (search-backward "\"")        ;find its start
+  (while (equal (preceding-char) ?\\)    ;skip over escaped ones
     (backward-char 1)
     (search-backward "\"")))
 
@@ -732,7 +732,7 @@ or non-white space, non-comment character."
 (defun slate-backward-whitespace ()
   "Like `slate-forward-whitespace' only going towards the start of the buffer."
   (while (progn (skip-chars-backward slate-whitespace-chars)
-		(equal (preceding-char) ?\"))
+        (equal (preceding-char) ?\"))
     (backward-sexp)))
 
 (defun slate-tab ()
@@ -741,8 +741,8 @@ or non-white space, non-comment character."
   (let (col)
     ;; round up, with overflow
     (setq col (* (/ (+ (current-column) slate-indent-increment)
-		    slate-indent-increment)
-		 slate-indent-increment))
+            slate-indent-increment)
+         slate-indent-increment))
     (indent-to-column col)))
 
 ;; Higher-level utilities calling `slate-mode' functions.
@@ -784,40 +784,40 @@ prematurely.  Also, goes to start of method if we started in the method
 selector."
   (let (start ch)
     (when (equal (preceding-char) ?.) ; if we start at eos
-      (backward-char 1))	      ; we find the begin of THAT stmt
+      (backward-char 1))          ; we find the begin of THAT stmt
     (while (and (null start) (not (bobp)))
       (slate-backward-whitespace)
       (setq ch (preceding-char))
       (cond ((equal ch ?.)
-	     (let (saved-point)
-	       (setq saved-point (point))
-	       (slate-forward-whitespace)
-	       (if (slate-white-to-bolp)
-		   (setq start (point))
-		 (goto-char saved-point)
-		 (slate-backward-sexp 1))))
-	    ((equal ch ?^)	 ; HACK -- presuming that when we back
-					;up into a return that we're at the
-					;start of a statement
-	     (backward-char 1)
-	     (setq start (point)))
-	    ((equal ch ?\[)
-	     (if (> (current-column) 1)
-		 (setq start (point))
-	       (forward-line 1)
-	       (beginning-of-line)
-	       (slate-forward-whitespace)
-	       (setq start (point))))
-	    ((equal ch ?\{)
-	     (setq start (point)))
-	    ((equal ch ?\()
-	     (backward-char 1))
-	    ((equal ch ?|)
-	     (backward-char 1)
-	     (skip-chars-backward "^[")
-	     (slate-backward-whitespace))
-	    (t
-	     (slate-backward-sexp 1))))
+         (let (saved-point)
+           (setq saved-point (point))
+           (slate-forward-whitespace)
+           (if (slate-white-to-bolp)
+           (setq start (point))
+         (goto-char saved-point)
+         (slate-backward-sexp 1))))
+        ((equal ch ?^)     ; HACK -- presuming that when we back
+                    ;up into a return that we're at the
+                    ;start of a statement
+         (backward-char 1)
+         (setq start (point)))
+        ((equal ch ?\[)
+         (if (> (current-column) 1)
+         (setq start (point))
+           (forward-line 1)
+           (beginning-of-line)
+           (slate-forward-whitespace)
+           (setq start (point))))
+        ((equal ch ?\{)
+         (setq start (point)))
+        ((equal ch ?\()
+         (backward-char 1))
+        ((equal ch ?|)
+         (backward-char 1)
+         (skip-chars-backward "^[")
+         (slate-backward-whitespace))
+        (t
+         (slate-backward-sexp 1))))
     (unless start
       (goto-char (point-min))
       (slate-forward-whitespace)
@@ -829,52 +829,52 @@ selector."
   (let (indent-amount start-of-line state (parse-sexp-ignore-comments t))
     (save-excursion
       (save-restriction
-	(widen)
-	(narrow-to-region (point-min) (point)) ;only care about what's before
-	(setq state (parse-partial-sexp (point-min) (point)))
-	(cond ((equal (nth 3 state) ?\") ;in a comment
-	       (save-excursion
-		 (slate-backward-comment)
-		 (setq indent-amount (+ (current-column) slate-indent-increment))))
-	      ((equal (nth 3 state) ?')	;in a string
-	       (setq indent-amount 0))
-	      ((equal (nth 3 state) ?\))
-	       (setq indent-amount (+ (current-column) slate-indent-increment))))
-	(when indent-amount
-	  (return-from slate-calculate-indent indent-amount))
-	(slate-narrow-to-method)
-	(beginning-of-line)
-	(setq state (parse-partial-sexp (point-min) (point)))
-	(slate-narrow-to-paren state)
-	(slate-backward-whitespace)
-	(cond ((bobp)	;must be first statement in block or exp
-	       (if (nth 1 state)	;within a paren exp
-		   (setq indent-amount (+ (slate-current-column)
-					  slate-indent-increment))
-		 ;; we're top level
-		 (setq indent-amount slate-indent-increment)))
-	      ((equal (nth 0 state) 0) ;at top-level
-	       (beginning-of-line)
-	       (slate-forward-whitespace)
-	       (setq indent-amount (slate-current-column)))
-	      ((equal (preceding-char) ?.) ;at end of statement
-	       (slate-find-statement-begin)
-	       (setq indent-amount (slate-current-column)))
-	      ((equal (preceding-char) ?\()
-	       (setq indent-amount slate-indent-increment))
-	      ((memq (preceding-char) '(?| ?\[))
-	       (skip-chars-backward "^[")
-	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-increment)))
-	      ((equal (preceding-char) ?:)
-	       (beginning-of-line)
-	       (slate-forward-whitespace)
-	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-increment)))
-	      (t			;must be a statement continuation
-	       (slate-find-statement-begin)
-	       (setq indent-amount (+ (slate-current-column)
-				      slate-indent-increment))))))
+    (widen)
+    (narrow-to-region (point-min) (point)) ;only care about what's before
+    (setq state (parse-partial-sexp (point-min) (point)))
+    (cond ((equal (nth 3 state) ?\") ;in a comment
+           (save-excursion
+         (slate-backward-comment)
+         (setq indent-amount (+ (current-column) slate-indent-increment))))
+          ((equal (nth 3 state) ?')    ;in a string
+           (setq indent-amount 0))
+          ((equal (nth 3 state) ?\))
+           (setq indent-amount (+ (current-column) slate-indent-increment))))
+    (when indent-amount
+      (return-from slate-calculate-indent indent-amount))
+    (slate-narrow-to-method)
+    (beginning-of-line)
+    (setq state (parse-partial-sexp (point-min) (point)))
+    (slate-narrow-to-paren state)
+    (slate-backward-whitespace)
+    (cond ((bobp)    ;must be first statement in block or exp
+           (if (nth 1 state)    ;within a paren exp
+           (setq indent-amount (+ (slate-current-column)
+                      slate-indent-increment))
+         ;; we're top level
+         (setq indent-amount slate-indent-increment)))
+          ((equal (nth 0 state) 0) ;at top-level
+           (beginning-of-line)
+           (slate-forward-whitespace)
+           (setq indent-amount (slate-current-column)))
+          ((equal (preceding-char) ?.) ;at end of statement
+           (slate-find-statement-begin)
+           (setq indent-amount (slate-current-column)))
+          ((equal (preceding-char) ?\()
+           (setq indent-amount slate-indent-increment))
+          ((memq (preceding-char) '(?| ?\[))
+           (skip-chars-backward "^[")
+           (setq indent-amount (+ (slate-current-column)
+                      slate-indent-increment)))
+          ((equal (preceding-char) ?:)
+           (beginning-of-line)
+           (slate-forward-whitespace)
+           (setq indent-amount (+ (slate-current-column)
+                      slate-indent-increment)))
+          (t            ;must be a statement continuation
+           (slate-find-statement-begin)
+           (setq indent-amount (+ (slate-current-column)
+                      slate-indent-increment))))))
     (save-excursion
       (save-restriction
         (widen)
@@ -897,11 +897,11 @@ new line, in which case it indents by `slate-indent-increment'."
       (beginning-of-line)
       (slate-forward-whitespace)
       (when (looking-at "[A-Za-z][A-Za-z0-9]*:") ;indent for colon
-	(let ((parse-sexp-ignore-comments t))
-	  (beginning-of-line)
-	  (slate-backward-whitespace)
-	  (unless (memq (preceding-char) '(?. ?| ?\[ ?\( ?\{))
-	    (setq is-keyword t)))))
+    (let ((parse-sexp-ignore-comments t))
+      (beginning-of-line)
+      (slate-backward-whitespace)
+      (unless (memq (preceding-char) '(?. ?| ?\[ ?\( ?\{))
+        (setq is-keyword t)))))
       (setq indent-amount (slate-calculate-indent))
       (slate-indent-to-column indent-amount)))
 
@@ -923,7 +923,7 @@ previous one."
   (let ((parse-sexp-ignore-comments t) here delim start)
     (setq here (point))
     (while (and (search-backward "@" nil 'to-end)
-		(setq delim (slate-in-string)))
+        (setq delim (slate-in-string)))
       (search-backward delim))
     (setq start (point))
     (beginning-of-line)
@@ -932,48 +932,48 @@ previous one."
     ;; in which case, the semantics are to go to the one preceding
     ;; this one
     (when (and (= here (point))
-	       (/= start (point-min)))
+           (/= start (point-min)))
       (goto-char start)
-      (slate-backward-whitespace)	;may be at ! "foo" !
+      (slate-backward-whitespace)    ;may be at ! "foo" !
       (when (equal (preceding-char) ?@)
-;	(backward-char)
-	(beginning-of-line)
-	(slate-forward-whitespace)
-	(slate-backward-sexp 1))
-      (slate-begin-of-defun))))		;and go to the next one
+;    (backward-char)
+    (beginning-of-line)
+    (slate-forward-whitespace)
+    (slate-backward-sexp 1))
+      (slate-begin-of-defun))))        ;and go to the next one
 
 (defun slate-narrow-to-paren (state)
   "Narrows the region to between point and the closest previous open paren.
 Actually, skips over any block parameters, and skips over the whitespace
 following on the same line."
   (let ((paren-addr (nth 1 state))
-	start c done)
+    start c done)
     (when paren-addr
       (save-excursion
-	(goto-char paren-addr)
-	(setq c (following-char))
-	(cond ((memq c '(?\( ?\{))
-	       (setq start (1+ (point))))
-	      ((eq c ?\[)
-	       (setq done nil)
-	       (forward-char 1)
-	       (skip-chars-forward " \t\n")
-	       (when (eq (following-char) ?|) ;opens a block header
-		 (forward-char 1) ;skip vbar
-		 (while (not done)
-		   (skip-chars-forward " \t")
-		   (setq c (following-char))
-		   (cond ((eq c ?|)
-			  (forward-char 1) ;skip vbar
-			  (skip-chars-forward " \t")
-			  (setq done t)) ;done
-			 ((eq c ?:)
-			  (skip-chars-forward "A-Za-z0-9" 1)) ;skip input slot
-			 ((eq c ?\n)
-			  (setq done t)) ;don't accept line-wraps
-			 (t
-			  (skip-chars-forward "A-Za-z0-9"))))) ;skip local slot
-	       (setq start (point)))))
+    (goto-char paren-addr)
+    (setq c (following-char))
+    (cond ((memq c '(?\( ?\{))
+           (setq start (1+ (point))))
+          ((eq c ?\[)
+           (setq done nil)
+           (forward-char 1)
+           (skip-chars-forward " \t\n")
+           (when (eq (following-char) ?|) ;opens a block header
+         (forward-char 1) ;skip vbar
+         (while (not done)
+           (skip-chars-forward " \t")
+           (setq c (following-char))
+           (cond ((eq c ?|)
+              (forward-char 1) ;skip vbar
+              (skip-chars-forward " \t")
+              (setq done t)) ;done
+             ((eq c ?:)
+              (skip-chars-forward "A-Za-z0-9" 1)) ;skip input slot
+             ((eq c ?\n)
+              (setq done t)) ;don't accept line-wraps
+             (t
+              (skip-chars-forward "A-Za-z0-9"))))) ;skip local slot
+           (setq start (point)))))
       (narrow-to-region start (point)))))
 
 (defun slate-at-method-begin ()
@@ -995,59 +995,59 @@ expressions."
   (self-insert-command 1)
   (let (needs-indent state (parse-sexp-ignore-comments t))
     (setq state (parse-partial-sexp (point-min) (point)))
-    (unless (nth 3 state)		;unless in string or comment
+    (unless (nth 3 state)        ;unless in string or comment
       (save-excursion
-	(skip-chars-backward slate-name-chars)
-	(when (and (looking-at slate-name-regexp)
-		   (not (slate-at-method-begin)))
-	  (setq needs-indent (slate-white-to-bolp))))
+    (skip-chars-backward slate-name-chars)
+    (when (and (looking-at slate-name-regexp)
+           (not (slate-at-method-begin)))
+      (setq needs-indent (slate-white-to-bolp))))
       (when needs-indent
-	(slate-indent-for-colon)))))
+    (slate-indent-for-colon)))))
 
 (defun slate-indent-for-colon ()
   "Called only for lines which look like `<whitespace>foo:'."
   (let (indent-amount c state done default-amount start-line
-		      (parse-sexp-ignore-comments t))
+              (parse-sexp-ignore-comments t))
     (save-excursion
       (save-restriction
-	(widen)
-	(slate-narrow-to-method)
-	(beginning-of-line)
-	(setq state (parse-partial-sexp (point-min) (point)))
-	(narrow-to-region (point-min) (point))
-	(setq start-line (point))
-	(slate-backward-whitespace)
-	(cond
-	 ((bobp)
-	  (setq indent-amount (slate-current-column)))
-	 ((or (eq (setq c (preceding-char)) ?\|)
-	      (eq c ?\[))		; method header before
-	  (skip-chars-backward "^\[")
-	  (setq indent-amount slate-indent-increment))
-	 ((eq c ?.)	; stmt end, indent like it
-	  (slate-find-statement-begin)
-	  (setq indent-amount (slate-current-column)))
-	 (t				;could be a winner
-	  (slate-find-statement-begin)
-	  ;; we know that since we weren't at bobp above after backing
-	  ;; up over white space, and we didn't run into a ., we aren't
-	  ;; at the beginning of a statement, so the default indentation
-	  ;; is one level from statement begin
-	  (setq default-amount
-		(+ (slate-current-column) ;just in case
-		   slate-indent-increment))
-	  ;; might be at the beginning of a method (the selector), decide
-	  ;; this here
-	  (unless (looking-at slate-keyword-regexp)
-	    ;; not a method selector
-	    (while (and (not done) (not (eobp)))
-	      (slate-forward-sexp 1) ;skip over receiver
-	      (slate-forward-whitespace)
-	      (unless (and indent-amount ;pick up only first one
-			   (not (looking-at slate-keyword-regexp)))
-		(setq indent-amount (slate-current-column)))))
-	  (unless indent-amount
-	    (setq indent-amount default-amount))))))
+    (widen)
+    (slate-narrow-to-method)
+    (beginning-of-line)
+    (setq state (parse-partial-sexp (point-min) (point)))
+    (narrow-to-region (point-min) (point))
+    (setq start-line (point))
+    (slate-backward-whitespace)
+    (cond
+     ((bobp)
+      (setq indent-amount (slate-current-column)))
+     ((or (eq (setq c (preceding-char)) ?\|)
+          (eq c ?\[))        ; method header before
+      (skip-chars-backward "^\[")
+      (setq indent-amount slate-indent-increment))
+     ((eq c ?.)    ; stmt end, indent like it
+      (slate-find-statement-begin)
+      (setq indent-amount (slate-current-column)))
+     (t                ;could be a winner
+      (slate-find-statement-begin)
+      ;; we know that since we weren't at bobp above after backing
+      ;; up over white space, and we didn't run into a ., we aren't
+      ;; at the beginning of a statement, so the default indentation
+      ;; is one level from statement begin
+      (setq default-amount
+        (+ (slate-current-column) ;just in case
+           slate-indent-increment))
+      ;; might be at the beginning of a method (the selector), decide
+      ;; this here
+      (unless (looking-at slate-keyword-regexp)
+        ;; not a method selector
+        (while (and (not done) (not (eobp)))
+          (slate-forward-sexp 1) ;skip over receiver
+          (slate-forward-whitespace)
+          (unless (and indent-amount ;pick up only first one
+               (not (looking-at slate-keyword-regexp)))
+        (setq indent-amount (slate-current-column)))))
+      (unless indent-amount
+        (setq indent-amount default-amount))))))
     (when indent-amount
       (slate-indent-to-column indent-amount))))
 
@@ -1056,57 +1056,57 @@ expressions."
   ; TODO: Make sure the signature plus optional head comment is included.
   (interactive)
   (let ((end (point))
-	(parse-sexp-ignore-comments t)
-	handled)
+    (parse-sexp-ignore-comments t)
+    handled)
     (save-excursion
       (slate-begin-of-defun)
-      (if (looking-at "[A-Za-z]")	;either unary or keyword msg
-	  ;; or maybe an immediate expression...
-	  (progn
-	    (forward-sexp)
-	    (if (equal (following-char) ?:) ;keyword selector
-		(progn			;parse full keyword selector
-		  (backward-sexp 1)	;setup for common code
-		  (slate-forward-keyword-selector))
-	      ;; else maybe just a unary selector or maybe not
-	      ;; see if there's stuff following this guy on the same line
-	      (let (here eol-point)
-		(setq here (point))
-		(end-of-line)
-		(setq eol-point (point))
-		(goto-char here)
-		(slate-forward-whitespace)
-		(if (< (point) eol-point) ;if there is, we're not a method
-		    (beginning-of-line)
-		  (goto-char here)	;else we're a unary method (guess)
-		  ))))
+      (if (looking-at "[A-Za-z]")    ;either unary or keyword msg
+      ;; or maybe an immediate expression...
+      (progn
+        (forward-sexp)
+        (if (equal (following-char) ?:) ;keyword selector
+        (progn            ;parse full keyword selector
+          (backward-sexp 1)    ;setup for common code
+          (slate-forward-keyword-selector))
+          ;; else maybe just a unary selector or maybe not
+          ;; see if there's stuff following this guy on the same line
+          (let (here eol-point)
+        (setq here (point))
+        (end-of-line)
+        (setq eol-point (point))
+        (goto-char here)
+        (slate-forward-whitespace)
+        (if (< (point) eol-point) ;if there is, we're not a method
+            (beginning-of-line)
+          (goto-char here)    ;else we're a unary method (guess)
+          ))))
           
           ;; this must be a binary selector, or a temporary
           (when (equal (following-char) ?|)
-	    (end-of-line)	;could be temporary
-	    (slate-backward-whitespace)
-	    (when (equal (preceding-char) ?|)
-	      (setq handled t))
-	    (beginning-of-line))
+        (end-of-line)    ;could be temporary
+        (slate-backward-whitespace)
+        (when (equal (preceding-char) ?|)
+          (setq handled t))
+        (beginning-of-line))
           (unless handled
-	    (skip-chars-forward (concat "^" slate-whitespace-chars))
-	    (slate-forward-whitespace)
-	    (skip-chars-forward slate-name-chars))) ;skip over operand
+        (skip-chars-forward (concat "^" slate-whitespace-chars))
+        (slate-forward-whitespace)
+        (skip-chars-forward slate-name-chars))) ;skip over operand
       (slate-forward-whitespace)
-      (if (equal (following-char) ?|)	;scan for temporaries
-	  (progn
-	    (forward-char)		;skip over |
-	    (slate-forward-whitespace)
-	    (while (and (not (eobp))
-			(looking-at "[A-Za-z]"))
-	      (skip-chars-forward slate-name-chars)
-	      (slate-forward-whitespace))
-	    (when (and (equal (following-char) ?|) ;if a matching | as a temp
-		       (< (point) end))	;and we're after the temps
-	      (narrow-to-region (1+ (point)) end) ;we limit the buffer
-	      ))
-	(when (< (point) end)
-	  (narrow-to-region (point) end))))))
+      (if (equal (following-char) ?|)    ;scan for temporaries
+      (progn
+        (forward-char)        ;skip over |
+        (slate-forward-whitespace)
+        (while (and (not (eobp))
+            (looking-at "[A-Za-z]"))
+          (skip-chars-forward slate-name-chars)
+          (slate-forward-whitespace))
+        (when (and (equal (following-char) ?|) ;if a matching | as a temp
+               (< (point) end))    ;and we're after the temps
+          (narrow-to-region (1+ (point)) end) ;we limit the buffer
+          ))
+    (when (< (point) end)
+      (narrow-to-region (point) end))))))
 
 (defun slate-forward-keyword-selector ()
   "Starting on a keyword, this function skips forward over a keyword selector.
@@ -1115,15 +1115,15 @@ It is typically used to skip over the actual selector for a method."
   (let (done)
     (while (not done)
       (if (not (looking-at "[A-Za-z_]"))
-	  (setq done t)
-	(skip-chars-forward slate-name-chars)
-	(if (equal (following-char) ?:)
-	    (progn
-	      (forward-char)
-	      (slate-forward-sexp)
-	      (slate-forward-whitespace))
-	  (setq done t)
-	  (backward-sexp))))))
+      (setq done t)
+    (skip-chars-forward slate-name-chars)
+    (if (equal (following-char) ?:)
+        (progn
+          (forward-char)
+          (slate-forward-sexp)
+          (slate-forward-whitespace))
+      (setq done t)
+      (backward-sexp))))))
 
 (defun slate-collect-selector ()
   "Point is stationed inside or at the beginning of the selector in question.
@@ -1131,33 +1131,33 @@ This function computes the Slate selector (unary, binary, or keyword) and
 returns it as a string.  Point is not changed."
   (save-excursion
     (let (start selector done ch
-		(parse-sexp-ignore-comments t))
+        (parse-sexp-ignore-comments t))
       (skip-chars-backward (concat "^" "\"" slate-whitespace-chars))
       (setq start (point)) ;back to whitespace
       (if (looking-at slate-name-regexp)
-	  (progn			;maybe unary, maybe keyword
-	    (skip-chars-forward slate-name-chars)
-	    (if (equal (following-char) ?:)	;keyword?
-		(progn
-		  (forward-char 1)
-		  (setq selector (buffer-substring start (point)))
-		  (setq start (point))
-		  (while (not done)
-		    (slate-forward-whitespace)
-		    (setq ch (following-char))
-		    (cond ((memq ch '(?@ ?\] ?\) ?.)) ;stop at end of expr
-			   (setq done t))
-			  ((equal ch ?:) ;add the next keyword
-			   (forward-char 1)
-			   (setq selector
-				 (concat selector
-					 (buffer-substring start (point)))))
-			  (t
-			   (setq start (point))
-			   (slate-forward-sexp 1)))))
-	      (setq selector (buffer-substring start (point)))))
-	(skip-chars-forward (concat "^\"" slate-whitespace-chars))
-	(setq selector (buffer-substring start (point))))
+      (progn            ;maybe unary, maybe keyword
+        (skip-chars-forward slate-name-chars)
+        (if (equal (following-char) ?:)    ;keyword?
+        (progn
+          (forward-char 1)
+          (setq selector (buffer-substring start (point)))
+          (setq start (point))
+          (while (not done)
+            (slate-forward-whitespace)
+            (setq ch (following-char))
+            (cond ((memq ch '(?@ ?\] ?\) ?.)) ;stop at end of expr
+               (setq done t))
+              ((equal ch ?:) ;add the next keyword
+               (forward-char 1)
+               (setq selector
+                 (concat selector
+                     (buffer-substring start (point)))))
+              (t
+               (setq start (point))
+               (slate-forward-sexp 1)))))
+          (setq selector (buffer-substring start (point)))))
+    (skip-chars-forward (concat "^\"" slate-whitespace-chars))
+    (setq selector (buffer-substring start (point))))
       selector)))
 
 (defun slate-collect-signature ()
@@ -1166,33 +1166,33 @@ annotations. It returns the selector string and the names of the arguments in
 a list. Note that the first argument must be found by searching backwards."
   (save-excursion
     (let (start selector done ch arg-names
-		(parse-sexp-ignore-comments t))
+        (parse-sexp-ignore-comments t))
       (skip-chars-backward (concat "^" "\"" slate-whitespace-chars))
       (setq start (point))
       (if (looking-at slate-name-regexp)
-	  (progn			;maybe unary, maybe keyword
-	    (skip-chars-forward slate-name-chars)
-	    (if (equal (following-char) ?:)	;keyword?
-		(progn
-		  (forward-char 1)
-		  (setq selector (buffer-substring start (point)))
-		  (setq start (point))
-		  (while (not done)
-		    (slate-forward-whitespace)
-		    (setq ch (following-char))
-		    (cond ((memq ch '(?@ ?\] ?\) ?.))
-			   (setq done t))
-			  ((equal ch ?:)
-			   (forward-char 1)
-			   (setq selector
-				 (concat selector
-					 (buffer-substring start (point)))))
-			  (t
-			   (setq start (point))
-			   (slate-forward-sexp 1)))))
-	      (setq selector (buffer-substring start (point)))))
-	(skip-chars-forward (concat "^" ?\" slate-whitespace-chars))
-	(setq selector (buffer-substring start (point))))
+      (progn            ;maybe unary, maybe keyword
+        (skip-chars-forward slate-name-chars)
+        (if (equal (following-char) ?:)    ;keyword?
+        (progn
+          (forward-char 1)
+          (setq selector (buffer-substring start (point)))
+          (setq start (point))
+          (while (not done)
+            (slate-forward-whitespace)
+            (setq ch (following-char))
+            (cond ((memq ch '(?@ ?\] ?\) ?.))
+               (setq done t))
+              ((equal ch ?:)
+               (forward-char 1)
+               (setq selector
+                 (concat selector
+                     (buffer-substring start (point)))))
+              (t
+               (setq start (point))
+               (slate-forward-sexp 1)))))
+          (setq selector (buffer-substring start (point)))))
+    (skip-chars-forward (concat "^" ?\" slate-whitespace-chars))
+    (setq selector (buffer-substring start (point))))
       selector)))
 
 ;; Imenu Support
@@ -1200,11 +1200,11 @@ a list. Note that the first argument must be found by searching backwards."
 
 (defconst slate-imenu-generic-expression
   `(("Slots" ,(format "^.*add[A-Za-z]*Slot: #\\(%s\\) valued: .* derive"
-		       slate-name-regexp) 1)
+               slate-name-regexp) 1)
     ("Prototypes" ,(format "^.*addPrototype: #\\(%s\\) derivedFrom: {.*}\."
-		       slate-name-regexp) 1)
+               slate-name-regexp) 1)
     ("Prototypes" ,(format "^.*define: #\\(%s\\) &parents: {.*}"
-		       slate-name-regexp) 1)
+               slate-name-regexp) 1)
     ("Methods" "^\\([^\[]*@[^\[\"]*\\)$" 1) ; Matches the whole signature.
     ))
 
