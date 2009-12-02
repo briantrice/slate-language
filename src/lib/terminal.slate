@@ -100,7 +100,6 @@ t@(Terminal traits) newLine
 t@(Terminal traits) newColumn
 [t nextPut: $\s].
 
-
 terminals define: #DumbTerminal &parents: {Terminal}.
 "The simple terminal type, not even VT100."
 
@@ -109,9 +108,8 @@ t@(DumbTerminal traits) display: line cursorAt: index
   "That's all we can do..."
 ].
 
-
 terminals define: #SmartTerminal &parents: {Terminal}
-  &slots: {#basePosition -> (0 , 0) "The screen coordinate where line editing started"}.
+  &slots: {#basePosition -> Tuple new*, 0, 0 "The screen coordinate where line editing started"}.
 "The terminal type that understands control- and escape-sequences for redraws, etc."
 
 t@(SmartTerminal traits) isSmart
@@ -156,7 +154,7 @@ t@(SmartTerminal traits) moveCursorTo: pos inCommand: cmd
 [| cols |
   cols: t columns.
   pos: pos + t basePosition first.
-  t console moveCursorTo: (((pos rem: cols)) , (t basePosition second + (pos // cols))).
+  t console moveCursorTo: (Tuple new*, (pos rem: cols), t basePosition second + (pos // cols)).
 ].
 
 terminals define: #ConsoleLineEditor &parents: {Cloneable} &slots:
