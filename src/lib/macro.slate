@@ -47,11 +47,11 @@ same body with the roles reversed."
     ifTrue: [def]
     ifFalse:
       [{def.
-	def deepCopy `>>
-	  [| :newDef |
-	   roles: newDef roles reversed.
-	   inputVariables: newDef inputVariables reversed.
-	   ]} parenthesize]
+    def deepCopy `>>
+      [| :newDef |
+       roles: newDef roles reversed.
+       inputVariables: newDef inputVariables reversed.
+       ]} parenthesize]
 ].
 
 def@(Syntax MethodDefinition traits) alias: newName
@@ -99,7 +99,7 @@ of that local."
   loadExpr: newVar load.
   macroCall: expr `cache `quote.
   unaryAccess: (Syntax UnaryMessage sending: varName value intern
-				    to: {Syntax ImplicitArgument}).
+                    to: {Syntax ImplicitArgument}).
   method transformBy:
     [| :node | node = expr \/ [node = macroCall] \/ [node = unaryAccess]
        ifTrue: [loadExpr] ifFalse: [node]].
@@ -121,9 +121,9 @@ NOTE: This is not a macro but relies on the macro facilities."
       {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
         from: #(obj1 obj2) to:
           [| :obj1 :obj2 |
-	   "relevantSlotNames collect:
-	     [| :slotName |
-	      (obj1 `load atSlotNamed: slotName `unquote)
+       "relevantSlotNames collect:
+         [| :slotName |
+          (obj1 `load atSlotNamed: slotName `unquote)
                 = (obj2 `load atSlotNamed: slotName `unquote)]"
             relevantSlotNames allButFirst 
               inject: 
@@ -166,16 +166,16 @@ NOTE: This is not a macro but relies on the macro facilities."
             relevantSlotNames inject: Syntax Resend into:
               [| :expr :slotName |
                 `(expr `unquote /\
-	               [(obj1 `load atSlotNamed: slotName `unquote)
-		             = (obj2 `load atSlotNamed: slotName `unquote)])]]
+                   [(obj1 `load atSlotNamed: slotName `unquote)
+                     = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
        Syntax MethodDefinition of: #hash on: {xLiteral}
          from: #(obj) to:
            [| :obj |
              relevantSlotNames inject: Syntax Resend into:
                [| :hash :slotName |
-	             `(hash `unquote bitXor:
-	                (obj `load atSlotNamed: slotName `unquote) hash)]]
+                 `(hash `unquote bitXor:
+                    (obj `load atSlotNamed: slotName `unquote) hash)]]
            &linkVariables: True}.
       compileAndRun].
 ].
@@ -289,32 +289,33 @@ paren@(Syntax Parenthesis traits) setTo: val
     ifTrue: [paren]
     ifFalse:
       [paren statements size = 1
-	 ifTrue: [paren statements last setTo: val]
-	 ifFalse: [| result |
-		   result: paren copy.
-		   result statements at: result statements indexLast put:
-		     (result statements last setTo: val).
-		   result]]
+     ifTrue: [paren statements last setTo: val]
+     ifFalse: [| result |
+           result: paren copy.
+           result statements at: result statements indexLast put:
+             (result statements last setTo: val).
+           result]]
 ].
 
 array@(Syntax Array traits) setTo: vals &environment: env
 "Performs a multiple-assignment."
 [
-  array statements isEmpty
-    ifTrue: [vals]
-    ifFalse:
-      [array statements size = 1
-	 ifTrue: [array statements last setTo: (Syntax UnaryMessage sending: #first to: {vals})]
-	 ifFalse: [| result tmpVar |
-		   tmpVar: env addVariable.
-		   result: array copy.
-		   array statements doWithIndex:
-		     [| :statement :index |
-		      array statements at: index put:
-			(statement setTo: (Syntax KeywordMessage sending: #at: to: {tmpVar load. Syntax Literal for: index}))].
-		   Syntax Parenthesis of:
-		     {tmpVar store: vals.
-                      array}]]
+  array statements size caseOf: {
+    0 -> [vals].
+    1 -> [array statements last setTo:
+            (Syntax UnaryMessage sending: #first to: {vals})]
+  } otherwise:
+    [| result tmpVar |
+     tmpVar: env addVariable.
+     result: array copy.
+     "result statements: (array statements collectWithIndex:"
+     array statements doWithIndex:
+       [| :statement :index |
+        result statements at: index put:
+          (statement setTo:
+             (Syntax KeywordMessage sending: #at: to:
+                {tmpVar load. Syntax Literal for: index}))].
+        Syntax Parenthesis of: {tmpVar store: vals. result}]
 ].
 
 load@(Syntax LoadVariable traits) setTo: val
@@ -339,11 +340,11 @@ message@(Syntax KeywordMessage traits) setTo: val
        #at: -> [#at:put:].
        #byteAt: -> [#byteAt:put:].
        #wordAt: -> [#wordAt:put:]}
-		      otherwise:
-			[| selectorWithPut |
-			 selectorWithPut: (message selector name ; 'put:').
-			 selectorWithPut isInterned ifTrue:
-			   [selectorWithPut intern]]])
+              otherwise:
+            [| selectorWithPut |
+             selectorWithPut: (message selector name ; 'put:').
+             selectorWithPut isInterned ifTrue:
+               [selectorWithPut intern]]])
   ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
   ifNotNilDo:
     [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
