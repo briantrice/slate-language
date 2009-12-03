@@ -285,37 +285,36 @@ slot attribute or other type of accessor to verify or distinguish."
 paren@(Syntax Parenthesis traits) setTo: val
 "Transforms the last statement into an assignment."
 [
-  paren statements isEmpty
-    ifTrue: [paren]
-    ifFalse:
-      [paren statements size = 1
-     ifTrue: [paren statements last setTo: val]
-     ifFalse: [| result |
-           result: paren copy.
-           result statements at: result statements indexLast put:
-             (result statements last setTo: val).
-           result]]
+  paren statements size caseOf:
+    {0 -> [paren].
+     1 -> [paren statements last setTo: val]
+   } otherwise:
+     [| result |
+      result: paren copy.
+      result statements at: result statements indexLast put:
+        (result statements last setTo: val).
+      result]
 ].
 
 array@(Syntax Array traits) setTo: vals &environment: env
 "Performs a multiple-assignment."
 [
-  array statements size caseOf: {
-    0 -> [vals].
-    1 -> [array statements last setTo:
-            (Syntax UnaryMessage sending: #first to: {vals})]
-  } otherwise:
-    [| result tmpVar |
-     tmpVar: env addVariable.
-     result: array copy.
-     "result statements: (array statements collectWithIndex:"
-     array statements doWithIndex:
-       [| :statement :index |
-        result statements at: index put:
-          (statement setTo:
-             (Syntax KeywordMessage sending: #at: to:
-                {tmpVar load. Syntax Literal for: index}))].
-        Syntax Parenthesis of: {tmpVar store: vals. result}]
+  array statements size caseOf:
+    {0 -> [vals].
+     1 -> [array statements last setTo:
+             (Syntax UnaryMessage sending: #first to: {vals})]
+    } otherwise:
+      [| result tmpVar |
+       tmpVar: env addVariable.
+       result: array copy.
+       "result statements: (array statements collectWithIndex:"
+       array statements doWithIndex:
+         [| :statement :index |
+          result statements at: index put:
+            (statement setTo:
+               (Syntax KeywordMessage sending: #at: to:
+                  {tmpVar load. Syntax Literal for: index}))].
+          Syntax Parenthesis of: {tmpVar store: vals. result}]
 ].
 
 load@(Syntax LoadVariable traits) setTo: val
