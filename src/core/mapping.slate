@@ -4,6 +4,14 @@ mappings define: #Mapping &parents: {Cloneable}.
 "Mappings provide the abstract protocols for all collections that provide
 keyed storage, e.g. #at: and #at:put:."
 
+m@(Mapping traits) new*
+[| *rest result |
+  result: (m new &capacity: rest size * 2).
+  rest do: [| :elem | (elem is: Association) ifTrue:
+    [result at: elem key put: elem value]].
+  result
+].
+
 _@(Mapping traits) size
 "Returns the number of key and value pairs contained in the Mapping."
 [
@@ -35,7 +43,7 @@ m@(Mapping traits) accepts: assoc
 "This tests what add: will accept or not accept, as opposed to values or keys
 arbitrarily."
 [
-  d acceptsKey: assoc key
+  m acceptsKey: assoc key
 ].
 
 m@(Mapping traits) includesKey: key
