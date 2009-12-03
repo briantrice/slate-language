@@ -49,9 +49,6 @@ else
   endif
 endif
 
-
-
-
 ## All required executables
 
 CC          := gcc
@@ -74,16 +71,16 @@ CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOU
 CFLAGS      += $(COPTFLAGS) -Wall -Wno-unknown-pragmas -pthread $(PRINT_DEBUG) $(EXTRACFLAGS)  $(INCLUDES)
 # include -pedantic later fixme
 
-
 ## Determine the host system's byte order.
 ## This creates a temporary test executable in the $(slateroot) directory
 ## since we can guarantee write permissions there on all platforms. 
 
-BYTE_ORDER  := "int main(){union{long l;char c[sizeof(long)];}u;u.l=1;return(u.c[sizeof(long)-1]==1);}"
-BYTE_ORDER  := $(shell echo $(BYTE_ORDER) > $(slateroot)/byteorder.c)
-BYTE_ORDER  := $(shell $(CC) -o $(slateroot)/byteorder $(slateroot)/byteorder.c)
-BYTE_ORDER  := $(shell $(slateroot)/byteorder; echo $$?)
-BYTE_ORDER_ := $(shell $(RM) $(slateroot)/byteorder.* $(slateroot)/byteorder 1>&2)
+BYTE_ORDER_FN := $(slateroot)/byteorder
+BYTE_ORDER_SRC  := "int main(){union{long l;char c[sizeof(long)];}u;u.l=1;return(u.c[sizeof(long)-1]==1);}"
+BYTE_ORDER  := $(shell echo $(BYTE_ORDER_SRC) > $(BYTE_ORDER_FN).c)
+BYTE_ORDER  := $(shell $(CC) -o $(BYTE_ORDER_FN) $(BYTE_ORDER_FN).c)
+BYTE_ORDER  := $(shell $(BYTE_ORDER_FN); echo $$?)
+BYTE_ORDER_ := $(shell $(RM) $(BYTE_ORDER_FN).* $(BYTE_ORDER_FN) 1>&2)
 ifeq ($(BYTE_ORDER),0)
   BYTE_ORDER := LITTLE_ENDIAN
   BYTE_ORDER_PREFIX := little
@@ -107,7 +104,6 @@ LIB_SO_EXT  := .so
 INSTALL_MODE := -m 644
 CPU_TYPE    := `uname -m`
 VM_LIBRARIES = -lm -ldl -lpthread
-
 
 VMNAME      := vm
 VMDIR       := $(slateroot)/src/vm
@@ -140,12 +136,7 @@ PRINT_DEBUG_3=-DPRINT_DEBUG_DEFUN -DPRINT_DEBUG_GC -DPRINT_DEBUG_OPTIMIZER -DPRI
 PRINT_DEBUG_2=-DPRINT_DEBUG_DEFUN -DPRINT_DEBUG  -DPRINT_DEBUG_OPCODES -DPRINT_DEBUG_INSTRUCTION_COUNT -DPRINT_DEBUG_CODE_POINTER -DPRINT_DEBUG_DISPATCH  -DPRINT_DEBUG_GC_MARKINGS
 PRINT_DEBUG=$(PRINT_DEBUG_1)
 
-
 ## Determine CPU type
-
-#ifeq ($(HOST_SYSTEM), Darwin)
-#  CPU_TYPE := powerpc
-#endif
 
 ## TODO: Sparc detection for SunOS?
 ## TODO: Base CPU type on real information, not just generic OS variant
@@ -165,6 +156,7 @@ CFLAGS +=-DSLATE_DEFAULT_IMAGE=$(DEFAULT_IMAGE)
 ifdef WORD_SIZE
   CFLAGS += -m$(WORD_SIZE)
 endif
+
 #ifeq ($(CPU_TYPE), i686)
 #  CFLAGS += -m$(WORD_SIZE)
 #endif
