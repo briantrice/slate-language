@@ -104,9 +104,14 @@ p@(Syntax Parser traits) error: description
    `>> [lineNumber: p lexer lineNumber. signal]
 ].
 
+p@(Syntax Parser traits) unexpectedlyFound: found after: expr
+[
+  p error: 'Expected: (anything else) but found: ' ; found signifier ; ' after: ' ; expr printString
+].
+
 p@(Syntax Parser traits) expected: expected butFound: found@(Syntax Token traits)
 [
-  p error: 'Expected ' ; expected signifier  ; ' but found ' ; found signifier
+  p error: 'Expected: ' ; expected signifier  ; ' but found: ' ; found signifier
 ].
 
 p@(Syntax Parser traits) check: found is: expected@(Syntax Token traits)
@@ -222,7 +227,12 @@ Type annotation suffixes may also be chained (for no particular reason)."
 ].
 
 p@(Syntax Parser traits) parseRestArgumentsFor: expr
-[expr].
+[| token |
+  token: p peekToken.
+  (token isSameAs: Syntax Comma)
+    ifTrue: [p unexpectedlyFound: token after: expr]
+    ifFalse: [expr]
+].
 
 p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
 [| token rest arguments |
@@ -240,7 +250,13 @@ p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
 ].
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
-[expr].
+[| token |
+  token: p peekToken.
+  (token isSameAs: Syntax Selector)
+    /\ [Syntax isOptionalSelector: token value]
+    ifTrue: [p unexpectedlyFound: token after: expr]
+    ifFalse: [expr]
+].
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message traits)
 [| token keywords argumentNames |
