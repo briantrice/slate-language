@@ -148,7 +148,7 @@
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
         "resend" "clone" "here" "it") 'words))
 
-(defconst slate-binop-regexp (concat "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)")
+(defconst slate-binop-regexp (concat "\\([-+*/~;<>=&?]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)")
   "A regular expression that matches a Slate binary selector")
 
 (defconst slate-keyword-regexp
@@ -179,7 +179,6 @@
        (?~  . "w")
        (?%  . "w")
        (?\; . "w")
-       (?,  . "w")
        (?<  . "w")
        (?>  . "w")
        (?\[ . "(]") ; Block opener
@@ -199,6 +198,7 @@
        (?!  . "'") ; A stop in Smalltalk. A type annotation in Slate.
        (?@  . "'") ; Dispatch annotator
        (?^  . "w") ; Return
+       (?,  . ".") ; Comma for *rest parameters
        (?.  . "."))) ; Statement separator
     table)
   "Slate character types")
