@@ -245,14 +245,14 @@
      . font-lock-variable-name-face)    ; block input slots
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
      . font-lock-type-face)        ; type-declaration
+    ("\\<[+-]?\\([0-9]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
+     . font-lock-constant-face) ; integers and floats
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
      . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
      . font-lock-type-face)        ; traits name
     ("\\<\\^\\>" . font-lock-warning-face)    ; return
     ("\\<[0-9]+\\>" . font-lock-constant-face) ; integers
-    ("\\<[+-]?\\([0-9]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
-     . font-lock-constant-face) ; integers and floats
     (,slate-globals-regexp
      . font-lock-keyword-face)        ; globals
    )
