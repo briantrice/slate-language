@@ -2,9 +2,7 @@ define: #Parsec.
 
 "Based heavily on Daan Leijen's excellent Haskell library of the same name."
 
-
 Parsec traits define: #Result.
-
 
 Parsec Result traits define: #Ok &parents: {Parsec Result} 
                                  &slots: #(consumed value state).
@@ -14,13 +12,11 @@ ok@(Parsec Result Ok traits) newConsumed: consumed
 			     andState: state
 [ok cloneSettingSlots: #(consumed value state) to: {consumed. value. state}].
 
-
 Parsec Result traits define: #Error &parents: {Parsec Result}
                                     &slots: #(consumed).
 
 error@(Parsec Result Error traits) newConsumed: consumed
 [error cloneSettingSlots: #(consumed) to: {consumed}].
-
 
 _@(Parsec Result Ok traits) ifOk: ok ifError: err
 [ok do].
@@ -28,14 +24,12 @@ _@(Parsec Result Ok traits) ifOk: ok ifError: err
 _@(Parsec Result Error traits) ifOk: ok ifError: err
 [err do].
 
-
 Parsec traits define: #State &slots: #(input).
 
 st@(Parsec State traits) newWithInput: input
 [st cloneSettingSlots: #(input) to: {input}].
 
 Parsec traits define: #Parser &slots: #(block).
-
 
 "Run a parser"
 p@(Parsec Parser traits) runOn: obj
@@ -49,29 +43,26 @@ p@(Parsec Parser traits) runOn: l@(LazyList traits)
 	  ifError: ["TODO: return something other than Nil"]
 ].
 
-
-p@(Parsec Parser traits) _newWithBlock: b@(Method traits)
+p@(Parsec Parser traits) newWithBlock: b@(Method traits)
 [p cloneSettingSlots: #(block) to: {b}].
 
 "just uses the first arg for disambiguation"
 p@(Parsec Parser traits) return: val
 [
-  p _newWithBlock: 
-    [| :state |
-       Parsec Result Ok newConsumed: False withValue: val andState: state
-    ]
+  p newWithBlock: 
+    [| :state | Parsec Result Ok newConsumed: False withValue: val andState: state]
 ].
 
 p@(Parsec Parser traits) >>= f@(Method traits)
-[p _newWithBlock: 
+[p newWithBlock: 
   [| :state reply1 reply2 |
      reply1: (p block applyWith: state).
      reply1 
-       ifOk: [ reply2: ((f applyWith: reply1 value) block
+       ifOk: [reply2: ((f applyWith: reply1 value) block
                            applyWith: reply1 state).
 	       reply2 cloneSettingSlots: #(consumed) 
-		      to: {reply1 consumed \/ reply2 consumed } ]
-       ifError: [ reply1 ]
+		      to: {reply1 consumed \/ reply2 consumed }]
+       ifError: [reply1]
   ]
 ].
 
@@ -79,14 +70,14 @@ p@(Parsec Parser traits) >> q@(Parsec Parser traits)
 [p >>= [|:x| q]].
 
 p@(Parsec Parser traits) fail: message
-[p _newWithBlock: 
+[p newWithBlock: 
   [| :state | Parsec Result Error cloneSettingSlots: #(consumed) to: {False} ]
 ].
 
 "MonadPlus"
 
 p@(Parsec Parser traits) <or> q@(Parsec Parser traits)
-[p _newWithBlock: 
+[p newWithBlock: 
   [| :state r| 
      r: (p block applyWith: state).
      r consumed 
@@ -94,8 +85,7 @@ p@(Parsec Parser traits) <or> q@(Parsec Parser traits)
        ifFalse: [r ifOk: [r]
                    ifError: [q block applyWith: state]]
   ]
-].
-       
+].       
 
 "character parsers"
 
@@ -108,7 +98,7 @@ p@(Parsec Parser traits) satisfy: pred
 ].
 			  
 p@(Parsec Parser traits) tokenStopgapWithBlock: test
-[p _newWithBlock: 
+[p newWithBlock: 
   [| :state | 
      state input
        ifCons: [| :c :cs x |
@@ -132,7 +122,7 @@ p@(Parsec Parser traits) many
 []
 
 p@(Parsec Parser traits) manyAccum: accum@(Method traits)
-[p _newWithBlock: 
+[p newWithBlock: 
   [| :state walk r2 |
      walk: [| :xs :state :r | 
 	      r consumed 
