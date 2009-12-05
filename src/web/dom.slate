@@ -1,4 +1,3 @@
-
 lobby ensureNamespace: #Dom.
 
 "fixme: this needs to be fixed to utf-16?"
@@ -7,7 +6,6 @@ Dom define: #DomString &parents: {UnicodeString}.
 Dom define: #DomTimeStamp &parents: {Integer}.
 
 Dom define: #DomObject &parents: {Cloneable}.
-
 
 Dom define: #DomException &parents: {Error} &slots: {#code -> 0}.
 
@@ -79,7 +77,6 @@ Dom define: #StringList &parents: {Dom DomList}.
 Dom define: #NameList &parents: {Dom DomList}.
 Dom define: #NamedNodeMap &parents: {Cloneable} &slots: {#dict}.
 
-
 "interface NamedNodeMap {
   Node               getNamedItem(in DOMString name);
   Node               setNamedItem(in Node arg)
@@ -117,9 +114,7 @@ sl@(Dom NamedNodeMap traits) getNamedItem: item ns: ns[sl dict at: item].
 sl@(Dom NamedNodeMap traits) setNamedItem: item ns: ns to: value [sl dict at: item put: value].
 sl@(Dom NamedNodeMap traits) removeNamedItem: item ns: ns [sl dict remove: item].
 
-
 sl@(Dom StringList traits) contains: item [sl array anySatisfy: #= `er <-* item].
-
 
 sl@(Dom NameList traits) contains: item [sl array anySatisfy: #= `er <-* item].
 sl@(Dom NameList traits) contains: item ns: ns [fixme].
@@ -162,13 +157,10 @@ _@(Dom Notation traits) nodeType [Dom NodeTypes NotationNode].
 
 _@(Dom CharacterData traits) nodeType [error: 'fixme'].
 
-
 _@(Dom Node traits) new
 [
   resend `>> [childNodes: Dom NodeList new. attributes: Dom NamedNodeMap new. ]
 ].
-
-
 
 n@(Dom Node traits) firstChild [n childNodes isEmpty ifTrue: [Nil] ifFalse: [n childNodes first]].
 n@(Dom Node traits) lastChild [n childNodes isEmpty ifTrue: [Nil] ifFalse: [n childNodes last]].
@@ -235,7 +227,6 @@ n@(Dom Node traits) append: child
 [
   n childNodes insert: child before: Nil
 ].
-
 
 "DOMException
 
@@ -369,7 +360,6 @@ interface CharacterData : Node {
 };
 "
 
-
 cd@(Dom CharacterData traits) length
 [
   cd data length
@@ -383,24 +373,23 @@ cd@(Dom CharacterData traits) offset: offset count: count
 "fixme these throw errors"
 cd@(Dom CharacterData traits) append: data
 [
-  cd data: cd data , data.
+  cd data: cd data <> data.
 ].
 
 cd@(Dom CharacterData traits) insert: data at: index
 [
-  cd data: (cd data first: index) , data , (cd data allButFirst: index).
+  cd data: (cd data first: index) <> data <> (cd data allButFirst: index).
 ].
 
 cd@(Dom CharacterData traits) deleteOffset: offset count: count
 [
-  cd data: (cd data first: index) , (cd data allButFirst: index + count).
+  cd data: (cd data first: index) <> (cd data allButFirst: index + count).
 ].
 
 cd@(Dom CharacterData traits) replaceOffset: offset count: count with: replacement
 [
-  cd data: (cd data first: index) , replacement , (cd data allButFirst: index + count).
+  cd data: (cd data first: index) <> replacement <> (cd data allButFirst: index + count).
 ].
-
 
 "interface Attr : Node {
   readonly attribute DOMString        name;
@@ -412,8 +401,6 @@ cd@(Dom CharacterData traits) replaceOffset: offset count: count with: replaceme
   readonly attribute Element          ownerElement;
 };
 "
-
-
 
 "interface Element : Node {
   readonly attribute DOMString        tagName;
@@ -499,20 +486,13 @@ e@(Dom Element traits) hasAttribute: name &namespace: ns
 [
   e attributes includes: name
 ].
-"
-interface Text : CharacterData {
+
+"interface Text : CharacterData {
   Text               splitText(in unsigned long offset)
                                         raises(DOMException);
-};
-"
+};"
 
 t@(Dom Text traits) splitText: offset
 [
   fixme
 ].
-
-
-
-
-
-

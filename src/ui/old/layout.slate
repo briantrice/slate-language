@@ -140,7 +140,7 @@ se@(HBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch width|
       width: ch spaceRequirement minWidth * ratio floor.
-      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      ch boundingRect: (Rectangle origin: pos <> 0 extent: width <> (size y min: ch spaceRequirement maxHeight)).
       pos: pos + width].
     ^ se].
   size x < se spaceRequirement preferredWidth ifTrue: [
@@ -148,7 +148,7 @@ se@(HBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch width|
       width: ch spaceRequirement minWidth + ((ch spaceRequirement preferredWidth - ch spaceRequirement minWidth) * ratio) floor.
-      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      ch boundingRect: (Rectangle origin: pos <> 0 extent: width <> (size y min: ch spaceRequirement maxHeight)).
       pos: pos + width].
     ^ se].
   size x < se spaceRequirement maxWidth ifTrue: [
@@ -156,13 +156,13 @@ se@(HBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch width|
       width: ch spaceRequirement preferredWidth + ((ch spaceRequirement maxWidth - ch spaceRequirement preferredWidth) * ratio) floor.
-      ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+      ch boundingRect: (Rectangle origin: pos <> 0 extent: width <> (size y min: ch spaceRequirement maxHeight)).
       pos: pos + width].
     ^ se].
   pos: 0.
   se children do: [|:ch width|
     width: ch spaceRequirement maxWidth floor.
-    ch boundingRect: (Rectangle origin: pos , 0 extent: width , (size y min: ch spaceRequirement maxHeight)).
+    ch boundingRect: (Rectangle origin: pos <> 0 extent: width <> (size y min: ch spaceRequirement maxHeight)).
     pos: pos + width].
   resend
 ].
@@ -190,7 +190,7 @@ se@(VBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch height|
       height: ch spaceRequirement minHeight * ratio floor.
-      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      ch boundingRect: (Rectangle origin: 0 <> pos extent: (size x min: ch spaceRequirement maxWidth) <> height).
       pos: pos + height].
     ^ se].
   size y < se spaceRequirement preferredHeight ifTrue: [
@@ -198,7 +198,7 @@ se@(VBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch height|
       height: ch spaceRequirement minHeight + ((ch spaceRequirement preferredHeight - ch spaceRequirement minHeight) * ratio) floor.
-      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      ch boundingRect: (Rectangle origin: 0 <> pos extent: (size x min: ch spaceRequirement maxWidth) <> height).
       pos: pos + height].
     ^ se].
   size y < se spaceRequirement maxHeight ifTrue: [
@@ -206,13 +206,13 @@ se@(VBox traits) allocateSpaceWithinExtent: size
     pos: 0.
     se children do: [|:ch height|
       height: ch spaceRequirement preferredHeight + ((ch spaceRequirement maxHeight - ch spaceRequirement preferredHeight) * ratio) floor.
-      ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+      ch boundingRect: (Rectangle origin: 0 <> pos extent: (size x min: ch spaceRequirement maxWidth) <> height).
       pos: pos + height].
     ^ se].
   pos: 0.
   se children do: [|:ch height|
     height: ch spaceRequirement maxHeight floor.
-    ch boundingRect: (Rectangle origin: 0 , pos extent: (size x min: ch spaceRequirement maxWidth) , height).
+    ch boundingRect: (Rectangle origin: 0 <> pos extent: (size x min: ch spaceRequirement maxWidth) <> height).
     pos: pos + height].
   resend
 ].
@@ -313,7 +313,7 @@ se@(Spacing traits) allocateSpaceWithinExtent: size
 [
     se children do: [|:ch|
         ch boundingRect: (Rectangle 
-            origin: (se leftMargin , se topMargin)
+            origin: (se leftMargin <> se topMargin)
             extent: (size x - se leftMargin - se rightMargin min: ch spaceRequirement maxWidth),
                     (size y - se topMargin - se bottomMargin min: ch spaceRequirement maxHeight))].
     resend

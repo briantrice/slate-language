@@ -11,7 +11,7 @@ SceneElement addImmutableSlot: #position valued: (0, 0).
 "The position on the parent coordinate system of the reference point for
 locating the SceneElement."
 
-SceneElement addImmutableSlot: #boundingRect valued: (Rectangle origin: 0 , 0 extent: 0 , 0). 
+SceneElement addImmutableSlot: #boundingRect valued: (Rectangle origin: 0 <> 0 extent: 0 <> 0). 
 "The smallest Rectangle bounding the SceneElement."
 
 SceneElement addImmutableSlot: #inputHandler valued: Nil.
@@ -112,7 +112,7 @@ se@(SceneElement traits) handle: event@(Event traits)
 "Handle an event."
 [
 "  (event is: MouseMotionEvent)
-    ifFalse: [lobby `>> [inform: ('Unhandled event: ' ; se printString  ; ' , ' ; event printString).].]"
+    ifFalse: [lobby `>> [inform: ('Unhandled event: ' ; se printString  ; ' <> ' ; event printString).].]"
 ].
 
 se@(SceneElement traits) repaintSoon
@@ -384,7 +384,7 @@ se@(SceneElement traits) replace: ch@(SceneElement traits)
 
 se@(SceneElement traits) resetBoundingRect
 "Sets the boundingRect to a rectangle of 0,0 0,0."
-[se boundingRect: (Rectangle origin: 0 , 0 corner: 0 , 0)].
+[se boundingRect: (Rectangle origin: 0 <> 0 corner: 0 <> 0)].
 
 se@(SceneElement traits) clear
 "Remove all children, and reset the parent back-links."
@@ -536,7 +536,7 @@ se@(PassPointerToChildren traits) handle: event@(PointerEvent traits)
 [
     ((se is: PassPointerToChildren) not) \/ [(event is: PointerEvent) not] ifTrue: [break].
     se inputHandler ifNil: [|newEvent|
-        newEvent: (event copyOffset: (0 , 0) - se boundingRect origin).
+        newEvent: (event copyOffset: (0 <> 0) - se boundingRect origin).
         se children do: [|:each|
             (each contains: newEvent position) ifTrue: [
                 ^ (each handle: newEvent)]]].
@@ -621,7 +621,7 @@ h@(Handle traits) updatePosition
     h boundingRect: (Rectangle 
         origin: (h position x - (h width / 2)),
                 (h position y - (h height / 2))
-        extent: h width , h height).
+        extent: h width <> h height).
     h target treeParent ifNotNilDo: [|:p| p repaintSoon].
     h
 ].
@@ -797,7 +797,7 @@ Graphics define: #Text &parents: {SceneElement}.
 
 
 Text addImmutableSlot: #text valued: ''.
-Text addImmutableSlot: #textOffset valued: 0 , 0.
+Text addImmutableSlot: #textOffset valued: 0 <> 0.
 
 {#text. #textOffset} do: [|:slotName|
     [|:se :v| 

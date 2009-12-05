@@ -1,9 +1,7 @@
 lobby ensureNamespace: #Graphics &delegate: True.
 
-
 Graphics define: #Position &parents: {Cloneable} &slots: {}.
 Graphics define: #Surface &parents: {Cloneable}.
-
 
 "holds properties"
 Graphics define: #Theme &parents: {Cloneable} &slots: {
@@ -19,10 +17,8 @@ Graphics define: #Theme &parents: {Cloneable} &slots: {
   #scrollbarBackgroundColor -> Colors DarkGray. #scrollbarBackgroundAlpha -> 1.0.
   #scrollbarForegroundColor -> Colors LightGray. #scrollbarForegroundAlpha -> 1.0.
 
-
   #titleFontSize -> 12.
   #listboxFontSize -> 12.
-
 }.
 
 Graphics define: #Conductor &parents: {Cloneable} &slots: {
@@ -34,9 +30,8 @@ Graphics define: #Conductor &parents: {Cloneable} &slots: {
 the minimum of functions that need to be defined for morphs."
 
 Graphics define: #SceneElement &parents: {Cloneable} &slots: {
-
   #parent -> Nil.
-  #region -> (Rectangle origin: 0 , 0 corner: 10 , 10).
+  #region -> (Rectangle origin: 0 <> 0 corner: 10 <> 10).
 
 }.
 
@@ -60,7 +55,7 @@ Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color.
 
 "this is the main morph class that can hold children and has a theme"
 Graphics define: #Morph &parents: {SceneElement}
-  &slots: {#theme -> BasicTheme new. 
+  &slots: {#theme -> BasicTheme new.
            #children -> ExtensibleArray new.
            #dragging -> False.
            #dragOffset -> Nil.
@@ -102,7 +97,7 @@ m@(Morph traits) unlink
 wse@(WindowSceneElement traits) newNamed: name width: width height: height
 [ | res |
   res: wse.
-  res region: (Rectangle origin: 0, 0 extent: width , height).
+  res region: (Rectangle origin: 0 <> 0 extent: width <> height).
   res conductor: wse conductor new.
   res conductor focus: Nil. "set it to wse and we might have a loop"
   res osWindow: (wse nativeSessionType newWindow: 'blah' width: 640 height: 480).
@@ -154,14 +149,17 @@ c@(Conductor traits) handle: input@(KeyboardEvent traits) for: wse@(WindowSceneE
 
 c@(Conductor traits) handle: input@(MouseButtonReleaseEvent traits) for: wse@(WindowSceneElement traits)
 [ "cache because it will lose focus after it handles the event"
-  c focus `cache ifNil: [resend] ifNotNil: [c mouseMovedAfterPress 
-                                       ifTrue: [c focus handle: input] 
-                                       ifFalse: [c focus handle: input. 
-                                                 c focus handle: (MouseButtonClickEvent new `>> [source: input source. 
-                                                                                             region: input region.
-                                                                                             pointer: input pointer.
-                                                                                             position: input position.
-                                                                                             window: input window.])]]
+  c focus `cache
+    ifNil: [resend]
+    ifNotNil:
+      [c focus handle: input.
+       c mouseMovedAfterPress ifFalse:
+         [c focus handle: (MouseButtonClickEvent new `>>
+                             [source: input source.
+                              region: input region.
+                              pointer: input pointer.
+                              position: input position.
+                              window: input window. ])]]
 ].
 
 c@(Conductor traits) handle: input@(MouseMotionEvent traits) for: wse@(WindowSceneElement traits)
@@ -198,7 +196,6 @@ se@(SceneElement traits) leftCenter [ se region leftCenter].
 se@(SceneElement traits) rightCenter [ se region rightCenter].
 se@(SceneElement traits) absolutePosition [se parent absolutePosition + se region origin].
 
-
 se@(Morph traits) startDragging: position
 [
   se dragging: True.
@@ -208,7 +205,7 @@ se@(Morph traits) startDragging: position
 se@(Morph traits) startResizing: position
 [
   se resizing: True.
-  se resizeOffset: (0 , 0) - se absolutePosition.
+  se resizeOffset: (0 <> 0) - se absolutePosition.
 ].
 
 se@(Morph traits) stopDragging: position
@@ -231,14 +228,14 @@ surface@(Surface traits) ensurePaint: block
 [
 
   [surface save. block do. surface restore.]
-    on: Error 
+    on: Error
     do: [|:error| surface `>> [restore.
                       sourceRGB: Colors Red.
-                      moveTo: 0 , 0. showText: error printString.
+                      moveTo: 0 <> 0. showText: error printString.
                       ]].
 ].
 
-se@(WindowSceneElement traits) absolutePosition [ 0 , 0].
+se@(WindowSceneElement traits) absolutePosition [ 0 <> 0].
 se@(WindowSceneElement traits) repaint
 [
   se needRepaint: True.
@@ -265,7 +262,7 @@ se@(WindowSceneElement traits) eventLoop
     se exitRequested: False.
     se needRepaint: True.
     inform: '**** Press middle mouse button to exit loop ****'.
-    [se exitRequested] whileFalse: 
+    [se exitRequested] whileFalse:
         [
             se needRepaint ifTrue: [se paintOn: se osWindow].
             se doWithRestart: [se handle: se osWindow getNextEvent].
@@ -278,9 +275,9 @@ se@(WindowSceneElement traits) eventLoop
 se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 [
     surface `>> [
-       save. 
+       save.
        sourceRGB: se color alpha: se alpha.
-       rectangle: se. 
+       rectangle: se.
        fill.
        restore].
 
@@ -299,7 +296,7 @@ m@(Morph traits) paintChild: child@(SceneElement traits) on: surface@(Surface tr
 e.g. alignment panes would ensure the positions are right, etc."
 m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 [
-  m children do: [|:child| m paintChild: child on: surface].
+  m children do: [| :child | m paintChild: child on: surface].
 ].
 
 m@(Morph traits) paintMyselfOn: surface@(Surface traits)
@@ -329,7 +326,7 @@ m@(Morph traits) handle: input@(Event traits)
 m@(Morph traits) handle: input@(MouseEvent traits)
 [
   "(input is: MouseMotionEvent) ifTrue: [^ False]."
-  m children reverseDo: [|:child| 
+  m children reverseDo: [|:child|
                          ((Rectangle origin: child absolutePosition extent: child region extent)
                              contains: input position) ifTrue: [^ (child handle: input)]].
 
@@ -343,25 +340,25 @@ m@(Morph traits) handleMyself: input@(Event traits)
 
 m@(Morph traits) handle: input@(RequestFocusEvent traits)
 [
-  m activeConductor ifNotNilDo: [|:hand| hand setFocus: input source].
-  ^ m
+  m activeConductor ifNotNilDo: [| :hand | hand setFocus: input source].
+  m
 ].
 
 m@(Morph traits) handle: input@(DropFocusEvent traits)
 [
-  m activeConductor ifNotNilDo: [|:hand| hand setFocus: Nil].
-  ^ m
+  m activeConductor ifNotNilDo: [| :hand | hand setFocus: Nil].
+  m
 ].
 
 
 m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
-[ | bw |
+[| bw |
   bw: m borderWidth.
   "handle in bottom right of window"
-  m canResize /\ [(Rectangle origin: m absolutePosition + m region extent - (bw , bw) extent: (bw , bw)) contains: input position]
-    ifTrue: [m startResizing: input position. m requestFocus. ^ m].
-  m canDrag ifTrue: [m startDragging: input position].
-  m requestFocus. "necessary to receive a click event"
+  m canResize /\ [(Rectangle origin: m absolutePosition + m region extent - (bw <> bw) extent: (bw <> bw)) contains: input position]
+    ifTrue: [m startResizing: input position. m requestFocus]
+    ifFalse: [m canDrag ifTrue: [m startDragging: input position].
+              m requestFocus "necessary to receive a click event"]
   m
 ].
 
@@ -374,16 +371,16 @@ m@(Morph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 ].
 
 m@(Morph traits) handleMyself: input@(MouseMotionEvent traits)
-[ | extent |
- 
+[
   m dragging ifTrue: [m region: (Rectangle origin: input position + m dragOffset extent: m region extent). m repaint].
-  m resizing ifTrue: [extent: input position + m resizeOffset.
-                      m region: (Rectangle origin: m region origin 
-                                           extent: (extent x max: m minHeight) , (extent y max: m minWidth)).
-                      m repaint].
+  m resizing ifTrue:
+    [| extent |
+     extent: input position + m resizeOffset.
+     m region: (Rectangle origin: m region origin
+                  extent: (extent x max: m minHeight) <> (extent y max: m minWidth)).
+     m repaint].
   m
 ].
-
 
 m@(Morph traits) addChild: child@(SceneElement traits)
 [
@@ -395,20 +392,19 @@ m@(Morph traits) addChild: child@(SceneElement traits)
 m@(Morph traits) setChildren: array
 [
   m children: ExtensibleArray new.
-  array do: [|:child|
+  array do: [| :child |
              m children addLast: child.
              child parent: m].
 ].
 
-
 m@(LabelMorph traits) paintMyselfOn: surface@(Surface traits)
 [
   surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface stroke.
   surface fontSize: m fontSize.
-  surface moveTo: 10 , (m height // 2).
+  surface moveTo: 10 <> (m height // 2).
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
   surface showText: m text.
 ].

@@ -1,8 +1,7 @@
-
 Graphics define: #InspectorMorph &parents: {WindowMorph} &slots: {#underlyingObject -> Nil. #selectedItem -> Nil}.
 
-m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &height: height 
-[ | im leftPane rightPane buttonMorph slotListbox arrayListbox le |
+m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &height: height
+[| im leftPane rightPane buttonMorph slotListbox arrayListbox le |
   im: m new.
   im underlyingObject: obj.
   x `defaultsTo: 0.
@@ -22,25 +21,28 @@ m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &h
     ifFalse: [arrayListbox items: {}].
   m@(slotListbox) selectionChanged
   [
-    m selectedItems do: [ |:item| 
+    m selectedItems do: [| :item |
        im selectedItem: (obj atSlotNamed: item).
        le editor reset.
        le editor insert: (obj atSlotNamed: item) printString at: le editor cursor]
   ].
   m@(arrayListbox) selectionChanged
   [
-     m selectedItems do: [ |:item| 
+     m selectedItems do: [| :item |
        im selectedItem: item.
        le editor reset.
        le editor insert: item printString at: le editor cursor]
   ].
 
-  b@(buttonMorph) handleMyself: e@(MouseButtonClickEvent traits) [im selectedItem ifNotNilDo: [|:so| im newOn: so parent: parent]].
+  b@(buttonMorph) handleMyself: e@(MouseButtonClickEvent traits)
+  [
+    im selectedItem ifNotNilDo: [| :so | im newOn: so parent: parent]
+  ].
   buttonMorph text: 'Inspect'.
   leftPane: AlignmentMorph new `>> [percentages: {70. 30}. setChildren: {slotListbox. arrayListbox}. ].
   rightPane: AlignmentMorph new `>> [percentages: {80. 20}. setChildren: {le. buttonMorph}. ].
   im setChildren: {leftPane. rightPane}.
-  im region: (Rectangle origin: x , y extent: width , height).
+  im region: (Rectangle origin: x <> y extent: width <> height).
   parent addChild: im.
   im pack.
   im

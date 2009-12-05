@@ -2,7 +2,7 @@ prototypes define: #PointND &parents: {Vector}.
 
 "N-dimensional points are vectors which don't accept further tupling."
 
-p@(PointND traits) , _
+p@(PointND traits) <> _
 [
   p
 ].
@@ -284,13 +284,13 @@ p@(Point traits) printOn: s
   s
 ].
 
-x@(Number traits) , y@(Number traits)
+x@(Number traits) <> y@(Number traits)
 [Point x: x y: y].
 
 _@(Point traits) x: x y: y
 [Point cloneSettingSlots: #(x y) to: {x. y}].
 
-Point traits define: #origin &builder: [0 , 0].
+Point traits define: #origin &builder: [0 <> 0].
 
 _@(Point traits) dimensions
 [0].
@@ -307,7 +307,7 @@ p@(Point traits) distanceTo: q@(Point traits)
 
 p@(Point traits) midpoint: q@(Point traits)
 "The Point halfway between p and q"
-[(p x + q x / 2) , (p y + q y / 2)].
+[(p x + q x / 2) <> (p y + q y / 2)].
 
 "TODO: simplify this like the numeric coercions"
 p@(Point traits) + q@(Point traits)
@@ -347,7 +347,7 @@ n@(Number traits) / p@(Point traits)
 [(n as: p) / p].
 
 p@(Point traits) reciprocal
-[p x reciprocal , p y reciprocal].
+[p x reciprocal <> p y reciprocal].
 
 p@(Point traits) = q@(Point traits)
 [p x = q x /\ [p y = q y]].
@@ -377,22 +377,22 @@ r@(Rectangle traits) newEncompassing: c
 
 r@(Rectangle traits) left: v
 [
-  r origin: (v , r origin y) corner: r corner
+  r origin: (v <> r origin y) corner: r corner
 ].
 
 r@(Rectangle traits) right: v
 [
-  r origin: r origin corner: (v , r corner y)
+  r origin: r origin corner: (v <> r corner y)
 ].
 
 r@(Rectangle traits) top: v
 [
-  r origin: (r origin x , v) corner: r corner
+  r origin: (r origin x <> v) corner: r corner
 ].
 
 r@(Rectangle traits) bottom: v
 [
-  r origin: r origin corner: (r corner x , v)
+  r origin: r origin corner: (r corner x <> v)
 ].
 
 r@(Rectangle traits) height
@@ -407,7 +407,7 @@ r@(Rectangle traits) width
 
 r@(Rectangle traits) extent
 [
-  r width , r height
+  r width <> r height
 ].
 
 r@(Rectangle traits) area
@@ -447,47 +447,47 @@ r@(Rectangle traits) hash
 
 r@(Rectangle traits) topLeft
 [
-  r left , r top
+  r left <> r top
 ].
 
 r@(Rectangle traits) topCenter
 [
-  (r right + r left // 2) , r top
+  (r right + r left // 2) <> r top
 ].
 
 r@(Rectangle traits) topRight
 [
-  r right , r top
+  r right <> r top
 ].
 
 r@(Rectangle traits) bottomLeft
 [
-  r left , r bottom
+  r left <> r bottom
 ].
 
 r@(Rectangle traits) bottomCenter
 [
-  (r right + r left // 2) , r bottom
+  (r right + r left // 2) <> r bottom
 ].
 
 r@(Rectangle traits) bottomRight
 [
-  r right , r bottom
+  r right <> r bottom
 ].
 
 r@(Rectangle traits) leftCenter
 [
-  r left , (r bottom + r top // 2)
+  r left <> (r bottom + r top // 2)
 ].
 
 r@(Rectangle traits) rightCenter
 [
-  r right , (r bottom + r top // 2)
+  r right <> (r bottom + r top // 2)
 ].
 
 r@(Rectangle traits) center
 [
-  (r top + r bottom // 2) , (r left + r right // 2)
+  (r top + r bottom // 2) <> (r left + r right // 2)
 ].
 
 r@(Rectangle traits) corners
@@ -514,21 +514,21 @@ r@(Rectangle traits) areasOutside: q@(Rectangle traits)
   q origin y > r origin y
     ifTrue: [areas addLast:
       (r origin: r origin
-	 corner: (r origin x , (oy: q origin y)))]
+	 corner: (r origin x <> (oy: q origin y)))]
     ifFalse: [oy: r origin y].
   q corner y < r corner y
     ifTrue: [areas addLast:
-      (r origin: (r origin x , (cy: q corner y))
+      (r origin: (r origin x <> (cy: q corner y))
 	 corner: q corner)]
     ifFalse: [cy: r corner y].
   q origin x > r origin x
     ifTrue: [areas addLast:
-      (r origin: (r origin x , yo)
-	 corner: (q origin x , yc))].
+      (r origin: (r origin x <> yo)
+	 corner: (q origin x <> yc))].
   q corner x < r corner x
     ifTrue: [areas addLast:
-      (r origin: (q corner x , yo)
-	 corner: (r corner x , yc))].
+      (r origin: (q corner x <> yo)
+	 corner: (r corner x <> yc))].
   areas
 ].
 
@@ -552,7 +552,7 @@ r@(Rectangle traits) /\ q@(Rectangle traits)
   right: (q corner x min: r corner x).
   bottom: (q corner y min: r corner y).
   left > right \/ [top > bottom] ifTrue: [^ Nowhere]
-  r origin: left , top corner: right , bottom
+  r origin: left <> top corner: right <> bottom
 ].
 
 r@(Rectangle traits) encompass: p@(Point traits)
@@ -580,7 +580,7 @@ Use this over merge: whenever possible."
 	     minY: (each origin y min: minY).
 	     maxX: (each corner x max: maxX).
 	     maxY: (each corner y max: maxY)].
-  r origin: (minX , minY) corner: (maxX , maxY)
+  r origin: (minX <> minY) corner: (maxX <> maxY)
 ].
 
 r@(Rectangle traits) contains: p@(Point traits)
@@ -672,8 +672,8 @@ line@(LineSegment traits) calcBoundingRect
 [
   line `withSlotsDo:
     [| :start :end |
-     Rectangle origin: (start x min: end x) , (start y min: end y)
-               corner: (start x max: end x) , (start y max: end y)]
+     Rectangle origin: (start x min: end x) <> (start y min: end y)
+               corner: (start x max: end x) <> (start y max: end y)]
 ].
 
 line@(LineSegment traits) clipTo: r@(Rectangle traits)

@@ -5,14 +5,12 @@ Graphics define: #HashTableInputTranslator &parents: {InputTranslator} &slots: {
 Graphics define: #TextboxInputTranslator &parents: {InputTranslator}.
 Graphics define: #LineEditorInputTranslator &parents: {InputTranslator}.
 
-
 Graphics define: #TextboxMorph &parents: {Morph}
   &slots: {#text -> '' new. 
            #position -> 0. 
            #fontSize -> 12. 
            #inputTranslator -> TextboxInputTranslator new.
            }.
-
 
 Graphics define: #LineEditorMorph &parents: {Morph}
   &slots: {#editor -> LineEditor new.
@@ -38,13 +36,13 @@ m@(LineEditorMorph traits) handleMyself: e@(KeyboardEvent traits)
 
 it@(InputTranslator traits) handle: e@(InputEvent traits) on: m@(Morph traits)
 [
-  inform: 'Default handler ' ; (it printString) ; ' does not handle event ' ; e printString.
+  inform: 'Default handler ' ; it printString ; ' does not handle event ' ; e printString.
   Nil
 ].
 
 it@(HashTableInputTranslator traits) handle: e@(KeyboardEvent traits) on: m@(Morph traits)
 [
-  (it table at: e key ifAbsent: [Nil]) ifNotNilDo: [|:func| func applyTo: {m e}]
+  it table at: e key ifPresent: [| :func | func applyTo: {m. e}]
 ].
 
 it@(TextboxInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: m@(TextboxMorph traits) [].
@@ -54,7 +52,7 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: 
 m@(TextboxMorph traits) activate [].
 
 it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(TextboxMorph traits)
-[ |char oldText pos|
+[| char oldText pos |
   inform: 'key: ' ; e key printString.
   inform: 'mod: ' ; e modifiers printString.
   e key = 276 ifTrue: [m repaint. m position: (m position - 1 max: 0). ^ Nil].
@@ -83,7 +81,7 @@ it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m
 
 
 it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(LineEditorMorph traits)
-[ |char oldText |
+[| char oldText |
   inform: 'key: ' ; e key printString.
   inform: 'mod: ' ; e modifiers printString.
 
@@ -173,25 +171,25 @@ m@(TextboxMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 ].
 
 m@(TextboxMorph traits) paintMyselfOn: surface@(Surface traits)
-[ |text|
+[| text |
   surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface stroke.
   surface fontSize: m fontSize.
 "fixme, we should use cairo's text_extents function to see how large the text is and draw
 the appropriate cursor. "
   text: m printText.
 
   "print cursor... text is invisible here because we chose the foreground color"
-  surface moveTo: 10 , ((m height // 2) + 2).
+  surface moveTo: 10 <> ((m height // 2) + 2).
   surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
   surface showText: (text first: m position).
   surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha.
   surface showText: '_'.
 
   "print text"
-  surface moveTo: 10 , (m height // 2).
+  surface moveTo: 10 <> (m height // 2).
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
   surface showText: text.
 ].
@@ -214,39 +212,35 @@ m@(LineEditorMorph traits) visibleRange
 ].
 
 m@(LineEditorMorph traits) paintMyselfOn: surface@(Surface traits)
-[ |text|
+[| text|
   surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface fill.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangle: (Rectangle origin: 0 , 0 extent: m width , m height). surface stroke.
+  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface stroke.
   surface fontSize: m fontSize.
 "fixme, we should use cairo's text_extents function to see how large the text is and draw
 the appropriate cursor. "
 
   "fixme scrollbar position?"
   m visibleRange
-    do: [ |:lineNumber line offset |
-           line: ((m editor lineAt: lineNumber) as: String).
-           offset: lineNumber - m editor firstVisibleLine + 1.
-           m editor cursors do:
-             [ |:cursor |
-                (cursor line = lineNumber)
-                  ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
-                         surface moveTo: 5 , (offset * m fontSize + 2).
-                         surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
-                         surface showText: (line first: cursor column).
-                         "if it is the main cursor or not"
-                         cursor == m editor cursor
-                                ifTrue: [surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha]
-                                ifFalse: [surface sourceRGB: m theme alternateCursorColor alpha: m theme alternateCursorAlpha].
-                         surface showText: '_']].
-
-           "print text"
-           surface moveTo: 5 , (offset * m fontSize).
-           surface sourceRGB: m theme textColor alpha: m theme textAlpha.
-           surface showText: line.
-
-   ].
-                                                                                      
+    do: [| :lineNumber line offset |
+         line: ((m editor lineAt: lineNumber) as: String).
+         offset: lineNumber - m editor firstVisibleLine + 1.
+         m editor cursors do:
+           [| :cursor |
+            (cursor line = lineNumber)
+              ifTrue: ["print cursor... text is invisible here because we chose the foreground color"
+                       surface moveTo: 5 <> (offset * m fontSize + 2).
+                       surface sourceRGB: m theme textboxColor alpha: m theme textboxAlpha.
+                       surface showText: (line first: cursor column).
+                       "if it is the main cursor or not"
+                       cursor == m editor cursor
+                         ifTrue: [surface sourceRGB: m theme cursorColor alpha: m theme cursorAlpha]
+                         ifFalse: [surface sourceRGB: m theme alternateCursorColor alpha: m theme alternateCursorAlpha].
+                       surface showText: '_']].
+         "print text"
+         surface moveTo: 5 <> (offset * m fontSize).
+         surface sourceRGB: m theme textColor alpha: m theme textAlpha.
+         surface showText: line].
 ].
 
