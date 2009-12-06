@@ -942,37 +942,37 @@ previous one."
       (slate-begin-of-defun))))        ;and go to the next one
 
 (defun slate-narrow-to-paren (state)
-  "Narrows the region to between point and the closest previous open paren.
-Actually, skips over any block parameters, and skips over the whitespace
-following on the same line."
+  "Narrows the region to between point and the closest previous opening bracket.
+It also skips over block headers, and following whitespace on the same line."
   (let ((paren-addr (nth 1 state))
-    start c done)
+    start c)
     (when paren-addr
       (save-excursion
-    (goto-char paren-addr)
-    (setq c (following-char))
-    (cond ((memq c '(?\( ?\{))
-           (setq start (1+ (point))))
-          ((eq c ?\[)
-           (setq done nil)
-           (forward-char 1)
-           (skip-chars-forward " \t\n")
-           (when (eq (following-char) ?|) ;opens a block header
-         (forward-char 1) ;skip vbar
-         (while (not done)
-           (skip-chars-forward " \t")
-           (setq c (following-char))
-           (cond ((eq c ?|)
-              (forward-char 1) ;skip vbar
-              (skip-chars-forward " \t")
-              (setq done t)) ;done
-             ((eq c ?:)
-              (skip-chars-forward "A-Za-z0-9" 1)) ;skip input slot
-             ((eq c ?\n)
-              (setq done t)) ;don't accept line-wraps
-             (t
-              (skip-chars-forward "A-Za-z0-9"))))) ;skip local slot
-           (setq start (point)))))
+        (goto-char paren-addr)
+        (setq c (following-char))
+        (cond ((memq c '(?\( ?\{))
+               (setq start (1+ (point))))
+              ((eq c ?\[)
+               (forward-char 1)
+               ;; Now skip over the block parameters, if any
+               (let (done)
+                 (setq done nil)
+                 (slate-forward-whitespace)
+                 (if (eq (following-char) ?|) ;opens a block header
+                     (progn (forward-char 1)  ;skip vbar
+                            (while (not done)
+                              (slate-forward-whitespace)
+                              (setq c (following-char))
+                              (cond ((memq c '(?: ?* ?&))
+                                     (slate-forward-sexp 1)) ;skip input slot
+                                    ((eq c ?|)
+                                     (forward-char 1) ;skip vbar
+                                     (slate-forward-whitespace)
+                                     (setq done t))
+                                    (t
+                                     (slate-forward-sexp 1))))) ;skip local slot
+                   (setq done t)))
+               (setq start (point)))))
       (narrow-to-region start (point)))))
 
 (defun slate-at-method-begin ()
