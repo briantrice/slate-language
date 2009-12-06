@@ -871,8 +871,9 @@ gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result:
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#directApplyTo: on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
 [| methodReg argRegs |
+  (args second isSameAs: Syntax Array) ifFalse: [^ resend].
   result `defaultsTo: gen newRegister.
   methodReg: (gen generate: args first result: Nil).
   argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
