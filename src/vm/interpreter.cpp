@@ -1201,8 +1201,8 @@ void interpret(struct object_heap* oh) {
           struct Object* argsArray[16];
           std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
           method = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
-          resultReg = SSA_NEXT_PARAM_SMALLINT;
           arity = SSA_NEXT_PARAM_SMALLINT;
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
 
           assert(arity <= 16);
           for (k=0; k<arity; k++) {
@@ -1211,10 +1211,6 @@ void interpret(struct object_heap* oh) {
             pinnedArgs[k] = argsArray[k];
           }
 
-
-#ifdef PRINT_DEBUG_OPCODES
-          printf("do primitive %" PRIdPTR "\n", primNum);
-#endif
           interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
                                                     argsArray, arity, NULL, i->framePointer + resultReg);
           
