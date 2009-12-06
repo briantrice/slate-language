@@ -1194,6 +1194,33 @@ void interpret(struct object_heap* oh) {
           break;
         }
 
+      case OP_APPLY_TO:
+        {
+          word_t resultReg, arity, k;
+          Pinned<struct Object> method(oh);
+          struct Object* argsArray[16];
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          method = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
+          arity = SSA_NEXT_PARAM_SMALLINT;
+
+          assert(arity <= 16);
+          for (k=0; k<arity; k++) {
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
+          }
+
+
+#ifdef PRINT_DEBUG_OPCODES
+          printf("do primitive %" PRIdPTR "\n", primNum);
+#endif
+          interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
+                                                    argsArray, arity, NULL, i->framePointer + resultReg);
+          
+          break;
+        }
+
       default:
         printf("error bad opcode... %" PRIdPTR "\n", op>>1);
         assert(0);

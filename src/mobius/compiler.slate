@@ -80,6 +80,7 @@ list to use to increment the whole count"
   23 -> (#returnValue -> {1}). "mark the end of a block"
   24 -> (#resume -> {0}). "I'm not sure what this does yet..used in bootstrap"
   25 -> (#primitiveDo -> {3. 1}). "call a primitive directly, bypassing method lookup: primNum, primArgCount, resultReg, args..."
+  26 -> (#directApplyTo -> {3. 1}). "call a method/closure directly, bypassing array creation: method, argCount, resultReg, args..."
 }.
 
 VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
@@ -867,6 +868,15 @@ gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result:
   indexReg: (gen generate: args first result: Nil).
   argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
   gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@#directApplyTo: on: args from: msg result: result
+[| methodReg argRegs |
+  result `defaultsTo: gen newRegister.
+  methodReg: (gen generate: args first result: Nil).
+  argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
+  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
   result
 ].
 
