@@ -169,7 +169,7 @@
      #'(lambda (l)
          (modify-syntax-entry (car l) (cdr l) table))
      '((?\' . "\"") ; String
-       ;(?\"  . "!") ; Comment
+       (?\" . "\"") ; Comment
        (?+  . "w") ; Binary selector elements...
        (?-  . "w")
        (?*  . "w")
@@ -192,7 +192,7 @@
        (?$  . "'") ; Character literal
        (?#  . "'") ; Symbol
        (?|  . "$") ; Locals
-       (?_  . "_") ; Word-element and anonymous argument
+       (?_  . "w") ; Word-element and anonymous argument
        (?:  . "_") ; Keyword marker
        (?\\ . "\\") ; C-like escape
        (?!  . "'") ; A stop in Smalltalk. A type annotation in Slate.
@@ -214,21 +214,18 @@
 (defconst italic 'italic)
 
 (defconst slate-font-lock-keywords
-  `((,(concat "#[^" slate-whitespace-chars "{}()]+")
-     . font-lock-reference-face)    ; symbol
-    ("[^\\]\"[^\\]\"" . font-lock-comment-face) ; comment
-    ("[^#$]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    ("\$\\(\\\\[ntsbre0avf\'\"\\]\\|.\\)"
+  `(("#[A-Za-z0-9_:]+"
+     . font-lock-constant-face)    ; symbol
+    ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
+    ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
+    ("[$]\\(\\\\[ntsbre0avf\\'\\\"]\\|[^\\]\\)"
      . font-lock-string-face)        ; character
-    (,(concat "`" slate-binop-regexp)
+    ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
+    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
-    (,(concat "`" slate-name-regexp)
-     . ,(if (boundp 'font-lock-preprocessor-face)
-        'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; macro call
-    ("[`]+"
+    ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; quotation syntax
@@ -241,20 +238,22 @@
     (,slate-keyword-regexp . ,slate-keyword-face) ; keyword sends
     ("|[A-Za-z0-9:*!() \n]*|"
      . font-lock-variable-name-face)    ; block local slots
-    ("\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
+    ("\\<\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
      . font-lock-variable-name-face)    ; block input slots
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
      . font-lock-type-face)        ; type-declaration
-    ("\\<[+-]?\\([0-9]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
+    ("\\<[+-]?\\([0-9_]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
      . font-lock-constant-face) ; integers and floats
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
      . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
      . font-lock-type-face)        ; traits name
     ("\\<\\^\\>" . font-lock-warning-face)    ; return
-    ("\\<[0-9]+\\>" . font-lock-constant-face) ; integers
+    ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
      . font-lock-keyword-face)        ; globals
+    ;(,(concat "\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
+    ; . font-lock-function-name-face) ; method call
    )
   "Slate highlighting matchers.")
 
