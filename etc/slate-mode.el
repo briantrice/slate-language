@@ -141,25 +141,29 @@
 ;; Syntax-Handling
 ;; ===============
 
-(defconst slate-name-regexp "[A-Za-z][-A-Za-z0-9_:]*[^:]"
+(defconst slate-name-chars "A-Za-z0-9"
+  "The collection of character that can compose a Slate identifier")
+
+(defconst slate-name-regexp (concat "[A-Za-z][-" slate-name-chars "_:]*[^:]")
   "A regular expression that matches a Slate identifier")
 
 (defconst slate-globals-regexp
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
         "resend" "clone" "here" "it") 'words))
 
-(defconst slate-binop-regexp (concat "\\([-+*/~;<>=&?]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)")
+(defconst slate-binop-chars "-+*/\\~;<>=&?"
+  "The collection of characters that can compose a Slate binary selector.")
+
+(defconst slate-binop-regexp
+  (concat "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)")
   "A regular expression that matches a Slate binary selector")
 
 (defconst slate-keyword-regexp
-  "\\([-A-Za-z0-9_][-A-Za-z0-9_:]*:\\| :[^A-Za-z]\\)"
+  (concat "\\([-" slate-name-chars "_][-" slate-name-chars "_:]*:\\| :[^A-Za-z]\\)")
   "A regular expression that matches a Slate keyword")
 
 (defconst slate-opt-keyword-regexp (concat "&" slate-keyword-regexp)
   "A regular expression that matches a Slate optional-keyword")
-
-(defconst slate-name-chars "A-Za-z0-9"
-  "The collection of character that can compose a Slate identifier")
 
 (defconst slate-whitespace-chars " \t\n\f")
 
@@ -214,7 +218,7 @@
 (defconst italic 'italic)
 
 (defconst slate-font-lock-keywords
-  `(("#[A-Za-z0-9_:]+"
+  `((,(concat "#[" slate-name-chars slate-binop-chars "_:]+")
      . font-lock-constant-face)    ; symbol
     ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
     ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
