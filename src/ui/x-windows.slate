@@ -92,7 +92,7 @@ ws@(XWindowSession traits) stop
 "FIXME delete the context and sturface"
 
 ws@(XWindowSession traits) newWindow: title width: width height: height
-[ | w |
+[| w |
   w: XWindowElement new.
   w session: ws.
   w windowID: (Windows XLib primitives x_create_window applyTo: {ws display. width. height}).
@@ -108,13 +108,13 @@ w@(XWindowElement traits) paint
 
 
 w@(XWindowElement traits) clipboardCopy: obj
-[ |str|
+[| str|
   str: (obj as: String).
   Windows XLib primitives slate_clipboard_copy applyTo: {w session display. w windowID. str. str size}
 ].
 
 w@(XWindowElement traits) clipboardPasteAs: objType
-[ |size array|
+[| size array|
   Windows XLib primitives slate_clipboard_update applyTo: {w session display. w windowID}.
   size: (Windows XLib primitives slate_clipboard_size applyTo: {w session display. w windowID}).
   array: (ByteArray newSize: size).
@@ -125,8 +125,8 @@ w@(XWindowElement traits) clipboardPasteAs: objType
 
 
 w@(XWindowElement traits) getNextEvent
-[ |evtType evt|
-   
+[| evtType evt|
+
   Windows XLib primitives x_next_event applyTo: {w session display.}.
   evtType: (Windows XLib primitives x_event_type do).
 
@@ -173,7 +173,7 @@ w@(XWindowElement traits) getNextEvent
      6 -> [evt: (w setupEventType: MouseMotionEvent)].
      12 -> [evt: (w setupEventType: WindowRepaintEvent)].
      22 -> [evt: (w setupEventType: WindowConfigEvent)].
-     25 -> [evt: (w setupEventType: WindowResizeEvent)]. 
+     25 -> [evt: (w setupEventType: WindowResizeEvent)].
 }
     otherwise: [inform: 'Unhandled event type: ' ; evtType printString.
                 evt: (w setupEventType: Event)].
@@ -188,7 +188,7 @@ w@(XWindowElement traits) setupEventType: eventType@(Event traits)
 ].
 
 w@(XWindowElement traits) setupEventType: eventType@(KeyboardEvent traits)
-[ |evt|
+[| evt|
   evt: eventType new.
   evt window: w.
   evt key: (Windows XLib primitives x_event_keyboard_key applyTo: {w session display}).
@@ -197,11 +197,11 @@ w@(XWindowElement traits) setupEventType: eventType@(KeyboardEvent traits)
 ].
 
 w@(XWindowElement traits) setupEventType: eventType@(PointerEvent traits)
-[ |evt position pointer|
-  position: (Windows XLib primitives x_event_pointer_x do) , (Windows XLib primitives x_event_pointer_y do).
+[| evt position pointer|
+  position: (Windows XLib primitives x_event_pointer_x do) <> (Windows XLib primitives x_event_pointer_y do).
   pointer: (Windows XLib primitives x_event_pointer_button do).
   evt: eventType.
-  eventType caseOf: 
+  eventType caseOf:
     {MouseButtonReleaseEvent -> [pointer caseOf: {1 -> [evt: LeftMouseButtonReleaseEvent].
                                                   2 -> [evt: MiddleMouseButtonReleaseEvent].
                                                   3 -> [evt: RightMouseButtonReleaseEvent].
@@ -222,7 +222,7 @@ w@(XWindowElement traits) setupEventType: eventType@(PointerEvent traits)
 ].
 
 w@(XWindowElement traits) setupEventType: eventType@(WindowResizeEvent traits)
-[ |evt position pointer|
+[| evt position pointer|
   evt: eventType new.
   evt width: (Windows XLib primitives x_event_resize_width do).
   evt height: (Windows XLib primitives x_event_resize_height do).
@@ -231,7 +231,7 @@ w@(XWindowElement traits) setupEventType: eventType@(WindowResizeEvent traits)
 ].
 
 w@(XWindowElement traits) setupEventType: eventType@(WindowConfigEvent traits)
-[ |evt position pointer|
+[| evt position pointer|
   evt: eventType new.
 "  evt width: (Windows XLib primitives x_event_configure_width do).
   evt height: (Windows XLib primitives x_event_configure_height do).
@@ -354,9 +354,9 @@ w@(XWindowElement traits) font: font &italic: italic &bold: bold
     italic `defaultsTo: False.
     bold `defaultsTo: False.
     Windows XLib primitives select_font_face applyTo: {
-        w context. 
-        font. 
-        italic ifTrue: [1] ifFalse: [0]. 
+        w context.
+        font.
+        italic ifTrue: [1] ifFalse: [0].
         bold ifTrue: [1] ifFalse: [0]}.
 ].
 

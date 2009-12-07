@@ -180,6 +180,11 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   printf("apply to arity %" PRIdPTR "\n", n);
 #endif
 
+  struct Object* traitsWindow = closure->base.map->delegates->elements[0];
+  if (traitsWindow != oh->cached.compiled_method_window && traitsWindow != oh->cached.closure_method_window) {
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), (struct Object*)closure, NULL, resultStackPointer);
+    return;
+  }
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
 
@@ -1190,6 +1195,29 @@ void interpret(struct object_heap* oh) {
           printf("do primitive %" PRIdPTR "\n", primNum);
 #endif
           primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
+          
+          break;
+        }
+
+      case OP_APPLY_TO:
+        {
+          word_t resultReg, arity, k;
+          Pinned<struct Object> method(oh);
+          struct Object* argsArray[16];
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          method = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
+          arity = SSA_NEXT_PARAM_SMALLINT;
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
+
+          assert(arity <= 16);
+          for (k=0; k<arity; k++) {
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
+          }
+
+          interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
+                                                    argsArray, arity, NULL, i->framePointer + resultReg);
           
           break;
         }

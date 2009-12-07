@@ -363,40 +363,35 @@ tc@(UnitTests JSON traits) readBadEscapedHexCharacter
 tc@(UnitTests JSON traits) readIntegerValue
 [| obj req |
   obj: (JSON read: '{ "age" : 33 }').
-  req: Dictionary new.
-  req add: 'age' -> 33.
+  req: (Dictionary new*, 'age' -> 33).
   tc assert: obj = req description: 'Reading integer value failed'.
 ].
 
 tc@(UnitTests JSON traits) readNegativeIntegerValue
 [| obj req |
   obj: (JSON read: '{ "key" : -33 }').
-  req: Dictionary new.
-  req at: 'key' put: -33.
+  req: (Dictionary new*, 'key' -> -33).
   tc assert: obj = req description: 'Reading negative integer value failed'.
 ].
 
 tc@(UnitTests JSON traits) readFloatValue
 [| obj req |
   obj: (JSON read: '{ "age" : 33.4 }').
-  req: Dictionary new.
-  req at: 'age' put: 33.4.
+  req: (Dictionary new*, 'age' -> 33.4).
   tc assert: obj = req description: 'Reading float value failed'.
 ].
 
 tc@(UnitTests JSON traits) readNegativeFloatValue
 [| obj req |
   obj: (JSON read: '{ "key" : -33.4 }').
-  req: Dictionary new.
-  req at: 'key' put: -33.4.
+  req: (Dictionary new*, 'key' -> -33.4).
   tc assert: obj = req description: 'Reading negative float value failed'.
 ].
 
 tc@(UnitTests JSON traits) readStringValue
 [| obj req |
   obj: (JSON read: '{ "name" : "Marton" }').
-  req: Dictionary new.
-  req add: 'name' -> 'Marton'.
+  req: (Dictionary new*, 'name' -> 'Marton').
   tc assert: obj = req description: 'Reading string value failed'.
 ].
 
@@ -416,9 +411,7 @@ tc@(UnitTests JSON traits) readSmallArray
 tc@(UnitTests JSON traits) readSmallObject
 [| obj req |
   obj: (JSON read: '{ "name" : "Marton", "age":33}').
-  req: Dictionary new.
-  req add: 'name' -> 'Marton'.
-  req add: 'age' -> 33.
+  req: (Dictionary new*, 'name' -> 'Marton', 'age' -> 33).
   tc assert: obj = req description: 'Reading small object failed'.
 ].
 
@@ -444,11 +437,12 @@ tc@(UnitTests JSON traits) readArrayOfSymbols
 tc@(UnitTests JSON traits) readComplexObject
 [| obj req |
   obj: (JSON read: '{ "name": "Marton", "age" : 33, "Employed?":true, "Female?" : false, "grandchildren":null }').
-  req: (Dictionary new `>> [at: 'name' put: 'Marton'.
-                            at: 'age' put: 33.
-                            at: 'Employed?' put: True.
-                            at: 'Female?' put: False.
-                            at: 'grandchildren' put: Nil.]).
+  req: (Dictionary new*,
+          'name' -> 'Marton',
+          'age' -> 33,
+          'Employed?' -> True,
+          'Female?' -> False,
+          'grandchildren' -> Nil).
   tc assert: obj = req description: 'Reading complex object failed'.
 ].
 
@@ -479,9 +473,9 @@ tc@(UnitTests JSON traits) readLongArray
                        2,
                        [3, 4, 5]
 ]').
-  req: ExtensibleArray new.
-  req addAll: {'used'. 'abused'. 'confused'. True. False. Nil. 1. 2}.
-  req add: (ExtensibleArray new addAll: {3. 4. 5}).
+  req: (ExtensibleArray new*,
+          'used', 'abused', 'confused', True, False, Nil, 1, 2,
+          (ExtensibleArray new*, 3, 4, 5)).
   tc assert: obj = req description: 'Reading long array failed.'.
 ].
 
@@ -498,36 +492,35 @@ tc@(UnitTests JSON traits) readComplexArray
                       2,
                       [3, 4, 5]
 ]').
-  req: ExtensibleArray new.
-  req add: (Dictionary new `>> [add: 'name' -> 'Marton'.
-                                add: 'age' -> 33.
-                                add: 'Employed?' -> True.
-                                add: 'Female?' -> False.
-                                add: 'grandchildren' -> Nil.]).
-  req addAll: {'used'. 'abused'. 'confused'. 1. 2}.
-  req add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
+  req: (ExtensibleArray new*,
+          (Dictionary new*,
+             'name' -> 'Marton',
+             'age' -> 33,
+             'Employed?' -> True,
+             'Female?' -> False,
+             'grandchildren' -> Nil),
+          'used', 'abused', 'confused', 1, 2,
+          (ExtensibleArray new*, 3, 4, 5)).
   tc assert: obj = req description: 'Reading complex array failed'.
 ].
 
 tc@(UnitTests JSON traits) readDoubleSolidusComment
 [| obj req |
   obj: (JSON read: '[1, 2, // This is a comment.\n 3]').
-  req: (ExtensibleArray new addAll: {1. 2. 3}).
+  req: (ExtensibleArray new*, 1, 2, 3).
   tc assert: obj = req description: 'Reading double solidus comment failed for comment in list'.
   obj: (JSON read: '[1, 2, // This is a comment.\n{"last":3}]').
-  req: (ExtensibleArray new `>> [add: 1. add: 2.]).
-  req add: (Dictionary new `>> [at: 'last' put: 3.]).
+  req: (ExtensibleArray new*, 1, 2, (Dictionary new*, 'last' -> 3)).
   tc assert: obj = req description: 'Reading double solidus comment failed for mapping in list'.
 ].
 
 tc@(UnitTests JSON traits) readCStyleComment
 [| obj req |
   obj: (JSON read: '[1, 2, /* This is a comment.\n */ 3]').
-  req: (ExtensibleArray new `>> [add: 1. add: 2. add: 3.]).
+  req: (ExtensibleArray new*, 1, 2, 3).
   tc assert: obj = req description: 'Reading C style comment failed for comment in list'.
   obj: (JSON read: '[1, 2, /* This is a comment. */{"last":3}]').
-  req: (ExtensibleArray new `>> [add: 1. add: 2.]).
-  req add: (Dictionary new `>> [add: 'last' -> 3.]).
+  req: (ExtensibleArray new*, 1, 2, (Dictionary new*, 'last' -> 3)).
   tc assert: obj = req description: 'Reading C style comment failed for mapping in list'.
 ].
 
@@ -675,17 +668,14 @@ tc@(UnitTests JSON traits) writeNull
 
 tc@(UnitTests JSON traits) writeStringValue
 [| obj |
-  obj: Dictionary new.
-  obj at: 'name' put: 'Marton'.
+  obj: (Dictionary new*, 'name' -> 'Marton').
   tc assert: (JSON write: obj) = '{"name":"Marton"}'
     description: 'Writing string value failed.'.
 ].
 
 tc@(UnitTests JSON traits) writeSmallObject
 [| obj |
-  obj: Dictionary new.
-  obj at: 'name' put: 'Marton'.
-  obj at: 'age' put: 33.
+  obj: (Dictionary new*, 'name' -> 'Marton', 'age' -> 33).
   tc assert: (JSON write: obj) whitespaceRemoved = '{"age":33,"name":"Marton"}'
     description: 'Writing small object failed.'.
 ].
@@ -706,14 +696,15 @@ tc@(UnitTests JSON traits) writeFloat
 
 tc@(UnitTests JSON traits) writeComplexArray
 [| obj req |
-  obj: ExtensibleArray new.
-  obj add: (Dictionary new `>> [add: 'name' -> 'Marton'.
-                                add: 'age' -> 33.
-                                add: 'Employed?' -> True.
-                                add: 'Female?' -> False.
-                                add: 'grandchildren' -> Nil.]).
-  obj addAll: {'used'. 'abused'. 'confused'. 1. 2}.
-  obj add: (ExtensibleArray new `>> [add: 3. add: 4. add: 5.]).
+  obj: ExtensibleArray new*,
+    (Dictionary new*,
+       'name' -> 'Marton',
+       'age' -> 33,
+       'Employed?' -> True,
+       'Female?' -> False,
+       'grandchildren' -> Nil),
+    'used', 'abused', 'confused', 1, 2,
+    (ExtensibleArray new*, 3, 4, 5).
   req: '[{"Employed?":true,"grandchildren":null,"Female?":false,"age":33,"name":"Marton"},"used","abused","confused",1,2,[3,4,5]]'.
   tc assert: (JSON write: obj) whitespaceRemoved = req description: 'Writing complex object failed'.
 ].

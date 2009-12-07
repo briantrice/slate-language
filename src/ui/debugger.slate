@@ -1,7 +1,4 @@
-
 Graphics define: #DebuggerMorph &parents: {WindowMorph} &slots: {#condition -> Nil. #debugger -> Nil. #window -> Nil}.
-
-
 
 m@(DebuggerMorph traits) newOn: cond parent: parent window: window &x: x &y: y &width: width &height: height 
 [ | im backtraceListbox d restartButtons inspectButton|
@@ -21,15 +18,20 @@ m@(DebuggerMorph traits) newOn: cond parent: parent window: window &x: x &y: y &
   backtraceListbox items: d frameList.
   inspectButton: LabelMorph new `>> [text: 'Inspect selected frame'. ].
   b@(inspectButton) handleMyself: e@(MouseButtonClickEvent traits)
-  [backtraceListbox selectedItems do: [|:so| InspectorMorph newOn: so parent: parent]].
-  restartButtons: (d restarts collect: [|:restart button|
-                                          button: LabelMorph new `>> [text: 'Restart: ' ; restart printString. ].
-                                          b@(button) handleMyself: e@(MouseButtonClickEvent traits)
-                                          [im unlink. (restart newCondition: cond) `>> [queryFrom: d. signal]].
-                                          button
-                                          ]).
+  [backtraceListbox selectedItems do:
+     [| :so | InspectorMorph newOn: so parent: parent]].
+  restartButtons:
+    (d restarts collect:
+       [| :restart button |
+        button: LabelMorph new `>> [text: 'Restart: ' ; restart printString. ].
+        b@(button) handleMyself: e@(MouseButtonClickEvent traits)
+        [
+           im unlink.
+           (restart newCondition: cond) `>> [queryFrom: d. signal]
+        ].
+        button]).
   im setChildren: {backtraceListbox. inspectButton} ; restartButtons.
-  im region: (Rectangle origin: x , y extent: width , height).
+  im region: (Rectangle origin: x <> y extent: width <> height).
   parent addChild: im.
   im pack.
   im

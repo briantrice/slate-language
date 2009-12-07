@@ -141,25 +141,29 @@
 ;; Syntax-Handling
 ;; ===============
 
-(defconst slate-name-regexp "[A-Za-z][-A-Za-z0-9_:]*[^:]"
+(defconst slate-name-chars "A-Za-z0-9"
+  "The collection of character that can compose a Slate identifier")
+
+(defconst slate-name-regexp (concat "[A-Za-z][-" slate-name-chars "_:]*[^:]")
   "A regular expression that matches a Slate identifier")
 
 (defconst slate-globals-regexp
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
         "resend" "clone" "here" "it") 'words))
 
-(defconst slate-binop-regexp (concat "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([-+*/~,;<>=&?]\\{1,3\\}\\|||\\)")
+(defconst slate-binop-chars "-+*/\\~;<>=&?"
+  "The collection of characters that can compose a Slate binary selector.")
+
+(defconst slate-binop-regexp
+  (concat "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)")
   "A regular expression that matches a Slate binary selector")
 
 (defconst slate-keyword-regexp
-  "\\([-A-Za-z0-9_][-A-Za-z0-9_:]*:\\| :[^A-Za-z]\\)"
+  (concat "\\([-" slate-name-chars "_][-" slate-name-chars "_:]*:\\| :[^A-Za-z]\\)")
   "A regular expression that matches a Slate keyword")
 
 (defconst slate-opt-keyword-regexp (concat "&" slate-keyword-regexp)
   "A regular expression that matches a Slate optional-keyword")
-
-(defconst slate-name-chars "A-Za-z0-9"
-  "The collection of character that can compose a Slate identifier")
 
 (defconst slate-whitespace-chars " \t\n\f")
 
@@ -169,7 +173,7 @@
      #'(lambda (l)
          (modify-syntax-entry (car l) (cdr l) table))
      '((?\' . "\"") ; String
-       ;(?\"  . "!") ; Comment
+       (?\" . "\"") ; Comment
        (?+  . "w") ; Binary selector elements...
        (?-  . "w")
        (?*  . "w")
@@ -179,7 +183,6 @@
        (?~  . "w")
        (?%  . "w")
        (?\; . "w")
-       (?,  . "w")
        (?<  . "w")
        (?>  . "w")
        (?\[ . "(]") ; Block opener
@@ -193,12 +196,13 @@
        (?$  . "'") ; Character literal
        (?#  . "'") ; Symbol
        (?|  . "$") ; Locals
-       (?_  . "_") ; Word-element and anonymous argument
+       (?_  . "w") ; Word-element and anonymous argument
        (?:  . "_") ; Keyword marker
        (?\\ . "\\") ; C-like escape
        (?!  . "'") ; A stop in Smalltalk. A type annotation in Slate.
        (?@  . "'") ; Dispatch annotator
        (?^  . "w") ; Return
+       (?,  . ".") ; Comma for *rest parameters
        (?.  . "."))) ; Statement separator
     table)
   "Slate character types")
@@ -214,21 +218,18 @@
 (defconst italic 'italic)
 
 (defconst slate-font-lock-keywords
-  `((,(concat "#[^" slate-whitespace-chars "{}()]+")
-     . font-lock-reference-face)    ; symbol
-    ("[^\\]\"[^\\]\"" . font-lock-comment-face) ; comment
-    ("[^#$]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    ("\$\\(\\\\[ntsbre0avf\'\"\\]\\|.\\)"
+  `((,(concat "#[" slate-name-chars slate-binop-chars "_:]+")
+     . font-lock-constant-face)    ; symbol
+    ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
+    ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
+    ("[$]\\(\\\\[ntsbre0avf\\'\\\"]\\|[^\\]\\)"
      . font-lock-string-face)        ; character
-    (,(concat "`" slate-binop-regexp)
+    ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
+    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
-    (,(concat "`" slate-name-regexp)
-     . ,(if (boundp 'font-lock-preprocessor-face)
-        'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; macro call
-    ("[`]+"
+    ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; quotation syntax
@@ -241,20 +242,22 @@
     (,slate-keyword-regexp . ,slate-keyword-face) ; keyword sends
     ("|[A-Za-z0-9:*!() \n]*|"
      . font-lock-variable-name-face)    ; block local slots
-    ("\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
+    ("\\<\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
      . font-lock-variable-name-face)    ; block input slots
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
      . font-lock-type-face)        ; type-declaration
+    ("\\<[+-]?\\([0-9_]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
+     . font-lock-constant-face) ; integers and floats
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
      . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
      . font-lock-type-face)        ; traits name
     ("\\<\\^\\>" . font-lock-warning-face)    ; return
-    ("\\<[0-9]+\\>" . font-lock-constant-face) ; integers
-    ("\\<[+-]?\\([0-9]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
-     . font-lock-constant-face) ; integers and floats
+    ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
      . font-lock-keyword-face)        ; globals
+    ;(,(concat "\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
+    ; . font-lock-function-name-face) ; method call
    )
   "Slate highlighting matchers.")
 
@@ -943,37 +946,37 @@ previous one."
       (slate-begin-of-defun))))        ;and go to the next one
 
 (defun slate-narrow-to-paren (state)
-  "Narrows the region to between point and the closest previous open paren.
-Actually, skips over any block parameters, and skips over the whitespace
-following on the same line."
+  "Narrows the region to between point and the closest previous opening bracket.
+It also skips over block headers, and following whitespace on the same line."
   (let ((paren-addr (nth 1 state))
-    start c done)
+    start c)
     (when paren-addr
       (save-excursion
-    (goto-char paren-addr)
-    (setq c (following-char))
-    (cond ((memq c '(?\( ?\{))
-           (setq start (1+ (point))))
-          ((eq c ?\[)
-           (setq done nil)
-           (forward-char 1)
-           (skip-chars-forward " \t\n")
-           (when (eq (following-char) ?|) ;opens a block header
-         (forward-char 1) ;skip vbar
-         (while (not done)
-           (skip-chars-forward " \t")
-           (setq c (following-char))
-           (cond ((eq c ?|)
-              (forward-char 1) ;skip vbar
-              (skip-chars-forward " \t")
-              (setq done t)) ;done
-             ((eq c ?:)
-              (skip-chars-forward "A-Za-z0-9" 1)) ;skip input slot
-             ((eq c ?\n)
-              (setq done t)) ;don't accept line-wraps
-             (t
-              (skip-chars-forward "A-Za-z0-9"))))) ;skip local slot
-           (setq start (point)))))
+        (goto-char paren-addr)
+        (setq c (following-char))
+        (cond ((memq c '(?\( ?\{))
+               (setq start (1+ (point))))
+              ((eq c ?\[)
+               (forward-char 1)
+               ;; Now skip over the block parameters, if any
+               (let (done)
+                 (setq done nil)
+                 (slate-forward-whitespace)
+                 (if (eq (following-char) ?|) ;opens a block header
+                     (progn (forward-char 1)  ;skip vbar
+                            (while (not done)
+                              (slate-forward-whitespace)
+                              (setq c (following-char))
+                              (cond ((memq c '(?: ?* ?&))
+                                     (slate-forward-sexp 1)) ;skip input slot
+                                    ((eq c ?|)
+                                     (forward-char 1) ;skip vbar
+                                     (slate-forward-whitespace)
+                                     (setq done t))
+                                    (t
+                                     (slate-forward-sexp 1))))) ;skip local slot
+                   (setq done t)))
+               (setq start (point)))))
       (narrow-to-region start (point)))))
 
 (defun slate-at-method-begin ()

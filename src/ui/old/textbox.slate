@@ -68,7 +68,7 @@ te@(TextboxElement traits) handle: event@(PaintEvent traits)
 teclass@(TextboxElement traits) newModel: model view: view inputHandler: controller
 " For example: TextboxElement newModel: ArrayTextBuffer view: SimpleTextView inputHandler: FundamentalMode. "
 [ | te |
-  te: (teclass newInnerBounds: (Rectangle origin: 0 , 0 extent: 100 , 100)).
+  te: (teclass newInnerBounds: (Rectangle origin: 0 <> 0 extent: 100 <> 100)).
   te model: (model new).
   te view: (view new `>> [on: te model.]).
   te model view: te view.
@@ -110,7 +110,7 @@ stv@(SimpleTextView traits) paintOn: context withOffset: point
 
 
     " for the list item to print "
-    position: (0 , (stv morph fontSize)).
+    position: (0 <> (stv morph fontSize)).
     index: 0.
     context sourceRGB: stv morph textColor alpha: stv morph textAlpha.
 
@@ -118,7 +118,7 @@ stv@(SimpleTextView traits) paintOn: context withOffset: point
                     context moveTo: position.
                     context showText: (item as: String).
 
-                    position: (position x , (position y + stv morph fontSize)).
+                    position: (position x <> (position y + stv morph fontSize)).
                     index: index + 1].
 
     context sourceRGB: stv morph foregroundColor alpha: stv morph foregroundAlpha.
@@ -126,11 +126,11 @@ stv@(SimpleTextView traits) paintOn: context withOffset: point
     "FIXME don't hardcode width"
 
     stv model allPoints do: [| :point |
-                    context moveTo: ((point position * (7)) , ((point line + 1 * stv morph fontSize) + 2)).
+                    context moveTo: ((point position * (7)) <> ((point line + 1 * stv morph fontSize) + 2)).
                     context showText: '_'].
 
     context sourceRGB: stv morph selectionColor alpha: stv morph selectionAlpha.
-    context moveTo: ((stv model activePoint position * (7)) , 
+    context moveTo: ((stv model activePoint position * (7)) <>
                      ((stv model activePoint line + 1 * stv morph fontSize) + 2)).
     context showText: '_'.
 

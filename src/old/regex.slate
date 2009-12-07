@@ -96,26 +96,28 @@ Regex Match define: #Substring &parents: {Regex Match Link} &slots:
  #compare}.
 
 Regex Parser traits define: #BackslashConstants &builder:
-[Dictionary new `>> [at: $e put: $\e.
-                      at: $n put: $\n.
-                      at: $r put: $\r.
-                      at: $f put: $\f.
-                      at: $t put: $\t. ]].
+[Dictionary new*,
+   $e -> $\e,
+   $n -> $\n,
+   $r -> $\r,
+   $f -> $\f,
+   $t -> $\t].
 
-Regex Parser traits define: #BackslashSpecials &builder: [Dictionary new `>> [
-  "Keys are characters that normally follow a \, the values are
+Regex Parser traits define: #BackslashSpecials &builder:
+[Dictionary new*,
+   "Keys are characters that normally follow a \, the values are
   associations of classes and initialization selectors on the instance side
   of the classes."
-    at: $w put: (Regex Syntax Predicate ->  #beWordConstituent).
-    at: $W put: (Regex Syntax Predicate ->  #beNotWordConstituent).
-    at: $s put: (Regex Syntax Predicate ->  #beSpace).
-    at: $S put: (Regex Syntax Predicate ->  #beNotSpace).
-    at: $d put: (Regex Syntax Predicate ->  #beDigit).
-    at: $D put: (Regex Syntax Predicate ->  #beNotDigit).
-    at: $b put: (Regex Syntax ContextCondition -> #beWordBoundary).
-    at: $B put: (Regex Syntax ContextCondition -> #beNonWordBoundary).
-    at: $< put: (Regex Syntax ContextCondition -> #beBeginningOfWord).
-    at: $> put: (Regex Syntax ContextCondition -> #beEndOfWord).]].
+    $w -> (Regex Syntax Predicate ->  #beWordConstituent),
+    $W -> (Regex Syntax Predicate ->  #beNotWordConstituent),
+    $s -> (Regex Syntax Predicate ->  #beSpace),
+    $S -> (Regex Syntax Predicate ->  #beNotSpace),
+    $d -> (Regex Syntax Predicate ->  #beDigit),
+    $D -> (Regex Syntax Predicate ->  #beNotDigit),
+    $b -> (Regex Syntax ContextCondition -> #beWordBoundary),
+    $B -> (Regex Syntax ContextCondition -> #beNonWordBoundary),
+    $< -> (Regex Syntax ContextCondition -> #beBeginningOfWord),
+    $> -> (Regex Syntax ContextCondition -> #beEndOfWord)].
 
 s@(Regex Match Special traits) matchAgainst: aMatcher
 [

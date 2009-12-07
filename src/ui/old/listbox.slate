@@ -10,7 +10,7 @@ Graphics define: #ListboxElement &parents: {ScrollpaneElement. PaintSolidBackgro
 
 lb@(ListboxElement traits) newTarget: t getList: getlist@(Symbol traits) getSelection: getsel@(Symbol traits) setSelection: setsel@(Symbol traits)
 [ | obj |
-  obj: ((lb newInnerBounds: (Rectangle origin: (0 , 0) extent: ( 999 , 999)))
+  obj: ((lb newInnerBounds: (Rectangle origin: (0 <> 0) extent: ( 999 <> 999)))
          cloneSettingSlots: #(targetObject getListSelector getSelectionSelector setSelectionSelector)
                         to: {t. getlist. getsel. setsel.}).
 
@@ -30,7 +30,7 @@ lb targetObject ifNil: [lb]
 
 lb@(ListboxElement traits) calculateInnerBoundsFrom: items
 [
-  lb innerBounds: (Rectangle origin: ( 0 , 0 ) extent: (100 , (lb fontSize + 1 * items size)))
+  lb innerBounds: (Rectangle origin: ( 0 <> 0 ) extent: (100 <> (lb fontSize + 1 * items size)))
 ].
 
 
@@ -105,8 +105,8 @@ lb@(ListboxElement traits) handle: event@(PaintEvent traits)
 
 
     selection do: [| :index |
-                   event context rectangle: (Rectangle origin: 0 , (index * lb fontSize)
-                                                       extent: (lb boundingRect width , lb fontSize)).
+                   event context rectangle: (Rectangle origin: 0 <> (index * lb fontSize)
+                                                       extent: (lb boundingRect width <> lb fontSize)).
                    event context fill
                   ].
 
@@ -115,7 +115,7 @@ lb@(ListboxElement traits) handle: event@(PaintEvent traits)
 
 
     " for the list item to print "
-    position: (0 , (lb fontSize)).
+    position: (0 <> (lb fontSize)).
     index: 0.
     event context sourceRGB: lb textColor alpha: lb textAlpha.
 
@@ -130,7 +130,7 @@ lb@(ListboxElement traits) handle: event@(PaintEvent traits)
                               ]
                       ifFalse: [event context showText: (item as: String).].
 
-                    position: (position x , (position y + lb fontSize)).
+                    position: (position x <> (position y + lb fontSize)).
                     index: index + 1].
 
     event context restore.

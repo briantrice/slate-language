@@ -284,17 +284,6 @@ def@(Image Definition traits) generate
   builder
 ].
 
-i@Image bootstrap &littleEndian: littleEndian &bitSize: bitSize
-"Only to be called during or after fullCleanBootstrap to build new images
-based on the new VM Definition."
-[| def |
-  bitSize `defaultsTo: Platform Current bytesPerWord * 8.
-  littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
-  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian bitSize: bitSize).
-  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. bitSize} put: def.
-  def generate
-].
-
 i@Image generateAmd64Test
 [
   ((i Definition cached at: 'bare') newNamed: 'k64' littleEndian: True bitSize: 64) generate.
@@ -303,4 +292,17 @@ i@Image generateAmd64Test
 i@Image generateAmd64
 [
   (i Definition newNamed: 'amd64' littleEndian: True bitSize: 64) generate.
+].
+
+i@Image bootstrap &littleEndian: littleEndian &bitSize: bitSize
+"Only to be called during or after fullCleanBootstrap to build new images
+based on the new VM Definition."
+[| def |
+  bitSize `defaultsTo: Platform Current bytesPerWord * 8.
+  littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
+  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian bitSize: bitSize).
+  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. bitSize} put: def.
+  def generate.
+  inform: 'Generated new kernel image at: \'' ; def filename ; '\''.
+  inform: 'Suggested next command: ' ; StartupArguments first ; ' -i ' ; def filename.
 ].

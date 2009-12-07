@@ -47,6 +47,12 @@ edit:
 	$(info Launching Slate in Emacs)
 	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el
 
+slate-completions:
+	$(info Creating completion file for evaluation)
+	$(SECHO) "(File newNamed: '~/.slate_completions' &mode: File CreateWrite) writer sessionDo: [| :x | Symbols keySet do: [| :name | x ; name ; '\n']]." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
+
+readline-support: slate-completions
+
 bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
 	$(SILENT) $(ECHO) "Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE)." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate
