@@ -153,8 +153,10 @@ e@(ExternalLibrary traits) externalTypeFor: _@(Types C Structure traits) in: _
 e@(ExternalLibrary traits) externalTypeFor: ctype@(Types C Pointer traits) in: ns
 [
   "Structures are not singletons, we must spacial-case them here"
-  (ctype targetType is: Types C Structure) ifTrue: [^ ExternalMethod ArgumentFormat Bytes].
-  e pointedCTypeToExtlibType at: ctype targetType ifAbsent: [ExternalMethod ArgumentFormat Pointer]
+  (ctype targetType is: Types C Structure)
+    ifTrue: [ExternalMethod ArgumentFormat Bytes]
+    ifFalse: [e pointedCTypeToExtlibType at: ctype targetType ifAbsent:
+                [ExternalMethod ArgumentFormat Pointer]]
 ].
 
 ExternalMethod traits define: #Signature
@@ -226,7 +228,7 @@ m@(ExternalMethod traits) applyTo: args
 [| answer |
   args size = m arity ifFalse: [args wrongInputsTo: m].
   answer: (m parentResource primitiveApply: m handle accepting: m argumentsFormat callFormat: m callFormat returning: m resultFormat to: args).
-  (m resultFormat = m ArgumentFormat Int) /\ [answer is: ByteArray]
+  (m resultFormat = m ArgumentFormat Int) /\ [answer isSameAs: ByteArray]
     ifTrue: [answer as: BigInteger]
     ifFalse: [answer]
 ].
@@ -343,7 +345,7 @@ _@(CObject traits) parseDefinition: typeName@(Symbol traits) named: name in: ns
 "Try to find a struct prefixed by '_' then look for a defined type in ns. If
 neither was found try Types C"
 [| structName |
-  structName: ('_' ; typeName as: Symbol).
+  structName: ('_' ; typeName) intern.
   Types C StructureElement newNamed: name type:
     ((structName isFoundOn: {ns})
       ifTrue: [structName sendWith: ns]
