@@ -47,28 +47,28 @@ ExternalMethod traits ensureNamespace: #ArgumentFormat
 ExternalMethod traits ensureNamespace: #CallFormat
   &slots: {#C -> 0. #Std -> 1}.
 
-ExternalLibrary traits define: #cTypeToExtlibType -> Dictionary new.
-ExternalLibrary cTypeToExtlibType addAll: {
-  Types C Void             -> ExternalMethod ArgumentFormat Void.
-  Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Int.
-  Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Int.
-  Types C UnsignedChar     -> ExternalMethod ArgumentFormat Int.
-  Types C LongInt          -> ExternalMethod ArgumentFormat Int.
-  Types C ShortInt         -> ExternalMethod ArgumentFormat Int.
-  Types C Char             -> ExternalMethod ArgumentFormat Int.
-}.
+ExternalLibrary traits define: #cTypeToExtlibType ->
+(Dictionary new*,
+   Types C Void             -> ExternalMethod ArgumentFormat Void,
+   Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Int,
+   Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Int,
+   Types C UnsignedChar     -> ExternalMethod ArgumentFormat Int,
+   Types C LongInt          -> ExternalMethod ArgumentFormat Int,
+   Types C ShortInt         -> ExternalMethod ArgumentFormat Int,
+   Types C Char             -> ExternalMethod ArgumentFormat Int
+).
 
-ExternalLibrary traits define: #pointedCTypeToExtlibType -> Dictionary new.
-ExternalLibrary pointedCTypeToExtlibType addAll: {
-  Types C Void             -> ExternalMethod ArgumentFormat Bytes.
-  Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Bytes.
-  Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Bytes.
-  Types C LongInt          -> ExternalMethod ArgumentFormat Bytes.
-  Types C ShortInt         -> ExternalMethod ArgumentFormat Bytes.
+ExternalLibrary traits define: #pointedCTypeToExtlibType ->
+(Dictionary new*,
+   Types C Void             -> ExternalMethod ArgumentFormat Bytes,
+   Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Bytes,
+   Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Bytes,
+   Types C LongInt          -> ExternalMethod ArgumentFormat Bytes,
+   Types C ShortInt         -> ExternalMethod ArgumentFormat Bytes,
 
-  Types C UnsignedChar     -> ExternalMethod ArgumentFormat CString.
-  Types C Char             -> ExternalMethod ArgumentFormat CString.
-}.
+   Types C UnsignedChar     -> ExternalMethod ArgumentFormat CString,
+   Types C Char             -> ExternalMethod ArgumentFormat CString
+).
 
 ExternalMethod `>> [
   callFormat: ExternalMethod CallFormat C.
