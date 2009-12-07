@@ -24,28 +24,35 @@ d@(Debugger traits) printCurrentStack &limit: limit &stream: out &showLocation: 
 ].
 
 x@(Root traits) methodsUsingMe
-[ |set writer |
-  set: Set new.
-  writer: set writer.
-  x allDelegates do:
-    [|:deleg| deleg roleReader do:
-       [|:role findOnArray positions|
-          findOnArray: (Array newSize: (role selector arity `cacheAs: #arity)).
-          positions: role rolePositions.
-          0 below: arity do: [|:bitPos| (positions bitAnd: 1 << bitPos) ~= 0 ifTrue: [findOnArray at: bitPos put: x]
-                                                                          ifFalse: [findOnArray at: bitPos put: NoRole].
-                                     (role selector findOn: findOnArray) ifNotNilDo:
-                                          [|:method| (method isSameAs: PrimitiveMethod) ifFalse: [writer nextPut: method method]]]]].
-  set
+[
+  [| :result |
+   x allDelegates do:
+     [| :deleg |
+      deleg roleReader do:
+        [| :role findOnArray positions |
+         findOnArray: (Array newSize: (role selector arity `cacheAs: #arity)).
+         positions: role rolePositions.
+         0 below: arity do:
+           [| :position |
+            findOnArray at: position put:
+              ((positions bitAnd: 1 << position) ~= 0
+                 ifTrue: [x] ifFalse: [NoRole]).
+            (role selector findOn: findOnArray) ifNotNilDo:
+              [| :method |
+               (method isSameAs: PrimitiveMethod) ifFalse:
+                 [writer nextPut: method method]]]]]] writingAs: Set
 ].
 
 x@(Root traits) mostCommonlyCalledMethods
 [
-  x methodsUsingMe sortBy: [|:x :y| x callCount >= y callCount]
+  x methodsUsingMe sortBy: [| :x :y | x callCount >= y callCount]
 ].
 
 x@(Root traits) printMostCommonlyCalledMethods
 [
-  x mostCommonlyCalledMethods do: [|:m| inform: m printString ; ' count: ' ; m callCount printString ; ' at: ' ; m definitionLocation].
+  x mostCommonlyCalledMethods do:
+    [| :m | inform: m printString
+              ; ' count: ' ; m callCount printString
+              ; ' at: ' ; m definitionLocation].
 ].
 
