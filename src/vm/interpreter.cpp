@@ -180,6 +180,11 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   printf("apply to arity %" PRIdPTR "\n", n);
 #endif
 
+  struct Object* traitsWindow = closure->base.map->delegates->elements[0];
+  if (traitsWindow != oh->cached.compiled_method_window && traitsWindow != oh->cached.closure_method_window) {
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), (struct Object*)closure, NULL, resultStackPointer);
+    return;
+  }
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
 
