@@ -196,7 +196,7 @@ e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
     do: [| :sig functionName method |
          functionName: (nameTransformer applyWith: sig name).
 	 target addSlot: (intern: sig name) valued:
-	   (e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af)].
+	   ((e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af) as: CompiledMethod)].
 ].
 
 e@(ExternalLibrary traits) installMethodsForDefs: defs on: target
@@ -224,13 +224,18 @@ m@(ExternalMethod traits) enable
     ifFalse: [m handle: Nil. m connectionFailure]
 ].
 
-m@(ExternalMethod traits) applyTo: args
+m@(ExternalMethod traits) externalApplyTo: args
 [| answer |
   args size = m arity ifFalse: [args wrongInputsTo: m].
   answer: (m parentResource primitiveApply: m handle accepting: m argumentsFormat callFormat: m callFormat returning: m resultFormat to: args).
   (m resultFormat = m ArgumentFormat Int) /\ [answer isSameAs: ByteArray]
     ifTrue: [answer as: BigInteger]
     ifFalse: [answer]
+].
+
+m@(ExternalMethod traits) as: _@(CompiledMethod traits)
+[
+  [ |*rest| m externalApplyTo: rest]
 ].
 
 prototypes define: #CObject &parents: {ByteArray}
