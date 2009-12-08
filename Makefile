@@ -49,13 +49,13 @@ edit:
 
 slate-completions:
 	$(info Creating completion file for evaluation)
-	$(SECHO) "(File newNamed: '~/.slate_completions' &mode: File CreateWrite) writer sessionDo: [| :x | Symbols keySet do: [| :name | x ; name ; '\n']]." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE)
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --eval "(File newNamed: '~/.slate_completions' &mode: File CreateWrite) writer sessionDo: [| :x | Symbols keySet do: [| :name | x ; name ; '\n']]. quit."
 
 readline-support: slate-completions
 
 bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
-	$(SILENT) $(ECHO) "Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE)." | $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE). quit."
 
 backup: superclean
 	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
