@@ -765,21 +765,6 @@ gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args from: msg result: fin
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifNil: on: args from: msg result: finalResult
-[
-  gen generate: #ifTrue:ifFalse: on:
-    {(args first `unquote == Nil) `quote.
-     args second.
-     [(args first) `unquote] `quote}
-    from: msg result: finalResult
-].
-
-gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args from: msg result: finalResult
-[
-  args at: 0 infect: [| :arg | Syntax BinaryMessage sending: #== to: {arg. Syntax Literal Nil}].
-  gen generate: #ifFalse: on: args from: msg result: finalResult
-].
-
 gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResult
 "Optionally evaluates a block."
 [| falseLabel endLabel condResult |
