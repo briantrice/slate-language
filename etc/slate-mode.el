@@ -882,7 +882,7 @@ selector."
       (save-restriction
         (widen)
         (beginning-of-line)
-        (slate-forward-whitespace)
+        (skip-chars-forward " \t")
         (when (memq (following-char) '(?\} ?\) ?\]))
           (setq indent-amount (max 0 (- indent-amount slate-indent-increment))))
         (while (memq (following-char) '(?\} ?\) ?\]))
