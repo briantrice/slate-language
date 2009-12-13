@@ -6,6 +6,7 @@ prototypes define: #REPL &parents: {Cloneable} &slots:
    #lineCount -> 0.
    #basePrompt -> '> '.
    #noviceMode -> False.
+   #inputs -> (RingBuffer new &capacity: 10).
    #results -> (RingBuffer new &capacity: 10)}.
 
 REPL traits define: #Workspace &parents: {Namespace}.
@@ -40,6 +41,7 @@ repl@(REPL traits) reset
 "Clear out the line number and the evaluation result Collection."
 [
   repl lineCount: 0.
+  repl inputs clear.
   repl results clear.
 ].
 
@@ -65,9 +67,8 @@ and control."
   (#repl findOn: {repl namespace})
     ifNotNilDo: [| :m | repl namespace addSlot: #previousREPLMethod valued: m].
   "Define quick methods for the last 5 evaluation results."
-  ns@(repl namespace) it "The last evaluation result."
-  [ns repl results first].
-  ns@(repl namespace) it1 [ns it].
+  ns@(repl namespace) it  [ns it1].
+  ns@(repl namespace) it1 [ns repl results first].
   ns@(repl namespace) it2 [ns repl results second].
   ns@(repl namespace) it3 [ns repl results third].
   ns@(repl namespace) it4 [ns repl results fourth].
@@ -157,11 +158,9 @@ This does not normally exit unless there is a serious error."
 	[| expr result |
          [expr: repl parser next]
 	   on: Stream Exhaustion
-           do: [| :c | 
-             c stream == repl resource reader
-               ifTrue:
-                 [repl printer ; '\n'. 
-                   ^ Nil]].
+           do: [| :c | c stream == repl resource reader ifTrue:
+                         [repl printer ; '\n'. ^ Nil]].
+         repl inputs addFirst: expr.
 	 result: ([expr evaluateIn: repl namespace] on: SeriousCondition do:
 	   [| :c |
 	    repl noviceMode ifTrue:
