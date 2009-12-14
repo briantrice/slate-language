@@ -52,7 +52,6 @@ s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
       "Remove the bootstrap kluge."
       #intern: removeMethodFrom: {lobby. ASCIIString traits}].
 
-
 _@lobby intern: s@(String traits)
 "Answer a Symbol object with the string as its name. This will identify any
 existing Symbol with the same name and use that, or create a new one if not."
@@ -67,6 +66,17 @@ s@(Root traits) intern
 "A quick way to create a new Symbol, and allow for genericity later, perhaps."
 [lobby intern: s].
 
+table@Symbols unintern: s@(String traits)
+"Answer a Symbol object with the string as its name. This will identify any
+existing Symbol with the same name and use that, or create a new one if not."
+[table removeKey: s].
+
+table@Symbols unintern: s@(Symbol traits)
+[table remove: s].
+
+s@(Root traits) unintern
+[Symbols unintern: s].
+
 s@(Root traits) isInterned
 "Answer whether the object is used as a key in the Symbols table."
 [(globals Symbols at: s ifAbsent: []) isNotNil].
@@ -76,7 +86,7 @@ s@(Symbol traits) as: _@(String traits)
 [s name].
 
 s@(Symbol traits) as: _@(Symbol traits)
-"Symbol is: String, so the above method must be hidden"
+"Symbol is: String, so the Symbol as: String conversion must be elided."
 [s].
 
 name@(String traits) as: _@(Symbol traits)
