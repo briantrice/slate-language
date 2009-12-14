@@ -124,12 +124,20 @@ x@(Root traits) addSlot: slotName valued: slotValue
 ].
 
 x@(Root traits) addSlot: slotName
-"Adds a slot with default value."
-[x addSlot: slotName valued: x defaultSlotValue].
+"Adds a slot with default value, unless the slot is already present."
+[
+  (x hasSlotNamed: slotName)
+    ifTrue: [x atSlotNamed: slotName]
+    ifFalse: [x addSlot: slotName valued: x defaultSlotValue]
+].
 
 x@(Root traits) addImmutableSlot: slotName
-"Adds a slot with default value."
-[x addImmutableSlot: slotName valued: x defaultSlotValue].
+"Adds a slot with default value, unless the slot is already present."
+[
+  (x hasSlotNamed: slotName)
+    ifTrue: [x atSlotNamed: slotName]
+    ifFalse: [x addImmutableSlot: slotName valued: x defaultSlotValue]
+].
 
 x@(Root traits) addDelegate: slotValue
 [| newObj newDelegates |
