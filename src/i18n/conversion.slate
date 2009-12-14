@@ -89,12 +89,11 @@ UTF8 define: #Encoder &parents: {EncoderStream}.
 
 u@(UTF8 Encoder traits) nextPut: aCharacter
 "This was adapted from Squeak Unicode package."
-[| codePoint rest byteStream  increment mask numberOfMaskBits 
+[| codePoint rest byteStream increment mask numberOfMaskBits 
    sixthBitOn counterBit counterIncrement forbiddenForLeadingOctet |
   aCharacter isNonCharacter ifTrue: [Unicode WritingNonCharacter signal].
   byteStream: (Array newSize: 7) writer.
-  codePoint: aCharacter code.
-  (codePoint < 16r80)
+  (codePoint: aCharacter code) < 16r80
     ifTrue: [byteStream nextPut: codePoint]
     ifFalse: [mask: 2r111111.
 	      numberOfMaskBits: 6.
@@ -119,8 +118,8 @@ u@(UTF8 Encoder traits) nextPut: aCharacter
                          increment: (increment bitShift: -1).
                          counterBit: (counterBit bitOr: counterIncrement).
                          counterIncrement: (counterIncrement bitShift: -1)]]].
-  byteStream contents reversed 
-    do: [| :byte | u target nextPut: (byte as: Character)].
+  (byteStream contents reversed select: #isNotNil `er)
+    do: [| :byte | u target nextPut: (byte as: ASCIIString Character)].
 ].
 
 "UTF-16:"

@@ -9,10 +9,10 @@ CharacterData ensureNamespace: #Unicode.
 
 "EncodedString is Unicode by default. encodings-unicode.slate must be the
 first encoding-file to be loaded."
-EncodedString addSlot: #elementType valued: UnicodeCharacter.
+EncodedString elementType: UnicodeCharacter.
 
 prototypes define: #UnicodeString &parents: {EncodedString}
- &slots: {#elementType -> UnicodeCharacter. #contents -> #{}}.
+ &slots: {#contents -> #{}}.
 
 s@(UnicodeString traits) new &capacity: n
 [s clone `>> [contents: (s contents new &capacity: n). ]].
@@ -55,7 +55,7 @@ u@(UnicodeCharacter traits) as: _@(Integer traits)
 
 s@(SmallUnicodeString traits) new &capacity: n
 [
- s cloneSettingSlots: #(bytes1 bytes2 bytes3)
+ s clone `setting: #(bytes1 bytes2 bytes3)
    to: {s bytes1 newSize: n. s bytes2 newSize: n. s bytes3 newSize: n}
 ].
 
@@ -184,163 +184,161 @@ YiSyllables) do: [| :name | Unicode addSubset: name].
 
 UnicodeCharacter traits compareAndHashUsingSlots: #(code).
 
-c@(UnicodeCharacter traits) unicodeSubset
+ns@Unicode subsetAt: i@(Integer traits) &kanjiClass: kanjiClass
 "Find the subset of Unicode characters a character belongs to.
-This is localized. This was adapted from Squeak m17n package."
-[| subset |
- c code unicodeSubsetWithKanjiClass: CurrentLocale KanjiClass
-].
-
-unicode@(Integer traits) unicodeSubsetWithKanjiClass: kanjiClass
-[| code4096 |
- code4096: unicode // 4096.
- code4096 = 0 ifTrue: [^ (unicode unicodeSubsetFor0)].
- code4096 = 1 ifTrue: [^ (unicode unicodeSubsetFor1)].
- code4096 = 2 ifTrue: [unicode >= 16r2E80 ifTrue: [
-			 ^ (kanjiClass unicodeSubsetForKanjiClass)].
-		       ^ (unicode unicodeSubsetFor2)].
- code4096 = 3 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 4 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 5 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 6 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 7 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 8 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 9 ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
- code4096 = 10 ifTrue: [^ (unicode unicodeSubsetFor10)].
- code4096 = 11 ifTrue: [^ Unicode Korean].
- code4096 = 12 ifTrue: [^ Unicode Korean].
- code4096 = 13 ifTrue: [^ (unicode unicodeSubsetFor13)].
- code4096 = 14 ifTrue: [^ Unicode General].
- code4096 = 15 ifTrue: [unicode <= 16rF8FF ifTrue: [^ Unicode General].
-			unicode <= 16rFAFF ifTrue: [(^ kanjiClass unicodeSubsetForKanjiClass)].
-			unicode <= 16rFB4F ifTrue: [^ Unicode AlphabeticPresentations].
-			unicode <= 16rFDFF ifTrue: [^ Unicode ArabicPresentationsA].
-			unicode <= 16rFE0F ifTrue: [^ Unicode General].
-			unicode <= 16rFE2F ifTrue: [^ Unicode CombiningHalfMarks].
-			unicode <= 16rFE4F ifTrue: [^ Unicode General].
-			unicode <= 16rFE6F ifTrue: [^ Unicode General].
-			unicode <= 16rFEFF ifTrue: [^ Unicode ArabicPresentationsB].
-			unicode <= 16rFFEF ifTrue: [^ (kanjiClass unicodeSubsetForKanjiClass)].
-			^ Unicode General].
- 16r10300 <= unicode /\ [unicode <= 16r1032F] ifTrue:[^ Unicode OldItalic].
- unicode <= 16r1034F ifTrue: [^ Unicode Gothic].
- 16r10400 <= unicode /\ [unicode <= 16r1044F] ifTrue: [^ Unicode Deseret].
- unicode <= 16r1CFFF ifTrue: [^ Unicode General].
- unicode <= 16r1D0FF ifTrue: [^ Unicode ByzantineMusicals].
- unicode <= 16r1D3FF ifTrue: [^ Unicode General].
- unicode <= 16r1D7FF ifTrue: [^ Unicode MathAlnumSymbols].
- 16r20000 <= unicode /\ [unicode <= 16r2FA1F] ifTrue: [(^ kanjiClass unicodeSubsetForKanjiClass)].
- Unicode General
-].
-
-kanjiClass@(Symbol traits) unicodeSubsetForKanjiClass
+This is localized."
 [
- kanjiClass = #Japanese ifTrue: [^ Unicode Japanese].
- kanjiClass = #Korean ifTrue: [^ Unicode Korean].
- kanjiClass = #SimplifiedChinese ifTrue: [^ Unicode SimplifiedChinese].
- "kanjiClass = Taiwanese ifTrue: [^ Unicode TraditionalChinese]."
- "kanjiClass = Vietnamese ifTrue: [^ Unicode Vietnamese]."
- Unicode General
+  kanjiClass `defaultsTo: CurrentLocale KanjiClass.
+  i // 4096 caseOf: {
+    0 -> [ns subsetFor0: i].
+    1 -> [ns subsetFor1: i].
+    2 -> [(i >= 16r2E80
+             ifTrue: [ns subsetForKanjiClass: kanjiClass]
+             ifFalse: [ns subsetFor2: i])].
+    3 -> [ns subsetForKanjiClass: kanjiClass].
+    4 -> [ns subsetForKanjiClass: kanjiClass].
+    5 -> [ns subsetForKanjiClass: kanjiClass].
+    6 -> [ns subsetForKanjiClass: kanjiClass].
+    7 -> [ns subsetForKanjiClass: kanjiClass].
+    8 -> [ns subsetForKanjiClass: kanjiClass].
+    9 -> [ns subsetForKanjiClass: kanjiClass].
+    10 -> [ns subsetFor10: i].
+    11 -> [ns Korean].
+    12 -> [ns Korean].
+    13 -> [ns subsetFor13: i].
+    14 -> [ns General].
+    15 -> [i <= 16rF8FF ifTrue: [^ ns General].
+	   i <= 16rFAFF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
+	   i <= 16rFB4F ifTrue: [^ ns AlphabeticPresentations].
+	   i <= 16rFDFF ifTrue: [^ ns ArabicPresentationsA].
+	   i <= 16rFE0F ifTrue: [^ ns General].
+	   i <= 16rFE2F ifTrue: [^ ns CombiningHalfMarks].
+	   i <= 16rFE4F ifTrue: [^ ns General].
+	   i <= 16rFE6F ifTrue: [^ ns General].
+	   i <= 16rFEFF ifTrue: [^ ns ArabicPresentationsB].
+	   i <= 16rFFEF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
+	   ns General]
+  } otherwise:
+    [(i between: 16r10300 and: 16r1032F) ifTrue: [^ ns OldItalic].
+     i <= 16r1034F ifTrue: [^ ns Gothic].
+     (i between: 16r10400 and: 16r1044F) ifTrue: [^ ns Deseret].
+     i <= 16r1CFFF ifTrue: [^ ns General].
+     i <= 16r1D0FF ifTrue: [^ ns ByzantineMusicals].
+     i <= 16r1D3FF ifTrue: [^ ns General].
+     i <= 16r1D7FF ifTrue: [^ ns MathAlnumSymbols].
+     (i between: 16r20000 and: 16r2FA1F) ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
+     ns General]
 ].
 
-unicode@(Integer traits) unicodeSubsetFor0
+ns@Unicode subsetForKanjiClass: kanjiClass@(Symbol traits)
 [
-  unicode < 16r780 ifTrue: [
-   unicode < 16r100 ifTrue: [^ Unicode Latin].
-   unicode <= 16r24F ifTrue: [^ Unicode LatinExtendedAB].
-   unicode <= 16r2AF ifTrue: [^ Unicode IPA].
-   unicode <= 16r2FF ifTrue: [^ Unicode SpacingModifiers].
-   unicode <= 16r36F ifTrue: [^ Unicode CombiningDiacritical].
-   unicode <= 16r3FF ifTrue: [^ Unicode Greek].
-   unicode <= 16r52F ifTrue: [^ Unicode Cyrillic].
-   unicode <= 16r58F ifTrue: [^ Unicode Armenian].
-   unicode <= 16r5FF ifTrue: [^ Unicode Hebrew].
-   unicode <= 16r6FF ifTrue: [^ Unicode Arabic].
-   unicode <= 16r74F ifTrue: [^ Unicode Syriac].
-   ^ Unicode General].
- unicode <= 16r7BF ifTrue: [^ Unicode Thaana].
- unicode < 16r900 ifTrue: [^ Unicode General].
- unicode <= 16r97F ifTrue: [^ Unicode Devanagari].
- unicode <= 16r9FF ifTrue: [^ Unicode Bengali].
- unicode <= 16rA7F ifTrue: [^ Unicode Gurmukhi].
- unicode <= 16rAFF ifTrue: [^ Unicode Gujarati].
- unicode <= 16rB7F ifTrue: [^ Unicode Oriya].
- unicode <= 16rBFF ifTrue: [^ Unicode Tamil].
- unicode <= 16rC7F ifTrue: [^ Unicode Telugu].
- unicode <= 16rCFF ifTrue: [^ Unicode Kannada].
- unicode <= 16rD7F ifTrue: [^ Unicode Malayalam].
- unicode <= 16rDFF ifTrue: [^ Unicode Sinhala].
- unicode <= 16rE7F ifTrue: [^ Unicode Thai].
- unicode <= 16rEFF ifTrue: [^ Unicode Lao].
- unicode <= 16rFFF ifTrue: [^ Unicode Tibetan].
- Unicode General
+  kanjiClass caseOf: {
+    #Japanese -> [ns Japanese].
+    #Korean -> [ns Korean].
+    #SimplifiedChinese -> [ns SimplifiedChinese]".
+    #Taiwanese -> [ns TraditionalChinese].
+    #Vietnamese -> [ns Vietnamese]."
+  } otherwise: [ns General]
 ].
 
-unicode@(Integer traits) unicodeSubsetFor1
+ns@Unicode subsetFor0: i
 [
-  unicode < 16r1700 ifTrue: 
-    [unicode <= 16r109F ifTrue: [^ Unicode Myanmar].
-     unicode <= 16r10FF ifTrue: [^ Unicode Georgian].
-     unicode <= 16r11FF ifTrue: [^ Unicode General].
-     unicode <= 16r137F ifTrue: [^ Unicode Ethiopic].
-     unicode <= 16r13FF ifTrue: [^ Unicode Cherokee].
-     unicode <= 16r167F ifTrue: [^ Unicode CanadianAboriginal].
-     unicode <= 16r169F ifTrue: [^ Unicode Ogham].
-     unicode <= 16r16FF ifTrue: [^ Unicode Runic].
-     ^ Unicode General].
- unicode <= 16r171F ifTrue: [^ Unicode Tagalog].
- unicode <= 16r173F ifTrue: [^ Unicode Hanunoo].
- unicode <= 16r175F ifTrue: [^ Unicode Buhid].
- unicode <= 16r177F ifTrue: [^ Unicode Tagbanwa].
- unicode <= 16r17FF ifTrue: [^ Unicode Khmer].
- unicode <= 16r18AF ifTrue: [^ Unicode Mongolian].
- unicode <= 16r1EFF ifTrue: [^ Unicode LatinExtendedAdditional].
- unicode <= 16r1FFF ifTrue: [^ Unicode GreekExtended].
- Unicode General
+  i < 16r780 ifTrue:
+    [i < 16r100 ifTrue: [^ ns Latin].
+     i <= 16r24F ifTrue: [^ ns LatinExtendedAB].
+     i <= 16r2AF ifTrue: [^ ns IPA].
+     i <= 16r2FF ifTrue: [^ ns SpacingModifiers].
+     i <= 16r36F ifTrue: [^ ns CombiningDiacritical].
+     i <= 16r3FF ifTrue: [^ ns Greek].
+     i <= 16r52F ifTrue: [^ ns Cyrillic].
+     i <= 16r58F ifTrue: [^ ns Armenian].
+     i <= 16r5FF ifTrue: [^ ns Hebrew].
+     i <= 16r6FF ifTrue: [^ ns Arabic].
+     i <= 16r74F ifTrue: [^ ns Syriac].
+     ^ ns General].
+  i <= 16r7BF ifTrue: [^ ns Thaana].
+  i < 16r900 ifTrue: [^ ns General].
+  i <= 16r97F ifTrue: [^ ns Devanagari].
+  i <= 16r9FF ifTrue: [^ ns Bengali].
+  i <= 16rA7F ifTrue: [^ ns Gurmukhi].
+  i <= 16rAFF ifTrue: [^ ns Gujarati].
+  i <= 16rB7F ifTrue: [^ ns Oriya].
+  i <= 16rBFF ifTrue: [^ ns Tamil].
+  i <= 16rC7F ifTrue: [^ ns Telugu].
+  i <= 16rCFF ifTrue: [^ ns Kannada].
+  i <= 16rD7F ifTrue: [^ ns Malayalam].
+  i <= 16rDFF ifTrue: [^ ns Sinhala].
+  i <= 16rE7F ifTrue: [^ ns Thai].
+  i <= 16rEFF ifTrue: [^ ns Lao].
+  i <= 16rFFF ifTrue: [^ ns Tibetan].
+  ns General
 ].
 
-unicode@(Integer traits) unicodeSubsetFor2
+ns@Unicode subsetFor1: i
 [
-  unicode < 16r2600 ifTrue: 
-    [unicode <= 16r206F ifTrue: [^ Unicode GeneralPunctuation].
-     unicode <= 16r209F ifTrue: [^ Unicode SuperAndSubscript].
-     unicode <= 16r20CF ifTrue: [^ Unicode CurrencySymbols].
-     unicode <= 16r20FF ifTrue: [^ Unicode CombiningDiacriticalForSymbols].
-     unicode <= 16r214F ifTrue: [^ Unicode LetterlikeSymbols].
-     unicode <= 16r218F ifTrue: [^ Unicode NumberForms].
-     unicode <= 16r21FF ifTrue: [^ Unicode Arrows].
-     unicode <= 16r22FF ifTrue: [^ Unicode MathOperators].
-     unicode <= 16r23FF ifTrue: [^ Unicode MiscTechnical].
-     unicode <= 16r243F ifTrue: [^ Unicode ControlPictures].
-     unicode <= 16r245F ifTrue: [^ Unicode OCRs].
-     unicode <= 16r24FF ifTrue: [^ Unicode EnclosedAlnums].
-     unicode <= 16r257F ifTrue: [^ Unicode BoxDrawing].
-     unicode <= 16r259F ifTrue: [^ Unicode BlockElements].
-     unicode <= 16r25FF ifTrue: [^ Unicode GeometricShapes].
-     ^ Unicode General].
- unicode <= 16r26FF ifTrue: [^ Unicode MiscSymbols].
- unicode <= 16r27BF ifTrue: [^ Unicode Dingbats].
- unicode <= 16r27EF ifTrue: [^ Unicode MiscMathSymbolsA].
- unicode <= 16r27FF ifTrue: [^ Unicode SupplementalArrowsA].
- unicode <= 16r28FF ifTrue: [^ Unicode Braille].
- unicode <= 16r297F ifTrue: [^ Unicode SupplementalArrowsB].
- unicode <= 16r29FF ifTrue: [^ Unicode MiscMathSymbolsB].
- unicode <= 16r2AFF ifTrue: [^ Unicode SupplementalMathOperators].
- Unicode General
+  i < 16r1700 ifTrue: 
+    [i <= 16r109F ifTrue: [^ ns Myanmar].
+     i <= 16r10FF ifTrue: [^ ns Georgian].
+     i <= 16r11FF ifTrue: [^ ns General].
+     i <= 16r137F ifTrue: [^ ns Ethiopic].
+     i <= 16r13FF ifTrue: [^ ns Cherokee].
+     i <= 16r167F ifTrue: [^ ns CanadianAboriginal].
+     i <= 16r169F ifTrue: [^ ns Ogham].
+     i <= 16r16FF ifTrue: [^ ns Runic].
+     ^ ns General].
+ i <= 16r171F ifTrue: [^ ns Tagalog].
+ i <= 16r173F ifTrue: [^ ns Hanunoo].
+ i <= 16r175F ifTrue: [^ ns Buhid].
+ i <= 16r177F ifTrue: [^ ns Tagbanwa].
+ i <= 16r17FF ifTrue: [^ ns Khmer].
+ i <= 16r18AF ifTrue: [^ ns Mongolian].
+ i <= 16r1EFF ifTrue: [^ ns LatinExtendedAdditional].
+ i <= 16r1FFF ifTrue: [^ ns GreekExtended].
+ ns General
+].
+
+ns@Unicode subsetFor2: i@(Integer traits)
+[
+  i < 16r2600 ifTrue: 
+    [i <= 16r206F ifTrue: [^ ns GeneralPunctuation].
+     i <= 16r209F ifTrue: [^ ns SuperAndSubscript].
+     i <= 16r20CF ifTrue: [^ ns CurrencySymbols].
+     i <= 16r20FF ifTrue: [^ ns CombiningDiacriticalForSymbols].
+     i <= 16r214F ifTrue: [^ ns LetterlikeSymbols].
+     i <= 16r218F ifTrue: [^ ns NumberForms].
+     i <= 16r21FF ifTrue: [^ ns Arrows].
+     i <= 16r22FF ifTrue: [^ ns MathOperators].
+     i <= 16r23FF ifTrue: [^ ns MiscTechnical].
+     i <= 16r243F ifTrue: [^ ns ControlPictures].
+     i <= 16r245F ifTrue: [^ ns OCRs].
+     i <= 16r24FF ifTrue: [^ ns EnclosedAlnums].
+     i <= 16r257F ifTrue: [^ ns BoxDrawing].
+     i <= 16r259F ifTrue: [^ ns BlockElements].
+     i <= 16r25FF ifTrue: [^ ns GeometricShapes].
+     ^ ns General].
+  i <= 16r26FF ifTrue: [^ ns MiscSymbols].
+  i <= 16r27BF ifTrue: [^ ns Dingbats].
+  i <= 16r27EF ifTrue: [^ ns MiscMathSymbolsA].
+  i <= 16r27FF ifTrue: [^ ns SupplementalArrowsA].
+  i <= 16r28FF ifTrue: [^ ns Braille].
+  i <= 16r297F ifTrue: [^ ns SupplementalArrowsB].
+  i <= 16r29FF ifTrue: [^ ns MiscMathSymbolsB].
+  i <= 16r2AFF ifTrue: [^ ns SupplementalMathOperators].
+  ns General
 ].   
 
-unicode@(Integer traits) unicodeSubsetFor10
+ns@Unicode subsetFor10: i
 [
- unicode >= 16rAC00 ifTrue: [^ Unicode Korean].
- unicode <= 16rA48F ifTrue: [^ Unicode YiSyllables].
- unicode <= 16rA4CF ifTrue: [^ Unicode YiRadicals].
- Unicode General
+  i >= 16rAC00 ifTrue: [^ ns Korean].
+  i <= 16rA48F ifTrue: [^ ns YiSyllables].
+  i <= 16rA4CF ifTrue: [^ ns YiRadicals].
+  ns General
 ].
 
-unicode@(Integer traits) unicodeSubsetFor13
+ns@Unicode subsetFor13: i
 [
- unicode <= 16rD7AF ifTrue: [^ Unicode Korean].
- Unicode General
+  i <= 16rD7AF ifTrue: [^ ns Korean].
+  ns General
 ].
 
 _@(UnicodeCharacter traits) codeRange
@@ -357,7 +355,7 @@ _@(UnicodeString traits) accepts: _@(UnicodeCharacter traits)
 
 c@(UnicodeCharacter traits) is: ss@(UnicodeSubset traits)
 [
-  c unicodeSubset is: ss
+  (Unicode subsetAt: c) is: ss
 ].
 
 CharacterData define: #MathematicalPluses
@@ -480,14 +478,14 @@ c@(UnicodeString traits) as: _@(Integer traits) &radix: radix
  (c as: Number) as: Integer
 ].
 
-c@(UnicodeCharacter traits) as: _@(ASCIICharacter traits)
+c@(UnicodeCharacter traits) as: _@(ASCIIString Character traits)
 [
   c code < 16r100
-   ifTrue: [c code as: ASCIICharacter]
+   ifTrue: [c code as: ASCIIString Character]
    ifFalse: [0] "FIXME: what should this be?"
 ].
 
-c@(ASCIICharacter traits) as: u@(UnicodeCharacter traits)
+c@(ASCIIString Character traits) as: u@(UnicodeCharacter traits)
 [u newCode: c code].
 
 c@(UnicodeCharacter traits) as: s@(UnicodeString traits)

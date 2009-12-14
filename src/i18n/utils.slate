@@ -9,15 +9,14 @@ s@(Sequence traits) splitPreservingEmptys: obj &count: count
   subSeqs add: (s copyFrom: 0 to: keyEnd - 1).
   [keyEnd < s size] whileTrue:
     [count isNotNil /\ [subSeqs size >= count] ifTrue:
-      [subSeqs add: (s copyFrom: keyEnd to: s size - 1).
-      ^ subSeqs].
-    keyStart: ((s indexOf: obj startingAt: keyEnd ifAbsent: [keyEnd]) + 1).
-    keyEnd: (s indexOf: obj startingAt: keyStart ifAbsent: [s size]).
-    keyStart <= keyEnd ifTrue:
-      [subSeqs add: (s copyFrom: keyStart to: keyEnd - 1)]].
+       [subSeqs add: (s copyFrom: keyEnd to: s size - 1).
+        ^ subSeqs].
+     keyStart: ((s indexOf: obj startingAt: keyEnd ifAbsent: [keyEnd]) + 1).
+     keyEnd: (s indexOf: obj startingAt: keyStart ifAbsent: [s size]).
+     keyStart <= keyEnd ifTrue:
+       [subSeqs add: (s copyFrom: keyStart to: keyEnd - 1)]].
   subSeqs
 ].
-
 
 "Int16 streams"
 
@@ -50,39 +49,38 @@ Int16WriteStream BigEndian addSlot: #target.
 
 s@(Int16WriteStream LittleEndian traits) on: target
 [
- s target: target.
- s
+  s target: target.
+  s
 ].
 
 s@(Int16WriteStream BigEndian traits) on: target
 [
- s target: target.
- s
+  s target: target.
+  s
 ].
 
 s@(Int16ReadStream LittleEndian traits) next
 [| byte1 byte2 |
- byte1: (s source next as: Integer).
- byte2: (s source next as: Integer).
- (byte2 bitShift: 8) bitOr: byte1
+  byte1: (s source next as: Integer).
+  byte2: (s source next as: Integer).
+  (byte2 bitShift: 8) bitOr: byte1
 ].
 
 s@(Int16ReadStream BigEndian traits) next
 [| byte1 byte2 |
- byte1: (s source next as: Integer).
- byte2: (s source next as: Integer).
- (byte1 bitShift: 8) bitOr: byte2
+  byte1: (s source next as: Integer).
+  byte2: (s source next as: Integer).
+  (byte1 bitShift: 8) bitOr: byte2
 ].
 
 s@(Int16WriteStream LittleEndian traits) nextPut: aCharacter
 [
- s target nextPut: ((aCharacter bitAnd: 16r00FF) as: ASCIICharacter).
- s target nextPut: ((aCharacter bitShift: -8) as: ASCIICharacter).
+  s target nextPut: ((aCharacter bitAnd: 16r00FF) as: ASCIIString Character).
+  s target nextPut: ((aCharacter bitShift: -8) as: ASCIIString Character).
 ].
 
 s@(Int16WriteStream BigEndian traits) nextPut: aCharacter
 [
- s target nextPut: ((aCharacter bitShift: -8) as: ASCIICharacter).
- s target nextPut: ((aCharacter bitAnd: 16r00FF) as: ASCIICharacer).
+  s target nextPut: ((aCharacter bitShift: -8) as: ASCIIString Character).
+  s target nextPut: ((aCharacter bitAnd: 16r00FF) as: ASCIIString Character).
 ].
-

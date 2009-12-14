@@ -18,59 +18,59 @@ Unicode define: #CharacterProperties &parents: {Cloneable} &slots:
 
 CharacterData Unicode define: #EmptyTable &builder: [Nil repeatedTimes: 128].
 
-CharacterData Unicode define: #GeneralCategories &builder: [Dictionary new].
-{'Lu' -> #UppercaseLetter.
- 'Ll' -> #LowercaseLetter.
- 'Lt' -> #TitlecaseLetter.
- 'Lm' -> #ModifierLetter.
- 'Lo' -> #OtherLetter.
- 'Mn' -> #NonspacingMark.
- 'Mc' -> #SpacingCombiningMark.
- 'Me' -> #EnclosingMark.
- 'Nd' -> #DecimalDigit.
- 'Nl' -> #NumberLetter.
- 'No' -> #NumberOther.
- 'Pc' -> #ConnectorPunctuation.
- 'Pd' -> #DashPunctuation.
- 'Ps' -> #OpenPunctuation.
- 'Pe' -> #ClosePunctuation.
- 'Pi' -> #InitialQuote.
- 'Pf' -> #FinalQuote.
- 'Po' -> #OtherPunctuation.
- 'Sm' -> #MathSymbol.
- 'Sc' -> #CurrencySymbol.
- 'Sk' -> #ModifierSymbol.
- 'So' -> #OtherSymbol.
- 'Zs' -> #Space.
- 'Zl' -> #LineSeparator.
- 'Zp' -> #ParagraphSeparator.
- 'Cc' -> #Control.
- 'Cf' -> #Format.
- 'Cs' -> #Surrogate.
- 'Co' -> #Private}
-do: [| :each | CharacterData Unicode GeneralCategories add: each].
+CharacterData Unicode define: #GeneralCategories &builder:
+  [Dictionary new `>>
+     [add: 'Lu' -> #UppercaseLetter.
+      add: 'Ll' -> #LowercaseLetter.
+      add: 'Lt' -> #TitlecaseLetter.
+      add: 'Lm' -> #ModifierLetter.
+      add: 'Lo' -> #OtherLetter.
+      add: 'Mn' -> #NonspacingMark.
+      add: 'Mc' -> #SpacingCombiningMark.
+      add: 'Me' -> #EnclosingMark.
+      add: 'Nd' -> #DecimalDigit.
+      add: 'Nl' -> #NumberLetter.
+      add: 'No' -> #NumberOther.
+      add: 'Pc' -> #ConnectorPunctuation.
+      add: 'Pd' -> #DashPunctuation.
+      add: 'Ps' -> #OpenPunctuation.
+      add: 'Pe' -> #ClosePunctuation.
+      add: 'Pi' -> #InitialQuote.
+      add: 'Pf' -> #FinalQuote.
+      add: 'Po' -> #OtherPunctuation.
+      add: 'Sm' -> #MathSymbol.
+      add: 'Sc' -> #CurrencySymbol.
+      add: 'Sk' -> #ModifierSymbol.
+      add: 'So' -> #OtherSymbol.
+      add: 'Zs' -> #Space.
+      add: 'Zl' -> #LineSeparator.
+      add: 'Zp' -> #ParagraphSeparator.
+      add: 'Cc' -> #Control.
+      add: 'Cf' -> #Format.
+      add: 'Cs' -> #Surrogate.
+      add: 'Co' -> #Private. ]].
 
-CharacterData Unicode define: #BidiClasses &builder: [Dictionary new].
-{'L'   -> #LeftToRight.
- 'LRE' -> #LeftToRightEmbedding.
- 'LRO' -> #LeftToRightOverride.
- 'R'   -> #RightToLeft.
- 'AL'  -> #RightToLeftArabic.
- 'RLE' -> #RightToLeftEmbedding.
- 'RLO' -> #RightToLeftOverride.
- 'PDF' -> #PopDirectionalFormat.
- 'EN'  -> #EuropeanNumber.
- 'ES'  -> #EuropeanNumberSeparator.
- 'ET'  -> #EuropeanNumberTerminator.
- 'AN'  -> #ArabicNumber.
- 'CS'  -> #CommonNumberSeparator.
- 'NSM' -> #NonSpacingMark.
- 'BN'  -> #BoundaryNeutral.
- 'B'   -> #ParagraphSeparator.
- 'S'   -> #SegmentSeparator.
- 'WS'  -> #WhiteSpace.
- 'ON'  -> #OtherNeutrals}
-do: [| :each | CharacterData Unicode BidiClasses add: each].
+CharacterData Unicode define: #BidiClasses &builder:
+  [Dictionary new `>>
+     [add: 'L'   -> #LeftToRight.
+      add: 'LRE' -> #LeftToRightEmbedding.
+      add: 'LRO' -> #LeftToRightOverride.
+      add: 'R'   -> #RightToLeft.
+      add: 'AL'  -> #RightToLeftArabic.
+      add: 'RLE' -> #RightToLeftEmbedding.
+      add: 'RLO' -> #RightToLeftOverride.
+      add: 'PDF' -> #PopDirectionalFormat.
+      add: 'EN'  -> #EuropeanNumber.
+      add: 'ES'  -> #EuropeanNumberSeparator.
+      add: 'ET'  -> #EuropeanNumberTerminator.
+      add: 'AN'  -> #ArabicNumber.
+      add: 'CS'  -> #CommonNumberSeparator.
+      add: 'NSM' -> #NonSpacingMark.
+      add: 'BN'  -> #BoundaryNeutral.
+      add: 'B'   -> #ParagraphSeparator.
+      add: 'S'   -> #SegmentSeparator.
+      add: 'WS'  -> #WhiteSpace.
+      add: 'ON'  -> #OtherNeutrals. ]].
 
 CharacterData Unicode define: #CompositionExclusions &builder:
 [#(16r0958. 16r0959. 16r095A. 16r095B. 16r095C. 16r095D. 16r095E. 16r095F.
@@ -92,39 +92,40 @@ code@(Integer traits) isExcludedFromComposition
 
 _@Unicode readCrosslinksFrom: sourceFileName
 [| sourceStream s part1 part2 part3 key value acc |
- acc: (ExtensibleArray newSize: 2048).
- File withOpenNamed: sourceFileName
-   do: [| :source |
-	sourceStream: source reader.
-	[sourceStream isAtEnd] whileFalse: [
-	  part1: (sourceStream next as: Integer).
-	  part2: ((sourceStream next as: Integer) bitShift: 8).
-	  part3: ((sourceStream next as: Integer) bitShift: 16).
-	  key: ((part1 bitOr: part2) bitOr: part3).
-	  part1: (sourceStream next as: Integer).
-	  part2: ((sourceStream next as: Integer) bitShift: 8).
-	  part3: ((sourceStream next as: Integer) bitShift: 16).
-	  value: ((part1 bitOr: part2) bitOr: part3).
-	  acc addLast: key -> value].
-	].
- acc
+  acc: (ExtensibleArray newSize: 2048).
+  (File newNamed: sourceFileName)
+    sessionDo:
+      [| :source |
+       sourceStream: source reader.
+       [sourceStream isAtEnd] whileFalse:
+         [part1: (sourceStream next as: Integer).
+          part2: ((sourceStream next as: Integer) bitShift: 8).
+          part3: ((sourceStream next as: Integer) bitShift: 16).
+          key: ((part1 bitOr: part2) bitOr: part3).
+          part1: (sourceStream next as: Integer).
+          part2: ((sourceStream next as: Integer) bitShift: 8).
+          part3: ((sourceStream next as: Integer) bitShift: 16).
+          value: ((part1 bitOr: part2) bitOr: part3).
+          acc addLast: key -> value]].
+  acc
 ].
 
-s@(Sequence traits) parseDecompositionType
+_@Unicode parseDecompositionTypeFrom: s@(Sequence traits)
+[
+  s isEmpty ifFalse:
+    [s first = $< ifTrue: [#Compatibility] ifFalse: [#Canonical]]
+].
+
+ns@Unicode parseDecompositionMappingFrom: s@(Sequence traits)
 [
  s isEmpty ifFalse:
-   [s first = $< ifTrue: [#Compatibility] ifFalse: [#Canonical]]
+   [(((ns parseDecompositionTypeFrom: s) = #Compatibility
+        ifTrue: [s sliceFrom: (s indexOf: $\s)] ifFalse: [s])
+       splitWith: $\s) collect:
+         [| :each | (each as: String) as: Integer &radix: 16]]
 ].
 
-s@(Sequence traits) parseDecompositionMapping
-[
- s isEmpty ifFalse:
-   [((s parseDecompositionType = #Compatibility
-     ifTrue: [s sliceFrom: (s indexOf: $\s)] ifFalse: [s])
-    splitWith: $\s) collect: [| :each | (each as: String) as: Integer &radix: 16]]
-].
-
-s@(Sequence traits) parseNumber
+ns@Unicode parseNumberFrom: s@(Sequence traits)
 [| sign str |
  s isEmpty ifTrue: [^ Nil].
  sign: (s first = $- ifTrue: [1] ifFalse: [-1]).
@@ -138,30 +139,30 @@ s@(Sequence traits) parseNumber
    ifFalse: [str as: Integer &radix: 10]) * sign
 ].
 
-tokens@(Sequence traits) parseProperties
+ns@Unicode parsePropertiesFrom: tokens@(Sequence traits)
 [
-  Unicode CharacterProperties cloneSettingSlots:
+  ns CharacterProperties clone `setting:
     #(GeneralCategory CanonicalCombiningClass BidiClass DecimalDigitValue
       DigitValue NumericValue BidiMirrored
       DecompositionType DecompositionMapping
       SimpleUppercaseMapping SimpleLowercaseMapping SimpleTitlecaseMapping)
-     to:
-       {CharacterData Unicode GeneralCategories
-          at: (tokens at: 2)
-          ifAbsent: [error: 'Could not parse general category in Unicode data.'].
-	(tokens at: 3) as: Integer.
-	CharacterData Unicode BidiClasses
-          at: (tokens at: 4)
-          ifAbsent: [error: 'Could not parse bidi class in Unicode data.'].
-	(tokens at: 6) as: Integer.
-	(tokens at: 7) parseNumber.
-	(tokens at: 8) as: Integer.
-	(tokens at: 9) = 'Y'.
-	(tokens at: 5) parseDecompositionType.
-	(tokens at: 5) parseDecompositionMapping.
-	(tokens at: 12) as: Integer &radix: 16.
-	(tokens at: 13) as: Integer &radix: 16.
-	(tokens at: 14) as: Integer &radix: 16}
+    to:
+      {CharacterData Unicode GeneralCategories
+         at: (tokens at: 2)
+         ifAbsent: [error: 'Could not parse general category in Unicode data.'].
+       (tokens at: 3) as: Integer.
+       CharacterData Unicode BidiClasses
+         at: (tokens at: 4)
+         ifAbsent: [error: 'Could not parse bidi class in Unicode data.'].
+       (tokens at: 6) as: Integer.
+       ns parseNumberFrom: (tokens at: 7).
+       (tokens at: 8) as: Integer.
+       (tokens at: 9) = 'Y'.
+       ns parseDecompositionTypeFrom: (tokens at: 5).
+       ns parseDecompositionMappingFrom: (tokens at: 5).
+       (tokens at: 12) as: Integer &radix: 16.
+       (tokens at: 13) as: Integer &radix: 16.
+       (tokens at: 14) as: Integer &radix: 16}
 ].
 
 table@(Unicode Trie traits) addItem: item toCodePoint: codePoint withCrosslink: cl
@@ -169,9 +170,10 @@ table@(Unicode Trie traits) addItem: item toCodePoint: codePoint withCrosslink: 
 Otherwise add item to the table.
 Answer whether a crosslink was performed."
 [| condition |
-  condition: cl key = codePoint.
   table atCode: codePoint put:
-    (condition ifTrue: [table atCode: cl value] ifFalse: [item]).
+    ((condition: cl key = codePoint)
+       ifTrue: [table atCode: cl value]
+       ifFalse: [item]).
   condition
 ].
 
@@ -179,10 +181,11 @@ compositions@(Sequence traits) addComposition: decomp toCodePoint: codePoint dec
 "Add composition to compositions, iff it's canonical and exactly of
 size 2."
 [| condition |
-  condition: codePoint isExcludedFromComposition not /\ [decomp isNotNil]
-   /\ [decompType = #Canonical] /\ [decomp size = 2].
-  condition ifTrue:
-    [compositions add: (decomp first <> decomp second) -> codePoint].
+  (condition: codePoint isExcludedFromComposition not
+     /\ [decomp isNotNil]
+     /\ [decompType = #Canonical]
+     /\ [decomp size = 2])
+    ifTrue: [compositions add: {decomp first. decomp second} -> codePoint].
   condition
 ].
 
@@ -192,38 +195,34 @@ table. It reads it's data from UnicodeData.txt, and uses cross-link
 data to link duplicate items to one. The actual data structure is a
 two-phase-table (a kind of trie)."
 [| ucdReader line properties links currentLink tableIndex tokens codePoint highBits |
- links: cl reader.
- currentLink: links next.
- currentLink ifNil: [currentLink: Nil -> Nil].
- tableIndex: 0.
- codePoint: 0.
- table at: tableIndex put: (Array newSize: 128).
- inform: 'Filling tables.. There are 8703 total. Most are jumped over.'.
- File withOpenNamed: 'src/i18n/UnicodeData.txt'
-   do: [| :ucd |
-	ucdReader: ucd reader.
-	[ucdReader isAtEnd] whileFalse: [
-	   line: (ucdReader upTo: (16rA as: ASCIICharacter)).
-           tokens: (line splitPreservingEmptys: (16r3B as: ASCIICharacter)).
-	   properties: (tokens parseProperties).
-	   codePoint: (tokens first as: Integer &radix: 16).
-	   highBits: (codePoint bitShift: -7).
-           highBits > tableIndex
-                   ifTrue: [tableIndex + 1 below: highBits
-                                            do: [| :index |
-                                                 table at: index
-                                                       put: CharacterData Unicode EmptyTable].
-                            tableIndex: highBits.
-			    Console ; '\r' ; (highBits as: String).
-			    Console writer flush.
-                            table at: tableIndex put: (Array newSize: 128)].
-	   (table addItem: properties toCodePoint: codePoint withCrosslink: currentLink)
-	     ifTrue: [currentLink: links next.
-		      currentLink ifNil: [currentLink: Nil -> Nil]].
-	   compositions addComposition: properties DecompositionMapping
-			toCodePoint: codePoint
-	                decompositionType: properties DecompositionType.
-	  ]].
+  links: cl reader.
+  currentLink: (links next ifNil: [Nil -> Nil]).
+  tableIndex: 0.
+  codePoint: 0.
+  table at: tableIndex put: (Array newSize: 128).
+  inform: 'Filling tables.. There are 8703 total. Most are jumped over.'.
+  (File newNamed: 'src/i18n/UnicodeData.txt') sessionDo:
+    [| :ucd |
+     ucdReader: ucd reader.
+     [ucdReader isAtEnd] whileFalse:
+       [line: (ucdReader upTo: (16rA as: ASCIIString Character)).
+        tokens: (line splitPreservingEmptys: (16r3B as: ASCIIString Character)).
+        properties: (Unicode parsePropertiesFrom: tokens).
+        codePoint: (tokens first as: Integer &radix: 16).
+        highBits: (codePoint bitShift: -7).
+        highBits > tableIndex
+          ifTrue: [tableIndex + 1 below: highBits do:
+                     [| :index | table at: index put:
+                                   CharacterData Unicode EmptyTable].
+                   tableIndex: highBits.
+		   Console ; '\r' ; (highBits as: String).
+		   Console writer flush.
+                   table at: tableIndex put: (Array newSize: 128)].
+        (table addItem: properties toCodePoint: codePoint withCrosslink: currentLink)
+	  ifTrue: [currentLink: (links next ifNil: [Nil -> Nil])].
+        compositions addComposition: properties DecompositionMapping
+	  toCodePoint: codePoint
+	  decompositionType: properties DecompositionType]].
   Console ; '\r'.
 ].
 
@@ -236,8 +235,8 @@ yet."
     [| :each |
      (table atCode: each key first) Compositions
 	 ifNil: [(table atCode: each key first)
-                    Compositions: Dictionary new `>> [hashBlock: [| :obj | obj]. ]].
-      (table atCode: each key first) Compositions add: each key second -> each value]
+                   Compositions: Dictionary new `>> [hashBlock: [| :obj | obj]. ]].
+     (table atCode: each key first) Compositions at: each key second put: each value]
 ].
 
 table@(Unicode Trie traits) fillTableGaps

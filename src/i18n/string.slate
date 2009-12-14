@@ -2,12 +2,12 @@
 prototypes define: #EncodedCharacter &parents: {Cloneable} &slots: {#code}.
 
 c@(EncodedCharacter traits) newCode: code
-[c clone `>> [code: code. ]].  
+[c clone `setting: #(code) to: {code}].
 
 "By default EncodedString contains integers, and converts them to characterEncoding
 when accessed. All here can be overridden by encodings."
 
-prototypes define: #EncodedString &parents: {String}.
+prototypes define: #EncodedString &parents: {String} &slots: {#elementType}.
 
 globals ensureNamespace: #CharacterData.
 
@@ -22,12 +22,12 @@ s@(EncodedString traits) copy
 ].
 
 s@(EncodedString traits) new
-[overrideThis].  
+[overrideThis].
 
 s@(EncodedString traits) size
 [overrideThis].
 
-s@(EncodedString traits) at: n 
+s@(EncodedString traits) at: n
 [overrideThis].
 
 s@(EncodedString traits) at: n put: c@(EncodedCharacter traits)
@@ -52,8 +52,8 @@ s@(EncodedString traits) hash
   bit: 0.
   s do:
     [| :c |
-      n: ((n + (c hash bitShift: bit)) bitAnd: 16rFFFFFF).
-      bit: ((bit + 1) bitAnd: 16rF)].
+     n: ((n + (c hash bitShift: bit)) bitAnd: 16rFFFFFF).
+     bit: ((bit + 1) bitAnd: 16rF)].
   n
 ].
 
@@ -63,14 +63,14 @@ _@(EncodedString traits) accepts: _@(Root traits)
 [False].
 
 s@(EncodedString traits) stripAll: c@(Collection traits) startingAt: start
-[| result |
-  result: (s copyFrom: 0 to: start - 1) writer.
-  start below: s size
-    do: [| :index each |
-	 each: (s at: index).
-         (c includes: each)
-	   ifFalse: [result nextPut: each]].
-  result contents
+[
+  [| :result |
+   start below: s size
+     do: [| :index each |
+	  each: (s at: index).
+          (c includes: each)
+	    ifFalse: [result nextPut: each]]]
+    writingInto: (s copyFrom: 0 to: start - 1)
 ].
 
 s@(EncodedString traits) stripAll: c@(Collection traits)
@@ -83,15 +83,13 @@ s@(EncodedString traits) strip: c@(EncodedCharacter traits)
 [s stripAll: {c} startingAt: 0].
 
 s@(EncodedString traits) indexPast: delims startingAt: start
-"Answer the index of the character within the receiver, starting at start, 
-that does NOT match one of the delimiters. If the receiver does not 
-contain any of the delimiters, answer size. Assumes the delimiters to 
+"Answer the index of the character within the receiver, starting at start,
+that does NOT match one of the delimiters. If the receiver does not
+contain any of the delimiters, answer size. Assumes the delimiters to
 be a non-empty string."
 [
-  start below: s size
-	do: [| :index |
-            delims detect: [| :c | c  = (s at: index)]
-	           ifNone: [^ index]].
+  start below: s size do:
+    [| :index | delims detect: [| :c | c  = (s at: index)] ifNone: [^ index]].
   s size
 ].
 
