@@ -4,10 +4,12 @@ collections define: #Tuple &parents: {Sequence}
 and tupling is non-copying. Nilling the size will fix the tuple at that size."
 
 s@(Sequence traits) as: t@(Tuple traits)
-[| newT |
-  newT: (t new &capacity: s size &immutable: True).
-  newT contents replaceFrom: 0 to: newT actualSize - 1 with: s startingAt: 0.
-  newT
+[
+  (t new &capacity: s size &immutable: True) `>>
+    [| :newT |
+     contents replaceFrom: 0
+       to: (newT actualSize ifNil: [newT contents size]) - 1
+       with: s startingAt: 0. ]
 ].
 
 x@(Root traits) <> y@(Root traits)
