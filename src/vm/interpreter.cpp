@@ -992,6 +992,15 @@ void interpret(struct object_heap* oh) {
           SSA_REGISTER(destReg) = SSA_REGISTER(srcReg);
           break;
         }
+      case OP_IS_NIL:
+        {
+          word_t srcReg, resultReg;
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
+          srcReg = SSA_NEXT_PARAM_SMALLINT;
+          ASSERT_VALID_REGISTER(resultReg);
+          SSA_REGISTER(resultReg) = (SSA_REGISTER(srcReg) == oh->cached.nil) ? oh->cached.true_object : oh->cached.false_object;
+          break;
+        }
       case OP_IS_IDENTICAL_TO:
         {
           word_t destReg, srcReg, resultReg;

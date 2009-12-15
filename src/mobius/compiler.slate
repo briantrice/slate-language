@@ -81,6 +81,7 @@ list to use to increment the whole count"
   24 -> (#resume -> {0}). "I'm not sure what this does yet..used in bootstrap"
   25 -> (#primitiveDo -> {3. 1}). "call a primitive directly, bypassing method lookup: primNum, primArgCount, resultReg, args..."
   26 -> (#directApplyTo -> {3. 1}). "call a method/closure directly, bypassing array creation: method, argCount, resultReg, args..."
+  27 -> (#isNilOp -> {2}). "is identical to but doesn't need the nil argument"
 }.
 
 VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
@@ -613,6 +614,14 @@ gen@(VM SSACompiler traits) generate: _@#loop on: args from: msg result: result
   gen registerFor: Nil from: msg result: result "return nil"
 ].
 
+gen@(VM SSACompiler traits) generate: _@#isNil on: args from: msg result: result
+[ | objReg |
+  result `defaultsTo: gen newRegister.
+  objReg: (gen generate: args first result: Nil).
+  gen emitInstruction: gen isNilOp withParameters: {result. objReg} from: msg.
+  result
+].
+
 gen@(VM SSACompiler traits) branchTableHash: key
 [
   key identityHash
@@ -764,6 +773,36 @@ gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args from: msg result: fin
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
+
+
+gen@(VM SSACompiler traits) generate: _@#ifNil: on: args from: msg result: finalResult
+[ | endLabel condReg lhsValueReg |
+  endLabel: gen newLabelIndex.
+  finalResult `defaultsTo: gen newRegister.
+  lhsValueReg: (gen generate: args first result: finalResult). "do not evaluate twice"
+  condReg: gen newRegister.
+  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} from: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condReg} from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitLabel &labelIndex: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args from: msg result: finalResult
+[ | endLabel condReg lhsValueReg |
+  endLabel: gen newLabelIndex.
+  finalResult `defaultsTo: gen newRegister.
+  lhsValueReg: (gen generate: args first result: finalResult). "do not evaluate twice"
+  condReg: gen newRegister.
+  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} from: msg.
+  gen emitInstruction: gen branchIfTrue withParameters: {condReg} from: msg.
+  gen emitBranchTo: endLabel from: msg.
+  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitLabel &labelIndex: endLabel.
+  finalResult
+].
+
 
 gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResult
 "Optionally evaluates a block."

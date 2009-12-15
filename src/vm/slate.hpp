@@ -572,7 +572,9 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_RESUME                       ((24 << 1) | SMALLINT_MASK)
 #define OP_PRIMITIVE_DO                 ((25 << 1) | SMALLINT_MASK)
 #define OP_APPLY_TO                     ((26 << 1) | SMALLINT_MASK)
-#define OP_                             ((27 << 1) | SMALLINT_MASK)
+#define OP_IS_NIL                       ((27 << 1) | SMALLINT_MASK)
+#define OP_                             ((28 << 1) | SMALLINT_MASK)
+
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
 #define REG_STACK_POINTER(X)            (i->framePointer + (X))
