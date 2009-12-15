@@ -246,8 +246,10 @@
      . font-lock-variable-name-face)    ; block input slots
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
      . font-lock-type-face)        ; type-declaration
-    ("\\<[+-]?\\([0-9_]+[Rr]\\)?[0-9]+\\([.][0-9]+\\)?\\>"
-     . font-lock-constant-face) ; integers and floats
+    ("\\<[+-]?[0-9]+\\([.][0-9]+\\)?\\>"
+     . font-lock-constant-face) ; numbers (integers and floats)
+    ("\\<[+-]?[0-9_]+[Rr][0-9A-Fa-f]+\\([.][0-9A-Fa-f]+\\)?\\>"
+     . font-lock-constant-face) ; numbers (integers and floats)
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
      . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
