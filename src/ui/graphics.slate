@@ -96,7 +96,7 @@ m@(Morph traits) unlink
 
 wse@(WindowSceneElement traits) newNamed: name width: width height: height
 [ | res |
-  res: wse.
+  res: wse new.
   res region: (Rectangle origin: 0 <> 0 extent: width <> height).
   res conductor: wse conductor new.
   res conductor focus: Nil. "set it to wse and we might have a loop"
@@ -358,7 +358,7 @@ m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
   m canResize /\ [(Rectangle origin: m absolutePosition + m region extent - (bw <> bw) extent: (bw <> bw)) contains: input position]
     ifTrue: [m startResizing: input position. m requestFocus]
     ifFalse: [m canDrag ifTrue: [m startDragging: input position].
-              m requestFocus "necessary to receive a click event"]
+              m requestFocus "necessary to receive a click event"].
   m
 ].
 
