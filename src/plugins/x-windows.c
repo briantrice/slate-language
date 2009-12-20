@@ -23,6 +23,13 @@
 typedef  intptr_t slate_int_t;
 
 
+union float_int_union {
+
+  slate_int_t i;
+  float f;
+
+};
+
 int main(void) {
    Display *d;
    Window w;
@@ -367,23 +374,36 @@ EXPORT void save(cairo_t *context)
 
 EXPORT slate_int_t get_line_width(cairo_t *context)
 {
-    float f = (float)cairo_get_line_width(context);
-    return *(slate_int_t*)&f;
+  union float_int_union u;
+  u.f = (float)cairo_get_line_width(context);
+  return u.i;
 }
 
 EXPORT void set_line_width(cairo_t *context, slate_int_t width)
 {
-    cairo_set_line_width(context, *(float*)&width);
+  union float_int_union u;
+  u.i = width;
+  cairo_set_line_width(context, u.f);
 }
 
 EXPORT void set_source_rgb(cairo_t *context, slate_int_t r, slate_int_t g, slate_int_t b)
 {
-    cairo_set_source_rgb(context, *(float*)&r, *(float*)&g, *(float*)&b);
+  union float_int_union ru,bu,gu;
+  ru.i = r;
+  bu.i = b;
+  gu.i = g;
+
+  cairo_set_source_rgb(context, ru.f, gu.f, bu.f);
 }
 
 EXPORT void set_source_rgba(cairo_t *context, slate_int_t r, slate_int_t g, slate_int_t b, slate_int_t a)
 {
-    cairo_set_source_rgba(context, *(float*)&r, *(float*)&g, *(float*)&b, *(float*)&a);
+  union float_int_union ru,bu,gu,au;
+  ru.i = r;
+  bu.i = b;
+  gu.i = g;
+  au.i = a;
+  cairo_set_source_rgba(context, ru.f, gu.f, bu.f, au.f);
 }
 
 EXPORT void stroke(cairo_t *context)
@@ -407,12 +427,18 @@ EXPORT void close_path(cairo_t *context)
 
 EXPORT void line_to(cairo_t *context, slate_int_t x, slate_int_t y)
 {
-    cairo_line_to(context, *(float*)&x, *(float*)&y);
+  union float_int_union xu, yu;
+  xu.i = x;
+  yu.i = y;
+  cairo_line_to(context, xu.f, yu.f);
 }
 
 EXPORT void move_to(cairo_t *context, slate_int_t x, slate_int_t y)
 {
-    cairo_move_to(context, *(float*)&x, *(float*)&y);
+  union float_int_union xu, yu;
+  xu.i = x;
+  yu.i = y;
+  cairo_move_to(context, xu.f, yu.f);
 }
 
 EXPORT void new_path(cairo_t *context)
@@ -422,21 +448,32 @@ EXPORT void new_path(cairo_t *context)
 
 EXPORT void rectangle(cairo_t *context, slate_int_t x, slate_int_t y, slate_int_t w, slate_int_t h)
 {
-    cairo_rectangle(context, *(float*)&x, *(float*)&y, *(float*)&w, *(float*)&h);
+  union float_int_union xu, yu, wu, hu;
+  xu.i = x;
+  yu.i = y;
+  wu.i = w;
+  hu.i = h;
+  cairo_rectangle(context, xu.f, yu.f, wu.f, hu.f);
 }
 
 /******************************************************************************
 * Transformation
 ******************************************************************************/
 
-EXPORT void translate(cairo_t *context, slate_int_t tx, slate_int_t ty)
+EXPORT void translate(cairo_t *context, slate_int_t x, slate_int_t y)
 {
-    cairo_translate(context, *(float*)&tx, *(float*)&ty);
+  union float_int_union xu, yu;
+  xu.i = x;
+  yu.i = y;
+  cairo_translate(context, xu.f, yu.f);
 }
 
-EXPORT void scale(cairo_t *context, slate_int_t sx, slate_int_t sy)
+EXPORT void scale(cairo_t *context, slate_int_t x, slate_int_t y)
 {
-    cairo_scale(context, *(float*)&sx, *(float*)&sy);
+  union float_int_union xu, yu;
+  xu.i = x;
+  yu.i = y;
+  cairo_scale(context, xu.f, yu.f);
 }
 
 /******************************************************************************
@@ -454,7 +491,9 @@ EXPORT void select_font_face(cairo_t *context, const char *family, slate_int_t i
 
 EXPORT void set_font_size(cairo_t *context, slate_int_t size)
 {
-    cairo_set_font_size(context, *(float*)&size);
+  union float_int_union su;
+  su.i = size;
+  cairo_set_font_size(context, su.f);
 }
 
 EXPORT void show_text(cairo_t *context, const char *text)
