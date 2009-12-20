@@ -222,7 +222,7 @@
      . font-lock-constant-face)    ; symbol
     ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
     ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
-    ("[$]\\(\\\\[ntsbre0avf\\'\\\"]\\|[^\\]\\)"
+    ("[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x[0-9a-fA-F][0-9a-fA-F][^\\]\\)"
      . font-lock-string-face)        ; character
     ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
     (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
