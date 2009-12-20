@@ -177,26 +177,24 @@ l@(Syntax Lexer traits) readEscapedCharacter
 after the initial escape is seen, whether as a character or part of a string."
 [| c |
   c: l nextCharacter.
-  c caseOf:
-      {
-        $n -> [$\n].
-        $t -> [$\t].
-        $r -> [$\r].
-        $b -> [$\b].
-        $s -> [$\s].
-        $a -> [$\a].
-        $v -> [$\v].
-        $f -> [$\f].
-        $e -> [$\e].
-        $0 -> [$\0].
-        $x ->
-          [| code |
-            code: (l nextCharacter toDigit: 16).
-            code: code * 16 + (l nextCharacter toDigit: 16).
-            code as: ASCIIString Character
-          ]
-      }
-    otherwise: [c]
+  c caseOf: {
+    $n -> [$\n].
+    $t -> [$\t].
+    $r -> [$\r].
+    $b -> [$\b].
+    $s -> [$\s].
+    $a -> [$\a].
+    $v -> [$\v].
+    $f -> [$\f].
+    $e -> [$\e].
+    $0 -> [$\0].
+    $x ->
+      [((l nextCharacter toDigit: 16) ifNil:
+          [l error: 'Unexpected numeric-escape Character syntax. Expected $\\xNN']) * 16
+         + ((l nextCharacter toDigit: 16) ifNil:
+              [l error: 'Unexpected numeric-escape Character syntax. Expected $\\xNN'])
+         as: ASCIIString Character]
+  } otherwise: [c]
 ].
 
 l@(Syntax Lexer traits) readString
@@ -252,23 +250,20 @@ l@(Syntax Lexer traits) readLiteral
   result: '' writer.
   l hasMoreCharacters
     ifTrue:
-      [
-        c: l nextCharacter.
-        c caseOf:
-            {
-              $( -> [^ Syntax BeginLiteralParenthesis].
-              ${ -> [^ Syntax BeginLiteralArray].
-              $[ -> [^ Syntax BeginLiteralBlock].
-              $' -> [[c: l nextCharacter. c == $']
-                        whileFalse:
-                          [result nextPut:
-                            (c == $\\
-                              ifTrue: [l readEscapedCharacter]
-                              ifFalse: [c])].
-                      ^ (l newLiteralFor: result contents intern)].
-            }.
-        l undoCharacter: c 
-      ].
+      [c: l nextCharacter.
+       c caseOf: {
+         $\( -> [^ Syntax BeginLiteralParenthesis].
+         $\{ -> [^ Syntax BeginLiteralArray].
+         $\[ -> [^ Syntax BeginLiteralBlock].
+         $\' -> [[c: l nextCharacter. c == $\']
+                   whileFalse:
+                     [result nextPut:
+                        (c == $\\
+                           ifTrue: [l readEscapedCharacter]
+                           ifFalse: [c])].
+                 ^ (l newLiteralFor: result contents intern)]
+       }.
+       l undoCharacter: c].
   l nextWordCharactersInto: result.
   l newLiteralFor: result contents intern
 ].
@@ -289,35 +284,33 @@ read-table."
 [| c |
   l isAtEnd ifTrue: [^ Syntax EndStream].
   c: l nextCharacter.
-  c caseOf:
-      {
-        $\' -> [l readString].
-        $\" -> [l readComment].
-        $$ -> [l readCharacter].
-        $# -> [l readLiteral].
-        $( -> [Syntax BeginParenthesis].
-        $) -> [Syntax EndParenthesis].
-        ${ -> [Syntax BeginArray].
-        $} -> [Syntax EndArray].
-        $[ -> [Syntax BeginBlock].
-        $] -> [Syntax EndBlock].
-        $@ -> [Syntax At].
-        $. -> [Syntax EndStatement].
-        $, -> [Syntax Comma].
-        $| -> [Syntax BeginVariables].
-        $! -> [Syntax Type].
-        $` -> [l readSelector: Syntax MacroSelector &ifEmpty: Syntax Quote].
-        $% -> [l readSelector: Syntax DeferredSelector &ifEmpty: Syntax Eventually].
-        $\n -> [Syntax EndLine].
-      }
-    otherwise:
-      [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]
-         ifTrue: [l undoCharacter: c. l readNumber]
-         ifFalse:
-            [l undoCharacter: c.
-             c isDigit
-               ifTrue: [l readNumber]
-               ifFalse: [l readSelector: Syntax Selector]]]
+  c caseOf: {
+    $\' -> [l readString].
+    $\" -> [l readComment].
+    $$ -> [l readCharacter].
+    $# -> [l readLiteral].
+    $( -> [Syntax BeginParenthesis].
+    $) -> [Syntax EndParenthesis].
+    ${ -> [Syntax BeginArray].
+    $} -> [Syntax EndArray].
+    $[ -> [Syntax BeginBlock].
+    $] -> [Syntax EndBlock].
+    $@ -> [Syntax At].
+    $. -> [Syntax EndStatement].
+    $, -> [Syntax Comma].
+    $| -> [Syntax BeginVariables].
+    $! -> [Syntax Type].
+    $` -> [l readSelector: Syntax MacroSelector &ifEmpty: Syntax Quote].
+    $% -> [l readSelector: Syntax DeferredSelector &ifEmpty: Syntax Eventually].
+    $\n -> [Syntax EndLine]
+  } otherwise:
+    [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]
+       ifTrue: [l undoCharacter: c. l readNumber]
+       ifFalse:
+         [l undoCharacter: c.
+          c isDigit
+            ifTrue: [l readNumber]
+            ifFalse: [l readSelector: Syntax Selector]]]
 ].
 
 l@(Syntax Lexer traits) next

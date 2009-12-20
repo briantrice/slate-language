@@ -750,9 +750,11 @@ method@(Syntax nodes MethodDefinition traits) transformChildren: block
 ].
 
 method@(Syntax nodes MethodDefinition traits) deepCopy: scope &into: target
-[resend `>>
-   [roles: (method roles
-        collect: [| :role | role ifNotNil: [role deepCopy: scope]]). ]].
+[
+  resend `>>
+    [roles: (method roles
+               collect: [| :role | role ifNotNil: [role deepCopy: scope]]). ]
+].
 
 method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
 [
@@ -771,6 +773,8 @@ var@(Syntax nodes Variable traits) deepCopy: scope
 [
   scope findVariable: var name
 ].
+
+Syntax nodes define: #RestVariable &parents: {Syntax nodes Variable}.
 
 Syntax nodes define: #LoadVariable &parents: {Syntax nodes Node} &slots: {#variable}.
 
@@ -796,6 +800,8 @@ load@(Syntax nodes LoadVariable traits) evaluateIn: namespace &optionals: opts
 [
   load variable name sendTo: {namespace} &optionals: opts
 ].
+
+Syntax nodes define: #LoadRestVariable &parents: {Syntax nodes LoadVariable}.
 
 Syntax nodes define: #StoreVariable &parents: {Syntax nodes Node}
   &slots: {#variable. #value}.
@@ -832,7 +838,7 @@ store@(Syntax nodes StoreVariable traits) deepCopy: scope
   (scope findVariable: store variable name)
     ifNil:
       [Syntax KeywordMessage
-	sending: (intern: store variable name name ; ':')
+	sending: (store variable name name ; ':') intern
 	to: {Syntax ImplicitArgument. store value deepCopy: scope}]
     ifNotNilDo: 
       [| :var | store of: (store value deepCopy: scope) into: var]
@@ -840,7 +846,7 @@ store@(Syntax nodes StoreVariable traits) deepCopy: scope
 
 store@(Syntax nodes StoreVariable traits) evaluateIn: namespace &optionals: opts
 [
-  (intern: store variable name name ; ':')
+  (store variable name name ; ':') intern
     sendTo: {namespace. store value evaluateIn: namespace}
     &optionals: opts
 ].
