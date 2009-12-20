@@ -2,8 +2,8 @@
 prototypes ensureNamespace: #converters &delegate: True.
 
 converters define: #Converter &slots: {
-    #in. "the input stream"
-    #out -> Console writer "the output stream"
+  #in. "the input stream"
+  #out -> Console writer "the output stream"
 }.
 
 c@(Converter traits) new
@@ -26,16 +26,13 @@ c@(Converter traits) convert: x@(Sequence traits)
 [c convert: x to: (x new &capacity: 0)].
 
 c@(Converter traits) convert: x through: y
-[ | conv |
-  conv: (c newFrom: x to: y).
-  conv convert.
-  conv
+[
+  (c newFrom: x to: y) `>> [convert. ]
 ].
 
 c@(Converter traits) convert: x to: y
-[ |conv|
-  conv: (c convert: x through: y).
-  conv out contents
+[
+  (c convert: x through: y) out contents
 ].
 
 r@(ReadStream traits) >> c@(Converter traits)
@@ -59,7 +56,6 @@ c1@(Converter traits) >> c2@(Converter traits)
 
 converters define: #Encoder &parents: {Converter}.
 converters define: #Decoder &parents: {Converter}.
-
 
 converters define: #Base64Encoder &parents: {Encoder}.
 converters define: #Base64Decoder &parents: {Decoder}.
@@ -109,13 +105,13 @@ c@(Base64Decoder traits) convert
   [c in isAtEnd] whileFalse:
     [| byte1 byte2 byte3 byte4 |
      "TODO: raise an exception on failure?"
-     (byte1: c nextValue) ifNil: [^ c].
-     (byte2: c nextValue) ifNil: [^ c].
+     (byte1: c nextValue) ifNil: [^ Nil].
+     (byte2: c nextValue) ifNil: [^ Nil].
      c out nextPut: ((byte1 << 2 bitOr: byte2 >> 4) as: ASCIIString Character).
-     (byte3: c nextValue) ifNil: [^ c].
+     (byte3: c nextValue) ifNil: [^ Nil].
      c out nextPut: (((byte2 << 4 bitAnd: 16rFF) bitOr: byte3 >> 2)
       as: ASCIIString Character).
-     (byte4: c nextValue) ifNil: [^ c].
+     (byte4: c nextValue) ifNil: [^ Nil].
      c out nextPut: (((byte3 << 6 bitAnd: 16rFF) bitOr: byte4) as: ASCIIString Character)].
 ].
 
@@ -123,7 +119,6 @@ c@(Base64Decoder traits) nextValue
 "Reads and answers the next value, checking for the suffix code $=, and using
 the translation table."
 [| value |
-  [c in isAtEnd ifTrue: [^ Nil].
-   (value: c in next) = $= ifTrue: [^ Nil].
+  [c in isAtEnd \/ [(value: c in next) = $=] ifTrue: [^ Nil].
    (c table at: (value as: Integer)) ifNotNilDo: [| :x | ^ x]] loop
 ].
