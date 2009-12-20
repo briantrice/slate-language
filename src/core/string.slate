@@ -427,22 +427,22 @@ s@(String traits) trim
   s trimAll: s elementType Whitespace
 ].
 
-s@(String traits) format: args
+s@(String traits) format*
 "Interpolates arguments formatted as '{N}' with corresponding elements from
 an array argument. Curly open-brackets may be escaped by doubling them."
-"Test: ('{{ } \\ foo {0} bar {1}' format: {12. 'string'}) = '{ } \ foo 12 bar string'"
-[
-  s reader `cacheAs: #input.
+"Test: ('{{ } \\ foo {0} bar {1}' format*, 12, 'string') = '{ } \ foo 12 bar string'"
+[| *args input |
+  input: s reader.
   [| :result |
    input do:
      [| :char |
-      char == ${
+      char == $\{
 	ifTrue:
-	  [input peek == ${
+	  [input peek == $\{
 	     ifTrue: [result nextPut: input next]
 	     ifFalse: [| index |
-		       index: (Integer readFrom: (input upTo: $})).
-		       result ; ((args at: index ifAbsent: ['[subscript out of bounds: {0}]' format: {index}]) as: s)]]
+		       index: (Integer readFrom: (input upTo: $\})).
+		       result ; ((args at: index ifAbsent: ['[subscript out of bounds: {0}]' format*, index]) as: s)]]
 	ifFalse: [result nextPut: char]].
    ] writingAs: s
 ].
