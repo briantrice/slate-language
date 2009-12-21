@@ -2,7 +2,13 @@
 "load after graphics.slate"
 
 Graphics define: #ScrollbarMorph &parents: {Morph}
-  &slots: {#vertical -> True. #minPos -> 0. #maxPos -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10}.
+  &slots: {#vertical -> True. #minPos -> 0. #maxPos -> 100. #position -> 0. #visibleRange -> 10. #minimumBar -> 10.
+       #barPosition -> (Rectangle origin: 0 <> 0 corner: 0 <> 0)}.
+
+m@(ScrollbarMorph traits) new
+[
+  resend `>> [updateBar. ]
+].
 
 m@(ScrollbarMorph traits) percent
 [
@@ -18,24 +24,29 @@ m@(ScrollbarMorph traits) rangePercent
     ifFalse: [m position + m visibleRange - m minPos / (m maxPos - m minPos)]
 ].
 
-m@(ScrollbarMorph traits) paintMyselfOn: surface@(Surface traits)
+m@(ScrollbarMorph traits) updateBar
 [
-  surface sourceRGB: m theme scrollbarBackgroundColor alpha: m theme scrollbarBackgroundAlpha.
-  surface rectangle: (Rectangle origin: 0 <> 0 extent: m region extent).
-  surface fill.
-  surface sourceRGB: m theme scrollbarForegroundColor alpha: m theme scrollbarForegroundAlpha.
   m vertical
     ifTrue:
-      [surface rectangle:
+      [m barPosition:
          (Rectangle origin: (2 <> ((m percent * m height) rounded
                                      min: m height - m minimumBar))
             corner: (m width - 2 <> ((m rangePercent * m height) rounded
                                        max: (m percent * m height) rounded + m minimumBar)))]
     ifFalse:
-      [surface rectangle: (Rectangle origin: (2 <> ((m percent * m width) rounded
+      [m barPosition: (Rectangle origin: (2 <> ((m percent * m width) rounded
                                                       min: m width - m minimumBar))
                              corner: (m height - 2 <> ((m rangePercent * m width) rounded
                                                          max: (m percent * m width) rounded + m minimumBar)))].
+].
+
+m@(ScrollbarMorph traits) paintMyselfOn: surface@(Surface traits)
+[
+  surface sourceRGB: m theme scrollbarBackgroundColor alpha: m theme scrollbarBackgroundAlpha.
+  surface rectangleObject: m.
+  surface fill.
+  surface sourceRGB: m theme scrollbarForegroundColor alpha: m theme scrollbarForegroundAlpha.
+  surface rectangle: m barPosition.
   surface fill.
 ].
 
@@ -56,6 +67,7 @@ m@(ScrollbarMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent trait
 m@(ScrollbarMorph traits) slideIncrease
 [
   m position: (m position + m visibleRange min: m maxPos).
+  m updateBar.
   m repaint.
   m
 ].
@@ -63,6 +75,7 @@ m@(ScrollbarMorph traits) slideIncrease
 m@(ScrollbarMorph traits) slideDecrease
 [
   m position: (m position - m visibleRange max: m minPos).
+  m updateBar.
   m repaint.
   m
 ].
@@ -111,6 +124,7 @@ Graphics define: #ListboxMorph &parents: {Morph}
            #scrollbarWidth -> 10.
            #printFunction -> Nil.
            #singleSelect -> True.
+           #selectionBoxes -> {}.
            }.
 
 m@(ListboxMorph traits) new
@@ -121,6 +135,8 @@ m@(ListboxMorph traits) new
                   selectedItems: Set new. ].
   me addChild: me verticalScrollbar.
   me addChild: me horizontalScrollbar.
+  me sizeChanged.
+  me contentsChanged.
   me
 ].
 
@@ -132,6 +148,24 @@ m@(ListboxMorph traits) updateScrollbars
   m horizontalScrollbar region: (Rectangle origin: 0 <> (m height - m scrollbarWidth)
                                            extent: m width - (m scrollbarWidth <> m scrollbarWidth)).
   m verticalScrollbar visibleRange: m width // m theme listboxFontSize.
+].
+
+m@(ListboxMorph traits) setItemsTo: list
+[
+  m items: list.
+  m contentsChanged.
+  m sizeChanged.
+  m
+].
+
+m@(ListboxMorph traits) contentsChanged
+[ | vsb |
+  "calculate the visible portion and stuff"
+  vsb: m verticalScrollbar.
+  vsb maxPos: (m items size - 1).
+  vsb minPos: 0.
+  vsb position: ((vsb position min: vsb maxPos) max: vsb minPos).
+  vsb visibleRange: m visibleItems.
 ].
 
 m@(ListboxMorph traits) sizeChanged
@@ -148,37 +182,31 @@ m@(ListboxMorph traits) itemSize: item
 m@(ListboxMorph traits) visibleRange
 [
   m verticalScrollbar `cache position
-     to: (m verticalScrollbar position + m verticalScrollbar visibleRange min: m verticalScrollbar maxPos)
+     below: (m verticalScrollbar position + m verticalScrollbar visibleRange min: m verticalScrollbar maxPos)
      by: 1
 ].
 
 m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
-[| vsb hsb heightOffset |
+[| vsb heightOffset |
   surface sourceRGB: m theme listboxColor alpha: m theme listboxAlpha.
-  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface fill.
+  surface rectangleObject: m.
+  surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface stroke.
+  surface rectangleObject: m.
+  surface stroke.
 
-  vsb: m verticalScrollbar.
-  hsb: m horizontalScrollbar.
-  "calculate the visible portion and stuff"
-  vsb maxPos: m items size - 1.
-  vsb minPos: 0.
-  vsb position: ((vsb position min: vsb maxPos) max: vsb minPos).
-  vsb visibleRange: m visibleItems.
-  heightOffset: 0.
-  "inform: 'painting items ' ; m visibleRange printString."
   surface fontSize: m theme listboxFontSize.
 
+  "fixme only paint items in visible range"
+  m selectionBoxes do: [ |:box| surface rectangle: box.
+                                surface sourceRGB: m theme selectedColor alpha: m theme selectedAlpha.
+                                surface fill].
+
+  heightOffset: 0.
   m visibleRange do:
     [| :itemPos item itemHeight |
        item: (m items at: itemPos).
        itemHeight: (m itemSize: item).
-       (m selectedItems includes: item)
-         ifTrue: [surface ensurePaint: [surface rectangle: (Rectangle origin: 0 <> heightOffset
-                                                                      corner: m width <> (heightOffset + itemHeight)).
-                                        surface sourceRGB: m theme selectedColor alpha: m theme selectedAlpha.
-                                        surface fill]].
        surface ensurePaint: [surface moveTo: 5 <> (itemHeight + heightOffset - 2). "text paints from bottom left"
                              surface sourceRGB: m theme textColor alpha: m theme textAlpha.
                              m printFunction
@@ -187,9 +215,7 @@ m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
 
        heightOffset: heightOffset + itemHeight.
    ].
-"  m paintChild: vsb on: surface.
-  m paintChild: hsb on: surface.
-"
+
 ].
 
 m@(ListboxMorph traits) visibleItems
@@ -207,7 +233,19 @@ m@(ListboxMorph traits) visibleItems
 ].
 
 m@(ListboxMorph traits) selectionChanged
-[
+[ | heightOffset item itemHeight |
+  heightOffset: 0.
+  m selectionBoxes: (ExtensibleArray new &capacity: 10).
+  m visibleRange do:
+    [| :itemPos |
+       item: (m items at: itemPos).
+       itemHeight: (m itemSize: item).
+       (m selectedItems identityIncludes: item)
+         ifTrue: [m selectionBoxes addLast: (Rectangle origin: 0 <> heightOffset
+                                               corner: m width <> (heightOffset + itemHeight))].
+       heightOffset: heightOffset + itemHeight.
+
+   ].
 
 ].
 

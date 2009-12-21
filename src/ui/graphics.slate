@@ -132,7 +132,7 @@ se@(WindowSceneElement traits) activeConductor [se conductor].
 c@(Conductor traits) setFocus: item
 [
   c focus: item.
-  inform: 'focus set to ' ; item printString.
+  inform: 'focus set to ' ; item printName printString.
   c mouseMovedAfterPress: False
 ].
 
@@ -400,9 +400,11 @@ m@(Morph traits) setChildren: array
 m@(LabelMorph traits) paintMyselfOn: surface@(Surface traits)
 [
   surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
-  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface fill.
+  surface rectangleObject: m.
+  surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangle: (Rectangle origin: 0 <> 0 extent: m width <> m height). surface stroke.
+  surface rectangleObject: m.
+  surface stroke.
   surface fontSize: m fontSize.
   surface moveTo: 10 <> (m height // 2).
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
