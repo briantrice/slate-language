@@ -56,3 +56,10 @@ x@(Root traits) printMostCommonlyCalledMethods
               ; ' at: ' ; m definitionLocation].
 ].
 
+m@(CompiledMethod traits) breakOnEntry
+[ | regCount |
+  regCount: m registerCount.
+  m registerCount: regCount + 2.
+  m method code: {VM SSACode loadEnvironment. regCount. 
+                  VM SSACode directSendMessage. regCount + 1. #break. 1. regCount} ; m method code.
+].
