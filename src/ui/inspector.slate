@@ -14,13 +14,14 @@ m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &h
   le: LineEditorMorph new.
   buttonMorph: LabelMorph new.
   slotListbox: ListboxMorph new.
-  slotListbox items: obj slotNames.
+  slotListbox setItemsTo: obj slotNames.
   arrayListbox: ListboxMorph new.
   (obj is: Sequence)
-    ifTrue: [arrayListbox items: obj]
-    ifFalse: [arrayListbox items: {}].
+    ifTrue: [arrayListbox setItemsTo: obj]
+    ifFalse: [arrayListbox setItemsTo: {}].
   m@(slotListbox) selectionChanged
   [
+    resend.
     m selectedItems do: [| :item |
        im selectedItem: (obj atSlotNamed: item).
        le editor reset.
@@ -28,6 +29,7 @@ m@(InspectorMorph traits) newOn: obj parent: parent &x: x &y: y &width: width &h
   ].
   m@(arrayListbox) selectionChanged
   [
+     resend.
      m selectedItems do: [| :item |
        im selectedItem: item.
        le editor reset.
