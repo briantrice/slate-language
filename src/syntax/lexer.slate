@@ -31,8 +31,8 @@ empty."
   [| c |
    [c: l nextCharacter.
     l buffer isEmpty /\ [l source isAtEnd]
-      \/ [c isWhitespace not] \/ [c == $\n]] whileFalse.
-   c isWhitespace /\ [c ~== $\n] \/ [l undoCharacter: c. False]]
+      \/ [c isWhitespace not] \/ [l isEndOfLine: c]] whileFalse.
+   c isWhitespace /\ [(l isEndOfLine: c) not] \/ [l undoCharacter: c. False]]
 ].
 
 l@(Syntax Lexer traits) hasMoreCharacters
@@ -60,7 +60,7 @@ the line number if a new-line is reached."
          ifTrue: [l error: 'Unexpected end of stream'].
        l source next]
     ifFalse: [l buffer removeLast]).
-  c == $\n ifTrue: [l lineNumber: l lineNumber + 1].
+  (l isEndOfLine: c) ifTrue: [l lineNumber: l lineNumber + 1].
   c
 ].
 
@@ -68,7 +68,7 @@ l@(Syntax Lexer traits) undoCharacter: c
 "Put the character back into the buffer, and decrement the line number if it's
 a new-line."
 [
-  c == $\n ifTrue: [l lineNumber: l lineNumber - 1].
+  (l isEndOfLine: c) ifTrue: [l lineNumber: l lineNumber - 1].
   l buffer addLast: c
 ].
 
@@ -205,7 +205,7 @@ Escaping is accounted for."
     [c: l nextCharacter. c == $\']
       whileFalse:
 	[result nextPut:
-          (c == $\\ 
+          ((l isEscape: c)
             ifTrue: [l readEscapedCharacter] 
             ifFalse: [c])]] writingAs: String)
 ].
@@ -218,9 +218,9 @@ Escaping is accounted for."
     [c: l nextCharacter. c == $\"]
       whileFalse:
 	[result nextPut:
-          (c == $\\
-            ifTrue: [l readEscapedCharacter]
-            ifFalse: [c])]] writingAs: '')
+          ((l isEscape: c)
+             ifTrue: [l readEscapedCharacter]
+             ifFalse: [c])]] writingAs: '')
 ].
 
 l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
@@ -258,7 +258,7 @@ l@(Syntax Lexer traits) readLiteral
          $\' -> [[c: l nextCharacter. c == $\']
                    whileFalse:
                      [result nextPut:
-                        (c == $\\
+                        ((l isEscape: c)
                            ifTrue: [l readEscapedCharacter]
                            ifFalse: [c])].
                  ^ (l newLiteralFor: result contents intern)]
@@ -272,7 +272,7 @@ l@(Syntax Lexer traits) readCharacter
 "Read in a single character into a token or an escaped one."
 [| c |
   c: l nextCharacter.
-  c == $\\ ifTrue: [c: l readEscapedCharacter].
+  (l isEscape: c) ifTrue: [c: l readEscapedCharacter].
   l newLiteralFor: c
 ].
 
