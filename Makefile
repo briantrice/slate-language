@@ -1,5 +1,3 @@
-
-
 slateroot=.
 
 include $(slateroot)/common.mk
@@ -31,10 +29,10 @@ install: vm installdirs
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
 
-installcheck: install
+installcheck:
 	$(info Checking installation)
         # TODO: A few sanity checks should be run on the installed files
-	$(SILENT) $(ECHO) "3 + 4." | $(exec_prefix)/$(execname)
+	$(SILENT) $(exec_prefix)/$(execname) --eval "3 + 4. quit."
 
 uninstall:
 	$(info Uninstalling)
@@ -53,12 +51,15 @@ slate-completions:
 
 readline-support: slate-completions
 
+i18n-support:
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/i18n/init.slate --eval "Unicode buildTable" --eval "Image save. quit."
+
 bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
-	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &littleEndian: True &bitSize: $(WORD_SIZE). quit."
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &littleEndian: $(LITTLE_ENDIAN_SLATE) &bitSize: $(WORD_SIZE)." --eval "quit"
 
 backup: superclean
-	cd .. && tar  '--exclude=*.git*' -jcvf cslatevm-backup.tar.bz2 cslatevm
+	tar  '--exclude=*.git*' -jcvf ../slate-backup.tar.bz2 .
 
 plugins:
 	$(MAKE) -C src/plugins
