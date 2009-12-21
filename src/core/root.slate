@@ -81,9 +81,26 @@ x@(Root traits) addAccessor: method for: slotName &accessorName: accessorName
 x@(Root traits) addAccessorFor: slotName &accessorName: accessorName
 "Adds and answers a new Method for accessing the slot's value,
 with overridable selector."
-[
-  x addAccessor: [| :obj | obj atSlotNamed: slotName]
+[ | m regCount slotNameReg primNumReg resultReg |
+"  x addAccessor: [| :obj | obj atSlotNamed: slotName]
+    for: slotName &accessorName: accessorName"
+
+  "bypass method lookup by calling the primitive directly.
+   because this is only defined on Root traits, we don't have to worry about the separate smallint primitive.
+   now we just need to inline this into the caller to drop the interpreter_apply_to cost"
+  m: [| :obj | ]. "this should not be a closure"
+  regCount: m registerCount.
+  m registerCount: regCount + 3.
+  slotNameReg: regCount.
+  primNumReg: regCount + 1.
+  resultReg: regCount + 2.
+  m code: {#[VM SSACode loadLiteral]. slotNameReg. slotName.
+           #[VM SSACode loadLiteral]. primNumReg. 13.
+           #[VM SSACode primitiveDo]. primNumReg. 2. resultReg. 0. slotNameReg.  "primNum, arg count, result reg, args..."
+           #[VM SSACode returnRegister]. resultReg}.
+  x addAccessor: m
     for: slotName &accessorName: accessorName
+
 ].
 
 x@(Root traits) addMutator: method for: slotName &mutatorName: mutatorName
@@ -96,9 +113,23 @@ x@(Root traits) addMutator: method for: slotName &mutatorName: mutatorName
 x@(Root traits) addMutatorFor: slotName &mutatorName: mutatorName
 "Adds and answers a new Method for changing the slot's value,
 with overridable selector."
-[
-  x addMutator: [| :obj :val | obj atSlotNamed: slotName put: val]
+[ | m regCount slotNameReg primNumReg resultReg |
+
+  "bypass method lookup by calling the primitive directly.
+   now we just need to inline this into the caller to drop the interpreter_apply_to cost"
+  m: [| :obj :val | ]. "this should not be a closure"
+  regCount: m registerCount.
+  m registerCount: regCount + 3.
+  slotNameReg: regCount.
+  primNumReg: regCount + 1.
+  resultReg: regCount + 2.
+  m code: {#[VM SSACode loadLiteral]. slotNameReg. slotName.
+           #[VM SSACode loadLiteral]. primNumReg. 15.
+           #[VM SSACode primitiveDo]. primNumReg. 3. resultReg. 0. slotNameReg. 1.  "primNum, arg count, result reg, args..."
+           #[VM SSACode returnRegister]. resultReg}.
+  x addMutator: m
     for: slotName &mutatorName: mutatorName
+
 ].
 
 x@(Root traits) rawAddSlot: slotName valued: slotValue
