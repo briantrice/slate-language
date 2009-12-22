@@ -84,9 +84,11 @@ BYTE_ORDER_ := $(shell $(RM) $(BYTE_ORDER_FN).* $(BYTE_ORDER_FN) 1>&2)
 ifeq ($(BYTE_ORDER),0)
   BYTE_ORDER := LITTLE_ENDIAN
   BYTE_ORDER_PREFIX := little
+  LITTLE_ENDIAN_SLATE := True
 else
   BYTE_ORDER := BIG_ENDIAN
   BYTE_ORDER_PREFIX := big
+  LITTLE_ENDIAN_SLATE := False
 endif
 
 ## Default variables
