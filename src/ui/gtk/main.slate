@@ -1,105 +1,108 @@
-Gtk define: #Main &builder: [Oddball clone] &slots: { #initialized -> False. #oldDebuggerHook }.
+Gtk define: #Main &builder: [Oddball clone] &slots: { #isInitialized -> False. #oldDebuggerHook }.
 
 _@(Gtk Main) printName [ 'Gtk Main' ].
 
-_@(Gtk Main) mainQuit [
-	Gtk Lib primitives gtk_main_quit do
+_@(Gtk Main) mainQuit
+[
+  Gtk Lib primitives gtk_main_quit do
 ].
 
-
 m@(Gtk Main) handleCondition: c@(Condition traits)
-[ | stream dialog message |
+[| stream dialog message |
   stream: (Stream newTo: String new).
   c describeOn: stream.
   message: (stream contents ; 'Debug it?' ).
   dialog: (Gtk MessageDialog newQuestionMessage: message).
-  dialog when: #response do: [ | :dialog :answer | 
-		                dialog destroy.
-		                answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c from: #newFor:from:) show ]
-	                        ].
+  dialog when: #response do:
+    [| :dialog :answer | 
+     dialog destroy.
+     answer = Gtk ResponseType Yes ifTrue: [(Gtk Debugger newFor: c from: #newFor:from:) show]].
   dialog show.
 ].
 
-
-m@(Gtk Main) installDebuggerHook [
+m@(Gtk Main) installDebuggerHook
+[
   m oldDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
-  c@(Condition traits) invokeDebugger [ 
-	"The hook for any Condition to start the debugger and enter its loop."
-	| stream dialog message |
-	stream: (Stream newTo: String new).
-	c describeOn: stream.
-	message: (stream contents ; 'Debug it?' ).
-	dialog: (Gtk MessageDialog newQuestionMessage: message).
-	dialog when: #response do: [ | :dialog :answer | 
-		dialog destroy.
-		answer = Gtk ResponseType Yes ifTrue: [ (Gtk Debugger newFor: c from: #invokeDebugger) show ]
-	].
-	dialog show.
-	Gtk Main doEventLoop.
+  c@(Condition traits) invokeDebugger
+  [
+    "The hook for any Condition to start the debugger and enter its loop."
+    | stream dialog message |
+    stream: (Stream newTo: String new).
+    c describeOn: stream.
+    message: (stream contents ; 'Debug it?' ).
+    dialog: (Gtk MessageDialog newQuestionMessage: message).
+    dialog when: #response do:
+      [| :dialog :answer | 
+       dialog destroy.
+       answer = Gtk ResponseType Yes ifTrue: [(Gtk Debugger newFor: c from: #invokeDebugger) show]
+    ].
+    dialog show.
+    Gtk Main doEventLoop.
   ].
 ].
 
-m@(Gtk Main) uninstallDebuggerHook [
-	| myDebuggerHook |
-	myDebuggerHook: (#invokeDebugger findOn: {Condition traits}).
-	myDebuggerHook ifNil: [ ^ Nil ].
-	m oldDebuggerHook
-		ifNil: [ myDebuggerHook removeFrom: {Condition traits} ]
-		ifNotNil: [ myDebuggerHook replaceWith: m oldDebuggerHook on: {Condition traits} ]
+m@(Gtk Main) uninstallDebuggerHook
+[
+  (#invokeDebugger findOn: {Condition traits}) ifNotNilDo:
+    [| :myDebuggerHook |
+     m oldDebuggerHook
+       ifNil: [myDebuggerHook removeFrom: {Condition traits}]
+       ifNotNilDo: [| :oldHook | myDebuggerHook replaceWith: oldHook on: {Condition traits}]]
 ].
 
-m@(Gtk Main) init [
-	m initialized ifFalse: [
-		Gdk LibWrapper init.
-		GLib CallbackData initQueue.
-		GLib CallbackRegistry init.
-		Gtk LibWrapper init.
-		m initialized: True.
-		"m installDebuggerHook."
-	]
+m@(Gtk Main) initialize
+[
+  m isInitialized ifFalse:
+    [Gdk LibWrapper init.
+     GLib CallbackData initQueue.
+     GLib CallbackRegistry init.
+     Gtk LibWrapper init.
+     m isInitialized: True.
+     "m installDebuggerHook"]
 ].
 
-m@(Gtk Main) uninitialize [
-	"m uninstallDebuggerHook."
-	m oldDebuggerHook: Nil.
-	GLib CallbackRegistry uninitialize.
-	m initialized: False.
+m@(Gtk Main) uninitialize
+[
+  "m uninstallDebuggerHook."
+  m oldDebuggerHook: Nil.
+  GLib CallbackRegistry uninitialize.
+  m isInitialized: False.
 ].
 
-m@(Gtk Main) shutdown [
-	m initialized ifTrue: [
-		m mainQuit.
-		GLib CallbackData shutdownQueue.
-		m uninitialize.
-	]
+m@(Gtk Main) shutdown
+[
+  m isInitialized ifTrue:
+    [m mainQuit.
+     GLib CallbackData shutdownQueue.
+     m uninitialize]
 ].
 
-m@(Gtk Main) resetOnStartup [
+m@(Gtk Main) resetOnStartup
 "Adds a handler for Image startup to reset the REPL."
-	Image startupActions at: m put: [ m uninitialize ].
+[
+  Image startupActions at: m put: [m uninitialize].
 ].
 
 m@(Gtk Main) doEventLoopDepth: depth maxDepth: maxDepth
 [
-   [[GLib CallbackRegistry executeNextCallback.
-     m initialized
-    ] whileTrue]
-          on: SeriousCondition
-          do: [|:e| m handleCondition: e.
-                    depth > maxDepth
-                      ifTrue: [inform: 'GUI handle error depth maxed at: ' ; depth printString.
-                               ^ e defaultHandler]
-                      ifFalse: [^ (m doEventLoopDepth: depth + 1 maxDepth: maxDepth)]]
+  [[GLib CallbackRegistry executeNextCallback.
+    m isInitialized] whileTrue]
+    on: SeriousCondition
+    do: [|:e| m handleCondition: e.
+         ^ (depth > maxDepth
+              ifTrue: [inform: 'GUI handle error depth maxed at: ' ; depth printString.
+                       e defaultHandler]
+              ifFalse: [m doEventLoopDepth: depth + 1 maxDepth: maxDepth])]
 ].
 
-
-m@(Gtk Main) doEventLoop [
+m@(Gtk Main) doEventLoop
+[
   m doEventLoopDepth: 1 maxDepth: 5.
 ].
 
-m@(Gtk Main) do: aBlock [
-	m init.
-	aBlock do.
-	m doEventLoop.
-	m shutdown.
+m@(Gtk Main) sessionDo: aBlock
+[
+  [m initialize.
+   aBlock do.
+   m doEventLoop] ensure: [m shutdown].
 ].

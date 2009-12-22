@@ -197,14 +197,14 @@ se@(SceneElement traits) leftCenter [ se region leftCenter].
 se@(SceneElement traits) rightCenter [ se region rightCenter].
 
 se@(SceneElement traits) absolutePosition
-[ |point obj|
-  point: se region origin.
+[ | point obj |
+  point: se region origin clone.
   obj: se parent.
   [obj isSameAs: WindowSceneElement]
-    whileTrue: [point x: point x + obj region origin x. 
+    whileFalse: [point x: point x + obj region origin x. 
                 point y: point y + obj region origin y.
                 obj: obj parent].
-  se parent absolutePosition + se region origin
+  point
 ].
 
 se@(Morph traits) startDragging: position
