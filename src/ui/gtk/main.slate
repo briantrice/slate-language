@@ -93,13 +93,14 @@ m@(Gtk Main) doEventLoopDepth: depth maxDepth: maxDepth
 ].
 
 
-m@(Gtk Main) doEventLoop [
+m@(Gtk Main) doEventLoop
+[
   m doEventLoopDepth: 1 maxDepth: 5.
 ].
 
-m@(Gtk Main) do: aBlock [
-	m init.
-	aBlock do.
-	m doEventLoop.
-	m shutdown.
+m@(Gtk Main) sessionDo: aBlock
+[
+  [m init.
+   aBlock do.
+   m doEventLoop] ensure: [m shutdown].
 ].
