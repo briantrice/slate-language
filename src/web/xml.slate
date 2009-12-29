@@ -405,7 +405,7 @@ w@(Xml Writer traits) encodeAttribute: attrib
    attrib do:
      [| :char |
       (w encode: char) ifNil: [result nextPut: char]
-		       ifNotNilDo: [| :encoded | result ; encoded]]
+                       ifNotNilDo: [| :encoded | result ; encoded]]
   ] writingAs: attrib
 ].
 
@@ -436,8 +436,8 @@ w@(Xml XHTMLWriter traits) inDocumentDo: block &head: head &attributes: attrib
      w inTag: 'head' do: [| :w | head ifNotNil: [ head applyWith: w]].
      w inTag: 'body' do:
        [| :w |
-	block applyWith: w.
-	]
+        block applyWith: w.
+        ]
     ] &attributes: attrib.
 ].
 
@@ -447,27 +447,27 @@ w@(Xml XHTMLWriter traits) didNotUnderstand: message at: position
     ifTrue: [resend]
     ifFalse:
       [message selector isUnarySelector ifTrue:
-	[| tagName |
-	 "selector = tag-name, attributes = optionals, except for &content: which is innerHTML"
+        [| tagName |
+         "selector = tag-name, attributes = optionals, except for &content: which is innerHTML"
          w inTag: message selector do:
-	   [| :w |
-	    message optionals pairsDo:
-	      [| :key :value keyString |
-	       ((key as: String) `cache) = 'content'
-		 ifTrue: [w ; (value as: String)]
-		 ifFalse: [w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]].
+           [| :w |
+            message optionals pairsDo:
+              [| :key :value keyString |
+               ((key as: String) `cache) = 'content'
+                 ifTrue: [w ; (value as: String)]
+                 ifFalse: [w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]].
        message selector isKeywordSelector ifTrue:
-	 [| keywords args |
-	  "selector's first keyword = tag-name, attributes = optionals, first argument is innerHTML"
-	  keywords: ((message selector as: String) splitWith: $:).
-	  keywords size = 1
-	    ifTrue:
-	      [w inTag: keywords first do:
-		[| :w |
-		 [w ; message arguments second.
-		  message optionals pairsDo:
-		    [| :key :value keyString |
-		     w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]]
-	    ifFalse: "TODO: Support multi-keyword selectors?"
-	      [resend]]]
+         [| keywords args |
+          "selector's first keyword = tag-name, attributes = optionals, first argument is innerHTML"
+          keywords: ((message selector as: String) splitWith: $:).
+          keywords size = 1
+            ifTrue:
+              [[w inTag: keywords first do:
+                  [| :w |
+                   [w ; message arguments second.
+                    message optionals pairsDo:
+                      [| :key :value keyString |
+                       w emitAttribute: (key as: String) allButFirst allButLast valued: (value as: String)]]]]]
+            ifFalse: "TODO: Support multi-keyword selectors?"
+              [resend]]]
 ].
