@@ -63,3 +63,8 @@ m@(CompiledMethod traits) breakOnEntry
   m method code: {VM SSACode loadEnvironment. regCount. 
                   VM SSACode directSendMessage. regCount + 1. #break. 1. regCount} ; m method code.
 ].
+
+obj@(Root traits) completeSelectorFrom: s@(String traits)
+[ 
+  obj allRoles select: [|:item| (item value bitAnd: 1) = 1 /\ [item key beginsWith: s]] collect: [|:item| item key]
+].

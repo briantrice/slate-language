@@ -17,10 +17,11 @@ m@(ReplMorph traits) newWithParent: parent &x: x &y: y &width: width &height: he
   parent addChild: repl.
   repl pack.
   it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(repl promptMorph)
-  [ | result parser expr string |
+  [ 
     "alt-d doit"
     e key = 100 /\ [e modifiers = 8]
-      ifTrue: [string: ('' concatenateAll: (m editor lines collect: #contents `er) &separator: m editor lineDelimeter).
+      ifTrue: [| result parser expr string |
+               string: ('' concatenateAll: (m editor lines collect: #contents `er) &separator: m editor lineDelimeter).
                parser: (Syntax Parser newOn: string).
                [[expr: parser next.
                  result: (expr evaluateIn: lobby).
@@ -28,6 +29,23 @@ m@(ReplMorph traits) newWithParent: parent &x: x &y: y &width: width &height: he
                  parser isAtEnd not] on: Stream Exhaustion do: [False]] whileTrue.
                m parent repaint.
                m editor reset.
+               ^ Nil].
+    "m-/ complete"
+    "e key = 47 /\ [e modifiers = 8]"
+    "tab complete"
+    e key = 9
+      ifTrue: [|string index completion parser expr result|
+               string: (m editor textOnLineBefore:  m editor cursor).
+               index: (string lastIndexOf: {$\s} ifAbsent: [string size]).
+               string: (string first: index).
+               completion: (string allButFirst: index).
+               inform: 'str ' ; string ; 'comp:' ; completion.
+               parser: (Syntax Parser newOn: string).
+               [expr: parser next.
+                result: ((expr evaluateIn: lobby) completeSelectorFrom: '').
+                m parent displayMorph editor lines add: result printString.
+                m parent repaint] on: Error do: [|:e| ^ Nil].
+               
                ^ Nil].
     resend.
   ].
