@@ -420,6 +420,8 @@ word_t print_code_args(struct object_heap* oh, struct OopArray* code, word_t arg
   return args;
 }
 
+
+//fixme use optimizer.cpp's methods
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
   word_t i, size;
   size = array_size(code);
@@ -453,8 +455,8 @@ void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
     case 22: printf("return reg "); i += print_code_args(oh, code, 1, i); break;
     case 23: printf("return val "); i += print_code_args(oh, code, 1, i); break;
     case 24: printf("resume "); i += print_code_args(oh, code, 0, i); break;
-    case 25: printf("primitiveDo "); i += print_code_args(oh, code, 3, i + object_to_smallint(code->elements[i+1])); break;
-    case 26: printf("directApplyTo "); i += print_code_args(oh, code, 3, i + object_to_smallint(code->elements[i+1])); break;
+    case 25: printf("primitiveDo "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+1]), i); break;
+    case 26: printf("directApplyTo "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+1]), i); break;
     case 27: printf("is nil "); i += print_code_args(oh, code, 2, i); break;
     default: printf("error reading code %" PRIdPTR "... stopping\n", op); return;
     }

@@ -304,9 +304,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       method_pic_setup(oh, callerMethod);
       addToPic = TRUE;
     } else {
-      if (arity <= 1) {
-        def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
-      }
+      def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
 
       if ((struct Object*)def==NULL) {
         addToPic = TRUE;
@@ -352,7 +350,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   /*PIC add here*/
 #ifndef SLATE_DISABLE_PIC_LOOKUP
-  if (addToPic && arity <= 1) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
+  if (addToPic) method_pic_add_callee(oh, callerMethod, def, arity, dispatchers);
 #endif
 
   method = (struct Closure*)def->method;
