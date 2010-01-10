@@ -82,6 +82,12 @@ list to use to increment the whole count"
   25 -> (#primitiveDo -> {3. 1}). "call a primitive directly, bypassing method lookup: primNum, primArgCount, resultReg, args..."
   26 -> (#directApplyTo -> {3. 1}). "call a method/closure directly, bypassing array creation: method, argCount, resultReg, args..."
   27 -> (#isNilOp -> {2}). "is identical to but doesn't need the nil argument"
+
+  "these check the arguments to see if their maps match the ones in the map array"
+  "if they match, we fall through to the next instruction which is the primitive (no code) or inlined function"
+  "it also needs to set up the input varibles"
+  28 -> (#inlinePrimitiveCheckJump -> {5. 3}). "result reg, map array, prim number(in-opcode not a register), arity, jump offset, parameters..."
+  29 -> (#inlineMethodCheckJump -> {3. 2}). "map array, arity, jump offset, parameters..."
 }.
 
 VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].

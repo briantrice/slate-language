@@ -573,8 +573,11 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_PRIMITIVE_DO                 ((25 << 1) | SMALLINT_MASK)
 #define OP_APPLY_TO                     ((26 << 1) | SMALLINT_MASK)
 #define OP_IS_NIL                       ((27 << 1) | SMALLINT_MASK)
-#define OP_                             ((28 << 1) | SMALLINT_MASK)
+#define OP_INLINE_PRIMITIVE_CHECK       ((28 << 1) | SMALLINT_MASK)
+#define OP_INLINE_METHOD_CHECK          ((29 << 1) | SMALLINT_MASK)
+#define OP_                             ((30 << 1) | SMALLINT_MASK)
 
+#define OP_SEND_PARAMETER_0 4
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
 #define REG_STACK_POINTER(X)            (i->framePointer + (X))
@@ -1036,6 +1039,7 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
+void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method);
 
 
 /*optimizer*/
@@ -1047,7 +1051,7 @@ word_t opcode_register_locations(word_t rawop);
 void optimizer_offset_registers(std::vector<struct Object*>& code, int offset);
 void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct Object*>& vector);
 void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode);
-void optimizer_inline_methods(struct object_heap* oh, struct CompiledMethod* method);
+void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method);
 
 /*pinned objects for GC*/
 void heap_pin_object(struct object_heap* oh, struct Object* x);

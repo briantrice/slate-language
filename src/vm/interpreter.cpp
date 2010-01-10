@@ -193,10 +193,14 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   assert(n <= 16);
 
-#ifdef SLATE_DISABLE_METHOD_OPTIMIZATION
+#ifndef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
-  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
+  //  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
+  //    method_optimize(oh, method);
+  //  }
+  if (method->reserved5 != oh->cached.nil) {
     method_optimize(oh, method);
+    method->reserved5 = oh->cached.nil;
   }
 #endif
   
@@ -1202,6 +1206,46 @@ void interpret(struct object_heap* oh) {
           printf("do primitive %" PRIdPTR "\n", primNum);
 #endif
           primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
+          
+          break;
+        }
+
+      case OP_INLINE_PRIMITIVE_CHECK:
+        {
+          word_t primNum, resultReg, arity, k, jumpOffset;
+          struct Object* mapArray;
+          struct Object* argsArray[16];
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          resultReg = SSA_NEXT_PARAM_SMALLINT;
+          mapArray = SSA_NEXT_PARAM_OBJECT;
+          primNum = SSA_NEXT_PARAM_SMALLINT;
+          arity = SSA_NEXT_PARAM_SMALLINT;
+          jumpOffset = SSA_NEXT_PARAM_SMALLINT;
+
+          assert(arity <= 16);
+
+          for (k=0; k<arity; k++) {
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
+          }
+          
+          word_t success = 1;
+          if (arity == object_array_size(mapArray)) {
+            for (word_t k = 0; k < arity; k++) {
+              if ((struct Map*) ((struct OopArray*)mapArray)->elements[k] != object_get_map(oh, argsArray[k])) {
+                success = 0;
+                break;
+              }
+            }
+          }
+
+          if (success) {
+            primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
+            i->codePointer = i->codePointer + jumpOffset;
+          }
+          
+
           
           break;
         }

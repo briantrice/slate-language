@@ -420,6 +420,21 @@ word_t print_code_args(struct object_heap* oh, struct OopArray* code, word_t arg
   return args;
 }
 
+void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method) {
+  if ((struct Object*)method->calleeCount == oh->cached.nil) return;
+
+  for (word_t i = 0; i < array_size(method->calleeCount); i += CALLER_PIC_ENTRY_SIZE) {
+    struct MethodDefinition* def = (struct MethodDefinition*)method->calleeCount->elements[i+PIC_CALLEE];
+    if ((struct Object*)def == oh->cached.nil) continue;
+    struct CompiledMethod* picMethod = (struct CompiledMethod*)def->method;
+    struct Object* traitsWindow = picMethod->base.map->delegates->elements[0];
+    assert (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.primitive_method_window);
+    struct Symbol* picSelector = picMethod->selector;
+    print_type(oh, (struct Object*)picSelector);
+  }
+
+}
+
 
 //fixme use optimizer.cpp's methods
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
@@ -458,6 +473,8 @@ void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
     case 25: printf("primitiveDo "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+1]), i); break;
     case 26: printf("directApplyTo "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+1]), i); break;
     case 27: printf("is nil "); i += print_code_args(oh, code, 2, i); break;
+    case 28: printf("inline primitive check jump "); i += print_code_args(oh, code, 5 + object_to_smallint(code->elements[i+3]), i); break;
+    case 29: printf("inline method check jump "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+2]), i); break;
     default: printf("error reading code %" PRIdPTR "... stopping\n", op); return;
     }
     printf("\n");
