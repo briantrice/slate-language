@@ -1050,7 +1050,7 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start);
 word_t opcode_register_locations(word_t rawop);
 void optimizer_offset_registers(std::vector<struct Object*>& code, int offset);
 void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct Object*>& vector);
-void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode);
+void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode, word_t deleteFirst = 0);
 void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method);
 
 /*pinned objects for GC*/
