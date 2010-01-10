@@ -1230,8 +1230,9 @@ void interpret(struct object_heap* oh) {
             pinnedArgs[k] = argsArray[k];
           }
           
-          word_t success = 1;
+          word_t success = 0;
           if (arity == object_array_size(mapArray)) {
+            success = 1;
             for (word_t k = 0; k < arity; k++) {
               if ((struct Map*) ((struct OopArray*)mapArray)->elements[k] != object_get_map(oh, argsArray[k])) {
                 success = 0;
@@ -1242,6 +1243,44 @@ void interpret(struct object_heap* oh) {
 
           if (success) {
             primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
+            i->codePointer = i->codePointer + jumpOffset;
+          }
+          
+
+          
+          break;
+        }
+
+      case OP_INLINE_METHOD_CHECK:
+        {
+          word_t arity, k, jumpOffset;
+          struct Object* mapArray;
+          struct Object* argsArray[16];
+          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          mapArray = SSA_NEXT_PARAM_OBJECT;
+          arity = SSA_NEXT_PARAM_SMALLINT;
+          jumpOffset = SSA_NEXT_PARAM_SMALLINT;
+
+          assert(arity <= 16);
+
+          for (k=0; k<arity; k++) {
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
+            argsArray[k] = SSA_REGISTER(argReg);
+            pinnedArgs[k] = argsArray[k];
+          }
+          
+          word_t success = 0;
+          if (arity == object_array_size(mapArray)) {
+            success = 1;
+            for (word_t k = 0; k < arity; k++) {
+              if ((struct Map*) ((struct OopArray*)mapArray)->elements[k] != object_get_map(oh, argsArray[k])) {
+                success = 0;
+                break;
+              }
+            }
+          }
+
+          if (!success) {
             i->codePointer = i->codePointer + jumpOffset;
           }
           

@@ -577,6 +577,11 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_INLINE_METHOD_CHECK          ((29 << 1) | SMALLINT_MASK)
 #define OP_                             ((30 << 1) | SMALLINT_MASK)
 
+
+// these are used by the optimizer to mark things but should not be left in code
+#define OP_INTERNAL_SEND                ((100 << 1) | SMALLINT_MASK)
+#define OP_INTERNAL_                    ((101 << 1) | SMALLINT_MASK)
+
 #define OP_SEND_PARAMETER_0 4
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
@@ -1045,13 +1050,16 @@ void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method);
 /*optimizer*/
 
 word_t opcode_length(std::vector<struct Object*>& code, word_t start);
-word_t opcode_base_length(std::vector<struct Object*>& code, word_t start);
+word_t opcode_base_length(word_t rawop);
 word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start);
 word_t opcode_register_locations(word_t rawop);
 void optimizer_offset_registers(std::vector<struct Object*>& code, int offset);
 void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct Object*>& vector);
-void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode, word_t deleteFirst = 0);
+void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode);
+void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, word_t amount);
 void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method);
+void print_code(struct object_heap* oh, std::vector<struct Object*> code);
+
 
 /*pinned objects for GC*/
 void heap_pin_object(struct object_heap* oh, struct Object* x);
