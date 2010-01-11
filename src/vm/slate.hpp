@@ -219,7 +219,7 @@ struct CompiledMethod
   struct Object* registerCount;
   struct OopArray* cachedInCallers; /*struct Object* reserved2;*/
   struct Object* cachedInCallersCount; /*struct Object* reserved3;*/
-  struct Object* reserved4;
+  struct Object* nextInlineAtCallCount;
   struct Object* reserved5;
   struct Object* reserved6;
 };

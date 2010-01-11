@@ -514,7 +514,11 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
         optimizer_insert_code(code, i, inlineOpcodeCode);
         
         //this next would skip over inlining further
-        //i += inlineOpcodeCode.size();
+        //which might protect us from infinite loops
+        //if you comment this out, the jumps at the end of inserted code will be wrong
+        //fixme... it would be ideal to optimize long term based on our calleeCounts
+        //rather than taking the callee's possibly inlined code as-is
+        i += inlineOpcodeCode.size();
 
       } else if (traitsWindow == oh->cached.primitive_method_window) {
         struct PrimitiveMethod* pmethod = (struct PrimitiveMethod*)def->method;

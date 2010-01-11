@@ -195,12 +195,18 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 #ifndef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
-  //  if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
-  //    method_optimize(oh, method);
-  //  }
+  //if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
+  //method_optimize(oh, method);
+  //}
   if (method->reserved5 != oh->cached.nil) {
     method_optimize(oh, method);
     method->reserved5 = oh->cached.nil;
+  }
+  if (method->nextInlineAtCallCount != oh->cached.nil &&
+      (word_t)method->nextInlineAtCallCount < (word_t)method->callCount) {
+    method_optimize(oh, method);
+    method->nextInlineAtCallCount = smallint_to_object(object_to_smallint(method->callCount) * 2);
+
   }
 #endif
   
