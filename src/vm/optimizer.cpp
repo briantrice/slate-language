@@ -355,7 +355,7 @@ bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMeth
     }
   }
 
-  return true;
+  return code.size() < INLINER_MAX_INLINE_SIZE;
 }
 
 // looks at the pic cache to get a list of commonly called methods given a selector and putting the result in the out vector
@@ -456,6 +456,18 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
 
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
 
+    if (OP_INLINE_METHOD_CHECK == (word_t)code[i]
+        || OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
+      while (OP_INLINE_METHOD_CHECK == (word_t)code[i]
+             || OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
+        //jump past the send because this one coming up has already been inlined
+        word_t jumpAmount = object_to_smallint(code[i + opcode_jump_offset((word_t)code[i])] + opcode_jump_adjustment((word_t)code[i]));
+        i += opcode_length(code, i);
+        i += jumpAmount;
+        
+      }
+      continue; // this jumps us past the send that was inlined
+    }
     //only inline plain sends
     if (OP_SEND != (word_t)code[i]) {
       continue;
@@ -472,7 +484,7 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
     optimizer_commonly_called_implementations(oh, method, selector, commonCalledImplementations);
 
     for (size_t k = 0; k < commonCalledImplementations.size(); k++) {
-      if (k > 3) break;     //don't bother inlining if there are a lot of different implementations
+      if (k > 2) break;     //don't bother inlining if there are a lot of different implementations
       struct Object** picEntry = commonCalledImplementations[k];
       struct MethodDefinition* def = (struct MethodDefinition*)picEntry[PIC_CALLEE];
       struct Object* traitsWindow = def->method->map->delegates->elements[0];
@@ -494,7 +506,12 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
           preludeMoveRegisters.push_back(code[i + OP_SEND_PARAMETER_0 + g]);
         }
 
-        optimizer_append_code_to_vector(cmethod->code, codeToInsert);
+        // use its non-inlined code if available because the type feedback characteristics may be different
+        if ((struct Object*)cmethod->oldCode != oh->cached.nil) {
+          optimizer_append_code_to_vector(cmethod->oldCode, codeToInsert);
+        } else {
+          optimizer_append_code_to_vector(cmethod->code, codeToInsert);
+        }
 
         // we could be smart about minimizing this in the future... but this is the only safe way now
         //remap registers

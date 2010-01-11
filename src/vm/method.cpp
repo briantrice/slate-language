@@ -325,7 +325,9 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
     heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   }
-  method->code = method->oldCode;
+  //whether to start with a fresh slate
+  //not starting may give us another degree of inlining
+  //method->code = method->oldCode;
   heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   method->isInlined = oh->cached.true_object;

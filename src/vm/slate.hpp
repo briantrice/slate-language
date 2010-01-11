@@ -584,6 +584,9 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 #define OP_SEND_PARAMETER_0 4
 
+#define INLINER_MAX_INLINE_SIZE 20
+
+
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
 #define REG_STACK_POINTER(X)            (i->framePointer + (X))
 #define SSA_NEXT_PARAM_SMALLINT         ((word_t)i->method->code->elements[i->codePointer++]>>1)
