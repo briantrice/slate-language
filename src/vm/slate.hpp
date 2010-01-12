@@ -219,7 +219,7 @@ struct CompiledMethod
   struct Object* registerCount;
   struct OopArray* cachedInCallers; /*struct Object* reserved2;*/
   struct Object* cachedInCallersCount; /*struct Object* reserved3;*/
-  struct Object* reserved4;
+  struct Object* nextInlineAtCallCount;
   struct Object* reserved5;
   struct Object* reserved6;
 };
@@ -546,10 +546,10 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
-#define OP_INDIRECT_SEND                ((1 << 1) | SMALLINT_MASK) /*unused now*/
+/*#define OP_INDIRECT_SEND                ((1 << 1) | SMALLINT_MASK)*/ /*unused now*/
 /*#define OP_ALLOCATE_REGISTERS           ((2 << 1) | SMALLINT_MASK)*/
 #define OP_LOAD_LITERAL                 ((3 << 1) | SMALLINT_MASK)
-#define OP_STORE_LITERAL                ((4 << 1) | SMALLINT_MASK)
+/*#define OP_STORE_LITERAL                ((4 << 1) | SMALLINT_MASK)*/
 #define OP_SEND_MESSAGE_WITH_OPTS       ((5 << 1) | SMALLINT_MASK)
 /*?? profit??*/
 #define OP_NEW_CLOSURE                  ((7 << 1) | SMALLINT_MASK)
@@ -573,7 +573,18 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_PRIMITIVE_DO                 ((25 << 1) | SMALLINT_MASK)
 #define OP_APPLY_TO                     ((26 << 1) | SMALLINT_MASK)
 #define OP_IS_NIL                       ((27 << 1) | SMALLINT_MASK)
-#define OP_                             ((28 << 1) | SMALLINT_MASK)
+#define OP_INLINE_PRIMITIVE_CHECK       ((28 << 1) | SMALLINT_MASK)
+#define OP_INLINE_METHOD_CHECK          ((29 << 1) | SMALLINT_MASK)
+#define OP_                             ((30 << 1) | SMALLINT_MASK)
+
+
+// these are used by the optimizer to mark things but should not be left in code
+#define OP_INTERNAL_SEND                ((100 << 1) | SMALLINT_MASK)
+#define OP_INTERNAL_                    ((101 << 1) | SMALLINT_MASK)
+
+#define OP_SEND_PARAMETER_0 4
+
+#define INLINER_MAX_INLINE_SIZE 20
 
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
@@ -1036,9 +1047,21 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
+void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method);
 
 
+/*optimizer*/
 
+word_t opcode_length(std::vector<struct Object*>& code, word_t start);
+word_t opcode_base_length(word_t rawop);
+word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start);
+word_t opcode_register_locations(word_t rawop);
+void optimizer_offset_registers(std::vector<struct Object*>& code, int offset);
+void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct Object*>& vector);
+void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode);
+void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, word_t amount);
+void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method);
+void print_code(struct object_heap* oh, std::vector<struct Object*> code);
 
 
 /*pinned objects for GC*/

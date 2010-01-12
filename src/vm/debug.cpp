@@ -411,54 +411,27 @@ void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize)
 
 }
 
-word_t print_code_args(struct object_heap* oh, struct OopArray* code, word_t args, word_t start) {
-  word_t i;
-  for (i = start; i < start+args; i++) {
-    //print_object(code->elements[i]);
-    print_type(oh, code->elements[i]);
+
+void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method) {
+  if ((struct Object*)method->calleeCount == oh->cached.nil) return;
+
+  for (word_t i = 0; i < array_size(method->calleeCount); i += CALLER_PIC_ENTRY_SIZE) {
+    struct MethodDefinition* def = (struct MethodDefinition*)method->calleeCount->elements[i+PIC_CALLEE];
+    if ((struct Object*)def == oh->cached.nil) continue;
+    struct CompiledMethod* picMethod = (struct CompiledMethod*)def->method;
+    struct Object* traitsWindow = picMethod->base.map->delegates->elements[0];
+    assert (traitsWindow == oh->cached.compiled_method_window || traitsWindow == oh->cached.primitive_method_window);
+    struct Symbol* picSelector = picMethod->selector;
+    print_type(oh, (struct Object*)picSelector);
   }
-  return args;
+
 }
 
-void print_code_disassembled(struct object_heap* oh, struct OopArray* code) {
-  word_t i, size;
-  size = array_size(code);
-  i = 0;
-  word_t op;
 
-  while (i < size) {
-    printf("[%" PRIdPTR "] ", i);
-    op = object_to_smallint(code->elements[i++]);
-    switch (op) {
-    case 0: printf("direct send message "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+2]), i); break;
-    case 1: printf("indirect send message "); i += print_code_args(oh, code, 3 + object_to_smallint(code->elements[i+2]), i); break;
-    case 3: printf("load literal "); i += print_code_args(oh, code, 2, i); break;
-    case 4: printf("store literal "); i += print_code_args(oh, code, 2, i); break;
-    case 5: printf("send message with opts "); i += print_code_args(oh, code, 4 + object_to_smallint(code->elements[i+2]), i); break;
-    case 7: printf("new closure "); i += print_code_args(oh, code, 2, i); break;
-    case 8: printf("new array with "); i += print_code_args(oh, code, 2 + object_to_smallint(code->elements[i+1]), i); break;
-    case 9: printf("resend message "); i += print_code_args(oh, code, 2, i); break;
-    case 10: printf("return from "); i += print_code_args(oh, code, 2, i); break;
-    case 11: printf("load env "); i += print_code_args(oh, code, 1, i); break;
-    case 12: printf("load var "); i += print_code_args(oh, code, 1, i); break;
-    case 13: printf("store var "); i += print_code_args(oh, code, 1, i); break;
-    case 14: printf("load free var "); i += print_code_args(oh, code, 3, i); break;
-    case 15: printf("store free var "); i += print_code_args(oh, code, 3, i); break;
-    case 16: printf("is identical to "); i += print_code_args(oh, code, 3, i); break;
-    case 17: printf("branch keyed "); i += print_code_args(oh, code, 2, i); break;
-    case 18: printf("jump to "); i += print_code_args(oh, code, 1, i); break;
-    case 19: printf("move reg "); i += print_code_args(oh, code, 2, i); break;
-    case 20: printf("branch true "); i += print_code_args(oh, code, 2, i); break;
-    case 21: printf("branch false "); i += print_code_args(oh, code, 2, i); break;
-    case 22: printf("return reg "); i += print_code_args(oh, code, 1, i); break;
-    case 23: printf("return val "); i += print_code_args(oh, code, 1, i); break;
-    case 24: printf("resume "); i += print_code_args(oh, code, 0, i); break;
-    case 25: printf("primitiveDo "); i += print_code_args(oh, code, 3, i + object_to_smallint(code->elements[i+1])); break;
-    case 26: printf("directApplyTo "); i += print_code_args(oh, code, 3, i + object_to_smallint(code->elements[i+1])); break;
-    case 27: printf("is nil "); i += print_code_args(oh, code, 2, i); break;
-    default: printf("error reading code %" PRIdPTR "... stopping\n", op); return;
-    }
-    printf("\n");
-  }
+
+void print_code_disassembled(struct object_heap* oh, struct OopArray* slatecode) {
+  std::vector<struct Object*> code;
+  optimizer_append_code_to_vector(slatecode, code);
+  print_code(oh, code);
 }
 

@@ -320,12 +320,24 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   method_print_debug_info(oh, oh->cached.interpreter->method);
 #endif
 
-  method->oldCode = method->code;
+  if ((struct Object*)method->oldCode == oh->cached.nil) {
+    method->oldCode = method->code;
+    heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
+
+  }
+  //whether to start with a fresh slate
+  //not starting may give us another degree of inlining
+  //method->code = method->oldCode;
   heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   method->isInlined = oh->cached.true_object;
   oh->optimizedMethods.insert(method);
-
+  printf("before:\n");
+  print_type(oh, (struct Object*)method->selector);
+  print_code_disassembled(oh, method->code);
+  optimizer_inline_callees(oh, method);
+  printf("after:\n");
+  print_code_disassembled(oh, method->code);
   
 }
 
