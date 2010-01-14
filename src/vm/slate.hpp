@@ -345,6 +345,7 @@ struct object_heap
   bool_t interrupt_flag;
   bool_t quiet; /*suppress excess stdout*/
   bool_t quietGC; /*suppress excess gc messages*/
+  bool_t automaticallyInline;
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;
   word_t gcTenureCount;
@@ -474,9 +475,12 @@ struct object_heap
 #define TYPE_OOP_ARRAY  1
 #define TYPE_BYTE_ARRAY 2
 
+#define INLINER_MAX_INLINE_SIZE 50
+
 #define CALLER_PIC_SETUP_AFTER 500
+#define CALLER_PIC_MAX_CODE_SIZE 70
 #define CALLEE_OPTIMIZE_AFTER 1000
-#define CALLER_PIC_SIZE 64
+#define CALLER_PIC_SIZE 16
 #define CALLER_PIC_ENTRY_SIZE 4 /*calleeCompiledMethod, calleeArity, oopArrayOfMaps, count*/
 #define PIC_CALLEE 0 
 #define PIC_CALLEE_ARITY 1
@@ -584,7 +588,6 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 
 #define OP_SEND_PARAMETER_0 4
 
-#define INLINER_MAX_INLINE_SIZE 20
 
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])

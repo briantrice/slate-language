@@ -332,12 +332,16 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 
   method->isInlined = oh->cached.true_object;
   oh->optimizedMethods.insert(method);
+#ifdef SLATE_SHOW_INLINER_CODE
   printf("before:\n");
   print_type(oh, (struct Object*)method->selector);
   print_code_disassembled(oh, method->code);
+#endif
   optimizer_inline_callees(oh, method);
+#ifdef SLATE_SHOW_INLINER_CODE
   printf("after:\n");
   print_code_disassembled(oh, method->code);
+#endif
   
 }
 
@@ -447,15 +451,11 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
                            word_t arity, struct Object* args[]) {
-#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
-  word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
-#else
-  word_t i = method_pic_hash(oh, callerMethod, arity, args);
-#endif
+  word_t entryStart = method_pic_hash(oh, callerMethod, arity, args);
 
-
+#if 0
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
     Pinned<struct OopArray> pinArray(oh);
     pinArray = callerMethod->calleeCount;
@@ -466,14 +466,14 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
     return;
   }
 
-
-#if 0 /*this old slow code will fill up the hash table instead of only looking at the entry where the hash lands us*/
+ /*this old slow code will fill up the hash table instead of only looking at the entry where the hash lands us*/
+#else
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
     /* if it's nil, we need to insert it*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
       Pinned<struct OopArray> pinArray(oh);
       pinArray = callerMethod->calleeCount;
-      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_insert(oh, callerMethod->calleeCount, &callerMethod->calleeCount->elements[i], def, arity, args);
       Pinned<struct CompiledMethod> defMethod(oh);
       defMethod = (struct CompiledMethod*) def->method;
       method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) defMethod);
@@ -483,7 +483,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
   for (i = 0; i < entryStart; i+= CALLER_PIC_ENTRY_SIZE) {
     /*MUST be same as first loop*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
-      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_insert(oh, callerMethod->calleeCount, &callerMethod->calleeCount->elements[i], def, arity, args);
       Pinned<struct CompiledMethod> defMethod(oh);
       defMethod = (struct CompiledMethod*) def->method;
       method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*)defMethod);
@@ -503,20 +503,18 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
 #endif
 
   Pinned<struct MethodDefinition> retval(oh);
-#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
-  word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
-#else
-  word_t i = method_pic_hash(oh, callerMethod, arity, args);
-#endif
+  word_t entryStart = method_pic_hash(oh, callerMethod, arity, args);
 
+
+#if 0
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
   retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
   if ((struct MethodDefinition*)retval != NULL) return retval;
   return NULL; /*only look at first match*/
 
-#if 0 /*this old code goes through the whole hash table which will take a while in a bad case*/
+#else /*this old code goes through the whole hash table which will take a while in a bad case*/
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
    retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
