@@ -195,12 +195,10 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
 #ifndef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
-  //if (method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER && method->isInlined == oh->cached.false_object) {
-  //method_optimize(oh, method);
-  //}
-  if (method->reserved5 != oh->cached.nil) {
-    method_optimize(oh, method);
-    method->reserved5 = oh->cached.nil;
+  if (oh->automaticallyInline
+      && method->callCount > (struct Object*)CALLEE_OPTIMIZE_AFTER
+      && method->isInlined == oh->cached.false_object) {
+      method_optimize(oh, method);
   }
   if (method->nextInlineAtCallCount != oh->cached.nil &&
       (word_t)method->nextInlineAtCallCount < (word_t)method->callCount) {
@@ -309,6 +307,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   word_t addToPic = FALSE;
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
+      /*don't bother setting up a pic to help with inlining if it's not going to get inlined?*/
+      && array_size(callerMethod->code) < CALLER_PIC_MAX_CODE_SIZE 
       && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
     if ((struct Object*)callerMethod->calleeCount == oh->cached.nil) {
       method_pic_setup(oh, callerMethod);

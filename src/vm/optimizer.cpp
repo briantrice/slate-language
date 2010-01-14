@@ -336,6 +336,7 @@ bool optimizer_picEntry_compare(struct Object** entryA, struct Object** entryB) 
 
 bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMethod* method) {
   if (method->heapAllocate == oh->cached.true_object) return false;
+  if (method->restVariable == oh->cached.true_object) return false;
   struct Object* traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) return true;
   std::vector<struct Object*> code;
@@ -480,7 +481,7 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
     struct Symbol* selector = (struct Symbol*)code[i+2];
     word_t arity = object_to_smallint(code[i+3]);
     commonCalledImplementations.clear();
-    print_pic_entries(oh, method);
+    //print_pic_entries(oh, method);
     optimizer_commonly_called_implementations(oh, method, selector, commonCalledImplementations);
 
     for (size_t k = 0; k < commonCalledImplementations.size(); k++) {
