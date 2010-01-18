@@ -58,7 +58,6 @@ void print_code(struct object_heap* oh, std::vector<struct Object*> code) {
   
 }
 
-//fixme redundant with debug.cpp
 word_t opcode_length(std::vector<struct Object*>& code, word_t start){
   return 1 + opcode_base_length((word_t)code[start]) + opcode_arg_length(code, start);
 }
@@ -268,7 +267,7 @@ void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std
       word_t codeJumpParameter = opcode_jump_offset((word_t)code[i]);
       word_t jumpOffset = object_to_smallint(code[i + codeJumpParameter]);
       jumpOffset += opcode_jump_adjustment((word_t)code[i]);
-      if (i + opcode_length(code, i) + jumpOffset >= offset) {
+      if (i + opcode_length(code, i) + jumpOffset > offset) {
         optimizer_offset_value(code, i + codeJumpParameter, newCode.size());
       }
     }
@@ -341,6 +340,8 @@ bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMeth
   if (traitsWindow == oh->cached.primitive_method_window) return true;
   std::vector<struct Object*> code;
   optimizer_append_code_to_vector(method->code, code);
+  if (code.size() > INLINER_MAX_INLINE_SIZE) return false;
+
   for (size_t i = 0; i < (size_t)array_size(method->code); i += opcode_length(code, i)) {
     switch ((word_t)code[i]) {
     case OP_RESEND_MESSAGE:
@@ -356,7 +357,7 @@ bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMeth
     }
   }
 
-  return code.size() < INLINER_MAX_INLINE_SIZE;
+  return true;
 }
 
 // looks at the pic cache to get a list of commonly called methods given a selector and putting the result in the out vector
@@ -444,12 +445,19 @@ void optimizer_remove_internal_ops(struct object_heap* oh, struct CompiledMethod
   }
 }
 
+//find the start of the op before the given start point
+//since ops are variable width and not stored in a double linked list...
+size_t optimizer_op_location_before(std::vector<struct Object*>& code, size_t opPos) {
+  size_t j = 0;
+  for (size_t i = 0; i < code.size() && i != opPos; j = i, i += opcode_length(code, i));
+  return j;
+}
+
 
 //fixme: remove double jumps (a jump that points to another jump), remove no-op load/store variables
 // the main inliner function
 void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method) {
   std::vector<struct Object*> code;
-  if (!optimizer_method_can_be_inlined(oh, method)) return;
   optimizer_append_code_to_vector(method->code, code);
   std::vector<struct Object**> commonCalledImplementations; //picEntries for each selector
   word_t newRegisterCount = object_to_smallint(method->registerCount);
@@ -457,18 +465,35 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
 
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
 
-    if (OP_INLINE_METHOD_CHECK == (word_t)code[i]
-        || OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
-      while (OP_INLINE_METHOD_CHECK == (word_t)code[i]
-             || OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
-        //jump past the send because this one coming up has already been inlined
-        word_t jumpAmount = object_to_smallint(code[i + opcode_jump_offset((word_t)code[i])] + opcode_jump_adjustment((word_t)code[i]));
-        i += opcode_length(code, i);
-        i += jumpAmount;
-        
+    // mark default sends (which come after inline checks as internals so they don't get inline checks generated again)
+    
+    // inline checks will point to the instruction after the default case
+    if (OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
+      //jump past the send because this one coming up has already been inlined
+      word_t jumpAmount = object_to_smallint(code[i + opcode_jump_offset((word_t)code[i])] + opcode_jump_adjustment((word_t)code[i]));
+      size_t j = i + opcode_length(code, i);
+      j += jumpAmount;
+      size_t plainSendLocation = optimizer_op_location_before(code, j);
+      assert(plainSendLocation < j 
+             && (OP_SEND == (word_t)code[plainSendLocation] || OP_INTERNAL_SEND == (word_t)code[plainSendLocation]));
+      //don't jump past it because there may be an actual inline function somewhere
+      if (OP_SEND == (word_t)code[plainSendLocation]) {
+        code[plainSendLocation] = (struct Object*) OP_INTERNAL_SEND;
       }
-      continue; // this jumps us past the send that was inlined
     }
+
+    // method checks (with inline code) will have the jump set to the instruction after the inline code
+    // we can just see if that next instruction is a send... in which case we don't want to inline it again
+    if (OP_INLINE_METHOD_CHECK == (word_t)code[i]) {
+      word_t jumpAmount = object_to_smallint(code[i + opcode_jump_offset((word_t)code[i])] + opcode_jump_adjustment((word_t)code[i]));
+      size_t j = i + opcode_length(code, i);
+      j += jumpAmount;
+      if (OP_SEND == (word_t)code[j]) {
+        code[j] = (struct Object*) OP_INTERNAL_SEND;
+      }
+      // else if there is another INLINE check, we'll just let that one do the opcode change later...
+    }
+
     //only inline plain sends
     if (OP_SEND != (word_t)code[i]) {
       continue;
@@ -491,7 +516,6 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
       struct Object* traitsWindow = def->method->map->delegates->elements[0];
       if (traitsWindow == oh->cached.compiled_method_window) {
         struct CompiledMethod* cmethod = (struct CompiledMethod*)def->method;
-        //fixme
         std::vector<struct Object*> inlineOpcodeCode, codeToInsert, preludeMoveRegisters;
         word_t requiredRegisters = object_to_smallint(cmethod->registerCount);
 
@@ -534,7 +558,6 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
         //this next would skip over inlining further
         //which might protect us from infinite loops
         //if you comment this out, the jumps at the end of inserted code will be wrong
-        //fixme... it would be ideal to optimize long term based on our calleeCounts
         //rather than taking the callee's possibly inlined code as-is
         i += inlineOpcodeCode.size();
 
@@ -561,16 +584,8 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
 
   }
 
-  //fixme we need to figure out what references there are in the code so that we can un-inline and re-inline
-  //when things change
-  //but for now....
-  //  printf("before remove:\n");
-  //  print_code(oh, code);
   optimizer_remove_redundant_ops(oh, method, code);
   optimizer_remove_internal_ops(oh, method, code);
-
-  //  printf("after remove:\n");
-  //  print_code(oh, code);
 
   struct OopArray* newCode = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), code.size());
   for (size_t i = 0; i < code.size(); i++) {
