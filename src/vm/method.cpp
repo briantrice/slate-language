@@ -336,6 +336,10 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   }
 
   if (!optimizer_method_can_be_optimized(oh, method)) {
+    //don't bother trying anymore
+    method->isInlined = oh->cached.true_object;
+    method->oldCode = method->code;
+    method->nextInlineAtCallCount = oh->cached.nil;
     return;
   }
 
