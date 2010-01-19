@@ -16,6 +16,24 @@ _@(Language traits) ordinateOf: n@(Number traits)
 "Turns the number into the equivalent phrase."
 [overrideThis].
 
+_@(Language traits) SmallWords
+[overrideThis].
+
+l@(Language traits) titleCaseOf: s@(String traits)
+[| words |
+  words: s split.
+  words doWithIndex:
+    [| :word :index |
+     (word includes: $&)
+       ifTrue: [word toUppercase]
+       ifFalse:
+         [(l SmallWords includes: word)
+            /\ (index > 0)
+            ifTrue: [word toLowercase]
+            ifFalse: [word capitalize]]].
+  words join &separator: ' '
+].
+
 languages define: #LatinFamily &parents: {Language}.
 
 _@(LatinFamily traits) pluralOf: s@(String traits)
@@ -40,6 +58,25 @@ it as specifying the instance of a noun named by the String."
   s first isVowel ifTrue: ['an ' ; s] ifFalse: ['a ' ; s]
 ].
 
+_@(English traits) pluralOf: s@(String traits)
+"Answer a copy of the String appended with -s, -es, or -ies in order to treat
+it as a pluralized noun. This does not try to be too clever, because that
+requires a full lexicon (for English) - only use this for technical purposes."
+[
+  s last toLowercase = $o ifTrue: [^ (s ; 'es')].
+  s last isVowel ifTrue: [^ (s ; 's')].
+  s last toLowercase = $y
+    ifTrue: [^ ((s at: s indexLast - 1) isVowel not
+	       ifTrue: [s allButLast ; 'ies']
+	       ifFalse: [s ; 's'])].
+  (s last: 2) = 'us' ifTrue: [^ ((s allButLast: 2) ; 'i')].
+  (s last: 3) = 'sis' ifTrue: [^ ((s allButLast: 2) ; 'es')].
+  (s last: 2) = 'on' ifTrue: [^ ((s allButLast: 2) ; 'a')].
+  ({'ex'. 'ix'} includes: (s last: 2)) ifTrue: [^ ((s allButLast: 2) ; 'ices')].
+  ({'ss'. 'sh'. 'ch'. 'dge'} includes: (s last: 2)) ifTrue: [^ (s ; 'es')].
+  s ; 's'
+].
+
 l@(English traits) ordinalOf: n@(Integer traits)
 "Answers the printed representation of the number with a suffix for its
 ordinality."
@@ -60,6 +97,8 @@ _@(English traits) ordinalForDigit: n@(Integer traits)
      ifTrue: ['th']
      ifFalse: [Nil]]
 ].
+
+English traits define: #SmallWords -> {'a'. 'an'. 'and'. 'as'. 'at'. 'but'. 'by'. 'en'. 'for'. 'if'. 'in'. 'of'. 'on'. 'or'. 'the'. 'to'. 'v'. 'via'. 'vs'. 'vs.'}.
 
 English traits define: #NumberWords -> {'zero'. 'one'. 'two'. 'three'. 'four'. 'five'. 'six'. 'seven'. 'eight'. 'nine'. 'ten'. 'eleven'. 'twelve'. 'thirteen'. 'fourteen'. 'fifteen'. 'sixteen'. 'seventeen'. 'eighteen'. 'nineteen'}.
 English traits define: #DecimalPlaceWords -> {Nil. Nil. 'hundred'. 'thousand'. Nil. Nil. 'million'. Nil. Nil. 'billion'. Nil. Nil. 'trillion'. Nil. Nil. 'quadrillion'. Nil. Nil. 'quintillion'. Nil. Nil. 'sextillion'. Nil. Nil. 'octillion'. Nil. Nil. 'nonillion'}.
