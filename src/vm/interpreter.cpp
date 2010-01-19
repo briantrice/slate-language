@@ -1247,8 +1247,9 @@ void interpret(struct object_heap* oh) {
           }
 
           if (success) {
+            //change the code pointer before the primitive because some primitives like prim_ensure will change stuff
+            i->codePointer = i->codePointer + jumpOffset; 
             primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
-            i->codePointer = i->codePointer + jumpOffset;
           }
           
 

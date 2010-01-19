@@ -476,6 +476,7 @@ struct object_heap
 #define TYPE_BYTE_ARRAY 2
 
 #define INLINER_MAX_INLINE_SIZE 50
+#define INLINER_MAX_METHOD_SIZE 100
 
 #define CALLER_PIC_SETUP_AFTER 500
 #define CALLER_PIC_MAX_CODE_SIZE 70
@@ -1064,6 +1065,8 @@ void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct O
 void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode);
 void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, word_t amount);
 void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method);
+bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMethod* method);
+bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMethod* method);
 void print_code(struct object_heap* oh, std::vector<struct Object*> code);
 
 

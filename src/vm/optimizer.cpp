@@ -333,6 +333,28 @@ bool optimizer_picEntry_compare(struct Object** entryA, struct Object** entryB) 
 }
 
 
+bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMethod* method) {
+  if (method->heapAllocate == oh->cached.true_object) return false; //since i'm removing load/store ops currently
+  if (method->restVariable == oh->cached.true_object) return false;
+  struct Object* traitsWindow = method->base.map->delegates->elements[0];
+  if (traitsWindow == oh->cached.primitive_method_window) return false;
+  std::vector<struct Object*> code;
+  optimizer_append_code_to_vector(method->code, code);
+  if (code.size() > INLINER_MAX_METHOD_SIZE) return false;
+
+  for (size_t i = 0; i < (size_t)array_size(method->code); i += opcode_length(code, i)) {
+    switch ((word_t)code[i]) {
+    case OP_BRANCH_KEYED: /*i don't want to figure this one out now*/
+      return false;
+
+    default: break;
+    }
+  }
+
+  return true;
+}
+
+
 bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMethod* method) {
   if (method->heapAllocate == oh->cached.true_object) return false;
   if (method->restVariable == oh->cached.true_object) return false;

@@ -305,16 +305,46 @@ void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symb
 
 }
 
+bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method) {
+
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  struct Closure* closure = (struct Closure*)i->method;
+  do {
+    if (closure->method == method) return true;
+    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    closure = (struct Closure*)i->stack->elements[fp - FRAME_OFFSET_METHOD];
+  } while (fp >= FUNCTION_FRAME_SIZE);
+
+  if (closure->method == method) return true;
+  return false;
+}
+
 
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
-#ifdef PRINT_DEBUG_OPTIMIZER
-  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
-#endif
 
   /* only optimize old objects because they don't move in memory and
    * we don't want to have to update our method cache every gc */
   if (object_is_young(oh, (struct Object*)method)) return;
+
+
+  // make sure we don't optimize something already on the stack
+  // since a return will put us possibly at a different op code
+  if (method_on_call_stack(oh, method)) {
+    return;
+  }
+
+  if (!optimizer_method_can_be_optimized(oh, method)) {
+    return;
+  }
+
 #ifdef PRINT_DEBUG_OPTIMIZER
+  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
+#endif
+
+
+#ifdef PRINT_DEBUG_OPTIMIZER2
   method_print_debug_info(oh, method);
   printf("This method is called by:\n");
   method_print_debug_info(oh, oh->cached.interpreter->method);
