@@ -307,9 +307,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   word_t addToPic = FALSE;
   /* set up a PIC for the caller if it has been called a lot */
   if (object_is_old(oh, (struct Object*)callerMethod)
-      /*don't bother setting up a pic to help with inlining if it's not going to get inlined?*/
-      && array_size(callerMethod->code) < CALLER_PIC_MAX_CODE_SIZE 
-      && callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER) {
+      && (callerMethod->callCount > (struct Object*)CALLER_PIC_SETUP_AFTER
+          || object_is_smallint(callerMethod->nextInlineAtCallCount))) {
     if ((struct Object*)callerMethod->calleeCount == oh->cached.nil) {
       method_pic_setup(oh, callerMethod);
       addToPic = TRUE;
