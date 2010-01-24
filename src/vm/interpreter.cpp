@@ -754,31 +754,24 @@ void interpret(struct object_heap* oh) {
           word_t result, arity;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
-          struct Object* argsArray[16];
+          struct Object* argsArray[16], *pinnedArgs[16];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
+
 
 #ifdef PRINT_DEBUG_OPCODES
           printf("send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
           print_type(oh, selector);
 #endif
           assert(arity <= 16);
-          for (k=0; k<arity; k++) {
-            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            argsArray[k] = SSA_REGISTER(argReg);
-            pinnedArgs[k] = argsArray[k];
-#ifdef PRINT_DEBUG_OPCODES
-            printf("args[%d@%" PRIdPTR "] = ", k, argReg);
-            print_type(oh, args[k]);
-#endif
-          }
+
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
+
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray, arity, NULL, i->framePointer + result);
-#ifdef PRINT_DEBUG_OPCODES
-          printf("in function: \n");
-          print_type(oh, (struct Object*)i->method);
-#endif
+          
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
+
           break;
         }
       case OP_SEND_MESSAGE_WITH_OPTS:
@@ -786,8 +779,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optsArrayReg;
           int k;
           Pinned<struct Object> selector(oh);
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
-          struct Object* argsArray[16];
+          struct Object* argsArray[16], *pinnedArgs[16];
           Pinned<struct OopArray> optsArray(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
@@ -800,18 +792,15 @@ void interpret(struct object_heap* oh) {
           print_type(oh, selector);
 #endif
           assert(arity <= 16);
-          for (k=0; k<arity; k++) {
-            argsArray[k] = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
-            pinnedArgs[k] = argsArray[k];
-#ifdef PRINT_DEBUG_OPCODES
-            printf("args[%d] = ", k);
-            print_type(oh, args[k]);
-#endif
-          }
+
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray,
                                                arity, optsArray,
                                                i->framePointer + result);
+
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
+
           break;
         }
       case OP_NEW_ARRAY_WITH:
@@ -1193,25 +1182,18 @@ void interpret(struct object_heap* oh) {
       case OP_PRIMITIVE_DO:
         {
           word_t primNum, resultReg, arity, k;
-          struct Object* argsArray[16];
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16], *pinnedArgs[16];
           primNum = object_to_smallint(SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT));
           arity = SSA_NEXT_PARAM_SMALLINT;
           resultReg = SSA_NEXT_PARAM_SMALLINT;
 
           assert(arity <= 16);
-          for (k=0; k<arity; k++) {
-            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            argsArray[k] = SSA_REGISTER(argReg);
-            pinnedArgs[k] = argsArray[k];
-          }
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
-
-#ifdef PRINT_DEBUG_OPCODES
-          printf("do primitive %" PRIdPTR "\n", primNum);
-#endif
           primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
           
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
+
           break;
         }
 
@@ -1219,8 +1201,7 @@ void interpret(struct object_heap* oh) {
         {
           word_t primNum, resultReg, arity, k, jumpOffset;
           struct Object* mapArray;
-          struct Object* argsArray[16];
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16], *pinnedArgs[16];
           resultReg = SSA_NEXT_PARAM_SMALLINT;
           mapArray = SSA_NEXT_PARAM_OBJECT;
           primNum = SSA_NEXT_PARAM_SMALLINT;
@@ -1229,11 +1210,8 @@ void interpret(struct object_heap* oh) {
 
           assert(arity <= 16);
 
-          for (k=0; k<arity; k++) {
-            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            argsArray[k] = SSA_REGISTER(argReg);
-            pinnedArgs[k] = argsArray[k];
-          }
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
+
           
           word_t success = 0;
           if (arity == object_array_size(mapArray)) {
@@ -1252,6 +1230,7 @@ void interpret(struct object_heap* oh) {
             primitives[primNum](oh, argsArray, arity, NULL, i->framePointer + resultReg);
           }
           
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
 
           
           break;
@@ -1261,19 +1240,15 @@ void interpret(struct object_heap* oh) {
         {
           word_t arity, k, jumpOffset;
           struct Object* mapArray;
-          struct Object* argsArray[16];
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16], *pinnedArgs[16];
           mapArray = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
           jumpOffset = SSA_NEXT_PARAM_SMALLINT;
 
           assert(arity <= 16);
 
-          for (k=0; k<arity; k++) {
-            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            argsArray[k] = SSA_REGISTER(argReg);
-            pinnedArgs[k] = argsArray[k];
-          }
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
+
           
           word_t success = 0;
           if (arity == object_array_size(mapArray)) {
@@ -1290,6 +1265,7 @@ void interpret(struct object_heap* oh) {
             i->codePointer = i->codePointer + jumpOffset;
           }
           
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
 
           
           break;
@@ -1299,21 +1275,19 @@ void interpret(struct object_heap* oh) {
         {
           word_t resultReg, arity, k;
           Pinned<struct Object> method(oh);
-          struct Object* argsArray[16];
-          std::vector<Pinned<struct Object> > pinnedArgs(16, Pinned<struct Object>(oh));
+          struct Object* argsArray[16], *pinnedArgs[16];
           method = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
           arity = SSA_NEXT_PARAM_SMALLINT;
           resultReg = SSA_NEXT_PARAM_SMALLINT;
 
           assert(arity <= 16);
-          for (k=0; k<arity; k++) {
-            word_t argReg = SSA_NEXT_PARAM_SMALLINT;
-            argsArray[k] = SSA_REGISTER(argReg);
-            pinnedArgs[k] = argsArray[k];
-          }
+
+          HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
           interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
                                                     argsArray, arity, NULL, i->framePointer + resultReg);
+          
+          HEAP_UNPIN_ARGS(k, pinnedArgs);
           
           break;
         }

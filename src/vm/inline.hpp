@@ -75,6 +75,7 @@ SLATE_INLINE word_t object_total_size(struct Object* o) {
 SLATE_INLINE void heap_pin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Pinning %p\n", x);
 
+  if (object_is_smallint(x)) return;
   assert(object_hash(x) < ID_HASH_RESERVED);
 
   object_increment_pin_count(x);
@@ -84,6 +85,7 @@ SLATE_INLINE void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Unpinning %p\n", x);
   // don't check the idhash because forwardTo: will free the object
   //assert(object_hash(x) < ID_HASH_RESERVED);
+  if (object_is_smallint(x)) return;
   object_decrement_pin_count(x);
 }
 

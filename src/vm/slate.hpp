@@ -597,6 +597,20 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define SSA_NEXT_PARAM_OBJECT           (i->method->code->elements[i->codePointer++])
 #define ASSERT_VALID_REGISTER(X)        (assert((X) < (word_t)i->method->registerCount>>1))
 
+//we have to use a separate array for pinning because some methods change the args array
+//ahem... method_dispatch_on
+#define HEAP_READ_AND_PIN_ARGS(COUNTER, ARITY, ARGSARRAY, PINNEDARGS) for (COUNTER=0; COUNTER < ARITY; COUNTER++) { \
+            word_t argReg = SSA_NEXT_PARAM_SMALLINT; \
+            ARGSARRAY[COUNTER] = SSA_REGISTER(argReg); \
+            PINNEDARGS[COUNTER] = ARGSARRAY[COUNTER]; \
+            heap_pin_object(oh, PINNEDARGS[COUNTER]); \
+          } 
+
+#define HEAP_UNPIN_ARGS(COUNTER, PINNEDARGS)   for (--COUNTER; COUNTER >= 0; COUNTER--) heap_unpin_object(oh, PINNEDARGS[COUNTER])
+
+
+
+
 #define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
 extern int globalInterrupt; /*if this is set to 1, we should break so the user can stop an infinite loop*/
@@ -1084,15 +1098,12 @@ public:
   struct object_heap* oh;
   Pinned(struct object_heap* oh_) : value(0), oh(oh_) { }
   Pinned(struct object_heap* oh_, T* v) : value(v), oh(oh_) {
-    if (!object_is_smallint((struct Object*)value))
       heap_pin_object(oh, (struct Object*)value);
   }
 
   Pinned(const Pinned<T>&  v) : value(v.value), oh(v.oh) {
     if (value != NULL) {
-      if (!object_is_smallint((struct Object*)value)) {
         heap_pin_object(oh, (struct Object*)value);
-      }
     }
   }
 
@@ -1107,7 +1118,7 @@ public:
   }
 
   ~Pinned() {
-    if (value != 0 && !object_is_smallint((struct Object*)value)) {
+    if (value != 0) {
       heap_unpin_object(oh, (struct Object*)value);
     }
   }
@@ -1129,10 +1140,10 @@ public:
   operator struct PrimitiveMethod* () {return (struct PrimitiveMethod*)value;}
   const Pinned<T>& operator=(T *v) { 
     if (v != value) {
-      if (v != NULL && !object_is_smallint((struct Object*)v)) {
+      if (v != NULL) {
         heap_pin_object(oh, (struct Object*)v);
       }
-      if (value != 0 && !object_is_smallint((struct Object*)value)) {
+      if (value != 0) {
         heap_unpin_object(oh, (struct Object*)value);
       }
     }

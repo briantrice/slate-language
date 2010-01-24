@@ -40,7 +40,7 @@ ifdef DEBUG
 else
   ifdef PROFILE
     MODE += profiled
-    COPTFLAGS += -pg -g -O2
+    COPTFLAGS += -pg -g -O2 -fprofile-arcs -ftest-coverage
     CFLAGS += -DSLATE_BUILD_TYPE="\"Profile\""
   else
     MODE := optimized

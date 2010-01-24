@@ -18,4 +18,4 @@ vm: $(OBJECTS)
 	$(CPP) $(LIBS) $(CFLAGS) $(CFLAGS_$<) -o $(VMNAME) $(OBJECTS)
 
 clean:
-	rm -f *.o $(VMNAME)
+	rm -f *.o *.gcda *.gcno *.gcov $(VMNAME)
