@@ -305,27 +305,77 @@ void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symb
 
 }
 
+bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method) {
+
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  struct Closure* closure = (struct Closure*)i->method;
+  do {
+    if (closure->method == method) return true;
+    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    closure = (struct Closure*)i->stack->elements[fp - FRAME_OFFSET_METHOD];
+  } while (fp >= FUNCTION_FRAME_SIZE);
+
+  if (closure->method == method) return true;
+  return false;
+}
+
 
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
-#ifdef PRINT_DEBUG_OPTIMIZER
-  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
-#endif
 
   /* only optimize old objects because they don't move in memory and
    * we don't want to have to update our method cache every gc */
   if (object_is_young(oh, (struct Object*)method)) return;
+
+
+  // make sure we don't optimize something already on the stack
+  // since a return will put us possibly at a different op code
+  if (method_on_call_stack(oh, method)) {
+    return;
+  }
+
+  if (!optimizer_method_can_be_optimized(oh, method)) {
+    //don't bother trying anymore
+    method->isInlined = oh->cached.true_object;
+    method->oldCode = method->code;
+    method->nextInlineAtCallCount = oh->cached.nil;
+    return;
+  }
+
 #ifdef PRINT_DEBUG_OPTIMIZER
+  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
+#endif
+
+
+#ifdef PRINT_DEBUG_OPTIMIZER2
   method_print_debug_info(oh, method);
   printf("This method is called by:\n");
   method_print_debug_info(oh, oh->cached.interpreter->method);
 #endif
 
-  method->oldCode = method->code;
+  if ((struct Object*)method->oldCode == oh->cached.nil) {
+    method->oldCode = method->code;
+    heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
+
+  }
+  //whether to start with a fresh slate
+  //not starting may give us another degree of inlining
+  //method->code = method->oldCode;
   heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   method->isInlined = oh->cached.true_object;
   oh->optimizedMethods.insert(method);
-
+#ifdef SLATE_SHOW_INLINER_CODE
+  printf("before:\n");
+  print_type(oh, (struct Object*)method->selector);
+  print_code_disassembled(oh, method->code);
+#endif
+  optimizer_inline_callees(oh, method);
+#ifdef SLATE_SHOW_INLINER_CODE
+  printf("after:\n");
+  print_code_disassembled(oh, method->code);
+#endif
   
 }
 
@@ -435,15 +485,11 @@ void method_pic_add_callee_backreference(struct object_heap* oh,
 
 void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
                            word_t arity, struct Object* args[]) {
-#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
-  word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
-#else
-  word_t i = method_pic_hash(oh, callerMethod, arity, args);
-#endif
+  word_t entryStart = method_pic_hash(oh, callerMethod, arity, args);
 
-
+#if 0
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
     Pinned<struct OopArray> pinArray(oh);
     pinArray = callerMethod->calleeCount;
@@ -454,14 +500,14 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
     return;
   }
 
-
-#if 0 /*this old slow code will fill up the hash table instead of only looking at the entry where the hash lands us*/
+ /*this old slow code will fill up the hash table instead of only looking at the entry where the hash lands us*/
+#else
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
     /* if it's nil, we need to insert it*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
       Pinned<struct OopArray> pinArray(oh);
       pinArray = callerMethod->calleeCount;
-      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_insert(oh, callerMethod->calleeCount, &callerMethod->calleeCount->elements[i], def, arity, args);
       Pinned<struct CompiledMethod> defMethod(oh);
       defMethod = (struct CompiledMethod*) def->method;
       method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*) defMethod);
@@ -471,7 +517,7 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
   for (i = 0; i < entryStart; i+= CALLER_PIC_ENTRY_SIZE) {
     /*MUST be same as first loop*/
     if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) {
-      method_pic_insert(oh, &callerMethod->calleeCount->elements[i], def, arity, args);
+      method_pic_insert(oh, callerMethod->calleeCount, &callerMethod->calleeCount->elements[i], def, arity, args);
       Pinned<struct CompiledMethod> defMethod(oh);
       defMethod = (struct CompiledMethod*) def->method;
       method_pic_add_callee_backreference(oh, callerMethod, (struct CompiledMethod*)defMethod);
@@ -491,20 +537,18 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
 #endif
 
   Pinned<struct MethodDefinition> retval(oh);
-#if 0
   word_t i;
   word_t arraySize = array_size(callerMethod->calleeCount);
-  word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
-#else
-  word_t i = method_pic_hash(oh, callerMethod, arity, args);
-#endif
+  word_t entryStart = method_pic_hash(oh, callerMethod, arity, args);
 
+
+#if 0
   if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
   retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);
   if ((struct MethodDefinition*)retval != NULL) return retval;
   return NULL; /*only look at first match*/
 
-#if 0 /*this old code goes through the whole hash table which will take a while in a bad case*/
+#else /*this old code goes through the whole hash table which will take a while in a bad case*/
   for (i = entryStart; i < arraySize; i+= CALLER_PIC_ENTRY_SIZE) {
    if (callerMethod->calleeCount->elements[i+PIC_CALLEE] == oh->cached.nil) return NULL;
    retval = method_pic_match_selector(oh, &callerMethod->calleeCount->elements[i], selector, arity, args, TRUE);

@@ -52,11 +52,11 @@ VM SSACode addImmutableSlot: #instructionInfo valued:
 " the first item in the argument list is the number of arguments. numbers after that tell which items in the argument
 list to use to increment the whole count"
   0 -> (#directSendMessage -> {3. 2}). "result register, selector, arity, parameters..."
-  1 -> (#indirectSendMessage -> {3. 2}).  "result register, selector register, arity, parameters...."
+  "1 -> (#indirectSendMessage -> {3. 2})."  "result register, selector register, arity, parameters...."
 
   "2 -> (#allocateRegisters -> {1})."  "this should be in the function definition now"
   3 -> (#loadLiteral -> {2}). "dest register, literal"
-  4 -> (#storeLiteral -> {2}). "dest literal index, src register"
+  "4 -> (#storeLiteral -> {2})." "dest literal index, src register"
 
   5 -> (#sendMessageWithOptionals -> {4. 2}).  "result register, selector register, arity, optsArrayRegister, parameters...."
 
@@ -82,6 +82,12 @@ list to use to increment the whole count"
   25 -> (#primitiveDo -> {3. 1}). "call a primitive directly, bypassing method lookup: primNum, primArgCount, resultReg, args..."
   26 -> (#directApplyTo -> {3. 1}). "call a method/closure directly, bypassing array creation: method, argCount, resultReg, args..."
   27 -> (#isNilOp -> {2}). "is identical to but doesn't need the nil argument"
+
+  "these check the arguments to see if their maps match the ones in the map array"
+  "if they match, we fall through to the next instruction which is the primitive (no code) or inlined function"
+  "it also needs to set up the input varibles"
+  28 -> (#inlinePrimitiveCheckJump -> {5. 3}). "result reg, map array, prim number(in-opcode not a register), arity, jump offset, parameters..."
+  29 -> (#inlineMethodCheckJump -> {3. 1}). "map array, arity, jump offset, parameters..."
 }.
 
 VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
@@ -1011,4 +1017,9 @@ gen@(VM SSACompiler traits) decompile: array@(Array traits)
 [| pos |
   pos: 0.
   [pos < array size] whileTrue: [| instr | pos: (gen printInstructionAt: pos in: array)].
+].
+
+m@(CompiledMethod traits) decompile
+[
+  VM SSACompiler decompile: m code
 ].

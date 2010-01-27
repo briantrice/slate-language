@@ -78,6 +78,7 @@ int main(int argc, char** argv, char **envp) {
   word_t memory_limit = 400 * MB;
   word_t young_limit = 5 * MB;
   size_t res;
+  bool_t automaticallyInline = 0;
   word_t le_test_ = 1;
   char* le_test = (char*)&le_test_;
   int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1;
@@ -92,7 +93,7 @@ int main(int argc, char** argv, char **envp) {
       return 0;
     } else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--image") == 0)) {
       if (++i < argc) {
-        image_name = argv[i++];
+        image_name = argv[i];
       } else {
         error("You must specify an image filename after -i/--image.");
       }
@@ -108,6 +109,8 @@ int main(int argc, char** argv, char **envp) {
     } else if (strcmp(argv[i], "-mn") == 0) {
       young_limit = memory_string_to_bytes(argv[i+1]);
       i++;
+    } else if (strcmp(argv[i], "-O") == 0) {
+      automaticallyInline = 1;
     } else if (strcmp(argv[i], "-V") == 0) {
       quiet = 0;
       verbose = 1;
@@ -187,6 +190,7 @@ int main(int argc, char** argv, char **envp) {
 
   if (!heap_initialize(heap, sih.size, memory_limit, young_limit, sih.next_hash, sih.special_objects_oop, sih.current_dispatch_id)) return 1;
   
+  heap->automaticallyInline = automaticallyInline;
   heap->quiet = quiet;
   heap->quietGC = quietGC;
   heap->envp = envp;
