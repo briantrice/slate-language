@@ -37,17 +37,18 @@ p@(Profile traits) parseResults
   totalTime: p totalTime zero.
   p rawResults do:
     [| :method :callCount :selfTime :childCounts :childTimes countDict timeDict cumTime entry |
-     totalTime: totalTime + selfTime.
-     cumTime: selfTime.
-     countDict: Dictionary new.
-     timeDict: Dictionary new.
-     childCounts do: [| :key :val | countDict at: key put: val] inGroupsOf: 2.
-     childTimes do: [| :key :val | timeDict at: key put: val. key == method ifFalse: [cumTime: cumTime + val]] inGroupsOf: 2.
-     entry: (p Entry clone `setting: #(id method callCount selfTime cumulativeTime childCallCounts childCallTime)
-                     to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
-     p results at: method put: entry.
-     id: id + 1.
-     ] inGroupsOf: 5.
+     method
+       ifNotNil: [totalTime: totalTime + selfTime.
+                  cumTime: selfTime.
+                  countDict: Dictionary new.
+                  timeDict: Dictionary new.
+                  childCounts do: [| :key :val | key ifNotNil: [countDict at: key put: val]] inGroupsOf: 2.
+                  childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime: cumTime + val]]] inGroupsOf: 2.
+                  entry: (p Entry clone `setting: #(id method callCount selfTime cumulativeTime childCallCounts childCallTime)
+                            to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
+                  p results at: method put: entry.
+                  id: id + 1].
+ ] inGroupsOf: 5.
   p totalTime: totalTime.
 ].
 
@@ -90,7 +91,7 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                   entry childCallCounts keysAndValuesDo:
                     [| :childMethod :childCallCount childTime |
                        (resultsMethods identityIncludes: childMethod)
-                         ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [0]).
+                         ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [-1]).
                                   out ; entry id ; ' -> ' ; (p results at: childMethod) id
                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
                                       "; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'"

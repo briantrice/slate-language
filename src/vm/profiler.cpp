@@ -137,7 +137,7 @@ void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   }
 
   for (size_t i = 0; i < oh->profilerCallStack.size(); i++) {
-    if (oh->profilerCallStack[i] == method) oh->profilerCallStack[i] = NULL;
+    if (oh->profilerCallStack[i] == method) oh->profilerCallStack[i] = oh->cached.nil;
   }
 
 }
