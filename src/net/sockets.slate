@@ -237,7 +237,7 @@ s@(Net SocketServer traits) start &domain: addressDomain
   s pipeToLoop: 
     (currentProcess forkAndDo:
       [ | :commSock servSock |
-        servSock: (Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+        servSock: (Net Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
         "fixme handle ipv6"
         inform: 'Creating listening socket ' ; servSock printString.
         inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
@@ -253,7 +253,7 @@ s@(Net SocketServer traits) start &domain: addressDomain
                        peer ifNotNil:
                          [child: (currentProcess 
                                    forkAndDo: [ |:parent| [s dispatch applyWith: parent with: peer]
-                                                          ensure: [parent closePipe. peer handle closePipe. lobby exit]]).
+                                                          ensure: [parent closePipe. peer handle closePipe. lobby quit]]).
                           "fixme... have a way to communinicated back"
                           peer handle closePipe.
                           child closePipe.
