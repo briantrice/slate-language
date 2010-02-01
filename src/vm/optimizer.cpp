@@ -360,6 +360,8 @@ bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMeth
   if (method->restVariable == oh->cached.true_object) return false;
   struct Object* traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) return true;
+  // if it's not a primitive, then see if it has optionals... we don't support that now
+  if (array_size(method->optionalKeywords) != 0) return false;
   std::vector<struct Object*> code;
   optimizer_append_code_to_vector(method->code, code);
   if (code.size() > INLINER_MAX_INLINE_SIZE) return false;

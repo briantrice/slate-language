@@ -281,7 +281,8 @@ void print_backtrace(struct object_heap* oh) {
     printf("sp: %" PRIdPTR "\n", sp);
     printf("ip: %" PRIdPTR "/%" PRIdPTR "\n", codePointer, codeSize);
     printf("result: %" PRIdPTR "\n", resultStackPointer);
-    printf("method: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
+    printf("code: %p\n", closure->method->code);
+    printf("selector: "); print_byte_array((struct Object*)(closure->method->selector)); printf("\n");
     printf("regs: %" PRIdPTR "\n", object_to_smallint(closure->method->registerCount));
     printf("heap alloc: %s\n", (closure->method->heapAllocate == oh->cached.true_object)? "true" : "false");
 
