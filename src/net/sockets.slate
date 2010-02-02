@@ -263,6 +263,36 @@ s@(Net SocketServer traits) start &domain: addressDomain
 
 ].
 
+
+s@(Net SocketServer traits) startForeground &domain: addressDomain
+[ | servSock |
+  addressDomain `defaultsTo: Net IP4Address.
+  [ 
+  servSock: (Net Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  "fixme handle ipv6"
+  inform: 'Creating listening socket ' ; servSock printString.
+  inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
+  inform: 'listen: '; (servSock listenSize: 5) printString.
+  [ | ready | inform: 'Waiting for connection...' ; servSock handle printString.
+              ready: ({servSock handle} selectOnReadPipesFor: Net Socket SelectTimeout).
+              ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
+              (ready includes: servSock handle) 
+                ifTrue: [ | peer child |
+                          peer: ([servSock acceptConnection] on: Error do: [| :e | inform: 'Accept error: ' ; e description. e return: Nil]).
+                          peer ifNotNil:
+                            [child: (currentProcess 
+                                       forkAndDo: [ |:parent| [s dispatch applyWith: parent with: peer]
+                                                                ensure: [parent closePipe. peer handle closePipe. lobby quit]]).
+                             "fixme... have a way to communinicated back"
+                             peer handle closePipe.
+                             child closePipe.
+                             inform: 'Connection from ' ; peer peerAddress printString]]
+            ] loop.
+  ] ensure: [servSock ifNotNil: [servSock close. "fixme cleanup"]].
+
+].
+
+
 s@(Net SocketServer traits) stop
 [
   s pipeToLoop nextPutAll: 'quit'.
