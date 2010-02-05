@@ -1,4 +1,4 @@
-numerics ensureNamespace: #Units &delegate: True.
+numerics ensureNamespace: #units &delegate: True.
 "Based on the Squeak Units code at http://home.netsurf.de/helge.horch/squeak/units.html"
 
 numerics define: #Dimension &parents: {Cloneable}.
@@ -554,27 +554,27 @@ Main SI site:
 A Standard interchange format for SI units and numbers
  http://swiss.csail.mit.edu/~jaffer/MIXF/"
 
-Units ensureNamespace: #Prefixes.
-Units Prefixes ensureNamespace: #ByName &delegate: True.
-Units Prefixes ensureNamespace: #ByAbbrev &delegate: True.
+units ensureNamespace: #Prefixes.
+units Prefixes ensureNamespace: #ByName &delegate: True.
+units Prefixes ensureNamespace: #ByAbbrev &delegate: True.
 
 sip@(SIPrefix traits) name: name abbrev: abbrev scalingFactor: n
 [| newSIP |
   newSIP: (sip clone `setting: #(abbrev prefixName scalingFactor)
 	       to: {abbrev. name. n}).
-  Units Prefixes ByName addImmutableSlot: name intern valued: newSIP.
-  Units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: newSIP.
+  units Prefixes ByName addImmutableSlot: name intern valued: newSIP.
+  units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: newSIP.
   newSIP
 ].
 
 sip@(SIPrefix traits) named: name
 [
-  Units SIPrefixesByName at: name intern
+  units SIPrefixesByName at: name intern
 ].
 
 sip@(SIPrefix traits) abbrev: name
 [
-  Units SIPrefixesByAbbrev at: name intern
+  units SIPrefixesByAbbrev at: name intern
 ].
 
 u@(Unit traits) prefixedBy: prefix@(SIPrefix traits)
@@ -585,7 +585,7 @@ u@(Unit traits) prefixedBy: prefix@(SIPrefix traits)
 p1@(SIPrefix traits) * p2@(SIPrefix traits)
 [| scalingFactor newSIP |
   scalingFactor: p1 scalingFactor * p2 scalingFactor.
-  Units SIPrefixesByName keysAndValuesDo: [| :key :value |
+  units SIPrefixesByName keysAndValuesDo: [| :key :value |
     value scalingFactor = scalingFactor ifTrue: [^ value]].
   Nil
 ].
@@ -668,10 +668,10 @@ _@(ModifiedUnit traits) is: _@(BaseUnit traits)
 "Modified units are effectively new bases."
 [True].
 
-Units ensureNamespace: #SI &delegate: True.
-Units SI ensureNamespace: #ByName &delegate: True.
-Units SI ensureNamespace: #ByAbbrev &delegate: True.
-Units SI ensureNamespace: #ByPluralName &delegate: True.
+units ensureNamespace: #SI &delegate: True.
+units SI ensureNamespace: #ByName &delegate: True.
+units SI ensureNamespace: #ByAbbrev &delegate: True.
+units SI ensureNamespace: #ByPluralName &delegate: True.
 
 bu@(BaseUnit traits) name: n1 abbrev: ab dimension: dimension &plural: np
 [| newBU n1s nps abs |
@@ -680,9 +680,9 @@ bu@(BaseUnit traits) name: n1 abbrev: ab dimension: dimension &plural: np
   [| :n | n of: newBU] asMethod: n1 intern on: {Number traits}.
   [| :n | n of: newBU] asMethod: ab intern on: {Number traits}.
   newBU traits addImmutableSlot: #dimension valued: dimension.
-  Units SI ByName addImmutableSlot: n1 intern valued: newBU.
-  Units SI ByAbbrev addImmutableSlot: ab intern valued: newBU.
-  Units SI ByPluralName addImmutableSlot: np intern valued: newBU.
+  units SI ByName addImmutableSlot: n1 intern valued: newBU.
+  units SI ByAbbrev addImmutableSlot: ab intern valued: newBU.
+  units SI ByPluralName addImmutableSlot: np intern valued: newBU.
   newBU
 ].
 
@@ -695,17 +695,17 @@ BaseUnit name: 'kelvin' abbrev: 'K' dimension: Temperature &plural: 'kelvin'.
 
 bu@(BaseUnit traits) named: name
 [
-  name intern sendTo: {Units SI ByName}
+  name intern sendTo: {units SI ByName}
 ].
 
 bu@(BaseUnit traits) abbrev: name
 [
-  name intern sendTo: {Units SI ByAbbrev}
+  name intern sendTo: {units SI ByAbbrev}
 ].
 
 bu@(BaseUnit traits) pluralNamed: name
 [
-  name intern sendTo: {Units SI ByPluralName}
+  name intern sendTo: {units SI ByPluralName}
 ].
 
 cu@(ComplexUnit traits) isConsistentWith: bu@(BaseUnit traits)
@@ -717,9 +717,9 @@ d@(DerivedUnit traits) dimension [d unitValue dimension].
 
 "This defines a unit in terms of powers of other units, plus a scalar."
 
-Units ensureNamespace: #ByName &delegate: True.
-Units ensureNamespace: #ByAbbrev &delegate: True.
-Units ensureNamespace: #ByPluralName &delegate: True.
+units ensureNamespace: #ByName &delegate: True.
+units ensureNamespace: #ByAbbrev &delegate: True.
+units ensureNamespace: #ByPluralName &delegate: True.
 
 du@(DerivedUnit traits) name: n1 abbrev: ab value: val &plural: np
 [| newU |
@@ -728,9 +728,9 @@ du@(DerivedUnit traits) name: n1 abbrev: ab value: val &plural: np
   newU unitValue: val.
   [| :n | n of: newU] asMethod: n1 intern on: {Number traits}.
   [| :n | n of: newU] asMethod: ab intern on: {Number traits}.
-  Units ByName addImmutableSlot: n1 intern valued: newU.
-  Units ByAbbrev addImmutableSlot: ab intern valued: newU.
-  Units ByPluralName addImmutableSlot: np intern valued: newU.
+  units ByName addImmutableSlot: n1 intern valued: newU.
+  units ByAbbrev addImmutableSlot: ab intern valued: newU.
+  units ByPluralName addImmutableSlot: np intern valued: newU.
   newU
 ].
 
@@ -767,74 +767,74 @@ bu@(BaseUnit traits) isConsistentWith: du@(DerivedUnit traits)
 DerivedUnit
   name: 'centimeter'
   abbrev: 'cm'
-  value: (1 of: (Units m prefixedBy: Units Prefixes c)).
+  value: (1 of: (units m prefixedBy: units Prefixes c)).
 
 DerivedUnit
   name: 'kilometer'
   abbrev: 'km'
-  value: (1 of: (Units m prefixedBy: Units Prefixes k)).
+  value: (1 of: (units m prefixedBy: units Prefixes k)).
 
 DerivedUnit
   name: 'kilogram'
   abbrev: 'kg'
-  value: (1 of: (Units g prefixedBy: Units Prefixes k)).
+  value: (1 of: (units g prefixedBy: units Prefixes k)).
 
 DerivedUnit
   name: 'inch'
   abbrev: 'in'
-  value: (2.54 of: Units cm).
+  value: (2.54 of: units cm).
 
 DerivedUnit
   name: 'foot'
   abbrev: 'ft'
-  value: (12 of: Units in)
+  value: (12 of: units in)
   &plural: 'feet'.
 
 DerivedUnit
   name: 'yard'
   abbrev: 'yd'
-  value: (3 of: Units ft).
+  value: (3 of: units ft).
 
 DerivedUnit
   name: 'mile'
   abbrev: 'mi'
-  value: (5280 of: Units ft).
+  value: (5280 of: units ft).
 
 DerivedUnit
   name: 'acre'
   abbrev: 'acre'
-  value: (4046.87260987 of: Units m squared).
+  value: (4046.87260987 of: units m squared).
 
 DerivedUnit
   name: 'newton'
   abbrev: 'N'
-  value: (1 of: Units kg * Units m / Units s squared)
+  value: (1 of: units kg * units m / units s squared)
   &plural: 'newtons'.
 
 DerivedUnit
   name: 'minute'
   abbrev: 'min'
-  value: (60 of: Units s).
+  value: (60 of: units s).
 
 DerivedUnit
   name: 'hour'
   abbrev: 'h'
-  value: (60 of: Units min).
+  value: (60 of: units min).
 
 DerivedUnit
   name: 'day'
   abbrev: 'd'
-  value: (24 of: Units h).
+  value: (24 of: units h).
 
 DerivedUnit
   name: 'year'
   abbrev: 'yr'
-  value: (365.242198781 of: Units d).
+  value: (365.242198781 of: units d).
 
 DerivedUnit
   name: 'hertz'
   abbrev: 'Hz'
-  value: ((1 of: Units s) raisedTo: -1)
+  value: ((1 of: units s) raisedTo: -1)
   &plural: 'hertz'.
 
 numerics define: #TemperatureUnit &parents: {DerivedUnit}
@@ -848,20 +848,20 @@ tu@(TemperatureUnit traits) name: n1 abbrev: ab value: val additiveFactor: af &p
 TemperatureUnit
   name: 'degree Rankine'
   abbrev: 'R'
-  value: (5 / 9 of: Units K)
+  value: (5 / 9 of: units K)
   additiveFactor: 0
   &plural: 'degrees Rankine'.
 
 TemperatureUnit
   name: 'degree Fahrenheit'
   abbrev: 'F'
-  value: (5 / 9 of: Units K)
+  value: (5 / 9 of: units K)
   additiveFactor: -459.67
   &plural: 'degrees Fahrenheit'.
 
 TemperatureUnit
   name: 'degree Celsius'
   abbrev: 'C'
-  value: (1 of: Units K)
+  value: (1 of: units K)
   additiveFactor: -273.15
   &plural: 'degrees Celsius'.
