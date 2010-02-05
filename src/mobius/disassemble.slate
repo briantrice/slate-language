@@ -96,9 +96,10 @@ i@(CompiledMethod OpStream traits) disassembleOn: s
     offset: i codePosition].
 ].
 
-m@(CompiledMethod traits) disassembleOn: s
+m@(CompiledMethod traits) disassemble &output: s
 "Print out method meta-data and then the instruction stream."
 [
+  s `defaultsTo: Console writer.
   s writer
     ; 'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]) ; '\n'
     ; 'inputs: ' ; m inputVariables printString ; '\n'
@@ -111,10 +112,6 @@ m@(CompiledMethod traits) disassembleOn: s
   VM SSACompiler decompile: m on: s.
 ].
 
-m@(CompiledMethod traits) disassemble
-"Print to the Console by default."
-[m disassembleOn: Console writer].
-
-closure@(Closure traits) disassemble
+closure@(Closure traits) disassemble &output: s
 "Skip Closure objects and print their internal methods instead."
-[closure method disassembleOn: Console writer].
+[closure method disassemble &output: s].
