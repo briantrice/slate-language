@@ -1,5 +1,5 @@
 CompiledMethod traits define: #OpStream &parents: {ReadStream}
- &slots: {#codePosition -> 0. #codeSize -> 0. #method -> Nil}.
+ &slots: {#codePosition -> 0. #method -> Nil}.
 
 CompiledMethod traits define: #Instruction &slots: {#name. #arguments -> {}}.
 "An Instruction just stores the name of the op-code and the arguments for it."
@@ -10,7 +10,6 @@ method@(CompiledMethod traits) opReader
 s@(CompiledMethod OpStream traits) on: method@(CompiledMethod traits)
 [
   s method: method.
-  s codeSize: method code size.
   s codePosition: 0.
   s
 ].
@@ -18,7 +17,7 @@ s@(CompiledMethod OpStream traits) on: method@(CompiledMethod traits)
 s@(CompiledMethod OpStream traits) hasAnEnd [True].
 
 s@(CompiledMethod OpStream traits) isAtEnd
-[s codePosition >= s codeSize].
+[s codePosition >= s method code size].
 
 s@(CompiledMethod OpStream traits) decodeShort
 "Get the next two bytes and turn them into a SmallInteger appropriately
@@ -100,15 +99,16 @@ i@(CompiledMethod OpStream traits) disassembleOn: s
 m@(CompiledMethod traits) disassembleOn: s
 "Print out method meta-data and then the instruction stream."
 [
-  s writer lines ;
-   {'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]).
-    'inputs: ' ; m inputVariables printString.
-    'locals: ' ; m localVariables printString.
-    'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']).
-    'rest parameter: ' ; m restVariable printString.
-    'optional keywords: ' ; (m optionalKeywords isEmpty
-	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])}.
-  m opReader disassembleOn: s.
+  s writer
+    ; 'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]) ; '\n'
+    ; 'inputs: ' ; m inputVariables printString ; '\n'
+    ; 'locals: ' ; m localVariables printString ; '\n'
+    ; 'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']) ; '\n'
+    ; 'rest parameter: ' ; m restVariable printString ; '\n'
+    ; 'optional keywords: ' ; (m optionalKeywords isEmpty
+	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])  ; '\n'.
+  "m opReader disassembleOn: s."
+  VM SSACompiler decompile: m on: s.
 ].
 
 m@(CompiledMethod traits) disassemble

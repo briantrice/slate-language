@@ -993,33 +993,29 @@ gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) printInstructionAt: pos in: array@(Array traits)
+gen@(VM SSACompiler traits) printInstructionAt: pos in: m@(CompiledMethod traits) on: out
 [| instr arguments nextStart instrVal |
-  instrVal: (array at: pos).
+  instrVal: (m code at: pos).
   instr: (VM SSACode instructionInfo detect: [| :elem | elem key = instrVal]
-                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; array printString]) value.
-  inform:
+                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]) value.
+  out ;
     ([| :out |
       out ; '(' ; pos printString ; ') ' ; instrVal printString ; ' ' ; instr key printString.
       nextStart: (pos + 1 + instr value first +
         (instr value size > 1
            ifTrue: [| sum |
                     sum: 0.
-                    instr value allButFirstDo: [| :offset | sum: sum + (array at: pos + 1 + offset)].
+                    instr value allButFirstDo: [| :offset | sum: sum + (m code at: pos + 1 + offset)].
                     sum]
            ifFalse: [0])).
       (pos + 1 until: nextStart) do:
-	[| :i | out ; ' ' ; (array at: i) printString]] writingAs: String).
+	[| :i | out ; ' ' ; (m code at: i) printString]] writingAs: String).
   nextStart
 ].
 
-gen@(VM SSACompiler traits) decompile: array@(Array traits)
+gen@(VM SSACompiler traits) decompile: m@(CompiledMethod traits) on: out
 [| pos |
   pos: 0.
-  [pos < array size] whileTrue: [| instr | pos: (gen printInstructionAt: pos in: array)].
-].
-
-m@(CompiledMethod traits) decompile
-[
-  VM SSACompiler decompile: m code
+  [pos < m code size] whileTrue:
+    [| instr | pos: (gen printInstructionAt: pos in: m code)].
 ].
