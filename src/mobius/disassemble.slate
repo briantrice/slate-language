@@ -97,23 +97,23 @@ i@(CompiledMethod OpStream traits) disassembleOn: s
 ].
 
 m@(CompiledMethod traits) printInstructionAt: pos on: out
-[| instr arguments nextStart instrVal |
-  instrVal: (m code at: pos).
-  instr: (VM SSACode instructionInfo detect: [| :elem | elem key = instrVal]
-                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]) value.
+[| opcode instr nextStart argOffset |
+  opcode: (m code at: pos).
+  instr: (VM SSACode Instruction ByCode at: opcode
+            ifAbsent: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]).
   out ; (pos printString truncateTo: 5 paddedBy: $\s &onRight: True)
-    ; (instrVal printString truncateTo: 3 paddedBy: $\s &onRight: True)
-    ; (instr key printString truncateTo: 25 paddedBy: $\s &onRight: True).
-  nextStart: (pos + 1 + instr value first +
-    (instr value size > 1
-       ifTrue: [| sum |
-                sum: 0.
-                instr value allButFirstDo: [| :offset | sum: sum + (m code at: pos + 1 + offset)].
-                sum]
-       ifFalse: [0])).
+    ; (opcode printString truncateTo: 3 paddedBy: $\s &onRight: True)
+    ; (instr name truncateTo: 25 paddedBy: $\s &onRight: True)
+    ; '\n'.
+  nextStart: (pos + 1 + instr argNames size +
+    (instr offsettingArgIndices inject: 0 into:
+       [| :sum :offset | m code at: pos + 1 + offset])).
+  argOffset: 0.
   (pos + 1 until: nextStart) do:
-    [| :i | out ; ' ' ; (m code at: i) printString].
-  out ; '\n'.
+    [| :codeIndex |
+     out ; '     ' ; (m code at: codeIndex) printString
+         ; ' ' ; (argOffset < instr argNames size ifTrue: [instr argNames at: argOffset] ifFalse: ['']) ; '\n'.
+     argOffset: argOffset + 1].
   nextStart
 ].
 
@@ -130,9 +130,9 @@ m@(CompiledMethod traits) disassemble &output: s
 [
   s `defaultsTo: Console writer.
   s writer
-    ; 'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]) ; '\n'
-    ; 'inputs: ' ; m inputVariables printString ; '\n'
-    ; 'locals: ' ; m localVariables printString ; '\n'
+    ; 'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name printString]) ; '\n'
+    ; '#inputs: ' ; m inputVariables printString ; '\n'
+    ; '#locals: ' ; m localVariables printString ; '\n'
     ; 'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']) ; '\n'
     ; 'rest parameter: ' ; m restVariable printString ; '\n'
     ; 'optional keywords: ' ; (m optionalKeywords isEmpty
