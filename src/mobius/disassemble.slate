@@ -96,6 +96,32 @@ i@(CompiledMethod OpStream traits) disassembleOn: s
     offset: i codePosition].
 ].
 
+m@(CompiledMethod traits) printInstructionAt: pos on: out
+[| instr arguments nextStart instrVal |
+  instrVal: (m code at: pos).
+  instr: (VM SSACode instructionInfo detect: [| :elem | elem key = instrVal]
+                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]) value.
+  out ; '(' ; pos printString ; ') ' ; instrVal printString ; ' ' ; instr key printString.
+  nextStart: (pos + 1 + instr value first +
+    (instr value size > 1
+       ifTrue: [| sum |
+                sum: 0.
+                instr value allButFirstDo: [| :offset | sum: sum + (m code at: pos + 1 + offset)].
+                sum]
+       ifFalse: [0])).
+  (pos + 1 until: nextStart) do:
+    [| :i | out ; ' ' ; (m code at: i) printString].
+  out ; '\n'.
+  nextStart
+].
+
+m@(CompiledMethod traits) printInstructionsOn: out
+[| pos |
+  pos: 0.
+  [pos < m code size] whileTrue:
+    [| instr | pos: (m printInstructionAt: pos on: out)].
+].
+
 m@(CompiledMethod traits) disassemble &output: s
 "Print out method meta-data and then the instruction stream."
 [
@@ -108,8 +134,7 @@ m@(CompiledMethod traits) disassemble &output: s
     ; 'rest parameter: ' ; m restVariable printString ; '\n'
     ; 'optional keywords: ' ; (m optionalKeywords isEmpty
 	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])  ; '\n'.
-  "m opReader disassembleOn: s."
-  VM SSACompiler decompile: m on: s.
+  m printInstructionsOn: s.
 ].
 
 closure@(Closure traits) disassemble &output: s
