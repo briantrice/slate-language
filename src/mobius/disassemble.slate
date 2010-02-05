@@ -101,7 +101,9 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
   instrVal: (m code at: pos).
   instr: (VM SSACode instructionInfo detect: [| :elem | elem key = instrVal]
                                      ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]) value.
-  out ; '(' ; pos printString ; ') ' ; instrVal printString ; ' ' ; instr key printString.
+  out ; (pos printString truncateTo: 5 paddedBy: $\s &onRight: True)
+    ; (instrVal printString truncateTo: 3 paddedBy: $\s &onRight: True)
+    ; (instr key printString truncateTo: 25 paddedBy: $\s &onRight: True).
   nextStart: (pos + 1 + instr value first +
     (instr value size > 1
        ifTrue: [| sum |
@@ -117,6 +119,7 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
 
 m@(CompiledMethod traits) printInstructionsOn: out
 [| pos |
+  out ; 'IP   ' ; 'OP ' ; 'Instruction' ; '\n'.
   pos: 0.
   [pos < m code size] whileTrue:
     [| instr | pos: (m printInstructionAt: pos on: out)].
