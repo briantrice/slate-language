@@ -270,12 +270,32 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 }
 
 
+bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method) {
+
+  struct Interpreter* i = oh->cached.interpreter;
+  word_t fp = i->framePointer;
+  struct Closure* closure = (struct Closure*)i->method;
+  do {
+    if (closure->method == method) return true;
+    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
+    if (fp < FUNCTION_FRAME_SIZE) break;
+    closure = (struct Closure*)i->stack->elements[fp - FRAME_OFFSET_METHOD];
+  } while (fp >= FUNCTION_FRAME_SIZE);
+
+  if (closure->method == method) return true;
+  return false;
+}
 
 
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_UNOPTIMIZER
   printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
 #endif
+  if (method_on_call_stack(oh, method)) {
+    printf("Fixme cannot unoptimizing because on call stack: '"); print_symbol(method->selector); printf("'\n");
+    return;
+  }
+
   method->code = method->oldCode;
   heap_store_into(oh, (struct Object*) method->code, (struct Object*) method->oldCode);
   method->isInlined = oh->cached.false_object;
@@ -305,21 +325,6 @@ void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symb
 
 }
 
-bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method) {
-
-  struct Interpreter* i = oh->cached.interpreter;
-  word_t fp = i->framePointer;
-  struct Closure* closure = (struct Closure*)i->method;
-  do {
-    if (closure->method == method) return true;
-    fp = object_to_smallint(i->stack->elements[fp - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
-    if (fp < FUNCTION_FRAME_SIZE) break;
-    closure = (struct Closure*)i->stack->elements[fp - FRAME_OFFSET_METHOD];
-  } while (fp >= FUNCTION_FRAME_SIZE);
-
-  if (closure->method == method) return true;
-  return false;
-}
 
 
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
@@ -361,7 +366,6 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   }
   //whether to start with a fresh slate
   //not starting may give us another degree of inlining
-  //method->code = method->oldCode;
   heap_store_into(oh, (struct Object*) method->oldCode, (struct Object*) method->code);
 
   method->isInlined = oh->cached.true_object;

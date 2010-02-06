@@ -338,6 +338,7 @@ bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMe
   if (method->restVariable == oh->cached.true_object) return false;
   struct Object* traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) return false;
+  if (array_size(method->optionalKeywords) != 0) return false;
   std::vector<struct Object*> code;
   optimizer_append_code_to_vector(method->code, code);
   if (code.size() > INLINER_MAX_METHOD_SIZE) return false;
