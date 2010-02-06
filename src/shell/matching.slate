@@ -1,0 +1,118 @@
+lobby ensureNamespace: #Shell.
+ 
+Shell define: #MaskPattern &parents: {Cloneable} &slots: {#components}.
+Shell define: #MaskPatternMatcher &parents: {Cloneable} &slots: {#reader. #maskPattern}.
+
+Shell define: #MaskPatternFailure.
+
+Shell define: #MaskPatternComponent &parents: {Cloneable}.
+Shell define: #MaskPatternLiteral &parents: {Shell MaskPatternComponent} &slots: {#string}.
+Shell define: #MaskPatternRange &parents: {Shell MaskPatternComponent} &slots: {#ranges. #negate}.
+Shell define: #MaskPatternAny &parents: {Shell MaskPatternComponent}.
+Shell define: #MaskPatternAnyOne &parents: {Shell MaskPatternComponent}.
+
+mp@(Shell MaskPattern traits) newOn: s@(String traits)
+[
+  mp components: ExtensibleArray new.
+  mp readFrom: s reader.
+  mp
+].
+
+mp@(Shell MaskPattern traits) readFrom: s@(ReadStream traits)
+[ | prev matcher |
+  prev: '' writer.
+  matcher: mp components writer.
+  s do: 
+    [|:token| ({$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
+                ifTrue: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ]).
+                         prev: '' writer].
+                token caseOf:
+                {
+                   $*  -> [matcher nextPut: Shell MaskPatternAny].
+                   $?  -> [matcher nextPut: Shell MaskPatternAnyOne].
+                   $\[ -> [matcher nextPut: (mp readRange: (s upTo: $\]))].
+                      
+                  } otherwise: [prev nextPut: token].
+          ].
+
+  prev contents isEmpty ifFalse: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ])].
+  mp components: matcher contents.
+  
+].
+
+
+mp@(Shell MaskPattern traits) readRange: str@(String traits)
+[ | p char2 s |
+  s: str reader.
+  p: Shell MaskPatternRange new.
+  p ranges: ExtensibleArray new.
+
+  char2: s peek.
+  char2 = $^ \/ [char2 = $!] ifTrue: [p negate: True] ifFalse: [p negate: False].
+
+  s do:
+    [|:char|
+     char2: s peek.
+     char2 = $- 
+       ifTrue: [s next. p ranges addLast: char -> s next]
+       ifFalse: [p ranges addLast: char].
+     
+    ].
+
+  p
+].
+
+mp@(Shell MaskPattern traits) match: str@(String traits) from: pos
+[
+  (Shell MaskPatternMatcher new `>> [maskPattern: mp. reader: mp components reader. ]) match: str from: pos
+].
+
+mp@(Shell MaskPatternMatcher traits) match: str@(String traits) from: pos
+[
+  "inform: 'match reader: ' ; mp reader printString ;  ' pos: ' ; pos printString."
+  mp reader
+    do: [|:token| (token isSameAs: Shell MaskPatternAny)
+                    ifTrue: [str size downTo: pos do:
+                               [|:start | ((mp new `>> [reader: mp reader clone. ]) match: str from: start) = str size 
+                                            ifTrue: [^ str size]]]
+                    ifFalse: [pos: (token match: str from: pos).
+                              pos == Shell MaskPatternFailure ifTrue: [^ pos]]].
+  pos
+].
+
+mp@(Shell MaskPattern traits) matches: str@(String traits)
+[ | match |
+  match: (mp match: str from: 0).
+  match ~== Shell MaskPatternFailure /\ [match = str size]
+].
+
+
+p@(Shell MaskPatternAny traits) match: str@(String traits) from: pos
+[
+  (pos to: str size - pos)
+].
+
+p@(Shell MaskPatternAnyOne traits) match: str@(String traits) from: pos
+[
+  pos >= str size ifTrue: [Shell MaskPatternFailure] ifFalse: [pos + 1]
+].
+
+p@(Shell MaskPatternRange traits) match: str@(String traits) from: pos
+[
+  pos >= str size \/ [p matches: (str at: pos)] ifTrue: [Shell MaskPatternFailure] ifFalse: [pos + 1]
+].
+
+p@(Shell MaskPatternLiteral traits) match: str@(String traits) from: pos
+[ 
+  pos + p string size > str size ifTrue: [^ Shell MaskPatternFailure].
+  (str copyFrom: pos to: pos + p string size - 1) = p string ifTrue: [pos + p string size] ifFalse: [Shell MaskPatternFailure]
+].
+
+
+p@(Shell MaskPatternRange traits) matches: c@(String Character traits)
+[
+  p ranges do: [|:range| (range isSameAs: c) /\ [range = c] ifTrue: [^ True].
+                         range key code <= c code /\ [range value code >= c code] ifTrue: [^ True]].
+  False
+].
+
