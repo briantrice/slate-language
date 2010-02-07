@@ -13,13 +13,13 @@ l@(File Locator traits) maskedEntries: mask@(Regex Regex traits) do: block
 [ | matcher |
   matcher: (Regex Matcher newOn: mask).
   (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: l clone `>> [name: each. ]]].
+    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: (l clone readFilenameFrom: each)]].
 ].
 
 l@(File Locator traits) maskedEntries: mask@(Shell MaskPattern traits) do: block
 [ 
   (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (mask matches: each) ifTrue: [block applyWith: l clone `>> [name: each. ]]].
+    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (l clone readFilenameFrom: each)]].
 ].
 
 
