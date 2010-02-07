@@ -3,26 +3,28 @@ lobby ensureNamespace: #Shell.
 Shell define: #FileArray &parents: {ExtensibleArray}.
 
 
-d@(Directory traits) maskedEntries: mask@(String traits) do: block
+d@(File Locator traits) maskedEntries: mask@(String traits) do: block
 [
   d maskedEntries: (Shell MaskPattern newOn: mask) do: block
 ].
 
 
-d@(Directory traits) maskedEntries: mask@(Regex Regex traits) do: block
-[ | matcher|
+l@(File Locator traits) maskedEntries: mask@(Regex Regex traits) do: block
+[ | matcher |
   matcher: (Regex Matcher newOn: mask).
-  d reader reset do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: d / each]].
+  (Directory new `>> [locator: l. ]) reader reset
+    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: l clone `>> [name: each. ]]].
 ].
 
-d@(Directory traits) maskedEntries: mask@(Shell MaskPattern traits) do: block
-[
-  d reader reset do: [|:each| (mask matches: each) ifTrue: [block applyWith: d / each]].
+l@(File Locator traits) maskedEntries: mask@(Shell MaskPattern traits) do: block
+[ 
+  (Directory new `>> [locator: l. ]) reader reset
+    do: [|:each| (mask matches: each) ifTrue: [block applyWith: l clone `>> [name: each. ]]].
 ].
 
 
 
-d@(Directory traits) collectMasked: mask
+d@(File Locator traits) collectMasked: mask
 [
   [|:result| d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
 ].
