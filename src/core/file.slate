@@ -419,11 +419,13 @@ l@(File Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
   pathSeparator ifNil: [pathSeparator: l pathSeparator].
   pathElements: (s upToEnd splitWith: pathSeparator).
   l path: pathElements allButLast.
-  pathElements isEmpty
-    ifFalse:
-      [l name: (pathElements last copyUpToLast: l dot).
-       (pathElements last lastIndexOf: l dot)
-	 ifNotNil: [l fileType: (pathElements last copyAfterLast: l dot)]].
+  pathElements isEmpty ifFalse: [l readFilenameFrom: pathElements last].
+].
+
+l@(File Locator traits) readFilenameFrom: s
+[
+  l name: (s copyUpToLast: l dot).
+  (s lastIndexOf: l dot) ifNotNil: [l fileType: (s copyAfterLast: l dot)].
 ].
 
 l@(File Locator traits) isRoot
