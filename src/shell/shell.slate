@@ -1,6 +1,34 @@
 lobby ensureNamespace: #Shell.
 
 Shell define: #FileArray &parents: {ExtensibleArray}.
+Shell define: #FormatSpecification &parents: {Cloneable} &slots: {#spec}.
+
+Shell FormatSpecification traits define: #codes -> ({$p -> [|:l| l as: String].
+                                                     $n -> [|:l| l name].
+                                                     $t -> [|:l| l fileType].
+                                                     $% -> [|:l| '%'].
+                                                     $f -> [|:l| [|:s| l writeNameVersionTypeOn: s] writingAs: String]
+                                                   } as: Dictionary).
+
+ffs@(Shell FormatSpecification traits) newFrom: s@(String traits)
+[ | obj reader writer |
+  obj: ffs new.
+  writer: ExtensibleArray new writer.
+  reader: s reader.
+  writer nextPut: (reader upTo: $%).
+  reader do: [|:each| writer nextPut: (Shell FormatSpecification codes at: each ifAbsent: [error: 'bad code: ' ; each printString]).
+                      writer nextPut: (reader upTo: $%)].
+  obj spec: (writer contents select: [|:each| (each is: String) not \/ [each isNotEmpty]]).
+  obj
+].
+
+ffs@(Shell FormatSpecification traits) format: f@(File Locator traits)
+[
+  [|:s| ffs spec do: [|:each| (each is: String)
+                                ifTrue: [s nextPutAll: each]
+                                ifFalse: [s nextPutAll: (each applyWith: f)]]
+      ] writingAs: String
+].
 
 
 d@(File Locator traits) maskedEntries: mask@(String traits) do: block
@@ -13,13 +41,13 @@ l@(File Locator traits) maskedEntries: mask@(Regex Regex traits) do: block
 [ | matcher |
   matcher: (Regex Matcher newOn: mask).
   (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: (l clone readFilenameFrom: each)]].
+    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: (l clone `>> [readFilenameFrom: each. ])]].
 ].
 
 l@(File Locator traits) maskedEntries: mask@(Shell MaskPattern traits) do: block
 [ 
   (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (l clone readFilenameFrom: each)]].
+    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (l clone `>> [readFilenameFrom: each. ])]].
 ].
 
 
@@ -30,4 +58,9 @@ d@(File Locator traits) collectMasked: mask
 ].
 
 
+a@(Shell FileArray traits) format: formatString@(String traits)
+[ | fmtSpec |
+  fmtSpec: (Shell FormatSpecification newFrom: formatString).
+  a collect: [|:each| fmtSpec format: each]
+].
 
