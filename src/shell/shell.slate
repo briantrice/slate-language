@@ -1,6 +1,8 @@
 lobby ensureNamespace: #Shell.
 
-Shell define: #FileArray &parents: {ExtensibleArray}.
+Shell define: #FileCollection &parents: {Collection}.
+Shell define: #FileArray &parents: {ExtensibleArray. Shell FileCollection}.
+Shell define: #FileSet &parents: {Set. Shell FileCollection}.
 Shell define: #FormatSpecification &parents: {Cloneable} &slots: {#spec}.
 
 Shell FormatSpecification traits define: #codes -> (Dictionary new*,
@@ -64,13 +66,13 @@ d@(Directory traits) maskedEntries: mask do: block
     do: [|:each| (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
 ].
 
-a@(Shell FileArray traits) format: formatString@(String traits)
+a@(Shell FileCollection traits) format: formatString@(String traits)
 [ | fmtSpec |
   fmtSpec: (Shell FormatSpecification newFrom: formatString).
   a collect: [|:each| fmtSpec format: each]
 ].
 
-a@(Shell FileArray traits) format*
+a@(Shell FileCollection traits) format*
 [ | *args fmtSpecs |
   fmtSpecs: (args collect: [|:each| Shell FormatSpecification newFrom: each]).
   a collect: [|:each| fmtSpecs collect: [|:spec| spec format: each]]
@@ -79,7 +81,7 @@ a@(Shell FileArray traits) format*
 d@(Directory traits) find: block &maxDepth: maxDepth
 [ | result |
   maxDepth `defaultsTo: PositiveInfinity.
-  result: Shell FileArray new writer.
+  result: Shell FileSet new writer.
   d select: block into: result depth: maxDepth.
   result contents
 ].
@@ -87,9 +89,11 @@ d@(Directory traits) find: block &maxDepth: maxDepth
 d@(Directory traits) select: block into: result depth: maxDepth
 [ | entries reader |
   maxDepth isZero ifTrue: [^ Nil].
-  entries: (d entries collect: #as: `er <-2 File Locator).
+  entries: (d entries collect: [|:each| (File RelativeLocator newFrom: d) `>> [readPathElementsFrom: each reader. ]]).
   reader: entries reader.
   (reader select: block) >> result.
-  entries do: [ |:each info | info: each fileInfo. info isNotNil /\ [info isDirectory] /\ [info isLink not] 
-                                ifTrue: [(Directory new `>> [locator: each. ]) select: block into: result depth: maxDepth - 1]].
+  entries do: [ |:each info | info: each fileInfo. 
+                              info isNotNil /\ [info isDirectory] /\ [info isLink not]
+                                /\ [each name ~= '..'] /\ [each name ~= '.']
+                                ifTrue: [(d childNamed: each name) select: block into: result depth: maxDepth - 1]].
 ].
