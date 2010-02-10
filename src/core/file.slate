@@ -155,12 +155,8 @@ f@(File traits) exists
 "Answer whether the file as specified by its locator already exists.
 If it's already open, it exists; otherwise try to open it and then close it
 if the result is successful. Then answer whether it worked."
-[| oldMode |
-  oldMode: f mode.
-  f isOpen \/
-    [[[f mode: f Read. f open] on: f NotFound do: [| :c | ^ False]]
-       ensure: [f isOpen ifTrue: [f close]. f mode: oldMode].
-     True]
+[
+  f fileInfo isNotNil
 ].
 
 f@(File traits) checkExists
@@ -302,11 +298,6 @@ of the path or the filename itself if not empty/Nil."
 l@(File Locator traits) openFile &mode: mode
 [
   (File newNamed: l &mode: mode) open
-].
-
-l@(File Locator traits) fileInfo
-[
-  File informationForFileNamed: (l as: String)
 ].
 
 l@(File Locator traits) sessionDo: block &mode: mode

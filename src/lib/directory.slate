@@ -82,13 +82,9 @@ dir@(Directory traits) disable
 ].
 
 dir@(Directory traits) exists
-"Answer whether the directory as specified by its locator already exists.
-If it's already open, it exists; otherwise try to open it and then close it
-if the result is successful. Then answer whether it worked."
 [
-  dir isOpen \/
-    [(dir primitiveOpen: (dir locator as: String)) isNegative not
-       /\ [[dir close] on: dir Closed do: [| :c | c return]. True]]
+  dir locator fileInfo ifNotNilDo: [|:info| ^ info isDirectory].
+  False
 ].
 
 dir@(Directory traits) delete
