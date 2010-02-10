@@ -19,30 +19,25 @@ mp@(Shell MaskPattern traits) newOn: s@(String traits)
 ].
 
 mp@(Shell MaskPattern traits) readFrom: s@(ReadStream traits)
-[ | prev matcher |
+[| prev matcher |
   prev: '' writer.
   matcher: mp components writer.
   s do: 
     [|:token| ({$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
                 ifTrue: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ]).
                          prev: '' writer].
-                token caseOf:
-                {
-                   $*  -> [matcher nextPut: Shell MaskPatternAny].
-                   $?  -> [matcher nextPut: Shell MaskPatternAnyOne].
-                   $\[ -> [matcher nextPut: (mp readRange: (s upTo: $\]))].
-                      
-                  } otherwise: [prev nextPut: token].
-          ].
+                token caseOf: {
+                  $*  -> [matcher nextPut: Shell MaskPatternAny].
+                  $?  -> [matcher nextPut: Shell MaskPatternAnyOne].
+                  $\[ -> [matcher nextPut: (mp readRange: (s upTo: $\]))].
+                } otherwise: [prev nextPut: token]].
 
   prev contents isEmpty ifFalse: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ])].
   mp components: matcher contents.
-  
 ].
 
-
 mp@(Shell MaskPattern traits) readRange: str@(String traits)
-[ | p char2 s |
+[| p char2 s |
   s: str reader.
   p: Shell MaskPatternRange new.
   p ranges: ExtensibleArray new.
@@ -51,14 +46,11 @@ mp@(Shell MaskPattern traits) readRange: str@(String traits)
   char2 = $^ \/ [char2 = $!] ifTrue: [p negate: True] ifFalse: [p negate: False].
 
   s do:
-    [|:char|
+    [| :char |
      char2: s peek.
      char2 = $- 
        ifTrue: [s next. p ranges addLast: char -> s next]
-       ifFalse: [p ranges addLast: char].
-     
-    ].
-
+       ifFalse: [p ranges addLast: char]].
   p
 ].
 
@@ -70,13 +62,13 @@ mp@(Shell MaskPattern traits) match: str@(String traits) from: pos
 mp@(Shell MaskPatternMatcher traits) match: str@(String traits) from: pos
 [
   "inform: 'match reader: ' ; mp reader printString ;  ' pos: ' ; pos printString."
-  mp reader
-    do: [|:token| (token isSameAs: Shell MaskPatternAny)
-                    ifTrue: [str size downTo: pos do:
-                               [|:start | ((mp new `>> [reader: mp reader clone. ]) match: str from: start) = str size 
-                                            ifTrue: [^ str size]]]
-                    ifFalse: [pos: (token match: str from: pos).
-                              pos == Shell MaskPatternFailure ifTrue: [^ pos]]].
+  mp reader do:
+    [|:token| (token isSameAs: Shell MaskPatternAny)
+                ifTrue: [str size downTo: pos do:
+                           [|:start | ((mp new `>> [reader: mp reader clone. ]) match: str from: start) = str size 
+                                        ifTrue: [^ str size]]]
+                ifFalse: [pos: (token match: str from: pos).
+                          pos == Shell MaskPatternFailure ifTrue: [^ pos]]].
   pos
 ].
 
@@ -85,7 +77,6 @@ mp@(Shell MaskPattern traits) matches: str@(String traits)
   match: (mp match: str from: 0).
   match ~== Shell MaskPatternFailure /\ [match = str size]
 ].
-
 
 p@(Shell MaskPatternAny traits) match: str@(String traits) from: pos
 [
@@ -108,11 +99,9 @@ p@(Shell MaskPatternLiteral traits) match: str@(String traits) from: pos
   (str copyFrom: pos to: pos + p string size - 1) = p string ifTrue: [pos + p string size] ifFalse: [Shell MaskPatternFailure]
 ].
 
-
 p@(Shell MaskPatternRange traits) matches: c@(String Character traits)
 [
-  p ranges do: [|:range| (range isSameAs: c) /\ [range = c] ifTrue: [^ True].
-                         range key code <= c code /\ [range value code >= c code] ifTrue: [^ True]].
-  False
+  p ranges detect:
+    [| :range | ((range isSameAs: c) /\ [range = c]) \/
+                  [c code between: range key code and: c code]]
 ].
-

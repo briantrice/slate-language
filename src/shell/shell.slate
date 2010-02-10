@@ -3,34 +3,34 @@ lobby ensureNamespace: #Shell.
 Shell define: #FileArray &parents: {ExtensibleArray}.
 Shell define: #FormatSpecification &parents: {Cloneable} &slots: {#spec}.
 
-Shell FormatSpecification traits define: #codes -> ({$p -> [|:l| l as: String].
-                                                     $n -> [|:l| l name].
-                                                     $t -> [|:l| l fileType].
-                                                     $b -> [|:l| l baseName].
-                                                     $% -> [|:l| '%'].
-                                                     $f -> [|:l| [|:s| l writeNameVersionTypeOn: s] writingAs: String]
-                                                   } as: Dictionary).
+Shell FormatSpecification traits define: #codes -> (Dictionary new*,
+  $p -> [|:l| l as: String],
+  $n -> #name `er,
+  $t -> #fileType `er,
+  $b -> #baseName `er,
+  $% -> [|:l| '%'],
+  $f -> [|:l| [|:s| l writeNameVersionTypeOn: s] writingAs: String]).
 
 ffs@(Shell FormatSpecification traits) newFrom: s@(String traits)
-[ | obj reader writer |
-  obj: ffs new.
+[| input writer |
   writer: ExtensibleArray new writer.
-  reader: s reader.
-  writer nextPut: (reader upTo: $%).
-  reader do: [|:each| writer nextPut: (Shell FormatSpecification codes at: each ifAbsent: [error: 'bad code: ' ; each printString]).
-                      writer nextPut: (reader upTo: $%)].
-  obj spec: (writer contents select: [|:each| (each is: String) not \/ [each isNotEmpty]]).
-  obj
+  input: s reader.
+  writer nextPut: (input upTo: $%).
+  input do: [| :each |
+    writer nextPut: (Shell FormatSpecification codes at: each ifAbsent: [error: 'bad code: ' ; each printString]).
+    writer nextPut: (input upTo: $%)].
+  ffs new `>> [spec: (writer contents reject: [| :each | (each is: String) /\ [each isEmpty]]). ]
 ].
 
 ffs@(Shell FormatSpecification traits) format: f@(File Locator traits)
 [
-  [|:s| ffs spec do: [|:each| (each is: String)
-                                ifTrue: [s nextPutAll: each]
-                                ifFalse: [s nextPutAll: (each applyWith: f)]]
-      ] writingAs: String
+  [| :s |
+   ffs spec do:
+     [| :each |
+      (each is: String)
+        ifTrue: [s nextPutAll: each]
+        ifFalse: [s nextPutAll: (each applyWith: f)]]] writingAs: String
 ].
-
 
 d@(File Locator traits) maskedEntries: mask@(String traits) do: block
 [
@@ -52,16 +52,17 @@ d@(Directory traits) collectMasked: mask
   [|:result| d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
 ].
 
+d@(File Locator traits) /* mask
+[d collectMasked: mask].
 
+d@(Directory traits) /* mask
+[d locator collectMasked: mask].
 
 d@(Directory traits) maskedEntries: mask do: block
 [ 
   d reader reset
     do: [|:each| (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
 ].
-
-
-
 
 a@(Shell FileArray traits) format: formatString@(String traits)
 [ | fmtSpec |
@@ -92,4 +93,3 @@ d@(Directory traits) select: block into: result depth: maxDepth
   entries do: [ |:each info | info: each fileInfo. info isNotNil /\ [info isDirectory] /\ [info isLink not] 
                                 ifTrue: [(Directory new `>> [locator: each. ]) select: block into: result depth: maxDepth - 1]].
 ].
-
