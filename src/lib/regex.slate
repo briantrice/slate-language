@@ -41,36 +41,38 @@ r@(Regex Syntax Character traits) newOn: c
   r new `>> [character: c. ]
 ].
 
+Regex Syntax define: #DecimalDigits -> (Regex Syntax CharacterRange new `>> [start: $0. end: $9. ]).
+Regex Syntax define: #UppercaseLetters -> (Regex Syntax CharacterRange new `>> [start: $A. end: $Z. ]).
+Regex Syntax define: #LowercaseLetters -> (Regex Syntax CharacterRange new `>> [start: $a. end: $z. ]).
+Regex Syntax define: #WhitespaceElements -> {
+  Regex Syntax Character newOn: $\e.
+  Regex Syntax Character newOn: $\n.
+  Regex Syntax Character newOn: $\s .
+  Regex Syntax Character newOn: $\r.
+  Regex Syntax Character newOn: $\f.
+  Regex Syntax Character newOn: $\t.
+}.
+
 Regex Parser traits define: #BackslashSpecials -> (Dictionary new*,
   $e -> (Regex Syntax Character newOn: $\e),
   $n -> (Regex Syntax Character newOn: $\n),
   $r -> (Regex Syntax Character newOn: $\r),
   $f -> (Regex Syntax Character newOn: $\f),
   $t -> (Regex Syntax Character newOn: $\t),
-  $w -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $A. end: $Z. ]).
-                                                         (Regex Syntax CharacterRange new `>> [start: $a. end: $z. ]).
-                                                         (Regex Syntax CharacterRange new `>> [start: $0. end: $9. ]).
-                                                         (Regex Syntax Character newOn: $_). }. ]),
-  $W -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $A. end: $Z. ]).
-                                                         (Regex Syntax CharacterRange new `>> [start: $a. end: $z. ]).
-                                                         (Regex Syntax CharacterRange new `>> [start: $0. end: $9. ]).
-                                                         (Regex Syntax Character newOn: $_). }.
+  $w -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax UppercaseLetters.
+                                                         Regex Syntax LowercaseLetters.
+                                                         Regex Syntax DecimalDigits.
+                                                         Regex Syntax Character newOn: $_. }. ]),
+  $W -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax UppercaseLetters.
+                                                         Regex Syntax LowercaseLetters.
+                                                         Regex Syntax DecimalDigits.
+                                                         Regex Syntax Character newOn: $_. }.
                                               negated: True. ]),
-  $s -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax Character newOn: $\e).
-                                                         (Regex Syntax Character newOn: $\n).
-                                                         (Regex Syntax Character newOn: $\s ).
-                                                         (Regex Syntax Character newOn: $\r).
-                                                         (Regex Syntax Character newOn: $\f).
-                                                         (Regex Syntax Character newOn: $\t). }. ]),
-  $S -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax Character newOn: $\e).
-                                                         (Regex Syntax Character newOn: $\n).
-                                                         (Regex Syntax Character newOn: $\s).
-                                                         (Regex Syntax Character newOn: $\r).
-                                                         (Regex Syntax Character newOn: $\f).
-                                                         (Regex Syntax Character newOn: $\t). }.
+  $s -> (Regex Syntax CharacterGroup new `>> [elements: Regex Syntax WhitespaceElements. ]),
+  $S -> (Regex Syntax CharacterGroup new `>> [elements: Regex Syntax WhitespaceElements.
                                               negated: True. ]),
-  $d -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $0. end: $9. ])}. ]),
-  $D -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $0. end: $9. ])}.
+  $d -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax DecimalDigits}. ]),
+  $D -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax DecimalDigits}.
                                               negated: True. ])).
 
 r@(Regex Regex traits) newOn: s@(String traits)
@@ -371,8 +373,7 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
                                       ifFalse: [^ -1]].
                 curPos: newPos.
                 matches addLast: curPos.
-                numMatches: numMatches + 1.
-                 ].
+                numMatches: numMatches + 1].
 
   matches isEmpty ifTrue: [-1] ifFalse: [matches]
 ].
