@@ -37,20 +37,17 @@ d@(File Locator traits) maskedEntries: mask@(String traits) do: block
   d maskedEntries: (Shell MaskPattern newOn: mask) do: block
 ].
 
-l@(File Locator traits) maskedEntries: mask@(Regex Regex traits) do: block
-[ | matcher |
-  matcher: (Regex Matcher newOn: mask).
-  (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (matcher match: each) = Regex Matcher Fail ifFalse: [block applyWith: (l clone `>> [readFilenameFrom: each. ])]].
-].
-
-l@(File Locator traits) maskedEntries: mask@(Shell MaskPattern traits) do: block
+l maskedEntries: mask@(Regex Regex traits) do: block
 [ 
-  (Directory new `>> [locator: l. ]) reader reset
-    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (l clone `>> [readFilenameFrom: each. ])]].
+  l maskedEntries: (Regex Matcher newOn: mask) do: block
 ].
 
-d@(File Locator traits) collectMasked: mask
+l@(File Locator traits) maskedEntries: mask do: block
+[ 
+  (Directory new `>> [locator: l. ]) maskedEntries: mask do: block
+].
+
+d@(Directory traits) collectMasked: mask
 [
   [|:result| d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
 ].
@@ -60,6 +57,12 @@ d@(File Locator traits) /* mask
 
 d@(Directory traits) /* mask
 [d locator collectMasked: mask].
+
+d@(Directory traits) maskedEntries: mask do: block
+[ 
+  d reader reset
+    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
+].
 
 a@(Shell FileArray traits) format: formatString@(String traits)
 [ | fmtSpec |
@@ -71,4 +74,22 @@ a@(Shell FileArray traits) format*
 [ | *args fmtSpecs |
   fmtSpecs: (args collect: [|:each| Shell FormatSpecification newFrom: each]).
   a collect: [|:each| fmtSpecs collect: [|:spec| spec format: each]]
+].
+
+d@(Directory traits) find: block &maxDepth: maxDepth
+[ | result |
+  maxDepth `defaultsTo: PositiveInfinity.
+  result: ExtensibleArray new writer.
+  d select: block into: result depth: maxDepth.
+  result contents
+].
+
+d@(Directory traits) select: block into: result depth: maxDepth
+[ | entries reader |
+  maxDepth isZero ifTrue: [^ Nil].
+  entries: (d entries collect: #as: `er <-2 File Locator).
+  reader: entries reader.
+  (reader select: block) >> result.
+  entries do: [ |:each info | info: each fileInfo. info isNotNil /\ [info isDirectory] /\ [info isLink not] 
+                                ifTrue: [(Directory new `>> [locator: each. ]) select: block into: result depth: maxDepth - 1]].
 ].
