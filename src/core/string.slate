@@ -1,4 +1,5 @@
 
+"string is an abstract class basically"
 prototypes define: #String &parents: {Sequence. Collection. Mapping}.
 
 String traits define: #Character.
@@ -176,6 +177,10 @@ FIXME: this should redirect to some better encoding-preserving string implementa
     ifTrue: [ASCIIString new &capacity: n]
     ifFalse: [resend]
 ].
+
+s@(ASCIIString traits) size [18 primitiveDo: {s}]. "faster than: #size sendTo: {s} through: {ByteArray}"
+s@(String traits) size [overrideThis].
+
 
 a@(ByteArray traits) as: s@(String traits)
 "FIXME: calls to this method should be either converted to direct ASCIIString calls,
