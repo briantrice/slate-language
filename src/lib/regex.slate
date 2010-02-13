@@ -13,7 +13,6 @@ Regex define: #Regex &parents: {Cloneable} &slots: {#regex. #parser -> Regex Par
 the matchee is what we are trying to match"
 Regex define: #Matcher &parents: {Cloneable} &slots: {#regex. #subexpressions. #matchee}.
 
-
 "nodes are output by the parser"
 Regex Syntax define: #Node &parents: {Cloneable}.
 
@@ -35,52 +34,46 @@ Regex Syntax define: #Character &parents: {Regex Syntax Node} &slots: {#characte
 "'a-z'"
 Regex Syntax define: #CharacterRange &parents: {Regex Syntax Node} &slots: {#start. #end}.
 
-
 "Regex Match define: #Terminator &parents: {Cloneable}."
-
 
 r@(Regex Syntax Character traits) newOn: c
 [
   r new `>> [character: c. ]
 ].
 
+Regex Syntax define: #DecimalDigits -> (Regex Syntax CharacterRange new `>> [start: $0. end: $9. ]).
+Regex Syntax define: #UppercaseLetters -> (Regex Syntax CharacterRange new `>> [start: $A. end: $Z. ]).
+Regex Syntax define: #LowercaseLetters -> (Regex Syntax CharacterRange new `>> [start: $a. end: $z. ]).
+Regex Syntax define: #WhitespaceElements -> {
+  Regex Syntax Character newOn: $\e.
+  Regex Syntax Character newOn: $\n.
+  Regex Syntax Character newOn: $\s .
+  Regex Syntax Character newOn: $\r.
+  Regex Syntax Character newOn: $\f.
+  Regex Syntax Character newOn: $\t.
+}.
 
-Regex Parser traits define: #BackslashSpecials -> Dictionary new.
-
-{
-$e -> (Regex Syntax Character newOn: $\e).
-$n -> (Regex Syntax Character newOn: $\n).
-$r -> (Regex Syntax Character newOn: $\r).
-$f -> (Regex Syntax Character newOn: $\f).
-$t -> (Regex Syntax Character newOn: $\t).
-$w -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $A. end: $Z.]).
-                                              (Regex Syntax CharacterRange new `>> [start: $a. end: $z.]).
-                                              (Regex Syntax CharacterRange new `>> [start: $0. end: $9.]).
-                                              (Regex Syntax Character newOn: $_).}.]).
-$W -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $A. end: $Z.]).
-                                              (Regex Syntax CharacterRange new `>> [start: $a. end: $z.]).
-                                              (Regex Syntax CharacterRange new `>> [start: $0. end: $9.]).
-                                              (Regex Syntax Character newOn: $_).}.
-                                   negated: True. ]).
-$s -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax Character newOn: $\e).
-                                              (Regex Syntax Character newOn: $\n).
-                                              (Regex Syntax Character newOn: $\s ).
-                                              (Regex Syntax Character newOn: $\r).
-                                              (Regex Syntax Character newOn: $\f).
-                                              (Regex Syntax Character newOn: $\t).}.]).
-$S -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax Character newOn: $\e).
-                                              (Regex Syntax Character newOn: $\n).
-                                              (Regex Syntax Character newOn: $\s).
-                                              (Regex Syntax Character newOn: $\r).
-                                              (Regex Syntax Character newOn: $\f).
-                                              (Regex Syntax Character newOn: $\t).}.
-                                   negated: True.]).
-$d -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $0. end: $9.])}.]).
-$D -> (Regex Syntax CharacterGroup new `>> [elements: {(Regex Syntax CharacterRange new `>> [start: $0. end: $9.])}.
-                                   negated: True.]).
-
-} do: [ |:each | Regex Parser BackslashSpecials at: each key put: each value].
-
+Regex Parser traits define: #BackslashSpecials -> (Dictionary new*,
+  $e -> (Regex Syntax Character newOn: $\e),
+  $n -> (Regex Syntax Character newOn: $\n),
+  $r -> (Regex Syntax Character newOn: $\r),
+  $f -> (Regex Syntax Character newOn: $\f),
+  $t -> (Regex Syntax Character newOn: $\t),
+  $w -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax UppercaseLetters.
+                                                         Regex Syntax LowercaseLetters.
+                                                         Regex Syntax DecimalDigits.
+                                                         Regex Syntax Character newOn: $_. }. ]),
+  $W -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax UppercaseLetters.
+                                                         Regex Syntax LowercaseLetters.
+                                                         Regex Syntax DecimalDigits.
+                                                         Regex Syntax Character newOn: $_. }.
+                                              negated: True. ]),
+  $s -> (Regex Syntax CharacterGroup new `>> [elements: Regex Syntax WhitespaceElements. ]),
+  $S -> (Regex Syntax CharacterGroup new `>> [elements: Regex Syntax WhitespaceElements.
+                                              negated: True. ]),
+  $d -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax DecimalDigits}. ]),
+  $D -> (Regex Syntax CharacterGroup new `>> [elements: {Regex Syntax DecimalDigits}.
+                                              negated: True. ])).
 
 r@(Regex Regex traits) newOn: s@(String traits)
 [ | re |
@@ -89,7 +82,6 @@ r@(Regex Regex traits) newOn: s@(String traits)
   re regex: re parser parse.
   re
 ].
-
 
 rp@(Regex Parser traits) newOn: s@(String traits)
 [ | obj |
@@ -251,12 +243,13 @@ p@(Regex Parser traits) parseSymbol
 ].
 
 
-
 "
 --------
 Matching
 --------
 "
+
+Regex Matcher define: #Fail -> -1.
 
 m@(Regex Matcher traits) newOn: s@(String traits)
 [
@@ -280,6 +273,11 @@ m@(Regex Matcher traits) subexpressionMatches
   matches: Dictionary new.
   m subexpressions keysDo: [|:key | matches at: key put: (m subexpression: key)].
   matches
+].
+
+m@(Regex Matcher traits) matches: node
+[
+  (m match: node) ~= Regex Matcher Fail
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos to: endPos
@@ -337,7 +335,6 @@ m@(Regex Matcher traits) match: expressions@(Sequence traits) from: pos start: s
 m@(Regex Matcher traits) match: node@(Sequence traits) from: pos
 [ m match: node from: pos start: 0 end: node size - 1].
 
-
 "expressions can return a list of matches because of repeating things"
 m@(Regex Matcher traits) match: node@(Regex Syntax Branch traits) from: pos
 [ |newPos|
@@ -376,8 +373,7 @@ m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos
                                       ifFalse: [^ -1]].
                 curPos: newPos.
                 matches addLast: curPos.
-                numMatches: numMatches + 1.
-                 ].
+                numMatches: numMatches + 1].
 
   matches isEmpty ifTrue: [-1] ifFalse: [matches]
 ].
@@ -394,7 +390,6 @@ m@(Regex Matcher traits) match: node@(Regex Syntax CharacterRange traits) from: 
   charCode: (m matchee at: pos) code.
   charCode >= node start code /\ [charCode <= node end code] ifTrue: [pos + 1] ifFalse: [-1]
 ].
-
 
 m@(Regex Matcher traits) match: node@(Regex Syntax CharacterGroup traits) from: pos
 [ "there should be another way than assuming a match is just pos+1"
@@ -413,4 +408,3 @@ m@(Regex Matcher traits) match: node@(Regex Syntax EndMarker traits) from: pos
 [
   m matchee size <= pos ifTrue: [pos] ifFalse: [-1]
 ].
-

@@ -1,0 +1,352 @@
+prototypes define: #CompiledModule &parents: {Cloneable} &slots: {
+  #magic.
+  #version.
+  #checksum.
+}.
+
+m@(CompiledModule traits) compile: filename
+[| srcfile slcfile |
+  srcfile: (File newNamed: filename).
+  slcfile: (srcfile newNamed: filename copy &mode: srcfile CreateWrite).
+  slcfile locator fileType: 'slc'.
+  srcfile reader sessionDo:
+    [| :in p |
+     p: (Syntax Parser newOn: in).
+     slcfile writer sessionDo:
+       [| :out |
+        "TODO: write out a generic header with magic, version, checksum."
+        [p isAtEnd] whileFalse:
+          [| item |
+           item: p next.
+           inform: p lexer lineNumber printString.
+           m save: item to: out]]].
+].
+
+m@(CompiledModule traits) loadFrom: src
+[
+  m loadFrom: src reader
+].
+
+m@(CompiledModule traits) loadFrom: src@(ExternalResource traits)
+[
+  src reader sessionDo: [| :src | m loadFrom: src]
+].
+
+m@(CompiledModule traits) loadFrom: r@(ReadStream traits)
+[| kind |
+  kind: r next.
+  kind caseOf: {
+    $T -> [True].
+    $F -> [False].
+    $N -> [Nil].
+    $n -> [NoRole].
+    $s -> [m nextStringFrom: r].
+    $I -> [Integer readFrom: (m nextStringFrom: r)].
+    $f -> [Float readFrom: (m nextStringFrom: r)].
+    $x -> [(m nextStringFrom: r) intern].
+    $A -> [m next: Array from: r].
+    $a -> [m next: ByteArray from: r].
+    $S -> [m loadSyntaxTreeFrom: r].
+    $i -> [m nextInstructionSequenceFrom: r].
+    $M -> [CompiledMethod new `>>
+             [literals: (m loadFrom: r).
+              selectors: (m loadFrom: r).
+              optionalKeywords: (m loadFrom: r).
+              code: (m loadFrom: r). ]]
+  } otherwise: [error: 'Unknown type: ' ; kind printString]
+].
+
+m@(CompiledModule traits) loadSyntaxTreeFrom: r@(ReadStream traits)
+[| kind proto |
+  kind: (m nextSyntaxTypeFrom: r).
+  proto: (kind caseOf: {
+    'No' -> [Syntax Node].
+    'An' -> [Syntax Annotation].
+    'Cm' -> [Syntax Comment].
+    'IA' -> [Syntax ImplicitArgument].
+    'M ' -> [Syntax Message].
+    'Mu' -> [Syntax UnaryMessage].
+    'Mb' -> [Syntax BinaryMessage].
+    'Mk' -> [Syntax KeywordMessage].
+    'm ' -> [Syntax Macro].
+    'mu' -> [Syntax UnaryMacro].
+    'mb' -> [Syntax BinaryMacro].
+    'mk' -> [Syntax KeywordMacro].
+    'D ' -> [Syntax Deferred].
+    'Du' -> [Syntax UnaryDeferred].
+    'Db' -> [Syntax BinaryDeferred].
+    'Dk' -> [Syntax KeywordDeferred].
+    'MW' -> [Syntax MessageWrapper].
+    'Ok' -> [Syntax OptionalKeywords].
+    'RA' -> [Syntax RestArguments].
+    'Li' -> [Syntax Literal].
+    'CS' -> [Syntax CompoundStatement].
+    'A ' -> [Syntax Array].
+    'Pa' -> [Syntax Parenthesis].
+    'Na' -> [Syntax Namespace].
+    'Gr' -> [Syntax Ground].
+    'B ' -> [Syntax Block].
+    'MD' -> [Syntax MethodDefinition].
+    'Va' -> [Syntax Variable].
+    'LV' -> [Syntax LoadVariable].
+    'LR' -> [Syntax LoadRestVariable].
+    'SV' -> [Syntax StoreVariable].
+    'Rt' -> [Syntax Return].
+    'Rc' -> [Syntax ReturnClose].
+    'Rf' -> [Syntax ReturnFar].
+    'Rl' -> [Syntax ReturnLevel].
+    'Rs' -> [Syntax Resend]
+  } otherwise: [error: 'Unknown syntax type: ' ; kind printString]).
+  m load: proto from: r
+].
+
+m@(CompiledModule traits) nextSyntaxTypeFrom: r@(ReadStream traits)
+[r next: 2].
+
+m@(CompiledModule traits) nextCountFrom: r@(ReadStream traits)
+[Integer readFrom: (r upToAnyOf: '\t\n')].
+
+m@(CompiledModule traits) nextStringFrom: r@(ReadStream traits)
+[| result |
+  result: (r next: (m nextCountFrom: r)).
+  r next.
+  result
+].
+
+m@(CompiledModule traits) next: s@(Sequence traits) from: r@(ReadStream traits)
+[
+  (s newSize: (m nextCountFrom: r)) `>>
+    [| :newS | keysDo: [| :index | newS at: index put: (m loadFrom: r)]. ]
+].
+
+obj@(Root traits) saveInto: w@(WriteStream traits)
+[
+  CompiledModule new save: obj to: w
+].
+
+obj@(Root traits) saveInto: sink@(ExternalResource traits)
+[
+  sink create writer sessionDo: [| :sink | obj saveInto: sink]
+].
+
+obj@(Root traits) saveInto: sink
+[
+  obj saveInto: sink writer
+].
+
+m@(CompiledModule traits) save: obj to: w@(WriteStream traits)
+[
+  error: 'Unknown type: ' ; obj printString
+].
+
+m@(CompiledModule traits) save: _@True to: w@(WriteStream traits)
+[w ; 'T\n'].
+
+m@(CompiledModule traits) save: _@False to: w@(WriteStream traits)
+[w ; 'F\n'].
+
+m@(CompiledModule traits) save: _@Nil to: w@(WriteStream traits)
+[w ; 'N\n'].
+
+m@(CompiledModule traits) save: _@NoRole to: w@(WriteStream traits)
+[w ; 'n\n'].
+
+m@(CompiledModule traits) saveString: s to: w@(WriteStream traits)
+[
+  w ; s size printString ; '\t' ; s ; '\n'.
+].
+
+m@(CompiledModule traits) save: s@(String traits) to: w@(WriteStream traits)
+[
+  w ; 's'.
+  m saveString: s to: w.
+].
+
+m@(CompiledModule traits) save: s@(Symbol traits) to: w@(WriteStream traits)
+[
+  w ; 'x'.
+  m saveString: s to: w.
+].
+
+m@(CompiledModule traits) save: a@(Array traits) to: w@(WriteStream traits)
+[
+  w ; 'A' ; a size printString ; '\n'.
+  a do: [| :each | m save: each to: w].
+].
+
+m@(CompiledModule traits) save: a@(ByteArray traits) to: w@(WriteStream traits)
+[
+  w ; 'a' ; a size printString ; '\n'.
+  a do: [| :each | m save: each to: w].
+].
+
+m@(CompiledModule traits) save: n@(Integer traits) to: w@(WriteStream traits)
+[
+  w ; 'I'.
+  m saveString: n printString to: w.
+].
+
+m@(CompiledModule traits) save: x@(Float traits) to: w@(WriteStream traits)
+[
+  w ; 'f'.
+  m saveString: x printString to: w.
+].
+
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Node traits) on: w@(WriteStream traits) [w ; 'SNo'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Annotation traits) on: w@(WriteStream traits) [w ; 'SAn'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Comment traits) on: w@(WriteStream traits) [w ; 'SCm'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax ImplicitArgument traits) on: w@(WriteStream traits) [w ; 'SIA'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Message traits) on: w@(WriteStream traits) [w ; 'SM '].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax UnaryMessage traits) on: w@(WriteStream traits) [w ; 'SMu'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax BinaryMessage traits) on: w@(WriteStream traits) [w ; 'SMb'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax KeywordMessage traits) on: w@(WriteStream traits) [w ; 'SMk'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Macro traits) on: w@(WriteStream traits) [w ; 'Sm '].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax UnaryMacro traits) on: w@(WriteStream traits) [w ; 'Smu'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax BinaryMacro traits) on: w@(WriteStream traits) [w ; 'Smb'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax KeywordMacro traits) on: w@(WriteStream traits) [w ; 'Smk'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Deferred traits) on: w@(WriteStream traits) [w ; 'SD '].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax UnaryDeferred traits) on: w@(WriteStream traits) [w ; 'SDu'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax BinaryDeferred traits) on: w@(WriteStream traits) [w ; 'SDb'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax KeywordDeferred traits) on: w@(WriteStream traits) [w ; 'SDk'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax MessageWrapper traits) on: w@(WriteStream traits) [w ; 'SMW'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax OptionalKeywords traits) on: w@(WriteStream traits) [w ; 'SOk'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax RestArguments traits) on: w@(WriteStream traits) [w ; 'SRA'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Literal traits) on: w@(WriteStream traits) [w ; 'SLi'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax CompoundStatement traits) on: w@(WriteStream traits) [w ; 'SCS'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Array traits) on: w@(WriteStream traits) [w ; 'SA '].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Parenthesis traits) on: w@(WriteStream traits) [w ; 'SPa'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Namespace traits) on: w@(WriteStream traits) [w ; 'SNa'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Ground traits) on: w@(WriteStream traits) [w ; 'SGr'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Block traits) on: w@(WriteStream traits) [w ; 'SB '].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax MethodDefinition traits) on: w@(WriteStream traits) [w ; 'SMD'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Variable traits) on: w@(WriteStream traits) [w ; 'SVa'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax LoadVariable traits) on: w@(WriteStream traits) [w ; 'SLV'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax LoadRestVariable traits) on: w@(WriteStream traits) [w ; 'SLR'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax StoreVariable traits) on: w@(WriteStream traits) [w ; 'SSV'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Return traits) on: w@(WriteStream traits) [w ; 'SRt'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax ReturnClose traits) on: w@(WriteStream traits) [w ; 'SRc'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax ReturnFar traits) on: w@(WriteStream traits) [w ; 'SRf'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax ReturnLevel traits) on: w@(WriteStream traits) [w ; 'SRl'].
+m@(CompiledModule traits) emitPrefixFor: node@(Syntax Resend traits) on: w@(WriteStream traits) [w ; 'SRs'].
+
+m@(CompiledModule traits) save: node@(Syntax Node traits) to: w@(WriteStream traits)
+[
+  m emitPrefixFor: node on: w.
+  "m save: node type to: w."
+  m save: node lineNumber to: w.
+  m save: node source to: w.
+].
+
+m@(CompiledModule traits) load: node@(Syntax Node traits) from: r@(ReadStream traits)
+[
+  "node type: (m loadFrom: r)."
+  node lineNumber: (m loadFrom: r).
+  node source: (m loadFrom: r).
+].
+
+m@(CompiledModule traits) save: node@(Syntax Annotation traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node value to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Comment traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node comment to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Message traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node selector to: w.
+  m save: node arguments to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax MessageWrapper traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node message to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax OptionalKeywords traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node keywords to: w.
+  m save: node arguments to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax RestArguments traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node arguments to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Literal traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node value to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax CompoundStatement traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node statements to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Namespace traits) to: w@(WriteStream traits)
+[
+  resend.
+  "TODO: serialize the namespace or the path to it?"
+].
+
+m@(CompiledModule traits) save: node@(Syntax Block traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node parentScope to: w.
+  m save: node inputVariables to: w.
+  m save: node restVariable to: w.
+  m save: node optionalKeywords to: w.
+  m save: node optionalVariables to: w.
+  m save: node localVariables to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax MethodDefinition traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node selector to: w.
+  m save: node roles to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Variable traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node name to: w.
+  "TODO: same scope/namespace issue as above"
+  "m save: node scope to: w."
+].
+
+m@(CompiledModule traits) save: node@(Syntax LoadVariable traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node variable to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax StoreVariable traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node variable to: w.
+  m save: node value to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax Return traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node value to: w.
+].
+
+m@(CompiledModule traits) save: node@(Syntax ReturnLevel traits) to: w@(WriteStream traits)
+[
+  resend.
+  m save: node level to: w.
+].

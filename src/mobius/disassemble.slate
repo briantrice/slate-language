@@ -1,5 +1,5 @@
 CompiledMethod traits define: #OpStream &parents: {ReadStream}
- &slots: {#codePosition -> 0. #codeSize -> 0. #method -> Nil}.
+ &slots: {#codePosition -> 0. #method -> Nil}.
 
 CompiledMethod traits define: #Instruction &slots: {#name. #arguments -> {}}.
 "An Instruction just stores the name of the op-code and the arguments for it."
@@ -10,7 +10,6 @@ method@(CompiledMethod traits) opReader
 s@(CompiledMethod OpStream traits) on: method@(CompiledMethod traits)
 [
   s method: method.
-  s codeSize: method code size.
   s codePosition: 0.
   s
 ].
@@ -18,7 +17,7 @@ s@(CompiledMethod OpStream traits) on: method@(CompiledMethod traits)
 s@(CompiledMethod OpStream traits) hasAnEnd [True].
 
 s@(CompiledMethod OpStream traits) isAtEnd
-[s codePosition >= s codeSize].
+[s codePosition >= s method code size].
 
 s@(CompiledMethod OpStream traits) decodeShort
 "Get the next two bytes and turn them into a SmallInteger appropriately
@@ -97,24 +96,50 @@ i@(CompiledMethod OpStream traits) disassembleOn: s
     offset: i codePosition].
 ].
 
-m@(CompiledMethod traits) disassembleOn: s
-"Print out method meta-data and then the instruction stream."
-[
-  s writer lines ;
-   {'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name]).
-    'inputs: ' ; m inputVariables printString.
-    'locals: ' ; m localVariables printString.
-    'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']).
-    'rest parameter: ' ; m restVariable printString.
-    'optional keywords: ' ; (m optionalKeywords isEmpty
-	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])}.
-  m opReader disassembleOn: s.
+m@(CompiledMethod traits) printInstructionAt: pos on: out
+[| opcode instr nextStart argOffset |
+  opcode: (m code at: pos).
+  instr: (VM SSACode Instruction ByCode at: opcode
+            ifAbsent: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]).
+  out ; (pos printString truncateTo: 5 paddedBy: $\s &onRight: True)
+    ; (opcode printString truncateTo: 3 paddedBy: $\s &onRight: True)
+    ; (instr name truncateTo: 25 paddedBy: $\s &onRight: True)
+    ; '\n'.
+  nextStart: (pos + 1 + instr argNames size +
+    (instr offsettingArgIndices inject: 0 into:
+       [| :sum :offset | m code at: pos + 1 + offset])).
+  argOffset: 0.
+  (pos + 1 until: nextStart) do:
+    [| :codeIndex |
+     out ; '     ' ; (m code at: codeIndex) printString
+         ; ' ' ; (argOffset < instr argNames size ifTrue: [instr argNames at: argOffset] ifFalse: ['']) ; '\n'.
+     argOffset: argOffset + 1].
+  nextStart
 ].
 
-m@(CompiledMethod traits) disassemble
-"Print to the Console by default."
-[m disassembleOn: Console writer].
+m@(CompiledMethod traits) printInstructionsOn: out
+[| pos |
+  out ; 'IP   ' ; 'OP ' ; 'Instruction' ; '\n'.
+  pos: 0.
+  [pos < m code size] whileTrue:
+    [| instr | pos: (m printInstructionAt: pos on: out)].
+].
 
-closure@(Closure traits) disassemble
+m@(CompiledMethod traits) disassemble &output: s
+"Print out method meta-data and then the instruction stream."
+[
+  s `defaultsTo: Console writer.
+  s writer
+    ; 'name: ' ; (m selector ifNil: ['(anonymous)'] ifNotNil: [m selector name printString]) ; '\n'
+    ; '#inputs: ' ; m inputVariables printString ; '\n'
+    ; '#locals: ' ; m localVariables printString ; '\n'
+    ; 'allocation: ' ; (m heapAllocate ifTrue: ['heap'] ifFalse: ['stack']) ; '\n'
+    ; 'rest parameter: ' ; m restVariable printString ; '\n'
+    ; 'optional keywords: ' ; (m optionalKeywords isEmpty
+	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])  ; '\n'.
+  m printInstructionsOn: s.
+].
+
+closure@(Closure traits) disassemble &output: s
 "Skip Closure objects and print their internal methods instead."
-[closure method disassembleOn: Console writer].
+[closure method disassemble &output: s].

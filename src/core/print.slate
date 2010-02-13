@@ -2,11 +2,8 @@
 Mixins define: #StructuredPrinterMixin &parents: {LineNumberedWriteStreamMixin}
  &slots: {#level -> 0. #columnsPerLine -> 80}.
 
-o@(StructuredPrinterMixin traits) indentString
-"Answer the String to insert for each indentation level."
-[
-  '    '
-].
+StructuredPrinterMixin traits define: #indentString -> '    '.
+"The String to insert for each indentation level."
 
 o@(StructuredPrinterMixin traits) newLineAndIndent
 "Append a newLine and indent to the current level."
@@ -56,16 +53,15 @@ o@(StructuredPrinterMixin traits) print: str paddingUntil: length
   o
 ].
 
-Mixins define: #PrettyPrinterMixin &parents: {StructuredPrinterMixin}
-&slots: {
-#numberRadix -> 10.
-#numberPrecision -> 6.
-#floatMinimum -> 1e-6.
-#floatMaximum -> 1e6.
-#collectionLimit -> 32.
-#stringLimit -> 200.
-#nestingLimit -> 1.
-#preferDense -> True.
+Mixins define: #PrettyPrinterMixin &parents: {StructuredPrinterMixin} &slots: {
+  #numberRadix -> 10.
+  #numberPrecision -> 6.
+  #floatMinimum -> 1e-6.
+  #floatMaximum -> 1e6.
+  #collectionLimit -> 32.
+  #stringLimit -> 200.
+  #nestingLimit -> 1.
+  #preferDense -> True.
 }.
 
 o@(PrettyPrinterMixin traits) newElement
@@ -101,8 +97,8 @@ x@(Root traits) printString &radix: radix &precision: prec
 "Utility for pretty-printing to a String."
 [| printer |
   [printer: '' prettyPrinter.
-  x printOn: printer &radix: radix &precision: prec.
-  ^ printer contents] on: Error do: [| :c | ^ '<Printing failed>']
+   x printOn: printer &radix: radix &precision: prec.
+   ^ printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
 
 x@(Root traits) print &radix: radix &precision: prec
@@ -216,11 +212,11 @@ with sign. This works by collecting the digits and a "
   [x isPositive]
     whileTrue:
       [| qr d |
-        qr: (x quoRem: radix).
-        d: qr second.
-        x: qr first.
-        digits nextPut:
-          ((d >= 10
+       qr: (x quoRem: radix).
+       d: qr second.
+       x: qr first.
+       digits nextPut:
+         ((d >= 10
             ifTrue: [($A as: Integer) + d - 10]
             ifFalse: [($0 as: Integer) + d]) as: ASCIIString Character)].
   o ; digits contents reversed
@@ -267,46 +263,44 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
 	    ; (significand isZero ifTrue: ['Inf'] ifFalse: ['NaN']))].
   exponent isZero
     ifTrue:
-      [significand isZero
-         ifTrue:
-           [^ (o ; (f first isZero ifTrue: [''] ifFalse: ['-']) ; '0.0')].
-        exponent: 1]
+      [significand isZero ifTrue:
+         [^ (o ; (f first isZero ifTrue: [''] ifFalse: ['-']) ; '0.0')].
+       exponent: 1]
     ifFalse:
       [significand: ((1 bitShift: f significandSize) bitOr: significand)].
   exponent: exponent - f bias - f significandSize.
   b: 2.
   exponent isNegative
     ifTrue:
-      [
-        mDown: 1.
-        exponent > (1 - f bias - f significandSize)
-	  /\ [significand = (1 bitShift: f significandSize)]
-          ifTrue:
-            [r: significand * b * 2.
-              s: (1 bitShift: 1 - exponent) * 2.
-              mUp: b]
-          ifFalse:
-            [r: significand * 2.
-              s: (1 bitShift: exponent negated) * 2.
-              mUp: 1]]
+      [mDown: 1.
+       exponent > (1 - f bias - f significandSize)
+	 /\ [significand = (1 bitShift: f significandSize)]
+         ifTrue:
+           [r: significand * b * 2.
+            s: (1 bitShift: 1 - exponent) * 2.
+            mUp: b]
+         ifFalse:
+           [r: significand * 2.
+            s: (1 bitShift: exponent negated) * 2.
+            mUp: 1]]
     ifFalse:
       [| be |
-        be: (1 bitShift: exponent).
-        significand = (1 bitShift: f significandSize)
-          ifTrue:
-            [r: significand * be * b * 2.
-              s: b * 2.
-              mUp: be * b.
-              mDown: b]
-          ifFalse:
-            [r: significand * be * 2.
-              s: 2.
-              mUp: be.
-              mDown: be]].
+       be: (1 bitShift: exponent).
+       significand = (1 bitShift: f significandSize)
+         ifTrue:
+           [r: significand * be * b * 2.
+            s: b * 2.
+            mUp: be * b.
+            mDown: b]
+         ifFalse:
+           [r: significand * be * 2.
+            s: 2.
+            mUp: be.
+            mDown: be]].
   k: (((significand + 1) ln + (exponent * b ln)) / radix ln) ceiling.
   [k >= 0
-    ifTrue: [r + mUp > ((radix raisedTo: k) * s)]
-    ifFalse: [(radix raisedTo: k negated) * (r + mUp) > s]]
+     ifTrue: [r + mUp > ((radix raisedTo: k) * s)]
+     ifFalse: [(radix raisedTo: k negated) * (r + mUp) > s]]
     whileTrue:
       [k: k + 1].
   k >= 0
@@ -314,21 +308,20 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
       [s: s * (radix raisedTo: k)]
     ifFalse:
       [| bk |
-        bk: (radix raisedTo: k negated).
-        r: r * bk.
-        mUp: mUp * bk.
-        mDown: mDown * bk].
+       bk: (radix raisedTo: k negated).
+       r: r * bk.
+       mUp: mUp * bk.
+       mDown: mDown * bk].
   digits: '' prettyPrinter.
-  [
-    d: (r * radix // s).
-    r: (r * radix \\ s).
-    mUp: mUp * radix.
-    mDown: mDown * radix.
-    r + mUp > s
-      /\ [r >= mDown \/ [r * 2 >= s]]
-      ifTrue: [d: d + 1].
-    d printOn: digits &radix: radix.
-    r < mDown \/ [r + mUp > s]
+  [d: (r * radix // s).
+   r: (r * radix \\ s).
+   mUp: mUp * radix.
+   mDown: mDown * radix.
+   r + mUp > s
+     /\ [r >= mDown \/ [r * 2 >= s]]
+     ifTrue: [d: d + 1].
+   d printOn: digits &radix: radix.
+   r < mDown \/ [r + mUp > s]
   ] whileFalse.
   digits: digits contents.
   f isNegative
@@ -342,8 +335,8 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
   decimal <= 0
     ifTrue:
       [o ; '0.'.
-        (k negated max: 0)
-          timesRepeat: [o ; '0']]
+       (k negated max: 0)
+         timesRepeat: [o ; '0']]
     ifFalse:
       [o ; '.'].
   decimal >= digits size
@@ -427,11 +420,11 @@ c@(Range traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: blo
       [o ; ' ...']
     ifFalse:
       [o ; ' .. '.
-        c end printOn: o].
+       c end printOn: o].
   c step = 1
     ifFalse:
       [o ; ' by '.
-        c step printOn: o].
+       c step printOn: o].
   o
 ].
 
@@ -450,14 +443,12 @@ c@(Dictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
   c keysAndValuesDo: [| :key :val | tally: tally + 1].
   c keysAndValuesDo:
     [| :key :val |
-      key printOn: o.
-      o ; ' -> '.
-      val printOn: o.
-      index: index + 1.
-      index < tally
-        ifTrue:
-          [block do]
-    ].
+     key printOn: o.
+     o ; ' -> '.
+     val printOn: o.
+     index: index + 1.
+     index < tally ifTrue:
+       [block do]].
   o
 ].
 
@@ -482,9 +473,9 @@ c@(String Character traits) printOn: o@(PrettyPrinterMixin traits)
     }
     otherwise:
       [c isPrintable
-        ifTrue: [o nextPut: c]
-        ifFalse: "TODO: this is ASCII specific here. See below, too."
-          [o ; '\\x'.
+         ifTrue: [o nextPut: c]
+         ifFalse: "TODO: this is ASCII specific here. See below, too."
+           [o ; '\\x'.
             (c as: Integer) // 16 printOn: o &radix: 16.
             (c as: Integer) \\ 16 printOn: o &radix: 16]].
   o
@@ -498,29 +489,26 @@ s@(String traits) printOn: o@(PrettyPrinterMixin traits)
   o ; '\''.
   s doWithIndex:
     [| :c :index |
-      o stringLimit ifNotNil:
-        [index >= o stringLimit ifTrue: [o ; '...\''. ^ o]].
-      c caseOf:
-        {
-          $\' -> [o ; '\\\''].
-          $\t -> [o ; '\\t'].
-          $\n -> [o ; '\\n'].
-          $\v -> [o ; '\\v'].
-          $\f -> [o ; '\\f'].
-          $\r -> [o ; '\\r'].
-          $\b -> [o ; '\\b'].
-          $\a -> [o ; '\\a'].
-          $\e -> [o ; '\\e'].
-          $\0 -> [o ; '\\0'].
-        }
-        otherwise:
-          [c isPrintable
-            ifTrue: [o nextPut: c]
-            ifFalse: "TODO: this is ASCII specific here"
-              [o ; '\\x'.
-                (c as: Integer) // 16 printOn: o &radix: 16.
-                (c as: Integer) \\ 16 printOn: o &radix: 16]]
-    ].
+     o stringLimit ifNotNil:
+       [index >= o stringLimit ifTrue: [o ; '...\''. ^ o]].
+     c caseOf: {
+       $\' -> [o ; '\\\''].
+       $\t -> [o ; '\\t'].
+       $\n -> [o ; '\\n'].
+       $\v -> [o ; '\\v'].
+       $\f -> [o ; '\\f'].
+       $\r -> [o ; '\\r'].
+       $\b -> [o ; '\\b'].
+       $\a -> [o ; '\\a'].
+       $\e -> [o ; '\\e'].
+       $\0 -> [o ; '\\0'].
+     } otherwise:
+       [c isPrintable
+          ifTrue: [o nextPut: c]
+          ifFalse: "TODO: this is ASCII specific here"
+            [o ; '\\x'.
+             (c as: Integer) // 16 printOn: o &radix: 16.
+             (c as: Integer) \\ 16 printOn: o &radix: 16]]].
   o ; '\''.
   o
 ].

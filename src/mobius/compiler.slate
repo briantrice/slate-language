@@ -1,4 +1,17 @@
 
+m@(CompiledMethod traits) new
+"Answer a new CompiledMethod with a fresh compilation state."
+[
+  m clone `>>
+    [| :newM |
+      method: newM.
+      literals: m literals new.
+      selectors: m selectors new.
+      optionalKeywords: m optionalKeywords new.
+      code: m code new.
+      debugMap: m debugMap new. ]
+].
+
 m@(CompiledMethod traits) sourceTreeOf: index
 "Find the source tree corresponding to a bytecode's index."
 [
@@ -22,19 +35,6 @@ m@(CompiledMethod traits) definitionLocation
                ifNotNil: [(m sourceTree source printString) ; ':' ; m sourceTree lineNumber printString]]
 ].
 
-m@(CompiledMethod traits) new
-"Answer a new CompiledMethod with a fresh compilation state."
-[
-  m clone `>>
-    [| :newM |
-      method: newM.
-      literals: m literals new.
-      selectors: m selectors new.
-      optionalKeywords: m optionalKeywords new.
-      code: m code new.
-      debugMap: m debugMap new. ]
-].
-
 m@(CompiledMethod traits) recompile
 "If the method has a sourceTree, replace the method with a re-compiled version
 of it."
@@ -47,50 +47,75 @@ of it."
 lobby ensureNamespace: #VM.
 VM ensureNamespace: #SSACode.
 
-VM SSACode addImmutableSlot: #instructionInfo valued:
-{ "the result or destination is usually the first argument"
-" the first item in the argument list is the number of arguments. numbers after that tell which items in the argument
-list to use to increment the whole count"
-  0 -> (#directSendMessage -> {3. 2}). "result register, selector, arity, parameters..."
-  "1 -> (#indirectSendMessage -> {3. 2})."  "result register, selector register, arity, parameters...."
+VM SSACode define: #Instruction &parents: {Cloneable} &slots: {
+  #code.
+  #selector.
+  #name.
+  #argNames -> {}.
+  #offsettingArgIndices -> {}.
+}.
 
-  "2 -> (#allocateRegisters -> {1})."  "this should be in the function definition now"
-  3 -> (#loadLiteral -> {2}). "dest register, literal"
-  "4 -> (#storeLiteral -> {2})." "dest literal index, src register"
+x@(Cloneable traits) instancesSetting: slotNames to: values
+[
+  values collect: [| :columnValues newX |
+    newX: x new.
+    slotNames with: columnValues do:
+      [| :slotName :slotValue | newX atSlotNamed: slotName put: slotValue].
+    newX]
+].
 
-  5 -> (#sendMessageWithOptionals -> {4. 2}).  "result register, selector register, arity, optsArrayRegister, parameters...."
+VM SSACode Instruction traits define: #ByCode -> Dictionary new.
 
-  7 -> (#newClosure -> {2}). "register, block"
-  8 -> (#newArrayWith -> {2. 1}). "result register, size, parameters..."
-  9 -> (#resendMessage -> {2}). "result register, lexical offset"
-  10 -> (#returnFrom -> {2}). "result register, lexical offset"
-  11 -> (#loadEnvironment -> {1}). "result register"
-  12 -> (#loadVariable -> {1}). "dest register / var index"
-  13 -> (#storeVariable -> {1}). "var index / src register"
-  14 -> (#loadFreeVariable -> {3}). "dest register, lexical offset, free var index"
-  15 -> (#storeFreeVariable -> {3}). "lexical offset, var index, src register"
+i@(VM SSACode Instruction traits) instancesSetting: slotNames to: values
+[| arityNames |
+  arityNames: #('arity' 'size').
+  resend `>> [do: [| :each |
+    each argNames do:
+      [| :argName | (arityNames includes: argName) ifTrue:
+        [""]].
+    VM SSACode addImmutableSlot: each selector valued: each code.
+    i ByCode at: each code put: each].
+  ]
+].
 
-  16 -> (#isIdenticalTo -> {3}). "result register, x register, y register"
-  17 -> (#branchKeyed -> {2}). "key to switch on register, table"
-  18 -> (#jumpTo -> {1}). "offset"
-  19 -> (#moveRegister -> {2}). "dest reg, src reg. (used like SSA phi / branch merges)"
-  20 -> (#branchIfTrue -> {2}). "condition register, branch offset"
-  21 -> (#branchIfFalse -> {2}). "condition register, branch offset"
-  22 -> (#returnRegister -> {1}). "mark the end of a block"
-  23 -> (#returnValue -> {1}). "mark the end of a block"
-  24 -> (#resume -> {0}). "I'm not sure what this does yet..used in bootstrap"
-  25 -> (#primitiveDo -> {3. 1}). "call a primitive directly, bypassing method lookup: primNum, primArgCount, resultReg, args..."
-  26 -> (#directApplyTo -> {3. 1}). "call a method/closure directly, bypassing array creation: method, argCount, resultReg, args..."
-  27 -> (#isNilOp -> {2}). "is identical to but doesn't need the nil argument"
-
+VM SSACode Instruction instancesSetting: #(code selector name argNames offsettingArgIndices) to: {
+  {0. #directSendMessage. 'Direct Send'. {'register of result'. 'selector'. 'arity' ". args..."}. {2}}.
+  "{1. #indirectSendMessage. 'Indirect Send'. {'register of result'. 'selector'. 'arity'. args...}. {2}}."
+  "{2. #allocateRegisters. 'Allocate Registers'. 3. {}}."
+  {3. #loadLiteral. 'Load Literal'. {'register of result'. 'index of literal'}}.
+  "{4. #storeLiteral. 'Store Literal'. {'index of literal'. 'register of source'}}."
+  {5. #sendMessageWithOptionals. 'Send with Optionals'. {'register of result'. 'register of selector'. 'arity'. 'register of optionals array' ". args..."}. {2}}.
+  {7. #newClosure. 'New Closure'. {'register of result'. 'block'}}.
+  {8. #newArrayWith. 'New Array With'. {'register of result'. 'size' ". args..."}. {1}}.
+  {9. #resendMessage. 'Resend'. {'register of result'. 'lexical offset'}}.
+  {10. #returnFrom. 'Return From'. {'register of result'. 'lexical offset'}}.
+  {11. #loadEnvironment. 'Load Environment'. {'register of result'}}.
+  {12. #loadVariable. 'Load Variable'. {'register of result'}}.
+  {13. #storeVariable. 'Store Variable'. {'register of result'}}.
+  {14. #loadFreeVariable. 'Load Free Variable'. {'register of result'. 'lexical offset'. 'index of variable'}}.
+  {15. #storeFreeVariable. 'Store Free Variable'. {'lexical offset'. 'index of variable'. 'register of source'}}.
+  {16. #isIdenticalTo. 'Is Identical To'. {'register of result'. 'register of x'. 'register of y'}}.
+  {17. #branchKeyed. 'Branch Keyed'. {'register of key'. 'table'}}.
+  {18. #jumpTo. 'Jump To'. {'offset'}}.
+  "Used like SSA phi / branch merges:"
+  {19. #moveRegister. 'Move Register'. {'register of source'. 'register of result'}}.
+  {20. #branchIfTrue. 'Branch If True'. {'register of condition'. 'branch offset'}}.
+  {21. #branchIfFalse. 'Branch If False'. {'register of condition'. 'branch offset'}}.
+  "Marks the end of a block:"
+  {22. #returnRegister. 'Return Register'. {'register of value'}}.
+  "Marks the end of a block:"
+  {23. #returnValue. 'Return Value'. {'value to return'}}.
+  "I'm not sure what this does yet..used in bootstrap:"
+  {24. #resume. 'Resume'. {}}.
+  {25. #primitiveDo. 'Primitive Do'. {'number of primitive'. 'arity'. 'register of result' ". args..."}. {1}}.
+  {26. #directApplyTo. 'Direct Apply To'. {'method'. 'arity'. 'register of result' ". args..."}. {1}}.
+  {27. #isNilOp. 'Is Nil'. {'register of result'. 'register of x'}}.
   "these check the arguments to see if their maps match the ones in the map array"
   "if they match, we fall through to the next instruction which is the primitive (no code) or inlined function"
   "it also needs to set up the input varibles"
-  28 -> (#inlinePrimitiveCheckJump -> {5. 3}). "result reg, map array, prim number(in-opcode not a register), arity, jump offset, parameters..."
-  29 -> (#inlineMethodCheckJump -> {3. 1}). "map array, arity, jump offset, parameters..."
+  {28. #inlinePrimitiveCheckJump. 'Inline Primitive Check Jump'. {'register of result'. 'map array'. 'prim number(in-opcode not a register)'. 'arity'. 'jump offset' ". args..."}. {3}}.
+  {29. #inlineMethodCheckJump. 'Inline Method Check Jump'. {'map array'. 'arity'. 'jump offset' ". args..."}. {1}}.
 }.
-
-VM SSACode instructionInfo do: [| :sym | VM SSACode addImmutableSlot: sym value key valued: sym key].
 
 VM define: #SSACompiler &parents: {Cloneable}
   &slots: {#contexts -> Stack new}.
@@ -991,35 +1016,4 @@ gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
 	   from: msg
            result: result]
     ifFalse: [resend]
-].
-
-gen@(VM SSACompiler traits) printInstructionAt: pos in: array@(Array traits)
-[| instr arguments nextStart instrVal |
-  instrVal: (array at: pos).
-  instr: (VM SSACode instructionInfo detect: [| :elem | elem key = instrVal]
-                                     ifNone: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; array printString]) value.
-  inform:
-    ([| :out |
-      out ; '(' ; pos printString ; ') ' ; instrVal printString ; ' ' ; instr key printString.
-      nextStart: (pos + 1 + instr value first +
-        (instr value size > 1
-           ifTrue: [| sum |
-                    sum: 0.
-                    instr value allButFirstDo: [| :offset | sum: sum + (array at: pos + 1 + offset)].
-                    sum]
-           ifFalse: [0])).
-      (pos + 1 until: nextStart) do:
-	[| :i | out ; ' ' ; (array at: i) printString]] writingAs: String).
-  nextStart
-].
-
-gen@(VM SSACompiler traits) decompile: array@(Array traits)
-[| pos |
-  pos: 0.
-  [pos < array size] whileTrue: [| instr | pos: (gen printInstructionAt: pos in: array)].
-].
-
-m@(CompiledMethod traits) decompile
-[
-  VM SSACompiler decompile: m code
 ].

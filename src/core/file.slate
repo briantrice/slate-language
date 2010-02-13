@@ -155,12 +155,8 @@ f@(File traits) exists
 "Answer whether the file as specified by its locator already exists.
 If it's already open, it exists; otherwise try to open it and then close it
 if the result is successful. Then answer whether it worked."
-[| oldMode |
-  oldMode: f mode.
-  f isOpen \/
-    [[[f mode: f Read. f open] on: f NotFound do: [| :c | ^ False]]
-       ensure: [f isOpen ifTrue: [f close]. f mode: oldMode].
-     True]
+[
+  f fileInfo isNotNil
 ].
 
 f@(File traits) checkExists
@@ -304,11 +300,6 @@ l@(File Locator traits) openFile &mode: mode
   (File newNamed: l &mode: mode) open
 ].
 
-l@(File Locator traits) fileInfo
-[
-  File informationForFileNamed: (l as: String)
-].
-
 l@(File Locator traits) sessionDo: block &mode: mode
 "Calls the block with the File object as input, opening and closing it
 transparently in an error-tolerant way. The return value of the block is
@@ -419,11 +410,13 @@ l@(File Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
   pathSeparator ifNil: [pathSeparator: l pathSeparator].
   pathElements: (s upToEnd splitWith: pathSeparator).
   l path: pathElements allButLast.
-  pathElements isEmpty
-    ifFalse:
-      [l name: (pathElements last copyUpToLast: l dot).
-       (pathElements last lastIndexOf: l dot)
-	 ifNotNil: [l fileType: (pathElements last copyAfterLast: l dot)]].
+  pathElements isEmpty ifFalse: [l readFilenameFrom: pathElements last].
+].
+
+l@(File Locator traits) readFilenameFrom: s
+[
+  l name: (s copyUpToLast: l dot).
+  (s lastIndexOf: l dot) ifNotNil: [l fileType: (s copyAfterLast: l dot)].
 ].
 
 l@(File Locator traits) isRoot
