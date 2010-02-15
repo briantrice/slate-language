@@ -238,7 +238,7 @@ f@(Debugger Frame traits) describeOn: out
   method inputVariables + method localVariables below: method registerCount
     do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
   out ; 'Decompiled: ' ; '\n'.
-  VM SSACompiler decompile: method code.
+  method printInstructionsOn: out.
 ].
 
 f@(Debugger Frame traits) reset
@@ -419,7 +419,7 @@ ns@(Debugger Namespace traits) return: value
 ns@(Debugger Namespace traits) help
 [
   ns debugger printer
-   ; 'The debugger is a specialized evaluator that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
+   ; 'The Debugger is a specialized REPL that evaluates expressions within the method currently being debugged. Certain messages are provided for changing the state of the debugger, as follows:\n'
    ; ': index. (or restart: index.)\n\tSignal the restart at the given index\n'
    ; 'backtrace (or "bt")\n\tPrint the backtrace\n'
    ; 'frame\n\tPrint the current frame\n'
@@ -432,6 +432,10 @@ ns@(Debugger Namespace traits) help
    ; 'restarts\n\tPrint the currently available restarts\n'
    ; 'help\n\tPrint this help listing\n'.
 ].
+
+ns@(Debugger Namespace traits) ? [ns help].
+
+ns@(Debugger Namespace traits) ? obj [ns helpFor: obj].
 
 ns@(Debugger Namespace traits) didNotUnderstand: message at: position
 [
