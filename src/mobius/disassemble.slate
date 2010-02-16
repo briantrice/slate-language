@@ -105,9 +105,8 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
     ; (opcode printString truncateTo: 3 paddedBy: $\s &onRight: True)
     ; (instr name truncateTo: 25 paddedBy: $\s &onRight: True)
     ; '\n'.
-  nextStart: (pos + 1 + instr argNames size +
-    (instr offsettingArgIndices inject: 0 into:
-       [| :sum :offset | m code at: pos + 1 + offset])).
+  nextStart: (instr offsettingArgIndices inject: pos + 1 + instr argNames size
+                into: [| :sum :offset | m code at: pos + 1 + offset]).
   argOffset: 0.
   (pos + 1 until: nextStart) do:
     [| :codeIndex |
