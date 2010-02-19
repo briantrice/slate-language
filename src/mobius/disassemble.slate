@@ -106,7 +106,7 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
     ; (instr name truncateTo: 25 paddedBy: $\s &onRight: True)
     ; '\n'.
   nextStart: (instr offsettingArgIndices inject: pos + 1 + instr argNames size
-                into: [| :sum :offset | m code at: pos + 1 + offset]).
+                into: [| :sum :offset | sum + (m code at: pos + 1 + offset)]).
   argOffset: 0.
   (pos + 1 until: nextStart) do:
     [| :codeIndex |
@@ -121,7 +121,7 @@ m@(CompiledMethod traits) printInstructionsOn: out
   out ; 'IP   ' ; 'OP ' ; 'Instruction' ; '\n'.
   pos: 0.
   [pos < m code size] whileTrue:
-    [| instr | pos: (m printInstructionAt: pos on: out)].
+    [pos: (m printInstructionAt: pos on: out)].
 ].
 
 m@(CompiledMethod traits) disassemble &output: s

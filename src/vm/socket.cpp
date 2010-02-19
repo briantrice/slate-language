@@ -78,7 +78,7 @@ void socket_select_find_available(struct OopArray* selectOn, fd_set* fdList, str
   }
 }
 
-void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct OopArray* selectOn = (struct OopArray*) args[0];
   struct OopArray* readyPipes;
   word_t waitTime = object_to_smallint(args[1]);

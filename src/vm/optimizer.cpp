@@ -69,6 +69,7 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
   switch (op) {
   case OP_SEND: case OP_INTERNAL_SEND: return object_to_smallint(code[i+2]);
   case OP_SEND_MESSAGE_WITH_OPTS: return object_to_smallint(code[i+2]);
+  case OP_SEND_WITH_OPTIONALS_INLINE: return object_to_smallint(code[i+2]) + object_to_smallint(code[i+3]);
   case OP_NEW_ARRAY_WITH: return object_to_smallint(code[i+1]);
   case OP_PRIMITIVE_DO: return object_to_smallint(code[i+1]);
   case OP_APPLY_TO: return object_to_smallint(code[i+1]);
@@ -109,6 +110,7 @@ word_t opcode_base_length(word_t rawop) {
   case OP_SEND: case OP_INTERNAL_SEND: return 3; 
   case OP_LOAD_LITERAL: return 2;
   case OP_SEND_MESSAGE_WITH_OPTS: return 4;
+  case OP_SEND_WITH_OPTIONALS_INLINE: return 4;
   case OP_NEW_CLOSURE: return 2;
   case OP_NEW_ARRAY_WITH: return 2;
   case OP_RESEND_MESSAGE: return 2;
@@ -189,6 +191,7 @@ word_t opcode_register_locations(word_t rawop) {
   case OP_SEND: case OP_INTERNAL_SEND: return 1;
   case OP_LOAD_LITERAL: return 1;
   case OP_SEND_MESSAGE_WITH_OPTS: return 1+8;
+  case OP_SEND_WITH_OPTIONALS_INLINE: return 1;
   case OP_NEW_CLOSURE: return 1;
   case OP_NEW_ARRAY_WITH: return 1;
 
