@@ -343,9 +343,22 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
+
+    Pinned<struct OopArray> nestedOptsArray(oh);
+    struct Object* newOpts[2];
+    word_t newOptCount = 0;
+    if (optCount > 0) {
+      nestedOptsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), optCount);
+      copy_words_into(opts, optCount, nestedOptsArray->elements);
+
+      newOpts[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
+      newOpts[1] = (struct Object*)nestedOptsArray;
+      newOptCount = 2;
+    }
+
     // Signal notFoundOn:
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, opts, optCount, resultStackPointer);
-    // Unpin it:
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
+
     return;
   }
 
@@ -370,7 +383,20 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   } else {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, opts, optCount, resultStackPointer);
+
+    Pinned<struct OopArray> nestedOptsArray(oh);
+    struct Object* newOpts[2];
+    word_t newOptCount = 0;
+    if (optCount > 0) {
+      nestedOptsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), optCount);
+      copy_words_into(opts, optCount, nestedOptsArray->elements);
+
+      newOpts[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
+      newOpts[1] = (struct Object*)nestedOptsArray;
+      newOptCount = 2;
+    }
+
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
   }
 
 }
