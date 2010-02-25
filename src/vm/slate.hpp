@@ -598,6 +598,8 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define SSA_NEXT_PARAM_OBJECT           (i->method->code->elements[i->codePointer++])
 #define ASSERT_VALID_REGISTER(X)        (assert((X) < (word_t)i->method->registerCount>>1))
 
+#define MAX_ARITY                       16
+#define MAX_OPTS                        16
 //we have to use a separate array for pinning because some methods change the args array
 //ahem... method_dispatch_on
 #define HEAP_READ_AND_PIN_ARGS(COUNTER, ARITY, ARGSARRAY, PINNEDARGS) for (COUNTER=0; COUNTER < ARITY; COUNTER++) { \

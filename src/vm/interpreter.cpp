@@ -191,7 +191,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   method->callCount = smallint_to_object(object_to_smallint(method->callCount) + 1);
 
 
-  assert(n <= 16);
+  assert(n <= MAX_ARITY);
 
 #ifndef SLATE_DISABLE_METHOD_OPTIMIZATION
   /* optimize the callee function after a set number of calls*/
@@ -299,7 +299,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   callerMethod = oh->cached.interpreter->method;
 
   /*make sure they are pinned*/
-  assert(arity <= 16);
+  assert(arity <= MAX_ARITY);
 
   def = NULL;
 
@@ -417,7 +417,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
       printf("interpreter_return_result BEFORE\n");
       printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
       printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
-      print_stack_types(oh, 16);
+      print_stack_types(oh, MAX_ARITY);
 #endif
 
 
@@ -511,7 +511,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
       printf("interpreter_return_result AFTER\n");
       printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
       printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
-      print_stack_types(oh, 16);
+      print_stack_types(oh, MAX_ARITY);
 #endif
 
 
@@ -552,7 +552,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
 
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
-  assert(n <= 16);
+  assert(n <= MAX_ARITY);
   std::vector<Pinned<struct Object> > pinnedArgs(n, Pinned<struct Object>(oh));
   for (int k = 0; k < n; k++) pinnedArgs[k] = args[k];
 
@@ -698,7 +698,7 @@ void interpret(struct object_heap* oh) {
     the stack doesn't have enough room for the registers */
   if (oh->cached.interpreter->framePointer == FUNCTION_FRAME_SIZE 
       && oh->cached.interpreter->stackPointer == FUNCTION_FRAME_SIZE
-      && oh->cached.interpreter->stackSize == 16) {
+      && oh->cached.interpreter->stackSize == MAX_ARITY) {
     interpreter_stack_allocate(oh, oh->cached.interpreter, object_to_smallint(oh->cached.interpreter->method->registerCount));
   }
 
@@ -745,7 +745,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity;
           int k;
           Pinned<struct Object> selector(oh);
-          struct Object* argsArray[16], *pinnedArgs[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
@@ -755,7 +755,7 @@ void interpret(struct object_heap* oh) {
           printf("send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
           print_type(oh, selector);
 #endif
-          assert(arity <= 16);
+          assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
@@ -770,7 +770,7 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optsArrayReg, optCount;
           int k, m;
           Pinned<struct Object> selector(oh);
-          struct Object* argsArray[16], *pinnedArgs[16], *optsArrayInline[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY], *optsArrayInline[MAX_OPTS];
           Pinned<struct OopArray> optsArray(oh);
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
@@ -782,7 +782,7 @@ void interpret(struct object_heap* oh) {
           printf("send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
           print_type(oh, selector);
 #endif
-          assert(arity <= 16 && optCount <= 16);
+          assert(arity <= MAX_ARITY && optCount <= MAX_OPTS);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
           for (m = 0; m < optCount; m++) {
@@ -806,13 +806,13 @@ void interpret(struct object_heap* oh) {
           word_t result, arity, optCount;
           int k, m;
           Pinned<struct Object> selector(oh);
-          struct Object* argsArray[16], *pinnedArgs[16], *optsArray[16], *pinnedOpts[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY], *optsArray[MAX_OPTS], *pinnedOpts[MAX_OPTS];
           result = SSA_NEXT_PARAM_SMALLINT;
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
           optCount = SSA_NEXT_PARAM_SMALLINT;
 
-          assert(arity <= 16 && optCount <= 16);
+          assert(arity <= MAX_ARITY && optCount <= MAX_OPTS);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
           HEAP_READ_AND_PIN_ARGS(m, optCount, optsArray, pinnedOpts);
@@ -1204,12 +1204,12 @@ void interpret(struct object_heap* oh) {
       case OP_PRIMITIVE_DO:
         {
           word_t primNum, resultReg, arity, k;
-          struct Object* argsArray[16], *pinnedArgs[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY];
           primNum = object_to_smallint(SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT));
           arity = SSA_NEXT_PARAM_SMALLINT;
           resultReg = SSA_NEXT_PARAM_SMALLINT;
 
-          assert(arity <= 16);
+          assert(arity <= MAX_ARITY);
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
           primitives[primNum](oh, argsArray, arity, NULL, 0, i->framePointer + resultReg);
@@ -1223,14 +1223,14 @@ void interpret(struct object_heap* oh) {
         {
           word_t primNum, resultReg, arity, k, jumpOffset;
           struct Object* mapArray;
-          struct Object* argsArray[16], *pinnedArgs[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY];
           resultReg = SSA_NEXT_PARAM_SMALLINT;
           mapArray = SSA_NEXT_PARAM_OBJECT;
           primNum = SSA_NEXT_PARAM_SMALLINT;
           arity = SSA_NEXT_PARAM_SMALLINT;
           jumpOffset = SSA_NEXT_PARAM_SMALLINT;
 
-          assert(arity <= 16);
+          assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
@@ -1262,12 +1262,12 @@ void interpret(struct object_heap* oh) {
         {
           word_t arity, k, jumpOffset;
           struct Object* mapArray;
-          struct Object* argsArray[16], *pinnedArgs[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY];
           mapArray = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
           jumpOffset = SSA_NEXT_PARAM_SMALLINT;
 
-          assert(arity <= 16);
+          assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
@@ -1297,12 +1297,12 @@ void interpret(struct object_heap* oh) {
         {
           word_t resultReg, arity, k;
           Pinned<struct Object> method(oh);
-          struct Object* argsArray[16], *pinnedArgs[16];
+          struct Object* argsArray[MAX_ARITY], *pinnedArgs[MAX_ARITY];
           method = SSA_REGISTER(SSA_NEXT_PARAM_SMALLINT);
           arity = SSA_NEXT_PARAM_SMALLINT;
           resultReg = SSA_NEXT_PARAM_SMALLINT;
 
-          assert(arity <= 16);
+          assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
