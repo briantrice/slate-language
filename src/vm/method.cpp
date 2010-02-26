@@ -596,7 +596,7 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
   word_t positions, i;
-  struct Object* argBuffer[16];
+  struct Object* argBuffer[MAX_ARITY];
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct MethodDefinition> oldDef(oh);
 
@@ -611,7 +611,7 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   /* any methods that call the same symbol must be decompiled because they might call an old version */
   method_remove_optimized_sending(oh, selector);
   selector->cacheMask = smallint_to_object(object_to_smallint(selector->cacheMask) | positions);
-  assert(n<=16);
+  assert(n <= MAX_ARITY);
 
   copy_words_into(args, n, argBuffer); /* method_dispatch_on modifies its arguments (first argument)*/
   oldDef = method_dispatch_on(oh, selector, argBuffer, n, NULL);

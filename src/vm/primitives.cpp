@@ -215,13 +215,13 @@ void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, s
   method = (struct Closure*)args[0];
   argArray = (struct OopArray*) args[1];
 
-  struct Object* optsArray[16];
+  struct Object* optsArray[MAX_OPTS];
   word_t optsArrayCount = 0, k = 0;
 
 
   if (optCount == 2 && opts[1] != oh->cached.nil) { /* {&optionals:. someOopArray} */
     optsArrayCount = object_array_size(opts[1]);
-    assert(optsArrayCount <= 16);
+    assert(optsArrayCount <= MAX_OPTS);
     for (k = 0; k < optsArrayCount; k++) {
       optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
       heap_pin_object(oh, optsArray[k]);
@@ -302,12 +302,12 @@ void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struc
   Pinned<struct Symbol> selector(oh,(struct Symbol*)args[0]);
   Pinned<struct OopArray> arguments(oh, (struct OopArray*)args[1]);
 
-  struct Object* optsArray[16];
+  struct Object* optsArray[MAX_OPTS];
   word_t optsArrayCount = 0, k = 0;
 
   if (optCount == 2 && opts[1] != oh->cached.nil) {/* {&optionals:. someOopArray} */
     optsArrayCount = object_array_size(opts[1]);
-    assert(optsArrayCount <= 16);
+    assert(optsArrayCount <= MAX_OPTS);
     for (k = 0; k < optsArrayCount; k++) {
       optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
       heap_pin_object(oh, optsArray[k]);
@@ -326,12 +326,12 @@ void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t 
   Pinned<struct Symbol> selector(oh, (struct Symbol*)args[0]);
   Pinned<struct OopArray> arguments(oh, (struct OopArray*)args[1]), dispatchers(oh, (struct OopArray*)args[2]);
 
-  struct Object* optsArray[16];
+  struct Object* optsArray[MAX_OPTS];
   word_t optsArrayCount = 0, k = 0;
 
   if (optCount == 2 && opts[1] != oh->cached.nil) { /* {&optionals:. someOopArray} */
     optsArrayCount = object_array_size(opts[1]);
-    assert(optsArrayCount <= 16);
+    assert(optsArrayCount <= MAX_OPTS);
     for (k = 0; k < optsArrayCount; k++) {
       optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
       heap_pin_object(oh, optsArray[k]);
