@@ -72,3 +72,14 @@ obj@(Root traits) completeSelectorFrom: s@(String traits)
   obj allRoles select: [|:item| (item value bitAnd: 1) = 1 /\ [item key beginsWith: s]] collect: [|:item| item key]
 ].
 
+m@(Method traits) editExternally &editor: editor
+[
+  editor `defaultsTo: (Environment at: 'EDITOR').
+  m sourceTree ifNotNilDo:
+    [| :src fileName lineNumber |
+     fileName: src source resource locator.
+     lineNumber: src lineNumber.
+     fileName isNotNil /\ [lineNumber isNotNil]
+       ifTrue:
+         [Platform run: editor ; ' +' ; (lineNumber as: String) ; ' ' ; (fileName as: String)]]
+].
