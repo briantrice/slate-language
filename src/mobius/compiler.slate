@@ -84,7 +84,7 @@ VM SSACode Instruction instancesSetting: #(code selector name argNames offsettin
   "{2. #allocateRegisters. 'Allocate Registers'. 3. {}}."
   {3. #loadLiteral. 'Load Literal'. {'register of result'. 'index of literal'}}.
   "{4. #storeLiteral. 'Store Literal'. {'index of literal'. 'register of source'}}."
-  {5. #sendMessageWithOptionals. 'Send with Optionals'. {'register of result'. 'register of selector'. 'arity'. 'register of optionals array' ". args..."}. {2}}.
+  {5. #sendMessageWithOptionals. 'Send with Optionals'. {'register of result'. 'selector'. 'arity'. 'register of optionals array' ". args..."}. {2}}.
   {7. #newClosure. 'New Closure'. {'register of result'. 'block'}}.
   {8. #newArrayWith. 'New Array With'. {'register of result'. 'size' ". args..."}. {1}}.
   {9. #resendMessage. 'Resend'. {'register of result'. 'lexical offset'}}.
@@ -115,6 +115,8 @@ VM SSACode Instruction instancesSetting: #(code selector name argNames offsettin
   "it also needs to set up the input varibles"
   {28. #inlinePrimitiveCheckJump. 'Inline Primitive Check Jump'. {'register of result'. 'map array'. 'prim number(in-opcode not a register)'. 'arity'. 'jump offset' ". args..."}. {3}}.
   {29. #inlineMethodCheckJump. 'Inline Method Check Jump'. {'map array'. 'arity'. 'jump offset' ". args..."}. {1}}.
+  {30. #sendMessageWithOptionalsInline. 'Send with Optionals Inline'. {'register of result'. 'selector'. 'arity'. 'optional count'. ". args...optionals..."}. {2. 3}}.
+
 }.
 
 VM define: #SSACompiler &parents: {Cloneable}
@@ -280,7 +282,7 @@ gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameter
 gen@(VM SSACompiler traits) emitInstruction: code withParameters: values from: node
 [
   "add the selector to the list so we know what this function calls... so it can be unoptimized if needed"
-  code = gen directSendMessage \/ [code = gen sendMessageWithOptionals] ifTrue: [gen currentContext method selectors: gen currentContext method selectors ; {values second}].
+  code = gen directSendMessage \/ [code = gen sendMessageWithOptionals] \/ [code = gen sendMessageWithOptionalsInline] ifTrue: [gen currentContext method selectors: gen currentContext method selectors ; {values second}].
   gen emitObject: code from: node.
   values do: [| :value | gen emitObject: value from: node]
 ].
@@ -560,20 +562,17 @@ gen@(VM SSACompiler traits) generate: def@(Syntax Deferred traits) result: resul
 gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
-[| argRegisters optsArray optsWriter optsArrayRegister |
+[| argRegisters optsArray optsWriter |
   result `defaultsTo: gen newRegister.
   argRegisters: (args collect: [| :arg | gen generate: arg result: Nil]).
-  optsArrayRegister: gen newRegister.
   optsArray: ExtensibleArray new.
   optsWriter: optsArray writer.
   opts keywords with: opts arguments do:
     [| :key :arg |
      optsWriter nextPut: (gen registerFor: key from: opts result: Nil).
      optsWriter nextPut: (gen generate: arg result: Nil)].
-  gen emitInstruction: gen newArrayWith withParameters:
-    {optsArrayRegister. optsArray size} ; optsArray from: opts.
-  gen emitInstruction: gen sendMessageWithOptionals withParameters:
-    {result. selector. args size. optsArrayRegister } ; argRegisters from: opts.
+  gen emitInstruction: gen sendMessageWithOptionalsInline withParameters:
+    {result. selector. args size. optsArray size} ; argRegisters ; optsArray from: opts.
   result
 ].
 

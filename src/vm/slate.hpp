@@ -580,7 +580,8 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_IS_NIL                       ((27 << 1) | SMALLINT_MASK)
 #define OP_INLINE_PRIMITIVE_CHECK       ((28 << 1) | SMALLINT_MASK)
 #define OP_INLINE_METHOD_CHECK          ((29 << 1) | SMALLINT_MASK)
-#define OP_                             ((30 << 1) | SMALLINT_MASK)
+#define OP_SEND_WITH_OPTIONALS_INLINE   ((30 << 1) | SMALLINT_MASK)
+#define OP_                             ((31 << 1) | SMALLINT_MASK)
 
 
 // these are used by the optimizer to mark things but should not be left in code
@@ -597,6 +598,8 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define SSA_NEXT_PARAM_OBJECT           (i->method->code->elements[i->codePointer++])
 #define ASSERT_VALID_REGISTER(X)        (assert((X) < (word_t)i->method->registerCount>>1))
 
+#define MAX_ARITY                       16
+#define MAX_OPTS                        16
 //we have to use a separate array for pinning because some methods change the args array
 //ahem... method_dispatch_on
 #define HEAP_READ_AND_PIN_ARGS(COUNTER, ARITY, ARGSARRAY, PINNEDARGS) for (COUNTER=0; COUNTER < ARITY; COUNTER++) { \
@@ -614,23 +617,23 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
 extern int globalInterrupt; /*if this is set to 1, we should break so the user can stop an infinite loop*/
-extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 
 #define ASSURE_SMALLINT_ARG(XXX) \
   if (!object_is_smallint(args[XXX])) { \
-    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, 0, resultStackPointer); \
     return; \
   }
 
 #define ASSURE_NOT_SMALLINT_ARG(XXX) \
   if (object_is_smallint(args[XXX])) { \
-    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, 0, resultStackPointer); \
     return; \
   }
 
 #define ASSURE_TYPE_ARG(XXX, TYPEXXX) \
   if (object_type(args[XXX]) != TYPEXXX) { \
-    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, resultStackPointer); \
+    interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), args[XXX], NULL, 0, resultStackPointer); \
     return; \
   }
 
@@ -649,7 +652,7 @@ void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* 
 void heap_gc(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
-                                               struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+                                               struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 
 /* 
  * Args are the actual arguments to the function. dispatchers are the
@@ -658,8 +661,8 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
  */
 
 void send_to_through_arity_with_optionals(struct object_heap* oh,
-                                                  struct Symbol* selector, struct Object* args[],
-                                                  struct Object* dispatchers[], word_t arity, struct OopArray* opts,
+                                          struct Symbol* selector, struct Object* args[],
+                                          struct Object* dispatchers[], word_t arity, struct Object* opts[], word_t optCount,
                                           word_t resultStackPointer/*where to put the return value in the stack*/);
 
 
@@ -764,12 +767,12 @@ void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struc
 struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter* i);
 void interpreter_stack_pop_amount(struct object_heap* oh, struct Interpreter* i, word_t amount);
 void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n, struct Object* args[]);
-void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void interpreter_signal_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct OopArray* opts, word_t resultStackPointer);
-void interpreter_signal_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct OopArray* opts, word_t resultStackPointer);
-void interpreter_signal_with_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct Object* arg3, struct OopArray* opts, word_t resultStackPointer);
+void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void interpreter_signal_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void interpreter_signal_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void interpreter_signal_with_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct Object* arg3, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 bool_t interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value);
-void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter * i, struct OopArray* opts);
+void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter * i, struct Object* opts[], word_t optCount);
 bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result, word_t prevCodePointer);
 void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t n, word_t resultStackPointer);
 void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, struct OopArray* table, struct Object* oop);
@@ -839,117 +842,117 @@ struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj,
 struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, struct Symbol* name);
 void adjust_fields_by(struct object_heap* oh, struct Object* o, word_t shift_amount);
 void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_t* memory, word_t memorySize);
-void prim_fixme(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_flush_output(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_library_open(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_library_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_extlibError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
-void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_findon(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_byteat(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_map(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_isIdenticalTo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_clone(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+void prim_fixme(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_flush_output(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_library_open(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_library_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_extlibError(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_findon(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_ensure(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_byteat(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_map(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_set_map(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_exit(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_isIdenticalTo(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_clone(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 void prim_applyto(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer);
-void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_at_put(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_size(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bitand(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bitor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bitxor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bitnot(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_smallIntegerMinimum(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_smallIntegerMaximum(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_plus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_exponent(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_significand(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_getcwd(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_setcwd(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_plus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_minus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_times(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_divide(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_raisedTo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_ln(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_exp(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_withSignificand_exponent(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_minus(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_quo(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+void prim_at(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_at_put(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_equals(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_size(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bitand(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bitor(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bitxor(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bitnot(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_smallIntegerMinimum(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_smallIntegerMaximum(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_plus(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_exponent(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_significand(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_getcwd(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_setcwd(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_plus(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_minus(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_times(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_divide(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_raisedTo(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_ln(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_exp(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_withSignificand_exponent(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_minus(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_times(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_quo(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer);
 void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer);
-void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
-void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer);
+void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 
 void socket_module_init(struct object_heap* oh);
 word_t socket_return(word_t ret);
 int socket_select_setup(struct OopArray* selectOn, fd_set* fdList, int* maxFD);
 void socket_select_find_available(struct OopArray* selectOn, fd_set* fdList, struct OopArray* readyPipes, word_t readyCount);
-void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer);
+void prim_selectOnReadPipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 int socket_lookup_domain(word_t domain);
 int socket_reverse_lookup_domain(word_t domain);
 int socket_lookup_type(word_t type);

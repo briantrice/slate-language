@@ -2,7 +2,7 @@
 
 
 //Template for defining Slate primitive signatures. Not a macro because IDEs don't process it:
-//#define SLATE_PRIM(prim_name) void prim_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer)
+//#define SLATE_PRIM(prim_name) void prim_name(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer)
 
 #ifdef SLATE_DAEMONIZE
 #include <pwd.h>
@@ -10,26 +10,26 @@
 #include <signal.h>
 #endif
 
-void prim_fixme(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_fixme(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object* x = args[0];
   printf("UNIMPLEMENTED PRIMITIVE\n");
-  interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, resultStackPointer);
+  interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, 0, resultStackPointer);
 }
 
 #pragma mark Root
 
-void prim_isIdenticalTo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_isIdenticalTo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0]==args[1])? oh->cached.true_object : oh->cached.false_object;
 }
 
-void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_identity_hash(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	/*fix*/
 	/*  print_detail(oh, args[0]);
 	 print_backtrace(oh);*/
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(object_hash(args[0]));
 }
 
-void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	/*fix*/
 	/*  print_detail(oh, args[0]);
 	 print_backtrace(oh);*/
@@ -41,7 +41,7 @@ void prim_identity_hash_univ(struct object_heap* oh, struct Object* args[], word
 }
 
 /* Root forwardTo: anotherObject */
-void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* x = args[0];
 	struct Object* y = args[1];
 	oh->cached.interpreter->stack->elements[resultStackPointer] = y;
@@ -52,7 +52,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
 		|| x == get_special(oh, SPECIAL_OOP_TRUE)
 		|| x == get_special(oh, SPECIAL_OOP_FALSE)) {
 		printf("Error... you cannot call forwardTo on this special object (did you add a slot to Nil/True/False?)\n");
-		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, resultStackPointer); \
+		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, 0, resultStackPointer); \
 		return;
 	}
 	
@@ -66,7 +66,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
 }
 
 /* Root atSlotNamed: symbol */
-void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj;
 	struct Object* name;
 	struct SlotEntry * se;
@@ -75,11 +75,11 @@ void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t ar
 	name = args[1];
 	
 	if (object_is_smallint(obj)) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, 0, resultStackPointer);
 	} else {
 		se = slot_table_entry_for_name(oh, obj->map->slotTable, (struct Symbol*)name);
 		if (se == NULL) {
-			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, resultStackPointer);
+			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, 0, resultStackPointer);
 		} else {
 			word_t offset = object_to_smallint(se->offset);
 			oh->cached.interpreter->stack->elements[resultStackPointer] = object_slot_value_at_offset(obj, offset);
@@ -88,19 +88,19 @@ void prim_at_slot_named(struct object_heap* oh, struct Object* args[], word_t ar
 }
 
 /* Root atSlotNamed: symbol put: value */
-void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj=args[0], *val=args[2];
 	struct Object* name = args[1];
 	struct SlotEntry * se;
 	struct Map* map;
 	
 	if (object_is_smallint(obj)) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, 0, resultStackPointer);
 		return;
 	}
 	
 	if (object_is_immutable(obj)) {
-		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), obj, NULL, resultStackPointer);
+		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), obj, NULL, 0, resultStackPointer);
 		return;
 	}
 	
@@ -108,7 +108,7 @@ void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_
 	se = slot_table_entry_for_name(oh, map->slotTable, (struct Symbol*)name);
 	
 	if (se == NULL) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, 0, resultStackPointer);
 	} else {
 		word_t offset = object_to_smallint(se->offset);
 		oh->cached.interpreter->stack->elements[resultStackPointer] = object_slot_value_at_offset_put(oh, obj, offset, val);
@@ -118,7 +118,7 @@ void prim_at_slot_named_put(struct object_heap* oh, struct Object* args[], word_
 	
 }
 
-void prim_clone(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_clone(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	if (object_is_smallint(args[0])) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
 	} else {
@@ -127,7 +127,7 @@ void prim_clone(struct object_heap* oh, struct Object* args[], word_t arity, str
 }
 
 /* Cloneable cloneSettingSlots: slotNamesArray to: valuesArray */
-void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Object> obj(oh, args[0]), slotArray(oh, args[1]), valueArray(oh, args[2]), newObj(oh);
   word_t i;
 	
@@ -143,7 +143,7 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
 		struct Symbol* name = (struct Symbol*)object_array_get_element(slotArray, i);
 		struct SlotEntry* se = slot_table_entry_for_name(oh, obj->map->slotTable, name);
 		if (se == NULL) {
-			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, resultStackPointer);
+			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, 0, resultStackPointer);
 		} else {
 			/*since the object was just cloned, we aren't expecting a tenured obj to point to a new one*/
 			object_slot_value_at_offset_put(oh, newObj, object_to_smallint(se->offset), object_array_get_element(valueArray, i));
@@ -153,23 +153,23 @@ void prim_clone_setting_slots(struct object_heap* oh, struct Object* args[], wor
 	oh->cached.interpreter->stack->elements[resultStackPointer] = newObj;
 }
 
-void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_clone_with_slot_valued(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Object> obj(oh, args[0]), value(oh, args[2]);
   Pinned<struct Symbol> name(oh, (struct Symbol*)args[1]);
 	
 	if (object_is_smallint(obj)) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, 0, resultStackPointer);
 	} else {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = object_add_slot_named(oh, obj, name, value);
 	}
 }
 
-void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Object> obj(oh, args[0]);
   Pinned<struct Symbol> name(oh, (struct Symbol*)args[1]);
 	
 	if (object_is_smallint(obj)) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, (struct Object*)name, NULL, 0, resultStackPointer);
 	} else {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = object_remove_slot(oh, obj, name);
 	}
@@ -177,7 +177,7 @@ void prim_clone_without_slot(struct object_heap* oh, struct Object* args[], word
 
 #pragma mark Map
 
-void prim_map(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_map(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj;
 	obj = args[0];
 	
@@ -190,7 +190,7 @@ void prim_map(struct object_heap* oh, struct Object* args[], word_t arity, struc
 	
 }
 
-void prim_set_map(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_set_map(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Object> obj(oh);
   Pinned<struct Map> map(oh);
   obj = args[0];
@@ -208,30 +208,44 @@ void prim_set_map(struct object_heap* oh, struct Object* args[], word_t arity, s
 
 #pragma mark Method
 
-void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_applyto(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Closure> method(oh);
   Pinned<struct OopArray> argArray(oh);
-  Pinned<struct OopArray> real_opts(oh);
 
   method = (struct Closure*)args[0];
   argArray = (struct OopArray*) args[1];
-  
-  if (opts != NULL && opts->elements[1] != oh->cached.nil) {
-    real_opts = (struct OopArray*) opts->elements[1];
+
+  struct Object* optsArray[MAX_OPTS];
+  word_t optsArrayCount = 0, k = 0;
+
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) { /* {&optionals:. someOopArray} */
+    optsArrayCount = object_array_size(opts[1]);
+    assert(optsArrayCount <= MAX_OPTS);
+    for (k = 0; k < optsArrayCount; k++) {
+      optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
+      heap_pin_object(oh, optsArray[k]);
+    }
   }
+
   interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
-                                            argArray->elements, array_size(argArray), real_opts, resultStackPointer);
+                                            argArray->elements, array_size(argArray), optsArray, optsArrayCount, resultStackPointer);
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) {
+    HEAP_UNPIN_ARGS(k, optsArray);
+  }
+
 }
 
 // this runs the interpreter in the special oop
-void prim_interrupt(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_interrupt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   oh->interrupt_flag = 1;
 
 }
 
 
-void prim_initializeThreadOn(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_initializeThreadOn(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Closure> method(oh);
   Pinned<struct Interpreter> i(oh);
   Pinned<struct OopArray> newStack(oh);
@@ -249,10 +263,10 @@ void prim_initializeThreadOn(struct object_heap* oh, struct Object* args[], word
   i->ensureHandlers = smallint_to_object(0);
   i->codePointer = 0;
 
-  interpreter_apply_to_arity_with_optionals(oh, i, method, NULL, 0, NULL, 0);
+  interpreter_apply_to_arity_with_optionals(oh, i, method, NULL, 0, NULL, 0, 0);
 }
 
-void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct MethodDefinition* def;
   Pinned<struct Symbol> selector(oh);
   Pinned<struct OopArray> arguments(oh);
@@ -265,7 +279,7 @@ void prim_findon(struct object_heap* oh, struct Object* args[], word_t arity, st
   oh->cached.interpreter->stack->elements[resultStackPointer] = (def == NULL ? oh->cached.nil : (struct Object*) def->method);
 }
 
-void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	
   Pinned<struct Closure> body(oh);
   Pinned<struct Object> ensureHandler(oh);
@@ -273,7 +287,7 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, st
   body = (struct Closure*) args[0];
   ensureHandler = args[1];
 
-  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL, resultStackPointer);
+  interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, body, NULL, 0, NULL, 0, resultStackPointer);
   /*the registers are already allocated on the stack so we don't worry about overwriting them*/
   interpreter_stack_push(oh, oh->cached.interpreter, oh->cached.interpreter->ensureHandlers);
   interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
@@ -284,35 +298,55 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, st
 	
 }
 
-void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {
+void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Symbol> selector(oh,(struct Symbol*)args[0]);
-  Pinned<struct OopArray> opts(oh), arguments(oh, (struct OopArray*)args[1]);
-	
-  if (optionals == NULL) {
-    opts = NULL;
-  } else {
-    opts = (struct OopArray*)optionals->elements[1];
-    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  Pinned<struct OopArray> arguments(oh, (struct OopArray*)args[1]);
+
+  struct Object* optsArray[MAX_OPTS];
+  word_t optsArrayCount = 0, k = 0;
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) {/* {&optionals:. someOopArray} */
+    optsArrayCount = object_array_size(opts[1]);
+    assert(optsArrayCount <= MAX_OPTS);
+    for (k = 0; k < optsArrayCount; k++) {
+      optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
+      heap_pin_object(oh, optsArray[k]);
+    }
   }
-  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), opts, resultStackPointer); 
+  
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(arguments), array_size(arguments), optsArray, optsArrayCount, resultStackPointer); 
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) {
+    HEAP_UNPIN_ARGS(k, optsArray);
+  }
+
 }
 
-void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer) {
+void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Symbol> selector(oh, (struct Symbol*)args[0]);
-  Pinned<struct OopArray> opts(oh), arguments(oh, (struct OopArray*)args[1]), dispatchers(oh, (struct OopArray*)args[2]);
-	
-  if (optionals == NULL) {
-    opts = NULL;
-  } else {
-    opts = (struct OopArray*)optionals->elements[1];
-    if (opts == (struct OopArray*)oh->cached.nil) opts = NULL;
+  Pinned<struct OopArray> arguments(oh, (struct OopArray*)args[1]), dispatchers(oh, (struct OopArray*)args[2]);
+
+  struct Object* optsArray[MAX_OPTS];
+  word_t optsArrayCount = 0, k = 0;
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) { /* {&optionals:. someOopArray} */
+    optsArrayCount = object_array_size(opts[1]);
+    assert(optsArrayCount <= MAX_OPTS);
+    for (k = 0; k < optsArrayCount; k++) {
+      optsArray[k] = ((struct OopArray*)opts[1])->elements[k];
+      heap_pin_object(oh, optsArray[k]);
+    }
   }
-  /*fix check array sizes are the same*/
-  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), opts, resultStackPointer); 
+	
+  send_to_through_arity_with_optionals(oh, selector, array_elements(arguments), array_elements(dispatchers), array_size(arguments), optsArray, optsArrayCount, resultStackPointer); 
+
+  if (optCount == 2 && opts[1] != oh->cached.nil) {
+    HEAP_UNPIN_ARGS(k, optsArray);
+  }
 }
 
 /* Method asMethod: selector on: rolesArray */
-void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
         Pinned<struct MethodDefinition> def(oh);
 	Pinned<struct Object> method(oh);
         Pinned<struct Object> roles(oh);
@@ -365,7 +399,7 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 }
 
 /* Method removeFrom: rolesArray */
-void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	
   Pinned<struct Object> method(oh, args[0]), traitsWindow(oh);
   Pinned<struct OopArray> roles(oh, (struct OopArray*)args[1]);
@@ -399,7 +433,7 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
 	oh->cached.interpreter->stack->elements[resultStackPointer] = method;
 }
 
-void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct Object> method(oh);
   method = args[0];
   Pinned<struct Object> slot(oh);
@@ -454,7 +488,7 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
 
 #pragma mark Array
 
-void prim_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* array;
 	word_t i;
 	
@@ -464,17 +498,17 @@ void prim_at(struct object_heap* oh, struct Object* args[], word_t arity, struct
 	if (i < object_array_size(array) && i >= 0) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = ((struct OopArray*)array)->elements[i];
 	} else {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[1], args[0], NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[1], args[0], NULL, 0, resultStackPointer);
 	}
 }
 
-void prim_at_put(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_at_put(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object *array = args[0], *i = args[1], *val = args[2];
 	word_t index = object_to_smallint(i);
 	
 	ASSURE_SMALLINT_ARG(1);
 	if (object_is_immutable(array)) {
-		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), array, NULL, resultStackPointer);
+		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), array, NULL, 0, resultStackPointer);
 		return;
 	}
 	
@@ -482,11 +516,11 @@ void prim_at_put(struct object_heap* oh, struct Object* args[], word_t arity, st
 		heap_store_into(oh, array, val);
 		oh->cached.interpreter->stack->elements[resultStackPointer] =  ((struct OopArray*)array)->elements[index] = val;
 	} else {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, array, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, array, NULL, 0, resultStackPointer);
 	}
 }
 
-void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	/*struct Object* array = args[0];*/
 	struct Object* i = args[1];
 	if (object_is_smallint(i)) {
@@ -498,13 +532,13 @@ void prim_ooparray_newsize(struct object_heap* oh, struct Object* args[], word_t
 	}
 }
 
-void prim_size(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_size(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(object_array_size(args[0]));
 }
 
 #pragma mark ByteArray
 
-void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj, *i;
 	obj = args[0];
 	i = args[1];
@@ -518,11 +552,11 @@ void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_
 	(struct Object*)heap_clone_byte_array_sized(oh, obj, (object_to_smallint(i) < 0) ? 0 : object_to_smallint(i));
 }
 
-void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bytesize(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(payload_size(args[0]));
 }
 
-void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj= args[0], *i=args[1], *val = args[2];
 	word_t index;
 	
@@ -532,19 +566,19 @@ void prim_byteat_put(struct object_heap* oh, struct Object* args[], word_t arity
 	ASSURE_SMALLINT_ARG(2);
 	
 	if (object_is_immutable(obj)) {
-		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), obj, NULL, resultStackPointer);
+		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_IMMUTABLE), obj, NULL, 0, resultStackPointer);
 		return;
 	}
 	
 	if (index < byte_array_size((struct ByteArray*)obj)) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(byte_array_set_element((struct ByteArray*)obj, index, object_to_smallint(val)));
 	} else {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, 0, resultStackPointer);
 	}
 	
 }
 
-void prim_byteat(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_byteat(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj, *i;
 	word_t index;
 	
@@ -557,14 +591,14 @@ void prim_byteat(struct object_heap* oh, struct Object* args[], word_t arity, st
 	if (index < byte_array_size((struct ByteArray*)obj)) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(byte_array_get_element(obj, index));
 	} else {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), i, obj, NULL, 0, resultStackPointer);
 	}
 	
 }
 
 #pragma mark File
 
-void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t handle = object_to_smallint(args[1]);
 	ASSURE_SMALLINT_ARG(1);
 	if (file_isatend(oh, handle)) {
@@ -574,21 +608,21 @@ void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, s
 	}
 }
 
-void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_sizeOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t handle = object_to_smallint(args[1]);
 	word_t retval = file_sizeof(oh, handle);
 	ASSURE_SMALLINT_ARG(1);
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
-void prim_flush_output(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_flush_output(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	/*struct Object *console=args[0];*/
 	fflush(stdout);
 	fflush(stderr);
 	oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 }
 
-void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
@@ -601,7 +635,7 @@ void prim_handle_for(struct object_heap* oh, struct Object* args[], word_t arity
 	
 }
 
-void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
@@ -614,7 +648,7 @@ void prim_handleForNew(struct object_heap* oh, struct Object* args[], word_t ari
 	
 }
 
-void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t handle;
 	struct Object /**file=args[0],*/ *fname=args[1];
 	
@@ -627,7 +661,7 @@ void prim_handle_for_input(struct object_heap* oh, struct Object* args[], word_t
 	
 }
 
-void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[0]);
   int retval;
 
@@ -641,7 +675,7 @@ void prim_closePipe(struct object_heap* oh, struct Object* args[], word_t arity,
 
 }
 
-void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
   word_t start = object_to_smallint(args[2]), end = object_to_smallint(args[3]);
@@ -653,12 +687,12 @@ void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t ari
   ASSURE_SMALLINT_ARG(3);
 
   if (start < 0 || start >= byte_array_size(array)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, 0, resultStackPointer);
     return;
   }
 
   if (end < start || end > byte_array_size(array)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, 0, resultStackPointer);
     return;
   }
 
@@ -670,7 +704,7 @@ void prim_readFromPipe(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* array = (struct ByteArray*) args[0];
   word_t handle = object_to_smallint(args[1]);
   word_t start = object_to_smallint(args[2]), end = object_to_smallint(args[3]);
@@ -682,12 +716,12 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
   ASSURE_SMALLINT_ARG(3);
 
   if (start < 0 || start >= byte_array_size(array)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[0], NULL, 0, resultStackPointer);
     return;
   }
 
   if (end < start || end > byte_array_size(array)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[3], args[0], NULL, 0, resultStackPointer);
     return;
   }
 
@@ -698,7 +732,7 @@ void prim_writeToPipe(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 /*FIXME this is a copy of the last function with only the select call changed*/
-void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   Pinned<struct OopArray> selectOn(oh);
   selectOn = (struct OopArray*) args[0];
@@ -736,7 +770,7 @@ void prim_selectOnWritePipesFor(struct object_heap* oh, struct Object* args[], w
 
 #pragma mark Socket
 
-void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
   word_t type = object_to_smallint(args[1]);
   word_t protocol = object_to_smallint(args[2]);
@@ -761,7 +795,7 @@ void prim_socketCreate(struct object_heap* oh, struct Object* args[], word_t ari
   }
 }
 
-void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t fd = object_to_smallint(args[0]);
   word_t size = object_to_smallint(args[1]);
   word_t ret;
@@ -775,7 +809,7 @@ void prim_socketListen(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t fd = object_to_smallint(args[0]);
   word_t ret;
   struct sockaddr_storage addr;
@@ -804,7 +838,7 @@ void prim_socketAccept(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t fd = object_to_smallint(args[0]);
   struct ByteArray* address = (struct ByteArray*) args[1];
   word_t ret;
@@ -816,7 +850,7 @@ void prim_socketBind(struct object_heap* oh, struct Object* args[], word_t arity
   oh->cached.interpreter->stack->elements[resultStackPointer] = SOCKET_RETURN(ret);
 }
 
-void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t fd = object_to_smallint(args[0]);
   struct ByteArray* address = (struct ByteArray*) args[1];
   word_t ret;
@@ -829,7 +863,7 @@ void prim_socketConnect(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
-void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t fd = object_to_smallint(args[0]);
   word_t ret;
   int optval;
@@ -847,7 +881,7 @@ void prim_socketGetError(struct object_heap* oh, struct Object* args[], word_t a
 
 }
 
-void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* hostname = (struct ByteArray*)args[1];
   struct ByteArray* service = (struct ByteArray*)args[2];
   word_t family = object_to_smallint(args[3]);
@@ -881,7 +915,7 @@ void prim_getAddrInfo(struct object_heap* oh, struct Object* args[], word_t arit
 
 }
 
-void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t ticket = object_to_smallint(args[0]);
   if (ticket >= oh->socketTicketCount || ticket < 0
       || oh->socketTickets[ticket].inUse == 0 || oh->socketTickets[ticket].finished == 0) {
@@ -937,7 +971,7 @@ void prim_getAddrInfoResult(struct object_heap* oh, struct Object* args[], word_
   }
 }
 
-void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t ticket = object_to_smallint(args[0]);
   if (ticket >= oh->socketTicketCount || ticket < 0
       || oh->socketTickets[ticket].inUse == 0 || oh->socketTickets[ticket].finished == 0) {
@@ -956,7 +990,7 @@ void prim_freeAddrInfoResult(struct object_heap* oh, struct Object* args[], word
 }
 
 
-void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t domain = object_to_smallint(args[0]);
   struct Object* address = args[1];
   word_t port = object_to_smallint(args[2]);
@@ -1031,7 +1065,7 @@ void prim_socketCreateIP(struct object_heap* oh, struct Object* args[], word_t a
 
 }
 
-void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *console=args[0], *n=args[1], *handle=args[2], *seq=args[3], *start=args[4];
   byte_t* bytes = &((struct ByteArray*)seq)->elements[0] + object_to_smallint(start);
   word_t size = object_to_smallint(n);
@@ -1047,7 +1081,7 @@ void prim_write_to_starting_at(struct object_heap* oh, struct Object* args[], wo
 
 }
 
-void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   ASSURE_SMALLINT_ARG(1);
 
@@ -1056,18 +1090,18 @@ void prim_close(struct object_heap* oh, struct Object* args[], word_t arity, str
 
 }
 
-void prim_file_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_file_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char filename[SLATE_FILE_NAME_LENGTH];
   word_t len;
   len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
   oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_delete(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
-void prim_file_touch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_file_touch(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
 }
 
-void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
   word_t srcLen, destLen;
   srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
@@ -1075,7 +1109,7 @@ void prim_file_rename_to(struct object_heap* oh, struct Object* args[], word_t a
   oh->cached.interpreter->stack->elements[resultStackPointer] = ((file_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
-void prim_file_information(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_file_information(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char filename[SLATE_FILE_NAME_LENGTH];
   word_t len;
   len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
@@ -1083,14 +1117,14 @@ void prim_file_information(struct object_heap* oh, struct Object* args[], word_t
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
 }
 
-void prim_dir_make(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_make(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char filename[SLATE_FILE_NAME_LENGTH];
   word_t len;
   len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
   oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_make(oh, filename)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
-void prim_dir_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_rename_to(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char src[SLATE_FILE_NAME_LENGTH], dest[SLATE_FILE_NAME_LENGTH];
   word_t srcLen, destLen;
   srcLen = extractCString((struct ByteArray*)args[1], (byte_t*)src, sizeof(src));
@@ -1098,7 +1132,7 @@ void prim_dir_rename_to(struct object_heap* oh, struct Object* args[], word_t ar
   oh->cached.interpreter->stack->elements[resultStackPointer] = ((dir_rename_to(oh, src, dest)) ? oh->cached.true_object : oh->cached.false_object);
 }
 
-void prim_dir_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_delete(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char filename[SLATE_FILE_NAME_LENGTH];
   word_t len;
   len = extractCString((struct ByteArray*)args[1], (byte_t*)filename, sizeof(filename));
@@ -1106,7 +1140,7 @@ void prim_dir_delete(struct object_heap* oh, struct Object* args[], word_t arity
 }
 
 
-void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t /*handle = object_to_smallint(args[2]),*/ n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
@@ -1119,7 +1153,7 @@ void prim_readConsole_from_into_starting_at(struct object_heap* oh, struct Objec
 
 }
 
-void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
@@ -1129,7 +1163,7 @@ void prim_read_from_into_starting_at(struct object_heap* oh, struct Object* args
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
-void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[2]), n = object_to_smallint(args[1]), start = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
@@ -1139,7 +1173,7 @@ void prim_write_to_from_starting_at(struct object_heap* oh, struct Object* args[
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
-void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
   word_t retval = file_seek(oh, handle, n);
   ASSURE_SMALLINT_ARG(1);
@@ -1147,7 +1181,7 @@ void prim_reposition_to(struct object_heap* oh, struct Object* args[], word_t ar
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
-void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   word_t retval = file_tell(oh, handle);
   ASSURE_SMALLINT_ARG(1);
@@ -1156,12 +1190,12 @@ void prim_positionOf(struct object_heap* oh, struct Object* args[], word_t arity
 
 #pragma mark Directory
 
-void prim_dir_open(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_open(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* buf = (struct ByteArray*)args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_open(oh, buf));
 }
 
-void prim_dir_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   ASSURE_SMALLINT_ARG(1);
 
@@ -1169,7 +1203,7 @@ void prim_dir_close(struct object_heap* oh, struct Object* args[], word_t arity,
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 }
 
-void prim_dir_read(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_read(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t handle = object_to_smallint(args[1]);
   struct ByteArray* buf = (struct ByteArray*)args[2];
   word_t retval;
@@ -1181,19 +1215,19 @@ void prim_dir_read(struct object_heap* oh, struct Object* args[], word_t arity, 
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 }
 
-void prim_dir_getcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_getcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* buf = (struct ByteArray*)args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_getcwd(buf));
 }
 
-void prim_dir_setcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_dir_setcwd(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* buf = (struct ByteArray*)args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(dir_setcwd(buf));
 }
 
 #pragma mark Platform
 
-void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bytesPerWord(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(sizeof(word_t));
 }
 
@@ -1201,7 +1235,7 @@ int slate_refresh_systeminfo(struct object_heap* oh) {
   return !(uname(&oh->platform_info));
 }
 
-void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
@@ -1215,7 +1249,7 @@ void prim_system_name(struct object_heap* oh, struct Object* args[], word_t arit
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)result);
 }
 
-void prim_system_release(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_release(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
@@ -1229,7 +1263,7 @@ void prim_system_release(struct object_heap* oh, struct Object* args[], word_t a
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)result);
 }
 
-void prim_system_version(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_version(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
@@ -1243,7 +1277,7 @@ void prim_system_version(struct object_heap* oh, struct Object* args[], word_t a
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)result);
 }
 
-void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
@@ -1257,7 +1291,7 @@ void prim_system_platform(struct object_heap* oh, struct Object* args[], word_t 
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)result);
 }
 
-void prim_system_machine(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_machine(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *result;
   int resultLength;
   if (slate_refresh_systeminfo(oh)) {
@@ -1271,7 +1305,7 @@ void prim_system_machine(struct object_heap* oh, struct Object* args[], word_t a
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)result);
 }
 
-void prim_environment_removekey(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_environment_removekey(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *keyString = args[1];
   size_t keyLength = payload_size(keyString);
   char key[SLATE_FILE_NAME_LENGTH];
@@ -1285,7 +1319,7 @@ void prim_environment_removekey(struct object_heap* oh, struct Object* args[], w
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 }
 
-void prim_environment_atput(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_environment_atput(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *keyString = args[1];
   struct Object *valueString = args[2];
   size_t keyLength = payload_size(keyString);
@@ -1304,13 +1338,13 @@ void prim_environment_atput(struct object_heap* oh, struct Object* args[], word_
   oh->cached.interpreter->stack->elements[resultStackPointer] = (success ? oh->cached.false_object : oh->cached.true_object);
 }
 
-void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_isLittleEndian(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   int x = 1;
   char little_endian = *(char*)&x;
   oh->cached.interpreter->stack->elements[resultStackPointer] = ((little_endian == 1) ? oh->cached.true_object : oh->cached.false_object);
 }
 
-void prim_system_execute(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_system_execute(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *commandString = args[1];
   size_t commandLength = payload_size(commandString);
   char command[SLATE_FILE_NAME_LENGTH];
@@ -1372,7 +1406,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 
 #endif
 
-void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   int64_t time;
   int i;
   struct ByteArray* timeArray;
@@ -1390,7 +1424,7 @@ void prim_timeSinceEpoch(struct object_heap* oh, struct Object* args[], word_t a
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, (struct Object*)timeArray);
 }
 
-void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *handle=args[1], *offset=args[2];
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
   ASSURE_SMALLINT_ARG(1);
@@ -1409,7 +1443,7 @@ void prim_addressOf(struct object_heap* oh, struct Object* args[], word_t arity,
 
 #pragma mark ExternalLibrary
 
-void prim_library_open(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_library_open(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *libname=args[1], *handle = args[2];
 
   if (openExternalLibrary(oh, (struct ByteArray*)libname, (struct ByteArray*)handle)) {
@@ -1420,7 +1454,7 @@ void prim_library_open(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_library_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_library_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *handle=args[1];
 
   if (closeExternalLibrary(oh, (struct ByteArray*) handle)) {
@@ -1431,7 +1465,7 @@ void prim_library_close(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
-void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *handle=args[2], *symname=args[1];
   struct ByteArray* addressBuffer=(struct ByteArray*) args[3];
 
@@ -1443,13 +1477,13 @@ void prim_procAddressOf(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
-void prim_extlibError(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_extlibError(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* messageBuffer=(struct ByteArray*) args[1];
 
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(readExternalLibraryError(messageBuffer));
 }
 
-void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   oh->cached.interpreter->stack->elements[resultStackPointer] =
                          applyExternalLibraryPrimitive(oh, (struct ByteArray*)args[1], 
@@ -1462,7 +1496,7 @@ void prim_applyExternal(struct object_heap* oh, struct Object* args[], word_t ar
 
 #pragma mark MemoryArea
 
-void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object *size=args[1];
   word_t handle;
 
@@ -1480,7 +1514,7 @@ void prim_memory_new(struct object_heap* oh, struct Object* args[], word_t arity
 
 }
 
-void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
@@ -1490,7 +1524,7 @@ void prim_memory_close(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
@@ -1501,7 +1535,7 @@ void prim_memory_size(struct object_heap* oh, struct Object* args[], word_t arit
 
 }
 
-void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct Object* handle = args[1];
   if (object_is_smallint(handle)) {
@@ -1512,7 +1546,7 @@ void prim_memory_addRef(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
-void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct ByteArray* buf = (struct ByteArray*)args[0];
   word_t amount = object_to_smallint(args[1]), startingAt = object_to_smallint(args[3]),
@@ -1534,7 +1568,7 @@ void prim_memory_read(struct object_heap* oh, struct Object* args[], word_t arit
 
 }
 
-void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct ByteArray* buf = (struct ByteArray*)args[0];
   word_t amount = object_to_smallint(args[1]), startingAt = object_to_smallint(args[3]),
@@ -1556,7 +1590,7 @@ void prim_memory_write(struct object_heap* oh, struct Object* args[], word_t ari
 
 }
 
-void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct Object* handle = args[1], *size = args[2];
   if (object_is_smallint(handle) && object_is_smallint(size)) {
@@ -1569,7 +1603,7 @@ void prim_memory_resizeTo(struct object_heap* oh, struct Object* args[], word_t 
 
 }
 
-void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object* obj;
   struct Object* name;
   struct SlotEntry * se;
@@ -1580,7 +1614,7 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
   proto = get_special(oh, SPECIAL_OOP_SMALL_INT_PROTO);
   se = slot_table_entry_for_name(oh, proto->map->slotTable, (struct Symbol*)name);
   if (se == NULL) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SLOT_NOT_FOUND_NAMED), obj, name, NULL, 0, resultStackPointer);
   } else {
     word_t offset = object_to_smallint(se->offset);
     oh->cached.interpreter->stack->elements[resultStackPointer] =  object_slot_value_at_offset(proto, offset);
@@ -1589,7 +1623,7 @@ void prim_smallint_at_slot_named(struct object_heap* oh, struct Object* args[], 
 
 }
 
-void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   struct Interpreter* i = (struct Interpreter*)args[0];
   struct Symbol* selector = (struct Symbol*) args[1];
@@ -1614,7 +1648,7 @@ void prim_frame_pointer_of(struct object_heap* oh, struct Object* args[], word_t
 
 #pragma mark Clone/Daemonize System
 
-void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 #ifdef WIN32
 #pragma message("TODO WIN32 port forking/cloning the system")
 	return;
@@ -1652,7 +1686,7 @@ void prim_cloneSystem(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 /*
- void prim_cloneSystemInProcess(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+ void prim_cloneSystemInProcess(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
  #ifdef WIN32
  #pragma message("TODO WIN32 port cloning/threading a system")
  #else
@@ -1677,7 +1711,7 @@ static void child_handler(int signum) {
 	}
 }
 
-void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	const char* lock_filename = (char*)byte_array_elements((struct ByteArray*) args[1]);
 #ifdef WIN32
 #pragma message("TODO WIN32 port daemonizing a system")
@@ -1777,7 +1811,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 #pragma mark VM invocation arguments
 
 /*TODO: obsolete*/
-void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* arguments = (struct ByteArray*)args[1];
   oh->cached.interpreter->stack->elements[resultStackPointer] = 
                          smallint_to_object(write_args_into(oh, (char*)byte_array_elements(arguments), byte_array_size(arguments)));
@@ -1785,11 +1819,11 @@ void prim_run_args_into(struct object_heap* oh, struct Object* args[], word_t ar
   
 }
 
-void prim_vmArgCount(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_vmArgCount(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(oh->argcSaved);
 }
 
-void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   word_t i;
   int len;
   struct ByteArray* array;
@@ -1807,7 +1841,7 @@ void prim_vmArg(struct object_heap* oh, struct Object* args[], word_t arity, str
   }
 }
 
-void prim_environmentVariables(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_environmentVariables(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   int i, len;
   word_t lenstr;
   Pinned<struct OopArray> array(oh);
@@ -1829,7 +1863,7 @@ void prim_environmentVariables(struct object_heap* oh, struct Object* args[], wo
 }
 
 
-void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   if (oh->currentlyProfiling) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.false_object;
     return;
@@ -1839,7 +1873,7 @@ void prim_startProfiling(struct object_heap* oh, struct Object* args[], word_t a
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
 }
 
-void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   Pinned<struct OopArray> array(oh);
   std::vector<Pinned<struct OopArray> > pinnedArrays;
   std::vector<Pinned<struct Object> > pinnedMethods;
@@ -1940,20 +1974,20 @@ void prim_stopProfiling(struct object_heap* oh, struct Object* args[], word_t ar
 
 }
 
-void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
 }
 
 
 
-void prim_heap_gc(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_heap_gc(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   if (!oh->quiet) {
     printf("Collecting garbage...\n");
   };
   heap_full_gc(oh);
 }
 
-void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   char nameString [SLATE_FILE_NAME_LENGTH];
   struct slate_image_header sih;
   struct Object* name = args[1];
@@ -2025,7 +2059,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
   */
 }
 
-void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   /*  print_stack_types(oh, 128);*/
   /*  print_backtrace(oh);*/
   ASSURE_SMALLINT_ARG(1);
@@ -2037,11 +2071,11 @@ void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, stru
 
 #pragma mark SmallInteger
 
-void prim_equals(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_equals(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = (args[0] == args[1])?oh->cached.true_object:oh->cached.false_object;
 }
 
-void prim_less_than(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_less_than(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
   ASSURE_SMALLINT_ARG(0);
   ASSURE_SMALLINT_ARG(1);
@@ -2049,35 +2083,35 @@ void prim_less_than(struct object_heap* oh, struct Object* args[], word_t arity,
     (object_to_smallint(args[0])<object_to_smallint(args[1]))?oh->cached.true_object:oh->cached.false_object;
 }
 
-void prim_bitand(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bitand(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   ASSURE_SMALLINT_ARG(0);
   ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)((word_t)args[0] & (word_t)args[1]);
 }
-void prim_bitor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bitor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   ASSURE_SMALLINT_ARG(0);
   ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)((word_t)args[0] | (word_t)args[1]);
 }
-void prim_bitxor(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bitxor(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   ASSURE_SMALLINT_ARG(0);
   ASSURE_SMALLINT_ARG(1);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)(((word_t)args[0] ^ (word_t)args[1])|SMALLINT_MASK);
 }
-void prim_bitnot(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bitnot(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   ASSURE_SMALLINT_ARG(0);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)(~((word_t)args[0]) | SMALLINT_MASK);
 }
 
-void prim_smallIntegerMinimum(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_smallIntegerMinimum(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)(((word_t)1<< (sizeof(word_t)*8-1))|1); /*top and smallint bit set*/
 }
 
-void prim_smallIntegerMaximum(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_smallIntegerMaximum(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)LONG_MAX; /*has all bits except the top set*/
 }
 
-void prim_plus(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_plus(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object* x = args[0];
   struct Object* y = args[1];
   word_t z = object_to_smallint(x) + object_to_smallint(y);
@@ -2090,23 +2124,23 @@ void prim_plus(struct object_heap* oh, struct Object* args[], word_t arity, stru
   if (smallint_fits_object(z)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
   } else {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_ADD_OVERFLOW), x, y, NULL, resultStackPointer);
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_ADD_OVERFLOW), x, y, NULL, 0, resultStackPointer);
   }
 }
 
-void prim_exponent(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_exponent(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* x = (struct ByteArray*)args[0];
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object((*(word_t*)float_part(x) >> FLOAT_EXPONENT_OFFSET) & 0xFF);
 
 }
 
-void prim_significand(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_significand(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray* x = (struct ByteArray*)args[0];
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(*(word_t*)float_part(x) & FLOAT_SIGNIFICAND);
 
 }
 
-void prim_withSignificand_exponent(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_withSignificand_exponent(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	/*this is really a bytearray*/
 	word_t significand = object_to_smallint(args[1]), exponent = object_to_smallint(args[2]);
 	struct ByteArray* f = heap_new_float(oh);
@@ -2117,7 +2151,7 @@ void prim_withSignificand_exponent(struct object_heap* oh, struct Object* args[]
 }
 
 /* SmallInteger bitShift: SmallInteger */
-void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t bits = object_to_smallint(args[0]);
 	word_t shift = object_to_smallint(args[1]);
 	word_t z;
@@ -2127,14 +2161,14 @@ void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t arity, 
 	
 	if (shift >= 0) {
 		if (shift >= __WORDSIZE && bits != 0) {
-			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
+			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, 0, resultStackPointer);
 			return;
 		}
 		
 		z = bits << shift;
 		
 		if (!smallint_fits_object(z) || z >> shift != bits) {
-			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
+			interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_BIT_SHIFT_OVERFLOW), args[0], args[1], NULL, 0, resultStackPointer);
 			return;
 		}
 		
@@ -2149,7 +2183,7 @@ void prim_bitshift(struct object_heap* oh, struct Object* args[], word_t arity, 
 }
 
 /* SmallInteger - SmallInteger */
-void prim_minus(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_minus(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* x = args[0];
 	struct Object* y = args[1];
 	word_t z = object_to_smallint(x) - object_to_smallint(y);
@@ -2160,12 +2194,12 @@ void prim_minus(struct object_heap* oh, struct Object* args[], word_t arity, str
 	if (smallint_fits_object(z)) {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
 	} else {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SUBTRACT_OVERFLOW), x, y, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_SUBTRACT_OVERFLOW), x, y, NULL, 0, resultStackPointer);
 	}
 }
 
 /* SmallInteger * SmallInteger */
-void prim_times(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_times(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	word_t x = object_to_smallint(args[0]);
 	word_t y = object_to_smallint(args[1]);
 	word_t z = x * y;
@@ -2176,14 +2210,14 @@ void prim_times(struct object_heap* oh, struct Object* args[], word_t arity, str
 	
 	
 	if (y != 0 && (z / y != x || !smallint_fits_object(z))) { /*thanks slava*/
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), args[0], args[1], NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_MULTIPLY_OVERFLOW), args[0], args[1], NULL, 0, resultStackPointer);
 	} else {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(z);
 	}
 }
 
 /* SmallInteger quo: SmallInteger */
-void prim_quo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_quo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* x = args[0];
 	struct Object* y = args[1];
 	
@@ -2191,7 +2225,7 @@ void prim_quo(struct object_heap* oh, struct Object* args[], word_t arity, struc
 	ASSURE_SMALLINT_ARG(1);
 	
 	if (object_to_smallint(y) == 0) {
-		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_DIVIDE_BY_ZERO), x, y, NULL, resultStackPointer);
+		interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_DIVIDE_BY_ZERO), x, y, NULL, 0, resultStackPointer);
 	} else {
 		oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(object_to_smallint(x) / object_to_smallint(y));
 	}
@@ -2199,7 +2233,7 @@ void prim_quo(struct object_heap* oh, struct Object* args[], word_t arity, struc
 
 #pragma mark Float
 
-void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   if (*float_part(x) == *float_part(y)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
@@ -2208,7 +2242,7 @@ void prim_float_equals(struct object_heap* oh, struct Object* args[], word_t ari
   }
 }
 
-void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   if (*float_part(x) < *float_part(y)) {
     oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.true_object;
@@ -2217,14 +2251,14 @@ void prim_float_less_than(struct object_heap* oh, struct Object* args[], word_t 
   }
 }
 
-void prim_float_plus(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_plus(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = *float_part(x) + *float_part(y);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_minus(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_minus(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = *float_part(x) - *float_part(y);
@@ -2232,53 +2266,53 @@ void prim_float_minus(struct object_heap* oh, struct Object* args[], word_t arit
 }
 
 
-void prim_float_times(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_times(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = *float_part(x) * *float_part(y);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_divide(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_divide(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = *float_part(x) / *float_part(y);
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_raisedTo(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_raisedTo(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0], *y = (struct ByteArray*)args[1];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = pow(*float_part(x), *float_part(y));
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_ln(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_ln(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = log(*float_part(x));
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_exp(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_exp(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = exp(*float_part(x));
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_float_sin(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct ByteArray *x = (struct ByteArray*)args[0];
   struct ByteArray* z = heap_new_float(oh);
   *float_part(z) = sin(*float_part(x));
   oh->cached.interpreter->stack->elements[resultStackPointer] = (struct Object*)z;
 }
 
-void prim_objectPointerAddress(struct object_heap* oh, struct Object* args[], word_t arity, struct OopArray* opts, word_t resultStackPointer) {
+void prim_objectPointerAddress(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object((word_t)args[1]);
 }
 
-void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* opts, word_t resultStackPointer) = {
+void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer) = {
 
  /*0-9*/ prim_as_method_on, prim_as_accessor, prim_map, prim_set_map, prim_fixme, prim_removefrom, prim_clone, prim_clone_setting_slots, prim_clone_with_slot_valued, prim_fixme, 
  /*10-9*/ prim_fixme, prim_fixme, prim_clone_without_slot, prim_at_slot_named, prim_smallint_at_slot_named, prim_at_slot_named_put, prim_forward_to, prim_bytearray_newsize, prim_bytesize, prim_byteat, 
