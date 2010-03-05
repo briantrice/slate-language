@@ -228,15 +228,22 @@ x@(Root traits) license
 
 "Override the more primitive load: commands with high level Module hooks:"
 
-ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
+ns@(Namespace traits) load: fileName@(String traits)
+[
+  ns load: (fileName as: File Locator).
+].
+
+ns@(Namespace traits) load: locator@(File Locator traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
-[| src retry skip |
-  (fileName endsWith: '.image') ifTrue: [error: 'Image filename specified where Slate source expected. Make sure you run slate with the -i flag to specify an image.'].
-  "Load init.slate if specifying just a directory:"
-  src: (File newNamed: ((fileName endsWith: '/') ifTrue: [fileName: fileName ; 'init.slate'] ifFalse: [fileName]) &mode: File Read).
-  src exists ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
-	     ifFalse: [warn: 'You tried to call load: on something that didnt describe a file. Returning the input: ' ; fileName printString. fileName]
+[| src |
+  locator fileType = 'image' ifTrue:
+    [error: 'Image filename specified where Slate source expected. Make sure you run slate with the -i flag to specify an image.'].
+  src: (File newNamed: locator &mode: File Read).
+  src exists ifFalse: [locator fileType `defaultsTo: 'slate'].
+  src exists
+    ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
+    ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Returning the input: ' ; locator printString. locator]
 ].
 
 ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showMessage
