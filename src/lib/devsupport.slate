@@ -72,14 +72,30 @@ obj@(Root traits) completeSelectorFrom: s@(String traits)
   obj allRoles select: [|:item| (item value bitAnd: 1) = 1 /\ [item key beginsWith: s]] collect: [|:item| item key]
 ].
 
-m@(Method traits) editExternally &editor: editor
+m@(Method traits) reload
+[
+  m sourceTree ifNotNilDo:
+    [| :src |
+     (src source resource as: Module) load]
+].
+
+m@(Method traits) editExternally &editor: editor &reload: reload
 [
   editor `defaultsTo: (Environment at: 'EDITOR').
-  m sourceTree ifNotNilDo:
-    [| :src fileName lineNumber |
-     fileName: src source resource locator.
-     lineNumber: src lineNumber.
-     fileName isNotNil /\ [lineNumber isNotNil]
-       ifTrue:
-         [Platform run: editor ; ' +' ; (lineNumber as: String) ; ' ' ; (fileName as: String)]]
+  reload `defaultsTo: False.
+  m sourceTree
+    ifNil:
+      [warn: 'No source information available.'. False]
+    ifNotNilDo:
+      [| :src |
+       src source resource locator
+         ifNil:
+           [warn: 'File-based source information unavailable.'. False]
+         ifNotNilDo:
+           [| :fileName result |
+            result: (Platform run: editor
+              ; (src lineNumber ifNil: [''] ifNotNilDo: [| :n | ' +' ; n printString])
+              ; ' ' ; (fileName as: String)).
+            result /\ reload ifTrue: [m reload].
+            result]]
 ].

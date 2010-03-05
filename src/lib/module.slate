@@ -155,8 +155,9 @@ l@(Load traits) of: file@(File traits)
   l resolvePathOf: file.
   oldLevel: l Level.
   l Level: l Level + 1.
-  [file reader sessionDo: [| :input | l process: input] &mode: file Read] ensure: [l Level: oldLevel]
-    
+  [file sessionDo:
+     [| :input | l process: input reader] &mode: file Read]
+    ensure: [l Level: oldLevel]
 ].
 
 l@(Load traits) resolvePathOf: file@(File traits)
