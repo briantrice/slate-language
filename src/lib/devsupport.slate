@@ -7,20 +7,21 @@
 
 "'' allRoles."
 
-
 x@(Root traits) allRoles
-[ |array writer |
-  array: ExtensibleArray new.
-  writer: array writer.
-  x allDelegates do: [|:delegate| delegate roleReader >> [|:r| r selector -> r rolePositions] >> writer].
-  array
+[
+  [| :result |
+   x allDelegates do:
+     [| :delegate |
+      delegate roleReader >> [| :r | r selector -> r rolePositions] >> result]
+  ] writingAs: ExtensibleArray
 ].
 
 d@(Debugger traits) printCurrentStack &limit: limit &stream: out &showLocation: showLocation
 [
-  d clone `>> [baseFramePointer: (d interpreter framePointerOf: #printCurrentStack).
-               buildFrames. 
-               printBacktrace &limit: limit &stream: out &showLocation: showLocation ]
+  d clone `>>
+    [baseFramePointer: (d interpreter framePointerOf: #printCurrentStack).
+     buildFrames. 
+     printBacktrace &limit: limit &stream: out &showLocation: showLocation ]
 ].
 
 x@(Root traits) methodsUsingMe
@@ -57,7 +58,7 @@ x@(Root traits) printMostCommonlyCalledMethods
 ].
 
 m@(CompiledMethod traits) breakOnEntry
-[ | regCount |
+[| regCount |
   regCount: m registerCount.
   m registerCount: regCount + 2.
   m method code: {VM SSACode loadEnvironment. regCount. 
