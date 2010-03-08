@@ -24,11 +24,6 @@ s@(Symbol traits) sendWith: x with: y
 s@(Symbol traits) sendWith: x with: y with: z
 [s sendTo: {x. y. z}].
 
-m@(PrimitiveMethod traits) applyTo: args
-[
-  error: 'The Slate VM currently does not support #applyTo: calls on PrimitiveMethods.'
-].
-
 m@(Method traits) replaceWith: newM on: args
 "Uninstall the given method from the arguments, which need to be those holding
 the actual role entries pointing to that method for dispatch, and then define
@@ -468,24 +463,4 @@ TODO: Improve the documentation, and add examples."
     ifFalse:
       [TODO: 'Implement multi-argument swing.'
        "[| *args | m applyTo: {args last} ; args allButLast reversed]"]
-].
-
-m@(PrimitiveMethod traits) method
-[
-  m
-].
-
-m@(PrimitiveMethod traits) literals [#()].
-m@(PrimitiveMethod traits) selectors [#()].
-m@(PrimitiveMethod traits) code [Nil].
-m@(PrimitiveMethod traits) sourceTree [Nil].
-m@(PrimitiveMethod traits) registerCount [m arity].
-m@(PrimitiveMethod traits) inputVariables [m arity].
-m@(PrimitiveMethod traits) restVariable [Nil].
-m@(PrimitiveMethod traits) sourceTree [Nil].
-m@(PrimitiveMethod traits) heapAllocate [False].
-
-m@(PrimitiveMethod traits) definitionLocation
-[
-  'primitive:' ; m index printString
 ].
