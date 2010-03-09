@@ -25,7 +25,7 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
   i->stackPointer += n;
 
 #ifdef PRINT_DEBUG_STACK_PUSH
-  printf("stack allocate, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
+  fprintf(stderr, "stack allocate, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
 #endif
 
 }
@@ -33,7 +33,7 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
 void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struct Object* value) {
 
 #ifdef PRINT_DEBUG_STACK_PUSH
-  printf("Stack push at %" PRIdPTR " (fp=%" PRIdPTR "): ", i->stackPointer, i->framePointer); print_type(oh, value);
+  fprintf(stderr, "Stack push at %" PRIdPTR " (fp=%" PRIdPTR "): ", i->stackPointer, i->framePointer); print_type(oh, value);
 #endif
   if (!object_is_smallint(value)) {
     assert(object_hash(value) < ID_HASH_RESERVED); /*catch gc bugs earlier*/
@@ -58,7 +58,7 @@ struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter*
   {
     struct Object* o = i->stack->elements[i->stackPointer];
 #ifdef PRINT_DEBUG_STACK_POINTER
-    printf("popping from stack, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
+    fprintf(stderr, "popping from stack, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
     /*print_detail(oh, o);*/
 #endif
     return o;
@@ -80,12 +80,12 @@ void interpreter_stack_pop_amount(struct object_heap* oh, struct Interpreter* i,
 
 void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n, struct Object* args[]) {
   word_t i;
-  printf("Unhandled signal: "); print_symbol(selector); printf(" with %" PRIdPTR " arguments: \n", n);
+  fprintf(stderr, "Unhandled signal: "); print_symbol(selector); fprintf(stderr, " with %" PRIdPTR " arguments: \n", n);
   for (i = 0; i<n; i++) {
-    printf("arg[%" PRIdPTR "] = ", i);
+    fprintf(stderr, "arg[%" PRIdPTR "] = ", i);
     print_detail(oh, args[i]);
   }
-  printf("partial stack: \n");
+  fprintf(stderr, "partial stack: \n");
   /*print_stack_types(oh, 200);*/
   print_backtrace(oh);
   assert(0);
@@ -177,7 +177,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   
 
 #ifdef PRINT_DEBUG
-  printf("apply to arity %" PRIdPTR "\n", n);
+  fprintf(stderr, "apply to arity %" PRIdPTR "\n", n);
 #endif
 
   struct Object* traitsWindow = closure->base.map->delegates->elements[0];
@@ -318,13 +318,13 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       if ((struct Object*)def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
-        printf("PIC miss\n");
+        fprintf(stderr, "PIC miss\n");
 #endif
 
       }
       else {
 #ifdef PRINT_DEBUG_PIC_HITS
-        printf("PIC hit\n");
+        fprintf(stderr, "PIC hit\n");
 #endif
       }
     }
@@ -336,7 +336,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
   } else {
 #ifdef PRINT_DEBUG_PIC_HITS
-    printf("Using PIC over dispatch\n");
+    fprintf(stderr, "Using PIC over dispatch\n");
 #endif
   }
   if ((struct Object*)def == NULL) {
@@ -371,7 +371,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
-    printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+    fprintf(stderr, "calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
     
@@ -414,9 +414,9 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   word_t resultStackPointer;
 
 #ifdef PRINT_DEBUG_FUNCALL
-      printf("interpreter_return_result BEFORE\n");
-      printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
-      printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
+      fprintf(stderr, "interpreter_return_result BEFORE\n");
+      fprintf(stderr, "stack pointer: %" PRIdPTR "\n", i->stackPointer);
+      fprintf(stderr, "frame pointer: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, MAX_ARITY);
 #endif
 
@@ -440,7 +440,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
    if this is right*/
   if (result != NULL) {
 #ifdef PRINT_DEBUG_STACK
-    printf("setting stack[%" PRIdPTR "] = ", resultStackPointer); print_object(result);
+    fprintf(stderr, "setting stack[%" PRIdPTR "] = ", resultStackPointer); print_object(result);
 #endif
 
     i->stack->elements[resultStackPointer] = result;
@@ -452,12 +452,12 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     Pinned<struct Object> ensureHandler(oh);
     ensureHandler = i->stack->elements[ensureHandlers+1];
 #ifdef PRINT_DEBUG_ENSURE
-  printf("current ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
+  fprintf(stderr, "current ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
     assert(object_to_smallint(i->stack->elements[ensureHandlers]) < 0x1000000); /*sanity check*/
     i->ensureHandlers = i->stack->elements[ensureHandlers];
 #ifdef PRINT_DEBUG_ENSURE
-  printf("reset ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
+  fprintf(stderr, "reset ensure handlers at %" PRIdPTR "\n", object_to_smallint(i->ensureHandlers));
 #endif
 
     interpreter_stack_push(oh, i, smallint_to_object(i->stackPointer));
@@ -508,9 +508,9 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   i->codeSize = array_size(i->method->code);
 
 #ifdef PRINT_DEBUG_FUNCALL
-      printf("interpreter_return_result AFTER\n");
-      printf("stack pointer: %" PRIdPTR "\n", i->stackPointer);
-      printf("frame pointer: %" PRIdPTR "\n", i->framePointer);
+      fprintf(stderr, "interpreter_return_result AFTER\n");
+      fprintf(stderr, "stack pointer: %" PRIdPTR "\n", i->stackPointer);
+      fprintf(stderr, "frame pointer: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, MAX_ARITY);
 #endif
 
@@ -571,7 +571,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   traitsWindow = method->base.map->delegates->elements[0];
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
-    printf("calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
+    fprintf(stderr, "calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, n, NULL, 0, resultStackPointer);
     return;
@@ -674,9 +674,9 @@ void interpret(struct object_heap* oh) {
 #endif
 
 #ifdef PRINT_DEBUG
-  printf("Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
+  fprintf(stderr, "Interpret: img:%p size:%" PRIdPTR " spec:%p next:%" PRIdPTR "\n",
          (void*)oh->memoryOld, oh->memoryOldSize, (void*)oh->special_objects_oop, oh->lastHash);
-  printf("Special oop: "); print_object((struct Object*)oh->special_objects_oop);
+  fprintf(stderr, "Special oop: "); print_object((struct Object*)oh->special_objects_oop);
 #endif
 
   cache_specials(oh);
@@ -689,10 +689,10 @@ void interpret(struct object_heap* oh) {
   pinnedObjects[5] = (struct Object*) oh->cached.closure_method_window;
 
 #ifdef PRINT_DEBUG
-  printf("Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
-  printf("Interpreter stack size: %" PRIdPTR "\n", oh->cached.interpreter->stackSize);
-  printf("Interpreter stack pointer: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
-  printf("Interpreter frame pointer: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
+  fprintf(stderr, "Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
+  fprintf(stderr, "Interpreter stack size: %" PRIdPTR "\n", oh->cached.interpreter->stackSize);
+  fprintf(stderr, "Interpreter stack pointer: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
+  fprintf(stderr, "Interpreter frame pointer: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
 #endif 
   /*fixme this should only be called in the initial bootstrap because
     the stack doesn't have enough room for the registers */
@@ -719,7 +719,7 @@ void interpret(struct object_heap* oh) {
       }
       
       if (globalInterrupt) {
-        printf("\nInterrupting...\n");
+        fprintf(stderr, "\nInterrupting...\n");
         interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, 0, object_to_smallint(i->stack->elements[i->framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]));
         globalInterrupt = 0;
       }
@@ -734,7 +734,7 @@ void interpret(struct object_heap* oh) {
       prevPointer = i->codePointer;
       op = (word_t)i->method->code->elements[i->codePointer];
 #ifdef PRINT_DEBUG_CODE_POINTER
-      printf("(%" PRIdPTR "/%" PRIdPTR ") %" PRIdPTR " ", i->codePointer, i->codeSize, op>>1);
+      fprintf(stderr, "(%" PRIdPTR "/%" PRIdPTR ") %" PRIdPTR " ", i->codePointer, i->codeSize, op>>1);
 #endif
       i->codePointer++;
 
@@ -752,7 +752,7 @@ void interpret(struct object_heap* oh) {
 
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
+          fprintf(stderr, "send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
           print_type(oh, selector);
 #endif
           assert(arity <= MAX_ARITY);
@@ -779,7 +779,7 @@ void interpret(struct object_heap* oh) {
           optsArray = (struct OopArray*)SSA_REGISTER(optsArrayReg);
           optCount = array_size(optsArray);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
+          fprintf(stderr, "send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
           print_type(oh, selector);
 #endif
           assert(arity <= MAX_ARITY && optCount <= MAX_OPTS);
@@ -833,7 +833,7 @@ void interpret(struct object_heap* oh) {
           size = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("new array, result: %" PRIdPTR ", size: %" PRIdPTR "\n", result, size);
+          fprintf(stderr, "new array, result: %" PRIdPTR ", size: %" PRIdPTR "\n", result, size);
 #endif
           array = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), size);
           for (k = 0; k < size; k++) {
@@ -841,7 +841,7 @@ void interpret(struct object_heap* oh) {
           }
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)array);
 #ifdef PRINT_DEBUG_STACK
-    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
+    fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)array);
 #endif
           ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) array;
@@ -855,7 +855,7 @@ void interpret(struct object_heap* oh) {
           result = SSA_NEXT_PARAM_SMALLINT;
           block = (struct CompiledMethod*)SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("new closure, result: %" PRIdPTR ", block", result);
+          fprintf(stderr, "new closure, result: %" PRIdPTR ", block", result);
           print_type(oh, (struct Object*)block);
 #endif
           if ((struct CompiledMethod *) i->closure == i->method) {
@@ -872,13 +872,13 @@ void interpret(struct object_heap* oh) {
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)i->lexicalContext);
 #if 1
           if (object_is_free((struct Object*)block)) {
-            /*printf("%d\n", instruction_counter);*/
+            /*fprintf(stderr, "%d\n", instruction_counter);*/
           }
 #endif
           heap_store_into(oh, (struct Object*)newClosure, (struct Object*)block);
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)newClosure);
 #ifdef PRINT_DEBUG_STACK
-    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
+    fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(result)); print_object((struct Object*)newClosure);
 #endif
           ASSERT_VALID_REGISTER(result);
           SSA_REGISTER(result) = (struct Object*) newClosure;
@@ -891,12 +891,12 @@ void interpret(struct object_heap* oh) {
           destReg = SSA_NEXT_PARAM_SMALLINT;
           literal = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load literal into reg %" PRIdPTR ", value: ", destReg);
+          fprintf(stderr, "load literal into reg %" PRIdPTR ", value: ", destReg);
           print_type(oh, literal);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, literal);
 #ifdef PRINT_DEBUG_STACK
-    printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
+    fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object((struct Object*)literal);
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = literal;
@@ -908,7 +908,7 @@ void interpret(struct object_heap* oh) {
           resultRegister = SSA_NEXT_PARAM_SMALLINT;
           lexicalOffset = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("resend message reg %" PRIdPTR ", offset: %" PRIdPTR "\n", resultRegister, lexicalOffset);
+          fprintf(stderr, "resend message reg %" PRIdPTR ", offset: %" PRIdPTR "\n", resultRegister, lexicalOffset);
 #endif
           interpreter_resend_message(oh, i, lexicalOffset, i->framePointer + resultRegister);
           break;
@@ -918,18 +918,18 @@ void interpret(struct object_heap* oh) {
           word_t var;
           var = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load var %" PRIdPTR "\n", var);
+          fprintf(stderr, "load var %" PRIdPTR "\n", var);
 #endif
           if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->lexicalContext);
 #ifdef PRINT_DEBUG_STACK
-            printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
+            fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(var)); print_object(i->lexicalContext->variables[var]);
 #endif
             ASSERT_VALID_REGISTER(var);
             SSA_REGISTER(var) = i->lexicalContext->variables[var];
           }
 #ifdef PRINT_DEBUG_OPCODES
-          printf("var val =");
+          fprintf(stderr, "var val =");
           print_type(oh, SSA_REGISTER(var));
 #endif
           /*if it's not heap allocated the register is already loaded*/
@@ -940,7 +940,7 @@ void interpret(struct object_heap* oh) {
           word_t var;
           var = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("store var %" PRIdPTR "\n", var);
+          fprintf(stderr, "store var %" PRIdPTR "\n", var);
 #endif
           if (i->method->heapAllocate == oh->cached.true_object) {
             heap_store_into(oh, (struct Object*)i->lexicalContext, (struct Object*)i->stack);
@@ -948,7 +948,7 @@ void interpret(struct object_heap* oh) {
           }
           /*if it's not heap allocated the register is already loaded*/
 #ifdef PRINT_DEBUG_OPCODES
-          printf("var val =");
+          fprintf(stderr, "var val =");
           print_type(oh, SSA_REGISTER(var));
 #endif
           break;
@@ -960,17 +960,17 @@ void interpret(struct object_heap* oh) {
           lexOffset = SSA_NEXT_PARAM_SMALLINT;
           varIndex = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load free var to: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", destReg, lexOffset, varIndex);
+          fprintf(stderr, "load free var to: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", destReg, lexOffset, varIndex);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->closure->lexicalWindow[lexOffset-1]);
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
+          fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(i->closure->lexicalWindow[lexOffset-1]->variables[varIndex]);
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = i->closure->lexicalWindow[lexOffset-1]->variables[varIndex];
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("var val =");
+          fprintf(stderr, "var val =");
           print_type(oh, SSA_REGISTER(destReg));
 #endif
           break;
@@ -982,13 +982,13 @@ void interpret(struct object_heap* oh) {
           varIndex = SSA_NEXT_PARAM_SMALLINT;
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("store free var from: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", srcReg, lexOffset, varIndex);
+          fprintf(stderr, "store free var from: %" PRIdPTR ", lexoffset: %" PRIdPTR ", index: %" PRIdPTR "\n", srcReg, lexOffset, varIndex);
 #endif
           heap_store_into(oh, (struct Object*)i->closure->lexicalWindow[lexOffset-1], (struct Object*)i->stack);
           i->closure->lexicalWindow[lexOffset-1]->variables[varIndex] = SSA_REGISTER(srcReg);
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("var val =");
+          fprintf(stderr, "var val =");
           print_type(oh, SSA_REGISTER(srcReg));
 #endif
           break;
@@ -1000,11 +1000,11 @@ void interpret(struct object_heap* oh) {
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("move reg %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
+          fprintf(stderr, "move reg %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, SSA_REGISTER(srcReg));
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
+          fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(destReg)); print_object(SSA_REGISTER(srcReg));
 #endif
           ASSERT_VALID_REGISTER(destReg);
           SSA_REGISTER(destReg) = SSA_REGISTER(srcReg);
@@ -1027,13 +1027,13 @@ void interpret(struct object_heap* oh) {
           srcReg = SSA_NEXT_PARAM_SMALLINT;
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("is identical %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
+          fprintf(stderr, "is identical %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
 #endif
           ASSERT_VALID_REGISTER(resultReg);
           
           SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true_object : oh->cached.false_object;
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
+          fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
 #endif
           break;
         }
@@ -1047,7 +1047,7 @@ void interpret(struct object_heap* oh) {
 
           /*assert(0);*/
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
+          fprintf(stderr, "branch keyed: %" PRIdPTR "/%" PRIdPTR "\n", tableReg, keyReg);
 #endif
           table = (struct OopArray*)SSA_REGISTER(tableReg);
           key = (struct OopArray*)SSA_REGISTER(keyReg);
@@ -1065,7 +1065,7 @@ void interpret(struct object_heap* oh) {
           val = SSA_REGISTER(condReg);
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch if true: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
+          fprintf(stderr, "branch if true: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
           print_type(oh, val);
 #endif
           if (val == oh->cached.true_object) {
@@ -1088,7 +1088,7 @@ void interpret(struct object_heap* oh) {
           val = SSA_REGISTER(condReg);
 
 #ifdef PRINT_DEBUG_OPCODES
-          printf("branch if false: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
+          fprintf(stderr, "branch if false: %" PRIdPTR ", offset: %" PRIdPTR ", val: ", condReg, offset);
           print_type(oh, val);
 #endif
           if (val == oh->cached.false_object) {
@@ -1107,7 +1107,7 @@ void interpret(struct object_heap* oh) {
           offset = SSA_NEXT_PARAM_SMALLINT - 1;
           assert(offset < 20000 && offset > -20000);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("jump to offset: %" PRIdPTR "\n", offset);
+          fprintf(stderr, "jump to offset: %" PRIdPTR "\n", offset);
 #endif
           i->codePointer = i->codePointer + offset;
           
@@ -1118,14 +1118,14 @@ void interpret(struct object_heap* oh) {
           word_t next_param;
           next_param = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("load environment into reg %" PRIdPTR ", value: ", next_param);
+          fprintf(stderr, "load environment into reg %" PRIdPTR ", value: ", next_param);
           print_type(oh, i->method->environment);
 #endif
           heap_store_into(oh, (struct Object*)i->stack, (struct Object*)i->method->environment);
           ASSERT_VALID_REGISTER(next_param);
           SSA_REGISTER(next_param) = i->method->environment;
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
+          fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(next_param)); print_object(SSA_REGISTER(next_param));
 #endif
           break;
         }
@@ -1134,18 +1134,18 @@ void interpret(struct object_heap* oh) {
           word_t reg;
           reg = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("return reg %" PRIdPTR ", value: ", reg);
+          fprintf(stderr, "return reg %" PRIdPTR ", value: ", reg);
           print_type(oh, SSA_REGISTER(reg));
 #endif
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: ", instruction_counter);
+          fprintf(stderr, "%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
           Pinned<struct Object> result(oh);
           result = SSA_REGISTER(reg);
           interpreter_return_result(oh, i, 0, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("in function: \n");
+          fprintf(stderr, "in function: \n");
           print_type(oh, (struct Object*)i->method);
 #endif
           break;
@@ -1158,7 +1158,7 @@ void interpret(struct object_heap* oh) {
           /*interpreter_return_result(oh, i, 0, NULL);*/
           interpreter_return_result(oh, i, 0, NULL, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("in function: \n");
+          fprintf(stderr, "in function: \n");
           print_type(oh, (struct Object*)i->method);
 #endif
           break;
@@ -1170,18 +1170,18 @@ void interpret(struct object_heap* oh) {
           reg = SSA_NEXT_PARAM_SMALLINT;
           offset = SSA_NEXT_PARAM_SMALLINT;
 #ifdef PRINT_DEBUG_OPCODES
-          printf("return result reg: %" PRIdPTR ", offset: %" PRIdPTR ", value: ", reg, offset);
+          fprintf(stderr, "return result reg: %" PRIdPTR ", offset: %" PRIdPTR ", value: ", reg, offset);
           print_type(oh, SSA_REGISTER(reg));
 #endif
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: ", instruction_counter);
+          fprintf(stderr, "%" PRIuPTR "u: ", instruction_counter);
 #endif
           ASSERT_VALID_REGISTER(reg);
           Pinned<struct Object> result(oh);
           result = SSA_REGISTER(reg);
           interpreter_return_result(oh, i, offset, result, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("in function: \n");
+          fprintf(stderr, "in function: \n");
           print_type(oh, (struct Object*)i->method);
 #endif
           break;
@@ -1192,11 +1192,11 @@ void interpret(struct object_heap* oh) {
           PRINTOP("op: return obj\n");
           obj = SSA_NEXT_PARAM_OBJECT;
 #ifdef PRINT_DEBUG_STACK
-          printf("%" PRIuPTR "u: ", instruction_counter);
+          fprintf(stderr, "%" PRIuPTR "u: ", instruction_counter);
 #endif
           interpreter_return_result(oh, i, 0, obj, prevPointer);
 #ifdef PRINT_DEBUG_OPCODES
-          printf("in function: \n");
+          fprintf(stderr, "in function: \n");
           print_type(oh, (struct Object*)i->method);
 #endif
           break;
@@ -1315,7 +1315,7 @@ void interpret(struct object_heap* oh) {
         }
 
       default:
-        printf("error bad opcode... %" PRIdPTR "\n", op>>1);
+        fprintf(stderr, "error bad opcode... %" PRIdPTR "\n", op>>1);
         assert(0);
         break;
       }

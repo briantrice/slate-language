@@ -195,9 +195,9 @@ int main(int argc, char** argv, char **envp) {
   heap->quietGC = quietGC;
   heap->envp = envp;
   if (!heap->quiet) {
-    printf("Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
-    printf("New Memory size: %" PRIdPTR " bytes\n", young_limit);
-    printf("Image size: %" PRIdPTR " bytes\n", sih.size);
+    fprintf(stderr, "Old Memory size: %" PRIdPTR " bytes\n", memory_limit);
+    fprintf(stderr, "New Memory size: %" PRIdPTR " bytes\n", young_limit);
+    fprintf(stderr, "Image size: %" PRIdPTR " bytes\n", sih.size);
   }
 
   // Read in the heap contents from the image file:
