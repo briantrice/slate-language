@@ -24,6 +24,30 @@ s@(Symbol traits) sendWith: x with: y
 s@(Symbol traits) sendWith: x with: y with: z
 [s sendTo: {x. y. z}].
 
+m@(Method traits) selector
+"By default, Methods are not named, so this answers Nil."
+[Nil].
+
+m@(Method traits) isNamed
+"Answer whether the method has been defined with a dispatch signature."
+[m selector isNotNil].
+
+m@(Closure traits) new [m clone].
+m@(Closure traits) arity [m method arity].
+m@(Closure traits) acceptsAdditionalArguments [m method acceptsAdditionalArguments].
+m@(Closure traits) allSelectorsSent [m method allSelectorsSent].
+m@(Closure traits) selector [m method selector].
+m@(Closure traits) optionalKeywords [m method optionalKeywords].
+
+m@(CompiledMethod traits) arity
+"Uses the slot which declares the number of input variables to answer the
+method's arity."
+[m inputVariables].
+
+m@(CompiledMethod traits) acceptsAdditionalArguments
+"Answers whether the method has a *rest paramter."
+[m restVariable].
+
 m@(Method traits) replaceWith: newM on: args
 "Uninstall the given method from the arguments, which need to be those holding
 the actual role entries pointing to that method for dispatch, and then define
