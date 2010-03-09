@@ -28,20 +28,22 @@ x@(Root traits) methodsUsingMe
 [
   [| :result |
    x allDelegates do:
-     [| :deleg |
-      deleg roleReader do:
-        [| :role findOnArray positions |
-         findOnArray: (Array newSize: (role selector arity `cacheAs: #arity)).
+     [| :delegate |
+      delegate roleReader do:
+        [| :role selector findOnArray positions |
+         selector: role selector.
+         findOnArray: (Array newSize: selector arity).
          positions: role rolePositions.
-         0 below: arity do:
+         findOnArray keysDo:
            [| :position |
             findOnArray at: position put:
-              ((positions bitAnd: 1 << position) ~= 0
-                 ifTrue: [x] ifFalse: [NoRole]).
+              ((positions bitAnd: 1 << position) isZero
+                 ifTrue: [NoRole] ifFalse: [x]).
             (role selector findOn: findOnArray) ifNotNilDo:
               [| :method |
                (method isSameAs: PrimitiveMethod) ifFalse:
-                 [result nextPut: method method]]]]]] writingAs: Set
+                 [result nextPut: method method]]]]]
+  ] writingAs: Set
 ].
 
 x@(Root traits) mostCommonlyCalledMethods
