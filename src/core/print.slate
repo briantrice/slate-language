@@ -93,18 +93,18 @@ x@(Root traits) prettyPrinted
 (DebugConsole writeStream is: Stream PrettyPrinter)
   ifFalse: [DebugConsole atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: DebugConsole writer)].
 
-x@(Root traits) printString &radix: radix &precision: prec
+x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign
 "Utility for pretty-printing to a String."
 [| printer |
   [printer: '' prettyPrinter.
-   x printOn: printer &radix: radix &precision: prec.
+   x printOn: printer &radix: radix &precision: prec &forceSign: forceSign.
    ^ printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
 
-x@(Root traits) print &radix: radix &precision: prec
+x@(Root traits) print &radix: radix &precision: prec &forceSign: forceSign
 "Print the object on the Console. Always answers the object back."
 [
-  x printOn: Console writer &radix: radix &precision: prec.
+  x printOn: Console writer &radix: radix &precision: prec &forceSign: forceSign.
   x
 ].
 
@@ -192,7 +192,7 @@ original argument."
     ifFalse: [name printOn: o]
 ].
 
-n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix
+n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &forceSign: forceSign
 "Print the Integer in any given basis between 2 and 36 (alphanumeric limit),
 with sign. This works by collecting the digits and a "
 [| digits x |
@@ -204,7 +204,10 @@ with sign. This works by collecting the digits and a "
     ifTrue:
       [o ; '-'.
        n negated printOn: o &radix: radix.
-       ^ o].
+       ^ o]
+    ifFalse:
+      [forceSign isNotNil /\ [forceSign]
+         ifTrue: [o ; '+']].
   n isZero
     ifTrue: [^ (o ; '0')].
   digits: '' prettyPrinter.
@@ -249,7 +252,7 @@ m@(Method traits) printOn: o@(PrettyPrinterMixin traits)
 m@(Method Converse traits) printOn: o@(PrettyPrinterMixin traits)
 [m method printOn: o. o ; ' converse'].
 
-f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision: precision
+f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision: precision &forceSign: forceSign
 "Taken from 'Printing Floating-Point Numbers Quickly and Accurately',
  Robert G. Burger and R. Kent Dybvig, PLDI '96."
 [| digits significand exponent k b r s mUp mDown d decimal |
@@ -325,7 +328,8 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
   ] whileFalse.
   digits: digits contents.
   f isNegative
-    ifTrue: [o ; '-'].
+    ifTrue: [o ; '-']
+    ifFalse: [forceSign isNotNil /\ [forceSign] ifTrue: [o ; '+']].
   f abs < o floatMinimum \/ [f abs > o floatMaximum]
     ifTrue: [decimal: 1]
     ifFalse: [decimal: (k max: 0)].
