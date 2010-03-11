@@ -291,8 +291,9 @@ void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_UNOPTIMIZER
   fprintf(stderr, "Unoptimizing '"); print_symbol(method->selector); fprintf(stderr, "'\n");
 #endif
+  // FIXME handle methods with in-progress call-stack occurrences gracefully.
   if (method_on_call_stack(oh, method)) {
-    fprintf(stderr, "Fixme cannot unoptimizing because on call stack: '"); print_symbol(method->selector); fprintf(stderr, "'\n");
+    fprintf(stderr, "Unoptimizing due to presence in the call stack: '"); print_symbol(method->selector); fprintf(stderr, "'\n");
     return;
   }
 
