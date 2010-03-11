@@ -78,8 +78,9 @@ and control."
 
   ns@(repl namespace) inform: message &target: r
   "A simple way to print a message onto an ExternalResource (by default the Console)."
-  [r `defaultsTo: ns repl resource.
-   r writer ; message ; '\n'.
+  [| *rest |
+   r `defaultsTo: ns repl resource.
+   r writer ; (rest isEmpty ifTrue: [message] ifFalse: [#sprintf* sendTo: {message} ; rest]) ; '\n'.
    r writer flush. ].
 
   ns@(repl namespace) print: obj &target: r
