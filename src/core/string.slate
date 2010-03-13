@@ -506,20 +506,18 @@ s@(String traits) sprintf*
                    argsIndex: argsIndex + 1].
                 arg: (args at: position).
                 nextChar: input next.
-                ('diu' includes: nextChar) ifTrue:
-                  [arg: (arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil)].
-                ('xX' includes: nextChar) ifTrue:
-                  [arg: (arg printString &radix: 16 &precision: precision &forceSign: plus isNotNil).
-                   nextChar = $X ifTrue: [arg toUppercase]].
-                ('o' includes: nextChar) ifTrue:
-                  [arg: (arg printString &radix: 8 &precision: precision &forceSign: plus isNotNil)].
-                ('fFeE' includes: nextChar) ifTrue:
-                  [arg: (arg printString &precision: precision &forceSign: plus isNotNil).
-                   ('FE' includes: nextChar) ifTrue: [arg toUppercase]].
-                nextChar == $r ifTrue:
-                  [arg: arg printString].
-                nextChar == $s ifTrue:
-                  [arg: (arg as: s)].
+                arg: (nextChar toLowercase caseOf: {
+                  $r -> [arg printString].
+                  $s -> [arg as: s].
+                  $d -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $i -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $u -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $o -> [arg printString &radix: 8 &precision: precision &forceSign: plus isNotNil].
+                  $x -> [arg printString &radix: 16 &precision: precision &forceSign: plus isNotNil].
+                  $f -> [arg printString &precision: precision &forceSign: plus isNotNil].
+                  $e -> [arg printString &precision: precision &forceSign: plus isNotNil].
+                } otherwise: [arg as: s]).
+                nextChar isUppercase ifTrue: [arg toUppercase].
                 width ifNotNil:
                   [arg: (arg truncateTo: width paddedBy: (zero ifNil: [$\s] ifNotNil: [$0]) &onRight: minus isNotNil)].
                 result ; arg.
