@@ -25,7 +25,7 @@ void print_object(struct Object* oop) {
 
 
 void print_symbol(struct Symbol* name) {
-  if (fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stdout) != (size_t)payload_size((struct Object*)name)) {
+  if (fwrite(&name->elements[0], 1, payload_size((struct Object*)name), stderr) != (size_t)payload_size((struct Object*)name)) {
     /*handle error*/
   }
 }
