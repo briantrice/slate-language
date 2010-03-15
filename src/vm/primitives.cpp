@@ -12,7 +12,7 @@
 
 void prim_fixme(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object* x = args[0];
-  printf("UNIMPLEMENTED PRIMITIVE\n");
+  fprintf(stderr, "UNIMPLEMENTED PRIMITIVE\n");
   interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, 0, resultStackPointer);
 }
 
@@ -51,7 +51,7 @@ void prim_forward_to(struct object_heap* oh, struct Object* args[], word_t arity
 	if (x == get_special(oh, SPECIAL_OOP_NIL) 
 		|| x == get_special(oh, SPECIAL_OOP_TRUE)
 		|| x == get_special(oh, SPECIAL_OOP_FALSE)) {
-		printf("Error... you cannot call forwardTo on this special object (did you add a slot to Nil/True/False?)\n");
+		fprintf(stderr, "Error... you cannot call forwardTo on this special object (did you add a slot to Nil/True/False?)\n");
 		interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), x, NULL, 0, resultStackPointer); \
 		return;
 	}
@@ -293,7 +293,7 @@ void prim_ensure(struct object_heap* oh, struct Object* args[], word_t arity, st
   interpreter_stack_push(oh, oh->cached.interpreter, ensureHandler);
   oh->cached.interpreter->ensureHandlers = smallint_to_object(oh->cached.interpreter->stackPointer - 2);
 #ifdef PRINT_DEBUG_ENSURE
-	printf("ensure handlers at %" PRIdPTR "\n", oh->cached.interpreter->stackPointer - 2);
+	fprintf(stderr, "ensure handlers at %" PRIdPTR "\n", oh->cached.interpreter->stackPointer - 2);
 #endif
 	
 }
@@ -381,17 +381,17 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 	method_flush_cache(oh, selector);
 #ifdef PRINT_DEBUG_DEFUN
 	if (!oh->quiet) {
-		printf("Defining function '"); print_symbol(selector);
-		printf("' on: ");
-		if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
+		fprintf(stderr, "Defining function '"); print_symbol(selector);
+		fprintf(stderr, "' on: ");
+		if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) fprintf(stderr, "NoRole");
 		{
 			word_t i;
 			for (i = 1; i < object_array_size(roles); i++) {
-				printf(", ");
-				if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+				fprintf(stderr, ", ");
+				if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) fprintf(stderr, "NoRole");
 			}
 		}
-		printf("\n");
+		fprintf(stderr, "\n");
 	}
 #endif
 	
@@ -471,17 +471,17 @@ void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t arit
 	
 #ifdef PRINT_DEBUG_DEFUN
 	if (!oh->quiet) {
-		printf("Defining accessor '"); print_symbol(selector);
-		printf("' on: ");
-		if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) printf("NoRole");
+		fprintf(stderr, "Defining accessor '"); print_symbol(selector);
+		fprintf(stderr, "' on: ");
+		if (!print_printname(oh, ((struct OopArray*)roles)->elements[0])) fprintf(stderr, "NoRole");
 		{
 			word_t i;
 			for (i = 1; i < array_size(roles); i++) {
-				printf(", ");
-				if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) printf("NoRole");
+				fprintf(stderr, ", ");
+				if (!print_printname(oh, ((struct OopArray*)roles)->elements[i])) fprintf(stderr, "NoRole");
 			}
 		}
-		printf("\n");
+		fprintf(stderr, "\n");
 	}
 #endif
 }
@@ -1726,7 +1726,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 	if (lock_filename && lock_filename[0]) {
 		lfp = open(lock_filename,O_RDWR|O_CREAT,0640);
 		if (lfp < 0) {
-			printf("Unable to create lock file %s, code=%d (%s)",
+			fprintf(stderr, "Unable to create lock file %s, code=%d (%s)",
 				   lock_filename, errno, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
@@ -1737,7 +1737,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 		struct passwd *pw = getpwnam(RUN_AS_USER);
 		if (pw) {
 			if (!oh->quiet)
-				printf("Setting user to " RUN_AS_USER);
+				fprintf(stderr, "Setting user to " RUN_AS_USER);
 			setuid(pw->pw_uid);
 		}
 	}
@@ -1750,7 +1750,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 	/* Fork off the parent process */
 	pid = fork();
 	if (pid < 0) {
-		printf("Unable to fork daemon, code=%d (%s)",
+		fprintf(stderr, "Unable to fork daemon, code=%d (%s)",
 			   errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -1782,7 +1782,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 	/* Create a new SID for the child process */
 	sid = setsid();
 	if (sid < 0) {
-		printf("Unable to create a new session, code %d (%s)",
+		fprintf(stderr, "Unable to create a new session, code %d (%s)",
 			   errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -1790,7 +1790,7 @@ void prim_daemonizeSystem(struct object_heap* oh, struct Object* args[], word_t 
 	/* Change the current working directory.  This prevents the current
      directory from being locked; hence not being able to remove it. */
 	if ((chdir("/")) < 0) {
-		printf("Unable to change directory to %s, code %d (%s)",
+		fprintf(stderr, "Unable to change directory to %s, code %d (%s)",
 			   "/", errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -1982,7 +1982,7 @@ void prim_profilerStatistics(struct object_heap* oh, struct Object* args[], word
 
 void prim_heap_gc(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   if (!oh->quiet) {
-    printf("Collecting garbage...\n");
+    fprintf(stderr, "Collecting garbage...\n");
   };
   heap_full_gc(oh);
 }
@@ -2025,7 +2025,7 @@ void prim_save_image(struct object_heap* oh, struct Object* args[], word_t arity
 		
     return;
   }
-  printf("Saving image to %s\n", nameString);
+  fprintf(stderr, "Saving image to %s\n", nameString);
   heap_full_gc(oh);
   totalSize = oh->memoryOldSize + oh->memoryYoungSize;
   forwardPointerEntryCount = ((totalSize / 4) + sizeof(struct ForwardPointerEntry) - 1) / sizeof(struct ForwardPointerEntry);
@@ -2064,7 +2064,7 @@ void prim_exit(struct object_heap* oh, struct Object* args[], word_t arity, stru
   /*  print_backtrace(oh);*/
   ASSURE_SMALLINT_ARG(1);
   if (!oh->quiet) {
-    printf("Slate process %d exiting...\n", getpid());
+    fprintf(stderr, "Slate process %d exiting...\n", getpid());
   }
   exit(object_to_smallint(args[1]));
 }

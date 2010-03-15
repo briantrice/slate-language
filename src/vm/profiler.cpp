@@ -29,7 +29,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
   if (!oh->currentlyProfiling) return;
 
 
-  //printf("%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
+  //fprintf(stderr, "%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
 
   oh->profilerTime = getRealTimeClock();
   word_t timeDiff = oh->profilerTime - oh->profilerLastTime;
@@ -84,7 +84,7 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
 
 void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* from, struct Object* to) {
   if (!oh->currentlyProfiling) return;
-  //printf("pf %p -> %p\n", from, to);
+  //fprintf(stderr, "pf %p -> %p\n", from, to);
   if (oh->profiledMethods.find(from) == oh->profiledMethods.end()) return;
   oh->profiledMethods.erase(from); oh->profiledMethods.insert(to);
 
@@ -122,7 +122,7 @@ void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* fro
 /*this will be called when the GC deletes the object*/
 void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   if (!oh->currentlyProfiling) return;
-  //printf("pf del %p\n", method);
+  //fprintf(stderr, "pf del %p\n", method);
   oh->profiledMethods.erase(method);
   oh->profilerSelfTime.erase(method);
   oh->profilerCallCounts.erase(method);

@@ -24,10 +24,29 @@ s@(Symbol traits) sendWith: x with: y
 s@(Symbol traits) sendWith: x with: y with: z
 [s sendTo: {x. y. z}].
 
-m@(PrimitiveMethod traits) applyTo: args
-[
-  error: 'The Slate VM currently does not support #applyTo: calls on PrimitiveMethods.'
-].
+m@(Method traits) selector
+"By default, Methods are not named, so this answers Nil."
+[Nil].
+
+m@(Method traits) isNamed
+"Answer whether the method has been defined with a dispatch signature."
+[m selector isNotNil].
+
+m@(Closure traits) new [m clone].
+m@(Closure traits) arity [m method arity].
+m@(Closure traits) acceptsAdditionalArguments [m method acceptsAdditionalArguments].
+m@(Closure traits) allSelectorsSent [m method allSelectorsSent].
+m@(Closure traits) selector [m method selector].
+m@(Closure traits) optionalKeywords [m method optionalKeywords].
+
+m@(CompiledMethod traits) arity
+"Uses the slot which declares the number of input variables to answer the
+method's arity."
+[m inputVariables].
+
+m@(CompiledMethod traits) acceptsAdditionalArguments
+"Answers whether the method has a *rest paramter."
+[m restVariable].
 
 m@(Method traits) replaceWith: newM on: args
 "Uninstall the given method from the arguments, which need to be those holding
@@ -150,6 +169,10 @@ m@(Method traits) unless: boolean
 m@(Method traits) if: boolean
 "Evaluates the block body if the given condition is True."
 [boolean ifTrue: [m do]].
+
+m@(Method traits) for: src
+"Evaluates the block for each element of the Enumerable (Collection or Stream)."
+[src do: m].
 
 count@(Integer traits) timesRepeat: block
 "Execute the block the number of times of the count, answering Nil."
@@ -464,24 +487,4 @@ TODO: Improve the documentation, and add examples."
     ifFalse:
       [TODO: 'Implement multi-argument swing.'
        "[| *args | m applyTo: {args last} ; args allButLast reversed]"]
-].
-
-m@(PrimitiveMethod traits) method
-[
-  m
-].
-
-m@(PrimitiveMethod traits) literals [#()].
-m@(PrimitiveMethod traits) selectors [#()].
-m@(PrimitiveMethod traits) code [Nil].
-m@(PrimitiveMethod traits) sourceTree [Nil].
-m@(PrimitiveMethod traits) registerCount [m arity].
-m@(PrimitiveMethod traits) inputVariables [m arity].
-m@(PrimitiveMethod traits) restVariable [Nil].
-m@(PrimitiveMethod traits) sourceTree [Nil].
-m@(PrimitiveMethod traits) heapAllocate [False].
-
-m@(PrimitiveMethod traits) definitionLocation
-[
-  'primitive:' ; m index printString
 ].

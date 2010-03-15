@@ -17,7 +17,7 @@ void assert_good_object(struct object_heap* oh, struct Object* obj) {
 
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*)memory;
-  printf("GC integrity check...\n");
+  fprintf(stderr, "GC integrity check...\n");
 
   while (object_in_memory(oh, o, memory, memorySize)) {
 
@@ -73,7 +73,7 @@ struct Object* heap_make_free_space(struct object_heap* oh, struct Object* obj, 
   assert(words > 0);
 
 #ifdef PRINT_DEBUG
-  printf("Making %" PRIdPTR " words of free space at: %p\n", words, (void*)start);
+  fprintf(stderr, "Making %" PRIdPTR " words of free space at: %p\n", words, (void*)start);
 #endif
 
 
@@ -256,7 +256,7 @@ struct Object* gc_allocate(struct object_heap* oh, word_t bytes) {
     } else {
       //heap_print_objects(oh, oh->memoryYoung, oh->memoryYoungSize);
       //print_backtrace(oh);
-      printf("Couldn't allocate %" PRIdPTR " bytes... using oldspace\n", bytes + sizeof(struct Object));
+      fprintf(stderr, "Couldn't allocate %" PRIdPTR " bytes... using oldspace\n", bytes + sizeof(struct Object));
       return gc_allocate_old(oh, bytes);
       //assert(0);
     }
@@ -285,7 +285,7 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
     struct Object* val = object_slot_value_at_offset(o, offset);
     if (val == x) {
 #ifdef PRINT_DEBUG
-      printf("Forwarding pointer in "); print_type(oh, o); printf(" to "); print_type(oh, y);
+      fprintf(stderr, "Forwarding pointer in "); print_type(oh, o); fprintf(stderr, " to "); print_type(oh, y);
 #endif
       object_slot_value_at_offset_put(oh, o, offset, y);
     }
@@ -296,7 +296,7 @@ void object_forward_pointers_to(struct object_heap* oh, struct Object* o, struct
 
 void heap_free_object(struct object_heap* oh, struct Object* obj) {
 #ifdef PRINT_DEBUG_GC_MARKINGS
-  printf("freeing "); print_object(obj);
+  fprintf(stderr, "freeing "); print_object(obj);
 #endif
   //fixme
   //  oh->optimizedMethods.erase((struct CompiledMethod*)obj);
@@ -341,7 +341,7 @@ void heap_start_gc(struct object_heap* oh) {
 void heap_remember_old_object(struct object_heap* oh, struct Object* x) {
   if (object_is_old(oh, x) && !object_is_smallint(x)) {
 #if 0
-    printf("remembering "); print_object(x);
+    fprintf(stderr, "remembering "); print_object(x);
 #endif
     oh->rememberedOldObjects.insert(x);
   }
@@ -358,14 +358,14 @@ void heap_mark(struct object_heap* oh, struct Object* obj) {
 
   if (object_markbit(obj) == oh->mark_color) return;
 #ifdef PRINT_DEBUG_GC_MARKINGS
-  printf("marking "); print_object(obj);
+  fprintf(stderr, "marking "); print_object(obj);
 #endif
   object_set_mark(oh, obj);
   
   if (oh->markStackPosition + 1 >=oh->markStackSize) {
     oh->markStackSize *= 2;
 #ifdef PRINT_DEBUG
-    printf("Growing mark stack to %" PRIdPTR "\n", oh->markStackSize);
+    fprintf(stderr, "Growing mark stack to %" PRIdPTR "\n", oh->markStackSize);
 #endif
     oh->markStack = (struct Object**)realloc(oh->markStack, oh->markStackSize * sizeof(struct Object*));
     assert(oh->markStack);
@@ -451,9 +451,9 @@ void heap_free_and_coalesce_unmarked(struct object_heap* oh, byte_t* memory, wor
 
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quietGC) {
-    printf("GC freed %" PRIdPTR " of %" PRIdPTR " %s objects\n", 
+    fprintf(stderr, "GC freed %" PRIdPTR " of %" PRIdPTR " %s objects\n", 
            free_count, object_count, ((memory == oh->memoryOld)? "old":"new"));
-    printf("GC coalesced %" PRIdPTR " times\n", coalesce_count);
+    fprintf(stderr, "GC coalesced %" PRIdPTR " times\n", coalesce_count);
   }
 #endif
 }
@@ -463,7 +463,7 @@ void heap_unmark_all(struct object_heap* oh, byte_t* memory, word_t memorySize) 
 
   while (object_in_memory(oh, obj, memory, memorySize)) {
 #ifdef PRINT_DEBUG_GC_MARKINGS
-    printf("unmarking "); print_object(obj);
+    fprintf(stderr, "unmarking "); print_object(obj);
 #endif
     object_unmark(oh, obj);
     obj = object_after(oh, obj);
@@ -541,8 +541,8 @@ void heap_tenure(struct object_heap* oh) {
         tenure_count++;
         copy_words_into((word_t*)obj, object_word_size(obj), (word_t*) tenure_start);
 #ifdef PRINT_DEBUG_GC_MARKINGS
-        printf("tenuring from "); print_object(obj);
-        printf("tenuring to "); print_object(tenure_start);
+        fprintf(stderr, "tenuring from "); print_object(obj);
+        fprintf(stderr, "tenuring to "); print_object(tenure_start);
 #endif
         oh->tenuredObjects.push_back(tenure_start);
 
@@ -555,7 +555,7 @@ void heap_tenure(struct object_heap* oh) {
   }
 #ifdef PRINT_DEBUG_GC_1
   if (!oh->quietGC) {
-    printf("Full GC freed %" PRIdPTR " young objects and tenured %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " pinned)\n", 
+    fprintf(stderr, "Full GC freed %" PRIdPTR " young objects and tenured %" PRIdPTR " of %" PRIdPTR " objects (%" PRIdPTR " pinned)\n", 
            free_count, tenure_count, object_count, pin_count);
   }
 #endif
@@ -643,7 +643,7 @@ void heap_mark_remembered(struct object_heap* oh) {
 
 #ifdef PRINT_DEBUG_GC_3
   if (!oh->quietGC) {
-    printf("Removing %" PRIdPTR " entries from the remembered table\n", badRemembered.size());
+    fprintf(stderr, "Removing %" PRIdPTR " entries from the remembered table\n", badRemembered.size());
   }
 #endif
 
@@ -654,7 +654,7 @@ void heap_mark_remembered(struct object_heap* oh) {
 
 #ifdef PRINT_DEBUG_GC_2
   if (!oh->quietGC) {
-    printf("Young GC found %" PRIdPTR " old objects pointing to %" PRIdPTR " young objects\n", 
+    fprintf(stderr, "Young GC found %" PRIdPTR " old objects pointing to %" PRIdPTR " young objects\n", 
            object_count, remember_count);
   }
 #endif

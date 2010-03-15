@@ -452,17 +452,91 @@ an array argument. Curly open-brackets may be escaped by doubling them."
    ] writingAs: s
 ].
 
+s@(String traits) sprintf*
+[| *args input argsIndex |
+  input: s reader.
+  argsIndex: args indexFirst.
+  [| :result |
+   input do:
+     [| :char |
+      char == $%
+        ifTrue: "Placeholder"
+          [| nextChar arg |
+           nextChar: input next.
+           nextChar == $%
+             ifTrue: [result nextPut: nextChar]
+             ifFalse:
+               [| specifier width precision space position alternative plus minus zero star |
+                input skip: -1.
+                specifier: (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
+
+                [specifier isAtEnd] whileFalse:
+                  [nextChar: specifier next.
+                   "Check for a parameter index spec:"
+                   ('123456789' includes: nextChar)
+                     ifTrue:
+                       [(specifier peek: 1) == $$
+                          ifTrue:
+                            [specifier skip: -1.
+                             position: (Integer readFrom: specifier).
+                             specifier next]
+                          ifFalse:
+                            [specifier skip: -1.
+                             width: (Integer readFrom: specifier).
+                             ]]
+                     ifFalse:
+                       ["Check for flags:"
+                        nextChar caseOf: {
+                          $\s -> [space: True].
+                          $#  -> [alternative: True].
+                          $+  -> [plus: True].
+                          $-  -> [minus: True].
+                          $0  -> [zero: True].
+                          $*  -> [star: True].
+                          $. -> [precision: (Integer readFrom: specifier)]}]].
+
+                input skip: -1.
+                "Check for type specifiers:"
+                position ifNil:
+                  [position: argsIndex.
+                   argsIndex: argsIndex + 1].
+                width isNil /\ [star isNotNil] ifTrue:
+                  [width: (args at: position).
+                   position: position + 1.
+                   argsIndex: argsIndex + 1].
+                arg: (args at: position).
+                nextChar: input next.
+                arg: (nextChar toLowercase caseOf: {
+                  $r -> [arg printString].
+                  $s -> [arg as: s].
+                  $d -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $i -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $u -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
+                  $o -> [arg printString &radix: 8 &precision: precision &forceSign: plus isNotNil].
+                  $x -> [arg printString &radix: 16 &precision: precision &forceSign: plus isNotNil].
+                  $f -> [arg printString &precision: precision &forceSign: plus isNotNil].
+                  $e -> [arg printString &precision: precision &forceSign: plus isNotNil].
+                } otherwise: [arg as: s]).
+                nextChar isUppercase ifTrue: [arg toUppercase].
+                width ifNotNil:
+                  [arg: (arg truncateTo: width paddedBy: (zero ifNil: [$\s] ifNotNil: [$0]) &onRight: minus isNotNil)].
+                result ; arg.
+          ]]
+        ifFalse: [result nextPut: char]]
+  ] writingAs: s
+].
+
 s@(String traits) evaluate
 [
   s evaluateIn: lobby
 ].
 
 s@(String traits) evaluateIn: namespace
-[ |parser expr|
+[| parser expr |
   parser: (Syntax Parser newOn: s).
   [[expr: parser next.
     expr evaluateIn: lobby.
-    parser isAtEnd not] on: Stream Exhaustion do: [False]] whileTrue.
+    parser isAtEnd] on: Stream Exhaustion do: [False]] whileFalse.
 ].
 
 c@(String Character traits) as: s@(String traits)

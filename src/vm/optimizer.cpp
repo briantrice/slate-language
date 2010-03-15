@@ -44,15 +44,15 @@ void print_opcode_args(struct object_heap* oh, std::vector<struct Object*>& code
 void print_code(struct object_heap* oh, std::vector<struct Object*> code) {
 
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
-    printf("[%" PRIuMAX "] ", i);
+    fprintf(stderr, "[%" PRIuMAX "] ", i);
     word_t rawop = (word_t)code[i];
     if (rawop >= OP_INTERNAL_SEND) {
-      printf("<internal>");
+      fprintf(stderr, "<internal>");
     } else {
-      printf("%s", opcode_names[rawop>>1]);
+      fprintf(stderr, "%s", opcode_names[rawop>>1]);
     }
     print_opcode_args(oh, code, i+1, opcode_length(code, i)-1);
-    printf("\n");
+    fprintf(stderr, "\n");
   }
 
   

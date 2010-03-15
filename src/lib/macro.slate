@@ -107,6 +107,27 @@ of that local."
   Syntax StoreVariable of: expr into: newVar
 ].
 
+expr@(Syntax Node traits) rememberAs: varName &environment: method
+"An environment-altering macro that performs no transformation on the argument:
+It creates a new local binding with the result of evaluating the expression
+when the surrounding method is run. All other uses of an equivalent (=)
+expression in the same or deeper lexical context are replaced with an access
+of that local."
+[| newVar loadExpr unaryAccess |
+  "Do nothing outside of a method."
+  method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
+  "Make the new local, uniquely named."
+  newVar: (method addVariableNamed: varName value intern).
+  "Replace any equal expression (except this one) with a load of the variable."
+  loadExpr: newVar load.
+  unaryAccess: (Syntax UnaryMessage sending: varName value intern
+                    to: {Syntax ImplicitArgument}).
+  method transformBy:
+    [| :node | node = unaryAccess ifTrue: [loadExpr] ifFalse: [node]].
+  "Expand into a store expression."
+  Syntax StoreVariable of: expr into: newVar
+].
+
 x@(Root traits) compareAndHashUsingSlots: relevantSlotNames
 "Defines methods for #= and #hash for the simple case of just recursively
 calling them on each value of the slots with the given names.

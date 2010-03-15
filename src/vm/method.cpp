@@ -70,13 +70,13 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
 
 #ifdef PRINT_DEBUG_DISPATCH
-  printf("dispatch to: '");
+  fprintf(stderr, "dispatch to: '");
   print_symbol(name);
-  printf("' (arity: %" PRIdPTR ")\n", arity);
+  fprintf(stderr, "' (arity: %" PRIdPTR ")\n", arity);
   for (i = 0; i < arity; i++) {
-    printf("arguments[%" PRIdPTR "] (%p) = ", i, (void*)arguments[i]); print_type(oh, arguments[i]);
+    fprintf(stderr, "arguments[%" PRIdPTR "] (%p) = ", i, (void*)arguments[i]); print_type(oh, arguments[i]);
   }
-  /*  printf("resend: "); print_object(resendMethod);*/
+  /*  fprintf(stderr, "resend: "); print_object(resendMethod);*/
 #endif
 
   dispatch = NULL;
@@ -151,7 +151,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
               def->foundPositions |= (1 << i);
 
 #ifdef PRINT_DEBUG_FOUND_ROLE
-              printf("found role index %" PRIdPTR " <%p> for '%s' foundPos: %" PRIuPTR "x dispatchPos: %" PRIuPTR "x\n",
+              fprintf(stderr, "found role index %" PRIdPTR " <%p> for '%s' foundPos: %" PRIuPTR "x dispatchPos: %" PRIuPTR "x\n",
                      i,
                      (void*) role,
                      ((struct Symbol*)(role->name))->elements, def->foundPositions, def->dispatchPositions);
@@ -209,7 +209,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
             arguments[0] = slotLocation;
             /*do we need to try to do a heap_store_into?*/
 #ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
-            printf("arguments[0] changed to slot location: \n");
+            fprintf(stderr, "arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
 #endif
           }
@@ -254,7 +254,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
     /*check heap store into?*/
     arguments[0] = slotLocation;
 #ifdef PRINT_DEBUG_DISPATCH_SLOT_CHANGES
-            printf("arguments[0] changed to slot location: \n");
+            fprintf(stderr, "arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
 #endif
 
@@ -289,10 +289,11 @@ bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method)
 
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_UNOPTIMIZER
-  printf("Unoptimizing '"); print_symbol(method->selector); printf("'\n");
+  fprintf(stderr, "Unoptimizing '"); print_symbol(method->selector); fprintf(stderr, "'\n");
 #endif
+  // FIXME handle methods with in-progress call-stack occurrences gracefully.
   if (method_on_call_stack(oh, method)) {
-    printf("Fixme cannot unoptimizing because on call stack: '"); print_symbol(method->selector); printf("'\n");
+    fprintf(stderr, "Unoptimizing due to presence in the call stack: '"); print_symbol(method->selector); fprintf(stderr, "'\n");
     return;
   }
 
@@ -349,13 +350,13 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   }
 
 #ifdef PRINT_DEBUG_OPTIMIZER
-  printf("Optimizing '"); print_symbol(method->selector); printf("'\n");
+  fprintf(stderr, "Optimizing '"); print_symbol(method->selector); fprintf(stderr, "'\n");
 #endif
 
 
 #ifdef PRINT_DEBUG_OPTIMIZER2
   method_print_debug_info(oh, method);
-  printf("This method is called by:\n");
+  fprintf(stderr, "This method is called by:\n");
   method_print_debug_info(oh, oh->cached.interpreter->method);
 #endif
 
@@ -371,13 +372,13 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   method->isInlined = oh->cached.true_object;
   oh->optimizedMethods.insert(method);
 #ifdef SLATE_SHOW_INLINER_CODE
-  printf("before:\n");
+  fprintf(stderr, "before:\n");
   print_type(oh, (struct Object*)method->selector);
   print_code_disassembled(oh, method->code);
 #endif
   optimizer_inline_callees(oh, method);
 #ifdef SLATE_SHOW_INLINER_CODE
-  printf("after:\n");
+  fprintf(stderr, "after:\n");
   print_code_disassembled(oh, method->code);
 #endif
   

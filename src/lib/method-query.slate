@@ -1,24 +1,11 @@
-m@(PrimitiveMethod traits) arity
-"Use the fact that all PrimitiveMethods have selectors to determine their
-arity from the name."
-[m selector arity].
-
 m@(CompiledMethod traits) arity
 "Uses the slot which declares the number of input variables to answer the
 method's arity."
 [m inputVariables].
 
-m@(PrimitiveMethod traits) acceptsAdditionalArguments
-"Primitives have no *rest parameters."
-[False].
-
 m@(CompiledMethod traits) acceptsAdditionalArguments
 "Answers whether the method has a *rest paramter."
 [m restVariable].
-
-m@(PrimitiveMethod traits) optionalKeywords
-"Primitives may take optionals, but we cannot currently communicate that."
-[{}].
 
 m@(CompiledMethod traits) allSelectorsSent
 "Answer a collection of all the Symbols used as direct message-sends in the
@@ -78,25 +65,9 @@ implement that selector."
   ] writingAs: Set
 ].
 
-m@(PrimitiveMethod traits) allSelectorsSent
-"Answer an empty Collection since PrimitiveMethods obviously don't call any
-other methods, otherwise they wouldn't be primitive!"
-[{}].
-
-m@(PrimitiveMethod traits) allSelectorsSentToArg: _
-"Answer an empty Collection since PrimitiveMethods obviously don't call any
-other methods, otherwise they wouldn't be primitive!"
-[{}].
-
-m@(PrimitiveMethod traits) allSelectorsSentImplicitly
-"Answer an empty Collection since PrimitiveMethods obviously don't call any
-other methods, otherwise they wouldn't be primitive!"
-[{}].
-
 m@(Closure traits) new [m clone].
 m@(Closure traits) arity [m method arity].
-m@(Closure traits) acceptsAdditionalArguments
-[m method acceptsAdditionalArguments].
+m@(Closure traits) acceptsAdditionalArguments [m method acceptsAdditionalArguments].
 m@(Closure traits) allSelectorsSent [m method allSelectorsSent].
 m@(Closure traits) selector [m method selector].
 m@(Closure traits) optionalKeywords [m method optionalKeywords].

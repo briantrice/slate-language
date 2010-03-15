@@ -220,48 +220,6 @@ i@SmallInteger _map
 "Prevents a total crash since SmallIntegers are stored directly in references."
 [i: SmallInteger. resend].
 
-"
-obj@(Root traits) delegateNames
-[| map names tableIndex offset |
-  map: obj _map.
-  names: (Array newSize: map delegates size).
-  tableIndex: 0.
-  [tableIndex = map slotTable size]
-    whileFalse:
-      [(map slotTable at: tableIndex) == Nil
-        ifFalse:
-          [offset: (map slotTable at: tableIndex + 1).
-            (offset bitAnd: 1) = 1
-              ifTrue:
-                [names 
-                  at: ((offset bitXor: 1) - 8 quo: 4) 
-                  put: (map slotTable at: tableIndex)]].
-        tableIndex: tableIndex + 2].
-  names
-].
-
-obj@(Root traits) slotNames
-[| map names tableIndex offset |
-  map: obj _map.
-  names: (Array newSize: map slotCount + map delegates size).
-  tableIndex: 0.
-  [tableIndex = map slotTable size]
-    whileFalse:
-      [(map slotTable at: tableIndex) == Nil
-        ifFalse:
-          [offset: (map slotTable at: tableIndex + 1).
-            names
-              at: ((offset bitAnd: 1) = 1
-                    ifTrue:
-                      [(offset bitXor: 1) - 8 quo: 4]
-                    ifFalse:
-                      [map delegates size + (offset - 8 quo: 4)])
-              put: (map slotTable at: tableIndex)].
-        tableIndex: tableIndex + 2].
-  names
-].
-"
-
 obj@(Root traits) slotNames
 [| map names tableIndex namesIndex |
   map: obj _map.
@@ -278,10 +236,16 @@ obj@(Root traits) slotNames
   names
 ].
 
-
 x@(Root traits) slotCount
 [x slotNames size" - x delegateNames size"].
 
 x@(Root traits) delegateCount
 [x _delegates size].
 
+x@(Root traits) didNotUnderstand: message at: index
+"Die without recursing for failed bootstraps."
+[
+  Console write: 32 to: 0 from: 'Message not understood (dying): ' startingAt: 0.
+  Console write: message selector size from: message selector startingAt: 0.
+  Console write: 1 from: '\n' startingAt: 0.
+].

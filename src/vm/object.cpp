@@ -694,7 +694,7 @@ void adjust_oop_pointers_from(struct object_heap* oh, word_t shift_amount, byte_
 
   struct Object* o = (struct Object*)memory;
 #ifdef PRINT_DEBUG
-  printf("First object: "); print_object(o);
+  fprintf(stderr, "First object: "); print_object(o);
 #endif
   while (object_in_memory(oh, o, memory, memorySize)) {
     /*print_object(o);*/
