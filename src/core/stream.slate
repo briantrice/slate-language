@@ -147,6 +147,16 @@ s@(ReadStream traits) upToEnd
    [s isAtEnd] whileFalse: [result nextPut: s next]] writingAs: s collectionType
 ].
 
+s@(ReadStream traits) nextLine
+"Fixme: this should be more sophisticated for cross platform support"
+[ | result elem |
+  result: s collectionType new writer.
+  [s isAtEnd \/ [(elem: s next). elem = $\n]]
+    whileFalse: [result nextPut: elem].
+  s isAtEnd ifFalse: [result nextPut: elem].
+  result contents
+].
+
 s@(ReadStream traits) do: block
 "Call the block on all the elements in turn until the Stream is empty."
 [
@@ -268,13 +278,16 @@ s@(WriteStream traits) ; c
   s
 ].
 
-source@(Stream traits) >> sink
+source@(Stream traits) >> sink@(WriteStream traits)
 "Write the contents from source to target one element at a time."
 [
   [source isAtEnd]
     whileFalse: [sink nextPut: source next].
   sink
 ].
+
+source@(Stream traits) >> sink
+[source >> sink writer].
 
 sink@(Stream traits) << source
 [source >> sink].
@@ -563,6 +576,13 @@ s@(PositionableStream traits) retract: n
 s@(PositionableStream traits) retract
 "Retract one element."
 [s retract: 1].
+
+s@(PositionableStream traits) restoringPositionDo: block
+[ | pos |
+  pos: s position.
+  block ensure: [s position: pos].
+].
+
 
 streams define: #PositionableReadStream
   &parents: {PositionableStream. ReadStream}.
