@@ -268,13 +268,16 @@ s@(WriteStream traits) ; c
   s
 ].
 
-source@(Stream traits) >> sink
+source@(Stream traits) >> sink@(WriteStream traits)
 "Write the contents from source to target one element at a time."
 [
   [source isAtEnd]
     whileFalse: [sink nextPut: source next].
   sink
 ].
+
+source@(Stream traits) >> sink
+[source >> sink writer].
 
 sink@(Stream traits) << source
 [source >> sink].
