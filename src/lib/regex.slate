@@ -261,6 +261,17 @@ m@(Regex Matcher traits) newOn: r@(Regex Regex traits)
   m new `>> [regex: r. ]
 ].
 
+s@(String traits) regex
+[
+  Regex Regex newOn: s
+].
+
+r@(Regex Regex traits) matcher
+[
+  Regex Matcher newOn: r
+].
+
+
 m@(Regex Matcher traits) subexpression: x
 [ |se|
   se: (m subexpressions at: x ifAbsent: [^ Nil]).
@@ -303,6 +314,11 @@ string@(String traits) =~ regex@(Regex Matcher traits)
 ].
 
 string@(String traits) =~ regex@(String traits)
+[
+  string =~ (Regex Matcher newOn: regex)
+].
+
+string@(String traits) =~ regex@(Regex Regex traits)
 [
   string =~ (Regex Matcher newOn: regex)
 ].
@@ -426,3 +442,50 @@ m@(Regex Matcher traits) match: node@(Regex Syntax EndMarker traits) from: pos
 [
   m matchee size <= pos ifTrue: [pos] ifFalse: [-1]
 ].
+
+s@(PositionableStream traits) upToRegex: pattern@(String traits)
+[
+  s upTo: pattern regex matcher
+].
+
+"fixme put this somewhere reasonable"
+
+s@(PositionableStream traits) upToRegex: str@(String traits)
+[
+  s upToRegex: str regex matcher
+].
+
+s@(PositionableStream traits) throughRegex: str@(String traits)
+[
+  s throughRegex: str regex matcher
+].
+
+s@(PositionableStream traits) scanForRegex: matcher@(Regex Matcher traits) &goThrough: goThrough
+[ | start data line |
+  goThrough `defaultsTo: False.
+  start: s position.
+  data: s collectionType new writer.
+  s restoringPositionDo: 
+    [[s isAtEnd not. line: (s nextLine). line isNotNil] whileTrue:
+       [0 to: line size do: [| :pos found | found: (matcher match: line from: pos).
+                                            found >= 0 ifTrue: [(line first: (goThrough ifTrue: [found] ifFalse: [pos])) >> data.
+                                                                ^ data contents]].
+        line >> data.
+    ].
+ ].
+  data contents
+].
+
+
+s@(PositionableStream traits) upToRegex: matcher@(Regex Matcher traits)
+[
+  s scanForRegex: matcher &goThrough: False
+].
+
+s@(PositionableStream traits) throughRegex: matcher@(Regex Matcher traits)
+[
+  s scanForRegex: matcher &goThrough: True
+].
+
+
+
