@@ -24,6 +24,9 @@ s@(Collection Stream traits) hasAnEnd
 "All Collections are finite, so Streams over them have an end."
 [True].
 
+s@(Collection Stream traits) collectionType
+[#()].
+
 streamBlock@(Method traits) writingInto: c@(Collection traits)
 "Create a new WriteStream for the given collection and apply the block to it,
 answering the contents once done."
@@ -245,9 +248,11 @@ This is poor for sparse Sets."
 [| each |
   [i isAtEnd]
     whileFalse:
-      [each: (i collection contents at: (i index: i index + 1)).
+      [each: (i collection contents at: i index).
+       i index: i index + 1.
        each ifNotNil: [i position: i position + 1.
 		       ^ each]].
+  i exhausted
 ].
 
 i@(Set ReadStream traits) isAtEnd

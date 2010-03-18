@@ -72,6 +72,11 @@ registration."
   f cloneSettingSlots: #(handle locator mode) to: {Nil. locator. mode}
 ].
 
+s@(String traits) file
+[
+  File newNamed: s
+].
+
 f@(File traits) enable
 "Open the file in its associated mode."
 [| filename |
@@ -597,6 +602,16 @@ file."
   s: (fs next: fs resource size).
   fs position: pos.
   s
+].
+
+f@(File traits) contents
+[
+  f sessionDo: [| :in size result |
+    size: f size.
+    result: (String newSize: size).
+    (in read: size into: result).
+    result
+  ]
 ].
 
 fs@(File Stream traits) file

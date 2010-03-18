@@ -316,15 +316,14 @@ s@(Net SocketServer traits) startAndRunInForeground &domain: addressDomain
 
 ].
 
-
 s@(Net SocketServer traits) stop
 [
   s pipeToLoop nextPutAll: 'quit'.
 ].
 
-
 Net define: #SocketStream &parents: {ExternalResource ReadWriteStream}
- &slots: {#internalReadBuffer -> (ByteArray new as: Queue). #internalWriteBuffer -> (ByteArray new as: Queue).
+ &slots: {#internalReadBuffer -> (ByteArray new as: Queue).
+          #internalWriteBuffer -> (ByteArray new as: Queue).
           #resource -> Nil.
           #buffer -> (ByteArray new &capacity: Net Socket BufferSize)}.
 
@@ -357,7 +356,6 @@ s@(Net SocketStream traits) isAtEnd
   False
 ].
 
-
 s@(Net SocketStream traits) flushWriteBuffer
 [ | i contents |
   i: 0.
@@ -374,7 +372,6 @@ s@(Net SocketStream traits) flushWriteBuffer
       ].
   s internalWriteBuffer clear.
 ].
-
 
 s@(Net SocketStream traits) next: n putInto: seq startingAt: start
 [ | readSize writer |
@@ -396,7 +393,6 @@ s@(Net SocketStream traits) next: n putInto: seq startingAt: start
   s internalReadBuffer forgetFirst: readSize.
   readSize
 ].
-
 
 s@(Net SocketStream traits) nextPut: byte
 [ | ret |

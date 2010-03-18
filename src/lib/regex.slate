@@ -275,6 +275,14 @@ m@(Regex Matcher traits) subexpressionMatches
   matches
 ].
 
+m@(Regex Matcher traits) subexpressionMatchesArray
+[ | matches |
+  matches: (ExtensibleArray new &capacity: m subexpressions keys max + 1).
+  m subexpression keysDo: [|:key | matches at: key put: (m subexpression: key)].
+  matches
+].
+
+
 m@(Regex Matcher traits) matches: node
 [
   (m match: node) ~= Regex Matcher Fail
@@ -289,6 +297,17 @@ m@(Regex Matcher traits) match: s@(String traits)
 [ 
   m match: s from: 0
 ].
+
+string@(String traits) =~ regex@(Regex Matcher traits)
+[
+  regex `>> [match: string. subexpressionMatchesArray]
+].
+
+string@(String traits) =~ regex@(String traits)
+[
+  string =~ (Regex Matcher newOn: regex)
+].
+
 
 m@(Regex Matcher traits) match: s@(String traits) from: fromStart
 [ |res|

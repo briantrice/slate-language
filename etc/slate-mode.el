@@ -167,6 +167,8 @@
 
 (defconst slate-whitespace-chars " \t\n\f")
 
+(defconst hexdigit-regexp "[0-9a-fA-F]")
+
 (defconst slate-mode-syntax-table
   (let ((table (make-syntax-table)))
     (mapcar
@@ -222,7 +224,7 @@
      . font-lock-constant-face)    ; symbol
     ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
     ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
-    ("[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x[0-9a-fA-F][0-9a-fA-F][^\\]\\)"
+    (,(concat "[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x" hexdigit-regexp hexdigit-regexp "[^\\]\\)")
      . font-lock-string-face)        ; character
     ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
     (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
@@ -248,7 +250,7 @@
      . font-lock-type-face)        ; type-declaration
     ("\\<[+-]?[0-9]+\\([.][0-9]+\\)?\\>"
      . font-lock-constant-face) ; numbers (integers and floats)
-    ("\\<[+-]?[0-9_]+[Rr][0-9A-Fa-f]+\\([.][0-9A-Fa-f]+\\)?\\>"
+    (,(concat "\\<[+-]?[0-9_]+[Rr]" hexdigit-regexp "+\\([.]" hexdigit-regexp "+\\)?\\>")
      . font-lock-constant-face) ; numbers (integers and floats)
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
      . font-lock-warning-face)        ; statement separators

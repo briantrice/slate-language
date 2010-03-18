@@ -61,7 +61,7 @@ void print_usage (char *progName) {
   fprintf(stderr, "  -mo <bytes>(GB|MB|KB) Old memory for tenured/old objects (Default 400MB)\n");
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
   //fprintf(stderr, "  -V                    Verbose mode (print extra diagnostic messages)\n");
-  fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stdout messages)\n");
+  fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stderr messages)\n");
   fprintf(stderr, "  -gc, --show-gc        Show Garbage Collector messages\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
   fprintf(stderr, "\nNotes:\n");

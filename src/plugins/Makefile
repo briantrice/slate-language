@@ -1,10 +1,7 @@
 
-
-
 slateroot=../..
 
 include $(slateroot)/common.mk
-
 
 all: $(PLUGINS)
 	$(SILENT) $(LIBTOOL) $(LIBTOOL_FLAGS) --mode=finish $(libdir)
@@ -47,8 +44,6 @@ clean:
 #
 #clean:
 #	$(LIBTOOL) $(LIBTOOL_FLAGS) --mode=clean rm -f *.o *.so ../../lib/*.$(LIB_SO_EXT)
-
-
 
 .PHONY: clean
 
