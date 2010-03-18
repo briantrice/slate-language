@@ -248,9 +248,11 @@ This is poor for sparse Sets."
 [| each |
   [i isAtEnd]
     whileFalse:
-      [each: (i collection contents at: (i index: i index + 1)).
+      [each: (i collection contents at: i index).
+       i index: i index + 1.
        each ifNotNil: [i position: i position + 1.
 		       ^ each]].
+  i exhausted
 ].
 
 i@(Set ReadStream traits) isAtEnd
