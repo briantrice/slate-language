@@ -209,7 +209,6 @@ d@(Debugger traits) saveFrame: f@(Debugger Frame traits)
 [Debugger SavedFrame cloneSettingSlots: #(lexicalContext method instructionPointer resultStackLocation debugger)
                      to: {f lexicalContext. f method. f instructionPointer. f resultStackLocation. d}].
 
-
 f@(Debugger Frame traits) describeOn: out
 [
   f method method `cacheAs: #method.
@@ -311,8 +310,7 @@ d@(Debugger traits) printBacktrace &fromFrame: frameIndex &limit: limit &stream:
 d@(Debugger traits) frame: index
 "Selects the frame at the given index."
 [
-  d currentFrame: (d frameList at: index ifAbsent: [Nil]).
-  d printFrame
+  d currentFrame: (d frameList at: index ifAbsent: [Nil])
 ].
 
 d@(Debugger traits) top
@@ -388,13 +386,13 @@ ns@(Debugger Namespace traits) False
 ns@(Debugger Namespace traits) frame
 [ns debugger currentFrame].
 ns@(Debugger Namespace traits) frame: n
-[ns debugger frame: n].
+[ns debugger `>> [frame: n. printFrame]].
 ns@(Debugger Namespace traits) top
-[ns debugger top].
+[ns debugger `>> [top. printFrame]].
 ns@(Debugger Namespace traits) up
-[ns debugger up].
+[ns debugger `>> [up. printFrame]].
 ns@(Debugger Namespace traits) down
-[ns debugger down].
+[ns debugger `>> [down. printFrame]].
 ns@(Debugger Namespace traits) arg: n
 [ns debugger currentFrameAt: n].
 ns@(Debugger Namespace traits) arg: n put: newVal

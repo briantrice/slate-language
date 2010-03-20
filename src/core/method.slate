@@ -1,19 +1,23 @@
 
 m@(Method traits) do
 "Just runs the method without any inputs and answers the result."
-[m applyTo: {}].
+[m apply*].
 
 m@(Method traits) applyWith: x
 "Applies the method to the one input."
-[m applyTo: {x}].
+[m apply*, x].
 
 m@(Method traits) applyWith: x with: y
 "Applies the method to 2 inputs."
-[m applyTo: {x. y}].
+[m apply*, x, y].
 
 m@(Method traits) applyWith: x with: y with: z
 "Applies the method to 3 inputs."
-[m applyTo: {x. y. z}].
+[m apply*, x, y, z].
+
+m@(Method traits) apply*
+"Applies the method to all available inputs. NB The Compiler optimizes this."
+[| *rest | m applyTo: rest].
 
 s@(Symbol traits) sendWith: x
 [s sendTo: {x}].

@@ -8,6 +8,8 @@ _@Nil iterator [DummyStream].
 _@Nil reader [DummyStream].
 _@Nil writer [DummyStream].
 
+_@(DummyStream traits) terminal [Nil].
+
 _@(DummyStream traits) next [].
 _@(DummyStream traits) nextPut: _ [].
 _@(DummyStream traits) nextPutAll: _ [].
@@ -37,6 +39,8 @@ s@(Method ReadStream traits) on: block
   s
 ].
 
+s@(Method ReadStream traits) terminal [s block].
+
 s@(Method ReadStream traits) next
 [
   s block do
@@ -60,6 +64,8 @@ s@(Method WriteStream traits) on: block
 [
   s block: block
 ].
+
+s@(Method WriteStream traits) terminal [s block].
 
 s@(Method WriteStream traits) nextPut: obj
 [
@@ -168,6 +174,8 @@ seed@(Root traits) generate: step until: end
 seed@(Root traits) generate: step
 [seed generate: step until: GeneratorStream end].
 
+s@(GeneratorStream traits) terminal [s step].
+
 s@(GeneratorStream traits) hasAnEnd
 "TODO: Change to `maybe`, i.e. the Halting Problem."
 [True].
@@ -215,6 +223,8 @@ e@(Stream EchoStream traits) echoTo: s
   e
 ].
 
+e@(Stream EchoStream traits) terminal [e dribble terminal].
+
 e@(Stream EchoStream traits) next
 [
   e dribble nextPut: e original next
@@ -249,6 +259,8 @@ c@(Counter traits) on: n
   c value: n.
   c
 ].
+
+c@(Counter traits) terminal [c value].
 
 n@(Number traits) writer
 [Counter newOn: n].
