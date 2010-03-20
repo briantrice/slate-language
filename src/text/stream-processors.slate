@@ -1,0 +1,21 @@
+
+streams define: #LimitedProcessor &parents: {StreamProcessor} &slots: {#count -> 0}.
+
+s@(LimitedProcessor traits) for: n
+[
+  s clone `>> [count: n. ]
+].
+
+
+s@(LimitedProcessor traits) isAtEnd
+[
+  s count <= s count zero \/ [resend]
+].
+
+
+s@(LimitedProcessor traits) next
+[
+  s count: s count - 1.
+  s source next
+].
+
