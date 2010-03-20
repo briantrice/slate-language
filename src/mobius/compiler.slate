@@ -583,7 +583,27 @@ gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) resu
 
 gen@(VM SSACompiler traits) generate: rest@(Syntax RestArguments traits) result: result
 [
-  gen generate: rest message result: result
+  (#( apply* primitiveApply* ) includes: rest message selector)
+    ifTrue: [gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result]
+    ifFalse: [gen generate: rest message result: result]
+].
+
+gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: result
+[| methodReg argRegs |
+  result `defaultsTo: gen newRegister.
+  methodReg: (gen generate: args first result: Nil).
+  argRegs: (args allButFirst collect: [| :item | (gen generate: item result: Nil)]).
+  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args from: msg result: result
+[| indexReg argRegs |
+  result `defaultsTo: gen newRegister.
+  indexReg: (gen generate: args first result: Nil).
+  argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
+  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs from: msg.
+  result
 ].
 
 gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result
@@ -930,7 +950,6 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse on: args from: msg result: r
   gen registerFor: Nil from: msg result: result
 ].
 
-
 gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result: result
 [| indexReg argRegs |
   result `defaultsTo: gen newRegister.
@@ -949,7 +968,6 @@ gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: res
   gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
   result
 ].
-
 
 gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
 [| block index var value |
