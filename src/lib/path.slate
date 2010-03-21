@@ -24,7 +24,7 @@ breadth-first search of path between objects through slots.
 Answers the target object where the found path leads to, or Nil if requested
 path does not exist."
 [| pathLookupQueue seen |
-  (foundBlock applyTo: {root. Nil. root}) ifTrue: [^ root].
+  (foundBlock apply*, root, Nil, root) ifTrue: [^ root].
   seen: (IdentitySet newWith: root).
   filterBlock ifNil: [filterBlock: [| :src :name :tgt | True]].
   pathLookupQueue:
@@ -43,9 +43,9 @@ path does not exist."
 	        seen include: slotValue.
 	        newPath: pathLookup key copy.
 	        newPath addLast: slotName.
-		(foundBlock applyTo: {lookupObject. slotName. slotValue})
+		(foundBlock apply*, lookupObject, slotName, slotValue)
 		  ifTrue: [names ; newPath. ^ slotValue].
-		(filterBlock applyTo: {lookupObject. slotName. slotValue})
+		(filterBlock apply*, lookupObject, slotName, slotValue)
 		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]
 	  ] breakOn: MethodNotFound].
       "Check indexed slots."
@@ -59,9 +59,9 @@ path does not exist."
 		seen include: slotValue.
 		newPath: pathLookup key copy.
 	        newPath addLast: index.
-		(foundBlock applyTo: {lookupObject. index. slotValue})
+		(foundBlock apply*, lookupObject, index, slotValue)
 		  ifTrue: [names ; newPath. ^ slotValue].
-		(filterBlock applyTo: {lookupObject. index. slotValue})
+		(filterBlock apply*, lookupObject, index, slotValue)
 		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]]]].
   Nil
 ].

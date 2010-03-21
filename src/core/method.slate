@@ -318,12 +318,12 @@ This composition is associative, i.e. (a ** b) ** c = a ** (b ** c).
 When the second method, n, does not take a *rest option or the first takes
 more than one input, then the output is chunked into groups for its
 consumption. E.g.:
-#; `er ** #; `er applyTo: {'a'. 'b'. 'c'. 'd'} => 'abcd'
-#; `er ** #name `er applyTo: {#a. #/}. => 'a/'"
+#; `er ** #; `er apply*, 'a', 'b', 'c', 'd' => 'abcd'
+#; `er ** #name `er apply*, #a, #/ => 'a/'"
 [
   n acceptsAdditionalArguments \/ [m arity = 1]
     ifTrue:
-      [[| *args | m applyTo: {n applyTo: args}]]
+      [[| *args | m apply*, (n applyTo: args)]]
     ifFalse:
       [[| *args |
         m applyTo:
@@ -487,7 +487,7 @@ Example: collect: takes a collection of objects and a method,
 TODO: Improve the documentation, and add examples."
 [
   m arity = 2
-    ifTrue: [[| :b :a | m applyTo: {a. [| :g | g applyTo: {b}]}]]
+    ifTrue: [[| :b :a | m apply*, a, [| :g | g apply*, b]]]
     ifFalse:
       [TODO: 'Implement multi-argument swing.'
        "[| *args | m applyTo: {args last} ; args allButLast reversed]"]

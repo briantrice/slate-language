@@ -10,7 +10,7 @@ d@(Derivable traits) traitsReverseDo: block
   tally: d traitsTally.
   [index = tally]
     whileFalse:
-      [block applyTo: {d traitsWindow _delegates at: index}.
+      [block apply*, (d traitsWindow _delegates at: index).
        index: index + 1]
 ].
 
@@ -21,7 +21,7 @@ d@(Derivable traits) traitsDo: block
   [index = 0]
     whileFalse:
       [index: index - 1.
-       block applyTo: {d traitsWindow _delegates at: index}]
+       block apply*, (d traitsWindow _delegates at: index)]
 ].
 
 d@(Derivable traits) orderTraits &mixins: mixins
@@ -192,7 +192,7 @@ x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
   builder ifNil:
     [ns
       ifNil: [(x isSameAs: Namespace) /\
-                [(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m applyTo: {proto}) == x]]
+                [(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m apply*, proto) == x]]
                 ifTrue: [[| :_ | x] asMethod: #surroundings on: {proto traits}]]
       ifNotNil: [[| :_ | ns] asMethod: #surroundings on: {proto traits}].
      obj ifNotNil: [[| :_ | obj] asMethod: #owner on: {proto traits}]].
