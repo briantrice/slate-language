@@ -583,7 +583,27 @@ gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) resu
 
 gen@(VM SSACompiler traits) generate: rest@(Syntax RestArguments traits) result: result
 [
-  gen generate: rest message result: result
+  (#( apply* primitiveApply* ) includes: rest message selector)
+    ifTrue: [gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result]
+    ifFalse: [gen generate: rest message result: result]
+].
+
+gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: result
+[| methodReg argRegs |
+  result `defaultsTo: gen newRegister.
+  methodReg: (gen generate: args first result: Nil).
+  argRegs: (args allButFirst collect: [| :item | (gen generate: item result: Nil)]).
+  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args from: msg result: result
+[| indexReg argRegs |
+  result `defaultsTo: gen newRegister.
+  indexReg: (gen generate: args first result: Nil).
+  argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
+  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs from: msg.
+  result
 ].
 
 gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result
@@ -745,6 +765,72 @@ gen@(VM SSACompiler traits) generate: _@#caseOf: on: args from: msg result: resu
 [
   (gen mayInlineCaseOf: msg)
     ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg result: result]
+    ifFalse: [resend]
+].
+
+gen@(VM SSACompiler traits) mayInlineConditions: msg
+"Answer whether a safe inlining is possible for a conditions: expression without
+further analysis; currently this is the case where the second argument is a
+literal array, and the appropriate Associations and their elements are laid
+out with literal keys."
+[
+  (msg arguments second isSameAs: Syntax Array) /\
+   [msg arguments second statements allSatisfy:
+     [| :assoc |
+      (assoc is: Syntax Message)
+        /\ [assoc selector = #->]
+        /\ [assoc arguments first is: Syntax Block]
+        /\ [assoc arguments second is: Syntax Block]]]
+].
+
+gen@(VM SSACompiler traits) generate: _@#conditions:otherwise: on: args from: msg result: finalResult
+[| labels table indices branchOffset otherwiseLabel endLabel switchKeyRegister |
+  (gen mayInlineConditions: msg)
+    ifFalse: [^ resend].
+  args second statements `cacheAs: #assocs.
+  labels: (assocs collect: [| :_ | gen newLabelIndex]).
+  finalResult `defaultsTo: gen newRegister.
+  table:
+    (gen
+      buildBranchTableMapping:
+        (assocs collect: [| :assoc | assoc arguments first value])).
+  indices: IdentityDictionary new.
+  0 below: table size by: 2 do: [| :index |
+    (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
+
+  switchKeyRegister: (gen generate: args first result: Nil).
+  gen emitInstruction: gen branchKeyed withParameters: {switchKeyRegister. (gen registerFor: table from: msg result: Nil)} from: msg.
+  branchOffset: gen codeWriter position.
+  gen emitInstruction: gen jumpTo from: msg.
+  endLabel: gen newLabelIndex.
+  otherwiseLabel: gen newLabelIndex.
+  gen emitBranchTo: otherwiseLabel from: msg.
+
+  assocs with: labels do:
+    [| :assoc :label |
+      gen emitLabel &labelIndex: label.
+      table
+        at: (indices at: assoc arguments first value) + 1
+        put: (gen currentContext resolveLabel: label at: branchOffset).
+      gen generateExecutionOf: {assoc arguments second} from: msg result: finalResult.
+      gen emitInstruction: gen jumpTo from: msg.
+      gen emitBranchTo: endLabel from: msg].
+
+  "Handle the otherwise clause. If we didn't get a literal block for it, just
+  encode a Nil-push."
+  gen emitLabel &labelIndex: otherwiseLabel.
+  args size >= 3
+    ifTrue: [gen generateExecutionOf: {args third} from: msg result: finalResult]
+    ifFalse: [gen registerFor: Nil from: msg result: finalResult].
+  gen emitLabel &labelIndex: endLabel.
+  finalResult
+].
+
+gen@(VM SSACompiler traits) generate: _@#conditions: on: args from: msg result: result
+"Generates a conditions:otherwise: with a default otherwise clause."
+[
+  (gen mayInlineConditions: msg)
+    ifTrue: [gen generate: #conditions:otherwise: on: args from: msg result: result]
     ifFalse: [resend]
 ].
 
@@ -930,7 +1016,6 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse on: args from: msg result: r
   gen registerFor: Nil from: msg result: result
 ].
 
-
 gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result: result
 [| indexReg argRegs |
   result `defaultsTo: gen newRegister.
@@ -949,7 +1034,6 @@ gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: res
   gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
   result
 ].
-
 
 gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
 [| block index var value |

@@ -583,7 +583,6 @@ s@(PositionableStream traits) restoringPositionDo: block
   block ensure: [s position: pos].
 ].
 
-
 streams define: #PositionableReadStream
   &parents: {PositionableStream. ReadStream}.
 streams define: #PositionableWriteStream
@@ -598,6 +597,8 @@ s@(StreamProcessor traits) on: source
   s source: source.
   s
 ].
+
+s@(StreamProcessor traits) terminal [s source terminal].
 
 s@(StreamProcessor traits) collectionType [s source collectionType].
 
@@ -695,6 +696,8 @@ w@(Stream WrapperStream traits) on: s
   w original: s.
   w
 ].
+
+w@(Stream WrapperStream traits) terminal [w original terminal].
 
 source@(ReadStream traits) >> sink@(Stream WrapperStream traits)
 [sink newOn: source].

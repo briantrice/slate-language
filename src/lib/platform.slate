@@ -24,10 +24,22 @@ p@(Platform traits) current
 
 Platform traits define: #Current &builder: [Platform current].
 
+Platform traits define: #PosixNames -> #(Linux Darwin Cygwin FreeBSD NetBSD OpenBSD SunOS BeOS Haiku).
+
+Platform traits define: #WindowsNames -> #(Win32 Win64).
+
 p@(Platform traits) isPosix
 "Whether the underlying platform implements (enough of?) the POSIX API."
-"TODO: figure out a way to really determine/configure this."
-[True].
+[p PosixNames anySatisfy: [| :name | (name as: p name) = p name]].
+
+p@(Platform traits) isWindows
+"Whether the underlying platform implements (enough of?) the POSIX API."
+[p WindowsNames anySatisfy: [| :name | (name as: p name) = p name]].
+
+p@(Platform traits) lineEnding
+[
+  p isPosix ifTrue: ['\n'] ifFalse: [p isWindows ifTrue: ['\r\n'] ifFalse: ['\r']]
+].
 
 p@(Platform traits) run: command
 [lobby systemExecute: command].

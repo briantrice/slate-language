@@ -107,7 +107,7 @@ c@(Collection traits) do: block separatedBy: sepBlock
   c do: [| :each |
     first ifFalse: [sepBlock do].
     first: False.
-    block applyWith: each].
+    block apply*, each].
   c
 ].
 
@@ -117,14 +117,14 @@ and each element of a collection in turn. The result of the block is
 implicitly the next value."
 [| result |
   result: start.
-  c do: [| :element | result: (block applyWith: result with: element)].
+  c do: [| :element | result: (block apply*, result, element)].
   result
 ].
 
 c@(Collection traits) collect: block into: d
 "Answer a new collection resulting from mapping the block onto each element."
 [
-  [| :result | c do: [| :each | result nextPut: (block applyWith: each)]]
+  [| :result | c do: [| :each | result nextPut: (block apply*, each)]]
      writingAs: d
 ].
 
@@ -137,14 +137,14 @@ c@(Collection traits) count: test
 "Return the number of elements of the collection satisfying the test."
 [| sum |
   sum: 0.
-  c do: [| :each | (test applyWith: each) ifTrue: [sum: sum + 1]].
+  c do: [| :each | (test apply*, each) ifTrue: [sum: sum + 1]].
   sum
 ].
 
 c@(Collection traits) detect: succeed ifNone: fail
 "Find an element satisfying a test. Conditionally execute a failure block."
 [
-  c do: [| :element | (succeed applyWith: element) ifTrue: [^ element]].
+  c do: [| :element | (succeed apply*, element) ifTrue: [^ element]].
   fail do
 ].
 
@@ -155,21 +155,21 @@ c@(Collection traits) detect: succeed
 c@(Collection traits) anySatisfy: predicate
 "Answer whether any elements cause the input block to be True."
 [
-  c do: [| :element | (predicate applyWith: element) ifTrue: [^ True]].
+  c do: [| :element | (predicate apply*, element) ifTrue: [^ True]].
   False
 ].
 
 c@(Collection traits) allSatisfy: predicate
 "Answer whether all elements cause the input block to be True."
 [
-  c do: [| :element | (predicate applyWith: element) ifFalse: [^ False]].
+  c do: [| :element | (predicate apply*, element) ifFalse: [^ False]].
   True
 ].
 
 c@(Collection traits) noneSatisfy: predicate
 "Answer whether none of c's elements cause the input block to be True."
 [
-  c do: [| :element | (predicate applyWith: element) ifTrue: [^ False]].
+  c do: [| :element | (predicate apply*, element) ifTrue: [^ False]].
   True
 ].
 
@@ -178,7 +178,7 @@ c@(Collection traits) select: test into: result
 collection."
 [
   [| :result |
-   c do: [| :each | (test applyWith: each) ifTrue: [result nextPut: each]]]
+   c do: [| :each | (test apply*, each) ifTrue: [result nextPut: each]]]
     writingAs: result
 ].
 
@@ -191,8 +191,8 @@ c@(Collection traits) select: test collect: block
 "An optimization for staged collect:'s on select: results."
 [
   [| :result |
-   c do: [| :each | (test applyWith: each)
-		    ifTrue: [result nextPut: (block applyWith: each)]]]
+   c do: [| :each | (test apply*, each)
+		    ifTrue: [result nextPut: (block apply*, each)]]]
     writingAs: c
 ].
 
@@ -201,8 +201,8 @@ c@(Collection traits) collect: block select: test
 [
   [| :result |
    c do: [| :each tmp |
-	  tmp: (block applyWith: each).
-	  (test applyWith: tmp) ifTrue: [result nextPut: tmp]]]
+	  tmp: (block apply*, each).
+	  (test apply*, tmp) ifTrue: [result nextPut: tmp]]]
     writingAs: c
 ].
 
@@ -219,7 +219,7 @@ e.g. {1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
       [| reader result |
        reader: c reader.
        result: (init ifNil: [reader next]).
-       reader do: [| :each | result: (binBlock applyTo: {result. each})].
+       reader do: [| :each | result: (binBlock apply*, result, each)].
        result]
 ].
 
@@ -233,7 +233,7 @@ e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
   reader: c reader.
   result: reader next.
   reader do:
-    [| :each | result: (binBlock applyWith: result with: each)].
+    [| :each | result: (binBlock apply*, result, each)].
   result
 ].
 
@@ -252,7 +252,7 @@ c@(Collection traits) trace: binBlock
   elem: src next.
   result nextPut: elem.
   src do:
-    [| :each | result nextPut: (each: (binBlock applyTo: {elem. each}))]]
+    [| :each | result nextPut: (each: (binBlock apply*, elem, each))]]
     writingInto: c newSameSize
 ].
 
@@ -278,7 +278,7 @@ c@(Collection traits) pairCollect: binBlock
    src: c reader.
    last: src next.
    src do: [| :current |
-	    result nextPut: (binBlock applyTo: {last. current}).
+	    result nextPut: (binBlock apply*, last, current).
 	    last: current]].
      writingInto: (c new &capacity: c size - 1)
 ].
@@ -286,13 +286,13 @@ c@(Collection traits) pairCollect: binBlock
 c1@(Collection traits) leftCollect: c2@(Collection traits) using: binBlock
 "Apply binBlock to every element of c1 using c2 as a second argument to the block."
 [
-  c1 collect: [| :item | binBlock applyTo: {item. c2}]
+  c1 collect: [| :item | binBlock apply*, item, c2]
 ].
 
 c1@(Collection traits) rightCollect: c2@(Collection traits) using: binBlock
 "Like leftCollect, but using c1 as a left argument to binBlock and elements of c2 each as a second argument."
 [
-  c2 collect: [| :item | binBlock applyTo: {c1. item}]
+  c2 collect: [| :item | binBlock apply*, c1, item]
 ].
 
 c@(Collection traits) most: binBlock
@@ -301,7 +301,7 @@ all other elements in the Collection. (see also least:)"
 "TODO: add an optional specifying the value if none is found, useful for when
 isEmpty implies Nil returns and subsequent necessary checks are not enough."
 [
-  c reduce: [| :a :b | (binBlock applyTo: {a. b})
+  c reduce: [| :a :b | (binBlock apply*, a, b)
 		       ifTrue: [a] ifFalse: [b]]
 ].
 
@@ -314,7 +314,7 @@ other elements in the Collection. (see also most:)"
 "TODO: add an optional specifying the value if none is found, useful for when
 isEmpty implies Nil returns and subsequent necessary checks are not enough."
 [
-  c reduce: [| :a :b | (binBlock applyTo: {a. b})
+  c reduce: [| :a :b | (binBlock apply*, a, b)
 		       ifTrue: [b] ifFalse: [a]]
 ].
 
@@ -325,7 +325,7 @@ c@(Collection traits) reject: test
 "Answer the complement of select:, a subset of the collection containing those
 elements causing the input block to return False."
 [
-  c select: [| :each | (test applyWith: each) not]
+  c select: [| :each | (test apply*, each) not]
 ].
 
 c@(Collection traits) copyWithout: obj
