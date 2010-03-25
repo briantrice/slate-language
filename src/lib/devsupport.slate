@@ -102,3 +102,9 @@ m@(Method traits) editExternally &editor: editor &reload: reload
             result /\ reload ifTrue: [m reload].
             result]]
 ].
+
+f@(File traits) viewExternally &viewer: viewer
+[
+  viewer `defaultsTo: (Environment at: 'PAGER' ifAbsent: ['less']).
+  Platform run: viewer ; ' ' ; (f locator as: String)
+].
