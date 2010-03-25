@@ -41,6 +41,16 @@ p@(Platform traits) lineEnding
   p isPosix ifTrue: ['\n'] ifFalse: [p isWindows ifTrue: ['\r\n'] ifFalse: ['\r']]
 ].
 
+s@(String traits) escapeForShell
+"Performs shell-escaping for POSIX-style command shells."
+[
+  [| :result |
+   s do: [| :char |
+     (';<>*|`&$!#()[]{}:\'"' includes: char) ifTrue: [result nextPut: $\\].
+     result nextPut: char
+   ]] writingAs: s
+].
+
 p@(Platform traits) run: command
 [lobby systemExecute: command].
 
