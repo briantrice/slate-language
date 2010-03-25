@@ -1208,7 +1208,7 @@ a list. Note that the first argument must be found by searching backwards."
 (defconst slate-imenu-generic-expression
   `(("Slots" ,(format "^.*add[A-Za-z]*Slot: #\\(%s\\) valued: .* derive"
                       slate-name-regexp) 1)
-    ("Namespaces" ,(format "^\\(.*\\) ensureNamespace: #\\(%s\\)"
+    ("Namespaces" ,(format "^\\(.*\\) ensureNamespace: #\\(%s\\).*\."
                            slate-name-regexp) 2)
     ("Prototypes" ,(format "^\\(.*\\) addPrototype: #\\(%s\\) derivedFrom: {.*}\."
                            slate-name-regexp) 2)
