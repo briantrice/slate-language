@@ -574,9 +574,7 @@ gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) resu
 
 gen@(VM SSACompiler traits) generate: rest@(Syntax RestArguments traits) result: result
 [
-  (#( apply* primitiveApply* ) includes: rest message selector)
-    ifTrue: [gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result]
-    ifFalse: [gen generate: rest message result: result]
+  gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result
 ].
 
 gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: result
@@ -584,6 +582,16 @@ gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: resul
   result `defaultsTo: gen newRegister.
   methodReg: (gen generate: args first result: Nil).
   argRegs: (args allButFirst collect: [| :item | (gen generate: item result: Nil)]).
+  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
+  result
+].
+
+gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
+[| methodReg argRegs |
+  (args second isSameAs: Syntax Array) ifFalse: [^ resend].
+  result `defaultsTo: gen newRegister.
+  methodReg: (gen generate: args first result: Nil).
+  argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
   gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
   result
 ].
@@ -1016,15 +1024,6 @@ gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result:
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
-[| methodReg argRegs |
-  (args second isSameAs: Syntax Array) ifFalse: [^ resend].
-  result `defaultsTo: gen newRegister.
-  methodReg: (gen generate: args first result: Nil).
-  argRegs: (args second statements collect: [|:item| (gen generate: item result: Nil)]).
-  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
-  result
-].
 
 gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
 [| block index var value |
