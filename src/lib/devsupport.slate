@@ -84,7 +84,11 @@ m@(Method traits) reload
 
 m@(Method traits) editExternally &editor: editor &reload: reload
 [
-  editor `defaultsTo: (Environment at: 'EDITOR').
+  editor `defaultsTo:
+    (Environment at: 'EDITOR' ifAbsent:
+       [(query: 'Select an editor for files: ')
+          ifNotNilDo:
+            [| :editor | Environment at: 'EDITOR' put: editor. editor]]).
   reload `defaultsTo: False.
   m sourceTree
     ifNil:
@@ -103,8 +107,22 @@ m@(Method traits) editExternally &editor: editor &reload: reload
             result]]
 ].
 
-f@(File traits) viewExternally &viewer: viewer
+f@(File traits) viewExternally &pager: pager
 [
-  viewer `defaultsTo: (Environment at: 'PAGER' ifAbsent: ['less']).
-  Platform run: viewer ; ' ' ; (f locator as: String)
+  pager `defaultsTo:
+    (Environment at: 'PAGER' ifAbsent:
+       [(query: 'Select a viewer for files: ')
+          ifNotNilDo:
+            [| :pager | Environment at: 'PAGER' put: pager. pager]]).
+  Platform run: pager ; ' ' ; (f locator as: String)
+].
+
+s@(String traits) browseExternally &browser: browser
+[
+  browser `defaultsTo:
+    (Environment at: 'BROWSER' ifAbsent:
+       [(query: 'Select a browser for URLs: ')
+          ifNotNilDo:
+            [| :browser | Environment at: 'BROWSER' put: browser. browser]]).
+  Platform run: browser ; ' ' ; (f locator as: String)
 ].
