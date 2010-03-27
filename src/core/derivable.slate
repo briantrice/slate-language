@@ -80,7 +80,6 @@ d@(Derivable traits) orderTraits: mixins
 
 ].
 
-
 d@(Derivable traits) derive &mixins: mixins &rejects: rejectSlots
 "Constructs and returns a new prototype based on the argument with a new
 Traits object that delegates to the old one. If mixins are specified,
@@ -208,6 +207,15 @@ x@(Root traits) undefine: name
 "Removes a previous slot definition."
 [
   x removeSlot: name
+].
+
+x@(Cloneable traits) instancesSetting: slotNames to: values
+[
+  values collect: [| :columnValues newX |
+    newX: x new.
+    slotNames with: columnValues do:
+      [| :slotName :slotValue | newX atSlotNamed: slotName put: slotValue].
+    newX]
 ].
 
 x@(Root traits) commentTemplate
