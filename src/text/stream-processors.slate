@@ -19,3 +19,54 @@ s@(LimitedProcessor traits) next
   s source next
 ].
 
+streams define: #SimpleReplacementStream &parents: {StreamProcessor} &slots: {#search. #replace. #inBuffer. #outBuffer}.
+
+s@(SimpleReplacementStream traits) find: x replaceWith: y
+[
+  s new `>> [search: x. replace: y. ]
+].
+
+s@(SimpleReplacementStream traits) nextFromBuffer
+[ | next |
+  next: s outBuffer first.
+  s outBuffer: s outBuffer allButFirst.
+  ^ next
+].
+
+s@(SimpleReplacementStream traits) on: s
+[
+  resend.
+  s `>> [inBuffer: s collectionType new. outBuffer: s collectionType new. ]
+].
+
+
+s@(SimpleReplacementStream traits) isAtEnd
+[
+  s source isAtEnd /\ [s outBuffer isEmpty]
+].
+
+
+s@(SimpleReplacementStream traits) next
+[ | next |  
+  s search isEmpty ifTrue: [^ s source next].
+  s outBuffer isNotEmpty ifTrue: [^ s nextFromBuffer].
+  s isAtEnd ifTrue: [^ s source next].
+
+  "we fill up the in buffer to compare with the search string"
+  s inBuffer size < s search size ifTrue: [s inBuffer: s inBuffer ; (s source next: s search size)].
+
+  "must be end of stream for the following to happen"
+  s inBuffer size < s search size
+    ifTrue: [s outBuffer: s outBuffer ; s inBuffer. s inBuffer: s collectionType new. ^ s nextFromBuffer].
+
+  s outBuffer isNotEmpty ifTrue: [^ s nextFromBuffer].
+  s inBuffer isEmpty ifTrue: [^ s source next].
+  (s inBuffer first: s search size) = s search ifTrue: [s inBuffer: (s inBuffer allButFirst: s search size).
+                                                      s outBuffer: s outBuffer ; s replace.
+                                                      ^ s nextFromBuffer].
+  
+"  s outBuffer: s outBuffer ; (s collectionType new*, s inBuffer first)."
+  s outBuffer: s outBuffer ; ((s collectionType new &capacity: 1) `>> [at: 0 put: s inBuffer first. ]).
+  s inBuffer: s inBuffer allButFirst.
+  s nextFromBuffer
+].
