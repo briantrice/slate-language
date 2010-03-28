@@ -65,6 +65,27 @@ s@(Stream traits) endCheck
   s isAtEnd ifTrue: [s exhausted]
 ].
 
+Stream traits define: #Incomplete &parents: {Stream Condition} &slots: {
+  #collection -> {}.
+  #count -> 0.
+  #start -> 0.
+}.
+
+i@(Stream Incomplete traits) on: c count: count at: start
+[
+  i new `>> [collection: c. count: count. start: start. ]
+].
+
+i@(Stream Incomplete traits) zero
+[i on: Nil count: 0 at: Nil].
+
+i@(Stream Incomplete traits) contents
+[
+  i collection isEmpty
+    ifTrue: [i collection newSize: i count]
+    ifFalse: [i collection copyFrom: i start below: i start + count]
+].
+
 streams define: #ReadStream &parents: {Stream}.
 "Streams that read from some source."
 
