@@ -19,53 +19,127 @@ s@(LimitedProcessor traits) next
   s source next
 ].
 
-streams define: #SimpleReplacementStream &parents: {StreamProcessor} &slots: {#search. #replace. #inBuffer. #outBuffer}.
+streams define: #PeekableProcessor &parents: {StreamProcessor} &slots: {#readBuffer}.
+
+pps@(PeekableProcessor traits) on: s
+[
+  resend `>> [readBuffer: s collectionType new. ]
+].
+
+
+s@(PeekableProcessor traits) next
+[
+  (s next: 1) first
+].
+
+s@(PeekableProcessor traits) next: n
+[ | next readBufSize |
+  s readBuffer isEmpty ifTrue: [^ (s source next: n)].
+  readBufSize: s readBuffer size.
+  n <= readBufSize
+    ifTrue: [next: (s readBuffer first: n).
+             s readBuffer: (s readBuffer allButFirst: n)]
+    ifFalse: [next: (s readBuffer first: readBufSize) ; (s source next: n - readBufSize).
+              s readBuffer: s readBuffer new].
+  next isEmpty ifTrue: [^ s exhausted].
+  next
+].
+
+s@(PeekableProcessor traits) skip: n
+[ | readBufSize |
+  s readBuffer isEmpty ifTrue: [^ (s source skip: n)].
+  readBufSize: s readBuffer size.
+  n <= readBufSize
+    ifTrue: [s readBuffer: (s readBuffer allButFirst: n)]
+    ifFalse: [s source skip: n - readBufSize.
+              s readBuffer: s readBuffer new].
+  
+].
+
+
+s@(PeekableProcessor traits) peek
+[
+  (s peek: 1) first
+].
+
+s@(PeekableProcessor traits) peek: n
+[
+  s readBuffer size < n ifTrue: [s readBuffer: s readBuffer ; (s source next: n - s readBuffer size)].
+  s readBuffer size < n ifTrue: [s exhausted] ifFalse: [s readBuffer first: n]
+].
+
+s@(PeekableProcessor traits) isAtEnd
+[
+  s source isAtEnd /\ [s readBuffer isEmpty]
+].
+
+
+streams define: #OutputBufferedProcessor &parents: {StreamProcessor} &slots: {#outputBuffer}.
+
+
+ps@(OutputBufferedProcessor traits) on: s
+[
+  resend `>> [outputBuffer: s collectionType new. ]
+].
+
+
+s@(OutputBufferedProcessor traits) next
+[
+  (s next: 1) first
+].
+
+s@(OutputBufferedProcessor traits) next: n
+[
+  s outputBuffer isEmpty ifTrue: [^ (s source next: n)].
+  s outputBuffer size < n ifTrue: [^ (s grabFirst: s outputBuffer size) ; (s source next: n - s outputBuffer size)].
+  s grabFirst: n
+].
+
+s@(OutputBufferedProcessor traits) inject: seq
+[
+  s outputBuffer: s outputBuffer ; seq.
+].
+
+s@(OutputBufferedProcessor traits) grabFirst: n
+[ | next |
+  s outputBuffer size < n ifTrue: [^ s exhausted].
+  next: (s outputBuffer first: n).
+  s outputBuffer: (s outputBuffer allButFirst: n).
+  next
+].
+
+s@(OutputBufferedProcessor traits) isAtEnd
+[
+  s outputBuffer isEmpty /\ [resend]
+].
+
+
+streams define: #SimpleReplacementStream &parents: {OutputBufferedProcessor. PeekableProcessor} &slots: {#search. #replace}.
 
 s@(SimpleReplacementStream traits) find: x replaceWith: y
 [
   s new `>> [search: x. replace: y. ]
 ].
 
-s@(SimpleReplacementStream traits) nextFromBuffer
-[ | next |
-  next: s outBuffer first.
-  s outBuffer: s outBuffer allButFirst.
-  ^ next
-].
 
-s@(SimpleReplacementStream traits) on: s
-[
-  resend.
-  s `>> [inBuffer: s collectionType new. outBuffer: s collectionType new. ]
-].
-
-
-s@(SimpleReplacementStream traits) isAtEnd
-[
-  s source isAtEnd /\ [s outBuffer isEmpty]
-].
-
-
-s@(SimpleReplacementStream traits) next
+s@(SimpleReplacementStream traits) next: n
 [ | next |  
-  s search isEmpty ifTrue: [^ s source next].
-  s outBuffer isNotEmpty ifTrue: [^ s nextFromBuffer].
-  s isAtEnd ifTrue: [^ s source next].
-
-  "we fill up the in buffer to compare with the search string"
-  s inBuffer size < s search size ifTrue: [s inBuffer: s inBuffer ; (s source next: s search size)].
-
-  "must be end of stream for the following to happen"
-  s inBuffer size < s search size
-    ifTrue: [s outBuffer: s outBuffer ; s inBuffer. s inBuffer: s collectionType new. ^ s nextFromBuffer].
-
-  s outBuffer isNotEmpty ifTrue: [^ s nextFromBuffer].
-  s inBuffer isEmpty ifTrue: [^ s source next].
-  (s inBuffer first: s search size) = s search ifTrue: [s inBuffer: (s inBuffer allButFirst: s search size).
-                                                      s outBuffer: s outBuffer ; s replace.
-                                                      ^ s nextFromBuffer].
+  s search isEmpty ifTrue: [^ (s source next: n)].
   
-  s outBuffer: s outBuffer ; (s collectionType new*, s inBuffer first).
-  s inBuffer: s inBuffer allButFirst.
-  s nextFromBuffer
+  [s outputBuffer size < n /\ [s isAtEnd not]] whileTrue:
+    [([(s peek: s search size) = s search] on: Stream Exhaustion do: [|:c| c return: False])
+       ifTrue: [s skip: s search size. s inject: s replace]
+       ifFalse: [next: (s peek: 1).
+                 s skip: 1. "skip before inject otherwise we aren't doing anything"
+                 s inject: next]].
+  s grabFirst: n
 ].
+
+
+s@(Sequence traits) find: find@(Sequence traits) replaceWith: replace@(Sequence traits)
+[ | out |
+  out: s new writer.
+  s reader >> (SimpleReplacementStream find: find replaceWith: replace) >> out.
+  out contents
+].
+
