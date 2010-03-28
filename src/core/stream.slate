@@ -300,10 +300,12 @@ s@(WriteStream traits) ; c
 ].
 
 source@(Stream traits) >> sink@(WriteStream traits)
-"Write the contents from source to target one element at a time."
+"Write the contents from source to target one element at a time.
+The source can signal exhausted after an #isAtEnd returns true if
+it doesn't have anything else left to write."
 [
-  [source isAtEnd]
-    whileFalse: [sink nextPut: source next].
+  [[source isAtEnd] whileFalse: 
+     [sink nextPut: source next]] on: Stream Exhaustion do: [|:c| ^ sink].
   sink
 ].
 
