@@ -259,16 +259,16 @@ prototypes define: #PathFinder &parents: {ReadStream} &slots:
    #filterBlock -> [| :src :name :tgt | True]. "predicate for avoidance on {source. name. target}."
    #foundBlock -> [| :src :name :tgt | x == Nil] "predicate for selection on {source. name. target}."}.
 
+pf@(PathFinder traits) on: obj
+[pf source: (pf source newOn: obj)].
+
 pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock: filterBlock
 [| newPF |
-  newPF: (pf clone `setting: #(source foundBlock)
-	     to: {pf source newOn: root. foundBlock}).
+  newPF: (pf newOn: root).
+  foundBlock ifNotNil: [newPF foundBlock: foundBlock].
   filterBlock ifNotNil: [newPF filterBlock: filterBlock].
   newPF
 ].
-
-pf@(PathFinder traits) on: obj
-[pf root: obj].
 
 pf@(PathFinder traits) reset
 [pf source reset. ].
