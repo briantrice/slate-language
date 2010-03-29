@@ -233,9 +233,11 @@ cols@(Sequence traits) combinationsInject: start into: block
   result
 ].
 
-Set traits define: #ReadStream &parents: {Collection ReadStream}
-&slots: {#collection -> Set new. #position -> 0. "The number of elements passed so far."
-#index -> 0. "The index into the Set's contents Array."}.
+Set traits define: #ReadStream &parents: {Collection ReadStream} &slots: {
+  #collection -> Set new.
+  #position -> 0. "The number of elements passed so far."
+  #index -> 0. "The index into the Set's contents Array."
+}.
 "Set ReadStreams are just Positionable- over the element order in the Set's
 contents Array. They're not very efficient, having to check for Nil's."
 
@@ -246,14 +248,14 @@ i@(Set ReadStream traits) on: c
 i@(Set ReadStream traits) next
 "Increment the index through the array until a non-Nil element is reached.
 This is poor for sparse Sets."
-[| each |
-  [i isAtEnd]
-    whileFalse:
-      [each: (i collection contents at: i index).
-       i index: i index + 1.
-       each ifNotNil: [i position: i position + 1.
-		       ^ each]].
-  i exhausted
+[
+  (i collection contents indexOfFirstSatisfying: [| :x | x isNotNil] startingAt: i index)
+    ifNil: [i exhausted]
+    ifNotNilDo:
+      [| :nextIndex |
+       i index: nextIndex + 1.
+       i position: i position + 1.
+       i collection contents at: nextIndex]
 ].
 
 i@(Set ReadStream traits) isAtEnd
