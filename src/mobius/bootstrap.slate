@@ -761,7 +761,18 @@ gen@(Image Bootstrap Generator traits) generateLobby
   "Install slots/accessors in the 'prototypes' namespace,
    set up traits traits, and set up printName. Make sure all bootstrapped protos
    are listed here, otherwise these important steps are left out for them."
-  {
+  [| :assoc window traits |
+    gen PrototypesObject makeSlotNamed: assoc key valued: assoc value.
+    gen addAccessorFor: assoc key on: gen PrototypesObject.
+    window: (assoc value bmap delegates first).
+    window bmap delegates at: 0 put: gen CloneableWindow.
+    traits: window bmap delegates last"(window getSlot: #traits)".
+    traits bmap delegates at: 0 put: gen CloneableWindow.
+    traits makeSlotNamed: #printName valued: (gen generateLiteral: assoc key name ; ' traits').
+    gen addAccessorFor: #printName on: traits.
+    window makeSlotNamed: #printName valued: (gen generateLiteral: assoc key name).
+    gen addAccessorFor: #printName on: window.
+  ] for: {
     #Root -> gen RootProto.
     #Oddball -> gen OddballProto.
     #Cloneable -> gen CloneableProto.
@@ -786,23 +797,15 @@ gen@(Image Bootstrap Generator traits) generateLobby
     #File -> gen FileProto.
     #Directory -> gen DirectoryProto.
     #ExternalLibrary -> gen ExternalLibraryProto.
-  } do: [| :assoc window traits |
-    gen PrototypesObject makeSlotNamed: assoc key valued: assoc value.
-    gen addAccessorFor: assoc key on: gen PrototypesObject.
-    window: (assoc value bmap delegates first).
-    window bmap delegates at: 0 put: gen CloneableWindow.
-    traits: window bmap delegates last"(window getSlot: #traits)".
-    traits bmap delegates at: 0 put: gen CloneableWindow.
-    traits makeSlotNamed: #printName valued: (gen generateLiteral: assoc key name ; ' traits').
-    gen addAccessorFor: #printName on: traits.
-    window makeSlotNamed: #printName valued: (gen generateLiteral: assoc key name).
-    gen addAccessorFor: #printName on: window].
+  }.
 
   gen addObjectNamed: #GlobalsObject valued: (gen cloneOf: gen NamespaceProto).
   gen LobbyObject addDelegateValued: gen GlobalsObject.
   gen LobbyObject makeSlotNamed: #globals valued: gen GlobalsObject.
   gen addAccessorFor: #globals on: gen LobbyObject.
-  {
+  [| :assoc |
+   gen GlobalsObject makeSlotNamed: assoc key valued: assoc value.
+   gen addAccessorFor: assoc key on: gen GlobalsObject] for: {
     #Console -> gen ConsoleObject.
     #NoRole -> gen NoRoleObject.
     #Nil -> gen NilObject.
@@ -815,11 +818,9 @@ gen@(Image Bootstrap Generator traits) generateLobby
     #ensureMarker -> gen EnsureMarkerObject.
     #specialOops -> gen ArrayProto.
     #features -> gen ArrayProto.
-  } do: [| :assoc |
-    gen GlobalsObject makeSlotNamed: assoc key valued: assoc value.
-    gen addAccessorFor: assoc key on: gen GlobalsObject].
-    gen addMutatorFor: #bootstrapSymbols on: gen GlobalsObject.
-    gen addMutatorFor: #features on: gen GlobalsObject
+  }.
+  gen addMutatorFor: #bootstrapSymbols on: gen GlobalsObject.
+  gen addMutatorFor: #features on: gen GlobalsObject
 ].
 
 gen@(Image Bootstrap Generator traits) generateLinkage
