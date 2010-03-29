@@ -65,6 +65,27 @@ s@(Stream traits) endCheck
   s isAtEnd ifTrue: [s exhausted]
 ].
 
+Stream traits define: #Incomplete &parents: {Stream Condition} &slots: {
+  #collection -> {}.
+  #count -> 0.
+  #start -> 0.
+}.
+
+i@(Stream Incomplete traits) on: c count: count at: start
+[
+  i new `>> [collection: c. count: count. start: start. ]
+].
+
+i@(Stream Incomplete traits) zero
+[i on: Nil count: 0 at: Nil].
+
+i@(Stream Incomplete traits) contents
+[
+  i collection isEmpty
+    ifTrue: [i collection newSize: i count]
+    ifFalse: [i collection copyFrom: i start below: i start + count]
+].
+
 streams define: #ReadStream &parents: {Stream}.
 "Streams that read from some source."
 
@@ -279,10 +300,12 @@ s@(WriteStream traits) ; c
 ].
 
 source@(Stream traits) >> sink@(WriteStream traits)
-"Write the contents from source to target one element at a time."
+"Write the contents from source to target one element at a time.
+The source can signal exhausted after an #isAtEnd returns true if
+it doesn't have anything else left to write."
 [
-  [source isAtEnd]
-    whileFalse: [sink nextPut: source next].
+  [[source isAtEnd] whileFalse: 
+     [sink nextPut: source next]] on: Stream Exhaustion do: [|:c| ^ sink].
   sink
 ].
 
@@ -297,6 +320,9 @@ x@(Root traits) isSource
 
 x@(Root traits) isSink
 [#writer isFoundOn: {x}].
+
+x@(Root traits) isTerminal
+[x isSource \/ [x isSink]].
 
 source@(Root traits) >> sink
 [source isSource /\ [sink isSink] ifTrue: [source reader >> sink writer]].

@@ -93,6 +93,13 @@ dir@(Directory traits) delete
     ifFalse: [error: 'Unable to delete directory']
 ].
 
+dir@(Directory traits) ensureExists
+[
+  dir exists
+    ifFalse: [dir parent ensureExists. dir create].
+  dir
+].
+
 dir@(Directory traits) create
 [
   dir exists
@@ -232,7 +239,21 @@ dir@(Directory traits) walk: block
 dir@(Directory traits) / path
 "Answers a new Directory or File that is specified by the relative location
 given as argument."
-[(path as: File RelativeLocator &base: dir locator) newResource].
+[| newPath newType |
+  newPath: (path as: File RelativeLocator &base: dir locator).
+  newType: (newPath fileInfo
+    ifNil: [File]
+    ifNotNilDo:
+      [| :info | info isFile ifTrue: [File] ifFalse: [info isDirectory ifTrue: [Directory]]]).
+  newType newNamed: path
+].
+
+file@(File traits) / path
+[
+  file exists not \/ [file fileInfo isDirectory]
+    ifTrue: [(Directory newNamed: file locator) / path]
+    ifFalse: [error: 'This is an existing file.']
+].
 
 Directory traits define: #Stream
 	    &parents: {ExternalResource ReadStream. PeekableStream}

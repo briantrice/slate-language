@@ -62,6 +62,8 @@ Image startupActions at: #Platform put:
 globals define: #Environment &parents: {Mapping. ExtensibleCollection}
 &slots: {#variables -> Dictionary new}.
 
+p@(Platform traits) environment [Environment].
+
 Image startupActions at: #Environment put:
 [Environment update].
 
@@ -152,6 +154,51 @@ e@(Environment traits) sourcePaths
 
 "Load defaultPaths addAll:
   (Environment sourcePaths collect: [| :each | each as: File Locator])."
+
+p@(Platform traits) edit: m@(Method traits) &editor: editor &reload: reload
+[
+  editor `defaultsTo:
+    (p environment at: 'EDITOR' ifAbsent:
+       [(query: 'Select an editor for files: ')
+          ifNotNilDo:
+            [| :editor | p environment at: 'EDITOR' put: editor. editor]]).
+  reload `defaultsTo: False.
+  m sourceTree
+    ifNil:
+      [warn: 'No source information available.'. False]
+    ifNotNilDo:
+      [| :src |
+       src source resource locator
+         ifNil:
+           [warn: 'File-based source information unavailable.'. False]
+         ifNotNilDo:
+           [| :fileName result |
+            result: (p run: editor
+              ; (src lineNumber ifNil: [''] ifNotNilDo: [| :n | ' +' ; n printString])
+              ; ' ' ; (fileName as: String)).
+            result /\ reload ifTrue: [m reload].
+            result]]
+].
+
+p@(Platform traits) view: f@(File traits) &pager: pager
+[
+  pager `defaultsTo:
+    (p environment at: 'PAGER' ifAbsent:
+       [(query: 'Select a viewer for files: ')
+          ifNotNilDo:
+            [| :pager | p environment at: 'PAGER' put: pager. pager]]).
+  p run: pager ; ' ' ; (f locator as: String)
+].
+
+p@(Platform traits) browse: url &browser: browser
+[
+  browser `defaultsTo:
+    (p environment at: 'BROWSER' ifAbsent:
+       [(query: 'Select a browser for URLs: ')
+          ifNotNilDo:
+            [| :browser | p environment at: 'BROWSER' put: browser. browser]]).
+  p run: browser ; ' ' ; (s as: String)
+].
 
 define: #shell &builder: [lobby newSubSpace].
 

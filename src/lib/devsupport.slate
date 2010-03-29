@@ -81,30 +81,3 @@ m@(Method traits) reload
     [| :src |
      (src source resource as: Module) load]
 ].
-
-m@(Method traits) editExternally &editor: editor &reload: reload
-[
-  editor `defaultsTo: (Environment at: 'EDITOR').
-  reload `defaultsTo: False.
-  m sourceTree
-    ifNil:
-      [warn: 'No source information available.'. False]
-    ifNotNilDo:
-      [| :src |
-       src source resource locator
-         ifNil:
-           [warn: 'File-based source information unavailable.'. False]
-         ifNotNilDo:
-           [| :fileName result |
-            result: (Platform run: editor
-              ; (src lineNumber ifNil: [''] ifNotNilDo: [| :n | ' +' ; n printString])
-              ; ' ' ; (fileName as: String)).
-            result /\ reload ifTrue: [m reload].
-            result]]
-].
-
-f@(File traits) viewExternally &viewer: viewer
-[
-  viewer `defaultsTo: (Environment at: 'PAGER' ifAbsent: ['less']).
-  Platform run: viewer ; ' ' ; (f locator as: String)
-].

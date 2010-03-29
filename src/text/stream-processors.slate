@@ -1,5 +1,13 @@
 
-streams define: #LimitedProcessor &parents: {StreamProcessor} &slots: {#count -> 0}.
+streams define: #DelegatingProcessor &parents: {StreamProcessor} &slots: {}.
+
+s@(DelegatingProcessor traits) next
+[
+  s source next
+].
+
+
+streams define: #LimitedProcessor &parents: {DelegatingProcessor} &slots: {#count -> 0}.
 
 s@(LimitedProcessor traits) for: n
 [
@@ -16,6 +24,203 @@ s@(LimitedProcessor traits) isAtEnd
 s@(LimitedProcessor traits) next
 [
   s count: s count - 1.
-  s source next
+  s count < 0 ifTrue: [s exhausted] ifFalse: [resend]
 ].
 
+"fixme refactor #next:/#next using #next:putInto:startingAt:"
+
+
+streams define: #InOutProcessor &parents: {StreamProcessor} &slots: {#inBuffer. #outBuffer. }.
+
+
+p@(InOutProcessor traits) on: s
+[
+  resend `>> [inBuffer: s collectionType new. outBuffer: s collectionType new. ]
+].
+
+s@(InOutProcessor traits) next
+[ | seq amt |
+  seq: (s collectionType new &capacity: 1).
+  amt: (s next: 1 putInto: seq startingAt: 0).
+  amt isZero ifTrue: [^ s exhausted].
+  seq first
+].
+
+s@(InOutProcessor traits) canProcessMore
+[
+  s inBuffer isNotEmpty \/ [s source isAtEnd not]
+].
+
+s@(InOutProcessor traits) next: n putInto: seq startingAt: start
+[ | buf amt |
+  [s outBuffer size < n /\ [s canProcessMore]]
+    whileTrue: [s fillInBuffer: s requiredInSize. s process].
+  amt: (n min: s outBuffer size).
+  seq replaceFrom: start to: start + amt - 1 with: s outBuffer.
+  s outBuffer: (s outBuffer allButFirst: amt).
+  amt
+].
+
+s@(InOutProcessor traits) isAtEnd
+[
+  s outBuffer isEmpty /\ s inBuffer isEmpty /\ [resend]
+].
+
+s@(InOutProcessor traits) requiredInSize
+[
+  4
+].
+
+"doesn't/can't guarantee that it's filled!"
+s@(InOutProcessor traits) fillInBuffer: neededSize
+[ | nextBuffer amt needed |
+  s inBuffer size >= neededSize ifTrue: [^ Nil].
+  needed: neededSize - s inBuffer size.
+  nextBuffer: (s collectionType new &capacity: needed).
+  amt: (s source next: needed putInto: nextBuffer).
+  s inBuffer: s inBuffer ; (nextBuffer first: amt).
+].
+
+s@(InOutProcessor traits) process
+[
+  s passInThrough
+].
+
+s@(InOutProcessor traits) passInThrough
+[
+  s write: s inBuffer.
+  s inBuffer: s collectionType new.
+].
+
+s@(InOutProcessor traits) write: seq
+[
+  s outBuffer: s outBuffer ; seq
+].
+
+s@(InOutProcessor traits) skip: amt
+[
+  s inBuffer: (s inBuffer allButFirst: amt)
+].
+
+
+s@(InOutProcessor traits) guaranteedReadable
+[
+  s outBuffer size
+].
+
+
+
+
+
+
+streams define: #SimpleReplacementStream &parents: {InOutProcessor} &slots: {#search. #replace}.
+
+s@(SimpleReplacementStream traits) find: x replaceWith: y
+[
+  s new `>> [search: x. replace: y. ]
+].
+
+
+s@(SimpleReplacementStream traits) requiredInSize
+[
+  s search size max: 1
+].
+
+"fixme don't cons as much"
+s@(SimpleReplacementStream traits) process
+[
+  s search size < 1 ifTrue: [^ s passInThrough].
+
+  [s inBuffer size >= s requiredInSize]
+    whileTrue: 
+      [(s inBuffer first: s search size) = s search 
+         ifTrue: [s write: s replace. s skip: s search size]
+         ifFalse: [s write: (s inBuffer first: 1). s skip: 1 ]].
+
+  s source isAtEnd ifTrue: [s passInThrough]
+].
+
+
+s@(Sequence traits) find: find@(Sequence traits) replaceWith: replace@(Sequence traits)
+[ | out |
+  out: s new writer.
+  s reader >> (SimpleReplacementStream find: find replaceWith: replace) >> out.
+  out contents
+].
+
+
+streams define: #MultiProcessor &parents: {DelegatingProcessor} &slots: {#children}.
+
+mp@(MultiProcessor traits) using: s
+[
+  mp new `>> [children: s. ]
+].
+
+mp@(MultiProcessor traits) on: s
+[
+  mp children isEmpty ifTrue: [^ (error: 'No children for processor')].
+
+  "fixme we should be able to write the following in a better way"
+  mp children first on: s.
+  (1 to: mp children size - 1 by: 1) do: [|:i| (mp children at: i) on: (mp children at: i - 1)].
+  mp source: mp children last.
+
+  mp
+].
+
+d@(Dictionary traits) keysAndValuesCollect: block
+[ | result | 
+  d isEmpty ifTrue: [^ #()].
+  result: ExtensibleArray new.
+  d keysAndValuesDo: [| :key :val | result add: (block applyWith: key with: val)].
+  result
+].
+
+s@(Sequence traits) sequentialFindAndReplace: dict@(Dictionary traits)
+[ | out |
+  out: s new writer.
+  s reader
+    >> (MultiProcessor using: 
+          (dict keysAndValuesCollect: [|:key :val| SimpleReplacementStream find: key replaceWith: val]))
+    >> out.
+  out contents
+].
+
+
+
+
+streams define: #MultiReplacementStream &parents: {InOutProcessor} &slots: {#dict. #cachedSize}.
+
+s@(MultiReplacementStream traits) from: d@(Dictionary traits)
+[
+  s new `>> [dict: d. ]
+].
+
+
+s@(MultiReplacementStream traits) requiredInSize
+[
+  s cachedSize ifNil: [s cachedSize: (s dict keys collect: #size `er) max].
+  s cachedSize
+].
+
+"fixme don't cons as much"
+s@(MultiReplacementStream traits) process
+[ | match |
+  s requiredInSize < 1 ifTrue: [^ s passInThrough].
+  [s inBuffer size >= 1]
+    whileTrue: 
+      [match: False.
+       s dict keysAndValuesDo:
+         [|:key :val| (s inBuffer first: key size) = key
+                        ifTrue: [s write: val. s skip: key size. match: True]].
+       match ifFalse: [s write: (s inBuffer first: 1). s skip: 1 ]].
+
+].
+
+
+s@(Sequence traits) findAndReplace: dict@(Dictionary traits)
+[ | out |
+  out: s new writer.
+  s reader >> (MultiReplacementStream from: dict) >> out.
+  out contents
+].
