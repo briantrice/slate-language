@@ -536,7 +536,69 @@ void prim_size(struct object_heap* oh, struct Object* args[], word_t arity, stru
 	oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(object_array_size(args[0]));
 }
 
+
+void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  struct Object *dest = args[0], *src = args[3];
+  word_t start = object_to_smallint(args[1]), end = object_to_smallint(args[2]), repStart = object_to_smallint(args[4]);
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(4);
+
+  word_t repOff = repStart - start;
+
+  //pseudo error
+  if (end < start || repStart + end >= object_array_size(src) || end >= object_array_size(dest)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
+    return;
+  }
+
+  word_t* dstArray = (word_t*)object_array_elements(dest);
+  word_t* srcArray = (word_t*)object_array_elements(src);
+
+  if (dest == src && start > repStart) {
+    for (word_t i = end; i >= start; i--) {
+      dstArray[i] = srcArray[i + repOff];
+    }
+  } else {
+    for (word_t i = start; i <= end; i++) {
+      dstArray[i] = srcArray[i + repOff];
+    }
+  }
+
+  oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
+}
+
+
+
 #pragma mark ByteArray
+
+void prim_bytearray_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  struct ByteArray *dest = (struct ByteArray*)args[0], *src = (struct ByteArray*)args[3];
+  word_t start = object_to_smallint(args[1]), end = object_to_smallint(args[2]), repStart = object_to_smallint(args[4]);
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_SMALLINT_ARG(4);
+
+  word_t amt = end - start + 1;
+
+  //pseudo error
+  if (amt < 0 || repStart + amt > byte_array_size(src) || start + amt > byte_array_size(dest)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
+    return;
+  }
+
+  memcpy(byte_array_elements(dest) + start, byte_array_elements(src) + repStart, amt);
+  
+  if (byte_array_elements(dest) + amt > (byte_t*)object_after(oh, (struct Object*)dest)) {
+    assert(0);
+  }
+  
+  oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
+
+}
+
 
 void prim_bytearray_newsize(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 	struct Object* obj, *i;
@@ -2329,7 +2391,7 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_file_touch, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_bytearray_replaceFromToWithStartingAt, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_array_replaceFromToWithStartingAt, prim_fixme,
  /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
