@@ -49,7 +49,7 @@ load-order."
      'mobius/post-bootstrap'.
     } collect: [| :name | 'src/' ; name ; '.slate']).
     #filename -> Nil. "The filename for the image."
-    #bitSize -> 64. "The bitsize of the image"
+    #wordSize -> Platform Current bytesPerWord * 8. "The size of a word in bits of the image"
     #primitives -> ExtensibleArray new.
     #littleEndian -> True. "Whether to have a little-endian byte-word format."
     #bootstrapDirectory -> '.' "Where the source filename paths relate to."
@@ -241,9 +241,9 @@ Image Definition cached at: 'bare' put: (Image Definition clone `setting: #(boot
 like adding 3 + 4, say."
 "TODO: refactor Image Definition so that we can just supply a block here."
 
-def@(Image Definition traits) newNamed: filename littleEndian: littleEndian bitSize: bitSize
+def@(Image Definition traits) newNamed: filename littleEndian: littleEndian wordSize: wordSize
 [
-  (def clone `setting: #(littleEndian bitSize) to: {littleEndian. bitSize})
+  (def clone `setting: #(littleEndian wordSize) to: {littleEndian. wordSize})
    `>> [| :newDef | filename: (newDef defaultFilename &base: filename). ]
 ].
 
@@ -253,14 +253,14 @@ def@(Image Definition traits) defaultFilename &base: base
   base `defaultsTo: 'kernel'.
   base
     ; '.' ; (def littleEndian ifTrue: ['little'] ifFalse: ['big']) "endianness"
-    ; '.' ; def bitSize printString "bitsize"
+    ; '.' ; def wordSize printString "size of a word in bits"
     ; '.' ; (lobby timeSinceEpoch as: Integer) printString "timestamp"
     ; '.image'
 ].
 
 def@(Image Definition traits) generate
 [| builder bootBlock statements |
-  builder: (Image Bootstrap Generator new &littleEndian: def littleEndian &bitSize: def bitSize).
+  builder: (Image Bootstrap Generator new &littleEndian: def littleEndian &wordSize: def wordSize).
   def filename ifNil: [def filename: def defaultFilename].
   (File newNamed: def filename &mode: File CreateWrite) sessionDo:
     [| :imageFile image dir |
@@ -283,22 +283,22 @@ def@(Image Definition traits) generate
 
 i@Image generateAmd64Test
 [
-  ((i Definition cached at: 'bare') newNamed: 'k64' littleEndian: True bitSize: 64) generate.
+  ((i Definition cached at: 'bare') newNamed: 'k64' littleEndian: True wordSize: 64) generate.
 ].
 
 i@Image generateAmd64
 [
-  (i Definition newNamed: 'amd64' littleEndian: True bitSize: 64) generate.
+  (i Definition newNamed: 'amd64' littleEndian: True wordSize: 64) generate.
 ].
 
-i@Image bootstrap &littleEndian: littleEndian &bitSize: bitSize
+i@Image bootstrap &littleEndian: littleEndian &wordSize: wordSize
 "Only to be called during or after fullCleanBootstrap to build new images
 based on the new VM Definition."
 [| def |
-  bitSize `defaultsTo: Platform Current bytesPerWord * 8.
+  wordSize `defaultsTo: Platform Current bytesPerWord * 8.
   littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
-  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian bitSize: bitSize).
-  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. bitSize} put: def.
+  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian wordSize: wordSize).
+  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. wordSize} put: def.
   def generate.
   inform: 'Generated new kernel image at: \'' ; def filename ; '\''.
   inform: 'Suggested next command: ' ; StartupArguments first ; ' -i ' ; def filename.

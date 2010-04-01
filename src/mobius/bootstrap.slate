@@ -165,21 +165,21 @@ Image Bootstrap define: #CompiledMethod &parents: {Image Bootstrap Object}.
    #imageSize -> 0})
    `>> [addSlot: #objects valued: Namespace clone. ].
 
-gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &bitSize: bitSize
-[ | newGen |
-  littleEndian `defaultsTo: True.
-  bitSize `defaultsTo: 64.
-  Image Bootstrap define: #BytesPerWord -> (bitSize // 8).
+gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &wordSize: wordSize
+[| newGen |
+  littleEndian `defaultsTo: gen littleEndian.
+  wordSize `defaultsTo: Platform Current bytesPerWord * 8.
+  Image Bootstrap define: #BytesPerWord -> (wordSize // 8).
   newGen:
-    (gen cloneSettingSlots:
-    #(objects translations chunks characters symbols bytesPerWord littleEndian)
-      to: {gen objects clone.
-	   gen translations new.
-	   gen chunks new.
-	   gen characters copy.
-	   gen symbols new.
-           bitSize // 8.
-	   littleEndian ifNil: [gen littleEndian]}).
+    (gen clone `setting:
+       #(objects translations chunks characters symbols bytesPerWord littleEndian)
+       to: {gen objects clone.
+	    gen translations new.
+	    gen chunks new.
+	    gen characters copy.
+	    gen symbols new.
+            wordSize // 8.
+	    littleEndian}).
   newGen insertDelegate: newGen objects.
   newGen
 ].
