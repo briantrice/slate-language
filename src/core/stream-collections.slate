@@ -305,6 +305,7 @@ rs@(Sequence ReadStream traits) next
     ifTrue:
       [rs position: pos + 1.
        rs collection at: pos]
+    ifFalse: [rs exhausted]
 ].
 
 rs@(Sequence ReadStream traits) next: n
@@ -321,9 +322,7 @@ rs@(Sequence ReadStream traits) next: n putInto: c startingAt: start
   max: ((rs readLimit - rs position) min: n).
   c replaceFrom: start to: start + max - 1 with: rs collection startingAt: rs position.
   rs position: rs position + max.
-  max" = n
-    ifTrue: [c]
-    ifFalse: [c copyFrom: 0 below: start + max]"
+  max
 ].
 
 rs@(Sequence ReadStream traits) peekAt: offset
@@ -524,7 +523,7 @@ rws@(Sequence ReadWriteStream traits) next
 [| pos |
   pos: rws position.
   pos >= rws readLimit
-    ifTrue: [Nil]
+    ifTrue: [rws exhausted]
     ifFalse: [rws position: pos + 1.
       rws collection at: pos]
 ].
