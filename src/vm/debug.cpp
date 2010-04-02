@@ -366,7 +366,9 @@ word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* 
       struct Object* val = object_slot_value_at_offset(obj, offset);
       if (val == x) {
         if (!object_is_free(obj)) count++;
-        if (print) print_object(obj);
+        if (print && !object_is_free(obj)) {
+          fprintf(stderr, "pointed to by "); print_object(obj);
+        }
         break;
       }
     }

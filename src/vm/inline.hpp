@@ -74,6 +74,9 @@ SLATE_INLINE word_t object_total_size(struct Object* o) {
 
 SLATE_INLINE void heap_pin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Pinning %p\n", x);
+#if GC_BUG_CHECK
+  assert_good_object(oh, x);
+#endif
 
   if (object_is_smallint(x)) return;
   assert(object_hash(x) < ID_HASH_RESERVED);
@@ -96,7 +99,7 @@ SLATE_INLINE void object_increment_pin_count(struct Object* xxx)     {
   count++;
 #if GC_BUG_CHECK
   if (count > 10) {
-    printf("inc %d ", (int)count); print_object(xxx);
+    fprintf(stderr, "inc %d: ", (int)count); print_object(xxx);
   }
 #endif
   if (count == PINNED_MASK) {
@@ -113,7 +116,7 @@ SLATE_INLINE void object_decrement_pin_count(struct Object* xxx)     {
   //assert (count > 0);
 #if GC_BUG_CHECK
   if (count > 10) {
-    printf("dec %d ", (int)count); print_object(xxx);
+    fprintf(stderr, "dec %d: ", (int)count); print_object(xxx);
   }
 #endif
   if (count == 0) return;

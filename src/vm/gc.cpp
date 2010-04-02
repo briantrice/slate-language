@@ -7,13 +7,14 @@
 void assert_good_object(struct object_heap* oh, struct Object* obj) {
   assert(obj->payloadSize < 40 * MB);
   assert(obj->objectSize < 40 * MB);
+  assert(object_type(obj) < 3);
   assert(object_is_young(oh, obj) || object_is_old(oh, obj));
   assert(object_is_young(oh, (struct Object*)obj->map) || object_is_old(oh, (struct Object*)obj->map));
   assert(!object_is_free(obj));
   assert(!object_is_free((struct Object*)obj->map));
 }
 
-#ifdef GC_BUG_CHECK
+#ifdef GC_INTEGRITY_CHECK
 
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*)memory;
@@ -688,7 +689,7 @@ void heap_pin_c_stack_diff(struct object_heap* oh) {
     if ((object_is_young(oh, obj) || object_is_old(oh, obj))
         && !object_is_smallint(obj)
         && !object_is_marked(oh, obj)) {
-      print_object(obj);
+      fprintf(stderr, "c stack: "); print_object(obj);
     }
     stack--;
    }
@@ -714,7 +715,7 @@ void heap_full_gc(struct object_heap* oh) {
   heap_free_and_coalesce_unmarked(oh, oh->memoryOld, oh->memoryOldSize);
   //this frees the young objects and moves them over
   heap_tenure(oh);
-#ifdef GC_BUG_CHECK
+#ifdef GC_INTEGRITY_CHECK
   heap_integrity_check(oh, oh->memoryOld, oh->memoryOldSize);
   heap_integrity_check(oh, oh->memoryYoung, oh->memoryYoungSize);
 #endif
@@ -737,7 +738,7 @@ void heap_gc(struct object_heap* oh) {
   heap_free_and_coalesce_unmarked(oh, oh->memoryYoung, oh->memoryYoungSize);
 
   oh->nextFree = (struct Object*)oh->memoryYoung;
-#ifdef GC_BUG_CHECK
+#ifdef GC_INTEGRITY_CHECK
   heap_integrity_check(oh, oh->memoryYoung, oh->memoryYoungSize);
 #endif
 
@@ -771,6 +772,8 @@ void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y) {
   heap_forward_from(oh, x, y, oh->memoryYoung, oh->memoryYoungSize);
 #ifdef GC_BUG_CHECK
   assert(heap_what_points_to(oh, x, 1) == 0);
+  assert(!object_is_pinned(oh, x));
+  assert_good_object(oh, x);
 #endif
   heap_free_object(oh, x);
 }
