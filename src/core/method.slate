@@ -103,6 +103,16 @@ arguments."
     ifFalse: [error: 'The selector names do not match.']
 ].
 
+name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
+"Creates a method that just sends the given selector to the attribute
+of the argument at the specified index."
+[| src |
+  src: (Syntax Literal for: name) er.
+  src statements first arguments at: 0 infect:
+    [| :arg | Syntax Message sending: attribute to: {arg}].
+  src evaluate asMethod: name on: args
+].
+
 x@(Root traits) perform: selector
 "Included for Smalltalk-80 compatibility and brevity."
 [selector sendTo: {x}].
