@@ -59,7 +59,13 @@ load-order."
 Image Definition primitives clear.
 
 "here are the primitives"
-{
+[| :each |
+  inform: 'Adding primitive ' ; each printString.
+  Image Definition primitives add: 
+    each key key -> (Syntax MethodDefinition new `>>
+      [selector: each key value.
+       roles: (each value collect:
+                 [ | :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])] for: {
 0 -> #asMethod:on: -> #(MethodTraits SymbolTraits ArrayTraits).
 1 -> #asAccessor:for:on: -> #(MethodTraits SymbolTraits NoRoleObject ArrayTraits).
 2 -> #_map -> #(RootTraits).
@@ -91,8 +97,8 @@ Image Definition primitives clear.
 28 -> #sendTo:through: -> #(SymbolTraits ArrayTraits ArrayTraits).
 29 -> #findOn: -> #(SymbolTraits ArrayTraits).
 30 -> #findOn:after: -> #(SymbolTraits ArrayTraits NoRoleObject).
-31 -> #runArgsInto: -> #(LobbyObject ByteArrayTraits).
-32 -> #exit -> #(LobbyObject).
+31 -> #runArgsInto: -> #(BootstrapObject ByteArrayTraits).
+32 -> #exit -> #(BootstrapObject).
 33 -> #'==' -> #(RootTraits RootTraits).
 34 -> #identityHash -> #(RootTraits).
 35 -> #identityHash -> #(SmallIntegerTraits).
@@ -113,17 +119,17 @@ Image Definition primitives clear.
 50 -> #stackPointer -> #(InterpreterTraits).
 51 -> #framePointer -> #(InterpreterTraits).
 52 -> #codePointer -> #(InterpreterTraits).
-53 -> #collectGarbage -> #(LobbyObject).
-54 -> #bytesPerWord -> #(LobbyObject).
-55 -> #firstObject -> #(LobbyObject).
-56 -> #nextObjectAfter: -> #(LobbyObject NoRoleObject).
-57 -> #firstObjectDelegatingTo: -> #(LobbyObject NoRoleObject).
-58 -> #nextObjectAfter:delegatingTo: -> #(LobbyObject NoRoleObject NoRoleObject).
-59 -> #firstObjectReferringTo: -> #(LobbyObject NoRoleObject).
-60 -> #nextObjectAfter:referringTo: -> #(LobbyObject NoRoleObject NoRoleObject).
-61 -> #isLastObject: -> #(LobbyObject NoRoleObject).
-62 -> #isLastObject:delegatingTo: -> #(LobbyObject NoRoleObject NoRoleObject).
-63 -> #isLastObject:referringTo: -> #(LobbyObject NoRoleObject NoRoleObject).
+53 -> #collectGarbage -> #(BootstrapObject).
+54 -> #bytesPerWord -> #(BootstrapObject).
+55 -> #firstObject -> #(BootstrapObject).
+56 -> #nextObjectAfter: -> #(BootstrapObject NoRoleObject).
+57 -> #firstObjectDelegatingTo: -> #(BootstrapObject NoRoleObject).
+58 -> #nextObjectAfter:delegatingTo: -> #(BootstrapObject NoRoleObject NoRoleObject).
+59 -> #firstObjectReferringTo: -> #(BootstrapObject NoRoleObject).
+60 -> #nextObjectAfter:referringTo: -> #(BootstrapObject NoRoleObject NoRoleObject).
+61 -> #isLastObject: -> #(BootstrapObject NoRoleObject).
+62 -> #isLastObject:delegatingTo: -> #(BootstrapObject NoRoleObject NoRoleObject).
+63 -> #isLastObject:referringTo: -> #(BootstrapObject NoRoleObject NoRoleObject).
 64 -> #read:from:into:startingAt: -> #(ConsoleObject NoRoleObject NoRoleObject NoRoleObject NoRoleObject).
 65 -> #write:to:from:startingAt: -> #(ConsoleObject NoRoleObject NoRoleObject NoRoleObject NoRoleObject).
 66 -> #flushOutput -> #(ConsoleObject).
@@ -138,7 +144,7 @@ Image Definition primitives clear.
 75 -> #positionOf: -> #(FileTraits NoRoleObject).
 76 -> #atEndOf: -> #(FileTraits NoRoleObject).
 77 -> #sizeOf: -> #(FileTraits NoRoleObject).
-78 -> #saveImageNamed: -> #(LobbyObject NoRoleObject).
+78 -> #saveImageNamed: -> #(BootstrapObject NoRoleObject).
 79 -> #primitiveOpen: -> #(DirectoryTraits NoRoleObject).
 80 -> #primitiveClose: -> #(DirectoryTraits NoRoleObject).
 81 -> #primitiveRead:into: -> #(DirectoryTraits NoRoleObject NoRoleObject).
@@ -176,8 +182,8 @@ Image Definition primitives clear.
 113 -> #primitiveLookup:handle:into: -> #(ExternalLibraryTraits ASCIIStringTraits ByteArrayTraits ByteArrayTraits).
 114 -> #primitiveErrorInto: -> #(ExternalLibraryTraits ByteArrayTraits).
 115 -> #primitiveApply:accepting:callFormat:returning:to: -> #(ExternalLibraryTraits ByteArrayTraits NoRoleObject NoRoleObject NoRoleObject ArrayTraits).
-116 -> #timeSinceEpoch -> #(LobbyObject).
-117 -> #cloneSystem -> #(LobbyObject).
+116 -> #timeSinceEpoch -> #(BootstrapObject).
+117 -> #cloneSystem -> #(BootstrapObject).
 118 -> #readFromPipe:start:end: -> #(NoRoleObject SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits).
 119 -> #writeToPipe:start:end: -> #(NoRoleObject SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits).
 120 -> #selectOnReadPipesFor: -> #(ArrayTraits SmallIntegerTraits).
@@ -189,8 +195,8 @@ Image Definition primitives clear.
 126 -> #socketBindOn: -> #(SmallIntegerTraits ByteArrayTraits).
 127 -> #socketConnect: -> #(SmallIntegerTraits ByteArrayTraits).
 128 -> #createIPAddress:port:options: -> #(SmallIntegerTraits NoRoleObject NoRoleObject NoRoleObject). "AF_INET createIPAddress: {127. 0. 0. 1} port: 80 options: #()"
-129 -> #smallIntegerMinimum -> #(LobbyObject).
-130 -> #smallIntegerMaximum -> #(LobbyObject).
+129 -> #smallIntegerMinimum -> #(BootstrapObject).
+130 -> #smallIntegerMaximum -> #(BootstrapObject).
 131 -> #socketGetError -> #(SmallIntegerTraits).
 "lobby getAddrInfo: ('slatelanguage.org' as: ByteArray) 
        service: ('http' as: ByteArray)
@@ -199,19 +205,13 @@ Image Definition primitives clear.
        protocol: Net Socket Protocols Default 
        flags: 0"
 "returns an integer to the ticket you've been assigned (since it is asynchronous)"
-132 -> #getAddrInfo:service:family:type:protocol:flags: -> #(LobbyObject NoRoleObject NoRoleObject SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits).
+132 -> #getAddrInfo:service:family:type:protocol:flags: -> #(BootstrapObject NoRoleObject NoRoleObject SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits SmallIntegerTraits).
 "Gets the result of the earlier async call or Nil if it's not ready. if it's done you get an error code(int) or an array (resolved addresses)"
 133 -> #getAddrInfoResult -> #(SmallIntegerTraits).
 134 -> #freeAddrInfoResult -> #(SmallIntegerTraits).
-135 -> #vmArgCount -> #(LobbyObject).
-136 -> #vmArg: -> #(LobbyObject SmallIntegerTraits).
-} do: [ | :each | 
-         inform: 'Adding primitive ' ; each printString.
-       Image Definition primitives add: 
-         each key key -> (Syntax MethodDefinition new `>>
-                      [selector: each key value.
-                       roles: (each value collect: [ | :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])].
-
+135 -> #vmArgCount -> #(BootstrapObject).
+136 -> #vmArg: -> #(BootstrapObject SmallIntegerTraits).
+}.
 
 Image define: #BareDefinition -> (Image Definition cloneSettingSlots: #(bootstrapFilenames)
  to: {{'src/llvm/mobius/pre-bootstrap.slate'}}).

@@ -637,7 +637,7 @@ gen@(Image Bootstrap Generator traits) generateKernel
 
   gen generatePrototype: 'Namespace'
     &parents: {gen CloneableTraits. gen DerivableTraits. gen RootTraits}.
-  gen generateInstance: #LobbyObject of: gen NamespaceWindow.
+  gen generateInstance: #BootstrapObject of: gen NamespaceWindow.
 
   gen generatePrototype: 'Method' &parents: {gen CloneableTraits. gen DerivableTraits. gen RootTraits}.
 
@@ -652,7 +652,7 @@ gen@(Image Bootstrap Generator traits) generateKernel
 	#restVariable -> gen FalseObject.
 	#optionalKeywords -> gen ArrayProto.
 	#heapAllocate -> gen FalseObject.
-	#environment -> gen LobbyObject.
+	#environment -> gen BootstrapObject.
 	#literals -> gen ArrayProto.
 	#selectors -> gen ArrayProto.
 	#code -> gen ArrayProto.
@@ -759,10 +759,10 @@ gen@(Image Bootstrap Generator traits) generateUtilities
 gen@(Image Bootstrap Generator traits) generateLobby
 [
   gen addObjectNamed: #PrototypesObject valued: (gen cloneOf: gen NamespaceProto).
-  gen LobbyObject addDelegateValued: gen PrototypesObject.
+  gen BootstrapObject addDelegateValued: gen PrototypesObject.
  "timmy: no named delegate slots but name needed for accessor"
-  gen LobbyObject makeSlotNamed: #prototypes valued: gen PrototypesObject.
-  gen addAccessorFor: #prototypes on: gen LobbyObject.
+  gen BootstrapObject makeSlotNamed: #prototypes valued: gen PrototypesObject.
+  gen addAccessorFor: #prototypes on: gen BootstrapObject.
   "Install slots/accessors in the 'prototypes' namespace,
    set up traits traits, and set up printName. Make sure all bootstrapped protos
    are listed here, otherwise these important steps are left out for them."
@@ -804,16 +804,16 @@ gen@(Image Bootstrap Generator traits) generateLobby
     gen addAccessorFor: #printName on: window].
 
   gen addObjectNamed: #GlobalsObject valued: (gen cloneOf: gen NamespaceProto).
-  gen LobbyObject addDelegateValued: gen GlobalsObject.
-  gen LobbyObject makeSlotNamed: #globals valued: gen GlobalsObject.
-  gen addAccessorFor: #globals on: gen LobbyObject.
+  gen BootstrapObject addDelegateValued: gen GlobalsObject.
+  gen BootstrapObject makeSlotNamed: #globals valued: gen GlobalsObject.
+  gen addAccessorFor: #globals on: gen BootstrapObject.
   {
     #Console -> gen ConsoleObject.
     #NoRole -> gen NoRoleObject.
     #Nil -> gen NilObject.
     #True -> gen TrueObject.
     #False -> gen FalseObject.
-    #lobby -> gen LobbyObject.
+    #lobby -> gen BootstrapObject.
     #bootstrapCharacters -> (gen cloneOf: gen ArrayProto elements: gen characters).
     #bootstrapSymbols -> gen ArrayProto.
     #bootstrapInterpreter -> gen InterpreterObject.
@@ -833,7 +833,7 @@ gen@(Image Bootstrap Generator traits) generateLinkage
   gen GlobalsObject setSlot: #specialOops to:
     (gen cloneOf: gen ArrayProto
       elements:
-        {gen LobbyObject.
+        {gen BootstrapObject.
          gen NoRoleObject. gen NilObject. gen TrueObject. gen FalseObject.
          gen ArrayProto.
          gen ByteArrayProto.
@@ -905,7 +905,7 @@ gen@(Image Bootstrap Generator traits) generateLiteral: _@Nil
 [gen NilObject].
 
 gen@(Image Bootstrap Generator traits) generateLiteral: _@lobby
-[gen LobbyObject].
+[gen BootstrapObject].
 
 gen@(Image Bootstrap Generator traits) generateLiteral: s@(ASCIIString traits)
 [
