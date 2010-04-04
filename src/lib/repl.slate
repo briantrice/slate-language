@@ -1,16 +1,112 @@
-prototypes define: #REPL &parents: {Cloneable} &slots:
-  {#parser -> Syntax Parser clone.
-   #printer -> String writer.
-   #resource -> Console.
-   #namespace -> lobby newSubSpace.
-   #lineCount -> 0.
-   #basePrompt -> '> '.
-   #noviceMode -> False.
-   #inputs -> (RingBuffer new &capacity: 10).
-   #results -> (RingBuffer new &capacity: 10)}.
+prototypes define: #REPL &parents: {Cloneable} &slots: {
+  #parser -> Syntax Parser clone.
+  #printer -> String writer.
+  #resource -> DebugConsole.
+  #namespace -> lobby newSubSpace.
+  #lineCount -> 0.
+  #basePrompt -> '> '.
+  #noviceMode -> False.
+  #inputs -> (RingBuffer new &capacity: 10).
+  #results -> (RingBuffer new &capacity: 10).
+}.
+
+ns@(Namespace traits) inform: message &target: target
+[| *rest |
+  target `defaultsTo: REPL resource.
+  target writer ; (rest isEmpty ifTrue: [message] ifFalse: [#sprintf* sendTo: {message} ; rest]) ; '\n'.
+  target writer flush.
+].
+
+ns@(Namespace traits) print: message &target: target
+[
+  target `defaultsTo: REPL resource.
+  obj printOn: target writer.
+  target writer ; '\n'.
+  target writer flush.
+].
+
+ns@(Namespace traits) query: message &target: target
+"A simple way to ask input of the user on an ExternalResource (by default
+the Console) and return a Slate String response."
+[
+  target `defaultsTo: REPL resource.
+  target writer ; message.
+  target writer flush.
+  [response: (target interactor upTo: $\n).
+   response isEmpty] whileTrue. "Grabs the next line when it's available."
+  target writer flush.
+  response
+].
+
+ns@(Namespace traits) confirm: message &target: target
+"A simple way to ask a Boolean question of the user on an ExternalResource
+(by default the Console) and return a Slate Boolean answer."
+[| response |
+  response: (ns query: message ; ' (y/n) ') toLowercase.
+  {'y'. 'yes'} anySatisfy: [| :option | option = response]
+].
+
+ns@(Namespace traits) doubleConfirm: message &target: target
+[| response |
+  response: (ns confirm: message &target: target).
+  response /\ [ns confirm: 'Are you sure?' &target: target]
+].
+
+REPL traits define: #NamespaceMethods &builder: [Dictionary new].
+[| :assoc | REPL NamespaceMethods at: assoc key put: assoc value] for: {
+  #pasteMode       -> [| :ns | ns repl parser parseInteractively: False].
+  #interactiveMode -> [| :ns | ns repl parser parseInteractively: True].
+  #it              -> [| :ns | ns it1].
+  #it1             -> [| :ns | ns repl results first].
+  #it2             -> [| :ns | ns repl results second].
+  #it3             -> [| :ns | ns repl results third].
+  #it4             -> [| :ns | ns repl results fourth].
+  #it5             -> [| :ns | ns repl results fifth].
+
+  #in:             -> [| :nsold :ns | ns atSlotNamed: #parentNamespace put: ns].
+
+  #?               -> [| :ns :obj | ns helpFor: obj].
+
+  #help            ->
+  [| :ns &target |
+    target `defaultsTo: ns repl resource.
+    target writer ; 'The REPL is an interactive evaluator that parses expressions and prints their results back. It also keeps a return-value history and interaction messages:\n'
+      ; 'it\n\tAnswers the last result.\n'
+      ; 'itN\n\tAnswers the result from N (1..5) expressions ago in the history.\n'
+      ; 'repl\n\tAnswers the current REPL and its properties.\n'
+      ; 'pasteMode\n\t(Default) Evaluate only when a finished expression is followed by a period and newline.\n'
+      ; 'interactiveMode\n\tEvaluate when newline is entered and the expression is complete.\n'
+      ; 'inspect: obj\n\tStarts the interactive travelling inspector.\n'
+      ; 'inform: \'message\'\n\tPrints a message on a single line.\n'
+      ; 'query: \'message\'\n\tPrints a message, waiting on and answering a user response.\n'
+      ; 'confirm: \'message\'\n\tPrints a question on a single line and answering a user boolean response.\n'
+      ; 'resetOnStartup\n\tClears the history and line number on fresh runs of the VM.\n'
+      ; 'help\n\tPrints this helpful message.\n'.
+  ].
+}.
 
 REPL traits define: #Workspace &parents: {Namespace}.
 "A separate Namespace type for REPL usage."
+
+repl@(REPL traits) installMethods
+"This defines a number of namespace methods for convenient REPL access
+and control."
+[
+  _@(repl namespace) repl "Answer the currently used REPL." [repl].
+  ns@(repl namespace) ? [ns help].
+  repl NamespaceMethods keysAndValuesDo:
+    [| :selector :method | method asMethod: selector on: {repl namespace}].
+].
+
+repl@(REPL traits) removeMethods
+"This removes methods defined in installMethods."
+[
+  [| :sel | 
+   (sel findOn: {repl namespace}) ifNotNilDo:
+     [| :m | m removeFrom: {repl namespace}]] for: {
+   #repl. #pasteMode. #interactiveMode. #it. #it1. #it2. #it3. #it4. #it5.
+   #inform:. #query:. #confirm:. #help}
+].
 
 repl@(REPL traits) refreshWorkspace
 [
@@ -54,97 +150,6 @@ _@here interpretHook: block
         Abort -> [| :_ | ^ Nil].
         Quit -> [| :_ |]
       }
-].
-
-repl@(REPL traits) installMethods
-"This defines a number of namespace methods for convenient REPL access
-and control."
-[
-  _@(repl namespace) repl "Answer the currently used REPL." [repl].
-  "Set/clear the editting mode of the Parser."
-  ns@(repl namespace) pasteMode [ns repl parser parseInteractively: False].
-  ns@(repl namespace) interactiveMode [ns repl parser parseInteractively: True].
-  (#repl findOn: {repl namespace})
-    ifNotNilDo: [| :m | repl namespace addSlot: #previousREPLMethod valued: m].
-  "Define quick methods for the last 5 evaluation results."
-  ns@(repl namespace) it  [ns it1].
-  ns@(repl namespace) it1 [ns repl results first].
-  ns@(repl namespace) it2 [ns repl results second].
-  ns@(repl namespace) it3 [ns repl results third].
-  ns@(repl namespace) it4 [ns repl results fourth].
-  ns@(repl namespace) it5 [ns repl results fifth].
-
-  ns@(repl namespace) in: ns [ns atSlotNamed: #parentNamespace put: ns].
-
-  ns@(repl namespace) inform: message &target: r
-  "A simple way to print a message onto an ExternalResource (by default the Console)."
-  [| *rest |
-   r `defaultsTo: ns repl resource.
-   r writer ; (rest isEmpty ifTrue: [message] ifFalse: [#sprintf* sendTo: {message} ; rest]) ; '\n'.
-   r writer flush. ].
-
-  ns@(repl namespace) print: obj &target: r
-  [r `defaultsTo: repl resource.
-   obj printOn: r writer.
-   r writer ; '\n'.
-   r writer flush. ].
-
-  ns@(repl namespace) query: message &target: r
-  "A simple way to ask input of the user on an ExternalResource (by default
-the Console) and return a Slate String response."
-  [| response |
-   r `defaultsTo: ns repl resource.
-   r writer ; message.
-   r writer flush.
-   [response: (r interactor upTo: $\n).
-    response isEmpty] whileTrue. "Grabs the next line when it's available."
-   r writer flush.
-   response].
-
-  ns@(repl namespace) confirm: message &target: r
-  "A simple way to ask a Boolean question of the user on an ExternalResource
-(by default the Console) and return a Slate Boolean answer."
-  [| response |
-   response: (ns query: message ; ' (y/n) ') toLowercase.
-   {'y'. 'yes'} anySatisfy: [| :option | option = response]].
-
-  ns@(repl namespace) doubleConfirm: message &target: r
-  [| response |
-   response: (ns confirm: message &target: r).
-   response /\ [ns confirm: 'Are you sure?' &target: r]
-  ].
-
-  ns@(repl namespace) help &target: r
-  [
-    r `defaultsTo: ns repl resource.
-    r writer ; 'The REPL is an interactive evaluator that parses expressions and prints their results back. It also keeps a return-value history and interaction messages:\n'
-      ; 'it\n\tAnswers the last result.\n'
-      ; 'itN\n\tAnswers the result from N (1..5) expressions ago in the history.\n'
-      ; 'repl\n\tAnswers the current REPL and its properties.\n'
-      ; 'pasteMode\n\t(Default) Evaluate only when a finished expression is followed by a period and newline.\n'
-      ; 'interactiveMode\n\tEvaluate when newline is entered and the expression is complete.\n'
-      ; 'inspect: obj\n\tStarts the interactive travelling inspector.\n'
-      ; 'inform: \'message\'\n\tPrints a message on a single line.\n'
-      ; 'query: \'message\'\n\tPrints a message, waiting on and answering a user response.\n'
-      ; 'confirm: \'message\'\n\tPrints a question on a single line and answering a user boolean response.\n'
-      ; 'resetOnStartup\n\tClears the history and line number on fresh runs of the VM.\n'
-      ; 'help\n\tPrints this helpful message.\n'.
-  ].
-
-  ns@(repl namespace) ? [ns help].
-  ns@(repl namespace) ? obj [ns helpFor: obj].
-
-].
-
-repl@(REPL traits) removeMethods
-"This removes methods defined in installMethods."
-[
-  {#repl. #pasteMode. #interactiveMode. #it. #it1. #it2. #it3. #it4. #it5.
-   #inform:. #query:. #confirm:. #help}
-    do: [| :sel | 
-      (sel findOn: {repl namespace})
-        ifNotNilDo:
-          [| :m | m removeFrom: {repl namespace}]]
 ].
 
 repl@(REPL traits) enter
