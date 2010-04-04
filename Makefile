@@ -8,6 +8,10 @@ vm:
 	$(SILENT) $(MAKE) -C $(VMDIR) vm
 	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./slate
 
+slate.%.image: kernel.new.%.image
+	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
+	$(SILENT) touch $@
+
 $(DEFAULT_IMAGE): vm
 	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
 	$(SILENT) touch $(DEFAULT_IMAGE)
@@ -56,7 +60,7 @@ i18n-support:
 
 bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
-	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &littleEndian: $(LITTLE_ENDIAN_SLATE) &bitSize: $(WORD_SIZE)." --eval "quit"
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &littleEndian: $(LITTLE_ENDIAN_SLATE) &wordSize: $(WORD_SIZE)." --eval "quit"
 
 backup: superclean
 	tar  '--exclude=*.git*' -jcvf ../slate-backup.tar.bz2 .

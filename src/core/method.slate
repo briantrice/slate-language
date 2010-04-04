@@ -52,6 +52,11 @@ m@(CompiledMethod traits) acceptsAdditionalArguments
 "Answers whether the method has a *rest paramter."
 [m restVariable].
 
+_ define: selector@(Symbol traits) on: args as: m@(Method traits)
+"Provides Algol-style method definition syntax, like:
+function_name(args) {body}"
+[m asMethod: selector on: args].
+
 m@(Method traits) replaceWith: newM on: args
 "Uninstall the given method from the arguments, which need to be those holding
 the actual role entries pointing to that method for dispatch, and then define
@@ -96,6 +101,21 @@ arguments."
   name arity = selector arity
     ifTrue: [(Syntax Literal for: selector) er evaluate asMethod: name on: args]
     ifFalse: [error: 'The selector names do not match.']
+].
+
+name@(Symbol traits) delegateTo: attribute on: args
+"Creates a method that just sends the given selector to the attribute
+of the first argument."
+[name delegateTo: attribute at: 0 on: args].
+
+name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
+"Creates a method that just sends the given selector to the attribute
+of the argument at the specified index."
+[| src |
+  src: (Syntax Literal for: name) er.
+  src statements first arguments at: roleIndex infect:
+    [| :arg | Syntax Message sending: attribute to: {arg}].
+  src evaluate asMethod: name on: args
 ].
 
 x@(Root traits) perform: selector
