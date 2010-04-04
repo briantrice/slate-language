@@ -242,7 +242,7 @@
     ("\\(?:_\\|[A-Za-z]+[_A-Za-z0-9]*\\)@+?"
      . font-lock-variable-name-face)    ; declaration dispatchings
     (,slate-keyword-regexp . ,slate-keyword-face) ; keyword sends
-    ("|[A-Za-z0-9:*!() \n]*|"
+    ("|[A-Za-z0-9:&_*!() \n]*|"
      . font-lock-variable-name-face)    ; block local slots
     ("\\<\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
      . font-lock-variable-name-face)    ; block input slots
