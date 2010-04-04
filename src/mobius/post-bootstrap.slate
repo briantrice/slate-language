@@ -3,13 +3,13 @@ This code is compiled in to the bootstrapped seed image and then run when it
 starts, so changes to this source require an image bootstrap to take full
 effect."
 
-ns@(Namespace traits) inform: message &target: r
+ns@(Namespace traits) inform: message &target: target
 "A simple way to print a message onto an ExternalResource (by default the
 Console)."
-[
-  r `defaultsTo: Console.
-  r writer ; message ; '\n'.
-  r writer flush.
+[| *rest |
+  target `defaultsTo: DebugConsole.
+  target writer ; (rest isEmpty ifTrue: [message] ifFalse: [#sprintf* sendTo: {message} ; rest]) ; '\n'.
+  target writer flush.
 ].
 
 inform: 'Performing post-bootstrap actions...'.
@@ -37,8 +37,8 @@ contents within the argument namespace or an optional override."
 [| defaultPaths |
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
-  showLoadMessage `defaultsTo: True.
-  showLoadMessage ifTrue: [inform: 'Loading ' ; file locator printString &target: DebugConsole].
+  (showLoadMessage `defaultsTo: True)
+    ifTrue: [inform: 'Loading %r', file locator].
   defaultPaths: {Directory current}.
   (file locator isSameAs: file RelativeLocator)
     ifTrue:
@@ -53,10 +53,9 @@ contents within the argument namespace or an optional override."
      (aParser: (Syntax Parser newOn: input)) do:
        [| :each |
 	verbose ifTrue:
-	  [inform: 'Parsed to line ' ; aParser lexer lineNumber printString &target: DebugConsole].
+	  [inform: 'Parsed to line %s', aParser lexer lineNumber].
 	each evaluateIn: namespace]] &mode: file Read
 ].
-
 
 "
 This is defined on == but we expect this to use = for comparing strings like:
