@@ -369,6 +369,9 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
+
+  struct OopArray* oldStack = oh->cached.interpreter->stack; // save in case it's changed... see end of this function
+
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
     fprintf(stderr, "calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
@@ -398,7 +401,14 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
   }
-  heap_store_into_stack(oh, resultStackPointer);
+
+  // be sure the stack didn't change if we're going to check for the result on the stack
+  // for example, prim_initializeThreadOn will replace the stack and this would
+  // deref NULL if we didn't check
+  if (oldStack == oh->cached.interpreter->stack) {
+    heap_store_into_stack(oh, resultStackPointer);
+  }
+
 
 }
 
