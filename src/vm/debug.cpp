@@ -192,7 +192,7 @@ void print_type(struct object_heap* oh, struct Object* o) {
   struct Object* traitsWindow;
   struct OopArray* x;
   if (object_is_smallint(o)) {
-    fprintf(stderr, "<smallint value: %" PRIdPTR " (0x%" PRIuPTR "x)>\n", object_to_smallint(o), object_to_smallint(o));
+    fprintf(stderr, "<smallint value: %" PRIdPTR " (0x%" PRIuPTR ")>\n", object_to_smallint(o), object_to_smallint(o));
     return;
   }
 

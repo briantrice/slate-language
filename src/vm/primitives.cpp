@@ -557,7 +557,9 @@ void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Objec
 
   word_t repOff = repStart - start;
 
-  if (end < start) return;
+  if (end < start) {
+    return;
+  }
 
   //pseudo error
   if (repOff + end >= object_array_size(src) || end >= object_array_size(dest)) {
