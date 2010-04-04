@@ -707,6 +707,7 @@ void heap_print_objects(struct object_heap* oh, byte_t* memory, word_t memorySiz
 word_t heap_what_points_to_in(struct object_heap* oh, struct Object* x, byte_t* memory, word_t memorySize, bool_t print);
 word_t heap_what_points_to(struct object_heap* oh, struct Object* x, bool_t print);
 void heap_print_marks(struct object_heap* oh, byte_t* memory, word_t memorySize);
+void assert_good_object_recursive(struct object_heap* oh, struct Object* obj, word_t depth);
 void assert_good_object(struct object_heap* oh, struct Object* obj);
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize);
 struct Object* heap_new_cstring(struct object_heap* oh, byte_t *input);
@@ -751,6 +752,7 @@ void heap_gc(struct object_heap* oh);
 void heap_forward_from(struct object_heap* oh, struct Object* x, struct Object* y, byte_t* memory, word_t memorySize);
 void heap_forward(struct object_heap* oh, struct Object* x, struct Object* y);
 void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest);
+void heap_store_into_stack(struct object_heap* oh, word_t stackPointer);
 struct Object* heap_allocate_with_payload(struct object_heap* oh, word_t words, word_t payload_size);
 struct Object* heap_allocate(struct object_heap* oh, word_t words);
 struct Object* heap_clone(struct object_heap* oh, struct Object* proto);
@@ -947,6 +949,9 @@ void prim_send_to(struct object_heap* oh, struct Object* args[], word_t n, struc
 void prim_send_to_through(struct object_heap* oh, struct Object* args[], word_t n, struct OopArray* optionals, word_t resultStackPointer);
 void prim_as_accessor(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 void prim_save_image(struct object_heap* oh, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+
+void prim_bytearray_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
+void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer);
 
 void socket_module_init(struct object_heap* oh);
 word_t socket_return(word_t ret);

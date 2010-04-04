@@ -3,8 +3,27 @@
 #include <sys/mman.h>
 #endif
 
+void assert_good_object_recursive(struct object_heap* oh, struct Object* obj, word_t depth) {
+
+  word_t offset, limit;
+  
+  assert_good_object(oh, obj);
+
+  if (depth <= 0) return;
+
+  offset = object_first_slot_offset(obj);
+  limit = object_last_oop_offset(obj) + sizeof(word_t);
+  for (; offset != limit; offset += sizeof(word_t)) {
+    struct Object* val = object_slot_value_at_offset(obj, offset);
+    if (!object_is_smallint(val)) {
+      assert_good_object_recursive(oh, val, depth - 1);
+    }
+  }
+
+}
 
 void assert_good_object(struct object_heap* oh, struct Object* obj) {
+  if (object_is_smallint(obj)) return;
   assert(obj->payloadSize < 40 * MB);
   assert(obj->objectSize < 40 * MB);
   assert(object_type(obj) < 3);
@@ -12,9 +31,12 @@ void assert_good_object(struct object_heap* oh, struct Object* obj) {
   assert(object_is_young(oh, (struct Object*)obj->map) || object_is_old(oh, (struct Object*)obj->map));
   assert(!object_is_free(obj));
   assert(!object_is_free((struct Object*)obj->map));
+
+
+
 }
 
-#ifdef GC_INTEGRITY_CHECK
+
 
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*)memory;
@@ -31,7 +53,21 @@ void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memoryS
   }
 }
 
-#endif
+void heap_integrity_depth_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
+  struct Object* o = (struct Object*)memory;
+  fprintf(stderr, "GC integrity check...\n");
+
+  while (object_in_memory(oh, o, memory, memorySize)) {
+
+    if (object_is_free(o)) {
+      assert(heap_what_points_to(oh, o, 0) == 0);
+    } else {
+      assert_good_object_recursive(oh, o, 1);
+    }
+    o = object_after(oh, o);
+  }
+}
+
 
 
 

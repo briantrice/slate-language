@@ -396,6 +396,7 @@ void prim_as_method_on(struct object_heap* oh, struct Object* args[], word_t ari
 #endif
 	
 	oh->cached.interpreter->stack->elements[resultStackPointer] = method;
+
 }
 
 /* Method removeFrom: rolesArray */
@@ -538,16 +539,28 @@ void prim_size(struct object_heap* oh, struct Object* args[], word_t arity, stru
 
 
 void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  if (object_type(args[0]) == TYPE_BYTE_ARRAY) {
+    //fixme
+    prim_bytearray_replaceFromToWithStartingAt(oh, args, arity, opts, optCount, resultStackPointer);
+    return;
+  }
+
+
   struct Object *dest = args[0], *src = args[3];
   word_t start = object_to_smallint(args[1]), end = object_to_smallint(args[2]), repStart = object_to_smallint(args[4]);
+
+  ASSURE_TYPE_ARG(0, TYPE_OOP_ARRAY);
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
+  ASSURE_TYPE_ARG(3, TYPE_OOP_ARRAY);
   ASSURE_SMALLINT_ARG(4);
 
   word_t repOff = repStart - start;
 
+  if (end < start) return;
+
   //pseudo error
-  if (end < start || repStart + end >= object_array_size(src) || end >= object_array_size(dest)) {
+  if (repOff + end >= object_array_size(src) || end >= object_array_size(dest)) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
     oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
     return;
@@ -559,10 +572,12 @@ void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Objec
   if (dest == src && start > repStart) {
     for (word_t i = end; i >= start; i--) {
       dstArray[i] = srcArray[i + repOff];
+      heap_store_into(oh, dest, (struct Object*)dstArray[i]);
     }
   } else {
     for (word_t i = start; i <= end; i++) {
       dstArray[i] = srcArray[i + repOff];
+      heap_store_into(oh, dest, (struct Object*)dstArray[i]);
     }
   }
 
@@ -574,27 +589,41 @@ void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Objec
 #pragma mark ByteArray
 
 void prim_bytearray_replaceFromToWithStartingAt(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+
+  if (object_type(args[0]) == TYPE_OOP_ARRAY) {
+    //fixme
+    prim_array_replaceFromToWithStartingAt(oh, args, arity, opts, optCount, resultStackPointer);
+    return;
+  }
+
   struct ByteArray *dest = (struct ByteArray*)args[0], *src = (struct ByteArray*)args[3];
   word_t start = object_to_smallint(args[1]), end = object_to_smallint(args[2]), repStart = object_to_smallint(args[4]);
+
+  ASSURE_TYPE_ARG(0, TYPE_BYTE_ARRAY);
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
+  ASSURE_TYPE_ARG(3, TYPE_BYTE_ARRAY);
   ASSURE_SMALLINT_ARG(4);
 
   word_t amt = end - start + 1;
 
   //pseudo error
-  if (amt < 0 || repStart + amt > byte_array_size(src) || start + amt > byte_array_size(dest)) {
+  if (repStart + amt > byte_array_size(src) || start + amt > byte_array_size(dest)) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
     oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
     return;
   }
 
-  memcpy(byte_array_elements(dest) + start, byte_array_elements(src) + repStart, amt);
-  
+  if (amt > 0) {
+    memcpy(byte_array_elements(dest) + start, byte_array_elements(src) + repStart, amt);
+  }
+
+#ifdef GC_BUG_CHECK  
   if (byte_array_elements(dest) + amt > (byte_t*)object_after(oh, (struct Object*)dest)) {
     assert(0);
   }
-  
+#endif  
+
   oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
 
 }

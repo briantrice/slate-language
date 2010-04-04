@@ -505,7 +505,7 @@ word_t object_remove_role(struct object_heap* oh, struct Object* obj, struct Sym
 struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* obj, struct Symbol* name, struct Object* value, word_t offset) {
 
   Pinned<struct Map> map(oh);
-  Pinned<struct Object> newObj(oh);
+  struct Object* newObj; // don't pin here since the GC bug check will trip when map = NULL
   Pinned<struct SlotTable> slotTable(oh);
   struct SlotEntry* entry;
 
@@ -560,7 +560,7 @@ struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj,
 
 struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, struct Symbol* name) {
   word_t offset;
-  Pinned<struct Object> newObj(oh);
+  struct Object* newObj; // don't pin since map == NULL
   Pinned<struct Map> map(oh);
   Pinned<struct SlotTable> slotTable(oh);
   struct SlotEntry* se;

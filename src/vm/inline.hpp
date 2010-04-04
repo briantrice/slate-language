@@ -16,6 +16,12 @@ SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, st
   }
 }
 
+// heap_store_into_stack(oh, resultStackPointer);
+SLATE_INLINE void heap_store_into_stack(struct object_heap* oh, word_t resultStackPointer) {
+  heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
+}
+
+
 SLATE_INLINE bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
 SLATE_INLINE word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
 SLATE_INLINE struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
@@ -74,8 +80,11 @@ SLATE_INLINE word_t object_total_size(struct Object* o) {
 
 SLATE_INLINE void heap_pin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Pinning %p\n", x);
+#if GC_BUG_CHECK_EXTENDED
+  if (!object_is_smallint(x)) assert_good_object_recursive(oh, x, 1);
+#endif
 #if GC_BUG_CHECK
-  assert_good_object(oh, x);
+  if (!object_is_smallint(x)) assert_good_object(oh, x);
 #endif
 
   if (object_is_smallint(x)) return;
@@ -89,6 +98,13 @@ SLATE_INLINE void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   // don't check the idhash because forwardTo: will free the object
   //assert(object_hash(x) < ID_HASH_RESERVED);
   if (object_is_smallint(x)) return;
+#if GC_BUG_CHECK_EXTENDED
+  if (!object_is_free(x)) assert_good_object_recursive(oh, x, 1);
+#endif
+#if GC_BUG_CHECK
+  if (!object_is_free(x)) assert_good_object(oh, x);
+#endif
+
   object_decrement_pin_count(x);
 }
 

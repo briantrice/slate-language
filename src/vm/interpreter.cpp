@@ -398,6 +398,7 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
   }
+  heap_store_into_stack(oh, resultStackPointer);
 
 }
 
@@ -574,6 +575,7 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     fprintf(stderr, "calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, n, NULL, 0, resultStackPointer);
+    heap_store_into_stack(oh, resultStackPointer);
     return;
   }
 
@@ -725,7 +727,7 @@ void interpret(struct object_heap* oh) {
       }
 
 #ifdef SLATE_CUSTOM_BREAKPOINT
-      if (instruction_counter > 11475843) {
+      if (instruction_counter > 8486000) {
         myBreakpoint++;
       }
 #endif
@@ -1213,7 +1215,8 @@ void interpret(struct object_heap* oh) {
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
           primitives[primNum](oh, argsArray, arity, NULL, 0, i->framePointer + resultReg);
-          
+          heap_store_into_stack(oh, i->framePointer + resultReg);
+
           HEAP_UNPIN_ARGS(k, pinnedArgs);
 
           break;
@@ -1250,6 +1253,7 @@ void interpret(struct object_heap* oh) {
             //change the code pointer before the primitive because some primitives like prim_ensure will change stuff
             i->codePointer = i->codePointer + jumpOffset; 
             primitives[primNum](oh, argsArray, arity, NULL, 0, i->framePointer + resultReg);
+            heap_store_into_stack(oh, i->framePointer + resultReg);
           }
           
           HEAP_UNPIN_ARGS(k, pinnedArgs);
