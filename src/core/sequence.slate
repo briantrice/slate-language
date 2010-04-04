@@ -458,8 +458,11 @@ c@(Sequence traits) swap: index1 with: index2
 
 c@(Sequence traits) ; d@(Sequence traits)
 "Concatenates the two Sequences, answering the result."
-[
-  c copyReplaceFrom: c size `cache to: c size - 1 with: d
+[| result |
+  result: (c newSize: c size `cache + d size).
+  result replaceFrom: 0 to: c size - 1 with: c.
+  result replaceFrom: c size to: result size - 1 with: d.
+  result
 ].
 
 c@(Sequence traits) concatenateAll: seq &separator: delim
@@ -551,17 +554,17 @@ c@(Sequence traits) copyReplaceFrom: start to: end with: d
 "Copy with replacement, except if end < start, then this is instead an
 insertion. start = 0 and end = -1 inserts at the beginning; start = size
 appends at the end."
-[| newC ns endReplace |
-  ns: c size - (end - start + 1) + d size `cache.
+[| result resultSize endReplace |
+  resultSize: c size + d size `cache - (end - start + 1).
   endReplace: start - 1 + d size.
-  newC: (c new &capacity: ns).
+  result: (c new &capacity: resultSize).
   start > 0 ifTrue:
-    [newC replaceFrom: 0 to: start - 1 with: c].
+    [result replaceFrom: 0 to: start - 1 with: c].
   start <= endReplace ifTrue:
-    [newC replaceFrom: start to: endReplace with: d].
-  endReplace < ns ifTrue: [
-    newC replaceFrom: endReplace + 1 to: ns - 1 with: c startingAt: end + 1].
-  newC
+    [result replaceFrom: start to: endReplace with: d].
+  endReplace < resultSize ifTrue:
+    [result replaceFrom: endReplace + 1 to: resultSize - 1 with: c startingAt: end + 1].
+  result
 ].
 
 c@(Sequence traits) copyReplaceAll: seq with: replacement
@@ -574,7 +577,7 @@ given replacement."
     whileTrue:
       [end: currentIndex + seq indexLast.
        result: (result copyReplaceFrom: currentIndex to: end with: replacement).
-		   start: currentIndex + replacement size].
+       start: currentIndex + replacement size].
   result
 ].
 
@@ -1005,11 +1008,11 @@ c@(Sequence traits) mapSelect: block
 c@(Sequence traits) with: d@(Sequence traits) collect: binBlock
 "Collect the result from applying the block to as many pairs of elements from
 each Sequence as possible."
-[| newC |
-  newC: (c new &capacity: (c size min: d size)).
-  newC keysDo: [| :index |
-    newC at: index put: (binBlock apply*, (c at: index), (d at: index))].
-  newC
+[| result |
+  result: (c new &capacity: (c size min: d size)).
+  result keysDo: [| :index |
+    result at: index put: (binBlock apply*, (c at: index), (d at: index))].
+  result
 ].
 
 c@(Sequence traits) with: d@(Sequence traits) do: binBlock
@@ -1128,11 +1131,11 @@ c@(Sequence traits) reverse
 
 c@(Sequence traits) reversed
 "Answer a new Sequence with the element order reversed."
-[| newC srcIdx |
-  newC: (c new &capacity: c size `cache).
+[| result srcIdx |
+  result: (c new &capacity: c size `cache).
   srcIdx: c size.
-  c keysDo: [| :destIdx | newC at: destIdx put: (c at: (srcIdx: srcIdx - 1))].
-  newC
+  c keysDo: [| :destIdx | result at: destIdx put: (c at: (srcIdx: srcIdx - 1))].
+  result
 ].
 
 a@(Sequence traits) isSortedBy: block
