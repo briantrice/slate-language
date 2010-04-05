@@ -406,3 +406,17 @@ node@(Syntax Node traits) /= value
 [
   node setTo: (Syntax BinaryMessage sending: #/ to: {node. value})
 ].
+
+node@(Syntax Node traits) conditions: testsToActions@(Syntax Array traits) otherwise: fallbackAction@(Syntax Block traits)
+[| result |
+  result: fallbackAction.
+  testsToActions statements reverseDo:
+    [| :assocExpr test action |
+     test: assocExpr arguments first.
+     action: assocExpr arguments second.
+     result: (test `unquote do ifTrue: action `unquote ifFalse: ((Syntax Block newFor: result) `unquote )) `quote ].
+  result
+].
+
+node@(Syntax Node traits) conditions: testsToActions@(Syntax Array traits)
+[node conditions: testsToActions otherwise: `[Nil]].
