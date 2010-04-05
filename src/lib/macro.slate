@@ -414,7 +414,7 @@ node@(Syntax Node traits) conditions: testsToActions@(Syntax Array traits) other
     [| :assocExpr test action |
      test: assocExpr arguments first.
      action: assocExpr arguments second.
-     result: (test `unquote do ifTrue: action `unquote ifFalse: ((Syntax Block newFor: result) `unquote )) `quote ].
+     result: (test `unquote do ifTrue: action `unquote ifFalse: (((result isSameAs: Syntax Block) ifTrue: [result] ifFalse: [Syntax Block newFor: result]) `unquote )) `quote ].
   result
 ].
 
