@@ -442,10 +442,10 @@ ws@(Sequence WriteStream traits) nextPut: obj
 
 ws@(Sequence WriteStream traits) next: n putAll: c startingAt: start
 [| newEnd |
-  (newEnd: ws position + n) >= ws writeLimit ifTrue:
+  (newEnd: ws position + n - 1) >= ws writeLimit ifTrue:
     [ws growCollectionAtEnd &byAtLeast: newEnd - ws writeLimit + 4].
   ws collection replaceFrom: ws position to: newEnd with: c startingAt: start.
-  ws position: newEnd.
+  ws position: newEnd + 1.
   n
 ].
 
