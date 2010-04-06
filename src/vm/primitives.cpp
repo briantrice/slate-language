@@ -559,9 +559,14 @@ void prim_array_replaceFromToWithStartingAt(struct object_heap* oh, struct Objec
 
   if (end < start) return;
 
-  //pseudo error
-  if (repOff + end >= object_array_size(src) || end >= object_array_size(dest)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
+  if (repOff + end >= object_array_size(src)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(repOff + end), args[3], NULL, 0, resultStackPointer);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = args[3];
+    return;
+  }
+
+  if (end >= object_array_size(dest)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(end), args[0], NULL, 0, resultStackPointer);
     oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
     return;
   }
@@ -607,9 +612,14 @@ void prim_bytearray_replaceFromToWithStartingAt(struct object_heap* oh, struct O
 
   word_t amt = end - start + 1;
 
-  //pseudo error
-  if (repStart + amt > byte_array_size(src) || start + amt > byte_array_size(dest)) {
-    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(0), args[0], NULL, 0, resultStackPointer);
+  if (repStart + amt > byte_array_size(src)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(repStart + amt), args[3], NULL, 0, resultStackPointer);
+    oh->cached.interpreter->stack->elements[resultStackPointer] = args[3];
+    return;
+  }
+
+  if (start + amt > byte_array_size(dest)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), smallint_to_object(start + amt), args[0], NULL, 0, resultStackPointer);
     oh->cached.interpreter->stack->elements[resultStackPointer] = args[0];
     return;
   }
