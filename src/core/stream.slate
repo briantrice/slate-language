@@ -93,18 +93,19 @@ s@(ReadStream traits) reader
 "A ReadStream is already its own resource."
 [s].
 
-s@(ReadStream traits) next
-"Obtain and answer the next element from the Stream."
-[overrideThis].
-
-s@(ReadStream traits) next: n putInto: seq startingAt: start
-"Returns the number of objects successfully read.."
+s@(ReadStream traits) next: n putInteractivelyInto: seq startingAt: start
+"Returns the number of objects successfully read."
 [| obj |
   0 below: n do: [| :index |
-    (obj: s next) ifNil: [^ index].
+    (obj: s next) on: s Exhaustion do: [| :c | ^ index].
     seq at: start + index put: obj].
   n
 ].
+
+s@(ReadStream traits) next: n putInto: seq startingAt: start
+"Take the next N elements from the stream and write into the Sequence from
+the given starting index."
+[overrideThis].
 
 s@(ReadStream traits) nextPutInto: seq startingAt: start
 [
@@ -137,6 +138,14 @@ s@(ReadStream traits) next: n
   s next: n putInto: arr startingAt: 0.
   arr
 ].
+
+s@(ReadStream traits) next
+"Obtain and answer the next element from the Stream."
+[s next: 1].
+
+s@(ReadStream traits) numAvailable
+"Answer the number of elements that can be read (currently)."
+[overrideThis].
 
 s@(ReadStream traits) advanceToSatisfying: testBlock
 "Advance the stream to the first object that satisfies the block test."
@@ -244,11 +253,6 @@ s@(WriteStream traits) writer
 "A WriteStream is already its own resource."
 [s].
 
-s@(WriteStream traits) nextPut: _
-"Place the given element on the Stream."
-[overrideThis].
-
-
 s@(WriteStream traits) next: n putInteger: val &littleEndian: le
 [
   le `defaultsTo: True.
@@ -258,38 +262,40 @@ s@(WriteStream traits) next: n putInteger: val &littleEndian: le
   s
 ].
 
-
-s@(WriteStream traits) next: n put: obj
-"Make the next N values the argument object."
-[
-  n timesRepeat: [s nextPut: obj].
-  obj
-].
+s@(WriteStream traits) next: n putAll: seq startingAt: start
+[overrideThis].
 
 s@(WriteStream traits) nextPutAll: c
 "Place the Collection's contents into the stream."
 [
-  s next: c size putAll: c startingAt: 0.
-  s
+  s next: c size putAll: c startingAt: 0
 ].
-    
+
+s@(WriteStream traits) next: n put: obj
+"Make the next N values the argument object."
+[| buffer |
+  buffer: (s collectionType newSize: n).
+  buffer atAllPut: obj.
+  s nextPutAll: buffer
+].
+
 s@(WriteStream traits) nextPutAll: seq from: start to: end
 "Place a range of the Sequence's contents into the Stream."
 [
-  s next: end - start putAll: seq from: start.
-  s
-].
-
-s@(WriteStream traits) next: n putAll: seq startingAt: start
-[
-  0 below: n do: [| :index |
-    s nextPut: (seq at: start + index)].
-  seq
+  s next: end - start putAll: seq from: start
 ].
 
 s@(WriteStream traits) next: n putAll: seq
 [
   s next: n putAll: seq startingAt: 0
+].
+
+s@(WriteStream traits) nextPut: obj
+"Place the given element on the Stream."
+[| buffer |
+  buffer: (s collectionType newSize: 1).
+  buffer at: 0 put: obj.
+  s next: 1 putAll: buffer startingAt: 0
 ].
 
 s@(WriteStream traits) ; c
@@ -556,20 +562,23 @@ s@(PositionableStream traits) skip: n
   s
 ].
 
-s@(PositionableStream traits) skipWhile: condition
-"Move the position forward until the condition is no longer satisfied.
-Answer whether it completes or the end of the stream is reached."
+s@(PositionableStream traits) skipUntil: condition
+"Move the position forward until the condition is satisfied."
 [
-  [s isAtEnd]
-    whileFalse: [(condition applyWith: s next) ifTrue: [^ True]].
-  False
+  [s isAtEnd \/ [condition apply*, s peek]] whileFalse: [s next]
+].
+
+s@(PositionableStream traits) skipWhile: condition
+"Move the position forward until the condition is no longer satisfied."
+[
+  [s isAtEnd \/ [(condition apply*, s peek) not]] whileFalse: [s next]
 ].
 
 s@(PositionableStream traits) skipTo: obj
 "Move the position forward until the object is found. This returns whether
 it was found or the end was reached before then."
 [
-  s skipWhile: [| :elem | elem ~= obj]
+  s skipUntil: [| :elem | elem = obj]
 ].
 
 s@(PositionableStream traits) setFrom: start to: end
@@ -636,10 +645,12 @@ source@(ReadStream traits) >> sink@(StreamProcessor traits)
 associatively in expressions for simple processing tasks."
 [sink newOn: source].
 
-streams define: #FilterStream &parents: {StreamProcessor} &slots: {#block -> [| :_ | True]. #nextValue -> Nil}.
+streams define: #FilterStream &parents: {StreamProcessor} &slots: {
+  #block -> [| :_ | True]
+}.
 "FilterStreams take source streams and apply a test block to each element,
 only returning or acting on elements that satisfy the test."
-"TODO: make a Write- or ReadWrite- variant?"
+"TODO: make a Write- variant"
 "The result of sending #next is pre-computed, to determine isAtEnd while
 not relying on the source stream being repositionable."
 
@@ -649,42 +660,35 @@ s@(Stream traits) select: block
 s@(Stream traits) reject: block
 [(FilterStream newOn: s) `>> [block: [| :x | (block applyWith: x) not]. ]].
 
-s@(FilterStream traits) on: source
-[s `>> [nextValue: Nil. source: source. ]].
-
-s@(FilterStream traits) isAtEnd
-[
-  s nextValue
-   ifNil:
-     [s source do:
-       [| :each | (s block applyWith: each) ifTrue: [s nextValue: each. ^ False]]].
-  s nextValue isNil
+s@(FilterStream traits) next: n putInto: seq startingAt: start
+[| numWritten |
+  numWritten: 0.
+  [s source isAtEnd \/ [numWritten >= seq size]] whileFalse:
+    [s source skipUntil: [| :elem | s block applyWith: elem].
+     [s source isAtEnd not /\ [numWritten < seq size /\ [s block applyWith: s peek]]]
+       whileTrue: [result nextPut: s next. numWritten: numWritten + 1]].
+  numWritten
 ].
 
-s@(FilterStream traits) next
-[| result |
-  s nextValue
-    ifNil: [
-      "If there is no nextValue, check whether the source has dried up."
-      s source isAtEnd
-        ifTrue: [^ (s exhausted)]
-        ifFalse:
-          [s source do: [| :each | (s block applyWith: each) ifTrue: [^ each]]]]
-    ifNotNil: [result: s nextValue. s nextValue: Nil].
-  result
-].
-
-streams define: #CollectStream &parents: {StreamProcessor} &slots: {#block -> Method Identity}.
+streams define: #CollectStream &parents: {StreamProcessor} &slots: {
+  #block -> Method Identity "The default action, which is an identity."
+}.
 "CollectStreams take source streams and apply a block to each element,
 returning the block's result for each."
-"block: The default action, which is an identity."
 
 s@(ReadStream traits) collect: block
 [(CollectStream newOn: s) `>> [block: block. ]].
 
-s@(CollectStream traits) next
-[
-  s block applyWith: s source next
+s@(CollectStream traits) numAvailable [s source numAvailable].
+
+s@(CollectStream traits) next: n putInto: seq startingAt: start
+[| buffer numRead |
+  buffer: (s collectionType newSize: n).
+  numRead: (s source next: n putInto: buffer startingAt: 0).
+  0 below: numRead do:
+    [| :index | buffer at: index put: (s block apply*, (buffer at: index))].
+  seq replaceFrom: start below: start + numRead with: buffer.
+  numRead
 ].
 
 s@(ReadStream traits) project: block
@@ -696,9 +700,16 @@ streams define: #InjectStream &parents: {StreamProcessor}
 s@(Stream traits) inject: init into: accumulator
 [(InjectStream newOn: s) `>> [currentValue: init. accumulator: accumulator. ]].
 
-s@(InjectStream traits) next
-[
-  s currentValue: (s accumulator applyWith: s currentValue with: s source next)
+s@(InjectStream traits) next: n putInto: seq startingAt: start
+[| buffer numRead |
+  buffer: (s collectionType newSize: n).
+  numRead: (s source next: n putInto: buffer startingAt: 0).
+  0 below: numRead do:
+    [| :index |
+     buffer at: index put:
+       (s currentValue: (s accumulator apply*, s currentValue, (buffer at: index)))].
+  seq replaceFrom: start below: start + numRead with: buffer.
+  numRead
 ].
 
 s@(InjectStream traits) last
@@ -723,17 +734,21 @@ w@(Stream WrapperStream traits) on: s
   w
 ].
 
-w@(Stream WrapperStream traits) terminal [w original terminal].
-
 source@(ReadStream traits) >> sink@(Stream WrapperStream traits)
 [sink newOn: source].
 
+w@(Stream WrapperStream traits) terminal [w original terminal].
 w@(Stream WrapperStream traits) hasAnEnd [w original hasAnEnd].
 w@(Stream WrapperStream traits) isAtEnd [w original isAtEnd].
 w@(Stream WrapperStream traits) next [w original next].
 w@(Stream WrapperStream traits) next: n [w original next: n].
+w@(Stream WrapperStream traits) next: n putInto: c [w original next: n putInto: c].
+w@(Stream WrapperStream traits) next: n putInto: c startingAt: start [w original next: n putInto: c startingAt: start].
+w@(Stream WrapperStream traits) next: n [w original next: n].
 w@(Stream WrapperStream traits) nextPut: obj [w original nextPut: obj].
 w@(Stream WrapperStream traits) nextPutAll: seq [w original nextPutAll: seq].
+w@(Stream WrapperStream traits) next: n putAll: seq [w original next: n putAll: seq].
+w@(Stream WrapperStream traits) next: n putAll: seq startingAt: start [w original next: n putAll: seq startingAt: start].
 w@(Stream WrapperStream traits) resource [w original resource].
 w@(Stream WrapperStream traits) resource: r [w original resource: r].
 w@(Stream WrapperStream traits) flush [w original flush].
@@ -744,17 +759,16 @@ w@(Stream WrapperStream traits) elementType [w original elementType].
 w@(Stream WrapperStream traits) collectionType [w original collectionType].
 
 "This is a wrapper mixin for streams that calculates line numbers."
-streams define: #LineNumberedReadStreamMixin &parents: {Mixin}
-&slots: {#eolPositions -> ExtensibleArray new. "The positions of the end of each line."
-         #lastPosition -> 0.
+streams define: #LineNumberedReadStreamMixin &parents: {Mixin} &slots: {
+  #eolPositions -> ExtensibleArray new. "The positions of the end of each line."
+  #lastPosition -> 0.
 "The position of the last character that EOL has been calculated for; we know
 the line number for all characters before this position and nothing about
 those after."
-#previousWasCR -> False.
+  #previousWasCR -> False.
 "Whether the previous character was a CR, for CR-LF streams. CR-LF in
 combination should only increment the line number by 1."
 }.
-
 
 s@(LineNumberedReadStreamMixin traits) on: r@(ReadStream traits)
 [
