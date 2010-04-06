@@ -11,8 +11,11 @@ _@Nil writer [DummyStream].
 _@(DummyStream traits) terminal [Nil].
 
 _@(DummyStream traits) next [].
+_@(DummyStream traits) next: _ [].
+_@(DummyStream traits) next: _ putInto: _ startingAt: _ [].
 _@(DummyStream traits) nextPut: _ [].
 _@(DummyStream traits) nextPutAll: _ [].
+_@(DummyStream traits) next: _ putAll: _ startingAt: _ [].
 _@(DummyStream traits) position [0].
 _@(DummyStream traits) position: _ [].
 _@(DummyStream traits) position: _ [].
@@ -46,6 +49,15 @@ s@(Method ReadStream traits) next
   s block do
 ].
 
+s@(Method ReadStream traits) next: n putInto: seq startingAt: start
+"Incrementally accumulates numRead in case there is an error running the block."
+[| numRead |
+  numRead: 0.
+  start below: (start + n min: seq size) do:
+    [| :seqIndex | seq at seqIndex put: s block do. numRead: numRead + 1].
+  numRead
+].
+
 s@(Method ReadStream traits) hasAnEnd [False].
 s@(Method ReadStream traits) isAtEnd [False].
 
@@ -70,6 +82,15 @@ s@(Method WriteStream traits) terminal [s block].
 s@(Method WriteStream traits) nextPut: obj
 [
   s block applyWith: obj
+].
+
+s@(Method WriteStream traits) next: n putAll: seq startingAt: start
+"Incrementally accumulates numWritten in case there is an error running the block."
+[| numWritten |
+  numWritten: 0.
+  start below: (start + n min: seq size) do:
+    [| :seqIndex | s block applyWith: (seq at seqIndex). numWritten: numWritten + 1].
+  numWritten
 ].
 
 s@(Method WriteStream traits) hasAnEnd [False].

@@ -1,8 +1,6 @@
-"Iterators allow more generic and varied accessing of Collections;
-generally only ReadStreams are provided as attributes, except in the case of
-Sequences."
-
 Collection traits define: #Stream &parents: {PositionableStream} &slots: {#collection}.
+"Collection Streams allow accessing of and writing into Collections like any
+other Stream terminal."
 
 s@(Collection Stream traits) terminal [s collection].
 
@@ -258,6 +256,20 @@ This is poor for sparse Sets."
        i collection contents at: nextIndex]
 ].
 
+i@(Set ReadStream traits) next: n putInto: seq startingAt: start
+[| numRead contents nextIndex |
+  numRead: 0.
+  contents: i collection contents.
+  nextIndex: i index.
+  seqIndex: start.
+  [(nextIndex: (contents indexOfFirstSatisfying: [| :x | x isNotNil] startingAt: i index)) isNil] whileFalse:
+    [i index: nextIndex + 1.
+     i position: i position + 1.
+     seq at: seqIndex put: (contents at: nextIndex).
+     seqIndex: seqIndex + 1].
+  numRead
+].
+
 i@(Set ReadStream traits) isAtEnd
 "Checks both the Set size and then the underlying Array index, since a sparse
 Set would reach the first before the second."
@@ -403,24 +415,38 @@ ws@(Sequence WriteStream traits) contents
 ws@(Sequence WriteStream traits) next
 [Nil].
 
+ws@(Sequence WriteStream traits) growCollectionAtEnd &byAtLeast: minGrowth
+[| c newSize |
+  c: ws collection.
+  newSize: c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
+  ws collection: (c newSize: newSize).
+  ws collection replaceFrom: 0 to: c size - 1 with: c.
+  ws writeLimit: newSize.
+].
+
+ws@(Sequence WriteStream traits) pastEndPut: obj
+[
+  ws growCollectionAtEnd.
+  ws collection at: ws position put: obj.
+  ws position: ws position + 1.
+  obj
+].
+
 ws@(Sequence WriteStream traits) nextPut: obj
 [| pos |
-  pos: ws position.
-  pos >= ws writeLimit
+  (pos: ws position) >= ws writeLimit
     ifTrue: [ws pastEndPut: obj]
     ifFalse: [ws position: pos + 1.
-      ws collection at: pos put: obj]
+              ws collection at: pos put: obj]
 ].
 
 ws@(Sequence WriteStream traits) next: n putAll: c startingAt: start
 [| newEnd |
-  newEnd: ws position + n.
-  newEnd > ws writeLimit ifTrue: [^ resend].
-  0 below: n
-    do: [| :index |
-      ws collection at: ws position + index put: (c at: start + index)].
+  (newEnd: ws position + n) >= ws writeLimit ifTrue:
+    [ws growCollectionAtEnd &byAtLeast: newEnd - ws writeLimit + 4].
+  ws collection replaceFrom: ws position to: newEnd with: c startingAt: start.
   ws position: newEnd.
-  ws
+  n
 ].
 
 ws@(Sequence WriteStream traits) size
@@ -481,16 +507,6 @@ ws@(Sequence WriteStream traits) on: c from: start to: end
   ws readLimit: (ws writeLimit: (end min: c size)).
   ws position: start.
   ws
-].
-
-ws@(Sequence WriteStream traits) pastEndPut: obj
-[| c cs |
-  c: ws collection.
-  ws collection: c ; (c new &capacity: ((c size max: 20) min: 1000000)).
-  ws writeLimit: ws collection size.
-  ws collection at: ws position put: obj.
-  ws position: ws position + 1.
-  obj
 ].
 
 ws@(Sequence WriteStream traits) peekLast
