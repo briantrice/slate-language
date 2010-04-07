@@ -568,13 +568,20 @@ ExtensibleSequence traits define: #WriteStream
   &parents: {Sequence WriteStream}.
 "A Stream used to write to a new or existing ExtensibleSequence."
 
-es@(ExtensibleSequence WriteStream traits) pastEndPut: obj
+ws@(ExtensibleSequence WriteStream traits) pastEndPut: obj
 [| c |
-  c: es collection.
+  c: ws collection.
   c addLast: obj.
-  es writeLimit: c size.
-  es position: es position + 1.
+  ws writeLimit: c size.
+  ws position: ws position + 1.
   obj
+].
+
+ws@(ExtensibleSequence WriteStream traits) next: n putAll: c startingAt: start
+[
+  ws collection at: ws position insertAll: (c copyFrom: start below: start + n).
+  ws position: ws position + n.
+  n
 ].
 
 ExtensibleSequence traits define: #ReadWriteStream
