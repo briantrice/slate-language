@@ -160,25 +160,8 @@ r@(ExternalResource traits) write: n from: array &startingAt: start
   r write: n to: r handle from: array startingAt: (start ifNil: [0])
 ].
 
-r@(ExternalResource traits) encode: n into: bytes@(ByteArray traits) from: seq &startingAt: start
-[
-  start ifNil: [start: 0].
-  0 below: n do: [| :index |
-    bytes at: index put: ((seq at: start + index) as: Integer)].
-  n
-].
-
-r@(ExternalResource traits) decode: n from: bytes@(ByteArray traits) into: seq &startingAt: start
-[
-  start ifNil: [start: 0].
-  0 below: n do: [| :index |
-    seq at: start + index put: ((bytes at: index) as: ASCIIString Character)].
-  n
-].
-
 ExternalResource traits define: #Stream &parents: {Stream} &slots:
   {#resource -> ExternalResource clone.
-   #isBinary -> True.
    #indexOfLastDirtyElement -> 0}.
 "A Stream used on an ExternalResource."
 
@@ -215,7 +198,6 @@ access."
 
 s@(ExternalResource Stream traits) on: r
 [
-  s isBinary: False.
   s resource: r.
   s indexOfLastDirtyElement: 0.
   s
@@ -224,16 +206,13 @@ s@(ExternalResource Stream traits) on: r
 s@(ExternalResource Stream traits) terminal [s resource].
 
 s@(ExternalResource Stream traits) elementType
-"ExternalResources generally will only be able to work with characters or
-(byte-sized?) integers. TODO: abstract over encoding"
 [
-  s isBinary ifTrue: [Integer] ifFalse: [ASCIIString Character]
+  Integer
 ].
 
 s@(ExternalResource Stream traits) collectionType
-"TODO: abstract over encoding"
 [
-  s isBinary ifTrue: [ByteArray] ifFalse: [ASCIIString]
+  ByteArray
 ].
 
 s@(ExternalResource Stream traits) open
@@ -298,7 +277,7 @@ ExternalResource traits define: #ReadStream
 			&parents: {ExternalResource Stream. ReadStream}.
 
 s@(ExternalResource ReadStream traits) next
-[
+[ "Fixme: this will throw a key not found rather than stream exhaustion."
   (s next: 1) first
 ].
 
@@ -308,28 +287,12 @@ s@(ExternalResource ReadStream traits) nextLine
 ].
 
 s@(ExternalResource ReadStream traits) next: n putInto: seq startingAt: start
-[| bytes bytesRead |
-  s isBinary ifTrue:
-    [^ (error: 'Binary ExternalResource streams only accept ByteArrays to read into.')].
-  bytes: (ByteArray newSize: n).
-  bytesRead: (s read: n into: bytes).
-  s resource decode: bytesRead from: bytes into: seq &startingAt: start.
-  bytesRead
-].
-
-s@(ExternalResource ReadStream traits) next: n putInto: seq@(String traits) startingAt: start
-"This is a KLUDGE: currently String is a ByteArray and because of that we must have two
-versions of the same method"
-[| bytes bytesRead |
-  s isBinary ifTrue:
-    [^ (error: 'Binary ExternalResource streams only accept ByteArrays to read into.')].
-  bytes: (ByteArray newSize: n).
-  bytesRead: (s read: n into: bytes).
-  s resource decode: bytesRead from: bytes into: seq &startingAt: start.
-  bytesRead
+[
+  overrideThis
 ].
 
 s@(ExternalResource ReadStream traits) next: n putInto: bytes@(ByteArray traits) startingAt: start
+"Returns the number of bytes read. Should not signal errors on exhaustion here (return 0)."
 [
   s read: n into: bytes &startingAt: start
 ].
@@ -337,18 +300,16 @@ s@(ExternalResource ReadStream traits) next: n putInto: bytes@(ByteArray traits)
 s@(ExternalResource ReadStream traits) read: n into: bytes@(ByteArray traits) &startingAt: start
 "This is a low-level protocol to avoid delegation issues if
 next:putInto:startingAt: is overridden on ER subtypes."
-[| bytesRead |
-  bytesRead: (s resource read: n into: bytes &startingAt: start).
-  bytesRead < n
-    ifTrue: [s exhausted].
-  bytesRead
+[
+  s resource read: n into: bytes &startingAt: start
 ].
 
 ExternalResource traits define: #WriteStream
 			&parents: {ExternalResource Stream. WriteStream}.
 
 s@(ExternalResource WriteStream traits) nextPut: obj
-[s nextPutAll: {obj}].
+"fixme warn people not to use this too much"
+[s nextPutAll: ((s collectionType new &capacity: 1) `>> [at: 0 put: obj. ])].
 
 _@(ExternalResource WriteStream traits) nextPut: _@(String traits)
 [
@@ -356,23 +317,8 @@ _@(ExternalResource WriteStream traits) nextPut: _@(String traits)
 ].
 
 s@(ExternalResource WriteStream traits) next: n putAll: seq startingAt: start
-[| bytes |
-  s isBinary ifTrue:
-    [^ (error: 'Binary ExternalResource streams only accept ByteArrays to write from.')].
-  bytes: (ByteArray newSize: n).
-  s resource encode: n into: bytes from: seq &startingAt: start.
-  s write: n from: bytes
-].
-
-s@(ExternalResource WriteStream traits) next: n putAll: seq@(String traits) startingAt: start
-"This is a KLUDGE: currently String is a ByteArray and because of that we must have two
-versions of the same method"
-[| bytes |
-  s isBinary ifTrue:
-    [^ (error: 'Binary ExternalResource streams only accept ByteArrays to write from.')].
-  bytes: (ByteArray newSize: n).
-  s resource encode: n into: bytes from: seq &startingAt: start.
-  s write: n from: bytes
+[
+  overrideThis
 ].
 
 s@(ExternalResource WriteStream traits) next: n putAll: bytes@(ByteArray traits) startingAt: start
