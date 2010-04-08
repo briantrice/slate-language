@@ -332,9 +332,9 @@ onto the stream."
 [
   byteSize isPositive ifTrue:
     [stream ;
-       ((0 below: byteSize)
-         collect: [|:bytenum| gen littleEndian ifTrue: [(val >> (bytenum * 8)) intoByte]
-                                               ifFalse: [(val >> (byteSize - 1 - bytenum * 8)) intoByte]])]
+       (((0 below: byteSize)
+           collect: [|:bytenum| gen littleEndian ifTrue: [(val >> (bytenum * 8)) intoByte]
+                                  ifFalse: [(val >> (byteSize - 1 - bytenum * 8)) intoByte]]) as: ByteArray)]
 ].
 
 gen@(Image Bootstrap Generator traits) emitLong: val on: stream
@@ -359,7 +359,7 @@ gen@(Image Bootstrap Generator traits) emitObjectHashed: hash sized: size payloa
   "header"
   (gen littleEndian not) ifTrue: [ gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
   stream nextPutAll:
-    (gen littleEndian
+    ((gen littleEndian
       ifTrue:
         [{2r1 bitOr: (hash bitAnd: 16r7F) << 1.
           (hash >> 7) intoByte.
@@ -369,7 +369,7 @@ gen@(Image Bootstrap Generator traits) emitObjectHashed: hash sized: size payloa
         [{2r10000000 bitOr: (hash >> 16 bitAnd: 16r7F).
           (hash >> 8) intoByte.
           hash intoByte.
-          format}]).
+          format}]) as: ByteArray).
   (gen littleEndian) ifTrue: [ gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
 
   "size in words of slot data"

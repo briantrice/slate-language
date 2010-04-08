@@ -536,6 +536,20 @@ File traits define: #ReadStream &parents: {File Stream}.
 File traits define: #WriteStream &parents: {File Stream}.
 File traits define: #ReadWriteStream &parents: {File Stream}.
 
+File traits define: #ASCIIStream &parents: {File Stream}.
+File traits define: #ASCIIReadStream &parents: {File ReadStream}.
+File traits define: #ASCIIWriteStream &parents: {File WriteStream}.
+File traits define: #ASCIIReadWriteStream &parents: {File ReadWriteStream}.
+fs@(File ASCIIStream traits) elementType [ASCIIString Character].
+fs@(File ASCIIStream traits) collectionType [ASCIIString].
+fs@(File ASCIIReadStream traits) elementType [ASCIIString Character].
+fs@(File ASCIIReadStream traits) collectionType [ASCIIString].
+fs@(File ASCIIWriteStream traits) elementType [ASCIIString Character].
+fs@(File ASCIIWriteStream traits) collectionType [ASCIIString].
+fs@(File ASCIIReadWriteStream traits) elementType [ASCIIString Character].
+fs@(File ASCIIReadWriteStream traits) collectionType [ASCIIString].
+
+
 fs@(File Stream traits) on: target@(String traits)
 "Open a File ReadWriteStream on the String path."
 [
@@ -561,14 +575,11 @@ fs@(File ReadWriteStream traits) on: target@(String traits)
 ].
 
 fs@(File Stream traits) elementType
-"FIXME: kluge. TODO: encoding dependent"
-[ASCIIString Character].
+[Integer].
 
 fs@(File Stream traits) collectionType
-"TODO: encoding dependent"
 [
-  (fs elementType isSameAs: ASCIIString Character)
-    ifTrue: [ASCIIString] ifFalse: [ByteArray]
+  ByteArray
 ].
 
 fs@(File Stream traits) position
