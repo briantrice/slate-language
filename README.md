@@ -49,7 +49,7 @@ Command Line
 
     ./slate -i <image>
 
-This starts slate using <image>.
+This starts slate using the save-heap snapshot named <image>.
 
 Run `slate -h` for more details.
 
@@ -96,6 +96,25 @@ don't have to go through loading the kernel again:
 The same steps can also be accomplished with:
     make slate.image
 
+Debugging Slate Code
+--------------------
+
+Within the REPL, if an error arises, a debugger prompt will appear:
+    slate[1]> foo.
+    Debugging: MethodNotFound traitsWindow
+    The following condition was signaled:
+    The method #foo was not found for the following arguments:
+    {(previousREPLMethod)}
+    
+    Available Restarts:
+    restart: 0	Abort evaluation of expression
+    restart: 1	Quit Slate
+    
+    Enter 'help.' for instructions.
+    slate-debug[0..1][frame: 0]> 
+
+Type in `help.` to see other commands or `restart: 0.` or just `0.` to escape usually.
+
 Debugging the VM
 ----------------
 
@@ -111,36 +130,36 @@ Inspect an object       -> `print print_detail(oh, struct Object*)`
 See the stack           -> `print print_stack_types(oh, 200)`
 
 
-Build flags (e.g.  make vmclean && make DEBUG=1
+Build flags (e.g.  `make vmclean && make DEBUG=1
 EXTRACFLAGS="-DGC_BUG_CHECK -DSLATE_DISABLE_METHOD_OPTIMIZATION
--DSLATE_DISABLE_PIC_LOOKUP"):
+-DSLATE_DISABLE_PIC_LOOKUP"`):
 
-GC_BUG_CHECK: extra features for debugging the GC
+`GC_BUG_CHECK`: extra features for debugging the GC
 
-GC_INTEGRITY_CHECK: check all the object memory to make sure it
+`GC_INTEGRITY_CHECK`: check all the object memory to make sure it
 looks good after a GC
 
-SLATE_DISABLE_METHOD_OPTIMIZATION: Don't optimize methods after
+`SLATE_DISABLE_METHOD_OPTIMIZATION`: Don't optimize methods after
 calling them a lot. Right now it sets method->oldCode to the current
 code. In the future it should do inlining.
 
-SLATE_DISABLE_PIC_LOOKUP: At the call site in the current method there
+`SLATE_DISABLE_PIC_LOOKUP`: At the call site in the current method there
 is a cache of called functions which is checked after the global cache
 when doing method dispatch.
 
-SLATE_DISABLE_METHOD_CACHE: Disable the global cache when doing method
+`SLATE_DISABLE_METHOD_CACHE`: Disable the global cache when doing method
 dispatch.
 
-SLATE_USE_MMAP: Use mmap to allocate the object memory. You should be
+`SLATE_USE_MMAP`: Use mmap to allocate the object memory. You should be
 able to get constant pointers between runnings so that you can debug
 by learning memory addresses from previous runs.
 
-PRINT_DEBUG and the many PRINT_DEBUG_*: Print more verbose output to
+`PRINT_DEBUG` and the many PRINT_DEBUG_*: Print more verbose output to
 the console.
 
-ALWAYS_FULL_GC: Never do a new-generation garbage collection.
+`ALWAYS_FULL_GC`: Never do a new-generation garbage collection.
 
-GC_MARK_FREED_MEMORY: Mark freed memory with 0xFE in case someone
+`GC_MARK_FREED_MEMORY`: Mark freed memory with 0xFE in case someone
 tries to use it again. (Slow)
 
 See the source for more.
@@ -148,22 +167,15 @@ See the source for more.
 Source directory structure
 --------------------------
 
-src/vm
-: The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
-src/mobius
-: The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
-src/core
-: The core libraries for the default slate system.
-src/lib
-: The standard but optional libraries.
-src/plugins
-: C code for slate FFI calls. `make plugins' to build
-src/ui
-: The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
-src/ui/gtk
-: The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
-src/net
-: The slate networking code. load: 'src/net/init.slate'.
+Under src:
+* vm: The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
+* mobius: The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
+* core: The core libraries for the default slate system.
+* lib: The standard but optional libraries.
+* plugins: C code for slate FFI calls. `make plugins' to build
+* ui: The slate UI code that probably calls plugins to draw the basics. load: 'src/ui/init.slate'.
+* ui/gtk: The slate GTK interface. load: 'src/ui/gtk/demo.slate'.
+* net: The slate networking code. load: 'src/net/init.slate'.
 
 Finding source code
 -------------------
