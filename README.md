@@ -150,7 +150,8 @@ Source directory structure
 
 src/vm
 : The C files for the VM. Interprets bytecode and provides necessary facilities for primitives, gc, etc.
-src/mobius -> The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
+src/mobius
+: The slate files for the compiler, lexer, bootstrap, and close-to-vm? facilities etc.
 src/core
 : The core libraries for the default slate system.
 src/lib
@@ -169,9 +170,9 @@ Finding source code
 
 Besides using grep, there are a few facilities:
 
- #as: implementations do: [|:each| each definitionLocation ifNotNilDo: [|:l| inform: (l as: String) ]].
+    #as: implementations do: [|:each| each definitionLocation ifNotNilDo: [|:l| inform: (l as: String) ]].
 
- (#parseExpression findOn: {Syntax Parser}) definitionLocation
+    (#parseExpression findOn: {Syntax Parser}) definitionLocation
 
 See the slate manual for more details.
 
