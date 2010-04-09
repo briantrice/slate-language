@@ -16,23 +16,23 @@ highly portable and relatively lightweight.
 Where do I learn more?
 ----------------------
 
-The reference site for this Distribution is at http://www.slatelanguage.org
-and the Google Code project at: http://code.google.com/p/slate-language/
+The reference site for this Distribution is at <http://www.slatelanguage.org>
+and the Google Code project at: <http://code.google.com/p/slate-language/>
 
 Bug reports and requests for information can be made via the Slate mailing
-list, described at: http://groups.google.com/group/slate-language
+list, described at: <http://groups.google.com/group/slate-language>
 
 See the wiki for more detailed documentation:
- http://code.google.com/p/slate-language/w/list
+ <http://code.google.com/p/slate-language/w/list>
 
 See our bug-tracker for issues:
- http://code.google.com/p/slate-language/issues/list
+ <http://code.google.com/p/slate-language/issues/list>
 
 Obtaining Slate
 ---------------
 
 To get a slate repository on your computer to play with, run:
-  git clone git://repo.or.cz/cslatevm.git
+    git clone git://repo.or.cz/cslatevm.git
 
 Setup
 -----
@@ -47,19 +47,19 @@ Read common.mk for more options.
 Command Line
 ------------
 
-./slate -i <image>
+    ./slate -i <image>
 
 This starts slate using <image>.
 
-Run 'slate -h' for more details.
+Run `slate -h` for more details.
 
 Learning Slate
 --------------
 
 Read the online tutorials (from newest to oldest):
 
-* http://slatelanguage.org/tutorial/
-* http://code.google.com/p/slate-language/wiki/GettingStarted
+* <http://slatelanguage.org/tutorial/>
+* <http://code.google.com/p/slate-language/wiki/GettingStarted>
 
 Bootstrapping
 -------------
@@ -71,44 +71,44 @@ generate a new kernel image:
 
 From the shell:
 
- make bootstrap WORD_SIZE=64 && make slate.image WORD_SIZE=64
+    make bootstrap WORD_SIZE=64 && make slate.image WORD_SIZE=64
 or
- make bootstrap WORD_SIZE=32 && make slate.image WORD_SIZE=32
+    make bootstrap WORD_SIZE=32 && make slate.image WORD_SIZE=32
 
 From within Slate:
 
 At the Slate REPL, execute:
- load: 'src/mobius/init.slate'.
+    load: 'src/mobius/init.slate'.
 then:
- Image bootstrap &littleEndian: True &bitSize: 32.
+    Image bootstrap &littleEndian: True &bitSize: 32.
 or
- Image bootstrap &littleEndian: True &bitSize: 64.
+    Image bootstrap &littleEndian: True &bitSize: 64.
 
 Then you will load the resulting kernel image like a regular image:
 
- ./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
+    ./slate -i kernel.new.<endian>.<wordsize>.<timestamp>.image
 
 After the image is loaded, you will want to save it so you
 don't have to go through loading the kernel again:
 
- Image saveNamed: 'slate.image'.
+    Image saveNamed: 'slate.image'.
 
 The same steps can also be accomplished with:
- make slate.image
+    make slate.image
 
 Debugging the VM
 ----------------
 
-make vmclean && make DEBUG=1
-gdb slate
-r -i <image-file>
-(on crash or Ctrl-c)
-bt
-f <n> (change frame to one with an 'oh' object (struct object_heap*))
+    make vmclean && make DEBUG=1
+    gdb slate
+    r -i <image-file>
+    (on crash or Ctrl-c)
+    bt
+    f <n> (change frame to one with an 'oh' object (struct object_heap*))
 
-See the slate backtrace -> print print_backtrace(oh)
-Inspect an object       -> print print_detail(oh, struct Object*)
-See the stack           -> print print_stack_types(oh, 200)
+See the slate backtrace -> `print print_backtrace(oh)`
+Inspect an object       -> `print print_detail(oh, struct Object*)`
+See the stack           -> `print print_stack_types(oh, 200)`
 
 
 Build flags (e.g.  make vmclean && make DEBUG=1
