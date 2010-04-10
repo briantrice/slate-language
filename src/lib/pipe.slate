@@ -1,0 +1,25 @@
+"Pipes for interprocess communication"
+
+prototypes define: #Pipe &parents: {ExternalResource} &slots: {#args -> #()}.
+
+
+p@(Pipe traits) enable
+[ | pipeName |
+  pipeName: (p locator as: ASCIIString).
+  p handle: (lobby openPipe: pipeName args: p args).
+  p
+].
+
+
+p@(Pipe traits) disable
+[
+  p handle do: [|:fd| lobby closePipe: fd].
+].
+
+
+r@(Pipe traits) read: n from: handle into: array startingAt: start
+[overrideThis].
+
+
+r@(Pipe traits) write: n to: handle from: array startingAt: start
+[overrideThis].

@@ -699,6 +699,78 @@ void prim_byteat(struct object_heap* oh, struct Object* args[], word_t arity, st
 	
 }
 
+
+#pragma mark Pipes
+
+void prim_openProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  word_t handle;
+  struct Object* fname= args[1];
+  struct Object* exeArgs = args[2];
+  word_t pipes[2];
+  struct Object* slatePipes;
+  
+  handle = pipe_open(oh, (struct ByteArray*)fname, exeArgs, pipes);
+  if (handle >= 0) {
+    slatePipes = (struct Object*)heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), 2);
+    object_array_set_element(oh, slatePipes, 0, smallint_to_object(pipes[0]));
+    object_array_set_element(oh, slatePipes, 1, smallint_to_object(pipes[1]));
+    oh->cached.interpreter->stack->elements[resultStackPointer] = slatePipes;
+    // heap store into is taken care of one frame up
+  } else {
+    oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+  }
+	
+}
+
+void prim_closeProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  struct Object *fd=args[1];
+  
+  pipe_close(oh, object_to_smallint(fd));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = oh->cached.nil;
+	
+}
+
+void prim_readProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
+  struct ByteArray* bytes = (struct ByteArray*)args[3];
+  word_t retval;
+  // lobby0 readProcessPipe: pipenum1 count: n2 into: bytearray3
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_TYPE_ARG(3, TYPE_BYTE_ARRAY);
+
+  if (n >= byte_array_size(bytes)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[3], NULL, 0, resultStackPointer);
+    return;
+  }
+
+  retval = pipe_read(oh, handle, n, (char*)(byte_array_elements(bytes)));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
+
+}
+
+void prim_writeProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
+
+  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
+  struct ByteArray* bytes = (struct ByteArray*)args[3];
+  word_t retval;
+  // lobby0 readProcessPipe: pipenum1 count: n2 into: bytearray3
+  ASSURE_SMALLINT_ARG(1);
+  ASSURE_SMALLINT_ARG(2);
+  ASSURE_TYPE_ARG(3, TYPE_BYTE_ARRAY);
+
+  if (n >= byte_array_size(bytes)) {
+    interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[3], NULL, 0, resultStackPointer);
+    return;
+  }
+
+  retval = pipe_write(oh, handle, n, (char*)(byte_array_elements(bytes)));
+  oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
+
+}
+
+
+
 #pragma mark File
 
 void prim_atEndOf(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
@@ -2432,8 +2504,8 @@ void (*primitives[]) (struct object_heap* oh, struct Object* args[], word_t n, s
  /*20-9*/ prim_selectOnReadPipesFor, prim_selectOnWritePipesFor, prim_closePipe, prim_socketCreate, prim_socketListen, prim_socketAccept, prim_socketBind, prim_socketConnect, prim_socketCreateIP, prim_smallIntegerMinimum,
  /*30-9*/ prim_smallIntegerMaximum, prim_socketGetError, prim_getAddrInfo, prim_getAddrInfoResult, prim_freeAddrInfoResult, prim_vmArgCount, prim_vmArg, prim_environmentVariables, prim_environment_atput, prim_environment_removekey,
  /*40-9*/ prim_isLittleEndian, prim_system_name, prim_system_release, prim_system_version, prim_system_platform, prim_system_machine, prim_system_execute, prim_startProfiling, prim_stopProfiling, prim_profilerStatistics,
- /*50-9*/ prim_file_delete, prim_bytearray_replaceFromToWithStartingAt, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_array_replaceFromToWithStartingAt, prim_fixme,
- /*60-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
+ /*50-9*/ prim_file_delete, prim_bytearray_replaceFromToWithStartingAt, prim_file_rename_to, prim_file_information, prim_dir_make, prim_dir_rename_to, prim_dir_delete, prim_objectPointerAddress, prim_array_replaceFromToWithStartingAt, prim_openProcessPipe,
+ /*60-9*/ prim_closeProcessPipe, prim_readProcessPipe, prim_writeProcessPipe, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
  /*70-9*/ prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme, prim_fixme,
 
 };

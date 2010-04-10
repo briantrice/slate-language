@@ -991,6 +991,14 @@ struct Object* file_information(struct object_heap* oh, char* filename);
 bool_t file_rename_to(struct object_heap* oh, char* src, char* dest);
 
 
+
+word_t pipe_open(struct object_heap* oh, struct ByteArray * name, struct Object* args, word_t pipes[2]);
+word_t pipe_write(struct object_heap* oh, word_t file, word_t n, char * bytes);
+word_t pipe_read(struct object_heap* oh, word_t file, word_t n, char * bytes);
+void pipe_close(struct object_heap* oh, word_t pipe);
+
+
+
 void dir_module_init(struct object_heap* oh);
 int dir_open(struct object_heap* oh, struct ByteArray *dirName);
 int dir_close(struct object_heap* oh, int dirHandle);
