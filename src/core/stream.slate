@@ -133,15 +133,18 @@ s@(ReadStream traits) next: n putInto: seq@(ExtensibleArray traits)
 
 s@(ReadStream traits) next: n
 "Answer the next N elements."
-[| arr |
+[| arr read |
   arr: (s collectionType new &capacity: n).
-  s next: n putInto: arr startingAt: 0.
-  arr
+  read: (s next: n putInto: arr startingAt: 0).
+  read = n ifTrue: [arr] ifFalse: [arr first: read]
 ].
 
 s@(ReadStream traits) next
 "Obtain and answer the next element from the Stream."
-[s next: 1].
+[| arr |
+  arr: (s next: 1).
+  arr isEmpty ifTrue: [s exhausted] ifFalse: [arr first]
+].
 
 s@(ReadStream traits) numAvailable
 "Answer the number of elements that can be read (currently)."

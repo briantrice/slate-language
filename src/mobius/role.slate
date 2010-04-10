@@ -80,12 +80,12 @@ m@(Map RoleReadStream traits) isAtEnd
 
 
 m@(Map RoleReadStream traits) next
-"TODO: prevent this from returning Nil when it reaches the end... raise Exhaustion?"
 [| result |
   [m isAtEnd] whileFalse:
     [result: (m map roleInTableAt: m index).
      m index: m index + 4.
-     result ifNotNil: [^ result]]
+     result ifNotNil: [^ result]].
+  m exhaustion
 ].
 
 x@(Root traits) roles
