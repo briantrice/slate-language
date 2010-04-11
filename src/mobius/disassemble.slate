@@ -116,15 +116,40 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
   nextStart
 ].
 
-m@(CompiledMethod traits) printInstructionsOn: out
+
+m@(CompiledMethod traits) printCondensedInstructionAt: pos on: out
+[| opcode instr nextStart argOffset |
+  opcode: (m code at: pos).
+  instr: (VM SSACode Instruction ByCode at: opcode
+            ifAbsent: [error: 'Cannot find instruction  at ' ; pos printString ; ' in ' ; m code printString]).
+  out ; (pos printString truncateTo: 5 paddedBy: $\s &onRight: True)
+    ; (opcode printString truncateTo: 3 paddedBy: $\s &onRight: True)
+    ; instr name
+    ; '*'.
+  nextStart: (instr offsettingArgIndices inject: pos + 1 + instr argNames size
+                into: [| :sum :offset | sum + (m code at: pos + 1 + offset)]).
+  argOffset: 0.
+  (pos + 1 until: nextStart) do:
+    [| :codeIndex |
+     out ; ', ' ; (m code at: codeIndex) printString.
+     argOffset < instr argNames size ifTrue: [out ; ' ' ; (instr argNames at: argOffset)].
+     argOffset: argOffset + 1].
+  out ; '\n'.
+  nextStart
+].
+
+m@(CompiledMethod traits) printInstructionsOn: out &condensed: condensed
 [| pos |
+  condensed `defaultsTo: False.
   out ; 'IP   ' ; 'OP ' ; 'Instruction' ; '\n'.
   pos: 0.
   [pos < m code size] whileTrue:
-    [pos: (m printInstructionAt: pos on: out)].
+    [condensed
+       ifTrue: [pos: (m printCondensedInstructionAt: pos on: out)]
+       ifFalse: [pos: (m printInstructionAt: pos on: out)]].
 ].
 
-m@(CompiledMethod traits) disassemble &output: s
+m@(CompiledMethod traits) disassemble &output: s &condensed: condensed
 "Print out method meta-data and then the instruction stream."
 [
   s `defaultsTo: Console writer.
@@ -136,7 +161,7 @@ m@(CompiledMethod traits) disassemble &output: s
     ; 'rest parameter: ' ; m restVariable printString ; '\n'
     ; 'optional keywords: ' ; (m optionalKeywords isEmpty
 	 ifTrue: ['(none)'] ifFalse: [m optionalKeywords join &separator: ' '])  ; '\n'.
-  m printInstructionsOn: s.
+  m printInstructionsOn: s &condensed: condensed.
 ].
 
 closure@(Closure traits) disassemble &output: s
