@@ -679,6 +679,8 @@ streams define: #CollectStream &parents: {StreamProcessor} &slots: {
 "CollectStreams take source streams and apply a block to each element,
 returning the block's result for each."
 
+s@(CollectStream traits) collectionType [Array].
+
 s@(ReadStream traits) collect: block
 [(CollectStream newOn: s) `>> [block: block. ]].
 
@@ -686,11 +688,10 @@ s@(CollectStream traits) numAvailable [s source numAvailable].
 
 s@(CollectStream traits) next: n putInto: seq startingAt: start
 [| buffer numRead |
-  buffer: (s collectionType newSize: n).
+  buffer: (s source collectionType newSize: n).
   numRead: (s source next: n putInto: buffer startingAt: 0).
   0 below: numRead do:
-    [| :index | buffer at: index put: (s block apply*, (buffer at: index))].
-  seq replaceFrom: start below: start + numRead with: buffer.
+    [| :index | seq at: index + start put: (s block apply*, (buffer at: index))].
   numRead
 ].
 

@@ -188,12 +188,12 @@ s@(Stream traits) lines [s LineStream newOn: s].
 
 l@(ReadStream LineStream traits) collectionType [Array].
 
-l@(ReadStream LineStream traits) next
+l@(ReadStream LineStream traits) nextLine
 [
   [| :line |
     l source `cacheAs: #underlying.
     [underlying isAtEnd
-        ifTrue: [line collection isEmpty ifTrue: [l exhausted]. False]
+        ifTrue: [line collection isEmpty ifTrue: [^ Nil]. False]
         ifFalse: [| char |
           (char: underlying next) caseOf: {
             $\r -> [l trailingNL: True. False].
@@ -202,6 +202,16 @@ l@(ReadStream LineStream traits) next
     ] whileTrue.
   ] writingAs: String
 ].
+
+l@(ReadStream LineStream traits) next: n putInto: seq startingAt: start
+[
+  0 below: n
+    do: [ |:index line| 
+           line: l nextLine. 
+           line ifNil: [^ index] ifNotNil: [ seq at: index + start put: line]].
+  n
+].
+
 
 WriteStream traits define: #LineStream &parents: {Stream WrapperStream}.
 "A Stream that writes Strings of text to a wrapped Stream, interpolated with
