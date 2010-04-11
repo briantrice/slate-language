@@ -261,9 +261,10 @@ s@(WriteStream traits) next: n putInteger: val &littleEndian: le
   n isPositive ifTrue:
     [(le ifNil: [Platform Current endianness == #LittleEndian])
        ifTrue: [0 below: n do:
-                  [| :byteIndex | s nextPut: ((val byteAt: byteIndex) as: s elementType)]]
+                  [| :byteIndex | s nextPut: ((val endianByteAt: byteIndex) as: s elementType)]]
        ifFalse: [n - 1 downTo: 0 do:
-                   [| :byteIndex | s nextPut: ((val byteAt: byteIndex) as: s elementType)]]].
+                   [| :byteIndex | s nextPut: ((val endianByteAt: byteIndex) as: s elementType)]]].
+  s
 ].
 
 s@(WriteStream traits) next: n putAll: seq startingAt: start
