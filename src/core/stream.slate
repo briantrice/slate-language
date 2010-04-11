@@ -260,9 +260,10 @@ s@(WriteStream traits) next: n putInteger: val &littleEndian: le
 [
   le `defaultsTo: True.
   n <= 0 ifTrue: [^ s].
-  0 below: n do: [|:bytenum| s nextPut:
-    (le ifTrue: [val >> (bytenum * 8)] ifFalse: [val >> (n - 1 - bytenum * 8)]) intoByte].
-  s
+  s ;
+    (((0 below: n)
+        collect: [|:bytenum| le ifTrue: [(val >> (bytenum * 8)) intoByte]
+                                ifFalse: [(val >> (n - 1 - bytenum * 8)) intoByte]]) as: s collectionType)
 ].
 
 s@(WriteStream traits) next: n putAll: seq startingAt: start
