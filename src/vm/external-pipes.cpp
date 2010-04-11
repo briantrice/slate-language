@@ -24,7 +24,7 @@ word_t pipe_open(struct object_heap* oh, struct ByteArray * name, struct Object*
   int readStdin = pipe1[0], writeStdin = pipe1[0],
     readStdout = pipe2[0], writeStdout = pipe2[1];
 
-  if((pid = fork()) == -1) {
+  if((pid = fork2()) == -1) {
     fprintf(stderr, "fork() failed.\n");
     exit(1);
   }

@@ -1,25 +1,46 @@
 "Pipes for interprocess communication"
 
-prototypes define: #Pipe &parents: {ExternalResource} &slots: {#args -> #()}.
+prototypes define: #ProcessPipe &parents: {ExternalResource} &slots: {#args -> #(). #readHandle. #writeHandle}.
+
+ProcessPipe traits define: #ReadStream &parents: {ExternalResource ReadStream}.
+
+p@(ProcessPipe traits) newOn: name@(String traits) &args: arguments
+[
+  arguments `defaultsTo: #().
+  p new `>> [locator: name. args: arguments. ]
+].
 
 
-p@(Pipe traits) enable
+p@(ProcessPipe traits) enable
 [ | pipeName |
   pipeName: (p locator as: ASCIIString).
-  p handle: (lobby openPipe: pipeName args: p args).
+  p handle: (lobby openProcessPipe: pipeName args: p args).
+  p handle ifNotNil: [p readHandle: p handle second.
+                      p writeHandle: p handle first].
   p
 ].
 
 
-p@(Pipe traits) disable
+p@(ProcessPipe traits) disable
 [
-  p handle do: [|:fd| lobby closePipe: fd].
+  p handle ifNotNil: [p handle do: [|:fd| lobby closeProcessPipe: fd]].
 ].
 
 
-r@(Pipe traits) read: n from: handle into: array startingAt: start
-[overrideThis].
+r@(ProcessPipe traits) read: n from: handle into: array startingAt: start
+[
+  lobby readProcessPipe: handle second count: n into: array startingAt: start
+].
 
 
-r@(Pipe traits) write: n to: handle from: array startingAt: start
-[overrideThis].
+r@(ProcessPipe traits) write: n to: handle from: array startingAt: start
+[
+  lobby writeProcessPipe: handle first count: n into: array startingAt: start
+].
+
+
+p@(ProcessPipe ReadStream traits) isAtEnd
+[ "I guess you will just have to wait for exhausted to be thrown?"
+  False
+].
+

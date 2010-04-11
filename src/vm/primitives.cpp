@@ -731,40 +731,42 @@ void prim_closeProcessPipe(struct object_heap* oh, struct Object* args[], word_t
 }
 
 void prim_readProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
-  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
+  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]), startingAt = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
   // lobby0 readProcessPipe: pipenum1 count: n2 into: bytearray3
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
   ASSURE_TYPE_ARG(3, TYPE_BYTE_ARRAY);
+  ASSURE_SMALLINT_ARG(4);
 
-  if (n >= byte_array_size(bytes)) {
+  if (n + startingAt > byte_array_size(bytes)) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[3], NULL, 0, resultStackPointer);
     return;
   }
 
-  retval = pipe_read(oh, handle, n, (char*)(byte_array_elements(bytes)));
+  retval = pipe_read(oh, handle, n, (char*)(byte_array_elements(bytes) + startingAt));
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 
 }
 
 void prim_writeProcessPipe(struct object_heap* oh, struct Object* args[], word_t arity, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
 
-  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]);
+  word_t handle = object_to_smallint(args[1]), n = object_to_smallint(args[2]), startingAt = object_to_smallint(args[4]);
   struct ByteArray* bytes = (struct ByteArray*)args[3];
   word_t retval;
   // lobby0 readProcessPipe: pipenum1 count: n2 into: bytearray3
   ASSURE_SMALLINT_ARG(1);
   ASSURE_SMALLINT_ARG(2);
   ASSURE_TYPE_ARG(3, TYPE_BYTE_ARRAY);
+  ASSURE_SMALLINT_ARG(4);
 
-  if (n >= byte_array_size(bytes)) {
+  if (n + startingAt > byte_array_size(bytes)) {
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_KEY_NOT_FOUND_ON), args[2], args[3], NULL, 0, resultStackPointer);
     return;
   }
 
-  retval = pipe_write(oh, handle, n, (char*)(byte_array_elements(bytes)));
+  retval = pipe_write(oh, handle, n, (char*)(byte_array_elements(bytes)) + startingAt);
   oh->cached.interpreter->stack->elements[resultStackPointer] = smallint_to_object(retval);
 
 }
