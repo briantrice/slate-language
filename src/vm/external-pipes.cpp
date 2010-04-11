@@ -60,7 +60,7 @@ word_t pipe_open(struct object_heap* oh, struct ByteArray * name, struct Object*
       argv[i] = (char*)malloc(argStringLength+1);
       memcpy(argv[i], argString, argStringLength);
       argv[i][argStringLength] = '\0';
-      fprintf(stderr, "Argv[%d] != %s\n", (int)i, (char*)argv[i]);
+      fprintf(stderr, "Argv[%d] = %s\n", (int)i, (char*)argv[i]);
 
     }
 

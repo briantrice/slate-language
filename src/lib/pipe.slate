@@ -7,7 +7,7 @@ ProcessPipe traits define: #ReadStream &parents: {ExternalResource ReadStream}.
 p@(ProcessPipe traits) newOn: name@(String traits) &args: arguments
 [
   arguments `defaultsTo: #().
-  p new `>> [locator: name. args: arguments. ]
+  p new `>> [locator: name. args: {name} ; arguments. ]
 ].
 
 
@@ -21,23 +21,45 @@ p@(ProcessPipe traits) enable
 ].
 
 
+p@(ProcessPipe traits) closeWriter
+[
+  p writeHandle ifNotNil: [lobby closeProcessPipe: p writeHandle.
+                           p writeHandle: Nil].
+  p handle: {p readHandle}.
+  p
+].
+
+p@(ProcessPipe traits) closeReader
+[
+  p readHandle ifNotNil: [lobby closeProcessPipe: p readHandle.
+                           p readHandle: Nil].
+  p handle: {p writeHandle}.
+  p
+].
+
+
 p@(ProcessPipe traits) disable
 [
   p handle ifNotNil: [p handle do: [|:fd| lobby closeProcessPipe: fd]].
 ].
 
 
-r@(ProcessPipe traits) read: n from: handle into: array startingAt: start
+p@(ProcessPipe traits) read: n from: ignoredHandle into: array startingAt: start
 [
-  lobby readProcessPipe: handle second count: n into: array startingAt: start
+  lobby readProcessPipe: p readHandle count: n into: array startingAt: start
 ].
 
 
-r@(ProcessPipe traits) write: n to: handle from: array startingAt: start
+p@(ProcessPipe traits) write: n to: ignoredHandle from: array startingAt: start
 [
-  lobby writeProcessPipe: handle first count: n into: array startingAt: start
+  lobby writeProcessPipe: p writeHandle count: n into: array startingAt: start
 ].
 
+
+p@(ProcessPipe traits) writingOutputAs: outputType
+[
+  p reader sessionDo: [|:reader| p closeWriter. ([|:s| reader >> s] writingAs: reader collectionType) as: outputType]
+].
 
 p@(ProcessPipe ReadStream traits) isAtEnd
 [ "I guess you will just have to wait for exhausted to be thrown?"
