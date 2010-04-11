@@ -258,12 +258,12 @@ s@(WriteStream traits) writer
 
 s@(WriteStream traits) next: n putInteger: val &littleEndian: le
 [
-  le `defaultsTo: True.
-  n <= 0 ifTrue: [^ s].
-  s ;
-    (((0 below: n)
-        collect: [|:bytenum| le ifTrue: [(val >> (bytenum * 8)) intoByte]
-                                ifFalse: [(val >> (n - 1 - bytenum * 8)) intoByte]]) as: s collectionType)
+  n isPositive ifTrue:
+    [(le ifNil: [Platform Current endianness == #LittleEndian])
+       ifTrue: [0 below: n do:
+                  [| :byteIndex | s nextPut: ((val byteAt: byteIndex) as: s elementType)]]
+       ifFalse: [n - 1 downTo: 0 do:
+                   [| :byteIndex | s nextPut: ((val byteAt: byteIndex) as: s elementType)]]].
 ].
 
 s@(WriteStream traits) next: n putAll: seq startingAt: start
