@@ -469,7 +469,8 @@ in the selected option number, returning it if valid."
   d printer ; d prompt.
   d printer flush.
   [| expr result restartNumeric |
-   expr: d parser next.
+   [expr: d parser next] on: Stream Exhaustion do:
+     [| :c | c stream == d resource reader ifTrue: [lobby exit: 1]].
    result: (expr evaluateIn: d namespace).
    restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
    "Exclude selections of restarts and other commands from printing."
