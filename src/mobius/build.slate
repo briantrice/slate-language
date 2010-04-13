@@ -1,59 +1,11 @@
 Image define: #Definition &parents: {Cloneable} &slots:
-  {#bootstrapFilenames ->
-"The names of the sources used to build the kernel REPL image, in necessary
-load-order."
-    ({'mobius/pre-bootstrap'.
-     'core/root'.
-     'core/nil'.
-     'core/boolean'.
-     'core/namespace'.
-     'core/derivable'.
-     'core/numeric'.
-     'core/association'.
-     'core/method'.
-     'core/collection'.
-     'core/collection-extensible'.
-     'core/set'.
-     'core/mapping'.
-     'core/sequence'.
-     'core/arrayed'.
-     'core/integer'.
-     'core/dictionary'.
-     'core/string'.
-     'core/symbol'.
-     'core/range'.
-     'core/sequence-extensible'.
-     'core/sorted'.
-     'core/mixin'.
-     'core/stack'. "Used by the conditionStack."
-     'core/condition'. "Essential error-handling logic."
-     'core/condition-epilogue'. "Error types for previous libraries."
-     'core/stream'. "Basic Streams, only depends on condition.slate."
-     'core/stream-collections'. "Streams over previous collection libraries."
-     'core/stream-transforms'. "Stream operation types."
-     'core/external'. "Abstract type for external resources and streams."
-     'core/console'. "Console I/O."
-     'core/file'. "File I/O."
-     'core/print'. "Print methods, pretty-printing (of objects, not source)."
-     'core/types'. "The object-based type system."
-     'syntax/init'.
-     'syntax/node'.
-     'syntax/token'.
-     'syntax/lexer'.
-     'syntax/parser'.
-     'core/debugger'.
-     'syntax/macro'.
-     'syntax/inference'.
-     'mobius/compiler'.
-     'mobius/debug'.
-     'mobius/post-bootstrap'.
-    } collect: [| :name | 'src/' ; name ; '.slate']).
-    #filename -> Nil. "The filename for the image."
-    #wordSize -> (Platform Current bytesPerWord * 8). "The size of a word in bits of the image"
-    #primitives -> ExtensibleArray new.
-    #littleEndian -> True. "Whether to have a little-endian byte-word format."
-    #bootstrapDirectory -> '.' "Where the source filename paths relate to."
-  }.
+  {#bootstrapDirectory -> '.'. "Where the source filename paths relate to."
+   #bootstrapFilenames -> {}. "The names of the sources used to build the kernel REPL image, in necessary load-order."
+   #filename -> Nil. "The filename for the image."
+   #wordSize -> (Platform Current bytesPerWord * 8). "The size of a word in bits of the image"
+   #primitives -> ExtensibleArray new.
+   #endianness -> #LittleEndian. "Whether to have a little-endian byte-word format."
+}.
 
 Image Definition primitives clear.
 
@@ -242,37 +194,42 @@ inform: 'Adding primitives'.
 
 Image Definition traits define: #cached &builder: [Dictionary new].
 
-Image Definition cached at: 'bare' put: (Image Definition clone `setting: #(bootstrapFilenames)
- to: {{'src/mobius/pre-bootstrap.slate'}}).
+Image Definition cached at: 'bare' put: (Image Definition clone `>> [bootstrapFilenames: {'src/mobius/pre-bootstrap.slate'}. ]).
 "An Image Definition consisting of the bare minimum to run some primitive call,
 like adding 3 + 4, say."
 "TODO: refactor Image Definition so that we can just supply a block here."
 
-def@(Image Definition traits) newNamed: filename littleEndian: littleEndian wordSize: wordSize
+def@(Image Definition traits) newNamed: filename endianness: endianness wordSize: wordSize
 [
-  (def clone `setting: #(littleEndian wordSize) to: {littleEndian. wordSize})
+  (def clone `setting: #(endianness wordSize) to: {endianness. wordSize})
    `>> [| :newDef | filename: (newDef defaultFilename &base: filename). ]
 ].
 
 def@(Image Definition traits) defaultFilename &base: base
 "Generates a unique and descriptive image filename based on the definition."
 [
-  base `defaultsTo: 'kernel'.
-  base
-    ; '.' ; (def littleEndian ifTrue: ['little'] ifFalse: ['big']) "endianness"
-    ; '.' ; def wordSize printString "size of a word in bits"
-    ; '.' ; (lobby timeSinceEpoch as: Integer) printString "timestamp"
-    ; '.image'
+  '%s.%s.%d.%d.image' sprintf*,
+    (base ifNil: ['kernel']),
+    (def endianness caseOf: {#LittleEndian -> ['little']. #BigEndian -> ['big']}),
+    def wordSize,
+    lobby ticksSinceEpoch
 ].
 
 def@(Image Definition traits) generate
-[| builder bootBlock dir |
-  builder: (Image Bootstrap Generator new &littleEndian: def littleEndian &wordSize: def wordSize).
-  def filename ifNil: [def filename: def defaultFilename].
-  dir: (Directory newNamed: def bootstrapDirectory).
+[| builder bootBlock |
+  builder: (Image Bootstrap Generator new &endianness: def endianness &wordSize: def wordSize).
+  def filename `defaultsTo: def defaultFilename.
+  def bootstrapFilenames isEmpty ifTrue:
+    [def bootstrapFilenames:
+       ([| :out |
+         (File newNamed: def bootstrapDirectory ; '/src/mobius/bootstrap-files.txt') sessionDo:
+           [| :filelist |
+            filelist ASCIIReader lines do:
+              [| :line | line isEmpty ifFalse: [out nextPut: line]]].
+        ] writingAs: def bootstrapFilenames)].
   bootBlock: Syntax Block new.
   bootBlock statements: ([| :out |
-    (def bootstrapFilenames collect: [| :each | dir / each]) do:
+    (def bootstrapFilenames collect: [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
       [| :file |
        inform: 'Parsing: %r', file locator.
        file mode: file Read.
@@ -288,22 +245,23 @@ def@(Image Definition traits) generate
 
 i@Image generateAmd64Test
 [
-  ((i Definition cached at: 'bare') newNamed: 'k64' littleEndian: True wordSize: 64) generate.
+  ((i Definition cached at: 'bare') newNamed: 'k64' endianness: #LittleEndian wordSize: 64) generate.
 ].
 
 i@Image generateAmd64
 [
-  (i Definition newNamed: 'amd64' littleEndian: True wordSize: 64) generate.
+  (i Definition newNamed: 'amd64' endianness: #LittleEndian wordSize: 64) generate.
 ].
 
-i@Image bootstrap &littleEndian: littleEndian &wordSize: wordSize
+i@Image bootstrap &bootstrapDirectory: dir &endianness: endianness &wordSize: wordSize
 "Only to be called during or after fullCleanBootstrap to build new images
 based on the new VM Definition."
 [| def |
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
-  littleEndian `defaultsTo: (Platform Current endianness == #LittleEndian).
-  def: (i Definition newNamed: 'kernel.new' littleEndian: littleEndian wordSize: wordSize).
-  def cached at: {'new'. littleEndian ifTrue: ['little'] ifFalse: ['big']. wordSize} put: def.
+  endianness `defaultsTo: Platform Current endianness.
+  def: (i Definition newNamed: 'kernel.new' endianness: endianness wordSize: wordSize).
+  dir ifNotNil: [def bootstrapDirectory: dir].
+  def cached at: {'new'. endianness. wordSize} put: def.
   def generate.
   inform: 'Generated new kernel image at: %r', def filename.
   inform: 'Suggested next command: %s -i %s', StartupArguments first, def filename.
