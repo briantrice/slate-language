@@ -38,7 +38,7 @@ bool_t openExternalLibrary(struct object_heap* oh, struct ByteArray *libname, st
 #else
   h = dlopen(fullname, RTLD_NOW);
 
-  char *message = dlerror();
+  const char *message = dlerror();
   if (message != NULL) {
     fprintf (stderr, "openExternalLibrary '%s' error: %s\n", fullname, message);
   }
@@ -95,7 +95,7 @@ bool_t lookupExternalLibraryPrimitive(struct object_heap* oh, struct ByteArray *
 }
 
 int readExternalLibraryError(struct ByteArray *messageBuffer) {
-  char *message;
+  const char *message;
   int len;
 #ifdef WIN32
   //TODO: do the equivalent of dlerror() on unix and write the string into
