@@ -67,7 +67,8 @@ EMACS       := emacs
 ## Platform independent definitions
 
 INCLUDES    += 
-CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOURCE=200112L
+#CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_POSIX_SOURCE=200112L -D_POSIX_C_SOURCE=200112L
+CFLAGS      += -DSLATE_DATADIR=$(datadir) -D_XOPEN_SOURCE=600
 CFLAGS      += $(COPTFLAGS) -Wall -Wno-unknown-pragmas -pthread $(PRINT_DEBUG) $(EXTRACFLAGS)  $(INCLUDES)
 # include -pedantic later fixme
 

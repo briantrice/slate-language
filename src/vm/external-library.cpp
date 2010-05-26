@@ -292,6 +292,7 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct Byte
 	  double d;
 	  word_t u[2];
 	} convert;
+        memset(&convert, 0, sizeof(convert));
 	if (object_is_smallint(element)) {
 	  convert.d = (double) object_to_smallint(element);
         } else {
