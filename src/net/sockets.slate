@@ -1,13 +1,6 @@
 
 lobby ensureNamespace: #Net.
 
-"Slate based sockets. For maximum performance, you should use the async operations
-classes to handle more than one operation at a time. These basically turn non-blocking
-operations into blocking ones."
-
-"fixme, i just changed this to an externalresource from cloneable so i need to make sure i
-add back the right methods"
-
 Net define: #Socket &parents: {ExternalResource} &slots: {#address}.
 Net define: #SocketServerConnection &parents: {Net Socket} &slots: {#peerAddress -> Nil}.
 Net define: #SocketAddress &parents: {Cloneable} &slots: {#address -> Nil}.
@@ -321,33 +314,11 @@ s@(Net SocketServer traits) stop
   s pipeToLoop nextPutAll: 'quit'.
 ].
 
-Net define: #SocketStream &parents: {ExternalResource ReadWriteStream}
- &slots: {#internalReadBuffer -> (ByteArray new as: Queue).
-          #internalWriteBuffer -> (ByteArray new as: Queue).
-          #resource -> Nil.
-          #buffer -> (ByteArray new &capacity: Net Socket BufferSize)}.
-
-s@(Net SocketStream traits) newOn: socket
-[
-  s new on: socket
-].
-
-s@(Net SocketStream traits) on: socket
-[
-  resend.
-  s internalReadBuffer clear.
-  s internalWriteBuffer clear.
-  s
-].
+Net define: #SocketStream &parents: {ExternalResource ReadWriteStream} &slots: {}.
 
 s@(Net SocketStream traits) collectionType
 [
   ByteArray
-].
-
-s@(Net SocketStream traits) isDirty
-[
-  s internalWriteBuffer size > 0
 ].
 
 s@(Net SocketStream traits) isAtEnd
@@ -355,52 +326,45 @@ s@(Net SocketStream traits) isAtEnd
   False
 ].
 
-s@(Net SocketStream traits) flushWriteBuffer
-[ | i contents |
-  i: 0.
-  contents: (s internalWriteBuffer as: ByteArray).
-  [i < contents size] whileTrue: 
-    [ | return fds | 
-      fds: ({s resource handle} selectOnWritePipesFor: Net Socket SelectTimeout).
-      return: 0.
-      "inform: 'writing ' ; contents size printString ; ' bytes of ' ; contents printString."
-      fds do: [ |:fd| return: (contents writeToPipe: fd start: i end: contents size)].
-      (return = 0) ifTrue: [error: 'write failed']. 
-      return < 0 /\ [return ~= Net Socket ErrorCodes InProgress] ifTrue: [s throwError: return].
-      return > 0 ifTrue: [i: i + return].
-      ].
-  s internalWriteBuffer clear.
-].
-
+"This should return immediately with the amount read"
 s@(Net SocketStream traits) next: n putInto: seq startingAt: start
-[ | readSize writer |
-  writer: s internalReadBuffer writer.
-  [s internalReadBuffer size < n]
-    whileTrue: [ | fds ret |
-                  fds: ({s resource handle} selectOnReadPipesFor: Net Socket SelectTimeout).
-                  fds isEmpty ifTrue: [s exhausted. ^ 0]. "this shouldn't happen"
-                  "inform: 'before read ' ; fds printString."
-                  ret: (s buffer readFromPipe: s resource handle start: 0 end: s buffer size).
-                  "inform: 'ret ' ; ret printString."
-                  ret = 0 ifTrue: [s exhausted. ^ 0].
-                  ret < 0 ifTrue: [s throwError: ret].
-
-                  "inform: 'read bytes: ' ; s buffer printString."
-                  writer next: ret putAll: s buffer].
-  readSize: (s internalReadBuffer size min: n).
-  seq replaceFrom: start to: start - 1 + readSize with: s internalReadBuffer.
-  s internalReadBuffer forgetFirst: readSize.
-  readSize
-].
-
-s@(Net SocketStream traits) nextPut: byte
-[ | ret |
-  s internalWriteBuffer addLast: byte.
-  s
-].
-
-s@(Net SocketStream traits) nextPutAll: c
 [
-  s internalWriteBuffer addAllLast: c. 
-  s
+  seq readFromPipe: s resource handle start: start end: start + n
+].
+
+"This is a blocking read"
+s@(Net SocketStream traits) next: n
+[| arr read totalRead fds | 
+  arr: (s collectionType new &capacity: n).
+  totalRead: 0.
+  [totalRead < n]
+    whileTrue: [fds: ({s resource handle} selectOnReadPipesFor: Net Socket SelectTimeout).
+                fds isEmpty ifTrue: [^ (arr first: totalRead)].
+                read: (s next: n - totalRead putInto: arr startingAt: totalRead).
+                read <= 0 ifTrue: [^ (arr first: totalRead)]. "fixme throw error?"
+                totalRead: totalRead + read.
+                totalRead = n ifTrue: [^ arr]]
+].
+
+
+"This write should return immediately with the number written"
+s@(Net SocketStream traits) next: n putAll: seq startingAt: start
+[
+  seq writeToPipe: s resource handle start: start end: start + n
+].
+
+
+"This is a blocking write"
+s@(Net SocketStream traits) nextPutAll: bytes
+[| written totalWritten n fds | 
+  totalWritten: 0.
+  n: bytes size.
+  [totalWritten < n]
+    whileTrue: [fds: ({s resource handle} selectOnWritePipesFor: Net Socket SelectTimeout).
+                fds isEmpty ifTrue: [^ (bytes first: totalWritten)].
+                written: (s next: n - totalWritten putAll: bytes startingAt: totalWritten).
+                written <= 0 ifTrue: [^ (bytes first: totalWritten)]. "fixme throw error?"
+                totalWritten: totalWritten + written.
+                totalWritten = n ifTrue: [^ bytes]].
+  bytes
 ].
