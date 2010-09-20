@@ -97,16 +97,18 @@ x@(Float traits) as: y@(Fraction traits) &tolerance: tol
 an approximation to the answer gradually.
 e.g. (Pi as: Fraction) = 355 / 113 in the default tolerance.
 The continued fraction is then reduce:d to the answer."
-[| xn continued quotient remainder |
+[| xn continued quotient remainder sign |
   tol `defaultsTo: x tolerance.
-  xn: x.
+  sign: x sign.
+  xn: x abs.
   continued: ExtensibleArray new.
   [quotient: xn rounded.
    remainder: xn - quotient.
-   xn: remainder reciprocal.
+   remainder isZero ifFalse:
+     [xn: remainder reciprocal. ].
    continued addFirst: quotient.
    remainder > tol] whileTrue.
-  continued reduce: [| :a :b | a reciprocal + b]
+  (continued reduce: [| :a :b | a reciprocal + b]) * sign
 ].
 
 x@(Fraction traits) as: _@(Integer traits)
