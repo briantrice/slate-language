@@ -96,7 +96,7 @@ both URIs have already been parsed.
     /\ [rel query isNil]
     ifTrue: [^ rel].
   "Use rel's query and fragment, and abs's scheme."
-  result: (abs cloneSettingSlots: #(query fragment scheme)
+  result: (abs cloneSettingSlots: #{#query. #fragment. #scheme}
 	       to: {rel query. rel fragment. abs scheme}).
   "If rel's authority is defined, use it, or else use abs's."
   rel authority
@@ -151,7 +151,7 @@ u@(Net URI traits) newFrom: s
 [| r | 
   r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r match: s) ~= -1
-    ifTrue: [u cloneSettingSlots: #(scheme authority path query fragment)
+    ifTrue: [u cloneSettingSlots: #{#scheme. #authority. #path. #query. #fragment}
 		     to: {(r subexpression: 1) as: Net Schemes Scheme.
 			  r subexpression: 3. 
 			  (r subexpression: 4) ifNil: ['/']. 

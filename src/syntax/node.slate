@@ -7,7 +7,7 @@ Syntax nodes define: #Node &parents: {Cloneable} &slots:
 "The general syntax object for expressions."
 
 node@(Syntax nodes Node traits) new
-[resend `setting: #(type lineNumber) to: {Types Any. Nil}].
+[resend `setting: #{#type. #lineNumber} to: {Types Any. Nil}].
 
 node@(Syntax nodes Node traits) evaluate
 [node evaluateIn: lobby].
@@ -68,7 +68,7 @@ ann@(Syntax nodes Annotation traits) transformChildren: block
 ].
 
 ann@(Syntax nodes Annotation traits) deepCopy: scope
-[ann clone `setting: #(value) to: {ann value deepCopy: scope}].
+[ann clone `setting: #{#value} to: {ann value deepCopy: scope}].
 
 ann@(Syntax nodes Annotation traits) evaluateIn: namespace
 [ann value evaluateIn: namespace].
@@ -83,7 +83,7 @@ x@(Syntax nodes Comment traits) = y@(Syntax nodes Comment traits)
 node@(Syntax nodes Node traits) comment: comment
 "Returns a new Comment with the given comment wrapping the original
 Node. Usable as a macro."
-[Syntax Comment clone `setting: #(comment value) to: {comment evaluate. node}].
+[Syntax Comment clone `setting: #{#comment. #value} to: {comment evaluate. node}].
 
 Syntax nodes define: #ImplicitArgument &parents: {Syntax nodes Node}.
 "Implicit arguments include anything sent to the local context, as well as
@@ -110,7 +110,7 @@ m@(Syntax nodes Message traits) prototypeFor: selector
 ].
 
 message@(Syntax nodes Message traits) sending: selector to: arguments
-[(message prototypeFor: selector) clone `setting: #(selector arguments) to:
+[(message prototypeFor: selector) clone `setting: #{#selector. #arguments} to:
   {selector. arguments}].
 
 x@(Syntax nodes Message traits) as: y@(Syntax nodes Message traits)
@@ -137,7 +137,7 @@ message@(Syntax nodes Message traits) transformChildren: block
 ].
 
 message@(Syntax nodes Message traits) deepCopy: scope
-[message clone `setting: #(arguments) to:
+[message clone `setting: #{#arguments} to:
    {message arguments collect: [| :argument | argument deepCopy: scope]}].
 
 message@(Syntax nodes Message traits) evaluateIn: namespace &optionals: opts
@@ -184,7 +184,7 @@ condition which is resumable via macro-expansion?)"
     (opts
       ifNotNil:
         [Syntax OptionalKeywords new
-	   `setting: #(message keywords arguments)
+	   `setting: #{#message. #keywords. #arguments}
 		 to: {macro.
                       opts atAll: (0 below: opts size by: 2).
 		      opts atAll: (1 below: opts size by: 2)}]))
@@ -238,10 +238,10 @@ x@(Syntax nodes OptionalKeywords traits) = y@(Syntax nodes OptionalKeywords trai
 [x message = y message /\ [x keywords = y keywords] /\ [x arguments = y arguments]].
 
 opts@(Syntax nodes OptionalKeywords traits) new
-[resend clone `setting: #(keywords arguments) to: #(() ())].
+[resend clone `setting: #{#keywords. #arguments} to: #{{}. {}}].
 
 opts@(Syntax nodes OptionalKeywords traits) for: message
-[opts new `setting: #(message) to: {message}].
+[opts new `setting: #{#message} to: {message}].
 
 opts@(Syntax nodes OptionalKeywords traits) walk: block
 [
@@ -259,7 +259,7 @@ opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 ].
 
 opts@(Syntax nodes OptionalKeywords traits) deepCopy: scope
-[opts clone `setting: #(message arguments) to:
+[opts clone `setting: #{#message. #arguments} to:
   {opts message deepCopy: scope.
    opts arguments collect: [| :argument | argument deepCopy: scope]}].
 
@@ -279,10 +279,10 @@ x@(Syntax nodes RestArguments traits) = y@(Syntax nodes RestArguments traits)
 [x message = y message /\ [x arguments = y arguments]].
 
 rest@(Syntax nodes RestArguments traits) new
-[resend clone `setting: #(arguments) to: #(())].
+[resend clone `setting: #{#arguments} to: #{{}}].
 
 rest@(Syntax nodes RestArguments traits) for: message
-[rest new `setting: #(message) to: {message}].
+[rest new `setting: #{#message} to: {message}].
 
 rest@(Syntax nodes RestArguments traits) walk: block
 [
@@ -300,7 +300,7 @@ rest@(Syntax nodes RestArguments traits) transformChildren: block
 ].
 
 rest@(Syntax nodes RestArguments traits) deepCopy: scope
-[rest clone `setting: #(message arguments) to:
+[rest clone `setting: #{#message. #arguments} to:
   {rest message deepCopy: scope.
    rest arguments collect: [| :argument | argument deepCopy: scope]}].
 
@@ -321,13 +321,13 @@ Syntax nodes Literal traits define: #Nil &builder: [Syntax nodes Literal clone].
 
 l@(Syntax nodes Literal traits) noteReusable: obj
 [l ReusableValues at: obj ifAbsentPut:
-  [l new `setting: #(value) to: {obj}]].
+  [l new `setting: #{#value} to: {obj}]].
 
 {Array new. ByteArray new. #''. ''}
   do: [| :each | Syntax nodes Literal noteReusable: each].
 
 node@(Syntax nodes Literal traits) for: obj
-[node ReusableValues at: obj ifAbsent: [node new `setting: #(value) to: {obj}]].
+[node ReusableValues at: obj ifAbsent: [node new `setting: #{#value} to: {obj}]].
 
 node@(Syntax nodes Literal traits) for: _@Nil [node Nil].
 
@@ -350,7 +350,7 @@ Syntax nodes define: #CompoundStatement &parents: {Syntax nodes Node}
   &slots: {#statements -> #{}}.
 
 array@(Sequence traits) as: group@(Syntax nodes CompoundStatement traits)
-[group new `setting: #(statements) to: {array as: group statements}].
+[group new `setting: #{#statements} to: {array as: group statements}].
 
 group@(Syntax nodes CompoundStatement traits) size
 "The number of statements/elements in the expression."
@@ -414,7 +414,7 @@ seq@(Sequence traits) parenthesize
 Syntax nodes define: #Namespace &parents: {Syntax nodes Node} &slots: {#namespace -> lobby}.
 
 node@(Syntax nodes Namespace traits) for: namespace
-[node new `setting: #(namespace) to: {namespace}].
+[node new `setting: #{#namespace} to: {namespace}].
 
 node1@(Syntax nodes Namespace traits) = node2@(Syntax nodes Namespace traits)
 [node1 namespace = node2 namespace].
@@ -517,7 +517,7 @@ variable's scope (used to compile closures properly), and answers it."
 block@(Syntax nodes Block traits) addVariableNamed: name
 "Creates a new Variable with the given name and adds it as a local,
 then returning it."
-[block addVariable: (Syntax Variable clone `setting: #(name) to: {name})].
+[block addVariable: (Syntax Variable clone `setting: #{#name} to: {name})].
 
 block@(Syntax Block traits) uniqueVariableName &prefix: prefix
 [| nameIndex |
@@ -618,7 +618,7 @@ b@(Syntax nodes Block traits) deepCopy: scope &into: target
     parentScope: scope.
     localVariables:
       (b localVariables collect:
-        [| :var newVar | var clone `setting: #(scope) to: {newBlock}]).
+        [| :var newVar | var clone `setting: #{#scope} to: {newBlock}]).
     inputVariables:
       (b inputVariables collect: [| :var | newBlock findVariable: var name]).
     optionalVariables:
@@ -779,7 +779,7 @@ Syntax nodes define: #RestVariable &parents: {Syntax nodes Variable}.
 Syntax nodes define: #LoadVariable &parents: {Syntax nodes Node} &slots: {#variable}.
 
 load@(Syntax nodes LoadVariable traits) from: variable
-[load new `setting: #(variable) to: {variable}].
+[load new `setting: #{#variable} to: {variable}].
 
 var@(Syntax nodes Variable traits) load
 [Syntax LoadVariable from: var].
@@ -807,7 +807,7 @@ Syntax nodes define: #StoreVariable &parents: {Syntax nodes Node}
   &slots: {#variable. #value}.
 
 store@(Syntax nodes StoreVariable traits) of: value into: variable
-[store new `setting: #(value variable) to: {value. variable}].
+[store new `setting: #{#value. #variable} to: {value. variable}].
 
 var@(Syntax nodes Variable traits) store: value
 [Syntax StoreVariable of: value into: var].
@@ -854,7 +854,7 @@ store@(Syntax nodes StoreVariable traits) evaluateIn: namespace &optionals: opts
 Syntax nodes define: #Return &parents: {Syntax nodes Node} &slots: {#value}.
 
 ret@(Syntax nodes Return traits) of: value
-[ret new `setting: #(value) to: {value}].
+[ret new `setting: #{#value} to: {value}].
 
 node1@(Syntax nodes Return traits) = node2@(Syntax nodes Return traits)
 [node1 value = node2 value /\ [node1 isSameAs: node2]].
@@ -889,7 +889,7 @@ Syntax nodes define: #ReturnLevel &parents: {Syntax nodes Return} &slots: {#leve
 ret@(Syntax nodes ReturnLevel traits) selector [('^' ; ret level printString) intern].
 
 ret@(Syntax nodes ReturnLevel traits) by: offset
-[ret new `setting: #(level) to: {offset}].
+[ret new `setting: #{#level} to: {offset}].
 
 Syntax nodes define: #Resend &parents: {Syntax nodes Node}.
 

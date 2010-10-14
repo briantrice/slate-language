@@ -111,11 +111,10 @@ d@(Debugger traits) stackAt: x put: val
 ].
 
 Debugger traits define: #Frame &parents: {Cloneable}
-  &slots: #(debugger framePointer nextFramePointer).
+  &slots: #{#debugger. #framePointer. #nextFramePointer}.
 
 Debugger traits define: #SavedFrame &parents: {Debugger Frame}
-  &slots: #(lexicalContext method instructionPointer resultStackLocation).
-
+  &slots: #{#lexicalContext. #method. #instructionPointer. #resultStackLocation}.
 
 f@(Debugger Frame traits) saved [False].
 f@(Debugger SavedFrame traits) saved [True].
@@ -123,12 +122,12 @@ f@(Debugger SavedFrame traits) saved [True].
 f@(Debugger Frame traits) newOn: d@(Debugger traits) at: fp from: nextFp
 [
   fp > d slateFrameSize
-    ifTrue: [f cloneSettingSlots: #(debugger framePointer nextFramePointer) to: {d. fp. nextFp}]
+    ifTrue: [f cloneSettingSlots: #{#debugger. #framePointer. #nextFramePointer} to: {d. fp. nextFp}]
 ].
 
 f@(Debugger Frame traits) newAtTopOf: d@(Debugger traits)
 [
-  f cloneSettingSlots: #(debugger framePointer) to: {d. d baseFramePointer}
+  f cloneSettingSlots: #{#debugger. #framePointer} to: {d. d baseFramePointer}
 ].
 
 f@(Debugger Frame traits) nextFrame
@@ -206,7 +205,7 @@ f@(Debugger Frame traits) previousStackPointer: sp
 [f stackAtOffset: -6 put: sp].
 
 d@(Debugger traits) saveFrame: f@(Debugger Frame traits)
-[Debugger SavedFrame cloneSettingSlots: #(lexicalContext method instructionPointer resultStackLocation debugger)
+[Debugger SavedFrame cloneSettingSlots: #{#lexicalContext. #method. #instructionPointer. #resultStackLocation. #debugger}
                      to: {f lexicalContext. f method. f instructionPointer. f resultStackLocation. d}].
 
 f@(Debugger Frame traits) describeOn: out
@@ -475,7 +474,7 @@ in the selected option number, returning it if valid."
    restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
    "Exclude selections of restarts and other commands from printing."
    restartNumeric \/
-     [(expr is: Syntax Message) /\ [#(: restart: frame frame: restarts help bt backtrace) includes: expr selector]]
+     [(expr is: Syntax Message) /\ [#{#:. #restart:. #frame. #frame:. #restarts. #help. #bt. #backtrace} includes: expr selector]]
       ifFalse:
         [[result printOn: d printer]
            on: Error do: [| :c | d printer ; '<Printing failed>'].

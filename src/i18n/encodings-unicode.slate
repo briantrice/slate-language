@@ -55,7 +55,7 @@ u@(UnicodeCharacter traits) as: _@(Integer traits)
 
 s@(SmallUnicodeString traits) new &capacity: n
 [
- s clone `setting: #(bytes1 bytes2 bytes3)
+ s clone `setting: #{#bytes1. #bytes2. #bytes3}
    to: {s bytes1 newSize: n. s bytes2 newSize: n. s bytes3 newSize: n}
 ].
 
@@ -99,90 +99,92 @@ s@(SmallUnicodeString traits) do: block
 u@Unicode addSubset: name
 [u define: name &parents: {UnicodeSubset}].
 
-#(General
-AlphabeticPresentations
-Arabic
-ArabicPresentationsA
-ArabicPresentationsB
-Armenian
-Arrows
-Bengali
-BlockElements
-BoxDrawing
-Braille
-Buhid
-ByzantineMusicals
-CanadianAboriginal
-Cherokee
-CombiningDiacritical
-CombiningDiacriticalForSymbols
-CombiningHalfMarks
-ControlPictures
-CurrencySymbols
-Cyrillic
-Deseret
-Devanagari
-Dingbats
-EnclosedAlnums
-Ethiopic
-GeneralPunctuation
-GeometricShapes
-Georgian
-Gothic
-Greek
-GreekExtended
-Gujarati
-Gurmukhi
-Hanunoo
-Hebrew
-IPA
-Japanese
-Kannada
-Khmer
-Korean
-Lao
-Latin
-LatinExtendedAB
-LatinExtendedAdditional
-LetterlikeSymbols
-Malayalam
-MathAlnumSymbols
-MathOperators
-MiscMathSymbolsA
-MiscMathSymbolsB
-MiscSymbols
-MiscTechnical
-Mongolian
-MusicalSymbols
-Myanmar
-NumberForms
-OCRs
-Ogham
-OldItalic
-Oriya
-Runic
-SimplifiedChinese
-Sinhala
-SpacingModifiers
-SuperAndSubscript
-SupplementalArrowsA
-SupplementalArrowsB
-SupplementalMathOperators
-Syriac
-Tagalog
-Tagbanwa
-Tags
-Tamil
-Telugu
-Thaana
-Thai
-Tibetan
-TraditionalChinese
-Vietnamese
-YiRadicals
-YiSyllables) do: [| :name | Unicode addSubset: name].
+[| :name | Unicode addSubset: name] for: #(
+  #General.
+  #AlphabeticPresentations.
+  #Arabic.
+  #ArabicPresentationsA.
+  #ArabicPresentationsB.
+  #Armenian.
+  #Arrows.
+  #Bengali.
+  #BlockElements.
+  #BoxDrawing.
+  #Braille.
+  #Buhid.
+  #ByzantineMusicals.
+  #CanadianAboriginal.
+  #Cherokee.
+  #CombiningDiacritical.
+  #CombiningDiacriticalForSymbols.
+  #CombiningHalfMarks.
+  #ControlPictures.
+  #CurrencySymbols.
+  #Cyrillic.
+  #Deseret.
+  #Devanagari.
+  #Dingbats.
+  #EnclosedAlnums.
+  #Ethiopic.
+  #GeneralPunctuation.
+  #GeometricShapes.
+  #Georgian.
+  #Gothic.
+  #Greek.
+  #GreekExtended.
+  #Gujarati.
+  #Gurmukhi.
+  #Hanunoo.
+  #Hebrew.
+  #IPA.
+  #Japanese.
+  #Kannada.
+  #Khmer.
+  #Korean.
+  #Lao.
+  #Latin.
+  #LatinExtendedAB.
+  #LatinExtendedAdditional.
+  #LetterlikeSymbols.
+  #Malayalam.
+  #MathAlnumSymbols.
+  #MathOperators.
+  #MiscMathSymbolsA.
+  #MiscMathSymbolsB.
+  #MiscSymbols.
+  #MiscTechnical.
+  #Mongolian.
+  #MusicalSymbols.
+  #Myanmar.
+  #NumberForms.
+  #OCRs.
+  #Ogham.
+  #OldItalic.
+  #Oriya.
+  #Runic.
+  #SimplifiedChinese.
+  #Sinhala.
+  #SpacingModifiers.
+  #SuperAndSubscript.
+  #SupplementalArrowsA.
+  #SupplementalArrowsB.
+  #SupplementalMathOperators.
+  #Syriac.
+  #Tagalog.
+  #Tagbanwa.
+  #Tags.
+  #Tamil.
+  #Telugu.
+  #Thaana.
+  #Thai.
+  #Tibetan.
+  #TraditionalChinese.
+  #Vietnamese.
+  #YiRadicals.
+  #YiSyllables
+).
 
-UnicodeCharacter traits compareAndHashUsingSlots: #(code).
+UnicodeCharacter traits compareAndHashUsingSlots: #{#code}.
 
 ns@Unicode subsetAt: i@(Integer traits) &kanjiClass: kanjiClass
 "Find the subset of Unicode characters a character belongs to.

@@ -95,7 +95,7 @@ Graphics define: #Translation &parents: {DisplayTransform}
 "This just moves things around without scaling or rotation."
 
 t@(Translation traits) newFor: point
-[t cloneSettingSlots: #(offset) to: {point as: t offset}].
+[t cloneSettingSlots: #{#offset} to: {point as: t offset}].
 
 _@(DisplayTransform traits) newWithOffset: offset
 [Translation newFor: offset].
@@ -137,7 +137,7 @@ Graphics define: #Rotation &parents: {DisplayTransform}
 "This just rotates things around without scaling or translation."
 
 r@(Rotation traits) newFor: angle
-[r cloneSettingSlots: #(angle) to: {angle}].
+[r cloneSettingSlots: #{#angle} to: {angle}].
 
 _@(DisplayTransform traits) newWithAngle: angle
 [Rotation newFor: angle].
@@ -187,7 +187,7 @@ to the x and y values of the Point. A simple number will scale along both axes
 by the same amount"
 
 s@(Scaling traits) newFor: scale
-[s cloneSettingSlots: #(scale) to: {scale}].
+[s cloneSettingSlots: #{#scale} to: {scale}].
 
 _@(DisplayTransform traits) newWithScale: scale
 [Scaling newFor: scale].
@@ -277,7 +277,7 @@ expressing those as a logical composition. The first two may appear in any
 order, while the Translation must be last in order to preserve the logic."
 
 _@(DisplayTransform traits) offset: p angle: a scale: x
-[LogicalTransform cloneSettingSlots: #(offset angle scale) to: {p. a. x}].
+[LogicalTransform cloneSettingSlots: #{#offset. #angle. #scale} to: {p. a. x}].
 
 lt@(LogicalTransform traits) isPureTranslation
 [
@@ -345,7 +345,7 @@ Graphics define: #CompositeTransform &parents: {DisplayTransform}
 Transform."
 
 ct@(CompositeTransform traits) global: gt local: lt
-[ct cloneSettingSlots: #(global local) to: {gt. lt}].
+[ct cloneSettingSlots: #{#global. #local} to: {gt. lt}].
 
 ct@(CompositeTransform traits) angle
 [
@@ -368,7 +368,7 @@ ct@(CompositeTransform traits) invert
 ].
 
 ct@(CompositeTransform traits) as: lt@(LogicalTransform traits)
-[lt cloneSettingSlots: #(offset angle scale) to: {ct offset. ct angle. ct scale}].
+[lt cloneSettingSlots: #{#offset. #angle. #scale} to: {ct offset. ct angle. ct scale}].
 
 ct@(CompositeTransform traits) isIdentity
 [
@@ -419,7 +419,7 @@ _@(MatrixTransform2x3 traits) zero [MatrixTransform2x3].
 "A convenient polymorphic accessor for the zero-filled transform."
 
 mt@(MatrixTransform2x3 traits) copy
-[mt cloneSettingSlots: #(contents) to: {mt contents copy}].
+[mt cloneSettingSlots: #{#contents} to: {mt contents copy}].
 
 mt@(MatrixTransform2x3 traits) newWithOffset: p
 [mt zero copy `>> [offset: p. ]].

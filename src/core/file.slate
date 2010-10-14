@@ -69,7 +69,7 @@ registration."
   mode `defaultsTo: f mode.
   locator: (filename as: f Locator).
   f ByLocation at: locator ifPresent: [| :file | ].
-  f cloneSettingSlots: #(handle locator mode) to: {Nil. locator. mode}
+  f cloneSettingSlots: #{#handle. #locator. #mode} to: {Nil. locator. mode}
 ].
 
 s@(String traits) file
@@ -206,10 +206,10 @@ f@(File traits) connectionFailure
 [f notFound].
 
 f@(File traits) notFound
-[(f NotFound cloneSettingSlots: #(resource) to: {f}) signal].
+[(f NotFound cloneSettingSlots: #{#resource} to: {f}) signal].
 
 f@(File traits) noneExistsFor: filename
-[(f NotFound cloneSettingSlots: #(resource) to: {f newNamed: filename}) signal].
+[(f NotFound cloneSettingSlots: #{#resource} to: {f newNamed: filename}) signal].
 
 e@(File NotFound traits) describeOn: out
 [
@@ -278,7 +278,7 @@ s@(String traits) as: l@(File Locator traits)
 
 l@(File Locator traits) copy
 [
-  l cloneSettingSlots: #(path name fileType version)
+  l cloneSettingSlots: #{#path. #name. #fileType. #version}
     to: {l path copy. l name copy. l fileType copy. l version copy}
 ].
 
@@ -288,7 +288,7 @@ f1@(File Locator traits) = f2@(File Locator traits)
 
 l@(File Locator traits) new &capacity: n
 [
-  l cloneSettingSlots: #(path name fileType version)
+  l cloneSettingSlots: #{#path. #name. #fileType. #version}
     to: {l path new &capacity: n. Nil. Nil. Nil}
 ].
 
@@ -375,7 +375,7 @@ s@(String traits) as: l@(File RelativeLocator traits) &base: base
 [resend `>> [basePath: (base ifNil: [Directory Current]). ]].
 
 l@(File RelativeLocator traits) newFrom: base
-[l cloneSettingSlots: #(basePath) to: {base}].
+[l cloneSettingSlots: #{#basePath} to: {base}].
 
 l@(File Locator traits) readFrom: src &pathSeparator: pathSeparator
 [| firstPart |
@@ -633,7 +633,7 @@ File traits define: #Info &parents: {Cloneable} &slots: {#data -> Array new}.
 l@(File Info traits) newNamed: locator
 [
   (File informationForFileNamed: (locator as: String))
-    ifNotNilDo: [| :data | l cloneSettingSlots: #(data) to: {data}]
+    ifNotNilDo: [| :data | l cloneSettingSlots: #{#data} to: {data}]
 ].
 
 l@(File Locator traits) exists

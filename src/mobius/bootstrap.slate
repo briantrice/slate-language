@@ -177,7 +177,7 @@ gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &wordSize
   Image Bootstrap define: #BytesPerWord -> (wordSize // 8).
   newGen:
     (gen clone `setting:
-       #(objects translations chunks characters symbols bytesPerWord littleEndian)
+       #{#objects. #translations. #chunks. #characters. #symbols. #bytesPerWord. #littleEndian}
        to: {gen objects new.
 	    gen translations new.
 	    gen chunks new.
@@ -787,32 +787,32 @@ gen@(Image Bootstrap Generator traits) generateLobby
     gen addAccessorFor: #printName on: traits.
     window makeSlotNamed: #printName valued: (gen generateLiteral: slotName name).
     gen addAccessorFor: #printName on: window.
-  ] applier for: #(
-    (#Root            #RootProto)
-    (#Oddball         #OddballProto)
-    (#Cloneable       #CloneableProto)
-    (#Derivable       #DerivableProto)
-    (#Namespace       #NamespaceProto)
-    (#Boolean         #BooleanProto)
-    (#Array           #ArrayProto)
-    (#ByteArray       #ByteArrayProto)
-    (#ASCIIString     #ASCIIStringProto)
-    (#ASCIICharacter  #ASCIICharacterProto)
-    (#Symbol          #SymbolProto)
-    (#SmallInteger    #SmallIntegerProto)
-    (#SingleFloat     #FloatProto)
-    (#Map             #MapProto)
-    (#LexicalContext  #LexicalContextProto)
-    (#MethodDefinition #MethodDefinitionProto)
-    (#Method          #MethodProto)
-    (#PrimitiveMethod #PrimitiveMethodProto)
-    (#CompiledMethod  #CompiledMethodProto)
-    (#Closure         #ClosureProto)
-    (#Interpreter     #InterpreterProto)
-    (#File            #FileProto)
-    (#Directory       #DirectoryProto)
-    (#ExternalLibrary #ExternalLibraryProto)
-  ).
+  ] applier for: #{
+    {#Root.             #RootProto}.
+    {#Oddball.          #OddballProto}.
+    {#Cloneable.        #CloneableProto}.
+    {#Derivable.        #DerivableProto}.
+    {#Namespace.        #NamespaceProto}.
+    {#Boolean.          #BooleanProto}.
+    {#Array.            #ArrayProto}.
+    {#ByteArray.        #ByteArrayProto}.
+    {#ASCIIString.      #ASCIIStringProto}.
+    {#ASCIICharacter.   #ASCIICharacterProto}.
+    {#Symbol.           #SymbolProto}.
+    {#SmallInteger.     #SmallIntegerProto}.
+    {#SingleFloat.      #FloatProto}.
+    {#Map.              #MapProto}.
+    {#LexicalContext.   #LexicalContextProto}.
+    {#MethodDefinition. #MethodDefinitionProto}.
+    {#Method.           #MethodProto}.
+    {#PrimitiveMethod.  #PrimitiveMethodProto}.
+    {#CompiledMethod.   #CompiledMethodProto}.
+    {#Closure.          #ClosureProto}.
+    {#Interpreter.      #InterpreterProto}.
+    {#File.             #FileProto}.
+    {#Directory.        #DirectoryProto}.
+    {#ExternalLibrary.  #ExternalLibraryProto}
+  }.
 
   gen addObjectNamed: #GlobalsObject valued: (gen cloneOf: (gen objectNamed: #NamespaceProto)).
   (gen objectNamed: #BootstrapObject) addDelegateValued: (gen objectNamed: #GlobalsObject).

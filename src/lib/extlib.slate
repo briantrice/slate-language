@@ -36,7 +36,7 @@ m@(ExternalMethod ConnectionFailed traits) describeOn: out
 
 r@(ExternalMethod traits) connectionFailure
 [
-  (r ConnectionFailed clone `setting: #(resource description) to:
+  (r ConnectionFailed clone `setting: #{#resource. #description} to:
     {r. ExternalLibrary currentErrorString}) signal
 ].
 
@@ -77,7 +77,7 @@ ExternalMethod `>> [
 
 d@(ExternalLibrary traits) newNamed: libName
 [
-  [[(d clone `setting: #(name) to: {libName}) open]
+  [[(d clone `setting: #{#name} to: {libName}) open]
     on: d ConnectionFailed do:
       [| :c |
        (c resource name beginsWith: 'lib/')
@@ -103,7 +103,7 @@ d@(ExternalLibrary traits) disable
 d@(ExternalLibrary traits) functionNamed: symname
 [
   (ExternalMethod clone `setting:
-    #(parentResource locator name) to: {d. symname. symname}) open
+    #{#parentResource. #locator. #name} to: {d. symname. symname}) open
 ].
 
 e@(ExternalLibrary traits) functionNamed: symname returning: returnType &callFormat: format
@@ -163,7 +163,7 @@ ExternalMethod traits define: #Signature
   &slots: {#name -> ''. #returnType. #argTypes -> {}}.
 
 s@(ExternalMethod Signature traits) named: name returning: returnType from: argTypes
-[s clone `setting: #(name returnType argTypes) to: {name. returnType. argTypes}].
+[s clone `setting: #{#name. #returnType. #argTypes} to: {name. returnType. argTypes}].
 
 e@(ExternalLibrary traits) signatureNamed: name returning: returnType from: argTypes
 [ExternalMethod Signature named: name returning: returnType from: argTypes].
@@ -250,7 +250,7 @@ s@(CObject traits) newBasedOn: spec@(Types C Structure traits)
 Types C Structure spec. Call this method once, and clone the result,
 because this call is relatively expensive."
 [
-  (s clone `setting: #(storage specification) to:
+  (s clone `setting: #{#storage. #specification} to:
     {s storage newSize: spec byteSize. spec}) `>> [addAccessors. ]
 ].
 
@@ -431,7 +431,7 @@ functions with them."
 
 h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader: leader
 [| newH |
-  newH: (h clone `setting: #(library primitives specs) to:
+  newH: (h clone `setting: #{#library. #primitives. #specs} to:
     {(h library newNamed: libName). h primitives new.
      h library signaturesForDefs: primSpecs &typesIn: ExternalMethod ArgumentFormat}).
   leader ifNotNil: [newH leader: leader].

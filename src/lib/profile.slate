@@ -27,7 +27,7 @@ m@(Method traits) profile
 
 p@(Profile traits) newFor: block
 [
-  p clone `setting: #(method) to: {block}
+  p clone `setting: #{#method} to: {block}
 ].
 
 p@(Profile traits) parseResults
@@ -44,7 +44,7 @@ p@(Profile traits) parseResults
                   timeDict: Dictionary new.
                   childCounts do: [| :key :val | key ifNotNil: [countDict at: key put: val]] inGroupsOf: 2.
                   childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime: cumTime + val]]] inGroupsOf: 2.
-                  entry: (p Entry clone `setting: #(id method callCount selfTime cumulativeTime childCallCounts childCallTime)
+                  entry: (p Entry clone `setting: #{#id. #method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime}
                             to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
                   p results at: method put: entry.
                   id: id + 1].

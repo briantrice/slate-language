@@ -64,7 +64,7 @@ graph@(Digraph traits) newFrom: root walking: block
 the block to return a collection of neighbors from existing ones, and avoiding
 duplicates."
 [| result seen |
-  result: (graph clone `setting: #(root) to: {root}).
+  result: (graph clone `setting: #{#root} to: {root}).
   seen: Dictionary new.
   result addNodesFrom: root byApplying: block withSeen: seen.
   result
@@ -91,11 +91,11 @@ Digraph traits define: #Node &parents: {Cloneable} &slots:
     "The object represented by the Node, if any."}.
 
 node@(Digraph Node traits) new &capacity: n
-[node clone `setting: #(transitions)
+[node clone `setting: #{#transitions}
       to: {node transitions new &capacity: (n ifNil: [4])}].
 
 node@(Digraph Node traits) copy
-[node clone `setting: #(transitions) to: {node transitions copy}].
+[node clone `setting: #{#transitions} to: {node transitions copy}].
 
 node@(Digraph Node traits) addEdgeTo: target
 [

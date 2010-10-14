@@ -155,7 +155,7 @@ Graphics define: #RegionSet &parents: {BoundRegion}
 "A set of many regions."
 
 rs@(RegionSet traits) new &capacity: n
-[rs cloneSettingSlots: #(regions) to: {rs regions new &capacity: n}].
+[rs cloneSettingSlots: #{#regions} to: {rs regions new &capacity: n}].
 
 rs@(RegionSet traits) do: block
 "Recursively apply the block to all regions and sub-regions of those."
@@ -174,10 +174,10 @@ r@(Region traits) \/ s@(Region traits)
 [(RegionUnion new &capacity: 2) `>> [regions add: r. regions add: s. ]].
 
 ru@(RegionUnion traits) \/ r@(Region traits)
-[ru cloneSettingSlots: #(regions) to: {ru regions copyWith: r}].
+[ru cloneSettingSlots: #{#regions} to: {ru regions copyWith: r}].
 
 ru1@(RegionUnion traits) \/ ru2@(RegionUnion traits)
-[ru1 cloneSettingSlots: #(regions) to: {ru1 regions union: ru2 regions}].
+[ru1 cloneSettingSlots: #{#regions} to: {ru1 regions union: ru2 regions}].
 
 ru@(RegionUnion traits) contains: r@(Region traits)
 [
@@ -196,10 +196,10 @@ r@(Region traits) /\ s@(Region traits)
 [(RegionIntersection new &capacity: 2) `>> [regions addAll: {r. s}. ]].
 
 ri@(RegionIntersection traits) /\ r@(Region traits)
-[ri cloneSettingSlots: #(regions) to: {ri regions copyWith: r}].
+[ri cloneSettingSlots: #{#regions} to: {ri regions copyWith: r}].
 
 ri1@(RegionIntersection traits) /\ ri2@(RegionIntersection traits)
-[ri1 cloneSettingSlots: #(regions) to: {ri1 regions union: ri2 regions}].
+[ri1 cloneSettingSlots: #{#regions} to: {ri1 regions union: ri2 regions}].
 
 ri@(RegionIntersection traits) contains: r@(Region traits)
 [
@@ -216,7 +216,7 @@ Graphics define: #RegionComplement &parents: {Region}
   &slots: {#region -> Everywhere}.
 
 rc@(RegionComplement traits) newFor: r@(Region traits)
-[rc cloneSettingSlots: #(region) to: {r}].
+[rc cloneSettingSlots: #{#region} to: {r}].
 
 r@(Region traits) complement
 [
@@ -288,7 +288,7 @@ x@(Number traits) <> y@(Number traits)
 [Point x: x y: y].
 
 _@(Point traits) x: x y: y
-[Point cloneSettingSlots: #(x y) to: {x. y}].
+[Point cloneSettingSlots: #{#x. #y} to: {x. y}].
 
 Point traits define: #origin &builder: [0 <> 0].
 
@@ -299,7 +299,7 @@ p@(Point traits) contains: r@(Region traits)
 [p = r].
 
 n@(Number traits) as: p@(Point traits)
-[p cloneSettingSlots: #(x y) to: {n. n}].
+[p cloneSettingSlots: #{#x. #y} to: {n. n}].
 
 p@(Point traits) distanceTo: q@(Point traits)
 "The naive Euclidean method."
@@ -311,16 +311,16 @@ p@(Point traits) midpoint: q@(Point traits)
 
 "TODO: simplify this like the numeric coercions"
 p@(Point traits) + q@(Point traits)
-[p cloneSettingSlots: #(x y) to: {p x + q x. p y + q y}].
+[p cloneSettingSlots: #{#x. #y} to: {p x + q x. p y + q y}].
 
 p@(Point traits) - q@(Point traits)
-[p cloneSettingSlots: #(x y) to: {p x - q x. p y - q y}].
+[p cloneSettingSlots: #{#x. #y} to: {p x - q x. p y - q y}].
 
 p@(Point traits) * q@(Point traits)
-[p cloneSettingSlots: #(x y) to: {p x * q x. p y * q y}].
+[p cloneSettingSlots: #{#x. #y} to: {p x * q x. p y * q y}].
 
 p@(Point traits) / q@(Point traits)
-[p cloneSettingSlots: #(x y) to: {p x / q x. p y / q y}].
+[p cloneSettingSlots: #{#x. #y} to: {p x / q x. p y / q y}].
 
 p@(Point traits) + n@(Number traits)
 [p + (n as: p)].
@@ -360,10 +360,10 @@ p@(Point traits) hash
 "Point is the graphics-specific traits for 2D points."
 
 r@(Rectangle traits) origin: p@(Point traits) corner: q@(Point traits)
-[r cloneSettingSlots: #(origin corner) to: {p. q}].
+[r cloneSettingSlots: #{#origin. #corner} to: {p. q}].
 
 r@(Rectangle traits) origin: p@(Point traits) extent: q@(Point traits)
-[r cloneSettingSlots: #(origin corner) to: {p. q + p}].
+[r cloneSettingSlots: #{#origin. #corner} to: {p. q + p}].
 
 r@(Rectangle traits) newEncompassing: c
 "Return a new Rectangle containing all the points of c."
@@ -543,7 +543,7 @@ r@(Rectangle traits) + p@(Point2D traits)
 ].
 
 r@(Rectangle traits) - q@(Rectangle traits)
-[RegionUnion cloneSettingSlots: #(regions) to: {r areasOutside: q}].
+[RegionUnion cloneSettingSlots: #{#regions} to: {r areasOutside: q}].
 
 r@(Rectangle traits) /\ q@(Rectangle traits)
 [| left right top bottom |
@@ -647,7 +647,7 @@ line1@(LineSegment traits) = line2@(LineSegment traits)
 ].
 
 line@(LineSegment traits) newFrom: start to: end
-[line cloneSettingSlots: #(start end) to: {start. end}].
+[line cloneSettingSlots: #{#start. #end} to: {start. end}].
 
 p@(Path traits) segments
 "Answer the LineSegments that compose the Path."
@@ -691,7 +691,7 @@ _@(Polygon traits) dimensions
 path@(Path traits) as: poly@(Polygon traits)
 "Coerce the path to be closed while converting."
 [| newP |
-  newP: (poly cloneSettingSlots: #(points)
+  newP: (poly cloneSettingSlots: #{#points}
 	      to: {path points as: (poly points new &capacity: path points size + 1)}).
   path isClosed
     ifFalse: [newP points add: path points first].

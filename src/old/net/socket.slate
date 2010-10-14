@@ -22,12 +22,12 @@ Net Socket traits define: #ServiceAnchor
   &parents: {Net Socket Locator}.
 
 l@(Net Socket Locator traits) newEndpoint: e@(Net Socket Endpoint traits)
-[l cloneSettingSlots: #(endpoint) to: {e}].
+[l cloneSettingSlots: #{#endpoint} to: {e}].
 
 Net Socket traits define: #Ip4Address &slots: {#ip -> 0}.
 
 i@(Net Socket Ip4Address traits) fromInteger: n
-[i cloneSettingSlots: #(ip) to: {n}].
+[i cloneSettingSlots: #{#ip} to: {n}].
 
 i@(Net Socket Ip4Address traits) asIp4
 [i ip].
@@ -43,7 +43,7 @@ l@(Net Socket Ip4Address traits) newFrom: s@(String traits)
 "We split the dotted ip string and stuff the bytes into an Integer
 (network byte order)."
 [
-  l cloneSettingSlots: #(ip) to:
+  l cloneSettingSlots: #{#ip} to:
     {((s splitWith: $. ) collect: [| :s | Integer readFrom: s])
           inject: 0 into: [| :int :octet | (int bitShift: 8) + octet]}
 ].
@@ -73,7 +73,7 @@ e@(Net Socket Tcp4Endpoint traits) type
 ].
 
 e@(Net Socket Tcp4Endpoint traits) newAt: address port: port
-[e cloneSettingSlots: #(address port) to: {address. port}].
+[e cloneSettingSlots: #{#address. #port} to: {address. port}].
 
 e@(Net Socket Tcp4Endpoint traits) newFrom: s@(String traits)
 [| parts |

@@ -105,7 +105,7 @@ u@(ObjectUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: p
 numerics define: #UnitValue &parents: {Number} &slots: {#unit. #value}.
 
 uv@(UnitValue traits) unit: unit value: value
-[uv clone `setting: #(unit value) to: {unit. value}].
+[uv clone `setting: #{#unit. #value} to: {unit. value}].
 
 uv@(UnitValue traits) dimension [uv unit dimension].
 
@@ -307,7 +307,7 @@ uv@(UnitValue traits) rounded
 
 numerics define: #CompoundUnit &parents: {Unit} &slots: {#units. #exponents}.
 
-CompoundUnit traits compareAndHashUsingSlots: #(units exponents).
+CompoundUnit traits compareAndHashUsingSlots: #{#units. #exponents}.
 
 cu@(CompoundUnit traits) reciprocal
 [
@@ -405,7 +405,7 @@ numerics define: #ComplexUnit &parents: {CompoundUnit}
 
 cu@(ComplexUnit traits) units: units exponents: expons
 [| newCU |
-  newCU: (cu clone `setting: #(units exponents conversionFactor)
+  newCU: (cu clone `setting: #{#units. #exponents. #conversionFactor}
 	     to: {units. expons. 1}).
   newCU units with: newCU exponents do: [| :unit :expon |
     newCU conversionFactor: newCU conversionFactor
@@ -449,9 +449,9 @@ not having the same modification, good for domain-specific use.
 e.g. 1.6 moles -> 1.6 moles of sulfuric acid. (Strings not required)"
 
 mu@(ModifiedUnit traits) base: u modification: mod
-[mu clone `setting: #(base modification) to: {u. mod}].
+[mu clone `setting: #{#base. #modification} to: {u. mod}].
 
-ModifiedUnit traits compareAndHashUsingSlots: #(base modification).
+ModifiedUnit traits compareAndHashUsingSlots: #{#base. #modification}.
 
 mu@(ModifiedUnit traits) bases
 [
@@ -507,11 +507,11 @@ numerics define: #PrefixedUnit &parents: {Unit} &slots: {#base. #prefix}.
 "A Unit with an SI Prefix attached."
 
 pu@(PrefixedUnit traits) prefix: prefix base: unit
-[pu clone `setting: #(prefix base) to: {prefix. unit}].
+[pu clone `setting: #{#prefix. #base} to: {prefix. unit}].
 
 pu@(PrefixedUnit traits) prefixedBy: prefix
 "Combine the prefixes."
-[pu clone `setting: #(prefix) to: {newPU prefix * prefix}].
+[pu clone `setting: #{#prefix} to: {newPU prefix * prefix}].
 
 pu@(PrefixedUnit traits) dimension [pu base dimension].
 
@@ -560,7 +560,7 @@ units Prefixes ensureNamespace: #ByAbbrev &delegate: True.
 
 sip@(SIPrefix traits) name: name abbrev: abbrev scalingFactor: n
 [| newSIP |
-  newSIP: (sip clone `setting: #(abbrev prefixName scalingFactor)
+  newSIP: (sip clone `setting: #{#abbrev. #prefixName. #scalingFactor}
 	       to: {abbrev. name. n}).
   units Prefixes ByName addImmutableSlot: name intern valued: newSIP.
   units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: newSIP.
@@ -615,7 +615,7 @@ numerics define: #NamedUnit &parents: {Unit}
   &slots: {#abbrev. #unitName. #pluralName}.
 
 nu@(NamedUnit traits) name: n1 abbrev: ab &plural: np
-[nu clone `setting: #(abbrev unitName pluralName)
+[nu clone `setting: #{#abbrev. #unitName. #pluralName}
     to: {ab. n1. np ifNil: [n1 plural]}].
 
 nu@(NamedUnit traits) printOn: s@(PrettyPrinterMixin traits)

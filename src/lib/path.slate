@@ -4,9 +4,9 @@ prototypes define: #Path &parents: {Cloneable}
 reach a destination.  Nil represents impossible path."
 
 s@(Sequence traits) as: path@(Path traits)
-[path clone `setting: #(names) to: {s as: path names}].
+[path clone `setting: #{#names} to: {s as: path names}].
 
-Path traits compareAndHashUsingSlots: #(names).
+Path traits compareAndHashUsingSlots: #{#names}.
 
 path@(Path traits) hash
 [path names hash bitXor: path traits identityHash].
@@ -148,7 +148,7 @@ path@(RootedPath traits) from: root to: target
 
 s@(Sequence traits) as: path@(RootedPath traits) &root: root
 [
-  path clone `setting: #(names root)
+  path clone `setting: #{#names. #root}
        to: {(s collect: [| :each | (each is: Integer)
 				   ifTrue: [each] ifFalse: [each intern]])
 		as: path names.

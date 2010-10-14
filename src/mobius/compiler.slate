@@ -58,18 +58,17 @@ VM SSACode define: #Instruction &parents: {Cloneable} &slots: {
 VM SSACode Instruction traits define: #ByCode -> Dictionary new.
 
 i@(VM SSACode Instruction traits) instancesSetting: slotNames to: values
-[| arityNames |
-  arityNames: #('arity' 'size').
+[
   resend `>> [do: [| :each |
     each argNames do:
-      [| :argName | (arityNames includes: argName) ifTrue:
+      [| :argName | (#{'arity'. 'size'} includes: argName) ifTrue:
         [""]].
     VM SSACode addImmutableSlot: each selector valued: each code.
     i ByCode at: each code put: each].
   ]
 ].
 
-VM SSACode Instruction instancesSetting: #(code selector name argNames offsettingArgIndices) to: {
+VM SSACode Instruction instancesSetting: #{#code. #selector. #name. #argNames. #offsettingArgIndices} to: #{
   {0. #directSendMessage. 'Direct Send'. {'register of result'. 'selector'. 'arity' ". args..."}. {2}}.
   "{1. #indirectSendMessage. 'Indirect Send'. {'register of result'. 'selector'. 'arity'. args...}. {2}}."
   "{2. #allocateRegisters. 'Allocate Registers'. 3. {}}."
@@ -138,7 +137,7 @@ c@(VM SSACompiler Context traits) newOn: method
 "FIXME change method code to array instead of bytearray."
 [
   method code: Array new.
-  c clone `setting: #(method codeWriter debugMap registerValues relocations labels currentRegister)
+  c clone `setting: #{#method. #codeWriter. #debugMap. #registerValues. #relocations. #labels. #currentRegister}
    to: {method. method code writer.
 	method debugMap as: c debugMap.
         c registerValues new.

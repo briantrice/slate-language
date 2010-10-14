@@ -13,7 +13,7 @@ signature where it is indicated that the future composition result will have
 a role."
 
 t@(Trait traits) new
-[t clone `setting: #(users) to: {t users new}].
+[t clone `setting: #{#users} to: {t users new}].
 
 t@(Trait traits) noteUseBy: user@(Trait traits)
 [t users include: user].
@@ -124,7 +124,7 @@ t1@(Trait traits) = t2@(Trait traits)
 t@(Trait traits) translate: sig for: target
 "This translates the convention of using the Trait object as place holder for
 the target installation object into the actual target intended Signature."
-[sig clone `setting: #(roles) to: {sig roles copyReplace: t with: target}].
+[sig clone `setting: #{#roles} to: {sig roles copyReplace: t with: target}].
 
 t@(Trait traits) installServicesOn: target
 [
@@ -179,7 +179,7 @@ t@(TraitComponent traits) newFrom: map@(Mapping traits)
   t new `>> [services: (map as: t services). ]
 ].
 
-TraitComponent traits compareAndHashUsingSlots: #(services).
+TraitComponent traits compareAndHashUsingSlots: #{#services}.
 
 t@(TraitComponent traits) conflicts
 "A component cannot conflict with itself because of the Dictionary basis."
@@ -197,7 +197,7 @@ t@(TraitSum traits) newFor: bases
 [t new `>> [bases: (bases as: t bases).
 	    bases do: [| :each | each noteUseBy: self]. ]].
 
-TraitSum traits compareAndHashUsingSlots: #(bases).
+TraitSum traits compareAndHashUsingSlots: #{#bases}.
 
 t1@(Trait traits) + t2@(Trait traits)
 [TraitSum newFor: {t1. t2}].
@@ -231,7 +231,7 @@ TraitModifier addMutatorForTraitSlot: #base.
 tm@(TraitModifier traits) finalize
 [tm base: Nil. ].
 
-TraitModifier traits compareAndHashUsingSlots: #(base).
+TraitModifier traits compareAndHashUsingSlots: #{#base}.
 
 tm@(TraitModifier traits) hasSubTrait: t@(Trait traits)
 [tm base = t \/ [tm base hasSubTrait: t]].
@@ -242,7 +242,7 @@ prototypes define: #TraitOverride &parents: {TraitModifier}
 
 TraitOverride addMutatorForTraitSlot: #overlay.
 
-TraitOverride traits compareAndHashUsingSlots: #(base overlay).
+TraitOverride traits compareAndHashUsingSlots: #{#base. #overlay}.
 
 to@(TraitOverride traits) newBasedOn: base layering: overlay
 [to new `>> [base: base. overlay: overlay. ]].
@@ -280,7 +280,7 @@ TraitExclusion addMutatorForTraitSlot: #exclusion.
 te@(TraitExclusion traits) newBasedOn: base excluding: exclusion
 [te new `>> [base: base. exclusion: exclusion. ]].
 
-TraitExclusion traits compareAndHashUsingSlots: #(base exclusion).
+TraitExclusion traits compareAndHashUsingSlots: #{#base. #exclusion}.
 
 t@(Trait traits) as: te@(TraitExclusion traits)
 [te new `>> [exclusion: exclusion. ]].
@@ -309,7 +309,7 @@ te@(TraitExclusion traits) hasSubTrait: t@(Trait traits)
 prototypes define: #TraitWithAlias &parents: {TraitModifier}
   &slots: {#aliases -> Dictionary new "Map from alias Signatures to original."}.
 
-TraitWithAlias traits compareAndHashUsingSlots: #(base aliases).
+TraitWithAlias traits compareAndHashUsingSlots: #{#base. #aliases}.
 
 ta@(TraitWithAlias traits) newBasedOn: base aliasing: map
 [ta new `>> [base: base. aliases: (map as: ta aliases). ]].

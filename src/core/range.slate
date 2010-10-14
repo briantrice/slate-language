@@ -15,7 +15,7 @@ r@(Range traits) new &capacity: n
 ].
 
 r@(Range traits) newFrom: start to: end by: step
-[r cloneSettingSlots: #(start end step) to: {start. end. step}].
+[r cloneSettingSlots: #{#start. #end. #step} to: {start. end. step}].
 
 r@(Range traits) newFrom: start to: end
 "This method implicitly defines a sensible default stepping value."
@@ -279,7 +279,7 @@ r@(LogicRange traits) newFrom: start to: end by: step
 "Coerces any numerical parameters into blocks where necessary."
 [| goesUp |
   goesUp: ((step is: Number) ifTrue: [step > 0] ifFalse: [(step applyWith: start) > start]).
-  r cloneSettingSlots: #(start end step)
+  r cloneSettingSlots: #{#start. #end. #step}
     to: {start.
 	 (end is: Number)
 	    ifTrue: [goesUp

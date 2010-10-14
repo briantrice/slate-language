@@ -16,15 +16,15 @@ MemoryArea traits define: #Locator &parents: {ExternalResource Locator}
 
 m@(MemoryArea traits) newSize: n
 [
-  m clone `setting: #(locator) to:
-    {m Locator clone `setting: #(byteSize) to: {n}}
+  m clone `setting: #{#locator} to:
+    {m Locator clone `setting: #{#byteSize} to: {n}}
 ].
 
 m@(MemoryArea traits) new &capacity: n &fixed: fixed
 [
   (fixed `defaultsTo: False)
     ifTrue: [| result |
-	     result: (m clone `setting: #(handle locator) to: {Nil. m locator clone}).
+	     result: (m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}).
 	     n ifNotNil: [result locator byteSize: n].
 	     result]
     ifFalse: [ByteArray new &capacity: n]

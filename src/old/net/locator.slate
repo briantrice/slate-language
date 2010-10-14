@@ -23,7 +23,7 @@ Net define: #HierarchicalURI &parents: {Net URI} &slots:
 
 u@(HierarchicalURI traits) new
 "TODO: Finish this"
-[u cloneSettingSlots: #(scheme fragment authority path query)
+[u cloneSettingSlots: #{#scheme. #fragment. #authority. #path. #query}
    to: {u scheme. u fragment. u authority. u path new. u query new}].
 
 u@(HierarchicalURI traits) isEmpty
@@ -65,7 +65,7 @@ both URIs have already been parsed.
     /\ [rel query isNil]
     ifTrue: [^ rel].
   "Use rel's query and fragment, and abs's scheme."
-  result: (abs cloneSettingSlots: #(query fragment scheme)
+  result: (abs cloneSettingSlots: #{#query. #fragment. #scheme}
 	       to: {rel query. rel fragment. abs scheme}).
   "If rel's authority is defined, use it, or else use abs's."
   rel authority
@@ -120,7 +120,7 @@ u@(OpaqueURI traits) printSchemeSpecificPartOn: encoder
 [| r | 
   r: (Regex Matcher forString: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r matches: s)
-    ifTrue: [Net URI cloneSettingSlots: #(scheme authority path query fragment)
+    ifTrue: [Net URI cloneSettingSlots: #{#scheme. #authority. #path. #query. #fragment}
 		     to: {r subexpression: 3.
 			  r subexpression: 5. 
 			  r subexpression: 6. 

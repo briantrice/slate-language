@@ -140,7 +140,7 @@ NOTE: This is not a macro but relies on the macro facilities."
   Syntax Block new
     `>> [statements:
       {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
-        from: #(obj1 obj2) to:
+        from: #{#obj1. #obj2} to:
           [| :obj1 :obj2 |
        "relevantSlotNames collect:
          [| :slotName |
@@ -156,7 +156,7 @@ NOTE: This is not a macro but relies on the macro facilities."
                      = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
        Syntax MethodDefinition of: #hash on: {xLiteral}
-         from: #(obj) to:
+         from: #{#obj} to:
            [| :obj |
              relevantSlotNames allButFirst
                inject:
@@ -182,7 +182,7 @@ NOTE: This is not a macro but relies on the macro facilities."
   Syntax Block new
     `>> [statements:
       {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
-        from: #(obj1 obj2) to:
+        from: #{#obj1. #obj2} to:
           [| :obj1 :obj2 |
             relevantSlotNames inject: Syntax Resend into:
               [| :expr :slotName |
@@ -191,7 +191,7 @@ NOTE: This is not a macro but relies on the macro facilities."
                      = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
        Syntax MethodDefinition of: #hash on: {xLiteral}
-         from: #(obj) to:
+         from: #{#obj} to:
            [| :obj |
              relevantSlotNames inject: Syntax Resend into:
                [| :hash :slotName |
@@ -202,24 +202,24 @@ NOTE: This is not a macro but relies on the macro facilities."
 ].
 
 "Bootstrap-time fix-ups:" (
-ExternalResource traits compareAndHashUsingSlots: #(locator).
-File Locator traits compareAndHashUsingSlots: #(name path version fileType).
-File RelativeLocator traits compareAndHashUsingSlots: #(basePath path name fileType version).
-Directory traits compareAndHashUsingSlots: #(locator).
-Syntax Annotation traits compareAndHashUsingSlots: #(value).
-Syntax Comment traits compareAndHashUsingSlots: #(comment value).
-Syntax OptionalKeywords traits compareAndHashUsingSlots: #(message keywords arguments).
-Syntax Literal traits compareAndHashUsingSlots: #(value).
-Syntax Namespace traits compareAndHashUsingSlots: #(namespace).
-Syntax Variable traits compareAndHashUsingSlots: #(name scope).
-Syntax LoadVariable traits compareAndHashUsingSlots: #(variable).
-Syntax StoreVariable traits compareAndHashUsingSlots: #(variable value).
-CompiledMethod traits compareAndHashUsingSlots: #(literals selectors code).
-Types Not traits compareAndHashUsingSlots: #(argument).
-Types Member traits compareAndHashUsingSlots: #(elements).
-Types Block traits compareAndHashUsingSlots: #(resultType argumentTypes).
-Types Range traits compareAndHashUsingSlots: #(type start end).
-Types Array traits compareAndHashUsingSlots: #(type).
+ExternalResource traits compareAndHashUsingSlots: #{#locator}.
+File Locator traits compareAndHashUsingSlots: #{#name. #path. #version. #fileType}.
+File RelativeLocator traits compareAndHashUsingSlots: #{#basePath. #path. #name. #fileType. #version}.
+Directory traits compareAndHashUsingSlots: #{#locator}.
+Syntax Annotation traits compareAndHashUsingSlots: #{#value}.
+Syntax Comment traits compareAndHashUsingSlots: #{#comment. #value}.
+Syntax OptionalKeywords traits compareAndHashUsingSlots: #{#message. #keywords. #arguments}.
+Syntax Literal traits compareAndHashUsingSlots: #{#value}.
+Syntax Namespace traits compareAndHashUsingSlots: #{#namespace}.
+Syntax Variable traits compareAndHashUsingSlots: #{#name. #scope}.
+Syntax LoadVariable traits compareAndHashUsingSlots: #{#variable}.
+Syntax StoreVariable traits compareAndHashUsingSlots: #{#variable. #value}.
+CompiledMethod traits compareAndHashUsingSlots: #{#literals. #selectors. #code}.
+Types Not traits compareAndHashUsingSlots: #{#argument}.
+Types Member traits compareAndHashUsingSlots: #{#elements}.
+Types Block traits compareAndHashUsingSlots: #{#resultType. #argumentTypes}.
+Types Range traits compareAndHashUsingSlots: #{#type. #start. #end}.
+Types Array traits compareAndHashUsingSlots: #{#type}.
 ).
 
 load@(Syntax LoadVariable traits) defaultsTo: default

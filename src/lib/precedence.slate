@@ -3,7 +3,7 @@ prototypes define: #Precedence &slots: {#inter -> {}}.
 "TODO: add support for optional argument and macro messages"
 
 p@(Precedence traits) newFor: newInter "TODO &intra: newIntra"
-[p clone `setting: #(inter) to: {newInter}].
+[p clone `setting: #{#inter} to: {newInter}].
 
 p@(Precedence traits) precedenceOf: symbol
 "Symbols of equal precedence are put into the same array and all these arrays
@@ -120,10 +120,13 @@ p@(Precedence traits) orderInCompoundStatements: stack
 
 prototypes ensureNamespace: #Precedences
   &slots: {#MathPrecedence ->
-  (Precedence newFor: #((= ~= == ~== < <= >= >)
-    (+ -) (* / mod: rem: quo:)
-    (>> << bitShift: bitNot bitOr: bitXor: bitAnd:)
-    (min: max:) (^ raisedTo:)))}.
+  (Precedence newFor: #{
+    {#=. #~=. #==. #~==. #<. #<=. #>=. #>}.
+    {#+. #-}.
+    {#*. #/. #mod:. #rem:. #quo:}.
+    {#>>. #<<. #bitShift:. #bitNot. #bitOr:. #bitXor:. #bitAnd:}.
+    {#min:. #max:}.
+    {#'^'. #raisedTo:}})}.
 
 s@(Syntax Node traits) math
 "Convert the syntax tree into a flattened array of postfix-notated nodes,

@@ -43,7 +43,7 @@ _@(Condition traits) describeOn: console
 block@(Method traits) on: c@(Condition traits) do: handler
 "Establishes a handler to be executed when the Condition is signaled within the block."
 [| context |
-  context: (c cloneSettingSlots: #(handlers exitContinuation)
+  context: (c cloneSettingSlots: #{#handlers. #exitContinuation}
 	      to: {{handler}. [| :result | ^ result]}).
   conditionStack push: context.
   block ensure: [conditionStack pop]
@@ -55,7 +55,7 @@ block@(Method traits) on: col@(Collection traits) do: handler
   col do:
     [| :c context |
      context:
-       (c cloneSettingSlots: #(handlers exitContinuation)
+       (c cloneSettingSlots: #{#handlers. #exitContinuation}
 	  to: {{handler}. [| :result | ^ result]}).
      conditionStack push: context].
   block ensure: [conditionStack pop: col size]
@@ -70,7 +70,7 @@ signaled within the block."
   handlers
     reverseDo:
       [| :handler |
-       context: (handler key cloneSettingSlots: #(handlers exitContinuation)
+       context: (handler key cloneSettingSlots: #{#handlers. #exitContinuation}
 			to: {{handler value}. continuation}).
        conditionStack push: context].
   block ensure: [conditionStack position: pos]
@@ -279,7 +279,7 @@ BreakPoint define: #Restart &parents: {Restart} &slots: {#breakPoint}.
 "A BreakPoint Restart is a Restart used to restart from a BreakPoint."
 
 bpr@(BreakPoint Restart traits) newBreakPoint: bp
-[bpr cloneSettingSlots: #(breakPoint) to: {bp}].
+[bpr cloneSettingSlots: #{#breakPoint} to: {bp}].
 
 bpr@(BreakPoint Restart traits) describeOn: console
 [

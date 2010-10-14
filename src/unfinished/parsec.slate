@@ -5,18 +5,18 @@ define: #Parsec.
 Parsec traits define: #Result.
 
 Parsec Result traits define: #Ok &parents: {Parsec Result} 
-                                 &slots: #(consumed value state).
+                                 &slots: #{#consumed. #value. #state}.
 
 ok@(Parsec Result Ok traits) newConsumed: consumed 
 			     withValue: value 
 			     andState: state
-[ok cloneSettingSlots: #(consumed value state) to: {consumed. value. state}].
+[ok cloneSettingSlots: #{#consumed. #value. #state} to: {consumed. value. state}].
 
 Parsec Result traits define: #Error &parents: {Parsec Result}
-                                    &slots: #(consumed).
+                                    &slots: #{#consumed}.
 
 error@(Parsec Result Error traits) newConsumed: consumed
-[error cloneSettingSlots: #(consumed) to: {consumed}].
+[error cloneSettingSlots: #{#consumed} to: {consumed}].
 
 _@(Parsec Result Ok traits) ifOk: ok ifError: err
 [ok do].
@@ -24,12 +24,12 @@ _@(Parsec Result Ok traits) ifOk: ok ifError: err
 _@(Parsec Result Error traits) ifOk: ok ifError: err
 [err do].
 
-Parsec traits define: #State &slots: #(input).
+Parsec traits define: #State &slots: #{#input}.
 
 st@(Parsec State traits) newWithInput: input
-[st cloneSettingSlots: #(input) to: {input}].
+[st cloneSettingSlots: #{#input} to: {input}].
 
-Parsec traits define: #Parser &slots: #(block).
+Parsec traits define: #Parser &slots: #{#block}.
 
 "Run a parser"
 p@(Parsec Parser traits) runOn: obj
@@ -44,7 +44,7 @@ p@(Parsec Parser traits) runOn: l@(LazyList traits)
 ].
 
 p@(Parsec Parser traits) newWithBlock: b@(Method traits)
-[p cloneSettingSlots: #(block) to: {b}].
+[p cloneSettingSlots: #{#block} to: {b}].
 
 "just uses the first arg for disambiguation"
 p@(Parsec Parser traits) return: val
@@ -60,7 +60,7 @@ p@(Parsec Parser traits) >>= f@(Method traits)
      reply1 
        ifOk: [reply2: ((f applyWith: reply1 value) block
                            applyWith: reply1 state).
-	       reply2 cloneSettingSlots: #(consumed) 
+	       reply2 cloneSettingSlots: #{#consumed} 
 		      to: {reply1 consumed \/ reply2 consumed }]
        ifError: [reply1]
   ]
@@ -71,7 +71,7 @@ p@(Parsec Parser traits) >> q@(Parsec Parser traits)
 
 p@(Parsec Parser traits) fail: message
 [p newWithBlock: 
-  [| :state | Parsec Result Error cloneSettingSlots: #(consumed) to: {False} ]
+  [| :state | Parsec Result Error cloneSettingSlots: #{#consumed} to: {False} ]
 ].
 
 "MonadPlus"
@@ -137,7 +137,7 @@ p@(Parsec Parser traits) manyAccum: accum@(Method traits)
 	        ifFalse: [r
 			  ifOk: [error: 'combinator \'many\' is applied to a parser that accepts an empty string.']
                           ifError: [Parsec Result Ok
-				    cloneSettingSlots: #(consumed value state)
+				    cloneSettingSlots: #{#consumed. #value. #state}
 				    to: {False. xs. state}]]
 	   ]
      r2: (p block applyWith: state).

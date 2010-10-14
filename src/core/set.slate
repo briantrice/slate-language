@@ -53,12 +53,12 @@ collections define: #Set &parents: {NoDuplicatesCollection} &slots: {
 }.
 
 collections define: #IdentitySet &builder:
-  [Set cloneSettingSlots: #(hashBlock equalsBlock)
+  [Set cloneSettingSlots: #{#hashBlock. #equalsBlock}
        to: {#identityHash`er. #==`er}].
 "IdentitySets specialize their behavior to compare solely by object identity."
 
 c@(Set traits) new &capacity: n
-[c cloneSettingSlots: #(contents tally)
+[c cloneSettingSlots: #{#contents. #tally}
    to: {c contents new &capacity: ((n ifNil: [0]) max: 1). 0}].
 
 c@(Set traits) = d@(Set traits)
@@ -73,7 +73,7 @@ when possible by making very cheap comparisons first."
 ].
 
 c@(Set traits) copy
-[c cloneSettingSlots: #(contents) to: {c contents copy}].
+[c cloneSettingSlots: #{#contents} to: {c contents copy}].
 
 c@(Set traits) size
 "The number of elements, the conceptual size of the Set."

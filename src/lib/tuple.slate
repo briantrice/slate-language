@@ -18,13 +18,13 @@ x@(Root traits) <> y@(Root traits)
 t@(Tuple traits) newWith: array
 "This swallows the array, avoiding unnecessary copying at the caller's
 discretion."
-[t clone `setting: #(contents actualSize) to: {array. Nil}].
+[t clone `setting: #{#contents. #actualSize} to: {array. Nil}].
 
 t@(Tuple traits) new &capacity: n &immutable: bool
 "The default setting is immutable, so that tupling is non-copying in general.
 The contents are set up to grow if mutable."
 [
-  t clone `setting: #(contents)
+  t clone `setting: #{#contents}
     to: {t contents new &capacity:
       n + ((bool ifNil: [False]) ifTrue: [0] ifFalse: [5])}
 ].
@@ -102,5 +102,5 @@ v@(Vector traits) <cross> w@(Vector traits)
 ].
 
 v@(Vector traits) originSized: n
-[(v clone `setting: #(contents) to: {Array newSize: n}) `>>
+[(v clone `setting: #{#contents} to: {Array newSize: n}) `>>
    [contents infect: [| :_ | 0]. ]].

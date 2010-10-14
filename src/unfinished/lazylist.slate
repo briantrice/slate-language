@@ -1,5 +1,5 @@
 collections define: #LazyList.
-LazyList traits define: #Cons &parents: {LazyList} &slots: #(head lazyTail).
+LazyList traits define: #Cons &parents: {LazyList} &slots: #{#head. #lazyTail}.
 LazyList traits define: #Nil &parents: {LazyList}.
 
 l@(LazyList Cons traits) ifCons: cons@(Method traits) ifNil: nil@(Method traits)
@@ -15,7 +15,7 @@ s@(ReadStream traits) as: l@(LazyList traits)
 [
   s isAtEnd 
     ifTrue: [l Nil]
-    ifFalse: [l Cons cloneSettingSlots: #(head lazyTail) to:
+    ifFalse: [l Cons cloneSettingSlots: #{#head. #lazyTail} to:
       {s next. [s as: l] suspend}]
 ].
 

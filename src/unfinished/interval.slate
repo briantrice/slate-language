@@ -10,19 +10,19 @@ Operations on intervals should answer new intervals including every result
 of applying the function to every element of the source interval(s)."
 
 i@(Interval traits) newFrom: start to: end
-[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+[i cloneSettingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive}
    to: {start. end. True. True}].
 
 i@(Interval traits) newFrom: start below: end
-[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+[i cloneSettingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive}
    to: {start. end. True. False}].
 
 i@(Interval traits) newAbove: start to: end
-[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+[i cloneSettingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive}
    to: {start. end. False. True}].
 
 i@(Interval traits) newAbove: start below: end
-[i cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+[i cloneSettingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive}
    to: {start. end. False. False}].
 
 n@(Number traits) as: i@(Interval traits) &tolerance: tol
@@ -95,7 +95,7 @@ i1@(Interval traits) includesAllOf: i2@(Interval traits)
    [i1 lowerBound < i2 lowerBound /\ [i2 upperBound < i1 upperBound]]
 ].
 
-Interval traits compareAndHashUsingSlots: #(upperBound lowerBound upperInclusive lowerInclusive bestGuess).
+Interval traits compareAndHashUsingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive. #bestGuess}.
 
 i@(Interval traits) < n
 [i upperBound < n \/ [n = i upperBound /\ [i upperInclusive not]]].
@@ -113,7 +113,7 @@ i1@(Interval traits) < i2@(Interval traits)
 i1@(Interval traits) union: i2@(Interval traits)
 [
   (i1 intersects: i2)
-    ifTrue: [i1 cloneSettingSlots: #(upperBound lowerBound upperInclusive lowerInclusive)
+    ifTrue: [i1 cloneSettingSlots: #{#upperBound. #lowerBound. #upperInclusive. #lowerInclusive}
 		to: {i1 upperBound max: i2 upperBound.
 		     i2 lowerBound min: i2 lowerBound.
 		     i1 upperBound > i2 upperBound ifTrue: [i1 upperInclusive] ifFalse: [i2 upperInclusive].
@@ -135,27 +135,27 @@ i1@(Interval traits) includesAnyOf: i2@(Interval traits)
 ].
 
 i@(Interval traits) + n
-[i cloneSettingSlots: #(upperBound lowerBound)
+[i cloneSettingSlots: #{#upperBound. #lowerBound}
    to: {i upperBound + n. i lowerBound + n}].
 
 i@(Interval traits) - n
-[i cloneSettingSlots: #(upperBound lowerBound)
+[i cloneSettingSlots: #{#upperBound. #lowerBound}
    to: {i upperBound - n. i lowerBound - n}].
 
 i@(Interval traits) * n
-[i cloneSettingSlots: #(upperBound lowerBound)
+[i cloneSettingSlots: #{#upperBound. #lowerBound}
    to: {i upperBound * n. i lowerBound * n}].
 
 i@(Interval traits) / n
-[i cloneSettingSlots: #(upperBound lowerBound)
+[i cloneSettingSlots: #{#upperBound. #lowerBound}
    to: {i upperBound / n. i lowerBound / n}].
 
 i1@(Interval traits) + i2@(Interval traits)
-[i1 cloneSettingSlots: #(upperBound lowerBound)
+[i1 cloneSettingSlots: #{#upperBound. #lowerBound}
     to: {i1 upperBound + i2 upperBound. i1 lowerBound + i2 lowerBound}].
 
 i1@(Interval traits) - i2@(Interval traits)
-[i1 cloneSettingSlots: #(upperBound lowerBound)
+[i1 cloneSettingSlots: #{#upperBound. #lowerBound}
     to: {i1 lowerBound - i2 upperBound. i1 upperBound - i2 lowerBound}].
 
 i1@(Interval traits) * i2@(Interval traits)
@@ -164,7 +164,7 @@ i1@(Interval traits) * i2@(Interval traits)
    i1 lowerBound * i2 upperBound.
    i1 upperBound * i2 lowerBound.
    i1 upperBound * i2 upperBound} `cacheAs: #products.
-  i1 cloneSettingSlots: #(upperBound lowerBound)
+  i1 cloneSettingSlots: #{#upperBound. #lowerBound}
      to: {products reduce: #min:`er. products reduce: #max:`er}
 ].
 
@@ -174,7 +174,7 @@ i1@(Interval traits) / i2@(Interval traits)
    i1 lowerBound / i2 upperBound.
    i1 upperBound / i2 lowerBound.
    i1 upperBound / i2 upperBound} `cacheAs: #quotients.
-  i1 cloneSettingSlots: #(upperBound lowerBound)
+  i1 cloneSettingSlots: #{#upperBound. #lowerBound}
      to: {quotients reduce: #min:`er. quotients reduce: #max:`er}
 ].
 
@@ -184,15 +184,15 @@ i1@(Interval traits) raisedTo: n
     ifTrue:
       []
     ifFalse:
-      [i1 cloneSettingSlots: #(upperBound lowerBound)
+      [i1 cloneSettingSlots: #{#upperBound. #lowerBound}
 	  to: {i1 upperBound raisedTo: n. i2 lowerBound raisedTo: n}]
 ].
 
 collections define: #IntervalComplement &parents: {NoDuplicatesCollection}
-  &slots: #(basis).
+  &slots: #{#basis}.
 
 ic@(IntervalComplement traits) newOn: i
-[ic cloneSettingSlots: #(basis) to: {i}].
+[ic cloneSettingSlots: #{#basis} to: {i}].
 
 i@(Interval traits) complement
 [IntervalComplement newOn: i].
@@ -207,14 +207,14 @@ ic@(IntervalComplement traits) upperInclusive
 [ic basis lowerInclusive not].
 
 ic@(IntervalComplement traits) + n
-[ic cloneSettingSlots: #(basis) to: {ic basis + n}].
+[ic cloneSettingSlots: #{#basis} to: {ic basis + n}].
 
 ic@(IntervalComplement traits) - n
-[ic cloneSettingSlots: #(basis) to: {ic basis - n}].
+[ic cloneSettingSlots: #{#basis} to: {ic basis - n}].
 
 ic@(IntervalComplement traits) * n
-[ic cloneSettingSlots: #(basis) to: {ic basis * n}].
+[ic cloneSettingSlots: #{#basis} to: {ic basis * n}].
 
 ic@(IntervalComplement traits) / n
-[ic cloneSettingSlots: #(basis) to: {ic basis / n}].
+[ic cloneSettingSlots: #{#basis} to: {ic basis / n}].
 
