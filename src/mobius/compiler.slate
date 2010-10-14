@@ -282,7 +282,7 @@ gen@(VM SSACompiler traits) emitInstruction: code from: node
 "Emitting an instruction without an immediate value required just puts the
 byte onto the end."
 [
-  gen emitInstruction: code withParameters: #() from: node
+  gen emitInstruction: code withParameters: #{} from: node
 ].
 
 "
@@ -658,7 +658,7 @@ gen@(VM SSACompiler traits) generate: _@#loop on: args from: msg result: result
 [| label |
   label: gen emitLabel.
   gen generateExecutionOf: args from: msg result: Nil.
-  gen emitInstruction: gen jumpTo withParameters: #()"see below" from: msg.
+  gen emitInstruction: gen jumpTo withParameters: #{}"see below" from: msg.
   gen emitBranchTo: label from: msg.
   gen registerFor: Nil from: msg result: result "return nil"
 ].

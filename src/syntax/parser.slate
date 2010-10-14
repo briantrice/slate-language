@@ -236,7 +236,7 @@ p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
     ([| :arguments |
       [token: p nextToken.
        token isSameAs: Syntax Comma]
-         whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #()).
+         whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #{}).
   p undoToken: token.
   arguments isEmpty
     ifTrue: [message]
@@ -265,7 +265,7 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
       whileTrue:
         [keywords nextPut: token value.
          argumentNames nextPut: p nextBinaryMessages]]
-    writingAs: #()).
+    writingAs: #{}).
   p undoToken: token.
   keywords isEmpty
     ifTrue: [message]
@@ -341,7 +341,7 @@ into a single selector with arguments."
                selector ; token value name.
                result nextPut:
                  (p nextBinaryMessages ifNil: [p error: 'Bad keyword argument (being implicit).'])].
-          p undoToken: token] writingAs: #()).
+          p undoToken: token] writingAs: #{}).
        selector: selector contents.
        "Handle the special case of a StoreVariable:"
        arguments size = 2 /\ [arguments first isSameAs: Syntax ImplicitArgument]

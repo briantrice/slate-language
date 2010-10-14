@@ -92,7 +92,7 @@ s@(Net Socket traits) newFor: domain type: type protocol: proto
 addr@(Net SocketAddress traits) newOn: array port: port
 [ | ret |
   ret: addr new.
-  ret address: (addr domain createIPAddress: array port: port options: #()).
+  ret address: (addr domain createIPAddress: array port: port options: #{}).
   ret
 ].
 
@@ -122,7 +122,7 @@ addr@(Net SocketAddress traits) newOn: string@(String traits)
       ifTrue: [error: 'cannot get ip from string: ' ; string].
   array: ({regex subexpression: 0. regex subexpression: 1. regex subexpression: 2. regex subexpression: 3. }
             collect: #as: `er <-* Integer).
-  Net IP4Address new `>> [address: (Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #()). ]
+  Net IP4Address new `>> [address: (Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #{}). ]
 ].
 
 addr@(Net IP4Address traits) domain

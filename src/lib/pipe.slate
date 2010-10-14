@@ -1,12 +1,12 @@
 "Pipes for interprocess communication"
 
-prototypes define: #ProcessPipe &parents: {ExternalResource} &slots: {#args -> #(). #readHandle. #writeHandle}.
+prototypes define: #ProcessPipe &parents: {ExternalResource} &slots: {#args -> #{}. #readHandle. #writeHandle}.
 
 ProcessPipe traits define: #ReadStream &parents: {ExternalResource ReadStream}.
 
 p@(ProcessPipe traits) newOn: name@(String traits) &args: arguments
 [
-  arguments `defaultsTo: #().
+  arguments `defaultsTo: #{}.
   p new `>> [locator: name. args: {name} ; arguments. ]
 ].
 
