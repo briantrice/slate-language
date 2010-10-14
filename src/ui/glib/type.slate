@@ -1,35 +1,39 @@
 GLib define: #Type &parents: {Cloneable} &slots: {#type}. 
 GLib Type traits atSlotNamed: #printName put: 'GLib Type'. 
 
-GLib Type compareAndHashUsingSlots: #(type).
+GLib Type compareAndHashUsingSlots: #{#type}.
 
-t@(GLib Type traits) newWithType: arg [
-	t cloneSettingSlots: #(type) to: {arg}
+t@(GLib Type traits) newWithType: arg
+[
+  t cloneSettingSlots: #{#type} to: {arg}
 ].
 
-t@(GLib Type traits) newWithType: arg value: [
-	t cloneSettingSlots: #(type) to: {arg}
+t@(GLib Type traits) newWithType: arg value: _
+[
+  t cloneSettingSlots: #{#type} to: {arg}
 ].
 
-_@(GLib Type traits) gType [
-	GLib FundamentalType Type
+_@(GLib Type traits) gType
+[
+  GLib FundamentalType Type
 ].
 
-t@(GLib Type traits) isFundamentalType [
-	GLib LibWrapper primitives wrapper_g_type_is_fundamental applyTo: {t type}
+t@(GLib Type traits) isFundamentalType
+[
+  GLib LibWrapper primitives wrapper_g_type_is_fundamental applyTo: {t type}
 ].
 
-t@(GLib Type traits) fundamentalType [
-	t isFundamentalType
-		ifTrue: [ t ]
-		ifFalse: [
-			| aType |
-			aType: (GLib LibWrapper primitives wrapper_g_type_fundamental applyTo: {t type} ).
-			GLib Type newWithType: aType
-		]
+t@(GLib Type traits) fundamentalType
+[| aType |
+  t isFundamentalType
+    ifTrue: [t]
+    ifFalse: [
+      aType: (GLib LibWrapper primitives wrapper_g_type_fundamental applyTo: {t type} ).
+      GLib Type newWithType: aType
+    ]
 ].
 
-t@(GLib Type traits) name [
-	GLib GObjectLib primitives g_type_name applyTo: {t type}
+t@(GLib Type traits) name
+[
+  GLib GObjectLib primitives g_type_name applyTo: {t type}
 ].
-

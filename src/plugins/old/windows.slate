@@ -1,31 +1,30 @@
 lobby ensureNamespace: #Windows &delegate: True.
 
 Windows define: #Lib
-  &builder: [ExternalInterface newForLibrary: 'sdl-windows' primitives:
-    #(
-      (Void init())
-      (Void shutdown())
-      (Int haveEvent())
-      (Int waitForEvent())
-      (Void popEvent())
-      (Pointer createWindow(Int Int))
-      (Int getEventType ())
-      (Pointer getEventWindow ())
-      (Int getEventMouseMotionX())
-      (Int getEventMouseMotionY())
-      (Int getEventMouseButtonX())
-      (Int getEventMouseButtonY())
-      (Int getKeyboardKey())
-      (Int getKeyboardMod())
-      (Void blit(Pointer Int Int Int Int Pointer Int Int Int Int Int))
-      )].
+  &builder: [ExternalInterface newForLibrary: 'sdl-windows' primitives: #{
+      {#Void. #init. {}}.
+      {#Void. #shutdown. {}}.
+      {#Int. #haveEvent. {}}.
+      {#Int. #waitForEvent. {}}.
+      {#Void. #popEvent. {}}.
+      {#Pointer. #createWindow. {#Int. #Int}}.
+      {#Int. #getEventType. {}}.
+      {#Pointer. #getEventWindow. {}}.
+      {#Int. #getEventMouseMotionX. {}}.
+      {#Int. #getEventMouseMotionY. {}}.
+      {#Int. #getEventMouseButtonX. {}}.
+      {#Int. #getEventMouseButtonY. {}}.
+      {#Int. #getKeyboardKey. {}}.
+      {#Int. #getKeyboardMod. {}}.
+      {#Void. #blit. {#Pointer. #Int. #Int. #Int. #Int. #Pointer. #Int. #Int. #Int. #Int. #Int}}
+  }].
 
 Windows Lib enable.
 
 Windows define: #EventTableEntry &slots: {#prototype. #constructors}.
 
 entry@(Windows EventTableEntry traits) newPrototype: prototype constructors: constructors
-[entry cloneSettingSlots: #(prototype constructors)
+[entry cloneSettingSlots: #{#prototype. #constructors}
        to: {prototype. constructors}].
 
 entry@(Windows EventTableEntry traits) construct
@@ -63,42 +62,41 @@ event@(Event traits) construct: _@#keyboardKey
 
 Windows addSlot: #eventTable valued: Dictionary new.
 
-{
-    100 -> #(LeftMouseButtonPressEvent          (osWindow mouseButtonPosition)).
-    101 -> #(LeftMouseButtonReleaseEvent        (osWindow mouseButtonPosition)).
-    102 -> #(LeftMouseButtonDoubleClickEvent    (osWindow mouseButtonPosition)).
-
-    110 -> #(RightMouseButtonPressEvent         (osWindow mouseButtonPosition)).
-    111 -> #(RightMouseButtonReleaseEvent       (osWindow mouseButtonPosition)).
-    112 -> #(RightMouseButtonDoubleClickEvent   (osWindow mouseButtonPosition)).
-
-    120 -> #(MiddleMouseButtonPressEvent        (osWindow mouseButtonPosition)).
-    121 -> #(MiddleMouseButtonReleaseEvent      (osWindow mouseButtonPosition)).
-    122 -> #(MiddleMouseButtonDoubleClickEvent  (osWindow mouseButtonPosition)).
-
-    130 -> #(X1MouseButtonPressEvent            (osWindow mouseButtonPosition)).
-    131 -> #(X1MouseButtonReleaseEvent          (osWindow mouseButtonPosition)).
-    132 -> #(X1MouseButtonDoubleClickEvent      (osWindow mouseButtonPosition)).
-
-    140 -> #(X2MouseButtonPressEvent            (osWindow mouseButtonPosition)).
-    141 -> #(X2MouseButtonReleaseEvent          (osWindow mouseButtonPosition)).
-    142 -> #(X2MouseButtonDoubleClickEvent      (osWindow mouseButtonPosition)).
-
-    150 -> #(MouseMotionEvent                   (osWindow mouseMotionPosition)).
-    151 -> #(MouseEnterEvent                    (osWindow mouseMotionPosition)).
-    152 -> #(MouseLeaveEvent                    (osWindow mouseMotionPosition)).
-
-
-    160 -> #(KeyboardPressEvent                 (osWindow keyboardKey)).
-    161 -> #(KeyboardReleaseEvent               (osWindow keyboardKey)).
-    "FIXME"
-    "162 -> #(MouseMotionEvent                   (osWindow mouseMotionPosition))."
-
-} do: [|:each|
-    Windows eventTable at: each key put:
+[| :spec |
+    Windows eventTable at: spec key put:
       (Windows EventTableEntry
-         newPrototype: (events atSlotNamed: each value first)
-         constructors: each value second)].
+         newPrototype: (events atSlotNamed: spec value first)
+         constructors: spec value second)] for: {
+    100 -> #{#LeftMouseButtonPressEvent.           {#osWindow.  #mouseButtonPosition}}.
+    101 -> #{#LeftMouseButtonReleaseEvent.         {#osWindow.  #mouseButtonPosition}}.
+    102 -> #{#LeftMouseButtonDoubleClickEvent.     {#osWindow.  #mouseButtonPosition}}.
+
+    110 -> #{#RightMouseButtonPressEvent.          {#osWindow.  #mouseButtonPosition}}.
+    111 -> #{#RightMouseButtonReleaseEvent.        {#osWindow.  #mouseButtonPosition}}.
+    112 -> #{#RightMouseButtonDoubleClickEvent.    {#osWindow.  #mouseButtonPosition}}.
+
+    120 -> #{#MiddleMouseButtonPressEvent.         {#osWindow.  #mouseButtonPosition}}.
+    121 -> #{#MiddleMouseButtonReleaseEvent.       {#osWindow.  #mouseButtonPosition}}.
+    122 -> #{#MiddleMouseButtonDoubleClickEvent.   {#osWindow.  #mouseButtonPosition}}.
+
+    130 -> #{#X1MouseButtonPressEvent.             {#osWindow.  #mouseButtonPosition}}.
+    131 -> #{#X1MouseButtonReleaseEvent.           {#osWindow.  #mouseButtonPosition}}.
+    132 -> #{#X1MouseButtonDoubleClickEvent.       {#osWindow.  #mouseButtonPosition}}.
+
+    140 -> #{#X2MouseButtonPressEvent.             {#osWindow.  #mouseButtonPosition}}.
+    141 -> #{#X2MouseButtonReleaseEvent.           {#osWindow.  #mouseButtonPosition}}.
+    142 -> #{#X2MouseButtonDoubleClickEvent.       {#osWindow.  #mouseButtonPosition}}.
+
+    150 -> #{#MouseMotionEvent.                    {#osWindow.  #mouseMotionPosition}}.
+    151 -> #{#MouseEnterEvent.                     {#osWindow.  #mouseMotionPosition}}.
+    152 -> #{#MouseLeaveEvent.                     {#osWindow.  #mouseMotionPosition}}.
+
+    160 -> #{#KeyboardPressEvent.                  {#osWindow.  #keyboardKey}}.
+    161 -> #{#KeyboardReleaseEvent.                {#osWindow.  #keyboardKey}}.
+    "#FIXME. "
+    "162 -> #{#MouseMotionEvent.                    {#osWindow.  #mouseMotionPosition}}."
+
+}.
 
 w@Windows constructEvent
 [
@@ -124,7 +122,7 @@ Windows addSlot: #windows valued: Dictionary new.
 
 w@(Window traits) newWidth: width height: height sceneElement: sceneElement
 [| newW |
-  newW: (w cloneSettingSlots: #(osWindow sceneElement) to:
+  newW: (w cloneSettingSlots: #{#osWindow. #sceneElement} to:
     {Windows Lib primitives createWindow applyTo: {width. height}.
      sceneElement}).
   windows at: newW osWindow put: newW.

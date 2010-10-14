@@ -75,13 +75,10 @@ map@(CommandMap traits) newNamed: name &delegates: delegates &history: history
     `>> [currentNode: history.]
 ].
 
-
 map@(CommandMap traits) new
 [ 
   resend newNamed: #unnamed
 ].
-
-
 
 c@(Command traits) installIn: map@(CommandMap traits)
 [
@@ -89,13 +86,11 @@ c@(Command traits) installIn: map@(CommandMap traits)
   c
 ].
 
-
 map@(CommandMap traits) installCommand: c@(Command traits)
 [
   c installIn: map.
   map
 ].
-
 
 map@(CommandMap traits) addAccelerator: accelerator@(KeyboardAccelerator traits) forCommand: c
 [
@@ -104,7 +99,6 @@ map@(CommandMap traits) addAccelerator: accelerator@(KeyboardAccelerator traits)
     ifFalse: [map accelerators at: accelerator put: ((c is: Symbol) ifTrue: [c] ifFalse: [c name])].
   map
 ].
-
 
 map@(CommandMap traits) addTranslator: accelerator@(PointerAccelerator traits) forCommand: c
 [
@@ -130,8 +124,6 @@ map@(CommandMap traits) unrecord
 
 ].
 
-
-
 map@(CommandMap traits) recordAndExecute: c@(Command traits)
 [ | cmd |
   "WARNING: we have to deep copy because sometimes execute will overwrite arguments"
@@ -141,15 +133,12 @@ map@(CommandMap traits) recordAndExecute: c@(Command traits)
   cmd execute
 ].
 
-
-
 "FIXME : should we handle stuff on release events or other states?"
 
 map@(CommandMap traits) handle: event@(InputEvent traits)
 [
 
 ].
-
 
 "FIXME: how should mapDelegates be delegated to? maybe it'd be better
 to remove the slot and just use the in-slate inheritance system thingy
@@ -164,7 +153,6 @@ map@(CommandMap traits) handle: event@(KeyboardPressEvent traits)
           ifNotNil: [map recordAndExecute: command].
 ].
 
-
 map@(CommandMap traits) handle: event@(MouseButtonPressEvent traits)
 [ | accelerators commands |
   accelerators: (map translators select: [ | :t |  t region contains: event position]).
@@ -174,16 +162,13 @@ map@(CommandMap traits) handle: event@(MouseButtonPressEvent traits)
  
 ].
 
-
-
- " --    Command Group   --     "
-
+" --    Command Group   --     "
 
 prototypes define: #CommandGroup &parents: {Command}. "The arguments are the commands"
 
 cg@(CommandGroup traits) name: name commands: arguments
 [
-  cg cloneSettingSlots: #(name arguments) to: {name. arguments}
+  cg cloneSettingSlots: #{#name. #arguments} to: {name. arguments}
 ].
 
 "
@@ -197,12 +182,11 @@ c@(CommandGroup traits) copyCommand
 "
 
 c@(CommandGroup traits) copyCommand
-[ | new |
+[| new |
   new: resend.
   new arguments: (c arguments collect: [ | :cmd | cmd copyCommand ]).
   new
 ].
-
 
 c@(CommandGroup traits) execute
 [
@@ -212,19 +196,14 @@ c@(CommandGroup traits) execute
 c@(CommandGroup traits) undo
 [c arguments reverse do: [ | :cmd |  cmd undo ]].
 
-
-
-
- " --     Block Command     --  "
+" --     Block Command     --  "
 
 prototypes define: #BlockCommand &parents: {Command} &slots: {#doBlock. #undoBlock}.
 
-
 c@(BlockCommand traits) name: name doBlock: doBlock undoBlock: undoBlock
 [
-  c cloneSettingSlots: #(name doBlock undoBlock) to: {name. doBlock. undoBlock}
+  c cloneSettingSlots: #{#name. #doBlock. #undoBlock} to: {name. doBlock. undoBlock}
 ].
-
 
 c@(BlockCommand traits) execute
 [c doBlock do].
@@ -232,20 +211,16 @@ c@(BlockCommand traits) execute
 c@(BlockCommand traits) undo
 [c undoBlock do].
 
-
-
-
 prototypes define: #CommandRecordingStream &parents: {ReadWriteStream} &slots:
 {
  #model -> Nil.
  #stack -> Stack new.
 }.
 
-
 crs@(CommandRecordingStream traits) on: se
 "Creates a new stream with the output record as top-level history.
 Note that calling this on an existing stream will copy some attributes."
-[crs cloneSettingSlots: #(stack model)
+[crs cloneSettingSlots: #{#stack. #model}
      to: {Stack new. se}].
 
 crs@(CommandRecordingStream traits) newOn: se
@@ -259,7 +234,7 @@ crs@(CommandRecordingStream traits) enter: se
 
 crs@(CommandRecordingStream traits) leave
 [
-  crs stack `>> [size = 0 ifTrue: [^ Nil]. pop]
+  crs stack isEmpty ifTrue: [Nil] ifFalse: [crs stack pop]
 ].
 
 crs@(CommandRecordingStream traits) history
@@ -301,9 +276,6 @@ crs@(CommandRecordingStream traits) undo
 [
   crs history reverse do: [ | :action | action undo]
 ].
-
-
-
 
 crs@(CommandRecordingStream traits) remove: se
 "unsupported"

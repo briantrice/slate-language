@@ -13,18 +13,18 @@ Windows define: #argFormatOverrides &builder: [Dictionary new].
 
 CObject parseDefinitionsFrom:
 {
-  #('CHAR'  Char).
-  #('WCHAR' UnsignedShortInt).
-  #('SHORT' ShortInt).
-  #('LONG'  LongInt).
-  #('UINT'  UnsignedLongInt).
+  #{'CHAR'.  #Char}.
+  #{'WCHAR'. #UnsignedShortInt}.
+  #{'SHORT'. #ShortInt}.
+  #{'LONG'.  #LongInt}.
+  #{'UINT'.  #UnsignedLongInt}.
   {'HANDLE'. Types C Void pointer}.
 
-  #('DWORD' UnsignedLongInt).
-  #('BOOL'  UnsignedLongInt).
-  #('BYTE'  UnsignedChar).
-  #('WORD'  UnsignedShortInt).
-  #('FLOAT' Float).
+  #{'DWORD'. #UnsignedLongInt}.
+  #{'BOOL'.  #UnsignedLongInt}.
+  #{'BYTE'.  #UnsignedChar}.
+  #{'WORD'.  #UnsignedShortInt}.
+  #{'FLOAT'. #Float}.
   {'LPVOID'. Types C Void pointer}.
   {'LPBOOL'. Types C UnsignedLongInt pointer}.
   {'LPBYTE'. Types C UnsignedChar pointer}.
@@ -32,65 +32,64 @@ CObject parseDefinitionsFrom:
   {'LPWORD'. Types C UnsignedShortInt pointer}.
   {'LPLONG'. Types C LongInt pointer}.
   {'LPDWORD'. Types C UnsignedLongInt pointer}.
-  #('LPCVOID' LPVOID).
+  #{'LPCVOID'. #LPVOID}.
 
-  #('RECT' (Structure
-    ('left'   LONG)
-    ('top'    LONG)
-    ('right'  LONG)
-    ('bottom' LONG)).
+  #{'RECT'. {#Structure.
+    {'left'.   #LONG}.
+    {'top'.    #LONG}.
+    {'right'.  #LONG}.
+    {'bottom'. #LONG}}}.
 
-  #('SMALL_RECT' (Structure
-    ('Left'   SHORT)
-    ('Top'    SHORT)
-    ('Right'  SHORT)
-    ('Bottom' SHORT))).
+  #{'SMALL_RECT'. {#Structure.
+    {'Left'.   #SHORT}.
+    {'Top'.    #SHORT}.
+    {'Right'.  #SHORT}.
+    {'Bottom'. #SHORT}}}.
 
-  #('POINT' (Structure
-    ('x'  LONG)
-    ('y'  LONG))).
+  #{'POINT'. {#Structure.
+    {'x'.  #LONG}.
+    {'y'.  #LONG}}}.
 
-  #('COORD' (Structure
-    ('X' SHORT)
-    ('Y' SHORT))).
+  #{'COORD'. {#Structure.
+    {'X'. #SHORT}.
+    {'Y'. #SHORT}}}.
 
-  #('CONSOLE_CURSOR_INFO' (Structure
-    ('dwSize' DWORD)
-    ('bVisible' BOOL))).
+  #{'CONSOLE_CURSOR_INFO'. {#Structure.
+    {'dwSize'. #DWORD}.
+    {'bVisible'. #BOOL}}}.
 
-  #('INPUT_RECORD' (Structure
-    ('EventType' WORD)
-    ('Event' (Union
-    ('KeyEvent' (Structure
-        ('bKeyDown' BOOL)
-        ('wRepeatCount' WORD)
-        ('wVirtualKeyCode' WORD)
-        ('wVirtualScanCode' WORD)
-        ('uChar' (Union
-          ('UnicodeChar' WCHAR)
-          ('AsciiChar' CHAR))
-        ('dwControlKeyState' DWORD))
-      ('MouseEvent' (Structure
-        ('dwMousePosition' COORD)
-        ('dwButtonState' DWORD)
-        ('dwControlKeyState' DWORD)
-        ('dwEventFlags' DWORD))))))))).
+  #{'INPUT_RECORD'. {#Structure.
+    {'EventType'. #WORD}.
+    {'Event'. {#Union.
+    {'KeyEvent'. {#Structure.
+        {'bKeyDown'. #BOOL}.
+        {'wRepeatCount'. #WORD}.
+        {'wVirtualKeyCode'. #WORD}.
+        {'wVirtualScanCode'. #WORD}.
+        {'uChar'. {#Union.
+          {'UnicodeChar'. #WCHAR}.
+          {'AsciiChar'. #CHAR}}.
+        {'dwControlKeyState'. #DWORD}}.
+      {'MouseEvent'. {#Structure.
+        {'dwMousePosition'. #COORD}.
+        {'dwButtonState'. #DWORD}.
+        {'dwControlKeyState'. #DWORD}.
+        {'dwEventFlags'. #DWORD}}}}}}}}}.
 
-  #('CONSOLE_SCREEN_BUFFER_INFO' (Structure
-    ('dwSize' COORD)
-    ('dwCursorPosition' COORD)
-    ('wAttributes' WORD)
-    ('srWindow' SMALL_RECT)
-    ('dwMaximumWindowSize' COORD))).
+  #{'CONSOLE_SCREEN_BUFFER_INFO'. {#Structure.
+    {'dwSize'. #COORD}.
+    {'dwCursorPosition'. #COORD}.
+    {'wAttributes'. #WORD}.
+    {'srWindow'. #SMALL_RECT}.
+    {'dwMaximumWindowSize'. #COORD}}}.
 
-  #('CHAR_INFO' (Structure
-    ('Char' (Union
-      'UnicodeChar' WCHAR
-      'AsciiChar' CHAR))
-    ('Attributes' WORD))).
-}
-into: Windows.
+  #{'CHAR_INFO'. {#Structure.
+    {'Char'. {#Union.
+      'UnicodeChar'. #WCHAR.
+      'AsciiChar'. #CHAR}}.
+    {'Attributes'. #WORD}}}.
 
+} into: Windows.
 
 CObject parseDefinitionsFrom:
 {
@@ -98,191 +97,191 @@ CObject parseDefinitionsFrom:
   {'PCONSOLE_SCREEN_BUFFER_INFO'. Windows _CONSOLE_SCREEN_BUFFER_INFO pointer}.
   {'PCONSOLE_CURSOR_INFO'. Windows _CONSOLE_CURSOR_INFO pointer}.
 
-  #('STD_INPUT_HANDLE'   -10).
-  #('STD_OUTPUT_HANDLE'  -11).
+  #{'STD_INPUT_HANDLE'.   -10}.
+  #{'STD_OUTPUT_HANDLE'.  -11}.
 
-  #('KEY_EVENT'                16r0001).
-  #('MOUSE_EVENT'              16r0002).
-  #('WINDOW_BUFFER_SIZE_EVENT' 16r0004).
-  #('MENU_EVENT'               16r0008).
-  #('FOCUS_EVENT'              16r0010).
+  #{'KEY_EVENT'.                16r0001}.
+  #{'MOUSE_EVENT'.              16r0002}.
+  #{'WINDOW_BUFFER_SIZE_EVENT'. 16r0004}.
+  #{'MENU_EVENT'.               16r0008}.
+  #{'FOCUS_EVENT'.              16r0010}.
 
-  #('ENABLE_PROCESSED_INPUT' 16r0001).
-  #('ENABLE_LINE_INPUT'      16r0002).
-  #('ENABLE_ECHO_INPUT'      16r0004).
-  #('ENABLE_WINDOW_INPUT'    16r0008).
-  #('ENABLE_MOUSE_INPUT'     16r0010).
+  #{'ENABLE_PROCESSED_INPUT'. 16r0001}.
+  #{'ENABLE_LINE_INPUT'.      16r0002}.
+  #{'ENABLE_ECHO_INPUT'.      16r0004}.
+  #{'ENABLE_WINDOW_INPUT'.    16r0008}.
+  #{'ENABLE_MOUSE_INPUT'.     16r0010}.
 
-  #('ENABLE_PROCESSED_OUTPUT'    16r0001).
-  #('ENABLE_WRAP_AT_EOL_OUTPUT'  16r0002).
+  #{'ENABLE_PROCESSED_OUTPUT'.    16r0001}.
+  #{'ENABLE_WRAP_AT_EOL_OUTPUT'.  16r0002}.
 
-  #('CTRL_C_EVENT'        0).
-  #('CTRL_BREAK_EVENT'    1).
-  #('CTRL_CLOSE_EVENT'    2).
-  #('CTRL_LOGOFF_EVENT'   5).
-  #('CTRL_SHUTDOWN_EVENT' 6).
+  #{'CTRL_C_EVENT'.        0}.
+  #{'CTRL_BREAK_EVENT'.    1}.
+  #{'CTRL_CLOSE_EVENT'.    2}.
+  #{'CTRL_LOGOFF_EVENT'.   5}.
+  #{'CTRL_SHUTDOWN_EVENT'. 6}.
 
-  #('RIGHT_ALT_PRESSED'     16r0001).
-  #('LEFT_ALT_PRESSED'      16r0002).
-  #('RIGHT_CTRL_PRESSED'    16r0004).
-  #('LEFT_CTRL_PRESSED'     16r0008).
-  #('SHIFT_PRESSED'         16r0010).
-  #('NUMLOCK_ON'            16r0020).
-  #('SCROLLLOCK_ON'         16r0040).
-  #('CAPSLOCK_ON'           16r0080).
-  #('ENHANCED_KEY'          16r0100). "the key is enhanced."
-  #('NLS_DBCSCHAR'          16r00010000). "DBCS for JPN: SBCS/DBCS mode."
-  #('NLS_ALPHANUMERIC'      16r00000000). "DBCS for JPN: Alphanumeric mode."
-  #('NLS_KATAKANA'          16r00020000). "DBCS for JPN: Katakana mode."
-  #('NLS_HIRAGANA'          16r00040000). "DBCS for JPN: Hiragana mode."
-  #('NLS_ROMAN'             16r00400000). "DBCS for JPN: Roman/Noroman mode."
-  #('NLS_IME_CONVERSION'    16r00800000). "DBCS for JPN: IME conversion."
-  #('NLS_IME_DISABLE'       16r20000000). "DBCS for JPN: IME enable/disable."
+  #{'RIGHT_ALT_PRESSED'.     16r0001}.
+  #{'LEFT_ALT_PRESSED'.      16r0002}.
+  #{'RIGHT_CTRL_PRESSED'.    16r0004}.
+  #{'LEFT_CTRL_PRESSED'.     16r0008}.
+  #{'SHIFT_PRESSED'.         16r0010}.
+  #{'NUMLOCK_ON'.            16r0020}.
+  #{'SCROLLLOCK_ON'.         16r0040}.
+  #{'CAPSLOCK_ON'.           16r0080}.
+  #{'ENHANCED_KEY'.          16r0100}. "the key is enhanced."
+  #{'NLS_DBCSCHAR'.          16r00010000}. "DBCS for JPN: SBCS/DBCS mode."
+  #{'NLS_ALPHANUMERIC'.      16r00000000}. "DBCS for JPN: Alphanumeric mode."
+  #{'NLS_KATAKANA'.          16r00020000}. "DBCS for JPN: Katakana mode."
+  #{'NLS_HIRAGANA'.          16r00040000}. "DBCS for JPN: Hiragana mode."
+  #{'NLS_ROMAN'.             16r00400000}. "DBCS for JPN: Roman/Noroman mode."
+  #{'NLS_IME_CONVERSION'.    16r00800000}. "DBCS for JPN: IME conversion."
+  #{'NLS_IME_DISABLE'.       16r20000000}. "DBCS for JPN: IME enable/disable."
 
-  #('FOREGROUND_BLUE'        16r0001). "text color contains blue."
-  #('FOREGROUND_GREEN'       16r0002). "text color contains green."
-  #('FOREGROUND_RED'         16r0004). "text color contains red."
-  #('FOREGROUND_INTENSITY'   16r0008). "text color is intensified."
-  #('BACKGROUND_BLUE'        16r0010). "background color contains blue."
-  #('BACKGROUND_GREEN'       16r0020). "background color contains green."
-  #('BACKGROUND_RED'         16r0040). "background color contains red."
-  #('BACKGROUND_INTENSITY'   16r0080). "background color is intensified."
-  #('COMMON_LVB_LEADING_BYTE'    16r0100). "Leading Byte of DBCS"
-  #('COMMON_LVB_TRAILING_BYTE'   16r0200). "Trailing Byte of DBCS"
-  #('COMMON_LVB_GRID_HORIZONTAL' 16r0400). "DBCS: Grid attribute: top horizontal."
-  #('COMMON_LVB_GRID_LVERTICAL'  16r0800). "DBCS: Grid attribute: left vertical."
-  #('COMMON_LVB_GRID_RVERTICAL'  16r1000). "DBCS: Grid attribute: right vertical."
-  #('COMMON_LVB_REVERSE_VIDEO'   16r4000). "DBCS: Reverse fore/back ground attribute."
-  #('COMMON_LVB_UNDERSCORE'      16r8000). "DBCS: Underscore."
-  #('COMMON_LVB_SBCSDBCS'        16r0300). "SBCS or DBCS flag."
+  #{'FOREGROUND_BLUE'.        16r0001}. "text color contains blue."
+  #{'FOREGROUND_GREEN'.       16r0002}. "text color contains green."
+  #{'FOREGROUND_RED'.         16r0004}. "text color contains red."
+  #{'FOREGROUND_INTENSITY'.   16r0008}. "text color is intensified."
+  #{'BACKGROUND_BLUE'.        16r0010}. "background color contains blue."
+  #{'BACKGROUND_GREEN'.       16r0020}. "background color contains green."
+  #{'BACKGROUND_RED'.         16r0040}. "background color contains red."
+  #{'BACKGROUND_INTENSITY'.   16r0080}. "background color is intensified."
+  #{'COMMON_LVB_LEADING_BYTE'.    16r0100}. "Leading Byte of DBCS"
+  #{'COMMON_LVB_TRAILING_BYTE'.   16r0200}. "Trailing Byte of DBCS"
+  #{'COMMON_LVB_GRID_HORIZONTAL'. 16r0400}. "DBCS: Grid attribute: top horizontal."
+  #{'COMMON_LVB_GRID_LVERTICAL'.  16r0800}. "DBCS: Grid attribute: left vertical."
+  #{'COMMON_LVB_GRID_RVERTICAL'.  16r1000}. "DBCS: Grid attribute: right vertical."
+  #{'COMMON_LVB_REVERSE_VIDEO'.   16r4000}. "DBCS: Reverse fore/back ground attribute."
+  #{'COMMON_LVB_UNDERSCORE'.      16r8000}. "DBCS: Underscore."
+  #{'COMMON_LVB_SBCSDBCS'.        16r0300}. "SBCS or DBCS flag."
 
 
   "Virtual Keys, Standard Set"
 
-  #('VK_LBUTTON'       16r01).
-  #('VK_RBUTTON'       16r02).
-  #('VK_CANCEL'        16r03).
-  #('VK_MBUTTON'       16r04).
-  #('VK_XBUTTON1'      16r05).
-  #('VK_XBUTTON2'      16r06).
+  #{'VK_LBUTTON'.       16r01}.
+  #{'VK_RBUTTON'.       16r02}.
+  #{'VK_CANCEL'.        16r03}.
+  #{'VK_MBUTTON'.       16r04}.
+  #{'VK_XBUTTON1'.      16r05}.
+  #{'VK_XBUTTON2'.      16r06}.
 
   "16r07 : unassigned"
 
-  #('VK_BACK'          16r08).
-  #('VK_TAB'           16r09).
+  #{'VK_BACK'.          16r08}.
+  #{'VK_TAB'.           16r09}.
 
   "16r0A - 16r0B : reserved"
 
-  #('VK_CLEAR'         16r0C).
-  #('VK_RETURN'        16r0D).
+  #{'VK_CLEAR'.         16r0C}.
+  #{'VK_RETURN'.        16r0D}.
 
-  #('VK_SHIFT'         16r10).
-  #('VK_CONTROL'       16r11).
-  #('VK_MENU'          16r12).
-  #('VK_PAUSE'         16r13).
-  #('VK_CAPITAL'       16r14).
+  #{'VK_SHIFT'.         16r10}.
+  #{'VK_CONTROL'.       16r11}.
+  #{'VK_MENU'.          16r12}.
+  #{'VK_PAUSE'.         16r13}.
+  #{'VK_CAPITAL'.       16r14}.
 
-  #('VK_KANA'          16r15).
-  #('VK_HANGEUL'       16r15). "old name - should be here for compatibility"
-  #('VK_HANGUL'        16r15).
-  #('VK_JUNJA'         16r17).
-  #('VK_FINAL'         16r18).
-  #('VK_HANJA'         16r19).
-  #('VK_KANJI'         16r19).
+  #{'VK_KANA'.          16r15}.
+  #{'VK_HANGEUL'.       16r15}. "old name - should be here for compatibility"
+  #{'VK_HANGUL'.        16r15}.
+  #{'VK_JUNJA'.         16r17}.
+  #{'VK_FINAL'.         16r18}.
+  #{'VK_HANJA'.         16r19}.
+  #{'VK_KANJI'.         16r19}.
 
-  #('VK_ESCAPE'        16r1B).
+  #{'VK_ESCAPE'.        16r1B}.
 
-  #('VK_CONVERT'       16r1C).
-  #('VK_NONCONVERT'    16r1D).
-  #('VK_ACCEPT'        16r1E).
-  #('VK_MODECHANGE'    16r1F).
+  #{'VK_CONVERT'.       16r1C}.
+  #{'VK_NONCONVERT'.    16r1D}.
+  #{'VK_ACCEPT'.        16r1E}.
+  #{'VK_MODECHANGE'.    16r1F}.
 
-  #('VK_SPACE'         16r20).
-  #('VK_PRIOR'         16r21).
-  #('VK_NEXT'          16r22).
-  #('VK_END'           16r23).
-  #('VK_HOME'          16r24).
-  #('VK_LEFT'          16r25).
-  #('VK_UP'            16r26).
-  #('VK_RIGHT'         16r27).
-  #('VK_DOWN'          16r28).
-  #('VK_SELECT'        16r29).
-  #('VK_PRINT'         16r2A).
-  #('VK_EXECUTE'       16r2B).
-  #('VK_SNAPSHOT'      16r2C).
-  #('VK_INSERT'        16r2D).
-  #('VK_DELETE'        16r2E).
-  #('VK_HELP'          16r2F).
+  #{'VK_SPACE'.         16r20}.
+  #{'VK_PRIOR'.         16r21}.
+  #{'VK_NEXT'.          16r22}.
+  #{'VK_END'.           16r23}.
+  #{'VK_HOME'.          16r24}.
+  #{'VK_LEFT'.          16r25}.
+  #{'VK_UP'.            16r26}.
+  #{'VK_RIGHT'.         16r27}.
+  #{'VK_DOWN'.          16r28}.
+  #{'VK_SELECT'.        16r29}.
+  #{'VK_PRINT'.         16r2A}.
+  #{'VK_EXECUTE'.       16r2B}.
+  #{'VK_SNAPSHOT'.      16r2C}.
+  #{'VK_INSERT'.        16r2D}.
+  #{'VK_DELETE'.        16r2E}.
+  #{'VK_HELP'.          16r2F}.
 
-  "VK_0 - VK_9 are the same as ASCII '0' - '9' (16r30 - 16r39)
+  "VK_0 - VK_9 are the same as ASCII '0'. - '9'. (16r30 - 16r39)
    16r40 : unassigned
-   VK_A - VK_Z are the same as ASCII 'A' - 'Z' (16r41 - 16r5A)"
+   VK_A - VK_Z are the same as ASCII 'A'. - 'Z'. (16r41 - 16r5A)"
 
-  #('VK_LWIN'          16r5B).
-  #('VK_RWIN'          16r5C).
-  #('VK_APPS'          16r5D).
+  #{'VK_LWIN'.          16r5B}.
+  #{'VK_RWIN'.          16r5C}.
+  #{'VK_APPS'.          16r5D}.
 
   "16r5E : reserved"
 
-  #('VK_SLEEP'         16r5F).
+  #{'VK_SLEEP'.         16r5F}.
 
-  #('VK_NUMPAD0'       16r60).
-  #('VK_NUMPAD1'       16r61).
-  #('VK_NUMPAD2'       16r62).
-  #('VK_NUMPAD3'       16r63).
-  #('VK_NUMPAD4'       16r64).
-  #('VK_NUMPAD5'       16r65).
-  #('VK_NUMPAD6'       16r66).
-  #('VK_NUMPAD7'       16r67).
-  #('VK_NUMPAD8'       16r68).
-  #('VK_NUMPAD9'       16r69).
-  #('VK_MULTIPLY'      16r6A).
-  #('VK_ADD'           16r6B).
-  #('VK_SEPARATOR'     16r6C).
-  #('VK_SUBTRACT'      16r6D).
-  #('VK_DECIMAL'       16r6E).
-  #('VK_DIVIDE'        16r6F).
-  #('VK_F1'            16r70).
-  #('VK_F2'            16r71).
-  #('VK_F3'            16r72).
-  #('VK_F4'            16r73).
-  #('VK_F5'            16r74).
-  #('VK_F6'            16r75).
-  #('VK_F7'            16r76).
-  #('VK_F8'            16r77).
-  #('VK_F9'            16r78).
-  #('VK_F10'           16r79).
-  #('VK_F11'           16r7A).
-  #('VK_F12'           16r7B).
-  #('VK_F13'           16r7C).
-  #('VK_F14'           16r7D).
-  #('VK_F15'           16r7E).
-  #('VK_F16'           16r7F).
-  #('VK_F17'           16r80).
-  #('VK_F18'           16r81).
-  #('VK_F19'           16r82).
-  #('VK_F20'           16r83).
-  #('VK_F21'           16r84).
-  #('VK_F22'           16r85).
-  #('VK_F23'           16r86).
-  #('VK_F24'           16r87).
+  #{'VK_NUMPAD0'.       16r60}.
+  #{'VK_NUMPAD1'.       16r61}.
+  #{'VK_NUMPAD2'.       16r62}.
+  #{'VK_NUMPAD3'.       16r63}.
+  #{'VK_NUMPAD4'.       16r64}.
+  #{'VK_NUMPAD5'.       16r65}.
+  #{'VK_NUMPAD6'.       16r66}.
+  #{'VK_NUMPAD7'.       16r67}.
+  #{'VK_NUMPAD8'.       16r68}.
+  #{'VK_NUMPAD9'.       16r69}.
+  #{'VK_MULTIPLY'.      16r6A}.
+  #{'VK_ADD'.           16r6B}.
+  #{'VK_SEPARATOR'.     16r6C}.
+  #{'VK_SUBTRACT'.      16r6D}.
+  #{'VK_DECIMAL'.       16r6E}.
+  #{'VK_DIVIDE'.        16r6F}.
+  #{'VK_F1'.            16r70}.
+  #{'VK_F2'.            16r71}.
+  #{'VK_F3'.            16r72}.
+  #{'VK_F4'.            16r73}.
+  #{'VK_F5'.            16r74}.
+  #{'VK_F6'.            16r75}.
+  #{'VK_F7'.            16r76}.
+  #{'VK_F8'.            16r77}.
+  #{'VK_F9'.            16r78}.
+  #{'VK_F10'.           16r79}.
+  #{'VK_F11'.           16r7A}.
+  #{'VK_F12'.           16r7B}.
+  #{'VK_F13'.           16r7C}.
+  #{'VK_F14'.           16r7D}.
+  #{'VK_F15'.           16r7E}.
+  #{'VK_F16'.           16r7F}.
+  #{'VK_F17'.           16r80}.
+  #{'VK_F18'.           16r81}.
+  #{'VK_F19'.           16r82}.
+  #{'VK_F20'.           16r83}.
+  #{'VK_F21'.           16r84}.
+  #{'VK_F22'.           16r85}.
+  #{'VK_F23'.           16r86}.
+  #{'VK_F24'.           16r87}.
 
   "16r88 - 16r8F : unassigned"
 
-  #('VK_NUMLOCK'       16r90).
-  #('VK_SCROLL'        16r91).
+  #{'VK_NUMLOCK'.       16r90}.
+  #{'VK_SCROLL'.        16r91}.
 
   "NEC PC-9800 kbd definitions"
 
-  #('VK_OEM_NEC_EQUAL' 16r92.   "'=' key on numpad"
+  #{'VK_OEM_NEC_EQUAL'. 16r92}.   "'='. key on numpad"
 
   "Fujitsu/OASYS kbd definitions"
 
-  #('VK_OEM_FJ_JISHO'  16r92.   "'Dictionary' key"
-  #('VK_OEM_FJ_MASSHOU' 16r93.   "'Unregister word' key"
-  #('VK_OEM_FJ_TOUROKU' 16r94.   "'Register word' key"
-  #('VK_OEM_FJ_LOYA'   16r95.   "'Left OYAYUBI' key"
-  #('VK_OEM_FJ_ROYA'   16r96.   "'Right OYAYUBI' key"
+  #{'VK_OEM_FJ_JISHO'.  16r92}.   "'Dictionary'. key"
+  #{'VK_OEM_FJ_MASSHOU'. 16r93}.   "'Unregister word'. key"
+  #{'VK_OEM_FJ_TOUROKU'. 16r94}.   "'Register word'. key"
+  #{'VK_OEM_FJ_LOYA'.   16r95}.   "'Left OYAYUBI'. key"
+  #{'VK_OEM_FJ_ROYA'.   16r96}.   "'Right OYAYUBI'. key"
 
   "16r97 - 16r9F : unassigned"
 
@@ -290,147 +289,147 @@ CObject parseDefinitionsFrom:
   Used only as parameters to GetAsyncKeyState() and GetKeyState().
   No other API or message will distinguish left and right keys in this way."
 
-  #('VK_LSHIFT'        16rA0).
-  #('VK_RSHIFT'        16rA1).
-  #('VK_LCONTROL'      16rA2).
-  #('VK_RCONTROL'      16rA3).
-  #('VK_LMENU'         16rA4).
-  #('VK_RMENU'         16rA5).
+  #{'VK_LSHIFT'.        16rA0}.
+  #{'VK_RSHIFT'.        16rA1}.
+  #{'VK_LCONTROL'.      16rA2}.
+  #{'VK_RCONTROL'.      16rA3}.
+  #{'VK_LMENU'.         16rA4}.
+  #{'VK_RMENU'.         16rA5}.
 
-  #('VK_BROWSER_BACK'       16rA6).
-  #('VK_BROWSER_FORWARD'    16rA7).
-  #('VK_BROWSER_REFRESH'    16rA8).
-  #('VK_BROWSER_STOP'       16rA9).
-  #('VK_BROWSER_SEARCH'     16rAA).
-  #('VK_BROWSER_FAVORITES'  16rAB).
-  #('VK_BROWSER_HOME'       16rAC).
+  #{'VK_BROWSER_BACK'.       16rA6}.
+  #{'VK_BROWSER_FORWARD'.    16rA7}.
+  #{'VK_BROWSER_REFRESH'.    16rA8}.
+  #{'VK_BROWSER_STOP'.       16rA9}.
+  #{'VK_BROWSER_SEARCH'.     16rAA}.
+  #{'VK_BROWSER_FAVORITES'.  16rAB}.
+  #{'VK_BROWSER_HOME'.       16rAC}.
 
-  #('VK_VOLUME_MUTE'        16rAD).
-  #('VK_VOLUME_DOWN'        16rAE).
-  #('VK_VOLUME_UP'          16rAF).
-  #('VK_MEDIA_NEXT_TRACK'   16rB0).
-  #('VK_MEDIA_PREV_TRACK'   16rB1).
-  #('VK_MEDIA_STOP'         16rB2).
-  #('VK_MEDIA_PLAY_PAUSE'   16rB3).
-  #('VK_LAUNCH_MAIL'        16rB4).
-  #('VK_LAUNCH_MEDIA_SELECT'16rB5).
-  #('VK_LAUNCH_APP1'        16rB6).
-  #('VK_LAUNCH_APP2'        16rB7).
+  #{'VK_VOLUME_MUTE'.        16rAD}.
+  #{'VK_VOLUME_DOWN'.        16rAE}.
+  #{'VK_VOLUME_UP'.          16rAF}.
+  #{'VK_MEDIA_NEXT_TRACK'.   16rB0}.
+  #{'VK_MEDIA_PREV_TRACK'.   16rB1}.
+  #{'VK_MEDIA_STOP'.         16rB2}.
+  #{'VK_MEDIA_PLAY_PAUSE'.   16rB3}.
+  #{'VK_LAUNCH_MAIL'.        16rB4}.
+  #{'VK_LAUNCH_MEDIA_SELECT'16rB5}.
+  #{'VK_LAUNCH_APP1'.        16rB6}.
+  #{'VK_LAUNCH_APP2'.        16rB7}.
 
   "16rB8 - 16rB9 : reserved"
 
-  #('VK_OEM_1'         16rBA). "';:' for US"
-  #('VK_OEM_PLUS'      16rBB). "'+' any country"
-  #('VK_OEM_COMMA'     16rBC). "',' any country"
-  #('VK_OEM_MINUS'     16rBD). "'-' any country"
-  #('VK_OEM_PERIOD'    16rBE). "'.' any country"
-  #('VK_OEM_2'         16rBF). "'/?' for US"
-  #('VK_OEM_3'         16rC0). "'`~' for US"
+  #{'VK_OEM_1'.         16rBA}. "';:'. for US"
+  #{'VK_OEM_PLUS'.      16rBB}. "'+'. any country"
+  #{'VK_OEM_COMMA'.     16rBC}. "','. any country"
+  #{'VK_OEM_MINUS'.     16rBD}. "'-'. any country"
+  #{'VK_OEM_PERIOD'.    16rBE}. "'.'. any country"
+  #{'VK_OEM_2'.         16rBF}. "'/?'. for US"
+  #{'VK_OEM_3'.         16rC0}. "'`~'. for US"
 
   "16rC1 - 16rD7 : reserved"
   "16rD8 - 16rDA : unassigned"
 
-  #('VK_OEM_4'         16rDB). "'[{' for US"
-  #('VK_OEM_5'         16rDC). "'\|' for US"
-  #('VK_OEM_6'         16rDD). "']}' for US"
-  #('VK_OEM_7'         16rDE). "'''' for US"
-  #('VK_OEM_8'         16rDF).
+  #{'VK_OEM_4'.         16rDB}. "'[{'. for US"
+  #{'VK_OEM_5'.         16rDC}. "'\|'. for US"
+  #{'VK_OEM_6'.         16rDD}. "']}'. for US"
+  #{'VK_OEM_7'.         16rDE}. "''''. for US"
+  #{'VK_OEM_8'.         16rDF}.
 
   "16rE0 : reserved"
   "Various extended or enhanced keyboards"
 
-  #('VK_OEM_AX'        16rE1). "'AX' key on Japanese AX kbd"
-  #('VK_OEM_102'       16rE2). "'<>' or '\|' on RT 102-key kbd."
-  #('VK_ICO_HELP'      16rE3). "Help key on ICO"
-  #('VK_ICO_00'        16rE4). "00 key on ICO"
-  #('VK_PROCESSKEY'    16rE5).
-  #('VK_ICO_CLEAR'     16rE6).
-  #('VK_PACKET'        16rE7).
+  #{'VK_OEM_AX'.        16rE1}. "'AX'. key on Japanese AX kbd"
+  #{'VK_OEM_102'.       16rE2}. "'<>'. or '\|'. on RT 102-key kbd."
+  #{'VK_ICO_HELP'.      16rE3}. "Help key on ICO"
+  #{'VK_ICO_00'.        16rE4}. "00 key on ICO"
+  #{'VK_PROCESSKEY'.    16rE5}.
+  #{'VK_ICO_CLEAR'.     16rE6}.
+  #{'VK_PACKET'.        16rE7}.
   "16rE8 : unassigned"
 
   "Nokia/Ericsson definitions"
 
-  #('VK_OEM_RESET'     16rE9).
-  #('VK_OEM_JUMP'      16rEA).
-  #('VK_OEM_PA1'       16rEB).
-  #('VK_OEM_PA2'       16rEC).
-  #('VK_OEM_PA3'       16rED).
-  #('VK_OEM_WSCTRL'    16rEE).
-  #('VK_OEM_CUSEL'     16rEF).
-  #('VK_OEM_ATTN'      16rF0).
-  #('VK_OEM_FINISH'    16rF1).
-  #('VK_OEM_COPY'      16rF2).
-  #('VK_OEM_AUTO'      16rF3).
-  #('VK_OEM_ENLW'      16rF4).
-  #('VK_OEM_BACKTAB'   16rF5).
+  #{'VK_OEM_RESET'.     16rE9}.
+  #{'VK_OEM_JUMP'.      16rEA}.
+  #{'VK_OEM_PA1'.       16rEB}.
+  #{'VK_OEM_PA2'.       16rEC}.
+  #{'VK_OEM_PA3'.       16rED}.
+  #{'VK_OEM_WSCTRL'.    16rEE}.
+  #{'VK_OEM_CUSEL'.     16rEF}.
+  #{'VK_OEM_ATTN'.      16rF0}.
+  #{'VK_OEM_FINISH'.    16rF1}.
+  #{'VK_OEM_COPY'.      16rF2}.
+  #{'VK_OEM_AUTO'.      16rF3}.
+  #{'VK_OEM_ENLW'.      16rF4}.
+  #{'VK_OEM_BACKTAB'.   16rF5}.
 
-  #('VK_ATTN'          16rF6).
-  #('VK_CRSEL'         16rF7).
-  #('VK_EXSEL'         16rF8).
-  #('VK_EREOF'         16rF9).
-  #('VK_PLAY'          16rFA).
-  #('VK_ZOOM'          16rFB).
-  #('VK_NONAME'        16rFC).
-  #('VK_PA1'           16rFD).
-  #('VK_OEM_CLEAR'     16rFE).
+  #{'VK_ATTN'.          16rF6}.
+  #{'VK_CRSEL'.         16rF7}.
+  #{'VK_EXSEL'.         16rF8}.
+  #{'VK_EREOF'.         16rF9}.
+  #{'VK_PLAY'.          16rFA}.
+  #{'VK_ZOOM'.          16rFB}.
+  #{'VK_NONAME'.        16rFC}.
+  #{'VK_PA1'.           16rFD}.
+  #{'VK_OEM_CLEAR'.     16rFE}.
 
   "16rFF : reserved"
 } into: Windows.
 
-(ExternalLibrary newNamed: 'kernel32') installMethodsForDefs:
-  #(
-    (UINT   'GetConsoleCP'   ())
-    (HANDLE 'GetStdHandle'   (DWORD))
-    (BOOL   'GetConsoleMode' (HANDLE "hConsoleHandle" LPDWORD "lpMode"))
-    (BOOL   'SetConsoleMode' (HANDLE "hConsoleHandle" DWORD "dwMode"))
-    (BOOL   'SetConsoleCursorPosition' (HANDLE "hConsoleOutput" COORD "dwCursorPosition"))
-    (BOOL   'SetConsoleTextAttribute' (HANDLE "hConsoleOutput" WORD "wAttributes"))
+(ExternalLibrary newNamed: 'kernel32'} installMethodsForDefs:
+  #{
+    {#UINT.   'GetConsoleCP'.   {}}.
+    {#HANDLE. 'GetStdHandle'.   {#DWORD.}}.
+    {#BOOL.   'GetConsoleMode'. {#HANDLE. "hConsoleHandle" #LPDWORD. "lpMode"}}.
+    {#BOOL.   'SetConsoleMode'. {#HANDLE. "hConsoleHandle" #DWORD. "dwMode"}}.
+    {#BOOL.   'SetConsoleCursorPosition'. {#HANDLE. "hConsoleOutput" #COORD. "dwCursorPosition"}}.
+    {#BOOL.   'SetConsoleTextAttribute'. {#HANDLE. "hConsoleOutput" #WORD. "wAttributes"}}.
 
-    (BOOL
+    {#BOOL.
      'GetConsoleCursorInfo'
-     (HANDLE "hConsoleOutput" PCONSOLE_CURSOR_INFO "lpConsoleCursorInfo"))
+     {#HANDLE. "hConsoleOutput" PCONSOLE_CURSOR_INFO "lpConsoleCursorInfo"}}.
 
-    (BOOL
+    {#BOOL.
      'SetConsoleCursorInfo'
-     (HANDLE "hConsoleOutput" PCONSOLE_CURSOR_INFO "lpConsoleCursorInfo"))
+     {#HANDLE. "hConsoleOutput" PCONSOLE_CURSOR_INFO "lpConsoleCursorInfo"}}.
 
-    (BOOL
+    {#BOOL.
      'ReadConsoleInputA'
-     (HANDLE "hConsoleInput" PINPUT_RECORD "lpBuffer" DWORD "nLength" LPDWORD "lpNumberOfEventsRead"))
+     {#HANDLE. "hConsoleInput" PINPUT_RECORD "lpBuffer" #DWORD. "nLength" #LPDWORD. "lpNumberOfEventsRead"}}.
 
-    (BOOL
+    {#BOOL.
      'ReadConsoleInputW'
-     (HANDLE "hConsoleInput" PINPUT_RECORD "lpBuffer" DWORD "nLength" LPDWORD "lpNumberOfEventsRead"))
+     {#HANDLE. "hConsoleInput" PINPUT_RECORD "lpBuffer" #DWORD. "nLength" #LPDWORD. "lpNumberOfEventsRead"}}.
 
-    (BOOL
+    {#BOOL.
      'GetNumberOfConsoleInputEvents'
-     (HANDLE "hConsoleInput" LPDWORD "lpcNumberOfEvents"))
+     {#HANDLE. "hConsoleInput" #LPDWORD. "lpcNumberOfEvents"}}.
 
-    (BOOL
+    {#BOOL.
      'WriteConsoleA'
-     (HANDLE "hConsoleOutput" LPCVOID "lpBuffer" DWORD "nNumberOfCharsToWrite"
-      LPDWORD "lpNumberOfCharsWritten" LPVOID "lpReserved"))
+     {#HANDLE. "hConsoleOutput" #LPCVOID. "lpBuffer" #DWORD. "nNumberOfCharsToWrite"
+      #LPDWORD. "lpNumberOfCharsWritten" #LPVOID. "lpReserved"}}.
     
-    (BOOL
+    {#BOOL.
      'GetConsoleScreenBufferInfo'
-     (HANDLE "hConsoleOutput" PCONSOLE_SCREEN_BUFFER_INFO "lpConsoleScreenBufferInfo"))
+     {#HANDLE. "hConsoleOutput" PCONSOLE_SCREEN_BUFFER_INFO "lpConsoleScreenBufferInfo"}}.
 
-    (BOOL
+    {#BOOL.
      'ScrollConsoleScreenBufferA'
-     (HANDLE "hConsoleOutput" (Windows _SMALL_RECT pointer) "lpScrollRectangle"
-      (Windows _SMALL_RECT pointer) "lpClipRectangle" COORD "dwDestinationOrigin"
-      (Windows _CHAR_INFO pointer) "lpFill"))
+     {#HANDLE. "hConsoleOutput" {Windows _SMALL_RECT pointer} "lpScrollRectangle"
+      {Windows _SMALL_RECT pointer} "lpClipRectangle" #COORD. "dwDestinationOrigin"
+      {Windows _CHAR_INFO pointer} "lpFill"}}.
 
-    (BOOL
+    {#BOOL.
      'FillConsoleOutputCharacterA'
-     (HANDLE "hConsoleOutput" CHAR "cCharacter" DWORD "nLength" COORD "dwWriteCoord"
-      LPDWORD "lpNumberOfCharsWritten"))
+     {#HANDLE. "hConsoleOutput" #CHAR. "cCharacter" #DWORD. "nLength" #COORD. "dwWriteCoord"
+      #LPDWORD. "lpNumberOfCharsWritten"}}.
 
-    (BOOL
+    {#BOOL.
      'FillConsoleOutputAttribute'
-     (HANDLE "hConsoleOutput" WORD "wAttribute" DWORD "nLength" COORD "dwWriteCoord"
-      LPDWORD "lpNumberOfAttrsWritten"))
-  )
+     {#HANDLE. "hConsoleOutput" #WORD. "wAttribute" #DWORD. "nLength" #COORD. "dwWriteCoord"
+      #LPDWORD. "lpNumberOfAttrsWritten"}}
+  }
 on: Windows Kernel
 &typesIn: Windows
 &callFormat: ExternalMethod CallFormat Std
