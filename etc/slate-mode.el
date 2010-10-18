@@ -231,6 +231,10 @@
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
+    ("=?:="
+     . ,(if (boundp 'font-lock-preprocessor-face)
+        'font-lock-preprocessor-face
+      'font-lock-builtin-face)) ; quotation syntax
     ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
