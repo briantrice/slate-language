@@ -337,6 +337,8 @@ into a single selector with arguments."
           result nextPut: (argument ifNil: [Syntax ImplicitArgument]).
           [token: (p nextToken &interactive: p parseInteractively).
            (token is: Syntax Selector)
+             /\ [Syntax isKeywordSelector: token value]
+             /\ [messageType isNil \/ [token messageType == Syntax Message]]
              /\ [(Syntax isOptionalSelector: token value) not]]
             whileTrue:
               [messageType ifNil: [messageType: token messageType].
