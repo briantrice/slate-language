@@ -461,13 +461,14 @@ s@(String traits) sprintf*
      [| :char |
       char == $%
         ifTrue: "Placeholder"
-          [| nextChar arg |
+          [| nextChar |
            nextChar: input next.
            nextChar == $%
              ifTrue: [result nextPut: nextChar]
              ifFalse:
-               [| specifier width precision space position alternative plus minus zero star |
+               [| arg argPosition specifier width precision space position alternative plus minus zero star |
                 input skip: -1.
+                argPosition: input position.
                 specifier: (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
 
                 [specifier isAtEnd] whileFalse:
@@ -495,7 +496,7 @@ s@(String traits) sprintf*
                           $*  -> [star: True].
                           $. -> [precision: (Integer readFrom: specifier)]}]].
 
-                input skip: -1.
+                input position: argPosition.
                 "Check for type specifiers:"
                 position ifNil:
                   [position: argsIndex.
