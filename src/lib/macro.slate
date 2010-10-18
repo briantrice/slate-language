@@ -132,7 +132,7 @@ x@(Root traits) compareAndHashUsingSlots: relevantSlotNames
 "Defines methods for #= and #hash for the simple case of just recursively
 calling them on each value of the slots with the given names.
 NOTE: This is not a macro but relies on the macro facilities."
-[ | xLiteral |
+[| xLiteral |
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
@@ -174,7 +174,7 @@ calling them on each value of the slots with the given names; uses a resend
 to re-use the more abstract definition.
 NOTE: This is not a macro but relies on the macro facilities."
 "FIXME: The resend results in a compilation error."
-[ |xLiteral|
+[| xLiteral |
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
@@ -344,6 +344,15 @@ array@(Syntax Array traits) setTo: vals &environment: env
 load@(Syntax LoadVariable traits) setTo: val
 "Expands a local variable reference into a store to it."
 [Syntax StoreVariable of: val into: load variable].
+
+literal@(Syntax Literal traits) setTo: val
+[
+  (literal value is: Symbol) \/ [literal value is: String]
+    ifTrue:
+      [literal value: literal value intern.
+       Syntax KeywordMessage sending: #addSlot:valued: to: {Syntax ImplicitArgument. literal. val}]
+    ifFalse: [error: 'Assignment to literals not implemented.']
+].
 
 message@(Syntax UnaryMessage traits) setTo: val
 "Makes a substitution of the unary message with a keyword message that is the
