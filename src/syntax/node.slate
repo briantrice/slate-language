@@ -102,11 +102,9 @@ Syntax nodes define: #Message &parents: {Syntax nodes Node}
 
 m@(Syntax nodes Message traits) prototypeFor: selector
 [
-  (Syntax isUnarySelector: selector)
-    ifTrue: [Syntax UnaryMessage]
-    ifFalse: [(Syntax isBinarySelector: selector)
-      ifTrue: [Syntax BinaryMessage]
-      ifFalse: [Syntax KeywordMessage]]
+  (Syntax isUnarySelector: selector) ifTrue: [^ Syntax UnaryMessage].
+  (Syntax isBinarySelector: selector) ifTrue: [^ Syntax BinaryMessage].
+  Syntax KeywordMessage
 ].
 
 message@(Syntax nodes Message traits) sending: selector to: arguments
@@ -227,8 +225,16 @@ Syntax nodes define: #UnaryDeferred &parents: {Syntax nodes Deferred}.
 Syntax nodes define: #BinaryDeferred &parents: {Syntax nodes Deferred}.
 Syntax nodes define: #KeywordDeferred &parents: {Syntax nodes Deferred}.
 
+Syntax nodes define: #Placeholder &parents: {Syntax nodes Node}.
+
 Syntax nodes define: #MessageWrapper &parents: {Syntax nodes Node}
   &slots: {#message}.
+
+w@(Syntax nodes MessageWrapper traits) for: message
+[w new `setting: #{#message} to: {message}].
+
+w@(Syntax nodes MessageWrapper traits) selector
+[w message selector].
 
 Syntax nodes define: #OptionalKeywords &parents: {Syntax nodes MessageWrapper}
   &slots: {#keywords. #arguments}.
@@ -239,9 +245,6 @@ x@(Syntax nodes OptionalKeywords traits) = y@(Syntax nodes OptionalKeywords trai
 
 opts@(Syntax nodes OptionalKeywords traits) new
 [resend clone `setting: #{#keywords. #arguments} to: #{{}. {}}].
-
-opts@(Syntax nodes OptionalKeywords traits) for: message
-[opts new `setting: #{#message} to: {message}].
 
 opts@(Syntax nodes OptionalKeywords traits) walk: block
 [
@@ -281,9 +284,6 @@ x@(Syntax nodes RestArguments traits) = y@(Syntax nodes RestArguments traits)
 rest@(Syntax nodes RestArguments traits) new
 [resend clone `setting: #{#arguments} to: #{{}}].
 
-rest@(Syntax nodes RestArguments traits) for: message
-[rest new `setting: #{#message} to: {message}].
-
 rest@(Syntax nodes RestArguments traits) walk: block
 [
   block applyWith: rest.
@@ -300,17 +300,34 @@ rest@(Syntax nodes RestArguments traits) transformChildren: block
 ].
 
 rest@(Syntax nodes RestArguments traits) deepCopy: scope
-[rest clone `setting: #{#message. #arguments} to:
-  {rest message deepCopy: scope.
-   rest arguments collect: [| :argument | argument deepCopy: scope]}].
+[
+  rest clone `setting: #{#message. #arguments} to:
+    {rest message deepCopy: scope.
+     rest arguments collect: [| :argument | argument deepCopy: scope]}
+].
+
+rest@(Syntax nodes RestArguments traits) allArguments
+[
+  rest message arguments ; rest arguments
+].
 
 rest@(Syntax nodes RestArguments traits) evaluateIn: namespace &optionals: opts
 [
-  rest message selector sendTo:
-    (rest message arguments collect: [| :argument | argument evaluateIn: namespace])
-   ; (rest arguments collect: [| :arg | arg evaluateIn: namespace])
+  rest selector sendTo:
+    (rest allArguments collect: [| :argument | argument evaluateIn: namespace])
     &optionals: opts
 ].
+
+Syntax nodes define: #Partial &parents: {Syntax nodes MessageWrapper}.
+"Partial nodes are just like regular message-sends, except having only
+some arguments filled initially at parse-time. They may be treated as
+records or curry-able message-sends."
+
+w@(Syntax nodes Partial traits) keywords
+[w selector name splitWith: $:].
+
+w@(Syntax nodes Partial traits) values
+[w message arguments].
 
 Syntax nodes define: #Literal &parents: {Syntax nodes Node} &slots: {#value}.
 "The syntax for a literal Slate object, i.e. something the Lexer can create

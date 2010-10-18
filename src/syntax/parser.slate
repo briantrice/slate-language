@@ -18,6 +18,8 @@ Syntax Parser traits define: #EndArrayStatementTokens &builder: [{Syntax EndStat
 Syntax Parser traits define: #InteractiveExcludeTokens &builder: [{Syntax tokens Comment}].
 Syntax Parser traits define: #ExcludeTokens &builder: [{Syntax tokens Comment. Syntax EndLine}].
 
+Syntax Parser traits define: #SpecialBinarySelectors &builder: [#{#:=. #=:=}].
+
 obj@(Root traits) recordPositionFrom: p@(Syntax Parser traits)
 [(Syntax Literal for: obj) recordPositionFrom: p].
 
@@ -144,10 +146,10 @@ p@(Syntax Parser traits) nextExpression
      [p error: 'Block headers are only valid in block literals.'].
    (token isSameAs: Syntax At) ifTrue:
      [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextDefinition))].
-   (token isSameAs: Syntax Selector) \/
-     [token isSameAs: Syntax tokens Comment] \/
-     [p parseInteractively not \/ [lookAheadIndex = 1]
-        /\ [token isSameAs: Syntax EndLine]]] whileTrue.
+   (token isSameAs: Syntax Selector)
+     \/ [token isSameAs: Syntax tokens Comment]
+     \/ [p parseInteractively not \/ [lookAheadIndex = 1]
+           /\ [token isSameAs: Syntax EndLine]]] whileTrue.
   p nextMessage
 ].
 
@@ -222,6 +224,13 @@ Type annotation suffixes may also be chained (for no particular reason)."
   node
 ].
 
+p@(Syntax Parser traits) nextMessage &after: node
+[
+  p parseRestArgumentsFor:
+    (p parseOptionalKeywordsFor:
+      (p nextSpecialBinaryMessages &after: node))
+].
+
 p@(Syntax Parser traits) parseRestArgumentsFor: expr
 [| token |
   token: p peekToken.
@@ -256,7 +265,7 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message traits)
 [| token keywords argumentNames |
-  argumentNames: {} writer.
+  argumentNames: #{} writer.
   keywords:
     ([| :keywords |
       [token: p nextToken.
@@ -273,13 +282,6 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
                 [keywords: keywords.
                  arguments: argumentNames contents.
                  recordPositionFrom: p. ]]
-].
-
-p@(Syntax Parser traits) nextMessage &after: node
-[
-  p parseRestArgumentsFor:
-    (p parseOptionalKeywordsFor:
-      (p nextKeywordMessages &after: node))
 ].
 
 p@(Syntax Parser traits) nextUnaryMessages &after: node
@@ -299,7 +301,9 @@ p@(Syntax Parser traits) nextBinaryMessages &after: node
 [| result token |
   result: (p nextUnaryMessages &after: node).
   [token: (p nextToken &interactive: p parseInteractively).
-   (token is: Syntax Selector) /\ [Syntax isBinarySelector: token value]]
+   (token is: Syntax Selector)
+     /\ [Syntax isBinarySelector: token value]
+     /\ [(p SpecialBinarySelectors includes: token value) not]]
     whileTrue:
       [result: (result isNil /\ [Syntax isReturnSelector: token value]
          ifTrue:
@@ -353,13 +357,26 @@ into a single selector with arguments."
     ifFalse: [argument]
 ].
 
+p@(Syntax Parser traits) nextSpecialBinaryMessages &after: node
+"Handles/creates all special-message-send forms."
+[| token result |
+  result: (p nextKeywordMessages &after: node).
+  [token: (p nextToken &interactive: p parseInteractively).
+   (token is: Syntax Selector) /\ [p SpecialBinarySelectors includes: token value]]
+    whileTrue:
+      [result: (Syntax nodes BinaryMacro sending: token value to:
+                  (p nextExpression ifNil: [{result}] ifNotNilDo: [| :rhs | {result. rhs}]))].
+  p undoToken: token.
+  result
+].
+
 p@(Syntax Parser traits) nextBlock &updating: block
 [| token statements lineNumber inputVariables optKeywords optVariables |
   block `defaultsTo: (Syntax Block new recordPositionFrom: p).
   lineNumber: p lexer lineNumber.
-  inputVariables: {} writer.
-  optKeywords: {} writer.
-  optVariables: {} writer.
+  inputVariables: #{} writer.
+  optKeywords: #{} writer.
+  optVariables: #{} writer.
   block parentScope: p currentScope.
   p inScope: block do:
     [p nonInteractivelyDo:
@@ -407,13 +424,13 @@ p@(Syntax Parser traits) nextBlock &updating: block
        block localVariables:
 	 block inputVariables ;
 	 block optionalVariables ;
-	 (block restVariable ifNil: [{}] ifNotNil: [{block restVariable}]) ;
+	 (block restVariable ifNil: [#{}] ifNotNil: [{block restVariable}]) ;
 	 (block localVariables select:
            [| :var |
             (block inputVariables includes: var) not
               /\ [(block optionalVariables includes: var) not]
               /\ [block restVariable ~== var]]).
-       statements: {} writer.
+       statements: #{} writer.
        statements nextPut: (p nextAsStatement ifNil: [Syntax Literal Nil]).
        [token: p nextToken. token isSameAs: Syntax EndBlock]
          whileFalse:
@@ -427,10 +444,10 @@ p@(Syntax Parser traits) nextDefinition
 "Parses and returns a method definition, which has the highest precedence."
 [| selector roles inputVariables optKeywords optVariables opts token method |
   selector: Nil.
-  roles: {} writer.
-  inputVariables: {} writer.
-  optKeywords: {} writer.
-  optVariables: {} writer.
+  roles: #{} writer.
+  inputVariables: #{} writer.
+  optKeywords: #{} writer.
+  optVariables: #{} writer.
   opts: False.
   method: Syntax MethodDefinition new.
   method recordPositionFrom: p.
