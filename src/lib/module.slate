@@ -45,17 +45,17 @@ dispatched or anonymous."
 m@(Module traits) initialize
 "Reset all of the module's attributes."
 [
-  m requirements: m requirements new.
-  m imports: m imports new.
-  m exports: m exports new.
-  m objects: m objects new.
-  m methods: m methods new.
+  m requirements := m requirements new.
+  m imports := m imports new.
+  m exports := m exports new.
+  m objects := m objects new.
+  m methods := m methods new.
   m
 ].
 
 m@(Module traits) new &name: name
 [
-  m clone initialize `>> [name: (name ifNil: ['']). ]
+  m clone initialize `>> [name := name `defaultsTo: ''. ]
 ].
 
 (Module traits hasSlotNamed: #current)
@@ -153,11 +153,11 @@ Load traits define: #defaultPaths &builder: [{Load DefaultSourceDir} as: Extensi
 l@(Load traits) of: file@(File traits)
 [| oldLevel |
   l resolvePathOf: file.
-  oldLevel: l Level.
-  l Level: l Level + 1.
+  oldLevel := l Level.
+  l Level := l Level + 1.
   [file sessionDo:
      [| :input | l process: input reader] &mode: file Read]
-    ensure: [l Level: oldLevel]
+    ensure: [l Level := oldLevel]
 ].
 
 l@(Load traits) resolvePathOf: file@(File traits)
@@ -180,12 +180,12 @@ l@(Load traits) retry
 
 l@(Load traits) process: source
 [ |retry skip ns|
-  ns: Namespace new. 
-  retry: (ns define: #Retry &parents: {Restart}).
+  ns := Namespace new. 
+  retry := ns define: #Retry &parents: {Restart}.
   _@retry describeOn: out [ out ; 'Retry loading ' ; l source resource locator printString ;'\n' ].
-  skip: (ns define: #Skip &parents: {Restart}).
+  skip := ns define: #Skip &parents: {Restart}.
   _@skip describeOn: out [ out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
-  l source: source.
+  l source := source.
   [l run] handlingCases: {retry -> [|:_| ^ (l retry)].
                           skip -> [|:_| ^ Nil]}.
 
@@ -209,7 +209,7 @@ l@(Load traits) run
   l showMessage ifTrue: [l printMessage].
   l skipShebang.
   "Ensure a fresh Parser."
-  (l parser: (l parser newOn: l source)) do:
+  (l parser := l parser newOn: l source) do:
     [| :each |
      l verbose ifTrue:
        [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
@@ -241,7 +241,7 @@ contents within the argument namespace or an optional override."
 [| src |
   locator fileType = 'image' ifTrue:
     [error: 'Image filename specified where Slate source expected. Make sure you run slate with the -i flag to specify an image.'].
-  src: (File newNamed: locator &mode: File Read).
+  src := File newNamed: locator &mode: File Read.
   src exists ifFalse: [locator fileType `defaultsTo: 'slate'].
   src exists
     ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
@@ -255,12 +255,12 @@ contents within the argument namespace or an optional override."
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
   showMessage `defaultsTo: True.
-  loader: (Load clone `setting: #{#targetNamespace. #verbose. #showMessage} to: {namespace. verbose. showMessage}).
+  loader := Load clone `setting: #{#targetNamespace. #verbose. #showMessage} to: {namespace. verbose. showMessage}.
   loader resolvePathOf: file.
-  oldLevel: loader Level.
-  loader Level: loader Level + 1.
+  oldLevel := loader Level.
+  loader Level := loader Level + 1.
   [file ASCIIReader sessionDo: [| :input | loader process: input] &mode: file Read]
-    ensure: [loader Level: oldLevel].
+    ensure: [loader Level := oldLevel].
 ].
 
 prototypes define: #FileModule &parents: {Module} &slots: {#source -> File}.
@@ -269,10 +269,10 @@ bootstrapping. Requirements and provisions are symbols, and other features are
 ignored."
 
 m@(FileModule traits) newLocated: filename
-[m new `>> [source: (m source newNamed: filename &mode: File Read). ]].
+[m new `>> [source := m source newNamed: filename &mode: File Read. ]].
 
 f@(File traits) as: m@(Module traits)
-[FileModule new `>> [source: f. ]].
+[FileModule new `>> [source := f. ]].
 
 m@(FileModule traits) locator
 [m source locator].
@@ -332,8 +332,8 @@ evaluated."
 		/\ [node selector isUnarySelector]
 		/\ [node parentScope isNil]
 		ifTrue:
-		  [accessor: node selector.
-		   partPath: node roles first]].
+		  [accessor := node selector.
+		   partPath := node roles first]].
 	 "Given an accessor, check the path for validity, then add it."
 	 accessor ifNotNil:
 	   [(partPath as: RootedPath &root: namespace) ifNotNilDo:
@@ -368,11 +368,11 @@ l@AutoLoader readFromSourceIn: file
 "Parses the source in the specified file and creates entries for each path
 directly defined."
 [| mod paths |
-  mod: (FileModule newLocated: file).
-  (paths: mod definedPaths) do:
+  mod := FileModule newLocated: file.
+  (paths := mod definedPaths) do:
     [| :path |
      path isOneSlotFromDefinition /\ [(paths includes: path parent) not]
-       ifTrue: [l defs at: path put: mod]].
+       ifTrue: [l defs at: path := mod]].
 ].
 
 l@AutoLoader performScan &files: fileList
@@ -427,16 +427,16 @@ line in the text file or default storage."
 	      ^ Nil].
   file sessionDo:
     [| :f r |
-     r: f reader lines.
+     r := f reader lines.
      [r isAtEnd] whileFalse:
        [r next ifNotNilDo:
 	 [| :line |
 	  (line indexOfSubSeq: ' ->') ifNotNilDo:
 	    [| :splitIndex path filename |
-	     path: ((line first: splitIndex + 1) split
-		as: RootedPath &root: namespace).
-	     filename: (String readFrom: (line copyFrom: splitIndex + 4)).
-	     AutoLoader defs at: path put: (FileModule newLocated: filename)]]]].
+	     path := (line first: splitIndex + 1) split
+               as: RootedPath &root: namespace.
+	     filename := String readFrom: (line copyFrom: splitIndex + 4).
+	     AutoLoader defs at: path := FileModule newLocated: filename]]]].
   l installReadyItems
 ].
 
@@ -445,7 +445,7 @@ l@AutoLoader writeToStorage
 [
   l storage sessionDo:
     [| :f out |
-     out: f writer.
+     out := f writer.
      l defs keysAndValuesDo:
        [| :path :mod |
 	out ; ((path as: Syntax Node) printString
@@ -467,11 +467,11 @@ s@(System traits) fillRequirementsFor: module
 "Fills the requirements slot of the module, based on the knowledge that the
 System has by holding several other Modules, and return the requirements."
 [| features covered |
-  features: module imports.
-  covered: (Set newSizeOf: features).
+  features := module imports.
+  covered := Set newSizeOf: features.
   s modules
     do: [| :each coverage |
-	 coverage: (each exports intersection: features).
+	 coverage := each exports intersection: features.
 	 coverage isEmpty
 	   ifFalse: [module requirements include: each.
 		     covered includeAll: coverage]].
@@ -494,7 +494,7 @@ s@(System traits) build
 s@(System traits) load
 "Load the System's modules in a consistent order."
 [| remaining |
-  remaining: s modules copy.
+  remaining := s modules copy.
   [remaining isEmpty]
     whileFalse:
       [remaining do:

@@ -47,7 +47,7 @@ t@(Tuple traits) makeImmutable
   t actualSize = t capacity
     ifFalse: [t contents: (Array newSize: t actualSize) `>>
 		[replaceFrom: 0 to: t actualSize - 1 with: t contents. ]].
-  t actualSize: Nil.
+  t actualSize := Nil.
   t
 ].
 
@@ -72,10 +72,10 @@ t@(Tuple traits) at: n put: obj
 
 t@(Tuple traits) collect: block
 [| newT a |
-  newT: (t new &capacity: t size).
-  a: newT contents.
+  newT := t new &capacity: t size.
+  a := newT contents.
   a doWithIndex: [| :_ :index |
-    a at: index put: (block applyWith: (t contents at: index))].
+    a at: index := block applyWith: (t contents at: index)].
   newT
 ].
 

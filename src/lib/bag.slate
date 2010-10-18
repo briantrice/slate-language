@@ -35,7 +35,7 @@ implementation as element->numOccurrences mapping."
 b@(Bag traits) add: obj withOccurrences: n
 "Add n number of b's."
 [
-  b contents at: obj put: (b contents at: obj ifAbsent: [0]) + n.
+  b contents at: obj := (b contents at: obj ifAbsent: [0]) + n.
   obj
 ].
 
@@ -52,7 +52,7 @@ b@(Bag traits) include: obj
 it is a key in the contents, if not, add it and set the count to 1."
 [
   (b includes: obj)
-    ifFalse: [b at: obj put: 1].
+    ifFalse: [b at: obj := 1].
   b
 ].
 
@@ -89,9 +89,9 @@ b@(Bag traits) remove: obj ifAbsent: block
 "Decrement the number of occurrences noted. Remove the key entirely if there's
 only 1. Otherwise, run the exception."
 [| count |
-  (count: (b contents at: obj ifAbsent: [^ block do])) = 1
+  (count := b contents at: obj ifAbsent: [^ block do]) = 1
     ifTrue: [b contents removeKey: obj]
-    ifFalse: [b contents at: obj put: count - 1].
+    ifFalse: [b contents at: obj := count - 1].
   obj
 ].
 
@@ -105,7 +105,7 @@ b@(Bag traits) removeEvery: obj
 b@(Bag traits) sortedCounts
 "Return a collection of counts in increasing order."
 [| counts |
-  counts: (SortedArray newSizeOf: b contents).
+  counts := SortedArray newSizeOf: b contents.
   b contents keysAndValuesDo: [| :elem :count | counts add: count -> elem].
   counts
 ].
@@ -113,15 +113,15 @@ b@(Bag traits) sortedCounts
 b@(Bag traits) sortedElements
 "Return a collection of sorted elements with counts."
 [| elements |
-  elements: (SortedArray newSizeOf: b).
+  elements := SortedArray newSizeOf: b.
   b contents associationsDo: [| :assoc | elements add: assoc].
   elements
 ].
 
 c@(Collection traits) elementsWithCounts &by: comparison
 [| result |
-  result: Bag new.
-  comparison ifNotNil: [result contents equalsBlock: comparison].
+  result := Bag new.
+  comparison ifNotNil: [result contents equalsBlock := comparison].
   c >> result.
   result
 ].
@@ -135,15 +135,15 @@ c@(Collection traits) elementsWithFrequencies &by: comparison
 c@(Bag traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 "Print the element and number of occurrences like a Repetition."
 [| index tally |
-  index: 0.
-  tally: 0.
-  c contents keysDo: [| :_ | tally: tally + 1].
+  index := 0.
+  tally := 0.
+  c contents keysDo: [| :_ | tally := tally + 1].
   c elementsAndOccurrencesDo:
     [| :each :count |
      each printOn: o.
      o ; ' x '.
      count printOn: o.
-     index: index + 1.
+     index := index + 1.
      index < tally ifTrue:
        [block do]].
   o
@@ -184,8 +184,8 @@ i@(Bag ReadStream traits) next
 [
   i isAtEnd ifTrue: [^ Nil].
   i atLastOccurrence
-    ifTrue: [i elementIdx: i elementIdx + 1. i occurrence: 1]
-    ifFalse: [i occurrence: i occurrence + 1].
+    ifTrue: [i elementIdx := i elementIdx + 1. i occurrence := 1]
+    ifFalse: [i occurrence := i occurrence + 1].
   i collection contents keyAt: i elementIdx
 ].
 
@@ -193,9 +193,9 @@ i@(Bag ReadStream traits) next: n
 "This returns a Sequence up to the requested length of the next elements.
 It returns early if it reaches the end, with the accumulated results."
 [| result |
-  result: (Array newSize: n).
+  result := Array newSize: n.
   result keysDo: [| :idx |
-    i next ifNil: [^ result] ifNotNilDo: [| :each | result at: idx put: each]].
+    i next ifNil: [^ result] ifNotNilDo: [| :each | result at: idx := each]].
   result
 ].
 

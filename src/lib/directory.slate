@@ -65,9 +65,8 @@ dir@(Directory traits) enable
 "Reset the directory."
 [| dirname result |
   [dir close] on: dir Closed do: [| :c | c return].
-  dirname: (dir locator as: String).
-  result: (dir primitiveOpen: dirname).
-  result isNegative
+  dirname := dir locator as: String.
+  (result := dir primitiveOpen: dirname) isNegative
     ifTrue: [error: result negated printString]
     ifFalse: [dir handle: result].
 ].
@@ -75,10 +74,10 @@ dir@(Directory traits) enable
 dir@(Directory traits) disable
 "Call the close primitive."
 [
-  dir handle ifNotNil: [| result |
-    result: (dir primitiveClose: dir handle).
-    result ifNil: []
-	   ifNotNil: [result isZero ifFalse: [error: result negated printString]]].
+  dir handle ifNotNilDo: [| :handle |
+    (dir primitiveClose: handle)
+      ifNil: []
+      ifNotNilDo: [| :result | result isZero ifFalse: [error: result negated printString]]].
 ].
 
 dir@(Directory traits) exists
@@ -120,8 +119,8 @@ dir@(Directory traits) nextDirEntry
 by Directory Streams."
 [| buffer len |
   dir handle ifNil: [error: 'Directory not open'].
-  buffer: (String new &capacity: 256).
-  len: (dir primitiveRead: dir handle into: buffer).
+  buffer := String new &capacity: 256.
+  len := dir primitiveRead: dir handle into: buffer.
   len isNegative
     ifTrue: [error: len negated printString. Nil]
     ifFalse: [len isZero ifTrue: [Nil] "End-marker."
@@ -171,8 +170,8 @@ dir@(Directory traits) current
 "Get the current Directory used by Slate. This uses a ByteArray to pass the String
 name and the return value tells how long the actual contents are."
 [| buffer dirLength |
-  buffer: (ByteArray newSize: 256).
-  dirLength: (dir primitiveGetCurrentDirectory: buffer).
+  buffer := ByteArray newSize: 256.
+  dirLength := dir primitiveGetCurrentDirectory: buffer.
   dir newNamed: ((buffer first: dirLength) as: String)
 ].
 
@@ -180,7 +179,7 @@ dir@(Directory traits) enter
 "Sets the Directory to be the current Slate directory."
 [| returnCode |
   dir exists ifFalse: [error: 'You cannot enter a directory that does not exist.'].
-  returnCode: (dir primitiveSetCurrentDirectory: ((dir locator as: String) as: ByteArray)).
+  returnCode := dir primitiveSetCurrentDirectory: ((dir locator as: String) as: ByteArray).
   returnCode isZero ifFalse: [error: 'Couldn\'t set the directory']
 ].
 
@@ -226,12 +225,10 @@ dir@(Directory traits) home
 
 dir@(Directory traits) walk: block
 "Calls the block on each pathname below the current Directory, recursively."
-[| locator |
-  locator: dir locator.
+[
   dir sessionDo:
     [| :each eachDir |
-     eachDir: (dir newNamed: each).
-     eachDir exists
+     (eachDir := dir newNamed: each) exists
        ifTrue: [eachDir walk: block]
        ifFalse: [block sendWith: eachDir locator]].
 ].
@@ -240,11 +237,11 @@ dir@(Directory traits) / path
 "Answers a new Directory or File that is specified by the relative location
 given as argument."
 [| newPath newType |
-  newPath: (path as: File RelativeLocator &base: dir locator).
-  newType: (newPath fileInfo
+  newPath := path as: File RelativeLocator &base: dir locator.
+  newType := newPath fileInfo
     ifNil: [File]
     ifNotNilDo:
-      [| :info | info isFile ifTrue: [File] ifFalse: [info isDirectory ifTrue: [Directory]]]).
+      [| :info | info isFile ifTrue: [File] ifFalse: [info isDirectory ifTrue: [Directory]]].
   newType newNamed: path
 ].
 
@@ -284,7 +281,7 @@ ds@(Directory Stream traits) isAtEnd
 
 ds@(Directory Stream traits) next
 [| result |
-  result: ds peek.
+  result := ds peek.
   ds cache: Nil.
   result
 ].
@@ -294,15 +291,15 @@ ds@(Directory Stream traits) peek
 end-marker when reached (Nil marks an empty cache, a separate condition)."
 [
   ds cache ifNil: [| buffer |
-    buffer: (String new &capacity: 256).
-    ds cache: (ds resource nextDirEntry ifNil: [ds])].
+    buffer := String new &capacity: 256.
+    ds cache := ds resource nextDirEntry ifNil: [ds]].
   ds cache
 ].
 
 ds@(Directory Stream traits) reset
 "Moves the stream position back to zero by closing and re-opening."
 [
-  ds cache: Nil.
+  ds cache := Nil.
   ds resource enable.
   ds
 ].

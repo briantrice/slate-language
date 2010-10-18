@@ -13,8 +13,8 @@ contents themselves surround a gap."
 q@(Queue traits) clear
 [
   resend.
-  q firstIndex: 0.
-  q lastIndex: 0.
+  q firstIndex := 0.
+  q lastIndex := 0.
   q
 ].
 
@@ -22,12 +22,12 @@ q@(Queue traits) new &capacity: n
 "The Queue always maintains atleast one unusable sentinel element so that
 all n requested elements may fit without lastIndex = firstIndex (the empty
 condition) occurring."
-[n ifNotNil: [n: n + 1]. resend clear].
+[n ifNotNil: [n := n + 1]. resend clear].
 
 s@(Sequence traits) as: es@(Queue traits)
 "Likewise, we have to protect the buggy coding of whoever wrote this class."
 [
-  es new `>> [contents: (s arrayType newSize: s length + 1).
+  es new `>> [contents := s arrayType newSize: s length + 1.
 	      addAll: s. ]
 ].
 
@@ -77,35 +77,35 @@ q@(Queue traits) growTo: n
 and adjust the indices to match, then replace the old one."
 [| newContents |
   n <= (q gapSize + q size) ifTrue: [error: 'The contents will not fit.'].
-  newContents: (q contents new &capacity: n + 1).
+  newContents := q contents new &capacity: n + 1.
   q isSplit
     ifTrue:
       [| offset |
-       offset: newContents size - q contents size.
+       offset := newContents size - q contents size.
        newContents replaceFrom: 0 to: q lastIndex with: q contents.
        newContents replaceFrom: q firstIndex + offset below: newContents size with: q contents &startingAt: q firstIndex.
-       q firstIndex: q firstIndex + offset]
+       q firstIndex := q firstIndex + offset]
     ifFalse:
       [newContents replaceFrom: q firstIndex to: q lastIndex with: q contents &startingAt: q firstIndex].
-  q contents: newContents.
+  q contents := newContents.
   q
 ].
 
 q@(Queue traits) at: n
 "The firstIndex is treated as the 0 address. Wrap-around is handled."
 [| index |
-  index: q firstIndex + n.
+  index := q firstIndex + n.
   index >= q contents size
-    ifTrue: [index: index - q contents size].
+    ifTrue: [index := index - q contents size].
   q contents at: index
 ].
 
 q@(Queue traits) at: n put: obj
 "The firstIndex is treated as the 0 address. Wrap-around is handled."
 [| index |
-  index: q firstIndex + n.
+  index := q firstIndex + n.
   index >= q contents size
-    ifTrue: [index: index - q contents size].
+    ifTrue: [index := index - q contents size].
   q contents at: index put: obj
 ].
 
@@ -128,7 +128,7 @@ q@(Queue traits) addLast: obj
 q@(Queue traits) addFirst: obj
 [
   q isFull ifTrue: [q grow].
-  q firstIndex: q firstIndex - 1 \\ q contents size.
+  q firstIndex := q firstIndex - 1 \\ q contents size.
   q contents at: q firstIndex put: obj.
   obj
 ].
@@ -138,19 +138,19 @@ q@(Queue traits) addAllLast: seq
   "Make room for the sequence as necessary."
   seq size > q gapSize ifTrue: [q growBy: seq size].
   "The new lastIndex after all the elements are added."
-  newLastIndex: q lastIndex + seq size \\ q contents size.
+  newLastIndex := q lastIndex + seq size \\ q contents size.
   "Whether adding the elements to the end will push the lastIndex past the
    underlying Array's end."
   newLastIndex < q lastIndex
     ifTrue:
       [| split |
        "The number of elements that will fit before wrap-around."
-       split: q contents size - q lastIndex.
+       split := q contents size - q lastIndex.
        q contents replaceFrom: q lastIndex below: q contents size with: seq.
        q contents replaceFrom: 0 below: seq size - split with: seq &startingAt: split]
     ifFalse: [q contents replaceFrom: q lastIndex below: newLastIndex with: seq].
   "Finally, update the lastIndex."
-  q lastIndex: newLastIndex.
+  q lastIndex := newLastIndex.
   seq
 ].
 
@@ -159,47 +159,47 @@ q@(Queue traits) addAllFirst: seq
   "Make room for the sequence as necessary."
   seq size > q gapSize ifTrue: [q growTo: q contents size + seq size].
   "The new firstIndex after all the elements are added."
-  newFirstIndex: q firstIndex - seq size \\ q contents size.
+  newFirstIndex := q firstIndex - seq size \\ q contents size.
   "Whether adding the elements to the end will push the firstIndex past the
    underlying Array's start."
   newFirstIndex > q firstIndex
     ifTrue:
       [| split |
        "The number of elements that will need to be added at the end of the Array."
-       split: seq size - q firstIndex.
+       split := seq size - q firstIndex.
        q contents replaceFrom: 0 below: q firstIndex with: seq &startingAt: split.
        q contents replaceFrom: newFirstIndex below: q contents size with: seq]
     ifFalse: [q contents replaceFrom: newFirstIndex below: q firstIndex with: seq].
   "Finally, update the firstIndex."
-  q firstIndex: newFirstIndex.
+  q firstIndex := newFirstIndex.
   seq
 ].
 
 q@(Queue traits) removeLast
 [| result |
-  q lastIndex: q lastIndex - 1 \\ q contents size.
-  result: (q contents at: q lastIndex).
+  q lastIndex := q lastIndex - 1 \\ q contents size.
+  result := q contents at: q lastIndex.
   q contents at: q lastIndex put: Nil.
   result
 ].
 
 q@(Queue traits) removeFirst
 [| oldIndex result |
-  q firstIndex: (oldIndex: q firstIndex) + 1 \\ q contents size.
-  result: (q contents at: oldIndex).
+  q firstIndex := (oldIndex := q firstIndex) + 1 \\ q contents size.
+  result := q contents at: oldIndex.
   q contents at: oldIndex put: Nil.
   result
 ].
 
 q@(Queue traits) removeLast: n
 [| removed newLastIndex |
-  removed: (q contents new &capacity: n).
-  newLastIndex: q lastIndex - n \\ q contents size.
+  removed := q contents new &capacity: n.
+  newLastIndex := q lastIndex - n \\ q contents size.
   "Whether removing the N elements will push the lastIndex past the underlying
    Array's start."
   newLastIndex > q lastIndex
     ifTrue: [| split |
-	     split: n - q lastIndex.
+	     split := n - q lastIndex.
 	     removed replaceFrom: split below: n with: q contents.
 	     removed replaceFrom: 0 below: split with: q contents &startingAt: q contents size - split.
 	     "Clear the contents Array at the removed locations."
@@ -214,13 +214,13 @@ q@(Queue traits) removeLast: n
 
 q@(Queue traits) removeFirst: n
 [| removed newFirstIndex |
-  removed: (q contents new &capacity: n).
-  newFirstIndex: q firstIndex + n \\ q contents size.
+  removed := q contents new &capacity: n.
+  newFirstIndex := q firstIndex + n \\ q contents size.
   "Whether removing the first N elements will push the firstIndex past the
   underlying Array's end."
   newFirstIndex < q firstIndex
     ifTrue: [| split |
-	     split: q contents size - q firstIndex.
+	     split := q contents size - q firstIndex.
 	     removed replaceFrom: split below: n with: q contents &startingAt: q firstIndex.
 	     removed replaceFrom: 0 below: split with: q contents.
 	     q firstIndex below: q contents size do:
@@ -236,12 +236,12 @@ q@(Queue traits) removeFirst: n
 
 q@(Queue traits) forgetFirst: n
 [
-  q firstIndex: q firstIndex + n \\ q contents size.
+  q firstIndex := q firstIndex + n \\ q contents size.
 ].
 
 q@(Queue traits) forgetLast: n
 [
-  q lastIndex: q lastIndex - n \\ q contents size.
+  q lastIndex := q lastIndex - n \\ q contents size.
 ].
 
 

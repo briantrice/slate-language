@@ -1,4 +1,3 @@
-
 streams addPrototype: #RandomStream derivedFrom: {PositionableReadStream}.
 "Answers a series of pseudo-random positive SmallIntegers across the entire
 value range. It is very fast and has an extremely long period (2^19937-1).
@@ -16,20 +15,20 @@ rs@(RandomStream traits) collectionType
 
 rs@(RandomStream traits) newSeed: seed
 [(rs clone `setting: #{#state. #readLimit}
-     to: {rs state newSameSize. rs state size}) `>> [seed: seed. ]].
+     to: {rs state newSameSize. rs state size}) `>> [seed := seed. ]].
 
 rs@(RandomStream traits) new
 [rs newSeed: lobby ticksSinceEpoch].
 
 rs@(RandomStream traits) next
 [| tmp pos |
-  pos: rs position.
+  pos := rs position.
   pos >= rs readLimit
     ifTrue: 
       [rs refill.
-       pos: 0].
-  rs position: pos + 1.
-  tmp: (rs state at: pos).
+       pos := 0].
+  rs position := pos + 1.
+  tmp := rs state at: pos.
   tmp
     bitXor:
       ((tmp bitShift: -11)
@@ -43,56 +42,55 @@ rs@(RandomStream traits) next
 
 rs@(RandomStream traits) seed: seed
 [| state |
-  state: rs state.
-  seed: (seed bitAnd: 16rFFFFFFFF).
-  state at: 0 put: seed.
+  state := rs state.
+  seed := seed bitAnd: 16rFFFFFFFF.
+  state at: 0 := seed.
   1 below: state size
     do: [| :index |
-	     seed: ((69069 * seed) bitAnd: 16rFFFFFFFF).
-	   state at: index put: seed].
-  rs position: rs readLimit
+         seed := (69069 * seed) bitAnd: 16rFFFFFFFF.
+	 state at: index := seed].
+  rs position := rs readLimit
 ].
 
 rs@(RandomStream traits) refill
 [| state tmp |
-  state: rs state.
+  state := rs state.
   0 below: state size - 397
     do: [| :index |
-	     tmp: 
-	       (((state at: index) bitAnd: 16r80000000) 
-		  bitOr:
-		    ((state at: index + 1) bitAnd: 16r7FFFFFFF)).
-	   state at: index put: 
-	     ((state at: index + 397)
-		bitXor:
-		  ((tmp bitShift: -1)
-		     bitXor: 
-		       ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))
-	     ].
+	 tmp :=
+	   ((state at: index) bitAnd: 16r80000000)
+	     bitOr:
+	       ((state at: index + 1) bitAnd: 16r7FFFFFFF).
+	 state at: index :=
+	   ((state at: index + 397)
+	      bitXor:
+		((tmp bitShift: -1)
+		   bitXor:
+		     ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))].
   state size - 397
     below: state size - 1
     do: [| :index |
-	     tmp: 
-	       (((state at: index) bitAnd: 16r80000000)
-		  bitOr:
-		    ((state at: index + 1) bitAnd: 16r7FFFFFFF)).
-	   state at: index put:  
-	     ((state at: index + 397 - state size)
-		bitXor:
-		  ((tmp bitShift: -1)
-		     bitXor:
-		       ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))].
-  tmp:
-    (((state at: 0) bitAnd: 16r80000000)
-       bitOr:
-	 ((state at: 1) bitAnd: 16r7FFFFFFF)).
-  state at: state size - 1 put:
+         tmp :=
+	   ((state at: index) bitAnd: 16r80000000)
+	     bitOr:
+	       ((state at: index + 1) bitAnd: 16r7FFFFFFF).
+	 state at: index :=
+	   ((state at: index + 397 - state size)
+	      bitXor:
+		((tmp bitShift: -1)
+		   bitXor:
+		     ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)))].
+  tmp :=
+    ((state at: 0) bitAnd: 16r80000000)
+      bitOr:
+	((state at: 1) bitAnd: 16r7FFFFFFF).
+  state at: state size - 1 :=
     ((state at: 397 - 1)
        bitXor:
 	 ((tmp bitShift: -1)
 	    bitXor:
 	      ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))).
-  rs position: 0
+  rs position := 0
 ].
 
 SmallInteger traits addImmutableSlot: #Randomizer valued:

@@ -1,6 +1,3 @@
-
-"stuff for doing md5 sums"
-
 prototypes define: #Md5Sum &parents: {Cloneable} &slots: {
  #shiftAmounts -> {7. 12. 17. 22. 7. 12. 17. 22. 7. 12. 17. 22. 7. 12. 17. 22. 
                    5. 9. 14. 20. 5. 9. 14. 20. 5. 9. 14. 20. 5. 9. 14. 20. 
@@ -13,43 +10,40 @@ prototypes define: #Md5Sum &parents: {Cloneable} &slots: {
         }
 }.
 
-
-
-x@(Integer traits) md5LeftRotate: c
+_@Md5Sum leftRotate: x@(Integer traits) by: c
 [
   (x << c) bitOr: (x >> (32 - c))
 ].
 
-x@(Integer traits) md5Int
+_@Md5Sum mask: x@(Integer traits)
 [
   x bitAnd: 16rFFFFFFFF
 ].
 
-array@(ByteArray traits) md5String
-[ | sum writer |
-  sum: array md5Sum.
-  writer: '' writer.
-  0 below: 16 do: [ |:i| writer ; (((sum >> (i * 8)) intoByte printString &radix: 16) truncateTo: 2 paddedBy: $0)].
-  writer contents toLowercase
+md5@Md5Sum stringFrom: array@(ByteArray traits)
+[| sum |
+  sum := md5 of: array.
+  ([| :output |
+    0 below: 16 do: [| :i |
+      output ; (((sum >> (i * 8)) intoByte printString &radix: 16) truncateTo: 2 paddedBy: $0)].
+   ] writingAs: '') toLowercase
 ].
 
-array@(ByteArray traits) md5Sum
-[ | h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
-
-  h0: 1732584193.
-  h1: -271733879 md5Int.
-  h2: -1732584194 md5Int.
-  h3: 271733878.
-
+md5@Md5sum of: array@(ByteArray traits)
+[| h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
+  h0 := 1732584193.
+  h1 := md5 mask: -271733879.
+  h2 := md5 mask: -1732584194.
+  h3 := 271733878.
 
 "
 append 1 bit to message
 append 0 bits until message length in bits == 448 (mod 512)
 append bit /* bit, not byte */ length of unpadded message as 64-bit little-endian integer to message
 "
-  arrayUnpaddedSizeInBits: array size * 8.
-  bitsToAdd: 448 - (arrayUnpaddedSizeInBits + 1 mod: 448).
-  newArray: (array as: ByteArray)
+  arrayUnpaddedSizeInBits := array size * 8.
+  bitsToAdd := 448 - (arrayUnpaddedSizeInBits + 1 mod: 448).
+  newArray := (array as: ByteArray)
     ; ((ByteArray newSize: bitsToAdd + 7 // 8) `>> [at: 0 put: 128. ])
     ; ((ByteArray newSize: 8) `>> [writer next: 8 putInteger: arrayUnpaddedSizeInBits &littleEndian: True. ]).
 
@@ -58,53 +52,56 @@ append bit /* bit, not byte */ length of unpadded message as 64-bit little-endia
   inform: newArray printString.
 "
   0 below: newArray size by: 64 do:
-    [ | :chunkStart a b c d temp f g |
-       a: h0. b: h1. c: h2. d: h3.
-"       inform: '0= ';  a printString ; ', 1= ' ; b printString ; ', 2= ' ; c printString ; ', 3= ' ; d printString."
-       0 upTo: 63 do:
-         [ |:i|
+    [| :chunkStart a b c d temp f g |
+     a := h0. b := h1. c := h2. d := h3.
+"    inform: '0= ';  a printString ; ', 1= ' ; b printString ; ', 2= ' ; c printString ; ', 3= ' ; d printString."
+     0 upTo: 63 do: [| :i |
+       i <= 15 ifTrue:
+         ["f := (b bitAnd: c) bitOr: (b bitNot bitAnd: d)."
+          f := d bitXor: (b bitAnd: (c bitXor: d)).
+          g := i].
+       i > 15 /\ [i <= 31] ifTrue:
+         ["f := (d bitAnd: b) bitOr: (d bitNot bitAnd: c)."
+          f := c bitXor: (d bitAnd: (b bitXor: c)).
+          g := 5 * i + 1 mod: 16].
+       i > 31 /\ [i <= 47] ifTrue:
+         [f := (b bitXor: c) bitXor: d.
+          g := (3 * i + 5) mod: 16].
+       i > 47 ifTrue:
+         [f := c bitXor: (b bitOr: d bitNot).
+          g := 7 * i mod: 16].
 
-            i <= 15 ifTrue:[ "f: ((b bitAnd: c) bitOr: (b bitNot bitAnd: d))."
-                             f: (d bitXor: (b bitAnd: (c bitXor: d))).
-                              g: i].
-            i > 15 /\ [i <= 31] ifTrue: ["f: ((d bitAnd: b) bitOr: (d bitNot bitAnd: c))."
-                                         f: (c bitXor: (d bitAnd: (b bitXor: c))).
-                                          g: (5 * i + 1 mod: 16)].
-            i > 31 /\ [i <= 47] ifTrue: [ f: ((b bitXor: c) bitXor: d).
-                                          g: ((3 * i + 5) mod: 16)].
-            i > 47 ifTrue: [ f: (c bitXor: (b bitOr: d bitNot)).
-                             g: (7 * i mod: 16)].
+       temp := md5 mask: d.
+       d := md5 mask: c.
+       c := md5 mask: b.
+       "inform: 'i= ';  i printString ; ', g= ' ; g printString ; ', f= ' ; f md5Int printString ; ', k= ' ;  (Md5Sum k at: i) md5Int printString  ; ', w[g]= ' ;  (newArray int32At: chunkStart // 4 + g) md5Int printString.
+       inform: 'rotate=' ; ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)) md5Int printString."
+       b := b +
+         (md5 mask:
+            (md5 leftRotate:
+               (md5 mask:
+                  (a + (md5 mask: f)
+                     + (md5 mask: (md5 k at: i))
+                     + (md5 mask: (newArray int32At: chunkStart // 4 + g))))
+               by: (md5 shiftAmounts at: i))).
+       b := md5 mask: b.
+       a := temp.
 
- 
-        temp: d md5Int.
-        d: c md5Int.
-        c: b md5Int.
-        "inform: 'i= ';  i printString ; ', g= ' ; g printString ; ', f= ' ; f md5Int printString ; ', k= ' ;  (Md5Sum k at: i) md5Int printString  ; ', w[g]= ' ;  (newArray int32At: chunkStart // 4 + g) md5Int printString.
-        inform: 'rotate=' ; ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)) md5Int printString."
-        b: b + ((a + f md5Int + (Md5Sum k at: i) md5Int + (newArray int32At: chunkStart // 4 + g) md5Int) md5Int md5LeftRotate: (Md5Sum shiftAmounts at: i)) md5Int.
-        b: b md5Int.
-        a: temp.
-
-        "inform: 'i= ';  i printString ; ', a= ';  a printString ; ', b= ' ; b printString ; ', c= ' ; c printString ; ', d= ' ; d printString."
-        ].
-
-
-       h0: (h0 + a) md5Int.
-       h1: (h1 + b) md5Int.
-       h2: (h2 + c) md5Int.
-       h3: (h3 + d) md5Int
-
+       "inform: 'i= ';  i printString ; ', a= ';  a printString ; ', b= ' ; b printString ; ', c= ' ; c printString ; ', d= ' ; d printString."
      ].
+
+     h0 := md5 mask: h0 + a.
+     h1 := md5 mask: h1 + b.
+     h2 := md5 mask: h2 + c.
+     h3 := md5 mask: h3 + d.
+
+   ].
 
 "  inform: h0 printString.
   inform: h1 printString.
   inform: h2 printString.
   inform: h3 printString.
 "
-  h0 bitOr: 
- (h1 << 32 bitOr:
- (h2 << 64 bitOr:
- (h3 << 96)))
-
+  h0 bitOr: (h1 << 32 bitOr: (h2 << 64 bitOr: h3 << 96))
 ].
 

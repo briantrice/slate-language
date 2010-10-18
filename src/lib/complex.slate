@@ -1,4 +1,3 @@
-
 numerics define: #Complex &parents: {Number. CoercibleNumberMixin} &slots:
 {#real -> 0. "The real component."
  #imaginary -> 0 "The imaginary component."}.
@@ -109,11 +108,11 @@ c@(Complex traits) theta
 	  ifFalse: [Pi * 3 / 2]]
      ifFalse:
        [| tan result |
-	  tan: c imaginary / c real.
-	  result: tan arctan.
-	  c real isPositive
-	    ifTrue: [result]
-	    ifFalse: [Pi + result]]
+        tan := c imaginary / c real.
+	result := tan arctan.
+	c real isPositive
+	  ifTrue: [result]
+	  ifFalse: [Pi + result]]
 ].
 
 c@(Complex traits) conjugated
@@ -142,7 +141,7 @@ c1@(Complex traits) * c2@(Complex traits)
 
 c1@(Complex traits) / c2@(Complex traits)
 [| denom |
-  denom: c2 real squared + c2 imaginary squared.
+  denom := c2 real squared + c2 imaginary squared.
   c1 real: c1 real * c2 real + (c1 imaginary * c2 imaginary) / denom
      imaginary: c2 real * c1 imaginary - (c2 imaginary * c1 real) / denom
 ].
@@ -151,13 +150,13 @@ c@(Complex traits) sqrt
 [| r |
   c imaginary isZero /\ [c real isNegative not]
      ifTrue: [^ c real sqrt].
-  c real: c imaginary / 2 / (r: (c radius - c real / 2) sqrt)
+  c real: c imaginary / 2 / (r := (c radius - c real / 2) sqrt)
     imaginary: r
 ].
 
 c@(Complex traits) exp
-[ | im |
-  im: c imaginary.
+[| im |
+  im := c imaginary.
   c real exp * (im cos + (im sin * I))
 ].
 

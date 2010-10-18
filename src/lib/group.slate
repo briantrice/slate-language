@@ -16,17 +16,16 @@ c@(Collection traits) groupedBy: keyBlock
 
 g@(Grouping traits) add: obj
 [| key group |
-  key: (g attributeBlock applyWith: obj).
-  group: (g contents at: key ifAbsent:
-    [g contents at: key put: Set new]).
+  key := g attributeBlock applyWith: obj.
+  group := g contents at: key ifAbsentPut: [Set new].
   group include: obj.
   obj
 ].
 
 g@(Grouping traits) remove: obj
 [| key group |
-  key: (g attributeBlock applyWith: obj).
-  group: (g contents at: key ifAbsent: [^ obj]).
+  key := g attributeBlock applyWith: obj.
+  group := g contents at: key ifAbsent: [^ obj].
   group remove: obj.
   group isEmpty ifTrue: [g contents removeKey: key].
   obj
@@ -45,13 +44,12 @@ collections define: #SequentialGrouping &parents: {Grouping}.
 (whether from a WriteStream on the Grouping or an actual Sequence)."
 
 s@(Sequence traits) groupedBy: keyBlock
-[SequentialGrouping new `>> [attributeBlock: keyBlock. addAll: c. ]].
+[SequentialGrouping new `>> [attributeBlock := keyBlock. addAll: c. ]].
 
 g@(SequentialGrouping traits) add: obj
 [| key group |
-  key: (g attributeBlock applyWith: obj).
-  group: (g contents at: key ifAbsent:
-    [g contents at: key put: ExtensibleArray new]).
+  key := g attributeBlock applyWith: obj.
+  group := g contents at: key ifAbsentPut: [ExtensibleArray new].
   group include: obj.
   obj
 ].

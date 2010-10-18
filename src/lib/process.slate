@@ -28,12 +28,12 @@ processes define: #Scheduler &parents: {Cloneable}
 
 b@(Method traits) spawn
 [| i s |
-  i: Interpreter clone.
+  i := Interpreter clone.
   i initializeThreadOn:
     [[b on: Condition do:
       [| :c | c describeOn: DebugConsole. c exit: Nil].
       ] ensure: [Scheduler schedule]].
-  s: i suspended.
+  s := i suspended.
   Scheduler queue push: s.
 ].
 

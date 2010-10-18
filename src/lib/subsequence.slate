@@ -80,8 +80,8 @@ ss@(SubSequence traits) doWithIndex: binBlock
 
 ss@(SubSequence traits) ; seq
 "An override to provide correct concatenation behavior."
-[| newS midpt |
-  midpt: ss size.
+[| midpt |
+  midpt := ss size.
   (ss sequence new &capacity: midpt + seq size) `>>
     [| :newS | replaceFrom: 0 to: midpt - 1 with: ss.
      replaceFrom: midpt to: newS indexLast with: seq. ]
@@ -91,7 +91,7 @@ c@(SubSequence traits) copyFrom: start to: end
 [| newSize |
   end < start \/ [c isEmpty]
     ifTrue: [c new]
-    ifFalse: [(c arrayType new &capacity: (newSize: end - start + 1))
+    ifFalse: [(c arrayType new &capacity: (newSize := end - start + 1))
 		replaceFrom: 0 to: newSize - 1 with: c startingAt: start]
 ].
 
@@ -106,4 +106,3 @@ ss@(SubSequence traits) as: y
 [
   (ss sequence copyFrom: ss start to: ss end - 1) as: y
 ].
-

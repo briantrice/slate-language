@@ -165,8 +165,7 @@ This does not normally exit unless there is a serious error."
     repl namespace interpretHook:
       [| expr result |
        [expr: repl parser next] on: Stream Exhaustion
-         do: [| :c | c stream == repl resource reader ifTrue:
-                       [repl printer ; '\n'. ^ Nil]].
+         do: [| :c | c stream == repl resource reader ifTrue: [^ Nil]].
        repl inputs addFirst: expr.
        result: ([expr evaluateIn: repl namespace] on: SeriousCondition do:
          [| :c |

@@ -29,8 +29,8 @@ x@(Fraction traits) truncated
 
 x@(Fraction traits) * y@(Fraction traits)
 [| xn xd yn yd d1 d2 |
-  d1: ((xn: x numerator) gcd: (yd: y denominator)).
-  d2: ((xd: x denominator) gcd: (yn: y numerator)).
+  d1 := (xn := x numerator) gcd: (yd := y denominator).
+  d2 := (xd := x denominator) gcd: (yn := y numerator).
   d2 = xd /\ [d1 = yd]
      ifTrue: [xn // d1 * yn // d2]
      ifFalse: [x newFor: xn // d1 * (yn // d2)
@@ -39,11 +39,11 @@ x@(Fraction traits) * y@(Fraction traits)
 
 x@(Fraction traits) + y@(Fraction traits)
 [| n d d1 d2 |
-  d: (x denominator gcd: y denominator).
-  n: (x numerator * (d1: y denominator // d) + (y numerator * (d2: x denominator // d))).
-  d1: d1 * d2.
-  n: n // (d2: (n gcd: d)).
-  (d: d1 * (d // d2)) = 1 ifTrue: [^ n].
+  d := x denominator gcd: y denominator.
+  n := x numerator * (d1 := y denominator // d) + (y numerator * (d2 := x denominator // d)).
+  d1 := d1 * d2.
+  n := n // (d2 := n gcd: d).
+  (d := d1 * (d // d2)) = 1 ifTrue: [^ n].
   x newFor: n over: d
 ].
 
@@ -53,9 +53,9 @@ x@(Fraction traits) - y@(Fraction traits)
 x@(Fraction traits) reduced
 [| gcd numer denom |
   x numerator isZero ifTrue: [^ 0].
-  gcd: (x numerator abs gcd: x denominator).
-  numer: x numerator // gcd.
-  denom: x denominator // gcd.
+  gcd := x numerator abs gcd: x denominator.
+  numer := x numerator // gcd.
+  denom := x denominator // gcd.
   denom = 1 ifTrue: [^ numer].
   x newFor: numer over: denom
 ].
@@ -99,13 +99,13 @@ e.g. (Pi as: Fraction) = 355 / 113 in the default tolerance.
 The continued fraction is then reduce:d to the answer."
 [| xn continued quotient remainder sign |
   tol `defaultsTo: x tolerance.
-  sign: x sign.
-  xn: x abs.
-  continued: ExtensibleArray new.
-  [quotient: xn rounded.
-   remainder: xn - quotient.
+  sign := x sign.
+  xn := x abs.
+  continued := ExtensibleArray new.
+  [quotient := xn rounded.
+   remainder := xn - quotient.
    remainder isZero ifFalse:
-     [xn: remainder reciprocal. ].
+     [xn := remainder reciprocal. ].
    continued addFirst: quotient.
    remainder > tol] whileTrue.
   (continued reduce: [| :a :b | a reciprocal + b]) * sign
