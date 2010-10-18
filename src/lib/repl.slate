@@ -117,7 +117,7 @@ repl@(REPL traits) refreshWorkspace
 
 repl@(REPL traits) prompt
 [
-  'slate[%@]%@' sprintf*, repl lineCount, repl basePrompt
+  'slate[' ; repl lineCount printString ; ']' ; repl basePrompt
 ].
 
 repl@(REPL traits) newBasedOn: resource@(ExternalResource traits)
@@ -162,23 +162,23 @@ This does not normally exit unless there is a serious error."
     repl lineCount: repl lineCount + 1.
     repl printer ; repl prompt.
     repl printer flush.
-    repl namespace interpretHook:
-      [| expr result |
-       [expr: repl parser next] on: Stream Exhaustion
-         do: [| :c | c stream == repl resource reader ifTrue:
-                       [repl printer ; '\n'. ^ Nil]].
-       repl inputs addFirst: expr.
-       result: ([expr evaluateIn: repl namespace] on: SeriousCondition do:
-         [| :c |
-          repl noviceMode ifTrue:
-            [c describeOn: repl printer.
-             c exit: Nil]]).
-       repl results addFirst: result.
-       [result printOn: repl printer] on: SeriousCondition do:
-         [| :c |
-          repl printer newLine.
-          warn: result printName ; ' (Printing failed)'.
-          c exit: Nil]].
+    repl namespace
+      interpretHook:
+	[| expr result |
+     [expr: repl parser next] on: Stream Exhaustion
+       do: [| :c | c stream == repl resource reader ifTrue: [repl printer ; '\n'. ^ Nil]].
+     repl inputs addFirst: expr.
+     result: ([expr evaluateIn: repl namespace] on: SeriousCondition do:
+       [| :c |
+        repl noviceMode ifTrue:
+          [c describeOn: repl printer.
+           c exit: Nil]]).
+     repl results addFirst: result.
+     [result printOn: repl printer] on: SeriousCondition do:
+       [| :c |
+        repl printer newLine.
+        warn: result printName ; ' (Printing failed)'.
+        c exit: Nil]].
     repl printer newLine.
     repl printer flush.
     "repl namespace interpretHook: [currentProcess run &limit: 1000]"]
