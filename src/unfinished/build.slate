@@ -23,15 +23,14 @@ t@(Task traits) execute
 
 t@(Task traits) newNamed: name dependingOn: prerequisites doing: block
 [t clone `>>
-   [| :newT | name: name. lastUpdated: Nil.
-    prerequisites: t prerequisites new. dependOn: prerequisites.
+   [| :newT | name := name. lastUpdated := Nil.
+    prerequisites := t prerequisites new. dependOn: prerequisites.
     (block asMethod: #action on: {newT}). ]
 ].
 
 t@(Task traits) isUpToDate
 [
-  t prerequisites inject: True into:
-    [| :result :each | result /\ each isUpToDate]
+  t prerequisites allSatisfy: #isUpToDate `er
 ].
 
 t@(Task traits) dependOn: dep@(Task traits)
@@ -43,7 +42,7 @@ t@(Task traits) dependOn: deps@(Collection traits)
 Builder traits define: #FileTask &parents: {Task} &slots: {#file}.
 
 t@(FileTask traits) newNamed: name dependingOn: prerequisites doing: block
-[resend `>> [| :newT | file: (File newNamed: newT name). ]].
+[resend `>> [| :newT | file := (File newNamed: newT name). ]].
 
 t@(Task traits) newNamed: name@(File Locator traits) dependingOn: prerequisites doing: block
 [FileTask newNamed: name dependingOn: prerequisites doing: block].
@@ -66,7 +65,7 @@ obj@(Builder traits) defineTask: assoc@(Association traits)
   assoc `withSlotsDo:
     [| :key :value |
      (obj hasSlotNamed: key)
-       ifTrue: [| :old | old: (obj atSlotNamed: key).
+       ifTrue: [| :old | old := (obj atSlotNamed: key).
 		(old is: Task) ifTrue: [old dependOn: dep]].
      obj define: (Task newNamed: key dependingOn: value).
 ].

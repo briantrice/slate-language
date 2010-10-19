@@ -21,9 +21,9 @@ rpn@(RPN traits) newBasedOn: resource@(ExternalResource traits)
 rpn@(RPN traits) on: resource
 "Re-target the RPN to the specified resource."
 [
-  rpn parser: resource reader lines.
-  rpn printer: resource writer.
-  rpn resource: resource.
+  rpn parser := resource reader lines.
+  rpn printer := resource writer.
+  rpn resource := resource.
   rpn
 ].
 
@@ -32,7 +32,7 @@ rpn@(RPN traits) reset
 [
   rpn stack clear.
   rpn results clear.
-  rpn exitFlag: False.
+  rpn exitFlag := False.
 ].
 
 rpn@(RPN traits) applyOp: name arity: arity
@@ -47,7 +47,7 @@ rpn@(RPN traits) parse: word
      '-' -> [rpn applyOp: #- arity: 2].
      '*' -> [rpn applyOp: #* arity: 2].
      '/' -> [rpn applyOp: #/ arity: 2].
-     'quit' -> [rpn exitFlag: True]
+     'quit' -> [rpn exitFlag := True]
   } otherwise:
     [Number readFrom: word]
 ].
@@ -58,7 +58,7 @@ rpn@(RPN traits) enter
    rpn on: rpn resource.
    rpn printer ; rpn prompt.
    rpn printer flush.
-   expr: rpn parser next.
+   expr := rpn parser next.
    expr split do:
      [| :word |
       (rpn parse: word) ifNotNilDo: [| :result | rpn stack push: result]].

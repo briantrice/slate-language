@@ -4,11 +4,11 @@ define: #Parsec.
 
 Parsec traits define: #Result.
 
-Parsec Result traits define: #Ok &parents: {Parsec Result} 
+Parsec Result traits define: #Ok &parents: {Parsec Result}
                                  &slots: #{#consumed. #value. #state}.
 
-ok@(Parsec Result Ok traits) newConsumed: consumed 
-			     withValue: value 
+ok@(Parsec Result Ok traits) newConsumed: consumed
+			     withValue: value
 			     andState: state
 [ok cloneSettingSlots: #{#consumed. #value. #state} to: {consumed. value. state}].
 
@@ -36,11 +36,10 @@ p@(Parsec Parser traits) runOn: obj
 [p runOn: (obj as: LazyList)].
 
 p@(Parsec Parser traits) runOn: l@(LazyList traits)
-[| result | 
-   result: (p block applyWith:
-              (Parsec State newWithInput: l)).
-   result ifOk: [result value]
-	  ifError: ["TODO: return something other than Nil"]
+[| result |
+   (result := p block applyWith: (Parsec State newWithInput: l))
+     ifOk: [result value]
+     ifError: ["TODO: return something other than Nil"]
 ].
 
 p@(Parsec Parser traits) newWithBlock: b@(Method traits)
@@ -49,43 +48,39 @@ p@(Parsec Parser traits) newWithBlock: b@(Method traits)
 "just uses the first arg for disambiguation"
 p@(Parsec Parser traits) return: val
 [
-  p newWithBlock: 
+  p newWithBlock:
     [| :state | Parsec Result Ok newConsumed: False withValue: val andState: state]
 ].
 
 p@(Parsec Parser traits) >>= f@(Method traits)
-[p newWithBlock: 
+[p newWithBlock:
   [| :state reply1 reply2 |
-     reply1: (p block applyWith: state).
-     reply1 
-       ifOk: [reply2: ((f applyWith: reply1 value) block
-                           applyWith: reply1 state).
-	       reply2 cloneSettingSlots: #{#consumed} 
-		      to: {reply1 consumed \/ reply2 consumed }]
-       ifError: [reply1]
-  ]
+     (reply1 := (p block applyWith: state))
+       ifOk: [(reply2 := (f applyWith: reply1 value) block
+                 applyWith: reply1 state)
+	        cloneSettingSlots: #{#consumed}
+		to: {reply1 consumed \/ reply2 consumed }]
+       ifError: [reply1]]
 ].
 
 p@(Parsec Parser traits) >> q@(Parsec Parser traits)
 [p >>= [|:x| q]].
 
 p@(Parsec Parser traits) fail: message
-[p newWithBlock: 
+[p newWithBlock:
   [| :state | Parsec Result Error cloneSettingSlots: #{#consumed} to: {False} ]
 ].
 
 "MonadPlus"
 
 p@(Parsec Parser traits) <or> q@(Parsec Parser traits)
-[p newWithBlock: 
-  [| :state r| 
-     r: (p block applyWith: state).
-     r consumed 
-       ifTrue: [r]
-       ifFalse: [r ifOk: [r]
-                   ifError: [q block applyWith: state]]
-  ]
-].       
+[p newWithBlock:
+  [| :state r |
+   (r := p block applyWith: state) consumed
+     ifTrue: [r]
+     ifFalse: [r ifOk: [r]
+                 ifError: [q block applyWith: state]]]
+].
 
 "character parsers"
 
@@ -93,27 +88,24 @@ p@(Parsec Parser traits) char: c
 [p satisfy: (#=`er <- c)].
 
 p@(Parsec Parser traits) satisfy: pred
-[p tokenStopgapWithBlock: 
-  [|:c| (pred applyWith: c) ifTrue: [c] ifFalse: [Nil]]
+[p tokenStopgapWithBlock:
+  [| :c | (pred applyWith: c) ifTrue: [c] ifFalse: [Nil]]
 ].
-			  
+			
 p@(Parsec Parser traits) tokenStopgapWithBlock: test
-[p newWithBlock: 
-  [| :state | 
+[p newWithBlock:
+  [| :state |
      state input
-       ifCons: [| :c :cs x |
-		  x: (test applyWith: c).
-		  x ifNil: [Parsec Result Error newConsumed: False]
-		    ifNotNil: [Parsec Result Ok
-				newConsumed: True
-				withValue: x
-				andState: (Parsec State newWithInput: cs)
-			      ]
-	       ]
-       ifNil: [Parsec Result Error newConsumed: False]
-     ]
+       ifCons:
+         [| :c :cs x |
+          (x := test applyWith: c)
+	    ifNil: [Parsec Result Error newConsumed: False]
+	    ifNotNil: [Parsec Result Ok
+			 newConsumed: True
+			 withValue: x
+			 andState: (Parsec State newWithInput: cs)]]
+       ifNil: [Parsec Result Error newConsumed: False]]
 ].
-
 
 "Combinators unfolded for space (in Haskell, not sure if Slate has tailcalls)"
 
@@ -122,36 +114,29 @@ p@(Parsec Parser traits) many
 []
 
 p@(Parsec Parser traits) manyAccum: accum@(Method traits)
-[p newWithBlock: 
+[p newWithBlock:
   [| :state walk r2 |
-     walk: [| :xs :state :r | 
-	      r consumed 
-	        ifTrue: [r
-                         ifOk: [|ys| 
-				ys: (accum applyWith: r value with: xs).
-				walk applyWith: ys
-				     with: r state 
-				     with: (p block applyWith: r state)
-				]
-			 ifError: [r]]
-	        ifFalse: [r
-			  ifOk: [error: 'combinator \'many\' is applied to a parser that accepts an empty string.']
-                          ifError: [Parsec Result Ok
-				    cloneSettingSlots: #{#consumed. #value. #state}
-				    to: {False. xs. state}]]
-	   ]
-     r2: (p block applyWith: state).
-     r2 consumed 
-       ifTrue: [walk applyWith: LazyList Nil with: state with: r2]
-       ifFalse: [
+   walk := [| :xs :state :r |
+     r consumed
+       ifTrue: [r ifOk: [| ys |
+                         ys := accum applyTo*, r value, xs.
+			 walk applyTo*, ys, r state, p block applyWith: r state]
+		  ifError: [r]]
+       ifFalse: [r ifOk: [error: 'combinator \'many\' is applied to a parser that accepts an empty string.']
+                   ifError: [Parsec Result Ok
+			       cloneSettingSlots: #{#consumed. #value. #state}
+			       to: {False. xs. state}]]].
+   (r2 := (p block applyWith: state)) consumed
+     ifTrue: [walk applyWith: LazyList Nil with: state with: r2]
+     ifFalse: []
+   ]
+].
 "
-
 
 "Combinators"
 
 p@(Parsec Parser traits) many1
-[p >>= [|:x| p many >>= [|:xs| p return: ({x} ;; xs) ]]].
+[p >>= [| :x | p many >>= [|:xs| p return: {x} ;; xs]]].
 
 p@(Parsec Parser traits) many
-[p many1 <or> (p return: {})].
-
+[p many1 <or> (p return: #{})].

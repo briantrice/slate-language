@@ -6,7 +6,7 @@
 define: #IntegerTagging &slots: #{#tag. #value}.
 
 obj tagWith: i@(Integer traits)
-[IntegerTagging clone `>> [tag: i. value: obj. ]].
+[IntegerTagging clone `>> [tag := i. value := obj. ]].
 
 "Defining a counting monad with its two operations (global)..."
 _@here return: val
@@ -15,8 +15,8 @@ _@here return: val
 _@here bind: monad to: m@(Method traits)
 [
   [| :currentCounter result newM |
-   result: (monad applyWith: currentCounter).
-   newM: (m applyWith: result value).
+   result := (monad applyWith: currentCounter).
+   newM := (m applyWith: result value).
    newM applyWith: result tag]
 ].
 
@@ -45,13 +45,13 @@ define: #Tree &slots: {#value. #children -> {}}.
 
 "Starting over..."
 
-define: #Monad &parents: {Cloneable} &slots: {#value #action}.
+define: #Monad &parents: {Cloneable} &slots: {#value. #action}.
 
 m@(Monad traits) newFor: obj
-[m clone `>> [value: obj. ]].
+[m clone `>> [value := obj. ]].
 
 m@(Monad traits) newDoing: action
-[m clone `>> [action: action. ]].
+[m clone `>> [action := action. ]].
 
 m@(Monad traits) pass
 [m action applyWith: m value].

@@ -15,7 +15,7 @@ y@(YAML WriteStream traits) emitHeader: directives
 
 y@(YAML WriteStream traits) newDocument
 [
-  y level: 0.
+  y level := 0.
   y newLineAndIndent.
   y ; y documentSeparator.
   y newLineAndIndent.
@@ -63,14 +63,14 @@ m@(Mapping traits) printOn: y@(YAML WriteStream traits) &inline: inline
   y indentedDo:
     [| index |
      y level isPositive ifTrue: [y newLineAndIndent].
-     index: 0.
+     index := 0.
      m size `cache.
      m keysAndValuesDo:
        [| :key :value |
         key printOn: y.
         y ; y keyValueSeparator.
         value printOn: y.
-        index: index + 1.
+        index := index + 1.
         index < m size ifTrue: [y newElement]]]
 ].
 
@@ -78,14 +78,16 @@ x@(Root traits) printOn: y@(YAML WriteStream traits)
 [
   x slotCount `cache.
   y indentedDo:
-    [y newLineAndIndent.
+    [| index |
+     y newLineAndIndent.
+     index := 0.
      x slotNamesAndValuesDo:
        [| :name :value |
         name printOn: y.
         y ; y keyValueSeparator.
         value printOn: y.
         y newLineAndIndent.
-        index: index + 1.
+        index := index + 1.
         index < x slotCount ifTrue: [y newElement]]].
 ].
 

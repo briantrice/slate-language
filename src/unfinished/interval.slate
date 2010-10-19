@@ -27,7 +27,7 @@ i@(Interval traits) newAbove: start below: end
 
 n@(Number traits) as: i@(Interval traits) &tolerance: tol
 [
-  (i newFrom: n - tol to: n + tol) `>> [bestGuess: n. ]
+  (i newFrom: n - tol to: n + tol) `>> [bestGuess := n. ]
 ].
 
 n@(Number traits) +- tol
@@ -46,20 +46,20 @@ i@(Interval traits) includes: n
 i@(Interval traits) readFrom: src
 "Reads the mathematical notation of brackets for intervals from the stream."
 [| result input |
-  input: src reader.
-  result: i clone.
+  input := src reader.
+  result := i clone.
   "Look for an open (square or curved) bracket."
   input next
-    caseOf: {$( -> [result lowerInclusive: False].
-             $[ -> [result lowerInclusive: True]}
+    caseOf: {$( -> [result lowerInclusive := False].
+             $[ -> [result lowerInclusive := True]}
     otherwise: [error: 'Unexpected character; bad interval start notation.'].
-  i lowerBound: (Number readFrom: input).
+  i lowerBound := (Number readFrom: input).
   input next = $, ifFalse: [error: 'Expected comma character not found; bad interval separator notation.'].
-  i upperBound: (Number readFrom: input).
+  i upperBound := (Number readFrom: input).
   "Look for a closing (square or curved) bracket."
   input next
-    caseOf: {$) -> [result upperInclusive: False].
-             $] -> [result upperInclusive: True]}
+    caseOf: {$) -> [result upperInclusive := False].
+             $] -> [result upperInclusive := True]}
     otherwise: [error: 'Unexpected character; bad interval end notation.'].
   result
 ].
@@ -217,4 +217,3 @@ ic@(IntervalComplement traits) * n
 
 ic@(IntervalComplement traits) / n
 [ic cloneSettingSlots: #{#basis} to: {ic basis / n}].
-
