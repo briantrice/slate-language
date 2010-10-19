@@ -7,7 +7,7 @@ Sequence."
 
 ot@(OrderedTree traits) clear
 [
-  ot children: ot children new.
+  ot children := ot children new.
   ot
 ].
 
@@ -63,8 +63,7 @@ ot@(OrderedTree traits) bury
 "Moves this tree element to the last in the children list of the parent -
 relies on being able to directly manipulate that collection."
 [| siblings |
-  siblings: ot treeParent children.
-  siblings move: ot to: siblings indexLast.
+  (siblings := ot treeParent children) move: ot to: siblings indexLast.
 ].
 
 ch@(OrderedTree traits) reparentTo: ot
@@ -72,7 +71,7 @@ ch@(OrderedTree traits) reparentTo: ot
 Avoid adding to the new parent, since the position matters."
 [
   ch treeParent ifNotNilDo: [| :p | p remove: ch].
-  ch treeParent: ot.
+  ch treeParent := ot.
 ].
 
 obj reparentTo: ot@(OrderedTree traits)
@@ -128,12 +127,12 @@ used as a Dictionary."
 "element: Records the element that the trie node encodes, if it does at all. The
 element should consist of the sequence of all the keys used in order to access
 the given node. As a result, trie nodes must be root-aware."
-Trie children: IdentityDictionary new.
+Trie children := IdentityDictionary new.
 "Uses a Mapping of Sequence elements to the next Node."
 
 t@(Trie traits) new &capacity: n
 "Tries are generally 'narrow' Trees."
-[n ifNil: [n: 3]. resend].
+[n ifNil: [n := 3]. resend].
 
 t@(Trie traits) acceptsKey: _
 [False].
@@ -159,8 +158,8 @@ t@(Trie traits) size
 t@(Trie traits) nodeFor: seq
 "Returns the Trie node for the given Sequence."
 [| here |
-  here: t.
-  seq do: [| :each | here: (here children at: each ifAbsent: [])].
+  here := t.
+  seq do: [| :each | here := here children at: each ifAbsent: []].
   here
 ].
 
@@ -173,12 +172,12 @@ t@(Trie traits) at: s@(Sequence traits)
 t@(Trie traits) nearestNodeFor: seq
 "Returns the Trie node that completes the greatest part of the Sequence."
 [| here next cursor |
-  here: t.
-  next: t.
-  cursor: 0.
+  here := t.
+  next := t.
+  cursor := 0.
   [next isNil] whileFalse:
-    [next: (here children at: (seq at: cursor) ifAbsent: []).
-     next ifNotNil: [here: next. cursor: cursor + 1]].
+    [next := (here children at: (seq at: cursor) ifAbsent: []).
+     next ifNotNil: [here := next. cursor := cursor + 1]].
   here
 ].
 
@@ -186,21 +185,21 @@ t@(Trie traits) at: s@(Sequence traits) put: obj
 "Traverse down the Trie, adding nodes once an element isn't found.
 Annotate the final node with the given element."
 [| here next cursor |
-  here: t.
-  next: t.
-  cursor: 0.
+  here := t.
+  next := t.
+  cursor := 0.
   [next isNil \/ [cursor = s size]] whileFalse:
-    [next: (here children at: (s at: cursor) ifAbsent: []).
-     next ifNotNil: [here: next. cursor: cursor + 1]].
+    [next := (here children at: (s at: cursor) ifAbsent: []).
+     next ifNotNil: [here := next. cursor := cursor + 1]].
   "here is now at the last existing relevant Trie node.
   cursor is the index within the Sequence of the next element to add."
   cursor below: s size do:
     [| :index |
-      next: t new.
+      next := t new.
       here children at: (s at: index) put: next.
-      next treeParent: here.
-      here: next].
-  here element: obj.
+      next treeParent := here.
+      here := next].
+  here element := obj.
   obj
 ].
 
@@ -215,21 +214,21 @@ t@(Trie traits) remove: s@(Sequence traits)
 delete nodes with no element but the argument and move back up the tree.
 This returns the keyed value if there is one."
 [| next here lastPoint |
-  here: t.
-  next: t.
-  lastPoint: 0.
+  here := t.
+  next := t.
+  lastPoint := 0.
   [next isNil] whileFalse:
     [s doWithIndex: [| :each :index |
-     next: (here children at: each ifAbsent: []).
-     next ifNotNil: [lastPoint: index. here: next]]].
-  here element: Nil.
+     next := (here children at: each ifAbsent: []).
+     next ifNotNil: [lastPoint := index. here := next]]].
+  here element := Nil.
   [here element isNil /\ [here children size <= 1]] whileTrue:
     [| temp |
-     temp: here.
-     here: here treeParent.
+     temp := here.
+     here := here treeParent.
      here ifNil: [^ s]
 	  ifNotNil: [here children keysAndValuesRemove:
 	      [| :key :value | value == temp].
-	    temp treeParent: Nil]].
+	    temp treeParent := Nil]].
   s
 ].

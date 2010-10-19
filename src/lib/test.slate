@@ -21,7 +21,7 @@ testing ensureNamespace: #BenchmarkTests.
 testing@(testing) runAllTests
 "Run all tests in any namespace down from here. (With a strange recursion)"
 [| runnerBlock |
-  runnerBlock:
+  runnerBlock :=
     [| :ns |
       ns slotValuesDo:
         [| :value |
@@ -47,7 +47,7 @@ testing@(testing) runAllTests
 
 _@(testing) runAllBenchmarks
 [| runnerBlock |
-  runnerBlock: [| :ns |
+  runnerBlock := [| :ns |
     ns slotValuesDo: [| :value |
       (value is: Namespace)
         ifTrue: [runnerBlock applyWith: value]
@@ -98,17 +98,17 @@ tc1@(TestCase traits) <= tc2@(TestCase traits)
 
 tc@(TestCase traits) copy
 [
-  resend `>> [selector: tc selector copy. ]
+  resend `>> [selector := tc selector copy. ]
 ].
 
 tc@(TestCase traits) newForSelector: selector
 [
-  tc copy `>> [selector: selector. ]
+  tc copy `>> [selector := selector. ]
 ].
 
 tc@(TestCase traits) suiteForSelectors: selectors
 [| suite |
-  suite: TestSuite new.
+  suite := TestSuite new.
   suite tests
     addAll: (selectors collect: [| :sel |
       tc newForSelector: sel]).
@@ -122,7 +122,7 @@ tc@(TestCase traits) suite
 
 tc@(TestCase traits) runSuite
 [| suite |
-  suite: tc suite.
+  suite := tc suite.
   suite run
 ].
 
@@ -203,12 +203,12 @@ tc@(TestCase traits) defaultResources
 
 tc@(TestCase traits) resources
 [| result queue |
-  result: SortedSet new.
-  queue: ExtensibleArray new.
+  result := SortedSet new.
+  queue := ExtensibleArray new.
   queue addAll: tc defaultResources.
   [queue isEmpty] whileFalse:
     [| next |
-     next: queue removeFirst.
+     next := queue removeFirst.
      result include: next.
      queue addAll: next resources].
   result
@@ -216,8 +216,7 @@ tc@(TestCase traits) resources
 
 tc@(TestCase traits) areResourcesAvailable
 [
-  tc resources inject: True into:
-    [| :total :each | each isAvailable /\ total]
+  tc resources allSatisfy: #isAvailable `er
 ].
 
 "TODO
@@ -288,9 +287,9 @@ extend the reporting facilities."
 tr@(TestResult traits) new
 [
   tr copy `>> [
-    failures: tr failures new.
-    errors: tr errors new.
-    passed: tr passed new. ]
+    failures := tr failures new.
+    errors := tr errors new.
+    passed := tr passed new. ]
 ].
 
 tr@(TestResult traits) failureCount
@@ -366,7 +365,7 @@ tr@(TestResult traits) printOn: s
 tc@(TestCase traits) run: result
 "Override this for specialized result types in order to handle reporting."
 [| passed |
-  passed: ([[tc runCase. True]
+  passed := ([[tc runCase. True]
        on: TestFailure
        do: [| :failure |
             tc logErrors ifTrue: [failure describeOn: (tc failureLog)].
@@ -381,7 +380,7 @@ tc@(TestCase traits) run: result
 
 tc@(TestCase traits) run
 [| result |
-  result: TestResult new.
+  result := TestResult new.
   tc run: result.
   result
 ].
@@ -401,7 +400,7 @@ is non-trivial but important."
 
 ts@(TestSuite traits) newNamed: name
 [
-  ts new `>> [testName: name. ]
+  ts new `>> [testName := name. ]
 ].
 
 ts@(TestSuite traits) defaultResources
@@ -414,9 +413,7 @@ ts@(TestSuite traits) defaultResources
 ts@(TestSuite traits) isAvailable
 "Whether all resources are available."
 [
-  ts resources
-    inject: True
-    into: [| :result :each | each isAvailable /\ result]
+  ts resources allSatisfy: #isAvailable `er
 ].
 
 ts@(TestSuite traits) run: result
@@ -429,7 +426,7 @@ ts@(TestSuite traits) run: result
 
 ts@(TestSuite traits) run
 [| result |
-  result: TestResult new.
+  result := TestResult new.
   ts resources
     do: [| :each | each isAvailable
 		ifFalse: [error: 'Resource not available: ' ; each]].

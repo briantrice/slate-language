@@ -15,9 +15,9 @@ i@(Inspector traits) newOn: obj
 
 _@(Namespace traits) inspect: obj
 [| i |
-  i: (Inspector newOn: obj).
+  i := (Inspector newOn: obj).
   here inform: 'You are in a twisty little maze of objects, all alike.'.
-  i entryPoint: here.
+  i entryPoint := here.
   i entryPoint addDelegate: i.
   obj
 ].
@@ -49,7 +49,7 @@ i@(Inspector traits) slots
 
 i@(Inspector traits) indexedSlots
 [| s |
-  s: Console writer.
+  s := Console writer.
   (i here is: Sequence)
     ifFalse: [^ Nil].
   s nextPut: ${.
@@ -65,7 +65,7 @@ i@(Inspector traits) parents
 i@(Inspector traits) visit: obj
 [
   i trail push: i here.
-  i here: obj.
+  i here := obj.
   i here
 ].
 
@@ -84,20 +84,20 @@ i@(Inspector traits) go: index@(Integer traits)
 i@(Inspector traits) back
 "Moves the last context off the trail Stack and makes it it."
 [
-  i here: i trail pop
+  i here := i trail pop
 ].
 
 i@(Inspector traits) back: n
 "Moves the last n contexts off the trail Stack and makes the last one here."
 [
-  n timesRepeat: [i here: i trail pop]
+  n timesRepeat: [i here := i trail pop]
 ].
 
 i@(Inspector traits) backToStart
 "Clears the trail stack and returns the inspector to the original object
 inspected."
 [
-  i here: i trail bottom.
+  i here := i trail bottom.
   i trail clear.
   i trail push: i here
 ].
@@ -106,8 +106,8 @@ i@(Inspector traits) close
 "Sever all the connections that make the Inspector work, for memory safety,
 and return the Inspector."
 [
-  i here: Nil.
-  i trail: Nil.
+  i here := Nil.
+  i trail := Nil.
   i entryPoint removeSlot: #inspector.
   i
 ].

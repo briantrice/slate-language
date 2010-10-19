@@ -59,17 +59,17 @@ s@(TraversalStream traits) on: x &traversal: traversal &childrenVia: childrenBlo
 Set up the traversal order parameters as needed."
 [
   traversal ifNotNil:
-    [s todo: (s todo as: (traversal caseOf:
+    [s todo := (s todo as: (traversal caseOf:
 	{BreadthFirst -> [Queue].
          DepthFirst -> [Stack]} otherwise: [s todo]))].
   s todo push: x.
-  s seen: s seen new.
-  childrenBlock ifNotNil: [s childrenBlock: childrenBlock].
+  s seen := s seen new.
+  childrenBlock ifNotNil: [s childrenBlock := childrenBlock].
   s
 ].
 
 s@(TraversalStream traits) reset
-[s seen: s seen new. s todo: s todo new. ].
+[s seen := s seen new. s todo := s todo new. ].
 
 s@(TraversalStream traits) newOn: x &traversal: traversal &childrenVia: childrenBlock
 [s clone `>> [reset. on: x &traversal: traversal &childrenVia: childrenBlock. ]].
@@ -113,7 +113,7 @@ s@(TraversalStream traits) next
 "Pop the todo list, mark it visited, and use the childrenBlock to push onto
 the todo list unseen elements from it."
 [| result |
-  result: s todo pop.
+  result := s todo pop.
   s visit: result.
   ((s childrenOf: result) reader
     reject: [| :c | (s alreadyVisited: c) \/ [s cannotVisit: c]])

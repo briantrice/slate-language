@@ -32,31 +32,31 @@ p@(Profile traits) newFor: block
 
 p@(Profile traits) parseResults
 [| id totalTime |
-  p results: p results new.
-  id: 1.
-  totalTime: p totalTime zero.
+  p results := p results new.
+  id := 1.
+  totalTime := p totalTime zero.
   p rawResults do:
     [| :method :callCount :selfTime :childCounts :childTimes countDict timeDict cumTime entry |
      method
-       ifNotNil: [totalTime: totalTime + selfTime.
-                  cumTime: selfTime.
-                  countDict: Dictionary new.
-                  timeDict: Dictionary new.
+       ifNotNil: [totalTime := totalTime + selfTime.
+                  cumTime := selfTime.
+                  countDict := Dictionary new.
+                  timeDict := Dictionary new.
                   childCounts do: [| :key :val | key ifNotNil: [countDict at: key put: val]] inGroupsOf: 2.
-                  childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime: cumTime + val]]] inGroupsOf: 2.
-                  entry: (p Entry clone `setting: #{#id. #method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime}
-                            to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }).
+                  childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime := cumTime + val]]] inGroupsOf: 2.
+                  entry := p Entry clone `setting: #{#id. #method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime}
+                    to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }.
                   p results at: method put: entry.
-                  id: id + 1].
+                  id := id + 1].
  ] inGroupsOf: 5.
-  p totalTime: totalTime.
+  p totalTime := totalTime.
 ].
 
 p@(Profile traits) run
 [
   [lobby startProfiling.
    p method do] ensure:
-     [p rawResults: lobby stopProfiling].
+     [p rawResults := lobby stopProfiling].
   p parseResults.
 ].
 
@@ -73,10 +73,10 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
      out ; 'digraph {\ngraph [ranksep=0.25, fontname=Arial, nodesep=0.125];\n'
          ; 'node [fontname=Arial, style=\"filled,rounded\", height=0, width=0, shape=box, fontcolor=white];\n'
          ; 'edge [fontname=Arial];\n'.
-     results: (p results sort last: maxCount).
-     resultsMethods: (results collect: #method `er).
+     results := p results sort last: maxCount.
+     resultsMethods := results collect: #method `er.
      results do: [| :entry name totalChildTime |
-                  name: (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
+                  name := (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
                   out ; entry id ; ' [color="#000000", fontcolor="#ffffff", fontsize="10.00", '
                       ; 'label="' ; name ; '\\n total: '
                       ; (((entry cumulativeTime / 1000000.0) roundTo: 0.01) as: String)
@@ -85,13 +85,13 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                       ; ' sec \\ncalled: '
                       ; entry callCount printString ; '"]\n'.
 
-                  totalChildTime: 0.
-                  entry childCallTime valuesDo: [|:childTime | totalChildTime: totalChildTime + childTime].
-                  totalChildTime = 0 ifTrue: [totalChildTime: 1].
+                  totalChildTime := 0.
+                  entry childCallTime valuesDo: [|:childTime | totalChildTime := totalChildTime + childTime].
+                  totalChildTime = 0 ifTrue: [totalChildTime := 1].
                   entry childCallCounts keysAndValuesDo:
                     [| :childMethod :childCallCount childTime |
                        (resultsMethods identityIncludes: childMethod)
-                         ifTrue: [childTime: (entry childCallTime at: childMethod ifAbsent: [-1]).
+                         ifTrue: [childTime := entry childCallTime at: childMethod ifAbsent: [-1].
                                   out ; entry id ; ' -> ' ; (p results at: childMethod) id
                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
                                       "; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'"
