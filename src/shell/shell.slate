@@ -15,13 +15,13 @@ Shell FormatSpecification traits define: #codes -> (Dictionary new*,
 
 ffs@(Shell FormatSpecification traits) newFrom: s@(String traits)
 [| input writer |
-  writer: ExtensibleArray new writer.
-  input: s reader.
+  writer := ExtensibleArray new writer.
+  input := s reader.
   writer nextPut: (input upTo: $%).
   input do: [| :each |
     writer nextPut: (Shell FormatSpecification codes at: each ifAbsent: [error: 'bad code: ' ; each printString]).
     writer nextPut: (input upTo: $%)].
-  ffs new `>> [spec: (writer contents reject: [| :each | (each is: String) /\ [each isEmpty]]). ]
+  ffs new `>> [spec := (writer contents reject: [| :each | (each is: String) /\ [each isEmpty]]). ]
 ].
 
 ffs@(Shell FormatSpecification traits) format: f@(File Locator traits)
@@ -46,12 +46,12 @@ l maskedEntries: mask@(Regex Regex traits) do: block
 
 l@(File Locator traits) maskedEntries: mask do: block
 [ 
-  (Directory new `>> [locator: l. ]) maskedEntries: mask do: block
+  (Directory new `>> [locator := l. ]) maskedEntries: mask do: block
 ].
 
 d@(Directory traits) collectMasked: mask
 [
-  [|:result| d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
+  [| :result | d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
 ].
 
 d@(File Locator traits) /* mask
@@ -63,37 +63,38 @@ d@(Directory traits) /* mask
 d@(Directory traits) maskedEntries: mask do: block
 [ 
   d reader reset
-    do: [|:each| (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
+    do: [| :each | (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
 ].
 
 a@(Shell FileCollection traits) format: formatString@(String traits)
-[ | fmtSpec |
-  fmtSpec: (Shell FormatSpecification newFrom: formatString).
-  a collect: [|:each| fmtSpec format: each]
+[| fmtSpec |
+  fmtSpec := (Shell FormatSpecification newFrom: formatString).
+  a collect: [| :each | fmtSpec format: each]
 ].
 
 a@(Shell FileCollection traits) format*
-[ | *args fmtSpecs |
-  fmtSpecs: (args collect: [|:each| Shell FormatSpecification newFrom: each]).
+[| *args fmtSpecs |
+  fmtSpecs := (args collect: [|:each| Shell FormatSpecification newFrom: each]).
   a collect: [|:each| fmtSpecs collect: [|:spec| spec format: each]]
 ].
 
 d@(Directory traits) find: block &maxDepth: maxDepth
-[ | result |
+[| result |
   maxDepth `defaultsTo: PositiveInfinity.
-  result: Shell FileSet new writer.
+  result := Shell FileSet new writer.
   d select: block into: result depth: maxDepth.
   result contents
 ].
 
 d@(Directory traits) select: block into: result depth: maxDepth
-[ | entries reader |
+[| entries reader |
   maxDepth isZero ifTrue: [^ Nil].
-  entries: (d entries collect: [|:each| (File RelativeLocator newFrom: d) `>> [readPathElementsFrom: each reader. ]]).
-  reader: entries reader.
+  entries := d entries collect: [|:each| (File RelativeLocator newFrom: d) `>> [readPathElementsFrom: each reader. ]].
+  reader := entries reader.
   (reader select: block) >> result.
-  entries do: [ |:each info | info: each fileInfo. 
-                              info isNotNil /\ [info isDirectory] /\ [info isLink not]
-                                /\ [each name ~= '..'] /\ [each name ~= '.']
-                                ifTrue: [(d childNamed: each name) select: block into: result depth: maxDepth - 1]].
+  entries do:
+    [| :each info |
+     (info := each fileInfo) isNotNil /\ [info isDirectory] /\ [info isLink not]
+       /\ [each name ~= '..'] /\ [each name ~= '.']
+       ifTrue: [(d childNamed: each name) select: block into: result depth: maxDepth - 1]].
 ].

@@ -13,42 +13,40 @@ Shell define: #MaskPatternAnyOne &parents: {Shell MaskPatternComponent}.
 
 mp@(Shell MaskPattern traits) newOn: s@(String traits)
 [
-  mp components: ExtensibleArray new.
+  mp components := ExtensibleArray new.
   mp readFrom: s reader.
   mp
 ].
 
 mp@(Shell MaskPattern traits) readFrom: s@(ReadStream traits)
 [| prev matcher |
-  prev: '' writer.
-  matcher: mp components writer.
+  prev := '' writer.
+  matcher := mp components writer.
   s do: 
-    [|:token| ({$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
-                ifTrue: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ]).
-                         prev: '' writer].
+    [| :token | ({$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
+                ifTrue: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string := prev contents. ]).
+                         prev := '' writer].
                 token caseOf: {
                   $*  -> [matcher nextPut: Shell MaskPatternAny].
                   $?  -> [matcher nextPut: Shell MaskPatternAnyOne].
-                  $\[ -> [matcher nextPut: (mp readRange: (s upTo: $\]))].
+                  $\[ -> [matcher nextPut: (mp readRange := (s upTo: $\]))].
                 } otherwise: [prev nextPut: token]].
 
-  prev contents isEmpty ifFalse: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string: prev contents. ])].
-  mp components: matcher contents.
+  prev contents isEmpty ifFalse: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string := prev contents. ])].
+  mp components := matcher contents.
 ].
 
 mp@(Shell MaskPattern traits) readRange: str@(String traits)
 [| p char2 s |
-  s: str reader.
-  p: Shell MaskPatternRange new.
-  p ranges: ExtensibleArray new.
+  s := str reader.
+  p := Shell MaskPatternRange new.
+  p ranges := ExtensibleArray new.
 
-  char2: s peek.
-  char2 = $^ \/ [char2 = $!] ifTrue: [p negate: True] ifFalse: [p negate: False].
+  p negate := '^!' includes: (char2 := s peek).
 
   s do:
     [| :char |
-     char2: s peek.
-     char2 = $- 
+     (char2 := s peek) = $- 
        ifTrue: [s next. p ranges addLast: char -> s next]
        ifFalse: [p ranges addLast: char]].
   p
@@ -56,25 +54,26 @@ mp@(Shell MaskPattern traits) readRange: str@(String traits)
 
 mp@(Shell MaskPattern traits) match: str@(String traits) from: pos
 [
-  (Shell MaskPatternMatcher new `>> [maskPattern: mp. reader: mp components reader. ]) match: str from: pos
+  (Shell MaskPatternMatcher new `>> [maskPattern := mp. reader := mp components reader. ]) match: str from: pos
 ].
 
 mp@(Shell MaskPatternMatcher traits) match: str@(String traits) from: pos
 [
   "inform: 'match reader: ' ; mp reader printString ;  ' pos: ' ; pos printString."
   mp reader do:
-    [|:token| (token isSameAs: Shell MaskPatternAny)
-                ifTrue: [str size downTo: pos do:
-                           [|:start | ((mp new `>> [reader: mp reader clone. ]) match: str from: start) = str size 
-                                        ifTrue: [^ str size]]]
-                ifFalse: [pos: (token match: str from: pos).
-                          pos == Shell MaskPatternFailure ifTrue: [^ pos]]].
+    [| :token |
+     (token isSameAs: Shell MaskPatternAny)
+       ifTrue: [str size downTo: pos do:
+                  [|:start | ((mp new `>> [reader := mp reader clone. ]) match: str from: start) = str size 
+                               ifTrue: [^ str size]]]
+       ifFalse: [(pos := (token match: str from: pos))
+                   == Shell MaskPatternFailure ifTrue: [^ pos]]].
   pos
 ].
 
 mp@(Shell MaskPattern traits) matches: str@(String traits)
 [ | match |
-  match: (mp match: str from: 0).
+  match := mp match: str from: 0.
   match ~== Shell MaskPatternFailure /\ [match = str size]
 ].
 
