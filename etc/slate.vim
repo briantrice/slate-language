@@ -13,6 +13,8 @@ endif
 syn keyword	slateOddballs	True False Nil
 syn match	slateControl	"\<resend\>"
 syn match	slateControl	"\^"
+syn match	slateControl	":="
+syn match	slateControl	"=:="
 syn match	slateControl	"@"
 syn match	slateIgnore	"_"
 syn match	slateArgument	":"

@@ -18,6 +18,7 @@ mandir      = $(prefix)/share/man
 man1dir     = $(mandir)/man1
 infodir     = $(prefix)/info
 lispdir     = $(prefix)/share/emacs/site-lisp
+vimdir      = $(prefix)/share/vim
 DEVNULL     := /dev/null
 
 ## Build modes. Set on command line using QUIET=1, DEBUG=1 or PROFILE=1

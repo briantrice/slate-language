@@ -231,10 +231,10 @@
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
-    ("=?:="
+    ("\\(=?:=\\|\\<^\\)\\>"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; quotation syntax
+      'font-lock-builtin-face)) ; assignment/match/unify/return specials
     ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
@@ -260,7 +260,6 @@
      . font-lock-warning-face)        ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
      . font-lock-type-face)        ; traits name
-    ("\\<\\^\\>" . font-lock-warning-face)    ; return
     ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
      . font-lock-keyword-face)        ; globals

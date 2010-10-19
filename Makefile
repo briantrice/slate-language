@@ -27,6 +27,8 @@ install: vm installdirs
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/$(DEFAULT_IMAGE) $(datadir)/$(DEFAULT_IMAGE)
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(VMDIR)/slate.hpp $(includedir)/slate.hpp
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate-mode.el $(lispdir)/
+	$(SILENT) mkdir -p $(vimdir)
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.vim $(vimdir)/
 	$(SILENT) cat $(slateroot)/etc/slate.1 | sed -e 's/$${prefix}/$(subst /,\/,$(prefix))/g' | $(GZIP) -c > $(slateroot)/etc/slate.1.gz
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.gz $(man1dir)
 
