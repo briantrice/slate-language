@@ -90,7 +90,7 @@ parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
             [parser check: token is: parser EndParenthesisStatementTokens.
              statements nextPut:
                (parser nextAsStatement ifNil: [Syntax Literal Nil])]]
-       writingAs: {}) as: Syntax Parenthesis]
+       writingAs: #{}) as: Syntax Parenthesis]
 ].
 
 _@(Syntax tokens BeginParenthesis traits) signifier ['('].
@@ -116,7 +116,7 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
              token: parser peekToken.
              parser check: token is: parser EndArrayStatementTokens.
              (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
-       parser nextToken] writingAs: {}) as: Syntax Array]
+       parser nextToken] writingAs: #{}) as: Syntax Array]
 ].
 
 _@(Syntax tokens BeginArray traits) signifier ['{'].
@@ -151,7 +151,7 @@ parser nextLiteralFrom: _@(Syntax tokens BeginLiteralParenthesis traits)
       [token: parser peekToken.
        token isSameAs: Syntax EndParenthesis]
          whileFalse: [elements nextPut: parser nextLiteral].
-      parser nextToken] writingAs: {}]
+      parser nextToken] writingAs: #{}]
 ].
 
 _@(Syntax tokens BeginLiteralParenthesis traits) signifier ['#('].

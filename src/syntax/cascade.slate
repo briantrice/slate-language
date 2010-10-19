@@ -94,7 +94,7 @@ necessary."
     ifNil:
       [body as: Syntax Parenthesis]
     ifNotNil:
-      [block inputVariables: {}.
+      [block inputVariables: #{}.
        block statements: body.
        Syntax UnaryMessage sending: #do to: {block}]
 ].
@@ -104,28 +104,28 @@ source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valu
 setting a bunch of slot values."
 [| cascade statements |
   cascade: Syntax Block new.
-  cascade inputVariables: {}.
+  cascade inputVariables: #{}.
   cascade statements:
     ([| :out |
       slotsArray value with: valuesArray statements do:
         [| :name :value |
          out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
                                              to: {Syntax ImplicitArgument. value})].
-      out nextPut: Syntax Literal Nil] writingAs: {}).
+      out nextPut: Syntax Literal Nil] writingAs: #{}).
   source >> cascade &environment: env
 ].
 
 source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray@(Syntax Literal traits) &environment: env
 [| cascade statements |
   cascade: Syntax Block new.
-  cascade inputVariables: {}.
+  cascade inputVariables: #{}.
   cascade statements:
     ([| :out |
       slotsArray value with: valuesArray value do:
         [| :name :value |
          out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
                                              to: {Syntax ImplicitArgument. Syntax Literal for: value})].
-      out nextPut: Syntax Literal Nil] writingAs: {}).
+      out nextPut: Syntax Literal Nil] writingAs: #{}).
   source >> cascade &environment: env
 ].
 
@@ -180,7 +180,7 @@ source code."
       [body as: Syntax Parenthesis]
     ifNotNil:
       [block localVariables: (block localVariables difference: block inputVariables).
-        block inputVariables: {}.
+        block inputVariables: #{}.
         block statements: body.
         Syntax UnaryMessage sending: #do to: {block}]
 ].
