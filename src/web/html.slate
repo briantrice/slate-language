@@ -1,0 +1,91 @@
+lobby ensureNamespace: #Html.
+
+Html define: #Builder &parents: {Cloneable} &slots: {
+  #tag -> ''.
+  #attributes -> Dictionary new.
+  #children -> ExtensibleArray new.
+  #environment.
+}.
+
+Html define: #SingletonTags &builder:
+  [#{'base'. 'meta'. 'link'. 'hr'. 'br'. 'param'.
+     'img'. 'area'. 'input'. 'col'. 'frame'}].
+
+b@(Html Builder traits) new &tag: tag &attributes: attributes
+[
+  b clone `>>
+    [tag := (tag ifNil: ['']).
+     attributes := (attributes ifNil: [b attributes new]).
+     children := b children new. ]
+].
+
+b@(Html Builder traits) didNotUnderstand: message at: position
+[
+  [| tag attributes builder |
+   tag := (message selector as: b tag).
+   attributes := b attributes new.
+
+   message optionals doWithIndex:
+     [| :op :i |
+      (op isSameAs: Symbol) ifTrue:
+        [| key val |
+         key := (op as: b tag) allButFirst allButLast.
+         val := ((message optionals at: i + 1) as: b tag).
+         attributes at: key put: val]].
+
+   message selector isUnarySelector
+     ifTrue:
+       [b children append: (b new &tag: tag &attributes: attributes)]
+     ifFalse:
+       [(tag splitWith: $:) doWithIndex:
+          [| :tag :i builder child |
+           builder := (b new &attributes: attributes &tag: tag).
+           child := (message arguments at: i + 1).
+           (child is: Method)
+             ifTrue:
+               [builder environment := child environment.
+                child environment := builder.
+                child do]
+             ifFalse: [builder children append: child].
+           b children append: builder].
+        b]
+  ]
+].
+
+b@(Html Builder traits) text: s@(String traits)
+[
+  b children append: s.
+  b
+].
+
+b@(Html Builder traits) writeOn: out
+[
+  b write: b on: out writer
+].
+
+b@(Html Builder traits) write: s@(String traits) on: out
+[out ; s].
+
+b@(Html Builder traits) write: m@(Method traits) on: out
+[b write: m do on: out].
+
+_@(Html Builder traits) write: b@(Html Builder traits) on: out
+[
+  b tag isEmpty ifFalse:
+    [out ; '<' ; b tag.
+     b attributes keysAndValuesDo:
+       [| :key :value | out ; ' ' ; key ; '="' ; value ; '"']].
+  b children isEmpty /\ [Html SingletonTags includes: b tag]
+    ifTrue: [out ; ' />']
+    ifFalse:
+      [b tag isEmpty ifFalse: [out ; '>'].
+       b children do: [| :child | b write: child on: out].
+       b tag isEmpty ifFalse: [out ; '</' ; b tag ; '>']].
+].
+
+h@Html outputFrom: m@(Method traits)
+[| builder |
+  builder := h Builder new.
+  m apply*, builder.
+  builder as: builder tag
+].

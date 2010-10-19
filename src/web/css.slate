@@ -1,0 +1,55 @@
+lobby ensureNamespace: #CSS.
+
+CSS define: #Builder &parents: {Cloneable} &slots: {
+  #rules -> ExtensibleArray new.
+}.
+
+CSS define: #Property &parents: {Association}.
+
+b@(CSS Builder traits) new
+[b clone `>> [rules := b rules new. ]].
+
+b@(CSS Builder traits) new: rulesets@(Method traits)
+[
+  b := b new.
+  rulesets environment := b.
+  rulesets do.
+  b
+].
+
+CSS define: #Ruleset &parents: {Cloneable} &slots: {
+  #selector.
+  #properties -> ExtensibleArray new.
+}.
+
+r@(CSS Ruleset traits) new
+[r clone `>> [properties := r properties new. ]].
+
+b@(CSS Builder traits) in: selector@(String traits) apply: properties@(Method traits)
+[| rule |
+  rule := CSS Ruleset new `>> [selector := selector. ].
+
+  properties environment := rule.
+  properties do.
+
+  b rules append: rule.
+  b
+].
+
+r@(CSS Ruleset traits) didNotUnderstand: message at: position
+[[
+  r properties append: CSS Property new `>>
+    [key := (message selector as: String) allButLast. " Exclude the :"
+     value := message arguments second printString. ].
+  r
+ ]
+].
+
+b@(CSS Builder traits) as: s@(String traits)
+[(b rules collect: (#as: `er <-2 s)) join].
+
+r@(CSS Ruleset traits) as: s@(String traits)
+[r selector ; ' {' ; (r properties collect: (#as: `er <-2 s)) join ; '}'].
+
+p@(CSS Property traits) as: _@(String traits)
+[p key ; ': ' ; p value ; ';' ].

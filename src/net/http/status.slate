@@ -1,0 +1,66 @@
+Http define: #Status &parents: {Cloneable} &slots: {
+  #name -> ''.
+  #code -> 0.
+  #text -> ''.
+}.
+
+hs@(Http Status) as: s@(String traits) [(hs code as: s) ; ' ' ; hs text].
+
+Http Status traits define: #Responses -> Dictionary new.
+
+Http Status traits define: #Classes &builder:
+  [#{'Informational'. 'OK'. 'Redirection'. 'Client Error'. 'Server Error'}].
+
+hs@(Http Status traits) className [hs Classes at: hs code // 100 - 1].
+
+hs@(Http Status traits) instancesSetting: slotNames to: values
+[
+  resend `>> [do: [| :each | hs Responses at: each name put: each]]
+].
+
+Http Status instancesSetting: #{#name. #code. #text} to: #{
+  {#Continue.                     100. 'Continue'}.
+  {#SwitchingProtocols.           101. 'Switching Protocols'}.
+
+  {#OK.                           200. 'OK'}.
+  {#Created.                      201. 'Created'}.
+  {#Accepted.                     202. 'Accepted'}.
+  {#NonAuthoritativeInfo.         203. 'Non-Authoritative Information'}.
+  {#NoContent.                    204. 'No Content'}.
+  {#ResetContent.                 205. 'Reset Content'}.
+  {#PartialContent.               206. 'Partial Content'}.
+
+  {#MultipleChoices.              300. 'Multiple Choices'}.
+  {#MovedPermanently.             301. 'Moved Permanently'}.
+  {#Found.                        302. 'Found'}.
+  {#SeeOther.                     303. 'See Other'}.
+  {#NotModified.                  304. 'Not Modified'}.
+  {#UseProxy.                     305. 'Use Proxy'}.
+  {#TemporaryRedirect.            307. 'Temporary Redirect'}.
+
+  {#BadRequest.                   400. 'Bad Request'}.
+  {#Unauthorized.                 401. 'Unauthorized'}.
+  {#PaymentRequired.              402. 'Payment Required'}.
+  {#Forbidden.                    403. 'Forbidden'}.
+  {#NotFound.                     404. 'Not Found'}.
+  {#MethodNotAllowed.             405. 'Method Not Allowed'}.
+  {#NotAcceptable.                406. 'Not Acceptable'}.
+  {#ProxyAuthRequired.            407. 'Proxy Authentication Required'}.
+  {#RequestTimeout.               408. 'Request Timeout'}.
+  {#Conflict.                     409. 'Conflict'}.
+  {#Gone.                         410. 'Gone'}.
+  {#LengthRequired.               411. 'Length Required'}.
+  {#PreconditionFailed.           412. 'Precondition Failed'}.
+  {#RequestEntityTooLarge.        413. 'Request Entity Too Large'}.
+  {#RequestURITooLong.            414. 'Request URI Too Long'}.
+  {#UnsupportedMediaType.         415. 'Unsupported Media Type'}.
+  {#RequestedRangeNotSatisfiable. 416. 'Requested Range Not Satisfiable'}.
+  {#ExpectationFailed.            417. 'ExpectationFailed'}.
+
+  {#InternalServerError.          500. 'Internal Server Error'}.
+  {#NotImplemented.               501. 'Not Implemented'}.
+  {#BadGateway.                   502. 'Bad Gateway'}.
+  {#ServiceUnavailable.           503. 'Service Unavailable'}.
+  {#GatewayTimeout.               504. 'Gateway Timeout'}.
+  {#HTTPVersionNotSupported.      505. 'HTTP Version Not Supported'}
+}.

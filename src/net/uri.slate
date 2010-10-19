@@ -96,20 +96,20 @@ both URIs have already been parsed.
     /\ [rel query isNil]
     ifTrue: [^ rel].
   "Use rel's query and fragment, and abs's scheme."
-  result: (abs cloneSettingSlots: #{#query. #fragment. #scheme}
+  result := (abs cloneSettingSlots: #{#query. #fragment. #scheme}
 	       to: {rel query. rel fragment. abs scheme}).
   "If rel's authority is defined, use it, or else use abs's."
   rel authority
     ifNil:
-      [result authority: abs authority.
+      [result authority := abs authority.
        rel path isEmpty not
 	 /\ [rel path first = '']
-	 ifTrue: [result path: rel path]
+	 ifTrue: [result path := rel path]
 	 ifFalse:
 	   [| resultPath dotDotIndex |
 	    "Copy all but the last segment of abs path to a buffer.
 	     Append rel path to the buffer."
-	    resultPath: (abs path allButLast ; rel path as: ExtensibleArray).
+	    resultPath := (abs path allButLast ; rel path as: ExtensibleArray).
 	    resultPath isEmpty not
 	      /\ [resultPath first ~= '']
 	      ifTrue: [resultPath addFirst: ''].
@@ -123,19 +123,19 @@ both URIs have already been parsed.
 	    "If the last segment is '..', preserve a trailing slash."
 	    resultPath last = '..' ifTrue: [resultPath addLast: ''].
 	    "Find occurrences of '..' from the left."
-	    dotDotIndex: 0.
-	    [dotDotIndex: (resultPath indexOf: '..' startingAt: dotDotIndex).
+	    dotDotIndex := 0.
+	    [dotDotIndex := (resultPath indexOf: '..' startingAt: dotDotIndex).
 	     dotDotIndex isNil]
 	      whileFalse:
 		[dotDotIndex = 1
 		   ifTrue: "Do not remove a leading slash."
-		     [dotDotIndex: dotDotIndex + 1]
+		     [dotDotIndex := dotDotIndex + 1]
 		   ifFalse: "Remove the '..' and the preceding element."
 		     [resultPath at: dotDotIndex - 1 remove: 2]].
-	    result path: resultPath]]
+	    result path := resultPath]]
     ifNotNil:
-      [result authority: rel authority.
-       result path: rel path].
+      [result authority := rel authority.
+       result path := rel path].
   result
 ].
 
@@ -149,7 +149,7 @@ u@(Net OpaqueURI traits) printSchemeSpecificPartOn: encoder
 
 u@(Net URI traits) newFrom: s
 [| r | 
-  r: (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
+  r := (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r match: s) ~= -1
     ifTrue: [u cloneSettingSlots: #{#scheme. #authority. #path. #query. #fragment}
 		     to: {(r subexpression: 1) as: Net Schemes Scheme.
@@ -173,30 +173,27 @@ u@(Net URI traits) as: s@(String traits)
 
 u@(Net URI traits) testParsing
 [| myurl |
-  myurl: (uri readFrom: 'http://localhost/~jewel/moo').
+  myurl := (uri readFrom: 'http://localhost/~jewel/moo').
   myurl actor contents print.
 ].
-
 
 Net define: #URL &parents: {Net HierarchicalURI} &slots: {}.
 
 Net define: #URLPathEncoder &parents: {Encoder}.
 
-
 c@(Net URLPathEncoder traits) convert
-[ | byte1 byte2 byte3 digit1 digit2|
+[| byte1 byte2 byte3 digit1 digit2|
   [c in isAtEnd] whileFalse:
-    [byte1: c in next.
+    [byte1 := c in next.
      byte1 caseOf: {
        $+ -> [c out nextPut: $\s].
-       $% -> [byte2: c in next. 
-              byte3: c in next.
-              digit1: (byte2 toDigit: 16).
-              digit2: (byte3 toDigit: 16).
+       $% -> [byte2 := c in next. 
+              byte3 := c in next.
+              digit1 := (byte2 toDigit: 16).
+              digit2 := (byte3 toDigit: 16).
               digit1 isNil \/ [digit2 isNil] ifTrue: [error: 'Error reading hex sequence after %'].
               c out nextPut: (digit1 * 16 + digit2 as: c out elementType)].
-     } otherwise: [c out nextPut: byte1].
-     ].
+     } otherwise: [c out nextPut: byte1]].
 ].
 
 

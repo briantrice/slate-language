@@ -9,7 +9,7 @@ Dom define: #DomObject &parents: {Cloneable}.
 
 Dom define: #DomException &parents: {Error} &slots: {#code -> 0}.
 
-Dom define: #DomErrors &builder: [|d| d: Dictionary new.
+Dom define: #DomErrors &builder: [|d| d := Dictionary new.
                                   {
 #INDEX_SIZE_ERR                 -> 1.
 #DOMSTRING_SIZE_ERR             -> 2.
@@ -29,13 +29,13 @@ Dom define: #DomErrors &builder: [|d| d: Dictionary new.
 #VALIDATION_ERR                 -> 16.
 #TYPE_MISMATCH_ERR              -> 17.
 } do: [|:each newKey |
-         newKey: (((each key as: String) toLowercase toCamelCase &separators: {$_})
+         newKey := (((each key as: String) toLowercase toCamelCase &separators: {$_})
                    as: Symbol).
          d at: newKey put: each value.
          d at: each value put: newKey].
          d].
 
-Dom define: #NodeTypes &builder: [|d| d: Dictionary new.
+Dom define: #NodeTypes &builder: [|d| d := Dictionary new.
                                   {
 #ELEMENT_NODE                   -> 1.
 #ATTRIBUTE_NODE                 -> 2.
@@ -50,13 +50,13 @@ Dom define: #NodeTypes &builder: [|d| d: Dictionary new.
 #DOCUMENT_FRAGMENT_NODE         -> 11.
 #NOTATION_NODE                  -> 12.
 } do: [|:each newKey |
-         newKey: (((each key as: String) toLowercase toCamelCase &separators: {$_})
+         newKey := (((each key as: String) toLowercase toCamelCase &separators: {$_})
                    as: Symbol).
          d at: newKey put: each value.
          d at: each value put: newKey].
          d].
 
-Dom define: #DocumentPositions &builder: [|d| d: Dictionary new.
+Dom define: #DocumentPositions &builder: [|d| d := Dictionary new.
 {
 #DOCUMENT_POSITION_DISCONNECTED -> 16r01.
 #DOCUMENT_POSITION_PRECEDING    -> 16r02.
@@ -65,7 +65,7 @@ Dom define: #DocumentPositions &builder: [|d| d: Dictionary new.
 #DOCUMENT_POSITION_CONTAINED_BY -> 16r10.
 #DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC -> 16r20.
 } do: [|:each newKey |
-         newKey: (((each key as: String) toLowercase toCamelCase &separators: {$_})
+         newKey := (((each key as: String) toLowercase toCamelCase &separators: {$_})
                    as: Symbol).
          d at: newKey put: each value.
          d at: each value put: newKey].
@@ -97,7 +97,7 @@ Dom define: #NamedNodeMap &parents: {Cloneable} &slots: {#dict}.
                                         raises(DOMException);
 };
 "
-sl@(Dom DomList traits) new [resend `>> [array: ExtensibleArray new. ]].
+sl@(Dom DomList traits) new [resend `>> [array := ExtensibleArray new. ]].
 
 sl@(Dom DomList traits) length [sl array size].
 sl@(Dom DomList traits) item: n [sl array at: n].
@@ -159,7 +159,7 @@ _@(Dom CharacterData traits) nodeType [error: 'fixme'].
 
 _@(Dom Node traits) new
 [
-  resend `>> [childNodes: Dom NodeList new. attributes: Dom NamedNodeMap new. ]
+  resend `>> [childNodes := Dom NodeList new. attributes := Dom NamedNodeMap new. ]
 ].
 
 n@(Dom Node traits) firstChild [n childNodes isEmpty ifTrue: [Nil] ifFalse: [n childNodes first]].
