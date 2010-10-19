@@ -14,7 +14,7 @@ s@(Image AllObjectsReadStream traits) newOn: _@Image
 
 s@(Image AllObjectsReadStream traits) reset
 [
-  s currentObject: lobby firstObject.
+  s currentObject := lobby firstObject.
 ].
 
 i@Image reader
@@ -32,7 +32,7 @@ s@(Image AllObjectsReadStream traits) peek
 
 s@(Image AllObjectsReadStream traits) next
 [
-  s currentObject: s peek
+  s currentObject := s peek
 ].
 
 Image define: #DelegatesToReadStream &parents: {Image AllObjectsReadStream}
@@ -41,12 +41,12 @@ Image define: #DelegatesToReadStream &parents: {Image AllObjectsReadStream}
 
 s@(Image DelegatesToReadStream traits) reset
 [
-  s currentObject: (lobby firstObjectDelegatingTo: s target).
+  s currentObject := lobby firstObjectDelegatingTo: s target.
 ].
 
 s@(Image DelegatesToReadStream traits) newOn: _@Image &target: x
 [
-  s clone `>> [target: x. reset. ]
+  s clone `>> [target := x. reset. ]
 ].
 
 s@(Image DelegatesToReadStream traits) peek
@@ -70,12 +70,12 @@ Image define: #ReferrersToReadStream &parents: {Image AllObjectsReadStream}
 
 s@(Image ReferrersToReadStream traits) reset
 [
-  s currentObject: (lobby firstObjectReferringTo: s target).
+  s currentObject := lobby firstObjectReferringTo: s target.
 ].
 
 s@(Image ReferrersToReadStream traits) newOn: _@Image &target: x
 [
-  s clone `>> [target: x. reset. ]
+  s clone `>> [target := x. reset. ]
 ].
 
 s@(Image ReferrersToReadStream traits) peek

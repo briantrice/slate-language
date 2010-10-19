@@ -13,8 +13,8 @@ inform: 'Adding primitives'.
 [| :code :selector :roles | 
   Image Definition primitives add: code ->
     (Syntax MethodDefinition new `>>
-       [selector: selector.
-        roles: (roles collect: [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ]).
+       [selector := selector.
+        roles := (roles collect: [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ]).
 ] applier for: #{
   {0.   #asMethod:on:. {#MethodTraits. #SymbolTraits. #ArrayTraits}}.
   {1.   #asAccessor:for:on:. {#MethodTraits. #SymbolTraits. #NoRoleObject. #ArrayTraits}}.
@@ -193,7 +193,7 @@ inform: 'Adding primitives'.
 
 Image Definition traits define: #cached &builder: [Dictionary new].
 
-Image Definition cached at: 'bare' put: (Image Definition clone `>> [bootstrapFilenames: {'src/mobius/pre-bootstrap.slate'}. ]).
+Image Definition cached at: 'bare' put: (Image Definition clone `>> [bootstrapFilenames := {'src/mobius/pre-bootstrap.slate'}. ]).
 "An Image Definition consisting of the bare minimum to run some primitive call,
 like adding 3 + 4, say."
 "TODO: refactor Image Definition so that we can just supply a block here."
@@ -201,7 +201,7 @@ like adding 3 + 4, say."
 def@(Image Definition traits) newNamed: filename endianness: endianness wordSize: wordSize
 [
   (def clone `setting: #{#endianness. #wordSize} to: {endianness. wordSize})
-   `>> [| :newDef | filename: (newDef defaultFilename &base: filename). ]
+   `>> [| :newDef | filename := (newDef defaultFilename &base: filename). ]
 ].
 
 def@(Image Definition traits) defaultFilename &base: base
@@ -216,22 +216,22 @@ def@(Image Definition traits) defaultFilename &base: base
 
 def@(Image Definition traits) generate
 [| builder bootBlock |
-  builder: (Image Bootstrap Generator new &endianness: def endianness &wordSize: def wordSize).
+  builder := (Image Bootstrap Generator new &endianness: def endianness &wordSize: def wordSize).
   def filename `defaultsTo: def defaultFilename.
   def bootstrapFilenames isEmpty ifTrue:
-    [def bootstrapFilenames:
+    [def bootstrapFilenames :=
        ([| :out |
          (File newNamed: def bootstrapDirectory ; '/src/mobius/bootstrap-files.txt') sessionDo:
            [| :filelist |
             filelist ASCIIReader lines do:
               [| :line | line isEmpty ifFalse: [out nextPut: line]]].
         ] writingAs: def bootstrapFilenames)].
-  bootBlock: Syntax Block new.
-  bootBlock statements: ([| :out |
+  bootBlock := Syntax Block new.
+  bootBlock statements := ([| :out |
     (def bootstrapFilenames collect: [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
       [| :file |
        inform: 'Parsing: %r', file locator.
-       file mode: file Read.
+       file mode := file Read.
        file sessionDo:
          [| :file | (Syntax Parser newOn: file ASCIIReader) >> out]]
     ] writingAs: bootBlock statements).
@@ -258,10 +258,11 @@ based on the new VM Definition."
 [| def |
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
   endianness `defaultsTo: Platform Current endianness.
-  def: (i Definition newNamed: 'kernel.new' endianness: endianness wordSize: wordSize).
-  dir ifNotNil: [def bootstrapDirectory: dir].
+  def := (i Definition newNamed: 'kernel.new' endianness: endianness wordSize: wordSize).
+  dir ifNotNil: [def bootstrapDirectory := dir].
   def cached at: {'new'. endianness. wordSize} put: def.
   def generate.
   inform: 'Generated new kernel image at: %r', def filename.
   inform: 'Suggested next command: %s -i %s', StartupArguments first, def filename.
+  inform: 'Alternate      command: make slate.%s', (def filename allButFirst: 'kernel.new' length).
 ].

@@ -51,13 +51,13 @@ Map traits define: #RoleReadStream &parents: {ReadStream}
 "An in-order traversal stream over the role-table in a Map, returning
 EmbeddedRoleEntry objects."
 
-m@(Map RoleReadStream traits) on: map [m map: map. m].
+m@(Map RoleReadStream traits) on: map [m map := map. m].
 
 m@(Map traits) roleReadStream [m RoleReadStream newOn: m].
 
 obj@(Root traits) roleReader [obj _map roleReadStream].
 
-m@(Map RoleReadStream traits) reset [m index: 0. m].
+m@(Map RoleReadStream traits) reset [m index := 0. m].
 
 m@(Map RoleReadStream traits) elementType [RoleEntry].
 "
@@ -70,10 +70,10 @@ so we take the current location and go through the list manually and see if ther
 another entry later on before we get to the end of the array."
 m@(Map RoleReadStream traits) isAtEnd
 [ | result index |
-  index: m index.
+  index := m index.
   [index > m map roleTable indexLast] whileFalse:
-    [result: (m map roleInTableAt: index).
-     index: index + 4.
+    [result := m map roleInTableAt: index.
+     index := index + 4.
      result ifNotNil: [^ False]].
   True
 ].
@@ -82,33 +82,33 @@ m@(Map RoleReadStream traits) isAtEnd
 m@(Map RoleReadStream traits) next
 [| result |
   [m isAtEnd] whileFalse:
-    [result: (m map roleInTableAt: m index).
-     m index: m index + 4.
+    [result := m map roleInTableAt: m index.
+     m index := m index + 4.
      result ifNotNil: [^ result]].
   m exhaustion
 ].
 
 x@(Root traits) roles
 "Answers all the roles applying to the object."
-[((x roleReader select: [| :role | role isNotNil]) >> {} writer) contents].
+[((x roleReader select: [| :role | role isNotNil]) >> #{} writer) contents].
 
 x@(Root traits) rolesAt: dispatchIndex
 "Answer the roles applying to the object at the given argument dispatch index."
 [
   ((x roleReader select:
     [| :role | role isNotNil /\ [role appliesToPosition: dispatchIndex]])
-    >> {} writer) contents
+    >> #{} writer) contents
 ].
 
 x@(Root traits) roleIndices
 "Answer the position indices that the object has roles for."
 [| rolePositions |
-  rolePositions: (x roleReader inject: 0 into:
+  rolePositions := (x roleReader inject: 0 into:
     [| :positions :role | positions bitOr:
       (role ifNil: [0] ifNotNil: [role rolePositions])]) last.
   [| :result |
    (rolePositions as: BitArray) doWithIndex:
-     [| :isRole :index | isRole ifTrue: [result nextPut: index]]] writingAs: {}
+     [| :isRole :index | isRole ifTrue: [result nextPut: index]]] writingAs: #{}
 ].
 
 x@(Root traits) rolesNamed: selector
@@ -135,7 +135,7 @@ x@(Root traits) methods
 
 x@(Root traits) accessorMethods
 [| selectors |
-  selectors: (x slotNames collect: [| :s | x accessorNameFor: s]).
+  selectors := x slotNames collect: [| :s | x accessorNameFor: s].
   (((x roleReader select: [| :r | selectors includes: r selector])
 		 collect: [| :r | r methodDefinition method])
     >> IdentitySet new writer) contents
@@ -143,7 +143,7 @@ x@(Root traits) accessorMethods
 
 x@(Root traits) mutatorMethods
 [| selectors |
-  selectors: (x slotNames collect: [| :s | x mutatorNameFor: s]).
+  selectors := x slotNames collect: [| :s | x mutatorNameFor: s].
   (((x roleReader select: [| :r | selectors includes: r selector])
 		 collect: [| :r | r methodDefinition method])
     >> IdentitySet new writer) contents
@@ -191,7 +191,7 @@ x@(Root traits) methodsSendingMacro: selector
 [
   [| :result |
    x roleReader do:
-     [| :r m | m: (r ifNotNil: [r methodDefinition method]).
+     [| :r m | m := r ifNotNil: [r methodDefinition method].
       (m isSameAs: CompiledMethod) ifTrue:
 	[m sourceTree ifNotNilDo:
 	  [| :src |
