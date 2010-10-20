@@ -6,18 +6,18 @@ prototypes define: #CompiledModule &parents: {Cloneable} &slots: {
 
 m@(CompiledModule traits) compile: filename
 [| srcfile slcfile |
-  srcfile: (File newNamed: filename).
-  slcfile: (srcfile newNamed: filename copy &mode: srcfile CreateWrite).
-  slcfile locator fileType: 'slc'.
+  srcfile := (File newNamed: filename).
+  slcfile := (srcfile newNamed: filename copy &mode: srcfile CreateWrite).
+  slcfile locator fileType := 'slc'.
   srcfile reader sessionDo:
     [| :in p |
-     p: (Syntax Parser newOn: in).
+     p := (Syntax Parser newOn: in).
      slcfile writer sessionDo:
        [| :out |
         "TODO: write out a generic header with magic, version, checksum."
         [p isAtEnd] whileFalse:
           [| item |
-           item: p next.
+           item := p next.
            inform: p lexer lineNumber printString.
            m save: item to: out]]].
 ].
@@ -34,7 +34,7 @@ m@(CompiledModule traits) loadFrom: src@(ExternalResource traits)
 
 m@(CompiledModule traits) loadFrom: r@(ReadStream traits)
 [| kind |
-  kind: r next.
+  kind := r next.
   kind caseOf: {
     $T -> [True].
     $F -> [False].
@@ -58,8 +58,8 @@ m@(CompiledModule traits) loadFrom: r@(ReadStream traits)
 
 m@(CompiledModule traits) loadSyntaxTreeFrom: r@(ReadStream traits)
 [| kind proto |
-  kind: (m nextSyntaxTypeFrom: r).
-  proto: (kind caseOf: {
+  kind := (m nextSyntaxTypeFrom: r).
+  proto := (kind caseOf: {
     'No' -> [Syntax Node].
     'An' -> [Syntax Annotation].
     'Cm' -> [Syntax Comment].
@@ -108,7 +108,7 @@ m@(CompiledModule traits) nextCountFrom: r@(ReadStream traits)
 
 m@(CompiledModule traits) nextStringFrom: r@(ReadStream traits)
 [| result |
-  result: (r next: (m nextCountFrom: r)).
+  result := (r next: (m nextCountFrom: r)).
   r next.
   result
 ].
@@ -240,8 +240,8 @@ m@(CompiledModule traits) save: node@(Syntax Node traits) to: w@(WriteStream tra
 m@(CompiledModule traits) load: node@(Syntax Node traits) from: r@(ReadStream traits)
 [
   "node type: (m loadFrom: r)."
-  node lineNumber: (m loadFrom: r).
-  node source: (m loadFrom: r).
+  node lineNumber := (m loadFrom: r).
+  node source := (m loadFrom: r).
 ].
 
 m@(CompiledModule traits) save: node@(Syntax Annotation traits) to: w@(WriteStream traits)

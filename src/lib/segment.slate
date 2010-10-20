@@ -19,7 +19,7 @@ Segment traits define: #Object &parents: {Segment Representation}
 	   #slotValues -> ExtensibleArray new "The values of various slots in the object."}.
 
 rep@(Segment Object traits) new
-[rep clone `>> [slotValues: rep slotValues new. ]].
+[rep clone `>> [slotValues := rep slotValues new. ]].
 
 rep@(Segment Object traits) newFrom: obj
 [rep new `>> [slotValues addAllLast: obj slotValues. ]].
@@ -28,7 +28,7 @@ Segment traits define: #Array &parents: {Segment Object}
   &slots: {#elements -> ExtensibleArray new}.
 
 a@(Segment Array traits) new
-[resend `>> [elements: a elements new. ]].
+[resend `>> [elements := a elements new. ]].
 
 a@(Segment Array traits) newFrom: obj
 [resend `>> [elements addAllLast: obj. ]].
@@ -42,7 +42,7 @@ Segment Method traits define: #Primitive &parents: {Segment Method}
   &slots: {#index "The index in the primitive table of the repspective primitive"}.
 
 rep@(Segment Method Primitive traits) newFrom: obj
-[rep clone `>> [selector: obj selector. index: obj index. ]].
+[rep clone `>> [selector := obj selector. index := obj index. ]].
 
 Segment Method traits define: #Compiled &parents: {Segment Method}
   &slots: {#sourceCode "The source code which generated the particular compiled method."}.
@@ -50,8 +50,8 @@ Segment Method traits define: #Compiled &parents: {Segment Method}
 rep@(Segment Method Compiled traits) newFrom: obj
 [
   rep clone `>>
-    [selector: obj selector.
-     roles: ((0 below: obj arity) collect: [| :_ | ExtensibleArray new]). ]
+    [selector := obj selector.
+     roles := ((0 below: obj arity) collect: [| :_ | ExtensibleArray new]). ]
 ].
 
 "TODO: Handle Closure objects."
@@ -61,7 +61,7 @@ Segment traits define: #Map &parents: {Segment Representation}
            #slots -> {}}.
 
 rep@(Segment Map traits) new
-[resend `>> [delegates: rep delegates new. slots: rep slots new. ]].
+[resend `>> [delegates := rep delegates new. slots := rep slots new. ]].
 
 rep@(Segment Map traits) newFrom: obj
 [
@@ -69,13 +69,13 @@ rep@(Segment Map traits) newFrom: obj
    [| :newRep |
     (obj delegateNames with: obj delegates do:
       [| :slot :val | newRep delegates addLast: slot -> val]).
-    slots: (Array newSize: obj slotCount).
+    rep slots := (Array newSize: obj slotCount).
     0 below: obj slotTable size by: 2 do:
       [| :index |
        (obj slotTable at: index)
          ifNotNilDo:
            [| :name offset |
-            offset: (obj slotTable at: index + 1) >> 2 - 2.
+            offset := (obj slotTable at: index + 1) >> 2 - 2.
             newRep slots at: offset put: name]]. ]
 ].
 
@@ -94,11 +94,11 @@ Segment traits define: #Relocation
 s@(Segment traits) newOn: root
 [
   s clone `>>
-    [root: root.
-     imports: s imports new.
-     relocations: s relocations new.
-     output: s output new.
-     objects: s objects new. ]
+    [root := root.
+     imports := s imports new.
+     relocations := s relocations new.
+     output := s output new.
+     objects := s objects new. ]
 ].
 
 s@(Segment traits) represents: obj
@@ -170,11 +170,11 @@ s@(Segment traits) saveToFile: filename
 ].
 
 s@(SavedSegment traits) saveToFile: filename
-[s file: (s file newNamed: filename)].
+[s file := (s file newNamed: filename)].
 
 s@(Segment traits) loadFromFile: filename
 "Create a new SavedSegment for the file, and load and answer it."
-[SavedSegment clone `>> [| :ss | file: (ss file newNamed: filename). load. ]].
+[SavedSegment clone `>> [| :ss | file := (ss file newNamed: filename). load. ]].
 
 s@(SavedSegment traits) save
 "Write the segment into its file."

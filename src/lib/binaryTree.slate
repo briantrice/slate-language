@@ -11,10 +11,10 @@ collections define: #BinaryTree
 bt@(BinaryTree traits) clear
 "Reset all the slots."
 [
-  bt leftChild: Nil.
-  bt rightChild: Nil.
-  bt key: Nil.
-  bt value: Nil.
+  bt leftChild := Nil.
+  bt rightChild := Nil.
+  bt key := Nil.
+  bt value := Nil.
   bt
 ].
 
@@ -32,42 +32,42 @@ bt@(BinaryTree traits) isEmpty
 
 bt@(BinaryTree traits) rotateLeft
 [| parent child grandChild |
-  parent: bt treeParent.
-  child: bt rightChild.
-  grandChild: child leftChild.
-  child leftChild: bt.
-  bt rightChild: grandChild.
+  parent := bt treeParent.
+  child := bt rightChild.
+  grandChild := child leftChild.
+  child leftChild := bt.
+  bt rightChild := grandChild.
   parent leftChild == bt
-    ifTrue: [parent leftChild: child]
-    ifFalse: [parent rightChild: child].
-  child treeParent: parent.
-  bt treeParent: child.
-  grandChild treeParent: bt.
+    ifTrue: [parent leftChild := child]
+    ifFalse: [parent rightChild := child].
+  child treeParent := parent.
+  bt treeParent := child.
+  grandChild treeParent := bt.
   child
 ].
 
 bt@(BinaryTree traits) rotateRight
 [| parent child grandChild |
-  parent: bt treeParent.
-  child: bt leftChild.
-  grandChild: child rightChild.
-  child rightChild: bt.
-  bt leftChild: grandChild.
+  parent := bt treeParent.
+  child := bt leftChild.
+  grandChild := child rightChild.
+  child rightChild := bt.
+  bt leftChild := grandChild.
   parent leftChild == bt
-    ifTrue: [parent leftChild: child]
-    ifFalse: [parent rightChild: child].
-  child treeParent: parent.
-  bt treeParent: child.
-  grandChild treeParent: bt.
+    ifTrue: [parent leftChild := child]
+    ifFalse: [parent rightChild := child].
+  child treeParent := parent.
+  bt treeParent := child.
+  grandChild treeParent := bt.
   child
 ].
 
 bt@(BinaryTree traits) size
 "The number of nodes including the target node and its branches recursively."
 [| size |
-  size: 1.
-  bt leftChild ifNotNilDo: [| :c | size: size + c size].
-  bt rightChild ifNotNilDo: [| :c | size: size + c size].
+  size := 1.
+  bt leftChild ifNotNilDo: [| :c | size := size + c size].
+  bt rightChild ifNotNilDo: [| :c | size := size + c size].
   size
 ].
 
@@ -83,7 +83,7 @@ bt@(BinaryTree traits) isBalanced
 
 bt@(BinaryTree traits) at: key ifAbsent: block
 [| child |
-  child: (bt scanFor: key)
+  child := (bt scanFor: key)
   child key = key
     ifTrue: [child value]
     ifFalse: [block do]
@@ -96,18 +96,18 @@ bt@(BinaryTree traits) at: key ifPresent: block
 
 bt@(BinaryTree traits) at: key put: value
 [
-  bt isEmpty ifTrue: [bt key: key. bt value: value. ^ bt].
+  bt isEmpty ifTrue: [bt key := key. bt value := value. ^ bt].
   (bt scanFor: key) `cacheAs: #child.
   child key = key
-    ifTrue: [child value: value]
+    ifTrue: [child value := value]
     ifFalse:
       [| newChild |
-       newChild:
+       newChild :=
 	 (child clone `setting: #{#key. #treeParent. #leftChild. #rightChild. #value}
 	        to: {key. bt. Nil. Nil. value}).
        key < child key
-         ifTrue: [child leftChild: newChild]
-         ifFalse: [child rightChild: newChild].
+         ifTrue: [child leftChild := newChild]
+         ifFalse: [child rightChild := newChild].
        newChild]
 ].
 
@@ -156,5 +156,3 @@ bst@(BinarySearchTree traits) add: obj
 bst@(BinarySearchTree traits) remove: obj
 [
 ].
-
-

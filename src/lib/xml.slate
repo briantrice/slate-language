@@ -15,7 +15,7 @@ n@(XML Node traits) firstTagNamed: name
 "Return the first encountered node with the specified tag.
 Pass the message on."
 [| answer |
-  n elementsDo: [| :each | (answer: (each firstTagNamed: name))
+  n elementsDo: [| :each | (answer := each firstTagNamed: name)
     ifNotNil: [^ answer]].
   Nil
 ].
@@ -24,7 +24,7 @@ n@(XML Node traits) firstTagNamed: name with: testBlock
 "Return the first encountered node with the specified tag for which the block
 returns True. Pass the message on."
 [| answer |
-  n elementsDo: [| :each | (answer: (each firstTagNamed: name with: testBlock))
+  n elementsDo: [| :each | (answer := each firstTagNamed: name with: testBlock)
     ifNotNil: [^ answer]].
   Nil
 ].
@@ -98,14 +98,14 @@ XML define: #Document &parents: {XML NodeWithElements} &slots:
 
 d@(XML Document traits) printXMLOn: writer
 [
-  n version ifNotNil: [writer XMLdeclaration: n version].
+  n version ifNotNil: [writer xmlDeclaration: n version].
   resend
 ].
 
 d@(XML Document traits) printCanonicalOn: stream
 [| writer |
-  writer: (XML Writer on: stream).
-  writer canonical: True.
+  writer := XML Writer on: stream.
+  writer canonical := True.
   d printXMLOn: writer
 ].
 
@@ -276,9 +276,9 @@ w@(XML Writer traits) pushTag: name
 
 w@(XML Writer traits) popTag: name
 [| top |
-  top: (w stack isEmpty
+  top := w stack isEmpty
     ifTrue: ['<empty>']
-    ifFalse: [w stack last]).
+    ifFalse: [w stack last].
   top = name
     ifTrue: [w stack pop]
     ifFalse: [w error: 'Closing tag ' ; name ; ' doesn\'t match ' ; top]

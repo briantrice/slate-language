@@ -33,8 +33,8 @@ collections define: #LinkedList
 l@(LinkedList traits) clear
 "An empty LinkedList circularly points to itself."
 [
-  l next: l.
-  l previous: l.
+  l next := l.
+  l previous := l.
   l
 ].
 
@@ -50,23 +50,23 @@ reject non-Link elements if they respond to the protocol logically."
 
 ll@(LinkedList traits) do: block
 [| link |
-  link: ll next.
+  link := ll next.
   [link == ll]
     whileFalse:
       [| each |
-        each: link.
-        link: link next.
+        each := link.
+        link := link next.
         block applyWith: each]
 ].
 
 ll@(LinkedList traits) reverseDo: block
 [| link |
-  link: ll previous.
+  link := ll previous.
   [link == ll]
     whileFalse:
       [| each |
-        each: link.
-        link: link previous.
+        each := link.
+        link := link previous.
         block applyWith: each]
 ].
 
@@ -77,9 +77,9 @@ ll@(LinkedList traits) last [ll previous].
 
 ll@(LinkedList traits) at: index
 [| position |
-  position: ll next.
+  position := ll next.
   index
-    timesRepeat: [position: position next].
+    timesRepeat: [position := position next].
   position
 ].
 
@@ -98,10 +98,10 @@ ll@(LinkedList traits) add: newObject
 
 ll@(LinkedList traits) add: newObject before: oldObject
 [
-  newObject next: oldObject.
-  newObject previous: oldObject previous.
-  oldObject previous: newObject.
-  newObject previous next: newObject.
+  newObject next := oldObject.
+  newObject previous := oldObject previous.
+  oldObject previous := newObject.
+  newObject previous next := newObject.
   newObject
 ].
 

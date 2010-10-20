@@ -24,8 +24,8 @@ m@(MemoryArea traits) new &capacity: n &fixed: fixed
 [
   (fixed `defaultsTo: False)
     ifTrue: [| result |
-	     result: (m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}).
-	     n ifNotNil: [result locator byteSize: n].
+	     result := (m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}).
+	     n ifNotNil: [result locator byteSize := n].
 	     result]
     ifFalse: [ByteArray new &capacity: n]
 ].
@@ -36,7 +36,7 @@ m@(MemoryArea traits) enable
     ifNil: [error: 'Failed to allocate ' ; byteSize printString ; ' bytes.']
     ifNotNilDo:
       [| :handle | handle isNegative ifTrue: ['Primitive allocation error']
-				     ifFalse: [m handle: handle]].
+				     ifFalse: [m handle := handle]].
   m
 ].
 
@@ -45,7 +45,7 @@ m@(MemoryArea traits) disable
 
 m@(MemoryArea traits) at: index
 [| result |
-  result: (ByteArray newSize: 1).
+  result := (ByteArray newSize: 1).
   (result read: 1 from: m handle startingAt: index) isNegative
     ifTrue: [error: 'Primitive read error']
     ifFalse: [result first]
@@ -60,7 +60,7 @@ m@(MemoryArea traits) at: index put: value
 
 "m@(MemoryArea traits) replaceFrom: start to: end with: replacement startingAt: repStart
 [| numToWrite |
-  numToWrite: end - start - 1.
+  numToWrite := end - start - 1.
   (((replacement sliceFrom: repStart to: repStart + numToWrite) as: ByteArray)
     write: numToWrite into: m handle startingAt: start) isNegative
     ifTrue: [error: 'Primitive write error']
@@ -76,13 +76,13 @@ m@(MemoryArea traits) resizeTo: size
     ifNil: [error: 'Not a valid memory handle.']
     ifNotNilDo: [| :newSize |
 		newSize isNegative ifTrue: [error: 'Unsuccessful allocation.']
-				   ifFalse: [m locator byteSize: newSize]]
+				   ifFalse: [m locator byteSize := newSize]]
 ].
 
 m@(MemoryArea traits) addressAt: index
 "Answers the address of the element."
 [| result |
-  result: (ByteArray newSize: lobby bytesPerWord).
+  result := (ByteArray newSize: lobby bytesPerWord).
   m addressOf: m handle at: index into: result.
   result
 ].

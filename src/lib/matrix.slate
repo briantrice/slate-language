@@ -63,18 +63,18 @@ mat@(AbstractMatrix traits) newRows: rows columns: columns
 mat@(AbstractMatrix traits) newType: type rows: height columns: width
 [
   mat copy `>>
-   [elementType: type.
-    height: height.
-    width: width.
+   [elementType := type.
+    height := height.
+    width := width.
     initializeElements. ]
 ].
 
 mat@(AbstractMatrix traits) newType: type size: point
 [
   mat copy `>>
-   [elementType: type.
-    height: p y.
-    width: p x.
+   [elementType := type.
+    height := p y.
+    width := p x.
     initializeElements. ]
 ].
 
@@ -95,7 +95,7 @@ mat@(AbstractMatrix traits) at: row putRow: vector
 mat@(AbstractMatrix traits) columnAt: col
 "Returns a 1xN matrix for the column slice."
 [| slice |
-  slice: (Matrix newRows: mat height columns: 1).
+  slice := (Matrix newRows: mat height columns: 1).
   0 below: mat height do: [| :row |
     slice atRow: row column: 0 put: (mat atRow: row column: col)].
   slice
@@ -104,7 +104,7 @@ mat@(AbstractMatrix traits) columnAt: col
 mat@(AbstractMatrix traits) rowAt: row
 "Returns a Nx1 matrix for the row slice."
 [| slice |
-  slice: (Matrix newRows: 1 columns: mat width).
+  slice := (Matrix newRows: 1 columns: mat width).
   0 below: mat width do: [| :col |
     slice atRow: 0 column: col put: (mat atRow: row column: col)].
   slice
@@ -113,7 +113,7 @@ mat@(AbstractMatrix traits) rowAt: row
 mat@(AbstractMatrix traits) diagonal
 "Returns a new 1xN matrix with the diagonal values."
 [| diag |
-  diag: (Matrix newVectorSize: mat height).
+  diag := (Matrix newVectorSize: mat height).
   0 below: mat height do: [| :row |
     diag atRow: row column: 0 put: (mat atRow: row column: row)].
   diag
@@ -133,7 +133,7 @@ mat@(AbstractMatrix traits) squareCheck
 mat@(AbstractMatrix traits) subMatrixTopLeft: origin bottomRight: corner
 "Create a new matrix representing a rectangular slice from the middle."
 [| slice |
-  slice: (Matrix newRows: corner y - origin y + 1
+  slice := (Matrix newRows: corner y - origin y + 1
     columns: corner x - origin x + 1).
   0 below: slice height do: [| :row |
     0 below: slice width do: [| :col |
@@ -151,9 +151,9 @@ mat@(AbstractMatrix traits) fillWith: a multipliedBy: b
 [| elem |
   0 below: mat height do: [| :row |
     0 below: mat width do: [| :col |
-      elem: 0.
+      elem := 0.
       0 below: a width do: [| :aCol |
-        elem: elem + ((a atRow: row column: aCol) *
+        elem := elem + ((a atRow: row column: aCol) *
           (b atRow: aCol column: col))].
       mat atRow: row column: col put: elem]].
   mat
@@ -180,7 +180,7 @@ mat@(AbstractMatrix traits) fillWith: a minus: b
 a@(AbstractMatrix traits) * b@(AbstractMatrix traits)
 [| result |
   a width = b height ifFalse: [error: 'Matrix sizes do not match.'].
-  result: (Matrix newRows: a height columns: b width).
+  result := (Matrix newRows: a height columns: b width).
   result fillWith: a multipliedBy: b
 ].
 
@@ -202,7 +202,7 @@ x@(Number traits) * mat@(AbstractMatrix traits)
 a@(AbstractMatrix traits) + b@(AbstractMatrix traits)
 [| result |
   (a isSameSizeAs: b) ifFalse: [error: 'Matrix sizes do not match.'].
-  result: (Matrix newRows: a height columns: a width).
+  result := (Matrix newRows: a height columns: a width).
   result fillWith: a addedTo: b
 ].
 
@@ -219,7 +219,7 @@ x@(Number traits) + mat@(AbstractMatrix traits)
 a@(AbstractMatrix traits) - b@(AbstractMatrix traits)
 [| result |
   (a isSameSizeAs: b) ifFalse: [error: 'Matrix sizes do not match.'].
-  result: (Matrix newRows: a height columns: a width).
+  result := (Matrix newRows: a height columns: a width).
   result fillWith: a minus: b
 ].
 
@@ -236,15 +236,15 @@ x@(Number traits) - mat@(AbstractMatrix traits)
 mat@(AbstractMatrix traits) eigenvaluesByQR
 "This only works if all the eigenvalues are real."
 [| h q r iter |
-  h: mat hessenbergSuperior.
-  q: (Matrix newSizeOf: mat).
-  r: (Matrix newSizeOf: mat).
-  iter: 0.
+  h := mat hessenbergSuperior.
+  q := (Matrix newSizeOf: mat).
+  r := (Matrix newSizeOf: mat).
+  iter := 0.
   [h isFirstSubDiagonalZero] whileFalse: [
     h storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r.
     h fillWith: r multipliedBy: q.
-    iter: iter + 1.
-    iter > 1000 ifTrue: [error: 'Could not find real eigenvalues.']].
+    (iter := iter + 1)
+      > 1000 ifTrue: [error: 'Could not find real eigenvalues.']].
   h diagonal
 ].
 
@@ -254,28 +254,28 @@ receiver. A Hessenberg Superior matrix has zero entries below the first
 subdiagonal. The new matrix has the same eigenvalues as the receiver."
 [| result u |
   mat squareCheck.
-  result: mat copy.
-  u: (Matrix newSizeOf: mat).
+  result := mat copy.
+  u := (Matrix newSizeOf: mat).
   0 below: mat width - 2 do: [| :col |
     (result storeHouseholderTransformOn: u column: col forQR: False)
-      ifTrue: [result: u * result * u]].
+      ifTrue: [result := u * result * u]].
   result
 ].
 
 mat@(AbstractMatrix traits) maxEigenvalueAndEigenVectorByPowerMethod
 [| eigenvectorApprox prevApprox swap eigenvalueApprox |
   mat squareCheck.
-  eigenvectorApprox: (Matrix newColumnVectorSize: mat width).
-  prevApprox: (Matrix newColumnVectorSize: mat width).
+  eigenvectorApprox := (Matrix newColumnVectorSize: mat width).
+  prevApprox := (Matrix newColumnVectorSize: mat width).
   0 below: mat width do: [| :col |
     eigenvectorApprox atRow: col column: 0 put: 1].
   [(eigenvectorApprox - prevApprox) norm2Squared > 0.001]
     whileTrue: [
-      swap: prevApprox.
-      prevApprox: eigenvectorApprox.
-      eigenvectorApprox: swap.
+      swap := prevApprox.
+      prevApprox := eigenvectorApprox.
+      eigenvectorApprox := swap.
       eigenvectorApprox fillWith: mat multipliedBy: prevApprox.
-      eigenvalueApprox: eigenvectorApprox norm2Squared sqrt.
+      eigenvalueApprox := eigenvectorApprox norm2Squared sqrt.
       eigenvectorApprox infect: #/ `er <-* eigenvalueApprox].
   {eigenvalueApprox. eigenvectorApprox}
 ].
@@ -286,8 +286,8 @@ mat@(AbstractMatrix traits) preMultiplyByGivensRotationRowI: i rowK: k
 tita, affecting rows i and k."
 [| elemI elemK |
   0 below: mat width do: [| :j |
-    elemI: (mat atRow: i column: j).
-    elemK: (mat atRow: k column: j).
+    elemI := (mat atRow: i column: j).
+    elemK := (mat atRow: k column: j).
     mat atRow: i column: j put: c * elemI - (s * elemK).
     mat atRow: k column: j put: s * elemI + (c * elemK) ].
   mat
@@ -300,14 +300,14 @@ that puts zeroes at column i of the receiver. If forQR is false, the
 product of aMatrix * mat is Hessenberg superior, otherwise it's a
 triangular matrix."
 [| x xNorm2Squared v vNorm2Squared element i |
-  i: j - (forQR ifTrue: [1] ifFalse: [0]).
-  x: (Matrix newVectorSize: mat height-i).
-  xNorm2Squared: 0.
+  i := j - (forQR ifTrue: [1] ifFalse: [0]).
+  x := (Matrix newVectorSize: mat height-i).
+  xNorm2Squared := 0.
   0 below: x height do: [| :ii |
-    element: mat atRow: ii+i column: j.
-    xNorm2Squared: xNorm2Squared + element squared.
+    element := mat atRow: ii + i column: j.
+    xNorm2Squared := xNorm2Squared + element squared.
     x atRow: ii column: 0 put: element].
-  v: x.
+  v := x.
   "If column already has zeros, do nothing"
   xNorm2Squared = 0.0 ifTrue: [^ False].
   "If column already has zeros, do nothing. If forQR = false, then the first
@@ -315,7 +315,7 @@ triangular matrix."
   forQR not /\ [xNorm2Squared = (x atRow: 0 column: 0) squared]
      ifTrue: [^ False].
   v atRow: 0 column: 0 put: (v atRow: 0 column: 0) + xNorm2Squared sqrt.
-  vNorm2Squared: v norm2Squared.
+  vNorm2Squared := v norm2Squared.
   0 below: i do: [| :ii |
     aMatrix atRow: ii column: ii put: 1.
     ii below: aMatrix width do: [| :jj |
@@ -336,12 +336,12 @@ mat@(AbstractMatrix traits) storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r
   q fillWithIdentity.
   r fillWith: mat.
   0 below: mat width - 1 do: [| :j |
-    elementAtJ: r atRow: j column: j.
-    elementBelowJ: r atRow: j + 1 column: j.
+    elementAtJ := r atRow: j column: j.
+    elementBelowJ := r atRow: j + 1 column: j.
     elementBelowJ = 0 ifFalse: [
-      aux: ((elementAtJ * elementAtJ) + (elementBelowJ*elementBelowJ)) sqrt.
-      c: elementAtJ / aux.
-      s: 0 - elementBelowJ / aux.
+      aux := ((elementAtJ * elementAtJ) + (elementBelowJ*elementBelowJ)) sqrt.
+      c := elementAtJ / aux.
+      s := 0 - elementBelowJ / aux.
       r preMultiplyByGivensRotationRowI: j rowK: j + 1
         titaCosine: c titaSine: s.
       q preMultiplyByGivensRotationRowI: j rowK: j + 1
@@ -359,7 +359,7 @@ mat@(AbstractMatrix traits) fillDiagonalWith: vector
 
 mat@(AbstractMatrix traits) fillDiagonalWithIdentity
 [| one |
-  one: mat zero + 1.
+  one := mat zero + 1.
   0 below: (mat width min: mat height) do:
     [| :col | mat atRow: col column: col put: one].
   mat
@@ -389,11 +389,11 @@ mat@(AbstractMatrix traits) fillWithIdentity
 
 mat@(AbstractMatrix traits) fillWithIdentityTopAndBottomRows: n
 [| zero one heightPlusOne ii |
-  zero: mat zero.
-  one: zero + 1.
-  heightPlusOne: height + 1.
+  zero := mat zero.
+  one := zero + 1.
+  heightPlusOne := height + 1.
   0 below: n do: [| :i |
-    ii: heightPlusOne - i.
+    ii := heightPlusOne - i.
     0 below: width do: [| :j |
       mat atRow: i column: j put: zero.
       mat atRow: ii column: j put: zero].
@@ -404,7 +404,7 @@ mat@(AbstractMatrix traits) fillWithIdentityTopAndBottomRows: n
 
 mat@(AbstractMatrix traits) fillWithZero
 [| zero |
-  zero: mat zero.
+  zero := mat zero.
   0 below: mat height do: [| :row |
     0 below: mat width do: [| :col |
       mat atRow: row column: col put: zero]].
@@ -415,8 +415,8 @@ mat@(AbstractMatrix traits) permuteRow: a withRow: b
 [| ax bx |
   a = b ifFalse: [
     0 below: mat width do: [| :col |
-      ax: (mat atRow: a column: col).
-      bx: (mat atRow: b column: col).
+      ax := (mat atRow: a column: col).
+      bx := (mat atRow: b column: col).
       mat atRow: a column: col put: bx.
       mat atRow: b column: col put: ax]].
   mat
@@ -424,10 +424,10 @@ mat@(AbstractMatrix traits) permuteRow: a withRow: b
 
 mat@(AbstractMatrix traits) rowWithMaxInColumn: j startingAtRow: jStart
 [| rowWithMax |
-  rowWithMax: jStart.
+  rowWithMax := jStart.
   jStart below: mat height do: [| :i |
     (mat atRow: i column: j) abs > (mat atRow: rowWithMax column: j) abs
-      ifTrue: [rowWithMax: i]].
+      ifTrue: [rowWithMax := i]].
   rowWithMax
 ].
 
@@ -436,12 +436,12 @@ mat@(AbstractMatrix traits) solveLinearSystem
 The last column of the matrix has the independent term b. This modifies the
 argument."
 [| m n x epsilon |
-  m: mat height.
-  n: mat width.
-  x: (Matrix newVectorSize: n - 1).
+  m := mat height.
+  n := mat width.
+  x := (Matrix newVectorSize: n - 1).
   "Check that enough equations are present."
   m < (n - 1) ifTrue: [error: 'The system does not have a single solution.'].
-  epsilon: 1.0e-7 .
+  epsilon := 1.0e-7 .
   mat triangleWithPartialPivoting.
   "Performing some checks:"
   "If the only coefficient of the last equation is zero, we have infinite
@@ -462,9 +462,9 @@ argument."
     ifFalse: [error: 'This system is incompatible.'].
   "Do backward substitution"
   n - 2 downTo: 0 do: [| :i |
-    sum: mat atRow: i column: n.
+    sum := mat atRow: i column: n.
     n - 2 downTo: i + 1 do: [| :k |
-      sum: sum - ((mat atRow: i column: k) * (x atRow: k column: 0))].
+      sum := sum - ((mat atRow: i column: k) * (x atRow: k column: 0))].
     x atRow: i column: 0 put: sum / (mat atRow: i column: i)].
   x
 ].
@@ -472,23 +472,23 @@ argument."
 mat@(AbstractMatrix traits) triangleWithPartialPivoting
 "Triangle the matrix and answer the row permutation count."
 [| j jdelta rowK factor permCount |
-  permCount: 0.
-  jdelta: 0.
+  permCount := 0.
+  jdelta := 0.
   0 below: mat height - 1 do: [| :rowI |
-    [j: rowI + jdelta.
-     j < mat width ifFalse: [^ mat].
+    [(j := rowI + jdelta)
+       < mat width ifFalse: [^ mat].
      "Look for the pivot for j, from rowI down. Call it rowK."
-     rowK: (mat rowWithMaxInColumn: j startingAtRow: rowI).
+     rowK := (mat rowWithMaxInColumn: j startingAtRow: rowI).
      (mat atRow: k column: j) = 0 /\ [j < self width]]
-      whileTrue: [jdelta: jdelta + 1].
+      whileTrue: [jdelta := jdelta + 1].
     "Permute rowI and rowK."
     rowI = rowK ifFalse: [
       mat permuteRow: rowI with: rowK.
-      permCount: permCount + 1].
+      permCount := permCount + 1].
     "Subtract rowI to all the ones below it."
     rowI + 1 below: mat height do: [| :ii |
       (mat atRow: ii column: j) = 0.0 ifFalse: [
-        factor: (mat atRow: ii column: j) / (mat atRow: rowI column: j).
+        factor := (mat atRow: ii column: j) / (mat atRow: rowI column: j).
         "Only after column j."
         mat atRow: ii column: j put: 0.
         mat subtractRow: rowI multipliedBy: factor to: ii
@@ -499,11 +499,11 @@ mat@(AbstractMatrix traits) triangleWithPartialPivoting
 mat@(AbstractMatrix traits) determinant
 [| aux rowPermCount result |
   mat squareCheck.
-  aux: mat copy.
-  rowPermCount: mat triangleWithPartialPivoting.
-  result: (-1 raisedTo: rowPermCount).
+  aux := mat copy.
+  rowPermCount := mat triangleWithPartialPivoting.
+  result := (-1 raisedTo: rowPermCount).
   0 below mat width do: [| :i |
-    result: result * (aux atRow: i column: i)].
+    result := result * (aux atRow: i column: i)].
   result
 ].
 
@@ -511,9 +511,9 @@ mat@(AbstractMatrix traits) inverse
 "Returns the inverse matrix."
 [| n bigMatrix result epsilon |
   mat squareCheck.
-  n: mat height.
-  result: (Matrix newRows: n columns: n).
-  bigMatrix: (Matrix newRows: n columns: n * 2).
+  n := mat height.
+  result := (Matrix newRows: n columns: n).
+  bigMatrix := (Matrix newRows: n columns: n * 2).
   bigMatrix fillWith: mat.
   0 below: mat width do: [| :i |
     bigMatrix atRow: i column: n put: 1].
@@ -521,7 +521,7 @@ mat@(AbstractMatrix traits) inverse
   "We can safely do comparisons with this epsilon for assuring that an
     element is close to zero, because we first normalize the rows."
   bigMatrix normalizeRows.
-  epsilon: 1.0e-7.
+  epsilon := 1.0e-7.
   bigMatrix triangleWithPartialPivoting.
 
   "If the only coefficient of the last equation is zero, but not the
@@ -551,8 +551,8 @@ mat@(AbstractMatrix traits) inverse2
 "Returns the inverse matrix."
 [| bigMatrix result |
   mat squareCheck.
-  result: (Matrix newSizeOf: mat).
-  bigMatrix: (Matrix newRows: mat height columns: mat width + 1).
+  result := (Matrix newSizeOf: mat).
+  bigMatrix := (Matrix newRows: mat height columns: mat width + 1).
   0 below: mat width do: [| :i |
     bigMatrix fillWith: mat.
     0 below: mat width do: [| :j |
@@ -568,10 +568,10 @@ mat@(AbstractMatrix traits) isFirstSubdiagonalZero
 [| measure float1 float2 |
   (1 below: mat width) inject: True into: [| :prev :j |
     prev /\ [
-      measure: (mat atRow: j column: j) * 100.
-      measure = 0.0 ifTrue: [measure: mat diagonal max].
-      float1: (mat atRow: j column: j - 1) + measure.
-      float2: measure.
+      measure := (mat atRow: j column: j) * 100.
+      measure = 0.0 ifTrue: [measure := mat diagonal max].
+      float1 := (mat atRow: j column: j - 1) + measure.
+      float2 := measure.
       float1 = float2]]
 ].
 
@@ -597,12 +597,12 @@ mat@(AbstractMatrix traits) norm2Squared
 [| result |
   mat height > 1 /\ [mat width > 1]
     ifTrue: [error: 'Only implemented currently for vectors.'].
-  result: 0.0.
+  result := 0.0.
   mat width = 1
     ifTrue: [0 below: mat height do: [| :i |
-      result: result + (mat atRow: i column: 0) squared]].
+      result := result + (mat atRow: i column: 0) squared]].
     ifTrue: [0 below: mat width do: [| :i |
-      result: result + (mat atRow: 0 column: i) squared]].
+      result := result + (mat atRow: 0 column: i) squared]].
   result
 ].
 
@@ -610,10 +610,10 @@ mat@(AbstractMatrix traits) normalizeColumns
 "Divide each column by its 2-norm."
 [| normSquared norm |
   0 below: mat width do: [| :col |
-    normSquared: 0.0.
+    normSquared := 0.0.
     0 below: mat height do: [| :row |
-      normSquared: normSquared + (mat atRow: row column: col) squared].
-    norm: normSquared sqrt.
+      normSquared := normSquared + (mat atRow: row column: col) squared].
+    norm := normSquared sqrt.
     norm > 0 ifTrue: [mat multiplyColumn: col by: 1 / norm]].
   mat
 ].
@@ -622,11 +622,11 @@ mat@(AbstractMatrix traits) normalizeRows
 "Divide each row by its 2-norm."
 [| normSquared norm |
   0 below: mat height do: [| :row |
-    normSquared: 0.0.
+    normSquared := 0.0.
     0 below: mat width do: [| :col |
-      normSquared: normSquared + (mat atRow: row column: col) squared].
-    norm: normSquared sqrt.
-    norm > 0 ifTrue: [mat multiplyColumn: col by: 1 / norm]].
+      normSquared := normSquared + (mat atRow: row column: col) squared].
+    (norm := normSquared sqrt)
+      isPositive ifTrue: [mat multiplyColumn: col by: 1 / norm]].
   mat
 ].
 
@@ -654,7 +654,7 @@ it's just the regular method. Besides, each column is normalized."
 [| columnK |
   jc below: mat width do: [| :k |
     "Normalize column k"
-    columnK: (mat columnAt: k).
+    columnK := (mat columnAt: k).
     columnK normalizeColumns.
     mat at: k putColumn: columnK.
     k + 1 below: mat width do: [| :j |
@@ -673,7 +673,7 @@ it's just the regular method. Besides, each column is normalized."
 "  0 below: jc do: [| :k |"
   jc - 1 downTo: 0 do: [| :k |
     "Normalize column k"
-    columnK: mat columnAt: k.
+    columnK := mat columnAt: k.
     columnK normalizeColumns.
     mat at: k putColumn: columnK.
 
@@ -704,7 +704,7 @@ mat@(AbstractMatrix traits) transpose
   mat squareCheck.
   0 below: mat width do: [| :ii |
     col + 1 below: mat width do: [| :jj |
-      aux: (mat atRow: ii column: jj).
+      aux := (mat atRow: ii column: jj).
       mat atRow: ii column: jj put: (mat atRow: jj column: ii).
       mat atRow: jj column: ii put: aux]].
   mat
@@ -744,7 +744,7 @@ prototypes define: #Matrix &parents: {AbstractMatrix} &slots: {#elements -> {}}.
 
 mat@(Matrix traits) initializeElements
 [
-  mat elements: (mat elements new &capacity: mat height * mat width).
+  mat elements := (mat elements new &capacity: mat height * mat width).
   mat elements infect: [| :_ | 0].
 ].
 
@@ -755,11 +755,11 @@ mat@(Matrix traits) elementType
 
 mat@(Matrix traits) elementType: obj
 [
-  mat elements: (mat elements newForType: obj from: mat elements)
+  mat elements := (mat elements newForType: obj from: mat elements)
 ].
 
 mat@(Matrix traits) copy
-[resend `>> [elements: mat elements copy. ]].
+[resend `>> [elements := mat elements copy. ]].
 
 mat1@(Matrix traits) = mat2@(Matrix traits)
 [
@@ -809,9 +809,9 @@ r@(Matrix traits) fillWith: a@(Matrix traits) multipliedBy: b@(Matrix traits)
 [| elem |
   0 below: r height do: [| :rowR |
     0 below: r width do: [| :colR |
-      elem: 0.
+      elem := 0.
       0 below: a width do: [| :colA |
-        elem: elem + ((a elements at: colA * a height + rowR)
+        elem := elem + ((a elements at: colA * a height + rowR)
           * (b elements at: colR * b height + colA))].
       r elements at: colR * r height + rowR put: elem]].
   r
@@ -821,7 +821,7 @@ mat@(Matrix traits) substractRow: i multipliedBy: factor to: k
   startingAtColumn: jStart
 [| jLessOneTimesHeight |
   jStart below: width do: [| :j |
-    jLessOneTimesHeight: j - 1 * height.
+    jLessOneTimesHeight := j - 1 * height.
     elements at: jLessOneTimesHeight + k
        put: (elements at: jLessOneTimesHeight + k)
             - ((elements at: jLessOneTimesHeight + i) * factor)].
@@ -831,24 +831,24 @@ mat@(Matrix traits) substractRow: i multipliedBy: factor to: k
 mat@(Matrix traits) triangleWithPartialPivoting
 "Triangle mat, and answer the row permutation count."
 [| j jdelta k factor permutationCount jLessOneTimesHeight pivot |
-  permutationCount: 0.
-  jdelta: 0.
+  permutationCount := 0.
+  jdelta := 0.
   0 below: mat height - 1 do: [| :i |
-     [j: i + jdelta.
+     [j := i + jdelta.
       j <= mat width ifFalse: [^ mat].
       "Look for the pivot for column j, from row i down. Call it row k"
-      k: mat rowWithMaxInColumn: j startingAtRow: i.
+      k := mat rowWithMaxInColumn: j startingAtRow: i.
       (mat atRow: k column: j) = 0 /\ (j < mat width)]
-        whileTrue: [jdelta: jdelta + 1].
+        whileTrue: [jdelta := jdelta + 1].
       "Permute rows k and i"
       i = k ifFalse: [mat permuteRow: i withRow: k.
-          permutationCount: permutationCount + 1].
+          permutationCount := permutationCount + 1].
       "Substract the row i to all the ones below it"
-      jLessOneTimesHeight: j - 1 * mat height.
-      pivot: (mat elements at: jLessOneTimesHeight + i).
+      jLessOneTimesHeight := j - 1 * mat height.
+      pivot := (mat elements at: jLessOneTimesHeight + i).
       i + 1 below: mat height do: [| :ii |
         (mat atRow: ii column: j) = 0.0
-            ifFalse: [factor: (mat elements at: jLessOneTimesHeight + ii)
+            ifFalse: [factor := (mat elements at: jLessOneTimesHeight + ii)
                     / pivot.
               "Only after column j"
               mat elements at: jLessOneTimesHeight + ii put: 0.
@@ -872,19 +872,19 @@ mat@(BandMatrix traits) newType: type rowsAndColumns: n bandWidth: bw
   bw odd ifFalse: [error: 'The bandwidth must be odd.'].
   bw >= (2 * n) ifTrue: [error: 'The bandwidth can\'t be that large.'].
   (mat newType: type rows: n columns: n)
-    `>> [bandwidth: bw. initializeElements. ]
+    `>> [bandwidth := bw. initializeElements. ]
 ].
 
 mat@(BandMatrix traits) copy
 [
-  resend `>> [elements: mat elements copy. ]
+  resend `>> [elements := mat elements copy. ]
 ].
 
 mat@(BandMatrix traits) initializeElements
 [
-  mat bandwidth ifNil: [mat bandwidth: mat height * 2 - 1].
-  mat elements: (mat elements new &capacity: mat height * mat bandwidth).
-  mat elements keysDo: [| :index | mat elements at: index put: 0].
+  mat bandwidth `defaultsTo: mat height * 2 - 1.
+  mat elements := (mat elements new &capacity: mat height * mat bandwidth).
+  mat elements atAllPut: 0.
 ].
 
 mat@(BandMatrix traits) elementsIndexForRow: i column: j

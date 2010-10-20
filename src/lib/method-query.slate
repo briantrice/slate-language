@@ -90,7 +90,7 @@ name@(Symbol traits) macroSenders &in: namespace
 reachable from a specified namespace (or just the current namespace). This
 requires that source code be available, of course."
 [
-  namespace ifNil: [namespace: here].
+  namespace `defaultsTo: here.
   [| :result |
    result ; (namespace methodsSendingMacro: name).
    namespace allSlotsDo:
@@ -102,7 +102,7 @@ name@(Symbol traits) senders &in: namespace
 "Find all Methods sending the given name as selector defined on objects
 reachable from a specified namespace (or just the current namespace)."
 [
-  namespace ifNil: [namespace: here].
+  namespace `defaultsTo: here.
   [| :result |
    result ; (namespace methodsSending: name).
    namespace allSlotsDo:
@@ -114,7 +114,7 @@ name@(Symbol traits) implementations &in: namespace
 "Find all Methods with the given name as selector defined on objects
 reachable from a specified namespace (or just the current namespace)."
 [
-  namespace ifNil: [namespace: here].
+  namespace `defaultsTo: here.
   [| :result |
    result ; (namespace methodsNamed: name).
    namespace allSlotsAndDelegatesDo: [| :obj | result ; (obj methodsNamed: name)]]
@@ -137,20 +137,20 @@ sig@(Method Signature traits) hash
 ].
 
 sig@(Method Signature traits) copy
-[resend `>> [roles: sig roles copy. ]].
+[resend `>> [roles := sig roles copy. ]].
 
 sig@(Method Signature traits) arity
 [
-  sig selector ifNil: [sig roles size] ifNotNilDo: [| :sel | sel arity]
+  sig selector ifNil: [sig roles size] ifNotNilDo: #arity `er
 ].
 
 selector@(Symbol traits) findRoleHoldersOn: args &in: namespace
 "Answers a collection of the objects on which the first-applicable method is
 defined for the given arguments."
 [| result method |
-  namespace ifNil: [namespace: here].
-  method: (selector findOn: args).
-  result: (args newSize: selector arity).
+  namespace `defaultsTo: here.
+  method := (selector findOn: args).
+  result := (args newSize: selector arity).
   result infect: [| :_ | NoRole ].
   args doWithIndex:
     [| :each :index |
@@ -173,9 +173,9 @@ m@(Method traits) roleHolders &in: namespace
 "Performs a search in the namespace for the particular roles pointing to this
 method and answers a new Signature object describing it."
 [| result selector |
-  selector: m selector.
-  namespace ifNil: [namespace: here].
-  result: (Array newSize: m arity).
+  selector := m selector.
+  namespace `defaultsTo: here.
+  result := (Array newSize: m arity).
   result infect: [| :_ | NoRole].
   result keysDo:
     [| :index |

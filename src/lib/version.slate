@@ -31,8 +31,8 @@ v1@(Version traits) < v2@(Version traits)
 v1@(Version traits) isInSameBranchAs: v2@(Version traits)
 [| short long |
   v1 numbers size <= v2 numbers size
-     ifTrue: [short: v1 numbers. long: v2 numbers]
-     ifFalse: [long: v1 numbers. short: v2 numbers].
+     ifTrue: [short := v1 numbers. long := v2 numbers]
+     ifFalse: [long := v1 numbers. short := v2 numbers].
   0 below: short size - 1
     do: [| :index | (short at: index) = (long at: index) ifFalse: [^ False]].
   short size = long size \/ [short last <= long last]
@@ -41,11 +41,11 @@ v1@(Version traits) isInSameBranchAs: v2@(Version traits)
 v1@(Version traits) commonVersionWith: v2@(Version traits)
 [| short long threshold |
   v1 numbers size <= v2 numbers size
-     ifTrue: [short: v1 numbers. long: v2 numbers]
-     ifFalse: [long: v1 numbers. short: v2 numbers].
-  threshold: ((0 below: short size)
+     ifTrue: [short := v1 numbers. long := v2 numbers]
+     ifFalse: [long := v1 numbers. short := v2 numbers].
+  threshold := (0 below: short size)
          detect: [| :index | (short at: index) ~= (long at: index)]
-	 ifNone: [^ (v1 newFrom: short)]).
+	 ifNone: [^ (v1 newFrom: short)].
   v1 newFrom: (v1 numbers copyFrom: 0 to: threshold - 2)
     ;; {short at: threshold. long at: threshold}
 ].
@@ -53,14 +53,14 @@ v1@(Version traits) commonVersionWith: v2@(Version traits)
 v@(Version traits) previous
 [| nums |
   v numbers last <= 1 ifTrue: [^ (v newFrom: v numbers allButLast)].
-  nums: v numbers copy.
+  nums := v numbers copy.
   nums at: nums size - 1 put: nums last - 1.
   v newFrom: nums
 ].
 
 v@(Version traits) next
 [| nums |
-  nums: v numbers copy.
+  nums := v numbers copy.
   nums at: nums size - 1 put: nums last + 1.
   v newFrom: nums
 ].
@@ -107,7 +107,7 @@ h@(VersionHistory traits) firstVersion
 
 h@(VersionHistory traits) versionsAfter: v
 [| result |
-  result: h versions new.
+  result := h versions new.
   h versions
     do: [| :each | (each isInSameBranchAs: v) /\ [each > v]
 	  ifTrue: [result include: each]].
@@ -116,7 +116,7 @@ h@(VersionHistory traits) versionsAfter: v
 
 h@(VersionHistory traits) versionsBefore: v
 [| result |
-  result: h versions new.
+  result := h versions new.
   h versions
     do: [| :each | (each isInSameBranchAs: v) /\ [each < v]
 	  ifTrue: [result include: each]].
@@ -129,9 +129,9 @@ the same number of digits with the same values, except the last value is
 greater than the last value of the given version)."
 [| tmp |
   [| :result |
-   tmp: v.
+   tmp := v.
    [h versions includes: tmp]
-     whileTrue: [result nextPut: tmp. tmp: tmp next]]
+     whileTrue: [result nextPut: tmp. tmp := tmp next]]
        writingAs: ExtensibleArray
 ].
 
@@ -139,20 +139,19 @@ h@(VersionHistory traits) versionBefore: v
 "Answer the immediately preceding version unless it is invalid or the version
 history doesn't contain it."
 [| tmp |
-  v > Version ifFalse: [^ Nil].
-  tmp: v previous.
-  (h versions includes: tmp) ifTrue: [tmp]
+  v > Version ifTrue:
+    [(h versions includes: (tmp := v previous)) ifTrue: [tmp]]
 ].
 
 h@(VersionHistory traits) versionsAfter: v
 "Answer all the versions immediately following the given one."
 [| result tmp |
-  result: h versions new.
-  tmp: v next.
+  result := h versions new.
+  tmp := v next.
   (h versions includes: tmp)
     ifTrue: [result include: tmp].
-  tmp: v.
-  [h versions includes: (tmp: tmp branchNext)]
+  tmp := v.
+  [h versions includes: (tmp := tmp branchNext)]
     whileTrue: [result include: tmp].
   result
 ].
@@ -160,8 +159,8 @@ h@(VersionHistory traits) versionsAfter: v
 h@(VersionHistory traits) canRemove: v
 [| hasPriors followers |
   (h versions includes: v)
-   /\ [hasPriors: (h versionBefore: v) isNotNil.
-       followers: (h versionsAfter: v).
+   /\ [hasPriors := (h versionBefore: v) isNotNil.
+       followers := h versionsAfter: v.
        "Prevent versions in the middle from extraction."
        (hasPriors /\ [followers isEmpty not]) not
        "Prevent versions with more than one follower from extraction."
@@ -175,11 +174,11 @@ h@(VersionHistory traits) addNewVersionBasedOn: v
 [| tmp |
   (h versions includes: v)
     ifFalse: [error: 'Version is not in the history.'].
-  tmp: v next.
+  tmp := v next.
   (h versions includes: tmp)
     ifFalse: [h versions include: tmp. ^ tmp].
-  tmp: v.
-  [h versions includes: (tmp: tmp branchNext)] whileTrue.
+  tmp := v.
+  [h versions includes: (tmp := tmp branchNext)] whileTrue.
   h versions include: tmp.
   tmp
 ].
@@ -213,7 +212,7 @@ The trunk is defined as all versions starting with the first which have only
 one successor."
 [| tmp |
   (h versionsAfter: v) size > 1 ifTrue: [error: 'The version is at a fork.'].
-  tmp: (h allVersionsBefore: v).
+  tmp := h allVersionsBefore: v.
   (tmp detect: [| :each | (h versionsAfter: each) size > 1]
        ifNone: [])
     ifNotNil: [error: 'Not a trunk. Other branches detected.'].
@@ -224,7 +223,7 @@ one successor."
 
 h@(VersionHistory traits) treeStringOn: s startingAt: v
 [| line |
-  line: (h mainLineStartingAt: v).
+  line := h mainLineStartingAt: v.
   line do: [| :each | each versionStringOn: s.
 		s ; '  '].
   s nextPut: $\n.

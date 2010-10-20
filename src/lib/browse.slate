@@ -14,8 +14,8 @@ browsing define: #MetaNode &parents: {Cloneable}
 
 n@(MetaNode traits) new &name: name
 [| newN |
-  newN: (n clone `setting: #{#edges. #actors} to: {n edges new. n actors new}).
-  name ifNotNil: [newN name: name].
+  newN := (n clone `setting: #{#edges. #actors} to: {n edges new. n actors new}).
+  name ifNotNil: [newN name := name].
   newN
 ].
 
@@ -49,7 +49,7 @@ e@(MetaEdge traits) newNamed: label selector: selector metaNode: metaNode
 [e clone `setting: #{#label. #selector. #metaNode} to: {label. selector. metaNode}].
 
 e@(MetaEdge traits) nodesFollowing: node
-[(node perform: e selector) `>> [do: [| :each | each metaNode: e metaNode]. ]].
+[(node perform: e selector) `>> [do: [| :each | each metaNode := e metaNode]. ]].
 
 browsing define: #BrowseNode &slots: {#metaNode "The producer of this node."}.
 "A wrapper for an object in the browser's domain graph. Derive from this to
@@ -75,7 +75,7 @@ Browser traits define: #MetaGraphs &builder: [Dictionary new].
 b@(Browser traits) addPanel: p@(Panel traits)
 [
   b panels add: p.
-  p browser: b.
+  p browser := b.
 ].
 
 browsing define: #Column &parents: {Cloneable} &slots:
@@ -86,7 +86,7 @@ browsing define: #Column &parents: {Cloneable} &slots:
    #selection -> Nil "The index of the node selected by the user."}.
 "TODO: handle multiple selections?"
 
-MetaNode column: Column.
+MetaNode column := Column.
 
 Column addMutator:
   [| :c :node | c atSlotNamed: #previousNode put: node.
@@ -95,7 +95,7 @@ Column addMutator:
    node] for: #previousNode.
 
 c@(Column traits) getChildren
-[c children: (c filter nodesFollowing: c previousNode)].
+[c children := (c filter nodesFollowing: c previousNode)].
 
 c@(Column traits) nextMetaNode
 [c selectedNode metaNode].
@@ -106,13 +106,13 @@ c@(Column traits) selectedNode
 
 c@(Column traits) hasSelection [c selection isNotNil].
 
-c@(Column traits) clearSelection [c selection: Nil].
+c@(Column traits) clearSelection [c selection := Nil].
 
 c@(Column traits) refresh
 [| node oldChildren |
   c isEmpty ifTrue: [^ c].
-  node: c selectedNode.
-  oldChildren: c children.
+  node := c selectedNode.
+  oldChildren := c children.
   c getChildren.
   c children = oldChildren
     ifFalse:
@@ -124,7 +124,7 @@ c@(Column traits) refresh
 ].
 
 c@(Column traits) choose: n@(BrowseNode traits)
-[c selection: (c children indexOf: n ifAbsent: [])].
+[c selection := (c children indexOf: n ifAbsent: [])].
 
 c@(Column traits) shouldBeLast
 [c hasSelection not \/ [c nextMetaNode hasChildren not]].
@@ -146,7 +146,7 @@ c@(Column traits) selected
 
 c@(Column traits) selectAncestorOf: node
 [| ancestor |
-  ancestor: (c filter selectAncestorOf: node after: c previousNode).
+  ancestor := (c filter selectAncestorOf: node after: c previousNode).
   ancestor
     ifNotNil:
       [c getChildren.
@@ -172,16 +172,16 @@ c@(Column traits) clearNext
 c@(Column traits) clear
 [
   c clearNext.
-  c filter: Nil.
-  c previousNode: Nil.
-  c children: c children new.
+  c filter := Nil.
+  c previousNode := Nil.
+  c children := c children new.
   c clearSelection.
 ].
 
 c@(Column traits) metaNode: meta parent: node
 [
-  c filter: meta filter.
-  c previousNode: node.
+  c filter := meta filter.
+  c previousNode := node.
   c clearNext.
 ].
 
@@ -195,7 +195,7 @@ selected, additional columns are added to the list."
 "TODO: add forking tree behavior? Use a continuation/linked-list setup?"
 
 b@(BrowseChain traits) emptyColumn
-[Column new `>> [panel: b. ]].
+[Column new `>> [panel := b. ]].
 
 b@(BrowseChain traits) node: n@(BrowseNode traits)
 [
@@ -209,19 +209,19 @@ b@(BrowseChain traits) root
 
 b@(BrowseChain traits) jumpTo: n@(BrowseNode traits)
 [| column ancestor |
-  column: b columns first.
-  [ancestor: (column selectAncestorOf: n).
+  column := b columns first.
+  [ancestor := (column selectAncestorOf: n).
    ancestor = n \/ [ancestor isNil]]
     whileFalse:
-      [column: (b columns after: column ifAbsent: [^ Nil])].
+      [column := (b columns after: column ifAbsent: [^ Nil])].
 ].
 
 b@(BrowseChain traits) hopTo: n@(BrowseNode traits)
 [| column |
-  column: b columns last.
+  column := b columns last.
   [column refresh. column children includes: n]
     whileFalse:
-      [column: (columns before: column ifAbsent: [^ (b jumpTo: n)])].
+      [column := (columns before: column ifAbsent: [^ (b jumpTo: n)])].
   column choose: n.
 ].
 
@@ -240,7 +240,7 @@ b@(BrowseChain traits) canTrimColumn
 
 b@(BrowseChain traits) trimColumns
 [| oldSize |
-  oldSize: b columns size.
+  oldSize := b columns size.
   [b canTrimColumn] whileTrue: [b columns removeLast].
   oldSize - b columns size
 ].
@@ -265,7 +265,7 @@ to have all the nodes made available by the metagraph to be visible in the
 browser, a Filter provides a strategy to filter out some of the nodes from the
 display. The default Filter does not filter anything."
 
-MetaNode filter: Filter.
+MetaNode filter := Filter.
 
 f@(Filter traits) children [f metaNode children].
 
@@ -359,7 +359,7 @@ n@(WellKnownNode traits) newOn: path
 
 _@lobby browseNode
 "Have the lobby represented by a no-Path WellKnownNode."
-[WellKnownNode newOn: {}].
+[WellKnownNode newOn: #{}].
 
 n@(WellKnownNode traits) slots
 "Have WellKnownNodes answer new WellKnownNodes for their slot values."

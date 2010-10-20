@@ -26,21 +26,21 @@ c@(CharacterCollection traits) new
 
 c@(CharacterCollection traits) add: ch
 [| index |
-  index: ch code.
+  index := ch code.
   c contents at: index put: (c contents at: index) + 1.
   ch
 ].
 
 c@(CharacterCollection traits) remove: ch
 [| index |
-  index: ch code.
+  index := ch code.
   c contents at: index put: (c contents at: index) - 1.
   ch
 ].
 
 c@(CharacterCollection traits) removeEvery: ch
 [| index |
-  index: ch code.
+  index := ch code.
   c contents at: index put: 0.
   ch
 ].
@@ -77,22 +77,22 @@ c@(CharacterCollection traits) at: ch put: n
 
 c@(CharacterCollection traits) as: s@(String traits)
 [| newS index |
-  newS: (s newSizeOf: c).
-  index: 0.
+  newS := (s newSizeOf: c).
+  index := 0.
   c contents doWithIndex:
     [| :code :count |
      count = 0 ifFalse:
        [count = 1
 	  ifTrue: [newS at: index put: code]
 	  ifFalse: [newS].
-	index: index + count]].
+	index := index + count]].
   newS
 ].
 
 c@(CharacterCollection traits) complement
 "Return the Set-wise complement of the collection's characters."
 [| result |
-  result: c new.
+  result := c new.
   result contents
     do: [| :code |
 	 (c contents at: code) = 0 ifFalse: [result contents at: code put: 1]].

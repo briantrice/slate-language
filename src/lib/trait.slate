@@ -39,11 +39,11 @@ t@(Trait traits) addMutatorForTraitSlot: name
 update the usage Set for that Trait and the old Trait, if any."
 [
   t addMutator:
-  [| :user :trait |
-   user trait ifNotNilDo: [| :oldTrait | oldTrait noteUseEndedBy: user].
-   user atSlotNamed: name put: trait.
-   trait ifNotNil: [trait noteUseBy: user].
-   trait] for: name
+    [| :user :trait |
+     user trait ifNotNilDo: [| :oldTrait | oldTrait noteUseEndedBy: user].
+     user atSlotNamed: name put: trait.
+     trait ifNotNil: [trait noteUseBy: user].
+     trait] for: name
 ].
 
 x@(Root traits) finalize [].
@@ -73,9 +73,9 @@ dispatch at least in some way on the Trait(?)."
 t@(Trait traits) hasValidServices
 [
   t hasValidSignatures /\
-    [| check | check: True.
+    [| check | check := True.
      t services keysAndValuesDo:
-       [| :sig :m | check: check /\ [sig arity = m arity]].
+       [| :sig :m | check := check /\ [sig arity = m arity]].
      check]
 ].
 
@@ -93,7 +93,7 @@ t@(Trait traits) requiredSelectors
 "Answer all the selectors sent which should be defined on users of the Trait,
 but is not in the services selector set."
 [| requirements |
-  requirements: Set new.
+  requirements := Set new.
   t providedSelectors `cacheAs: #provisions.
   t services valuesDo:
     [| :m |
@@ -110,7 +110,7 @@ t1@(Trait traits) conflictsWith: t2@(Trait traits)
 "Detects those Signatures which are bound to different Method objects in
 the two Trait objects."
 [| allServices |
-  allServices: Dictionary new.
+  allServices := Dictionary new.
   {t1. t2} do:
     [| :base | base services keysAndValuesDo:
       [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].
@@ -137,7 +137,7 @@ x@(Root traits) speaks: t@(Trait traits)
 Trait object."
 [
   t services keysAndValuesDo:
-    [| :sig :m targetSig | targetSig: (t translate: sig for: target).
+    [| :sig :m targetSig | targetSig := (t translate: sig for: target).
      targetSig isDefined /\ [targetSig nearestMethod = m] ifFalse: [^ False]].
   True
 ].
@@ -156,11 +156,11 @@ object that the second argument should evaluate to (or be, if not a piece
 of syntax). It expands into a literal of the method object that became a
 service of the Trait."
 [| roles service |
-  (tr is: Syntax Node) ifTrue: [tr: tr evaluate].
+  (tr is: Syntax Node) ifTrue: [tr := tr evaluate].
   (tr is: Trait) ifFalse: [error: 'The target for installation was not a Trait.'].
-  roles: (def roles collect: #evaluate `er).
+  roles := (def roles collect: #evaluate `er).
   (roles includes: tr) ifFalse: [error: 'The Trait is not dispatched upon.'].
-  service: (tr services at: (Method Signature newNamed: def selector over: roles)
+  service := (tr services at: (Method Signature newNamed: def selector over: roles)
 		        put: (def deepCopy as: Syntax Block) compile) unquoted.
   tr notifyUsersOfChange.
   service
@@ -174,9 +174,9 @@ t@(TraitComponent traits) newFrom: map@(Mapping traits)
 "Create a TraitComponent from valid signature->method associations."
 "TODO: check roles in the signatures?"
 [
-  map: (map mapSelect:
-    [| :key :value | (key is: Method Signature) /\ [value is: Method]]).
-  t new `>> [services: (map as: t services). ]
+  map := map mapSelect:
+    [| :key :value | (key is: Method Signature) /\ [value is: Method]].
+  t new `>> [services := map as: t services. ]
 ].
 
 TraitComponent traits compareAndHashUsingSlots: #{#services}.
@@ -194,7 +194,7 @@ prototypes define: #TraitSum &parents: {Trait} &slots: {#bases -> Set new}.
 "A symmetric sum, where no precedence is given to any of the bases."
 
 t@(TraitSum traits) newFor: bases
-[t new `>> [bases: (bases as: t bases).
+[t new `>> [bases := bases as: t bases.
 	    bases do: [| :each | each noteUseBy: self]. ]].
 
 TraitSum traits compareAndHashUsingSlots: #{#bases}.
@@ -212,7 +212,7 @@ ts@(TraitSum traits) conflicts
 "Detects those Signatures which are bound to different Method objects in
 different bases."
 [| allServices |
-  allServices: Dictionary new.
+  allServices := Dictionary new.
   ts bases do:
     [| :base | base services keysAndValuesDo:
       [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].
@@ -229,7 +229,7 @@ prototypes define: #TraitModifier &parents: {Trait} &slots: {#base -> Trait}.
 TraitModifier addMutatorForTraitSlot: #base.
 
 tm@(TraitModifier traits) finalize
-[tm base: Nil. ].
+[tm base := Nil. ].
 
 TraitModifier traits compareAndHashUsingSlots: #{#base}.
 
@@ -245,10 +245,10 @@ TraitOverride addMutatorForTraitSlot: #overlay.
 TraitOverride traits compareAndHashUsingSlots: #{#base. #overlay}.
 
 to@(TraitOverride traits) newBasedOn: base layering: overlay
-[to new `>> [base: base. overlay: overlay. ]].
+[to new `>> [base := base. overlay := overlay. ]].
 
 t@(Trait traits) as: to@(TraitOverride traits)
-[to new `>> [overlay: overlay. ]].
+[to new `>> [overlay := overlay. ]].
 
 to@(TraitOverride traits) newFrom: map@(Mapping traits)
 [(TraitComponent newFrom: map) as: to].
@@ -259,7 +259,7 @@ base@(Trait traits) ** layer@(Trait traits)
 to@(TraitOverride traits) finalize
 [
   resend.
-  to overlay: Nil.
+  to overlay := Nil.
 ].
 
 to@(TraitOverride traits) services
@@ -278,12 +278,12 @@ prototypes define: #TraitExclusion &parents: {TraitModifier}
 TraitExclusion addMutatorForTraitSlot: #exclusion.
 
 te@(TraitExclusion traits) newBasedOn: base excluding: exclusion
-[te new `>> [base: base. exclusion: exclusion. ]].
+[te new `>> [base := base. exclusion := exclusion. ]].
 
 TraitExclusion traits compareAndHashUsingSlots: #{#base. #exclusion}.
 
 t@(Trait traits) as: te@(TraitExclusion traits)
-[te new `>> [exclusion: exclusion. ]].
+[te new `>> [exclusion := exclusion. ]].
 
 te@(TraitExclusion traits) newFrom: map@(Mapping traits)
 [(TraitComponent newFrom: map) as: te].
@@ -300,7 +300,7 @@ te@(TraitExclusion traits) services
 te@(TraitExclusion traits) finalize
 [
   resend.
-  te exclusion: Nil.
+  te exclusion := Nil.
 ].
 
 te@(TraitExclusion traits) hasSubTrait: t@(Trait traits)
@@ -312,7 +312,7 @@ prototypes define: #TraitWithAlias &parents: {TraitModifier}
 TraitWithAlias traits compareAndHashUsingSlots: #{#base. #aliases}.
 
 ta@(TraitWithAlias traits) newBasedOn: base aliasing: map
-[ta new `>> [base: base. aliases: (map as: ta aliases). ]].
+[ta new `>> [base := base. aliases := map as: ta aliases. ]].
 
 base@(Trait traits) aliasing: map
 [TraitWithAlias newBasedOn: base aliasing: map].
@@ -322,7 +322,7 @@ prototypes define: #TraitWrapper &parents: {Trait}
 "A TraitWrapper allows non-Trait objects to participate in Trait compositions."
 
 tw@(TraitWrapper traits) newFor: obj
-[tw new `>> [basis: obj. cachedServices: Nil. ]].
+[tw new `>> [basis := obj. cachedServices := Nil. ]].
 
 obj as: tw@(TraitWrapper traits)
 [tw newFor: obj].
@@ -332,7 +332,7 @@ tw@(TraitWrapper traits) services
 other trait objects that the basis object uses."
 [
   tw cachedServices ifNil:
-    [tw cachedServices: (tw basis methods reverseProject: #signature`er)]
+    [tw cachedServices := tw basis methods reverseProject: #signature `er ]
 ].
 
 tw@(TraitWrapper traits) hasSubTrait: t@(Trait traits)

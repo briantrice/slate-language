@@ -13,7 +13,7 @@ SkipList traits define: #Node &parents: {Cloneable}
 sl@(SkipList traits) clear
 [
   0 below: sl maxLevel do: [| :i | sl pointers at: i put: Nil].
-  sl numElements: 0.
+  sl numElements := 0.
 ].
 
 sl@(SkipList traits) isEmpty
@@ -49,25 +49,25 @@ sl@(SkipList traits) newPointerLength
 sl@(SkipList traits) neighboursFor: obj
 "Helper method to create the pointers to the (new) node."
 [| node nextptrs |
-  nextptrs: (sl pointers new &capacity: sl maxLevel).
+  nextptrs := sl pointers new &capacity: sl maxLevel.
   sl maxLevel - 1 downTo: 0 do:
     [| :level |
-     node ifNil: [node: (sl pointers at: level)].
+     node ifNil: [node := sl pointers at: level].
      node ifNotNil:
        [(sl sortBlock apply*, node object, obj)
 	  ifTrue:
 	    [[(node forward: level) isNotNil /\
 	      [sl sortBlock apply*, (node forward: level) object, obj]]
-              	whileTrue: [node: (node forward: level)].
+              	whileTrue: [node := node forward: level].
 	     nextptrs at: level put: node]
-	  ifFalse: [nextptrs at: level put: (node: Nil)]]].
+	  ifFalse: [nextptrs at: level put: (node := Nil)]]].
   nextptrs
 ].
 
 sl@(SkipList traits) add: obj
 [| newNode |
-  newNode: (sl Node clone `setting: #{#object. #pointers}
-		    to: {obj. sl pointers new &capacity: sl maxLevel}).
+  newNode := sl Node clone `setting: #{#object. #pointers}
+    to: {obj. sl pointers new &capacity: sl maxLevel}.
   sl isEmpty
     ifTrue:
       [0 below: sl maxLevel do: [| :i | 
@@ -75,7 +75,7 @@ sl@(SkipList traits) add: obj
 	  newNode pointers at: i put: Nil]]
     ifFalse:
       [| nextptrs |
-       nextptrs: (sl neighboursFor: obj).
+       nextptrs := sl neighboursFor: obj.
        0 upTo: sl newPointerLength do:
 	 [| :level |
 	  (nextptrs at: level)
@@ -86,7 +86,7 @@ sl@(SkipList traits) add: obj
 	      [| :nodePtr |
 	       newNode pointers at: level put: (nodePtr pointers at: level).
 	       nodePtr pointers at: level put: newNode]]].
-  sl numElements: sl numElements + 1.
+  sl numElements := sl numElements + 1.
   obj
 ].
 
@@ -105,14 +105,13 @@ sl@(SkipList traits) includes: obj
 sl@(SkipList traits) remove: obj
 [
   sl isEmpty ifFalse: [| nextptrs |
-    nextptrs: (sl neighboursFor: obj).
-    nextptrs first
+    (nextptrs := sl neighboursFor: obj) first
       ifNil: [| node |
-	node: sl pointers first.
+	node := sl pointers first.
 	(sl identityBlock apply*, node object, obj) ifTrue: [
       	  0 below: sl maxLevel do: [| :i | 
       	    sl pointers at: i put: (node pointers at: i)].
-	  sl numElements: sl numElements - 1]]
+	  sl numElements := sl numElements - 1]]
       ifNotNilDo: [| :neighbour |
 	neighbour pointers first 
 	  ifNotNilDo: [| :candidate |
@@ -122,7 +121,7 @@ sl@(SkipList traits) remove: obj
       	      		ifNotNilDo: [| :node |
 				       node pointers at: i put: 
 					 (candidate pointers at: i)]].
-	       sl numElements: sl numElements - 1]]]]
+	       sl numElements := sl numElements - 1]]]]
 ].
 
 sl@(SkipList traits) remove: obj ifAbsent: block
@@ -134,22 +133,22 @@ sl@(SkipList traits) remove: obj ifAbsent: block
 
 sl@(SkipList traits) do: block
 [| elem |
-  elem: sl pointers first.
+  elem := sl pointers first.
   [elem isNotNil]
     whileTrue: [
       block applyWith: elem object.
-      elem: elem pointers first]
+      elem := elem pointers first]
 ].
 
 sl@(SkipList traits) reverseDo: block
 [| obj elements index |
-  obj: sl pointers first.
-  elements: (sl pointers newSizeOf: sl).
-  index: sl size - 1.
+  obj := sl pointers first.
+  elements := sl pointers newSizeOf: sl.
+  index := sl size - 1.
   [obj isNotNil] 
     whileTrue: [
       elements at: index put: obj object.
-      index: index - 1.
-      obj: obj pointers first].
+      index := index - 1.
+      obj := obj pointers first].
   elements do: block.
 ].

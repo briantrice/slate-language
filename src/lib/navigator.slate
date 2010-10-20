@@ -13,25 +13,25 @@ prototypes define: #NavigationHistory
 
 nh@(NavigationHistory traits) new
 [
-  resend `>> [clear. rememberTest: [| :_ | True]. ]
+  resend `>> [clear. rememberTest := [| :_ | True]. ]
 ].
 
 nh@(NavigationHistory traits) clear
 [
-  nh here: Nil.
-  nh allVisits: nh allVisits new.
+  nh here := Nil.
+  nh allVisits := nh allVisits new.
   nh clearFuture.
   nh clearPast.
 ].
 
 nh@(NavigationHistory traits) clearFuture
 [
-  nh futureVisits: nh futureVisits new.
+  nh futureVisits := nh futureVisits new.
 ].
 
 nh@(NavigationHistory traits) clearPast
 [
-  nh pastVisits: nh pastVisits new.
+  nh pastVisits := nh pastVisits new.
 ].
 
 nh@(NavigationHistory traits) hasFuture
@@ -78,7 +78,7 @@ nh@(NavigationHistory traits) goBack
   nh hasPast ifTrue:
     [(nh shouldRemember: nh here) ifTrue:
       [nh futureVisits addFirst: nh here].
-     nh here: nh pastVisits removeLast].
+     nh here := nh pastVisits removeLast].
 ].
 
 nh@(NavigationHistory traits) goBackTo: obj
@@ -91,7 +91,7 @@ nh@(NavigationHistory traits) goForward
   nh hasFuture ifTrue:
     [(nh shouldRemember: nh here) ifTrue:
       [nh pastVisits addLast: nh here].
-     nh here: nh futureVisits removeFirst].
+     nh here := nh futureVisits removeFirst].
 ].
 
 nh@(NavigationHistory traits) goForwardTo: obj
@@ -107,7 +107,7 @@ The 'future' queue is erased, unless the visit is the first future element."
   nh here = obj ifFalse:
     [nh here isNotNil /\ [nh shouldRemember: nh here] ifTrue:
       [nh pastVisits addLast: here].
-     nh here: obj.
+     nh here := obj.
      (nh shouldRemember: obj) ifTrue: [nh remember: obj].
      nh hasFuture ifTrue:
        [nh futureVisits first = nh here
@@ -135,7 +135,7 @@ i@(Navigator traits) newOn: obj
 
 _@(Namespace traits) inspect: obj
 [| i |
-  i: (Navigator newOn: obj).
+  i := (Navigator newOn: obj).
   here inform: 'You are in a twisty little maze of objects, all alike.'.
   obj
 ].
@@ -170,7 +170,7 @@ i@(Navigator traits) slots
 
 i@(Navigator traits) indexedSlots
 [| s |
-  s: Console writer.
+  s := Console writer.
   (i here is: Sequence)
     ifFalse: [^ Nil].
   s nextPut: ${.
@@ -224,6 +224,6 @@ i@(Navigator traits) close
 "Sever all the connections that make the Navigator work, for memory safety,
 and return the Navigator."
 [
-  i history: Nil.
+  i history := Nil.
   i
 ].

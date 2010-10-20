@@ -3,7 +3,7 @@ _@lobby slurpSourceIn
 [
   Image Definition bootstrapFilenames do:
     [| :fn | (File newNamed: fn) sessionDo:
-      [| :file reader parser | reader: file reader.
+      [| :file |
        inform: 'Parsing ' ; file locator printString.
        (Syntax Parser newOn: file reader)
 	 do: [| :tree | tree walk:
@@ -11,7 +11,7 @@ _@lobby slurpSourceIn
 	      /\ [node parentScope = Syntax Lobby] ifTrue:
 		[(node selector findOn: (node roles collect: #evaluate `er ))
 		  ifNil: [inform: node selector printString ; ' not found!']
-		  ifNotNilDo: [| :m | m method sourceTree: node]]]]]].
+		  ifNotNilDo: [| :m | m method sourceTree := node]]]]]].
 ].
 
 slurpSourceIn.

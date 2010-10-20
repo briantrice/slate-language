@@ -10,13 +10,13 @@ prototypes define: #Platform
 p@(Platform traits) update
 [
   p `>>
-   [name: (lobby systemPlatform as: String).
-    nodeName: (lobby systemName as: String).
-    systemRelease: (lobby systemRelease as: String).
-    systemVersion: (lobby systemVersion as: String).
-    machine: (lobby systemMachine as: String).
-    endianness: (lobby isLittleEndian ifTrue: [#LittleEndian] ifFalse: [#BigEndian]).
-    bytesPerWord: lobby bytesPerWord. ]
+   [name := (lobby systemPlatform as: String).
+    nodeName := (lobby systemName as: String).
+    systemRelease := (lobby systemRelease as: String).
+    systemVersion := (lobby systemVersion as: String).
+    machine := (lobby systemMachine as: String).
+    endianness := (lobby isLittleEndian ifTrue: [#LittleEndian] ifFalse: [#BigEndian]).
+    bytesPerWord := lobby bytesPerWord. ]
 ].
 
 p@(Platform traits) current
@@ -69,14 +69,14 @@ Image startupActions at: #Environment put:
 
 e@(Environment traits) update
 [| variables |
-  variables: lobby environmentVariables.
-  e variables: (e variables newSizeOf: variables).
+  variables := lobby environmentVariables.
+  e variables := (e variables newSizeOf: variables).
   variables do:
     [| :each eachString equalsIndex key value |
-     eachString: (each as: String).
-     equalsIndex: (eachString indexOf: $= ifAbsent: [eachString length]).
-     key: (eachString first: equalsIndex).
-     value: (eachString allButFirst: equalsIndex + 1).
+     eachString := (each as: String).
+     equalsIndex := (eachString indexOf: $= ifAbsent: [eachString length]).
+     key := (eachString first: equalsIndex).
+     value := (eachString allButFirst: equalsIndex + 1).
      e variables at: key put: value].
 ].
 
@@ -150,7 +150,7 @@ e@(Environment traits) terminalType [e at: 'TERM'].
 
 e@(Environment traits) sourcePaths
 "Where Slate expects to find code."
-[(e at: 'SLATEPATH') ifNil: [{}] ifNotNilDo: [| :paths | paths splitWith: $:]].
+[(e at: 'SLATEPATH') ifNil: [#{}] ifNotNilDo: [| :paths | paths splitWith: $:]].
 
 "Load defaultPaths addAll:
   (Environment sourcePaths collect: [| :each | each as: File Locator])."
@@ -173,7 +173,7 @@ p@(Platform traits) edit: m@(Method traits) &editor: editor &reload: reload
            [warn: 'File-based source information unavailable.'. False]
          ifNotNilDo:
            [| :fileName result |
-            result: (p run: editor
+            result := (p run: editor
               ; (src lineNumber ifNil: [''] ifNotNilDo: [| :n | ' +' ; n printString])
               ; ' ' ; (fileName as: String)).
             result /\ reload ifTrue: [m reload].
@@ -217,10 +217,10 @@ _@shell didNotUnderstand: message at: position
                  command ; ' -' ; (key as: String) allButFirst allButLast ; ' ' ; (value as: String)]].
          message selector isKeywordSelector ifTrue:
            [| keywords args |
-            keywords: ((message selector as: String) splitWith: $:).
+            keywords := ((message selector as: String) splitWith: $:).
             command ; keywords first.
             keywords size = 1 ifTrue: "Read a string or array of arguments."
-              [args: message arguments second.
+              [args := message arguments second.
                (args is: String) ifTrue: [command ; ' ' ; args]
                  ifFalse: [args do: [| :arg | command ; ' ' ; arg]]]].
          message arguments allButFirst: message selector arity do:

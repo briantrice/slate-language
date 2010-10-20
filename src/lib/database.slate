@@ -80,8 +80,8 @@ pc@(DB PostgresCommand traits) littleEndian
 
 db@(DB Postgres traits) newOn: stream
 [ | ret |
-  ret: db new.
-  db stream: stream.
+  ret := db new.
+  db stream := stream.
   db
 ].
 
@@ -104,15 +104,15 @@ db@(DB Postgres traits) hasReply
 
 reply@(DB PostgresReply traits) newType: type response: response
 [ | return |
-  reply new `>> [type: type. length: response size. response: response. ]
+  reply new `>> [type := type. length := response size. response := response. ]
 ].
 
 
 db@(DB Postgres traits) connectTo: addr@(Net SocketAddress traits)
 [ | socket |
-  socket: (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+  socket := (Net Socket newFor: addr domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
   socket connectTo: addr.
-  db stream: (Net SocketStream newOn: socket).
+  db stream := (Net SocketStream newOn: socket).
   db
 ].
 
@@ -146,13 +146,13 @@ db@(DB Postgres traits) readReply
 [ | responseTypeByte responseLength response responseBA |
 
 [
-  responseTypeByte: db stream next.
+  responseTypeByte := db stream next.
   db inform: 'Response type:' ; responseTypeByte printString.
-  responseBA: (db stream next: 4).
+  responseBA := (db stream next: 4).
   db inform: 'Response Length BA:' ; responseBA printString.
-  responseLength: (responseBA as: Integer &bigEndian: True)."fixme replace with int32 constant size or something"
+  responseLength := (responseBA as: Integer &bigEndian: True)."fixme replace with int32 constant size or something"
   db inform: 'Response Length:' ; responseLength printString.
-  response: ((responseLength >= 4)
+  response := ((responseLength >= 4)
                ifTrue: [(db stream next: responseLength - 4)] 
                ifFalse: [error: 'malformed message from ' ; db printString]).
  "fixme coerce to real structure"
@@ -169,17 +169,17 @@ db@(DB Postgres traits) md5Encrypt: pw salt: salt
 
 db@(DB Postgres traits) handleLogin: user password: pw
 [ | cmd reply reply authCode|
-  reply: db readReply.
+  reply := db readReply.
   db inform: 'reply: ' ; reply printString.
   reply isError ifTrue: [error: 'Login Failed. ' ; reply printError].
   reply type ~= $R code ifTrue: [error: 'Reply from server is not an authentication request'].
-  authCode: ((reply response first: 4) as: Integer &bigEndian: True).
+  authCode := ((reply response first: 4) as: Integer &bigEndian: True).
   db inform: 'auth code: ' ; authCode printString.
   authCode = 0 ifTrue: [ ^ True].
   authCode = 5 "md5 with salt on pw"
     ifTrue: [db inform: 'salt: ' ; (reply response allButFirst: 4) printString.
-             cmd: (DB PostgresPasswordMessage new `>> [password: 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
-             cmd length: cmd packed size - 1.
+             cmd := (DB PostgresPasswordMessage new `>> [password := 'md5' ; (db md5Encrypt: (db md5Encrypt: pw salt: user) salt: (reply response allButFirst: 4)). ]).
+             cmd length := cmd packed size - 1.
              db inform: 'sending md5 pw: ' ; cmd password printString.
              db sendCommand: cmd.
              ^ (db handleLogin: user password: pw)
@@ -192,8 +192,8 @@ db@(DB Postgres traits) loginAs: user password: pw &database: database
 "Use this command to log into a database"
 [ | cmd |
   database `defaultsTo: user.
-  cmd: (DB PostgresStartCommand new `>> [user: user. database: database. ]).
-  cmd length: cmd packed size.
+  cmd := (DB PostgresStartCommand new `>> [user := user. database := database. ]).
+  cmd length := cmd packed size.
   db sendCommand: cmd.
   (db handleLogin: user password: pw) ifTrue: [db inform: 'Login success'].
   db waitForQuery.
@@ -204,7 +204,7 @@ db@(DB Postgres traits) waitForQuery
 "receive messages until readyforquery message"
 [ | reply |
  [
-  reply: db readReply.
+  reply := db readReply.
   reply type caseOf: {
     $S code -> [db inform: 'parameter status ' ; reply printString].
     $E code -> [error: 'Error: ' ; reply printError. ].
@@ -219,8 +219,8 @@ db@(DB Postgres traits) waitForQuery
 db@(DB Postgres traits) query: query
 "Use this to do a simple query on the database"
 [ | cmd |
-  cmd: (DB PostgresQueryCommand new `>> [query: query. ]).
-  cmd length: cmd packed size - 1.
+  cmd := (DB PostgresQueryCommand new `>> [query := query. ]).
+  cmd length := cmd packed size - 1.
   db sendCommand: cmd.
   db readQueryResult
 ].
@@ -233,18 +233,18 @@ pcd@(DB PostgresColumnDescription traits) createEntryFrom: value
 
 db@(DB Postgres traits) readQueryResult
 [ | reply result rowDescription rows reader columnCount|
- result: ExtensibleArray new.
- rows: ExtensibleArray new.
+ result := ExtensibleArray new.
+ rows := ExtensibleArray new.
  [
-  reply: db readReply.
-  reader: reply response reader.
+  reply := db readReply.
+  reader := reply response reader.
   reply type caseOf: {
     $N code -> [db inform: 'Notice: ' ; reply printError].
     $C code -> [db inform: 'Command Complete'. result add: {rowDescription. rows}].
     $E code -> [error: 'Read Query Result Error: ' ; reply printError. ].
     $I code -> [db inform: 'Empty query response.'].
     $D code -> [db inform: 'Data row'.
-                columnCount: ((reader next: 2) as: Integer &bigEndian: True).
+                columnCount := ((reader next: 2) as: Integer &bigEndian: True).
                 rows add: ((0 below: columnCount)
                                 collect: [ | :col entrySize entry|
                                             entrySize: ((reader next: 4) as: Integer &bigEndian: True).
@@ -252,18 +252,18 @@ db@(DB Postgres traits) readQueryResult
                                                           ifFalse: [(rowDescription at: col) createEntryFrom: (reader next: entrySize)]]).
                 ].
     $T code -> [db inform: 'Row description.'. 
-                rowDescription: (Array newSize: ((reader next: 2) as: Integer &bigEndian: True)).
+                rowDescription := (Array newSize: ((reader next: 2) as: Integer &bigEndian: True)).
                 0 below: rowDescription size do:
                   [ | :i column |
-                     column: DB PostgresColumnDescription new.
-                     column name: ((reader nextUntil: [ |:c| c = 0]) as: ASCIIString).
+                     column := DB PostgresColumnDescription new.
+                     column name := ((reader nextUntil: [ |:c| c = 0]) as: ASCIIString).
                      reader next. "null terminator"
-                     column objectID: ((reader next: 4) as: Integer &bigEndian: True).
-                     column attributeNumber: ((reader next: 2) as: Integer &bigEndian: True).
-                     column type: ((reader next: 4) as: Integer &bigEndian: True).
-                     column typeSize: ((reader next: 2) as: Integer &bigEndian: True).
-                     column typeModifier: ((reader next: 4) as: Integer &bigEndian: True).
-                     column format: ((reader next: 2) as: Integer &bigEndian: True).
+                     column objectID := ((reader next: 4) as: Integer &bigEndian: True).
+                     column attributeNumber := ((reader next: 2) as: Integer &bigEndian: True).
+                     column type := ((reader next: 4) as: Integer &bigEndian: True).
+                     column typeSize := ((reader next: 2) as: Integer &bigEndian: True).
+                     column typeModifier := ((reader next: 4) as: Integer &bigEndian: True).
+                     column format := ((reader next: 2) as: Integer &bigEndian: True).
                      db inform: 'column: ' ; column printString.
                      rowDescription at: i put: column.
                   ]].

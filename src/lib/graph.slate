@@ -34,11 +34,11 @@ node@(nodes Node traits) markDo: block
 "Visit each node in the graph once, applying the block. A node is only visited
 after at least one of its predecessors, but not necessarily after all of them."
 [| todo visited |
-  todo: ({node} as: Set).
-  visited: Set new.
+  todo := (Set new*, node).
+  visited := Set new.
   [todo isEmpty]
     whileFalse: [| each |
-		   each: todo anyOne.
+		   each := todo anyOne.
 		   visited include: each.
 		   block applyWith: each.
 		   each

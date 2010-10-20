@@ -20,7 +20,7 @@ l@(ExternalLibrary ConnectionFailed traits) describeOn: out
 
 l@(ExternalLibrary traits) currentErrorString
 [| buffer |
-  buffer: (String newSize: 256).
+  buffer := (String newSize: 256).
   buffer first: (l primitiveErrorInto: buffer)
 ].
 
@@ -71,8 +71,8 @@ ExternalLibrary traits define: #pointedCTypeToExtlibType ->
 ).
 
 ExternalMethod `>> [
-  callFormat: ExternalMethod CallFormat C.
-  resultFormat: ExternalMethod ArgumentFormat Void.
+  callFormat := ExternalMethod CallFormat C.
+  resultFormat := ExternalMethod ArgumentFormat Void.
 ].
 
 d@(ExternalLibrary traits) newNamed: libName
@@ -82,7 +82,7 @@ d@(ExternalLibrary traits) newNamed: libName
       [| :c |
        (c resource name beginsWith: 'lib/')
          ifTrue: [c defaultHandler]
-         ifFalse: [c resource name: 'lib/' ; c resource name.
+         ifFalse: [c resource name := 'lib/' ; c resource name.
 		   c return: c resource open]]]
    ifCompletes: [inform: 'Library ' ; libName ; ' was successfully loaded.']
 ].
@@ -90,9 +90,9 @@ d@(ExternalLibrary traits) newNamed: libName
 d@(ExternalLibrary traits) enable
 "Prevent using the ExternalLibrary as much as possible if opening fails."
 [
-  d handle: (ByteArray newSize: bytesPerWord).
+  d handle := (ByteArray newSize: bytesPerWord).
   (d primitiveOpen: d name handle: d handle)
-    ifFalse: [d handle: Nil. d connectionFailure]
+    ifFalse: [d handle := Nil. d connectionFailure]
 ].
 
 d@(ExternalLibrary traits) disable
@@ -114,8 +114,8 @@ e@(ExternalLibrary traits) functionNamed: symname returning: returnType &callFor
 e@(ExternalLibrary traits) functionNamed: symname returning: returnType from: argTypes &callFormat: format
 [
   (e functionNamed: symname) `>> [| :method |
-    resultFormat: returnType. argumentsFormat: argTypes.
-    callFormat: (format ifNil: [method callFormat]). ]
+    resultFormat := returnType. argumentsFormat := argTypes.
+    callFormat := (format ifNil: [method callFormat]). ]
 ].
 
 e@(ExternalLibrary traits) externalTypeFor: ctype@(Number traits) in: ns
@@ -129,14 +129,14 @@ e@(ExternalLibrary traits) externalTypeFor: sym@(Symbol traits) in: ns &argument
  - the provided namespace ns
  - any ExternalMethod ArgumentFormat"
 [| result structName |
-  structName: ('_' ; sym as: Symbol).
-  af ifNotNil: [result: (af at: sym ifAbsent: [Nil])].
-  result isNil /\ [structName isFoundOn: {ns}] ifTrue: [result: (structName sendWith: ns)].
-  result isNil /\ [sym isFoundOn: {ns}] ifTrue: [result: (sym sendWith: ns)].
+  structName := ('_' ; sym as: Symbol).
+  af ifNotNil: [result := (af at: sym ifAbsent: [Nil])].
+  result isNil /\ [structName isFoundOn: {ns}] ifTrue: [result := (structName sendWith: ns)].
+  result isNil /\ [sym isFoundOn: {ns}] ifTrue: [result := (sym sendWith: ns)].
   result isNil /\ [ns ~== Types C] /\ [sym isFoundOn: {Types C}] 
-    ifTrue: [result: (sym sendWith: Types C)].
+    ifTrue: [result := (sym sendWith: Types C)].
   result isNil /\ [sym isFoundOn: {ExternalMethod ArgumentFormat}]
-    ifTrue: [result: (sym sendWith: ExternalMethod ArgumentFormat)].
+    ifTrue: [result := (sym sendWith: ExternalMethod ArgumentFormat)].
   result ifNil: [error: 'No type translation found for ' ; sym printString].
   "Call itself again to resolve the type that was looked up if necessary"
   e externalTypeFor: result in: ns
@@ -181,20 +181,20 @@ as symbols (can be empty).
     Symbol -> ExternalMethod ArgumentFormat mappings
     TODO: argumentFormats is a bad name."
 [
-  ns ifNil: [ns: Types C].
+  ns `defaultsTo: Types C.
   defs collect:
     [| :return :fname :args |
      e signatureNamed: fname
        returning: (e externalTypeFor: return in: ns &argumentFormats: af)
-       from: ((args ifNil: [{}]) collect: [| :ctype | e externalTypeFor: ctype in: ns &argumentFormats: af])] applier
+       from: ((args ifNil: [#{}]) collect: [| :ctype | e externalTypeFor: ctype in: ns &argumentFormats: af])] applier
 ].
 
 e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
   &nameTransformer: nameTransformer &argumentFormats: af
 [
   sigs
-    do: [| :sig functionName method |
-         functionName: (nameTransformer applyWith: sig name).
+    do: [| :sig functionName |
+         functionName := (nameTransformer applyWith: sig name).
 	 target addSlot: (intern: sig name) valued:
 	   ((e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af) as: CompiledMethod)].
 ].
@@ -207,27 +207,33 @@ defs must be an array of size-3 sequences. See signaturesForDefs: for format det
  - &nameTransformer: is applied to the method name to get the slot name
 "
 [
-  nameTransformer ifNil: [nameTransformer: Method Identity].
-  (e signaturesForDefs: defs &typesIn: (ns ifNil: [target]) &argumentFormats: af)
+  nameTransformer `defaultsTo: Method Identity.
+  ns `defaultsTo: target
+  (e signaturesForDefs: defs &typesIn: ns &argumentFormats: af)
     do: [| :sig slotName method |
-         slotName: (intern: (nameTransformer applyWith: sig name)).
+         slotName := (intern: (nameTransformer applyWith: sig name)).
 	 target addSlot: slotName valued:
 	   (e functionNamed: sig name returning: sig returnType from: sig argTypes &callFormat: cf)].
 ].
 
 m@(ExternalMethod traits) enable
 [| d |
-  d: m parentResource.
-  m handle: (ByteArray newSize: bytesPerWord).
+  d := m parentResource.
+  m handle := (ByteArray newSize: bytesPerWord).
   (d primitiveLookup: m name handle: d handle into: m handle)
     ifTrue: [m]
-    ifFalse: [m handle: Nil. m connectionFailure]
+    ifFalse: [m handle := Nil. m connectionFailure]
 ].
 
 m@(ExternalMethod traits) externalApplyTo: args
 [| answer |
   args size = m arity ifFalse: [args wrongInputsTo: m].
-  answer: (m parentResource primitiveApply: m handle accepting: m argumentsFormat callFormat: m callFormat returning: m resultFormat to: args).
+  answer := m parentResource
+    primitiveApply: m handle
+    accepting: m argumentsFormat
+    callFormat: m callFormat
+    returning: m resultFormat
+    to: args.
   (m resultFormat = m ArgumentFormat Int) /\ [answer isSameAs: ByteArray]
     ifTrue: [answer as: BigInteger]
     ifFalse: [answer]
@@ -258,8 +264,8 @@ s@(CObject traits) addAccessors
 [
   s specification walkElements:
     [| :path :offset elementType methodName |
-      elementType: path top type.
-      methodName: ((path collect: [| :part | part cName name]) join &separator: '_') intern.
+      elementType := path top type.
+      methodName := ((path collect: [| :part | part cName name]) join &separator: '_') intern.
       (elementType accessorForOffset: offset // 8) ifNotNilDo:
 	[| :block | block asMethod: (s accessorNameFor: methodName) on: {s}].
       (elementType mutatorForOffset: offset // 8) ifNotNilDo:
@@ -283,7 +289,7 @@ type@(Types C Structure traits) mutatorForOffset: offset [Nil].
 
 type@(Types C Char traits) accessorForOffset: offset
 [
-  [| :s value | (value: (s storage at: offset)) > 16r7f
+  [| :s value | (value := s storage at: offset) > 16r7f
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
@@ -300,7 +306,7 @@ type@(Types C UnsignedChar traits) mutatorForOffset: offset
 
 type@(Types C ShortInt traits) accessorForOffset: offset
 [
-  [| :s value | (value: (s storage int16At: offset / 2)) > 16r7fff
+  [| :s value | (value := s storage int16At: offset / 2) > 16r7fff
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
@@ -317,7 +323,7 @@ type@(Types C UnsignedShortInt traits) mutatorForOffset: offset
 
 type@(Types C LongInt traits) accessorForOffset: offset
 [
-  [| :s value | (value: (s storage int32At: offset / 4)) > 16r7fffffff
+  [| :s value | (value := s storage int32At: offset / 4) > 16r7fffffff
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
@@ -350,7 +356,7 @@ _@(CObject traits) parseDefinition: typeName@(Symbol traits) named: name in: ns
 "Try to find a struct prefixed by '_' then look for a defined type in ns. If
 neither was found try Types C"
 [| structName |
-  structName: ('_' ; typeName) intern.
+  structName := ('_' ; typeName) intern.
   Types C StructureElement newNamed: name type:
     ((structName isFoundOn: {ns})
       ifTrue: [structName sendWith: ns]
@@ -360,7 +366,7 @@ neither was found try Types C"
 
 s@(CObject traits) parseDefinition: col@(Collection traits) named: name in: ns
 [| type |
-  type: ((col first sendWith: Types C) newNamed: name).
+  type := ((col first sendWith: Types C) newNamed: name).
   col allButFirst do:
     [| :name :def |
      type addElement: (s parseDefinition: def named: name intern in: ns)]
@@ -378,7 +384,7 @@ prefixed by '_' and a CObject is created from them which is then added by the na
 without any prefix. This CObject is to be cloned later."
 [
   col do: [| :name :def |
-    name: (name as: Symbol).
+    name := (name as: Symbol).
     s addDefinition: (s parseDefinition: def named: name in: ns) named: name into: ns] applier.
 ].
 
@@ -386,8 +392,8 @@ _@(CObject traits) addDefinition: def@(Types C Structure traits) named: name int
 "Add the specification prefixed by '_' and create a CObject which is added by the name.
 Later on this CObject should be clone'd"
 [| baseName |
-  baseName: name.
-  name: ('_' ; name) intern.
+  baseName := name.
+  name := ('_' ; name) intern.
   resend.
   ns addSlot: baseName valued: (CObject newBasedOn: def)
 ].
@@ -431,10 +437,10 @@ functions with them."
 
 h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader: leader
 [| newH |
-  newH: (h clone `setting: #{#library. #primitives. #specs} to:
+  newH := (h clone `setting: #{#library. #primitives. #specs} to:
     {(h library newNamed: libName). h primitives new.
      h library signaturesForDefs: primSpecs &typesIn: ExternalMethod ArgumentFormat}).
-  leader ifNotNil: [newH leader: leader].
+  leader ifNotNil: [newH leader := leader].
   newH
 ].
 

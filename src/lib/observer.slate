@@ -5,7 +5,7 @@ obj@(Root traits) whenSlot: slotName changesNotify: observer &mutatorName: mutat
 "Register an Observer dependency between the object and the observer for the
 give slot name, and then overwrite the mutator for the slot."
 [
-  mutatorName ifNil: [mutatorName: (obj mutatorNameFor: slotName)].
+  mutatorName `defaultsTo: (obj mutatorNameFor: slotName).
   "Check that there is both a slot and a mutator for it on the object."
   (obj hasSlotNamed: slotName)
     \/ [mutatorName isFoundOn: {obj. NoRole}]
@@ -26,7 +26,7 @@ obj@(Root traits) removeObserver: observer
 "Remove any notification pairs with the observer object specified. Then delete
 the object's entry if there are no remaining Observers for the object."
 [| observerEntries |
-  observerEntries: Set new.
+  observerEntries := Set new.
   "Remove all observation entries for that observer, and remember them."
   (Observers at: obj ifPresent:
     [| :entries |

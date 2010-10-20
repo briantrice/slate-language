@@ -19,7 +19,7 @@ x@(Root traits) allRoles
 d@(Debugger traits) printCurrentStack &limit: limit &stream: out &showLocation: showLocation
 [
   d clone `>>
-    [baseFramePointer: (d interpreter framePointerOf: #printCurrentStack).
+    [baseFramePointer := (d interpreter framePointerOf: #printCurrentStack).
      buildFrames. 
      printBacktrace &limit: limit &stream: out &showLocation: showLocation ]
 ].
@@ -31,9 +31,9 @@ x@(Root traits) methodsUsingMe
      [| :delegate |
       delegate roleReader do:
         [| :role selector findOnArray positions |
-         selector: role selector.
-         findOnArray: (Array newSize: selector arity).
-         positions: role rolePositions.
+         selector := role selector.
+         findOnArray := (Array newSize: selector arity).
+         positions := role rolePositions.
          findOnArray keysDo:
            [| :position |
             findOnArray at: position put:
@@ -61,10 +61,10 @@ x@(Root traits) printMostCommonlyCalledMethods
 
 m@(CompiledMethod traits) breakOnEntry
 [| regCount |
-  regCount: m registerCount.
-  m registerCount: regCount + 2.
-  m method code: {VM SSACode loadEnvironment. regCount. 
-                  VM SSACode directSendMessage. regCount + 1. #break. 1. regCount} ; m method code.
+  regCount := m registerCount.
+  m registerCount := regCount + 2.
+  m method code := {VM SSACode loadEnvironment. regCount. 
+                    VM SSACode directSendMessage. regCount + 1. #break. 1. regCount} ; m method code.
 ].
 
 m@(CompiledMethod traits) clearBreaks

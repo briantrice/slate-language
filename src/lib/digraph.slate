@@ -1,4 +1,3 @@
-
 collections define: #Digraph &parents: {LinkedCollection} &slots:
   {#root "A root node, taken arbitrarily."}.
 "Digraphs are directed graphs: collections of nodes and edges which are
@@ -10,7 +9,7 @@ graph@(Digraph traits) derive &mixins: others &rejects: rejectSlots
 traits must also be derived to provide automatic protection against the
 derived graph user adding conflicting methods to the collaborators."
 [| newG |
-  newG: resend.
+  newG := resend.
   newG traits define: #Node &parents: {graph Node}.
   newG traits define: #Edge &parents: {graph Edge}.
   newG
@@ -21,9 +20,9 @@ graph@(Digraph traits) newNodeFromAll: col
 are no nodes in the graph, make this one the root."
 "TODO: Check that the nodes are in the graph first?"
 [| node |
-  node: graph Node clone.
+  node := graph Node clone.
   graph root
-    ifNil: [graph root: node]
+    ifNil: [graph root := node]
     ifNotNil: [col do: [| :each | each addEdgeTo: node]].
   node
 ].
@@ -48,14 +47,14 @@ graph@(Digraph traits) newFromAssociations: col
 "Builds a new directed graph from a Collection of Associations between desired
 target objects."
 [| result seen |
-  result: graph clone.
-  seen: Dictionary new.
+  result := graph clone.
+  seen := Dictionary new.
   col do:
     [| :assoc keyNode valueNode |
-     keyNode: (seen at: assoc key ifAbsentPut: [graph Node new `>> [object: assoc key. ]]).
-     valueNode: (seen at: assoc value ifAbsentPut: [graph Node new `>> [object: assoc value. ]]).
+     keyNode := (seen at: assoc key ifAbsentPut: [graph Node new `>> [object := assoc key. ]]).
+     valueNode := (seen at: assoc value ifAbsentPut: [graph Node new `>> [object := assoc value. ]]).
      keyNode addEdgeTo: valueNode].
-  result root: seen anyOne.
+  result root := seen anyOne.
   result
 ].
 
@@ -64,18 +63,18 @@ graph@(Digraph traits) newFrom: root walking: block
 the block to return a collection of neighbors from existing ones, and avoiding
 duplicates."
 [| result seen |
-  result: (graph clone `setting: #{#root} to: {root}).
-  seen: Dictionary new.
+  result := (graph clone `setting: #{#root} to: {root}).
+  seen := Dictionary new.
   result addNodesFrom: root byApplying: block withSeen: seen.
   result
 ].
 
 graph@(Digraph traits) addNodesFrom: start byApplying: block withSeen: seen
 [| newNeighbors |
-  newNeighbors: ExtensibleArray new.
+  newNeighbors := ExtensibleArray new.
   ((block applyWith: start) do: [| :each | 
     seen at: each ifAbsentPut: [| nn |
-      nn: (graph Node new `>> [object: each. ]).
+      nn := (graph Node new `>> [object := each. ]).
       newNeighbors add: nn]]).
    newNeighbors do: [| :each |
      graph newEdgeFrom: start to: each.
@@ -126,7 +125,7 @@ node@(Digraph Node traits) allNodesInto: set
 
 node@(Digraph Node traits) allNodes
 [| nodes |
-  nodes: Set new.
+  nodes := Set new.
   node allNodesInto: nodes.
   nodes
 ].
@@ -139,7 +138,7 @@ node@(Digraph Node traits) removeDuplicateEdges
 
 node@(Digraph Node traits) removeDuplicateNodes
 [| nodes |
-  [nodes: node allNodes.
+  [nodes := node allNodes.
    nodes do: [| :each | each mergeTransitions. each removeDuplicateEdges].
    node removeDuplicateNodes: nodes] whileTrue.
   node
@@ -147,21 +146,21 @@ node@(Digraph Node traits) removeDuplicateNodes
 
 node@(Digraph Node traits) removeDuplicateNodes: col
 [| merged nodePartition |
-  merged: False.
-  nodePartition: Dictionary new.
+  merged := False.
+  nodePartition := Dictionary new.
   col do: [| :each | (nodePartition
 			at: {each transitions}
 			ifAbsentPut: [ExtensibleArray new])
 	       add: each].
   nodePartition
     do: [| :each seen |
-	   seen: ExtensibleArray new.
+	   seen := ExtensibleArray new.
 	   each do: [| :thisNode existingNode |
-		       existingNode: (seen
+		       existingNode := (seen
 			 detect: [| :otherNode | otherNode transitionsMatch: thisNode]).
 		       existingNode
 			 ifNil: [seen add: thisNode]
-			 ifNotNil: [merged: True.
+			 ifNotNil: [merged := True.
 				    thisNode forwardTo: existingNode]]].
   merged
 ].
@@ -186,7 +185,7 @@ edge@(Digraph Edge traits) newFrom: source to: target
 
 edge@(Digraph Edge traits) newTo: target
 [
-  edge new `>> [target: target. ]
+  edge new `>> [target := target. ]
 ].
 
 edge@(Digraph Edge traits) = edge2@(Digraph Edge traits)
@@ -211,13 +210,13 @@ node@(KeyedDigraph Node traits) addEdgeTo: target keys: col
 
 node@(KeyedDigraph Node traits) allKeyTransitions: set into: node2
 [| index each |
-  (set includes: node) ifTrue: [^ {}].
+  (set includes: node) ifTrue: [^ #{}].
   set add: node.
   node2 addActions: node action."TODO: remove this dependency on #action."
-  index: 0.
+  index := 0.
   [index <= node transitions size]
-    whileTrue: [each: (node transitions at: index).
-		index: index + 1.
+    whileTrue: [each := (node transitions at: index).
+		index := index + 1.
 		each isNotKeyed
 		  ifTrue: [each target allKeyTransitions: set into: node2]
 		  ifFalse: [(node2 transitions includes: each)
@@ -227,7 +226,7 @@ node@(KeyedDigraph Node traits) allKeyTransitions: set into: node2
 
 node@(KeyedDigraph Node traits) mergeKeyTransitions
 [| targetMap |
-  targetMap: IdentityDictionary new.
+  targetMap := IdentityDictionary new.
   node transitions copy
     do: [| :each | (targetMap includesKey: each target)
 	     ifTrue: [(targetMap at: each target)
@@ -239,7 +238,7 @@ node@(KeyedDigraph Node traits) mergeKeyTransitions
 
 node@(KeyedDigraph Node traits) mergeTransitions
 [| nodes |
-  nodes: node allNodes.
+  nodes := node allNodes.
   nodes do: [| :each | each mergeKeyTransitions].
   node
 ].
@@ -255,10 +254,10 @@ node@(KeyedDigraph Node traits) hasTransitionTo: node2 mirroring: edgeBw
 
 
 edge@(KeyedDigraph Edge traits) newTo: target
-[resend `>> [keys: Nil. ]].
+[resend `>> [keys := Nil. ]].
 
 edge@(KeyedDigraph Edge traits) newTo: target keys: col
-[(edge newTo: target) `>> [keys: col. ]].
+[(edge newTo: target) `>> [keys := col. ]].
 
 edge@(KeyedDigraph Edge traits) isEpsilonTransition
 [
@@ -283,13 +282,13 @@ edge@(KeyedDigraph Edge traits) hash
 
 edge@(KeyedDigraph Edge traits) does: seq includeKey: key
 [| start stop mid |
-  start: 0.
-  stop: seq size.
+  start := 0.
+  stop := seq size.
   stop isZero ifTrue: [^ False].
-  [mid: start + stop // 2. mid == start]
+  [mid := start + stop // 2. mid == start]
     whileFalse: [((seq at: mid) as: Integer) < (key as: Integer)
-		   ifTrue: [start: mid]
-		   ifFalse: [stop: mid]].
+		   ifTrue: [start := mid]
+		   ifFalse: [stop := mid]].
   (seq at: start) == key
     \/ [(seq at: stop) == key]
 ].
