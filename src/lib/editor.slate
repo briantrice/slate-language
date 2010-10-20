@@ -21,7 +21,7 @@ Editor define: #LineEditor &parents: {Cloneable}
 
 x@(LineEditor traits) new
 [ |le|
-  le: resend.
+  le := resend.
   le reset.
   le
 ].
@@ -117,7 +117,7 @@ le@(LineEditor traits) deleteFrom: c@(Cursor traits)
 
 le@(LineEditor traits) characterAt: c@(Cursor traits)
 [ |line|
-  line: (le lineAt: c line).
+  line := (le lineAt: c line).
   line contents size <= c column ifTrue: [line contents size = 0
                                                ifTrue: [^ (line contents at: line contents size - 1)]
                                                ifFalse: [^ $\n]].
@@ -143,8 +143,8 @@ le@(LineEditor traits) insertLineAt: line withText: s
 
 le@(LineEditor traits) breakLine: line at: column
 [ |restOfLine p |
-  p: (Cursor line: line column: column).
-  restOfLine: (le textOnLineAfter: p).
+  p := (Cursor line: line column: column).
+  restOfLine := (le textOnLineAfter: p).
   le insertLineAt: line withText: (le textOnLineBefore: p).
   le setTextOnLine: line + 1 to: restOfLine.
 ].
@@ -162,7 +162,7 @@ le@(LineEditor traits) deleteLine: line
 
 p@(Cursor traits) forwardOn: le@(LineEditor traits)
 [ |point|
-  point: p copy. 
+  point := p copy. 
   (le lineAt: point line) size > point column ifTrue: [point column: point column + 1. ^ point].
   le lineCount <= (point line + 1) ifTrue: [inform: 'End of buffer'. ^ point].
   point line: point line + 1.
@@ -172,14 +172,14 @@ p@(Cursor traits) forwardOn: le@(LineEditor traits)
 
 p@(Cursor traits) forwardOnSameLine: le@(LineEditor traits)
 [ |point|
-  point: p copy. 
+  point := p copy. 
   (le lineAt: point line) size > point column ifTrue: [point column: point column + 1. ^ point].
   point
 ].
 
 p@(Cursor traits) backwardOn: le@(LineEditor traits)
 [ |point|
-  point: p copy.
+  point := p copy.
   point column > 0 ifTrue: [point column: point column - 1. ^ point].
   point line < 1 ifTrue: [inform: 'Beginning of buffer'. ^ point].
   point line: point line - 1.
@@ -189,14 +189,14 @@ p@(Cursor traits) backwardOn: le@(LineEditor traits)
 
 p@(Cursor traits) nextLineOn: le@(LineEditor traits)
 [ |point|
-  point: p copy.
+  point := p copy.
   point line: (point line + 1 min: le lineCount - 1).
   point
 ].
 
 p@(Cursor traits) previousLineOn: le@(LineEditor traits)
 [ |point|
-  point: p copy.
+  point := p copy.
   point line: (point line - 1 max: 0).
   point
 
@@ -214,7 +214,7 @@ le@(LineEditor traits) do: block undo: undoBlock record: record
 [ | undoFromEnd |
   record `defaultsTo: True.
   record ifFalse: [^ block do].
-  undoFromEnd: le undoHistory size - le undoHistoryPosition.
+  undoFromEnd := le undoHistory size - le undoHistoryPosition.
   undoFromEnd > 0 ifTrue: [le undoHistory removeLast: undoFromEnd].
 
   "fixme: perhaps catch errors from doing the block and altering undo history?"
@@ -251,7 +251,7 @@ record -> should this be recorded in the undo history?"
 
 le@(LineEditor traits) insert: str@(ASCIIString traits) at: point@(Cursor traits) &record: record
 [ |s| "fixme this is slow"
-  s: (str copyReplaceAll: le lineDelimeter with: '\r').
+  s := (str copyReplaceAll: le lineDelimeter with: '\r').
   le do: [s do: [|:c| le insert: c at: point &record: False]]
      undo: [s size timesRepeat: [le deleteBackwardAt: point &record: False]]
      record: record.
@@ -259,7 +259,7 @@ le@(LineEditor traits) insert: str@(ASCIIString traits) at: point@(Cursor traits
 
 le@(LineEditor traits) insert: c@(ASCIICharacter traits) at: point@(Cursor traits) &record: record
 [ | p |
-  p: point copy. "make a copy so the undo history doesn't get one with side effects"
+  p := point copy. "make a copy so the undo history doesn't get one with side effects"
   c = $\r ifTrue: [
                     le do: [le breakLine: p line at: p column.
                             point setTo: (p forwardOn: le)]
@@ -277,9 +277,9 @@ le@(LineEditor traits) insert: c@(ASCIICharacter traits) at: point@(Cursor trait
 
 le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record: record
 [ | deletedCharacter p prevLineSize|
-  p: point copy. "make a copy so the undo history doesn't get one with side effects"
+  p := point copy. "make a copy so the undo history doesn't get one with side effects"
   p column < 1 ifTrue: [p line = 0 ifTrue: [inform: 'Cannot delete beginning of buffer'. ^ Nil].
-                        prevLineSize: (le lineAt: point line - 1) size.
+                        prevLineSize := (le lineAt: point line - 1) size.
                         le do: [point setTo: (p backwardOn: le).
                                 le mergeLine: p line - 1 with: p line]
                            undo: [le breakLine: p line - 1 at: prevLineSize.
@@ -298,10 +298,10 @@ le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record: record
 "fixme: deleteFrom name might be confused with this"
 le@(LineEditor traits) deleteAt: point@(Cursor traits) &record: record
 [ | deletedCharacter p lineSize|
-  p: point copy. "make a copy so the undo history doesn't get one with side effects"
+  p := point copy. "make a copy so the undo history doesn't get one with side effects"
   p column >= (le lineAt: p line) size
     ifTrue: [p line + 1 >= le lineCount ifTrue: [inform: 'Cannot delete end of buffer'. ^ Nil].
-             lineSize: (le lineAt: point line) size.
+             lineSize := (le lineAt: point line) size.
              le do: [le mergeLine: p line with: p line + 1.
                      point setTo: p]
                 undo: [le breakLine: p line at: lineSize.
@@ -321,8 +321,8 @@ le@(LineEditor traits) textFrom: start@(Cursor traits) to: end@(Cursor traits)
 [ |startLineText endLineText |
   (start min: end) == end ifTrue: [error: 'Cannot get text because start point is >= end' ; start printString ; end printString].
   start line = end line ifTrue: [^ ((le lineAt: start line) contents copyFrom: start column to: end column - 1)].
-  startLineText: ((le lineAt: start line) contents allButFirst: start column).
-  endLineText: ((le lineAt: end line) contents first: end column).
+  startLineText := ((le lineAt: start line) contents allButFirst: start column).
+  endLineText := ((le lineAt: end line) contents first: end column).
   startLineText concatenateAll: 
     ((start line + 1 to: end line - 1) collect: [|:i| (le lineAt: i) contents]) ; {endLineText}
     &separator: le lineDelimeter
@@ -331,12 +331,12 @@ le@(LineEditor traits) textFrom: start@(Cursor traits) to: end@(Cursor traits)
 
 le@(LineEditor traits) wipeFrom: start@(Cursor traits) to: end@(Cursor traits) &record: record
 [ | text startSaved |
-  text: (le textFrom: start to: end).
+  text := (le textFrom: start to: end).
   inform: 'text: ' ; text.
 
   le do: [text size timesRepeat: [le deleteBackwardAt: end &record: False]]
      undo: [|point|
-              point: start copy.
+              point := start copy.
               text do: [|:c| le insert: c at: point &record: False]]
      record: record.
   text
@@ -351,16 +351,16 @@ le@(LineEditor traits) setMark &record: record
 le@(LineEditor traits) deleteMark &record: record
 [ |mark| 
   le cursors size > 1 ifFalse: [inform: 'Cannot delete last mark'. ^ Nil].
-  mark: le cursor.
+  mark := le cursor.
   le do: [le cursors pop] undo: [le cursors push: mark copy] record: record
 ].
 
 le@(LineEditor traits) cutTo: window &record: record
 [ |minPoint maxPoint text|
   le cursors size < 2 ifTrue: [inform: 'cannot cut... no marked region'. ^ Nil].
-  minPoint: (le cursors top min: (le cursors fromTop: 1)).
-  maxPoint: (le cursors top max: (le cursors fromTop: 1)).
-  text: (le wipeFrom: minPoint to: maxPoint &record: record).
+  minPoint := (le cursors top min: (le cursors fromTop: 1)).
+  maxPoint := (le cursors top max: (le cursors fromTop: 1)).
+  text := (le wipeFrom: minPoint to: maxPoint &record: record).
   inform: 'text: ' ; text.
   window clipboardCopy: text.
   le cursors pop.
@@ -369,9 +369,9 @@ le@(LineEditor traits) cutTo: window &record: record
 le@(LineEditor traits) copyTo: window &record: record
 [ |text maxPoint minPoint|
   le cursors size < 2 ifTrue: [inform: 'cannot copy... no marked region'. ^ Nil].
-  minPoint: (le cursors top min: (le cursors fromTop: 1)).
-  maxPoint: (le cursors top max: (le cursors fromTop: 1)).
-  text: (le textFrom: minPoint to: maxPoint).
+  minPoint := (le cursors top min: (le cursors fromTop: 1)).
+  maxPoint := (le cursors top max: (le cursors fromTop: 1)).
+  text := (le textFrom: minPoint to: maxPoint).
   inform: 'text: ' ; text.
   window clipboardCopy: text.
   le cursors pop.
@@ -379,6 +379,6 @@ le@(LineEditor traits) copyTo: window &record: record
 
 le@(LineEditor traits) pasteFrom: window &record: record
 [ |str|
-  str: (window clipboardPasteAs: String).
+  str := (window clipboardPasteAs: String).
   le insert: (str before: $\0 ifAbsent: [str]) at: le cursor.
 ].
