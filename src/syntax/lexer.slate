@@ -197,17 +197,17 @@ after the initial escape is seen, whether as a character or part of a string."
   } otherwise: [c]
 ].
 
+l@(Syntax Lexer traits) characterFor: c
+[(l isEscape: c) ifTrue: [l readEscapedCharacter] ifFalse: [c]].
+
 l@(Syntax Lexer traits) readString
 "Build a string until the next single-quote character is encountered.
 Escaping is accounted for."
 [| c |
   l newLiteralFor: ([| :result |
-    [c: l nextCharacter. c == $\']
+    [(c: l nextCharacter) == $\']
       whileFalse:
-	[result nextPut:
-          ((l isEscape: c)
-            ifTrue: [l readEscapedCharacter]
-            ifFalse: [c])]] writingAs: String)
+	[result nextPut: (l characterFor: c)]] writingAs: String)
 ].
 
 l@(Syntax Lexer traits) readComment
@@ -215,12 +215,9 @@ l@(Syntax Lexer traits) readComment
 Escaping is accounted for."
 [| c |
   Syntax tokens Comment for: ([| :result |
-    [c: l nextCharacter. c == $\"]
+    [(c: l nextCharacter) == $\"]
       whileFalse:
-	[result nextPut:
-          ((l isEscape: c)
-             ifTrue: [l readEscapedCharacter]
-             ifFalse: [c])]] writingAs: '')
+	[result nextPut: (l characterFor: c)]] writingAs: String)
 ].
 
 l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
@@ -246,34 +243,28 @@ l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
 
 l@(Syntax Lexer traits) readLiteral
 "This handles the literal brace array syntaxes."
-[| result c |
-  result: '' writer.
+[
   l hasMoreCharacters
+    /\ ['({[\'' includes: l peekCharacter]
     ifTrue:
-      [c: l nextCharacter.
-       c caseOf: {
-         $\( -> [^ Syntax BeginLiteralParenthesis].
-         $\{ -> [^ Syntax BeginLiteralArray].
-         $\[ -> [^ Syntax BeginLiteralBlock].
-         $\' -> [[c: l nextCharacter. c == $\']
-                   whileFalse:
-                     [result nextPut:
-                        ((l isEscape: c)
-                           ifTrue: [l readEscapedCharacter]
-                           ifFalse: [c])].
-                 ^ (l newLiteralFor: result contents intern)]
-       }.
-       l undoCharacter: c].
-  l nextWordCharactersInto: result.
-  l newLiteralFor: result contents intern
+      [l nextCharacter caseOf: {
+         $\( -> [Syntax BeginLiteralParenthesis].
+         $\{ -> [Syntax BeginLiteralArray].
+         $\[ -> [Syntax BeginLiteralBlock].
+         $\' -> [l newLiteralFor: ([| :result c |
+                  [(c: l nextCharacter) == $\']
+                    whileFalse:
+                      [result nextPut: (l characterFor: c)]] writingAs: String)
+                   intern]}]
+    ifFalse:
+      [l newLiteralFor:
+         ([| :result | l nextWordCharactersInto: result] writingAs: String) intern]
 ].
 
 l@(Syntax Lexer traits) readCharacter
 "Read in a single character into a token or an escaped one."
-[| c |
-  c: l nextCharacter.
-  (l isEscape: c) ifTrue: [c: l readEscapedCharacter].
-  l newLiteralFor: c
+[
+  l newLiteralFor: (l characterFor: l nextCharacter)
 ].
 
 l@(Syntax Lexer traits) readToken
@@ -283,8 +274,7 @@ initializing characters to build the various token objects."
 read-table."
 [| c |
   l isAtEnd ifTrue: [^ Syntax EndStream].
-  c: l nextCharacter.
-  c caseOf: {
+  (c: l nextCharacter) caseOf: {
     $\' -> [l readString].
     $\" -> [l readComment].
     $$ -> [l readCharacter].
