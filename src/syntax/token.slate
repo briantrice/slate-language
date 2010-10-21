@@ -156,6 +156,24 @@ parser nextLiteralFrom: _@(Syntax tokens BeginLiteralParenthesis traits)
 
 _@(Syntax tokens BeginLiteralParenthesis traits) signifier ['#('].
 
+Syntax tokens define: #BeginPartial &parents: {Syntax tokens Control}.
+
+parser nextFrom: _@(Syntax tokens BeginPartial traits)
+[
+  parser nonInteractivelyDo:
+    [([| :statements token |
+       statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
+       [token: parser nextToken.
+	token isSameAs: Syntax EndParenthesis]
+          whileFalse:
+            [parser check: token is: parser EndParenthesisStatementTokens.
+             statements nextPut:
+               (parser nextAsStatement ifNil: [Syntax Literal Nil])]]
+       writingAs: #{}) as: Syntax Partial]
+].
+
+_@(Syntax tokens BeginPartial traits) signifier ['#('].
+
 Syntax tokens define: #BeginLiteralBlock &parents: {Syntax tokens BeginLiteral}.
 
 parser nextLiteralFrom: _@(Syntax tokens BeginLiteralBlock traits)
