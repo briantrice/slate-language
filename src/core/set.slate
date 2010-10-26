@@ -90,8 +90,8 @@ c@(Set traits) capacity
 c@(Set traits) clear
 [
   c contents clear.
-  c tally: 0.
-  c containsNil: False.
+  c tally := 0.
+  c containsNil := False.
   c
 ].
 
@@ -99,7 +99,7 @@ c@(Set traits) atRandomBy: random
 "Collaborate with a RandomStream to provide one of the elements at random."
 [| index |
   c emptyCheck.
-  index: random next \\ c contents size.
+  index := random next \\ c contents size.
   index below: c contents size
 	do: [| :i | (c contents at: i) ifNotNilDo: [| :obj | ^ obj]].
   0 below: index
@@ -109,19 +109,19 @@ c@(Set traits) atRandomBy: random
 c@(Set traits) include: obj
 "Ensure that the object is a member of the Set by adding it if not found."
 [| index |
-  index: (c scanFor: obj).
+  index := (c scanFor: obj).
   (c contents at: index) ifNil: [c atNewIndex: index put: obj].
   obj
 ].
 
-c@(Set traits) include: _@Nil [c containsNil: True. ].
+c@(Set traits) include: _@Nil [c containsNil := True. ].
 
 c@(Set traits) remove: obj ifAbsent: block
 [| index |
-  index: (c scanFor: obj).
+  index := (c scanFor: obj).
   (c contents at: index) ifNil: [^ block do].
   c contents at: index put: Nil.
-  c tally: c tally - 1.
+  c tally := c tally - 1.
   c fixCollisionsFrom: index.
   obj
 ].
@@ -129,13 +129,13 @@ c@(Set traits) remove: obj ifAbsent: block
 c@(Set traits) remove: _@Nil ifAbsent: block
 [
   c containsNil
-    ifTrue: [c containsNil: False. ]
+    ifTrue: [c containsNil := False. ]
     ifFalse: [block do]
 ].
 
 c@(Set traits) collect: block
 [| newSet |
-  newSet: c newSameSize.
+  newSet := c newSameSize.
   c do: [| :each | newSet include: (block applyWith: each)].
   newSet
 ].
@@ -151,9 +151,9 @@ c@(Set traits) do: block
 c@(Set traits) doWithIndex: block
 "Allow for iterating through the elements with a notional indexing."
 [| index |
-  index: -1.
+  index := -1.
   c do: [| :item |
-	 item ifNotNil: [block applyWith: item with: (index: index + 1)]].
+	 item ifNotNil: [block applyWith: item with: (index := index + 1)]].
 ].
 
 c@(Set traits) atNewIndex: index put: obj
@@ -161,7 +161,7 @@ c@(Set traits) atNewIndex: index put: obj
 object and updates the size. Only trusted methods should call this."
 [
   c contents at: index put: obj.
-  c tally: c tally + 1.
+  c tally := c tally + 1.
   c fullCheck
 ].
 
@@ -170,13 +170,13 @@ c@(Set traits) fixCollisionsFrom: index
 This moves forward from there, relocating any entries that were
 placed below due to collisions with this one."
 [| length oldIndex newIndex element |
-  oldIndex: index.
-  length: c capacity.
-  [oldIndex: oldIndex + 1.
-    oldIndex >= length ifTrue: [oldIndex: 1].
-    (element: (c keyAt: oldIndex)) isNil]
+  oldIndex := index.
+  length := c capacity.
+  [oldIndex := oldIndex + 1.
+    oldIndex >= length ifTrue: [oldIndex := 1].
+    (element := (c keyAt: oldIndex)) isNil]
       whileFalse:
-        [newIndex: (c scanFor: element).
+        [newIndex := (c scanFor: element).
         oldIndex = newIndex ifFalse: [c swap: oldIndex with: newIndex]].
   c
 ].
@@ -184,7 +184,7 @@ placed below due to collisions with this one."
 c@(Set traits) fullCheck
 "Keep the array at least 1/4 free for decent hash behavior."
 [| size |
-  size: c contents size.
+  size := c contents size.
   size - c tally < (size // 4 max: 1)
     ifTrue: [c grow].
   c
@@ -200,9 +200,9 @@ c@(Set traits) growBy: growthAmount
 "Replace the array with a new one larger by growthAmount, and copy over the
 elements with the non-checking method."
 [| oldElems |
-  oldElems: c contents.
-  c contents: (c contents new &capacity: c contents size + growthAmount).
-  c tally: 0.
+  oldElems := c contents.
+  c contents := (c contents new &capacity: c contents size + growthAmount).
+  c tally := 0.
   oldElems do: [| :each |
     each ifNotNil: [c noCheckAdd: each]].
   c
@@ -232,13 +232,13 @@ c@(Set traits) noCheckAdd: obj
 should only be called by trusted methods."
 [
   c contents at: (c scanFor: obj) put: obj.
-  c tally: c tally + 1.
+  c tally := c tally + 1.
   c
 ].
 
 c@(Set traits) noCheckAdd: _@Nil
 [
-  c containsNil: True.
+  c containsNil := True.
   c
 ].
 
@@ -246,9 +246,9 @@ c@(Set traits) rehash
 "Use a cloned Set to re-calculate and place the objects in the array, and
 then simply re-use that Set's array."
 [| tempSet |
-  tempSet: c newSameSize.
+  tempSet := c newSameSize.
   c do: [| :each | tempSet noCheckAdd: each].
-  c contents: tempSet contents.
+  c contents := tempSet contents.
   c
 ].
 
@@ -257,10 +257,10 @@ c@(Set traits) scanFor: obj
 matching the object. Answer the index of that slot or 0 if no slot is
 found. Override this to provide different matching criteria."
 [| element start end block |
-  end: c contents size.
-  start: (c hashBlock applyWith: obj) \\ end.
-  block: [| :index |
-	  (element: (c contents at: index)) isNil
+  end := c contents size.
+  start := (c hashBlock applyWith: obj) \\ end.
+  block := [| :index |
+	  (element := (c contents at: index)) isNil
 	    \/ [c equalsBlock applyWith: element with: obj]
           ifTrue: [^ index]].
   "Search from the hash MOD size to the end."
@@ -292,8 +292,8 @@ c@(Collection traits) copyWithoutDuplicates &comparison: equalsBlock
 "Iterate through the Collection, creating a new one where only the first
 element (encountered by do:) distinct according to the comparison is included."
 [| seen |
-  seen: Set new.
-  equalsBlock ifNotNil: [seen equalsBlock: equalsBlock].
+  seen := Set new.
+  equalsBlock ifNotNil: [seen equalsBlock := equalsBlock].
   [| :result |
    c do: [| :each | (seen includes: each)
 		    ifFalse: [result nextPut: each. seen include: each]]

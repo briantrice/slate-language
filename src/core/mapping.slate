@@ -6,7 +6,7 @@ keyed storage, e.g. #at: and #at:put:."
 
 m@(Mapping traits) new*
 [| *rest result |
-  result: (m new &capacity: rest size * 2).
+  result := (m new &capacity: rest size * 2).
   rest do: [| :elem | (elem is: Association) ifTrue:
     [result at: elem key put: elem value]].
   result
@@ -216,12 +216,12 @@ new value until none of the values change.
 
 Idea envisioned by Travis Griggs."
 [| perfected newValue |
-  perfected: (m copy infect: [| :_ | False]).
+  perfected := (m copy infect: [| :_ | False]).
   "Perfected records whether each element has reached a fixed point."
   [ m keysAndValuesDo:
       [| :key :value |
 	(perfected at: key)
-	  ifFalse: [ newValue: (block applyWith: (m at: key)).
+	  ifFalse: [ newValue := (block applyWith: (m at: key)).
 		      m at: key put: newValue.
 		      perfected at: key put: value = newValue]].
     perfected allSatisfy: [| :each | each]] whileFalse.

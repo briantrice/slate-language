@@ -1,4 +1,3 @@
-
 Mixins define: #StructuredPrinterMixin &parents: {LineNumberedWriteStreamMixin}
  &slots: {#level -> 0. #columnsPerLine -> 80}.
 
@@ -29,13 +28,13 @@ number of columnsPerLine."
 o@(StructuredPrinterMixin traits) indent
 "Increment the indentation level."
 [
-  o level: o level + 1
+  o level := o level + 1
 ].
 
 o@(StructuredPrinterMixin traits) unindent
 "Decrement the indentation level."
 [
-  o level: o level - 1
+  o level := o level - 1
 ].
 
 o@(StructuredPrinterMixin traits) indentedDo: block
@@ -47,7 +46,7 @@ o@(StructuredPrinterMixin traits) indentedDo: block
 o@(StructuredPrinterMixin traits) print: str paddingUntil: length
 "Print the given string and make sure the cursor is at least at the given column."
 [| padding |
-  padding: (length - str size max: 0).
+  padding := (length - str size max: 0).
   o nextPutAll: str.
   o next: padding put: $\s.
   o
@@ -96,7 +95,7 @@ x@(Root traits) prettyPrinted
 x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign
 "Utility for pretty-printing to a String."
 [| printer |
-  [printer: '' prettyPrinter.
+  [printer := '' prettyPrinter.
    x printOn: printer &radix: radix &precision: prec &forceSign: forceSign.
    ^ printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
@@ -128,7 +127,7 @@ indented."
 [| doPrintName |
   x == NoRole
     ifTrue: [^ (o ; 'NoRole')].
-  doPrintName: (#printName isFoundOn: {x}).
+  doPrintName := (#printName isFoundOn: {x}).
   o ; '('.
   doPrintName ifTrue:
     [o ; '"' ; x printName ; '"'].
@@ -139,7 +138,7 @@ indented."
   o level >= o nestingLimit ifTrue:
     [^ (o ; '...)')].
   o indentedDo: [| index |
-    index: 0.
+    index := 0.
     o preferDense
       ifFalse: [o newLineAndIndent].
     (x slotNames copyWithout: #traitsWindow) do:
@@ -150,7 +149,7 @@ indented."
       separatedBy:
         [o ; '.'.
           o newElement.
-          index: index + 1.
+          index := index + 1.
           index >= o collectionLimit
             ifTrue:
               [o ; '...)'. ^ o]]].
@@ -161,7 +160,7 @@ ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits)
 "Print out only the slot names, since these tend to be really large and have
 unprintable prototypes in them."
 [| doPrintName |
-  doPrintName: (#name isFoundOn: {ns}).
+  doPrintName := (#name isFoundOn: {ns}).
   o ; '('.
   doPrintName ifTrue:
     [o ; '"' ; ns name ; '"'].
@@ -172,13 +171,13 @@ unprintable prototypes in them."
   o level >= o nestingLimit ifTrue:
     [^ (o ; '...)')].
   o indentedDo: [| index |
-    index: 0.
+    index := 0.
     ns slotNames
       do: [| :each | o ; (each as: String)]
       separatedBy:
         [o ; '.'.
          o newElement.
-         index: index + 1.
+         index := index + 1.
          index >= o collectionLimit
            ifTrue:
              [o ; '...)'. ^ o]]].
@@ -191,7 +190,7 @@ original argument."
 [| name |
   s = #''
     ifTrue: [^ (o ; '#\'\'')].
-  name: (s as: String).
+  name := (s as: String).
   o ; '#'.
   (name allSatisfy: [| :c | c isAlphanumeric \/ [':&_' includes: c]])
     ifTrue: [o ; name]
@@ -216,14 +215,14 @@ with sign. This works by collecting the digits and a "
          ifTrue: [o ; '+']].
   n isZero
     ifTrue: [^ (o ; '0')].
-  digits: '' prettyPrinter.
-  x: n.
+  digits := '' prettyPrinter.
+  x := n.
   [x isPositive]
     whileTrue:
       [| qr d |
-       qr: (x quoRem: radix).
-       d: qr second.
-       x: qr first.
+       qr := (x quoRem: radix).
+       d := qr second.
+       x := qr first.
        digits nextPut:
          ((d >= 10
             ifTrue: [($A as: Integer) + d - 10]
@@ -250,7 +249,7 @@ m@(Method traits) printOn: o@(PrettyPrinterMixin traits)
 [
   o ; '['.
   o ; (m selector ifNil: ['(arity: ' ; m arity printString ; ')']
-		  ifNotNilDo: [| :sel | sel name]).
+                  ifNotNilDo: [| :sel | sel name]).
   m optionalKeywords do: [| :kw | o ; ' ' ; kw name].
   o ; ']'.
 ].
@@ -264,81 +263,81 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
 [| digits significand exponent k b r s mUp mDown d decimal |
   radix `defaultsTo: o numberRadix.
   precision `defaultsTo: o numberPrecision.
-  significand: f significand.
-  exponent: f exponent.
+  significand := f significand.
+  exponent := f exponent.
   exponent = (f bias * 2 + 1)
     ifTrue:
       [^ (o ; (f isNegative ifTrue: ['-'] ifFalse: ['+'])
-	    ; (significand isZero ifTrue: ['Inf'] ifFalse: ['NaN']))].
+            ; (significand isZero ifTrue: ['Inf'] ifFalse: ['NaN']))].
   exponent isZero
     ifTrue:
       [significand isZero ifTrue:
          [^ (o ; (f first isZero ifTrue: [''] ifFalse: ['-']) ; '0.0')].
-       exponent: 1]
+       exponent := 1]
     ifFalse:
-      [significand: ((1 bitShift: f significandSize) bitOr: significand)].
-  exponent: exponent - f bias - f significandSize.
-  b: 2.
+      [significand := ((1 bitShift: f significandSize) bitOr: significand)].
+  exponent := exponent - f bias - f significandSize.
+  b := 2.
   exponent isNegative
     ifTrue:
-      [mDown: 1.
+      [mDown := 1.
        exponent > (1 - f bias - f significandSize)
-	 /\ [significand = (1 bitShift: f significandSize)]
+         /\ [significand = (1 bitShift: f significandSize)]
          ifTrue:
-           [r: significand * b * 2.
-            s: (1 bitShift: 1 - exponent) * 2.
-            mUp: b]
+           [r := significand * b * 2.
+            s := (1 bitShift: 1 - exponent) * 2.
+            mUp := b]
          ifFalse:
-           [r: significand * 2.
-            s: (1 bitShift: exponent negated) * 2.
-            mUp: 1]]
+           [r := significand * 2.
+            s := (1 bitShift: exponent negated) * 2.
+            mUp := 1]]
     ifFalse:
       [| be |
-       be: (1 bitShift: exponent).
+       be := (1 bitShift: exponent).
        significand = (1 bitShift: f significandSize)
          ifTrue:
-           [r: significand * be * b * 2.
-            s: b * 2.
-            mUp: be * b.
-            mDown: b]
+           [r := significand * be * b * 2.
+            s := b * 2.
+            mUp := be * b.
+            mDown := b]
          ifFalse:
-           [r: significand * be * 2.
-            s: 2.
-            mUp: be.
-            mDown: be]].
-  k: (((significand + 1) ln + (exponent * b ln)) / radix ln) ceiling.
+           [r := significand * be * 2.
+            s := 2.
+            mUp := be.
+            mDown := be]].
+  k := (((significand + 1) ln + (exponent * b ln)) / radix ln) ceiling.
   [k >= 0
      ifTrue: [r + mUp > ((radix raisedTo: k) * s)]
      ifFalse: [(radix raisedTo: k negated) * (r + mUp) > s]]
     whileTrue:
-      [k: k + 1].
+      [k := k + 1].
   k >= 0
     ifTrue:
-      [s: s * (radix raisedTo: k)]
+      [s := s * (radix raisedTo: k)]
     ifFalse:
       [| bk |
-       bk: (radix raisedTo: k negated).
-       r: r * bk.
-       mUp: mUp * bk.
-       mDown: mDown * bk].
-  digits: '' prettyPrinter.
-  [d: (r * radix // s).
-   r: (r * radix \\ s).
-   mUp: mUp * radix.
-   mDown: mDown * radix.
+       bk := (radix raisedTo: k negated).
+       r := r * bk.
+       mUp := mUp * bk.
+       mDown := mDown * bk].
+  digits := '' prettyPrinter.
+  [d := (r * radix // s).
+   r := (r * radix \\ s).
+   mUp := mUp * radix.
+   mDown := mDown * radix.
    r + mUp > s
      /\ [r >= mDown \/ [r * 2 >= s]]
-     ifTrue: [d: d + 1].
+     ifTrue: [d := d + 1].
    d printOn: digits &radix: radix.
    r < mDown \/ [r + mUp > s]
   ] whileFalse.
-  digits: digits contents.
+  digits := digits contents.
   f isNegative
     ifTrue: [o ; '-']
     ifFalse: [forceSign isNotNil /\ [forceSign] ifTrue: [o ; '+']].
-  f abs < o floatMinimum \/ [f abs > o floatMaximum]
-    ifTrue: [decimal: 1]
-    ifFalse: [decimal: (k max: 0)].
+  decimal := f abs < o floatMinimum \/ [f abs > o floatMaximum]
+    ifTrue: [1]
+    ifFalse: [k max: 0].
   o next: (decimal min: digits size) putAll: digits.
   (decimal - digits size max: 0)
     timesRepeat: [o ; '0'].
@@ -377,13 +376,12 @@ x@(Association traits) printOn: o@(PrettyPrinterMixin traits)
 c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 "A generic iteration through the elements, with printing of each."
 [| index tally |
-  tally: c size.
-  index: 0.
+  tally := c size.
+  index := 0.
   c do:
     [| :each |
      each printOn: o.
-     index: index + 1.
-     index < tally
+     (index := index + 1) < tally
        ifTrue: [block do]].
   o
 ].
@@ -392,7 +390,7 @@ c@(Collection traits) printOn: o@(PrettyPrinterMixin traits)
 "The template for all collection object printing; this is only valid Slate
 input if the argument is a literal collection, such as an Array."
 [| doPrintName |
-  doPrintName: (c isSameAs: Array) not /\ [#printName isFoundOn: {c}].
+  doPrintName := (c isSameAs: Array) not /\ [#printName isFoundOn: {c}].
   o ; '{'.
   doPrintName ifTrue: [o ; '"' ; c printName ; '"'].
   c isEmpty ifTrue:
@@ -403,12 +401,12 @@ input if the argument is a literal collection, such as an Array."
     [^ (o ; '...}')].
   o indentedDo:
     [| index |
-     index: 0.
+     index := 0.
      c printContentsOn: o separatedBy:
        [o ; '.'.
-	o newElement.
-	index: index + 1.
-	index >= o collectionLimit ifTrue:
+        o newElement.
+        index := index + 1.
+        index >= o collectionLimit ifTrue:
           [o ; '...}.'. ^ o]]].
   o ; '}'
 ].
@@ -448,17 +446,16 @@ c@(LogicRange traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
 c@(Dictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 "Print out the keys and values as Association constructors."
 [| index tally |
-  index: 0.
-  tally: 0.
-  c keysAndValuesDo: [| :key :val | tally: tally + 1].
+  index := 0.
+  tally := 0.
+  c keysAndValuesDo: [| :key :val | tally := tally + 1].
   c keysAndValuesDo:
     [| :key :val |
      key printOn: o.
      o ; ' -> '.
      val printOn: o.
-     index: index + 1.
-     index < tally ifTrue:
-       [block do]].
+     (index := index + 1)
+       < tally ifTrue: [block do]].
   o
 ].
 

@@ -1,10 +1,10 @@
-"DebugConsole writeStream collectionLimit: 512.
-DebugConsole writeStream nestingLimit: 3.
-Stream PrettyPrinter collectionLimit: 512.
-Stream PrettyPrinter nestingLimit: 3."
+"DebugConsole writeStream collectionLimit := 512.
+DebugConsole writeStream nestingLimit := 3.
+Stream PrettyPrinter collectionLimit := 512.
+Stream PrettyPrinter nestingLimit := 3."
 
-Stream PrettyPrinter collectionLimit: 256.
-Stream PrettyPrinter nestingLimit: 2.
+Stream PrettyPrinter collectionLimit := 256.
+Stream PrettyPrinter nestingLimit := 2.
 
 conditions define: #Debugger &parents: {Cloneable}
   &slots: {#condition -> Nil.
@@ -29,7 +29,7 @@ ns@(Debugger Namespace traits) new [Debugger Namespace clone].
 
 d@(Debugger traits) refreshWorkspace
 [
-  d namespace: d namespace newSisterSpace.
+  d namespace := d namespace newSisterSpace.
   ns@(d namespace) debugger [d].
 ].
 
@@ -37,11 +37,11 @@ Debugger atSlotNamed: #namespace put: (Debugger Namespace newDelegatingTo: lobby
 
 d@(Debugger traits) on: resource
 [
-  d resource: resource.
-  d parser: (d parser newOn: resource reader).
-  d printer: resource writer.
-  d printer collectionLimit: Stream PrettyPrinter collectionLimit.
-  d printer nestingLimit: Stream PrettyPrinter nestingLimit.
+  d resource := resource.
+  d parser := d parser newOn: resource reader.
+  d printer := resource writer.
+  d printer collectionLimit := Stream PrettyPrinter collectionLimit.
+  d printer nestingLimit := Stream PrettyPrinter nestingLimit.
   d
 ].
 
@@ -54,15 +54,15 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod
   d clone `>>
     [| :newD |
      on: resource.
-     saved: saved.
-     condition: c.
-     restarts: d restarts new.
-     namespace: d namespace clone.
-     parser currentScope: (Syntax Namespace for: newD namespace).
+     saved := saved.
+     condition := c.
+     restarts := d restarts new.
+     namespace := d namespace clone.
+     parser currentScope := Syntax Namespace for: newD namespace.
      parser parseInteractively:
        ([repl parser parseInteractively]
 	  on: SeriousCondition do: [| :c | c return: False]).
-     baseFramePointer: (d interpreter framePointerOf: symbol).
+     baseFramePointer := d interpreter framePointerOf: symbol.
      buildFrames. ]
 ].
 
@@ -84,7 +84,7 @@ d@(Debugger traits) findRestarts
 
 d@(Debugger traits) describeRestartAt: index
 [| restart |
-  restart: (d restarts at: index).
+  restart := d restarts at: index.
   d printer `cache ; 'restart: ' ; index printString ; '\t'.
   restart describeOn: d printer.
 ].
@@ -241,14 +241,14 @@ f@(Debugger Frame traits) describeOn: out
 
 f@(Debugger Frame traits) reset
 [
-  f instructionPointer: 0.
+  f instructionPointer := 0.
 ].
 
 f@(Debugger Frame traits) restart
 "Proceed execution from the start of this frame."
 [
   f reset.
-  f debugger quitFlag: True.
+  f debugger quitFlag := True.
 ].
 
 d@(Debugger traits) topFrame
@@ -256,11 +256,13 @@ d@(Debugger traits) topFrame
 
 d@(Debugger traits) buildFrames
 [| frame |
-  d baseFramePointer ifNil: [error: 'Base frame pointer is nil. Cannot build stack frames.\n'. ^ Nil].
-  d frameList: d frameList new.
-  d frameList add: (frame: d topFrame).
-  [(frame: frame nextFrame) isNotNil] whileTrue: [d saved ifTrue: [d frameList add: (d saveFrame: frame)]
-                                                          ifFalse: [d frameList add: frame]].
+  d baseFramePointer ifNil:
+    [error: 'Base frame pointer is nil. Cannot build stack frames.\n'. ^ Nil].
+  d frameList := d frameList new.
+  d frameList add: (frame := d topFrame).
+  [(frame := frame nextFrame) isNotNil] whileTrue:
+    [d saved ifTrue: [d frameList add: (d saveFrame: frame)]
+             ifFalse: [d frameList add: frame]].
 ].
 
 d@(Debugger traits) prompt
@@ -309,31 +311,31 @@ d@(Debugger traits) printBacktrace &fromFrame: frameIndex &limit: limit &stream:
 d@(Debugger traits) frame: index
 "Selects the frame at the given index."
 [
-  d currentFrame: (d frameList at: index ifAbsent: [Nil])
+  d currentFrame := d frameList at: index ifAbsent: [Nil]
 ].
 
 d@(Debugger traits) top
 [
-  d currentFrame: d frameList first
+  d currentFrame := d frameList first
 ].
 
 d@(Debugger traits) bottom
 [
-  d currentFrame: d frameList last
+  d currentFrame := d frameList last
 ].
 
 d@(Debugger traits) up
 [
   (d frameList before: d currentFrame)
     ifNil: [error: 'You are at the top of the stack and cannot go up a frame']
-    ifNotNilDo: [| :frame | d currentFrame: frame]
+    ifNotNilDo: [| :frame | d currentFrame := frame]
 ].
 
 d@(Debugger traits) down
 [
   (d frameList after: d currentFrame)
     ifNil: [error: 'You are at the bottom of the stack and cannot go down a frame']
-    ifNotNilDo: [| :frame | d currentFrame: frame]
+    ifNotNilDo: [| :frame | d currentFrame := frame]
 ].
 
 d@(Debugger traits) currentFrameAt: n@(Integer traits)
@@ -385,7 +387,7 @@ ns@(Debugger Namespace traits) False
 ns@(Debugger Namespace traits) frame
 [ns debugger currentFrame].
 ns@(Debugger Namespace traits) frame: n
-[ns debugger `>> [frame: n. printFrame]].
+[ns debugger `>> [frame := n. printFrame]].
 ns@(Debugger Namespace traits) top
 [ns debugger `>> [top. printFrame]].
 ns@(Debugger Namespace traits) up
@@ -409,7 +411,7 @@ ns@(Debugger Namespace traits) restart: index
 ns@(Debugger Namespace traits) : index
 [ns debugger signalRestartAt: index].
 ns@(Debugger Namespace traits) quit
-[ns debugger quitFlag: True].
+[ns debugger quitFlag := True].
 ns@(Debugger Namespace traits) return: value
 [ns debugger return: value].
 
@@ -440,8 +442,8 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
    ifTrue: [resend]
    ifFalse:
      [| selector keywords |
-      selector: message selector.
-      keywords: ((selector as: String) splitWith: $:).
+      selector := message selector.
+      keywords := (selector as: String) splitWith: $:.
       "Handle an accessor."
       selector isUnarySelector
         ifTrue: [^ [ns arg: keywords first]].
@@ -468,13 +470,14 @@ in the selected option number, returning it if valid."
   d printer ; d prompt.
   d printer flush.
   [| expr result restartNumeric |
-   [expr: d parser next] on: Stream Exhaustion do:
+   [expr := d parser next] on: Stream Exhaustion do:
      [| :c | c stream == d resource reader ifTrue: [lobby exit: 1]].
-   result: (expr evaluateIn: d namespace).
-   restartNumeric: (expr is: Syntax Literal) /\ [result is: Integer].
+   result := expr evaluateIn: d namespace.
+   restartNumeric := (expr is: Syntax Literal) /\ [result is: Integer].
    "Exclude selections of restarts and other commands from printing."
    restartNumeric \/
-     [(expr is: Syntax Message) /\ [#{#:. #restart:. #frame. #frame:. #restarts. #help. #bt. #backtrace} includes: expr selector]]
+     [(expr is: Syntax Message)
+        /\ [#{#:. #restart:. #frame. #frame:. #restarts. #help. #bt. #backtrace} includes: expr selector]]
       ifFalse:
         [[result printOn: d printer]
            on: Error do: [| :c | d printer ; '<Printing failed>'].
@@ -485,7 +488,8 @@ in the selected option number, returning it if valid."
     do: [| :c |
       d printer ; '\nThe following condition was signaled from within the debugger:\n'.
       c describeOn: d printer.
-      (c is: Stream Exhaustion) /\ [c stream resource handle = 0] ifTrue: [d printer ; 'End of input, exiting...\n'. lobby exit: 1].
+      (c is: Stream Exhaustion) /\ [c stream resource handle = 0]
+        ifTrue: [d printer ; 'End of input, exiting...\n'. lobby exit: 1].
       c exit].
   d quitFlag] whileFalse.
 ].

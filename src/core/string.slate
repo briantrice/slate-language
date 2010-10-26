@@ -77,7 +77,7 @@ ch@(ASCIIString Character traits) isDelimiter
 
 ch@(ASCIIString Character traits) isDigit: radix
 [| value |
-  value: ch code.
+  value := ch code.
   (value between: #[$0 code] and: #[$9 code])
     ifTrue: [^ (value - #[$0 code] < radix)].
   (value between: #[$A code] and: #[$Z code])
@@ -95,7 +95,7 @@ ch@(ASCIIString Character traits) isDigit
 ch@(ASCIIString Character traits) toDigit: radix
 [| value |
   (ch isDigit: radix) ifFalse: [^ Nil].
-  value: ch code.
+  value := ch code.
   value >= #[$a code] ifTrue: [^ (value - #[$a code] + 10)].
   value >= #[$A code] ifTrue: [^ (value - #[$A code] + 10)].
   value >= #[$0 code] ifTrue: [^ (value - #[$0 code])].
@@ -221,12 +221,12 @@ s@(String traits) copy
 
 s@(String traits) hash
 [| n bit |
-  n: 0.
-  bit: 0.
+  n := 0.
+  bit := 0.
   s do:
     [| :c |
-      n: ((n + (c hash bitShift: bit)) bitAnd: 16rFFFFFF).
-      bit: ((bit + 1) bitAnd: 16rF)].
+      n := ((n + (c hash bitShift: bit)) bitAnd: 16rFFFFFF).
+      bit := ((bit + 1) bitAnd: 16rF)].
   n
 ].
 
@@ -285,14 +285,13 @@ s@(String traits) fromCamelCase &separator: delim
 "Separates the String into words based on lowercase-uppercase letter
 boundaries, and joins them using the specified delimiter String."
 [| indices words |
-  delim ifNil: [delim: ' '].
-  indices: ExtensibleArray new.
-  indices addLast: -1.
+  delim `defaultsTo: ' '.
+  indices := ExtensibleArray new*, -1.
   s indexFirst below: s indexLast - 1 do:
     [| :index | (s at: index) isLowercase /\ [(s at: index + 1) isUppercase]
        ifTrue: [indices addLast: index]].
   indices addLast: s indexLast.
-  words: ExtensibleArray new.
+  words := ExtensibleArray new.
   indices chainPairsDo:
     [| :last :next | words addLast:
       (s copyFrom: last + 1 to: next) toLowercase].
@@ -303,8 +302,8 @@ String traits define: #SmallWords -> {'a'. 'an'. 'and'. 'as'. 'at'. 'but'. 'by'.
 
 s@(String traits) titleCase
 [| words |
-  words: s split.
-  words doWithIndex:
+  (words := s split)
+    doWithIndex:
     [| :word :index |
      (word includes: $&)
        ifTrue: [word toUppercase]
@@ -354,7 +353,7 @@ s@(String traits) readFrom: src
 "Reads the first thing in the String (or Stream) as a String literal.
 An error is raised if the return type does not match the requested one."
 [| srcStream next |
-  srcStream: src reader.
+  srcStream := src reader.
   srcStream peek = $\'
     ifTrue: [srcStream next]
     ifFalse: [error: 'The source does not start with a quotation mark.'].
@@ -395,10 +394,10 @@ s@(String traits) split &separators: delims
 
 s@(String traits) stripAll: c@(Collection traits) startingAt: start
 [| result |
-  result: (s copyFrom: 0 to: start - 1) writer.
+  result := (s copyFrom: 0 to: start - 1) writer.
   start below: s size
     do: [| :index each |
-	 each: (s at: index).
+	 each := (s at: index).
          (c includes: each)
 	   ifFalse: [result nextPut: each]].
   result contents
@@ -420,11 +419,13 @@ s@(String traits) strip
 [s stripAll: s elementType Whitespace startingAt: 0].
 
 s@(String traits) trimAll: c@(Collection traits)
-[| from to |
-  (from: (s indexOfFirstSatisfying: [| :each | (c includes: each) not]))
-    ifNil: [^ s new].
-  to: (s indexOfLastSatisfying: [| :each | (c includes: each) not]).
-  s sliceFrom: from to: to
+[
+  (s indexOfFirstSatisfying: [| :each | (c includes: each) not])
+    ifNil: [s new]
+    ifNotNilDo:
+      [| :from |
+       s sliceFrom: from
+         to: (s indexOfLastSatisfying: [| :each | (c includes: each) not])]
 ].
 
 s@(String traits) trim
@@ -437,7 +438,7 @@ s@(String traits) format*
 an array argument. Curly open-brackets may be escaped by doubling them."
 "Test: ('{{ } \\ foo {0} bar {1}' format*, 12, 'string') = '{ } \ foo 12 bar string'"
 [| *args input |
-  input: s reader.
+  input := s reader.
   [| :result |
    input do:
      [| :char |
@@ -446,7 +447,7 @@ an array argument. Curly open-brackets may be escaped by doubling them."
 	  [input peek == $\{
 	     ifTrue: [result nextPut: input next]
 	     ifFalse: [| index |
-		       index: (Integer readFrom: (input upTo: $\})).
+		       index := Integer readFrom: (input upTo: $\}).
 		       result ; ((args at: index ifAbsent: ['[subscript out of bounds: {0}]' format*, index]) as: s)]]
 	ifFalse: [result nextPut: char]].
    ] writingAs: s
@@ -454,60 +455,58 @@ an array argument. Curly open-brackets may be escaped by doubling them."
 
 s@(String traits) sprintf*
 [| *args input argsIndex |
-  input: s reader.
-  argsIndex: args indexFirst.
+  input := s reader.
+  argsIndex := args indexFirst.
   [| :result |
    input do:
      [| :char |
       char == $%
         ifTrue: "Placeholder"
           [| nextChar |
-           nextChar: input next.
-           nextChar == $%
+           (nextChar := input next) == $%
              ifTrue: [result nextPut: nextChar]
              ifFalse:
                [| arg argPosition specifier width precision space position alternative plus minus zero star |
                 input skip: -1.
-                argPosition: input position.
-                specifier: (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
+                argPosition := input position.
+                specifier := (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
 
                 [specifier isAtEnd] whileFalse:
-                  [nextChar: specifier next.
+                  [nextChar := specifier next.
                    "Check for a parameter index spec:"
                    ('123456789' includes: nextChar)
                      ifTrue:
                        [(specifier peek: 1) == $$
                           ifTrue:
                             [specifier skip: -1.
-                             position: (Integer readFrom: specifier).
+                             position := (Integer readFrom: specifier).
                              specifier next]
                           ifFalse:
                             [specifier skip: -1.
-                             width: (Integer readFrom: specifier).
-                             ]]
+                             width := (Integer readFrom: specifier)]]
                      ifFalse:
                        ["Check for flags:"
                         nextChar caseOf: {
-                          $\s -> [space: True].
-                          $#  -> [alternative: True].
-                          $+  -> [plus: True].
-                          $-  -> [minus: True].
-                          $0  -> [zero: True].
-                          $*  -> [star: True].
-                          $. -> [precision: (Integer readFrom: specifier)]}]].
+                          $\s -> [space := True].
+                          $#  -> [alternative := True].
+                          $+  -> [plus := True].
+                          $-  -> [minus := True].
+                          $0  -> [zero := True].
+                          $*  -> [star := True].
+                          $. -> [precision := Integer readFrom: specifier]}]].
 
-                input position: argPosition.
+                input position := argPosition.
                 "Check for type specifiers:"
                 position ifNil:
-                  [position: argsIndex.
-                   argsIndex: argsIndex + 1].
+                  [position := argsIndex.
+                   argsIndex := argsIndex + 1].
                 width isNil /\ [star isNotNil] ifTrue:
-                  [width: (args at: position).
-                   position: position + 1.
-                   argsIndex: argsIndex + 1].
-                arg: (args at: position).
-                nextChar: input next.
-                arg: (nextChar toLowercase caseOf: {
+                  [width := (args at: position).
+                   position := position + 1.
+                   argsIndex := argsIndex + 1].
+                arg := (args at: position).
+                nextChar := input next.
+                arg := (nextChar toLowercase caseOf: {
                   $r -> [arg printString].
                   $@ -> [arg printString].
                   $s -> [arg as: s].
@@ -521,7 +520,7 @@ s@(String traits) sprintf*
                 } otherwise: [arg as: s]).
                 nextChar isUppercase ifTrue: [arg toUppercase].
                 width ifNotNil:
-                  [arg: (arg truncateTo: width paddedBy: (zero ifNil: [$\s] ifNotNil: [$0]) &onRight: minus isNotNil)].
+                  [arg := (arg truncateTo: width paddedBy: (zero ifNil: [$\s] ifNotNil: [$0]) &onRight: minus isNotNil)].
                 result ; arg.
           ]]
         ifFalse: [result nextPut: char]]
@@ -535,8 +534,8 @@ s@(String traits) evaluate
 
 s@(String traits) evaluateIn: namespace
 [| parser expr |
-  parser: (Syntax Parser newOn: s).
-  [[expr: parser next.
+  parser := (Syntax Parser newOn: s).
+  [[expr := parser next.
     expr evaluateIn: lobby.
     parser isAtEnd] on: Stream Exhaustion do: [False]] whileFalse.
 ].
@@ -550,7 +549,7 @@ s@(String traits) as: i@(Integer traits) &radix: radix
   (s isNotEmpty /\ [s first = $-])
     ifTrue:
       [^ ((s copyFrom: 1) as: i &radix: radix) negated].
-  radix ifNil: [radix: 10].
+  radix `defaultsTo: 10.
   s inject: 0 into:
     [| :n :c | (c isDigit: radix) ifFalse: [^ n].
      n * radix + (c toDigit: radix)]
@@ -606,12 +605,12 @@ s@(ASCIIString traits) sorted
 
 ch@(ASCIIString Character traits) rot13
 [| value upper |
-  upper: ch isUppercase.
-  value: ch toLowercase code.
+  upper := ch isUppercase.
+  value := ch toLowercase code.
   value >= #[$a code] /\ [value < #[$n code]]
-    ifTrue: [value: value + 13]
+    ifTrue: [value := value + 13]
     ifFalse: [value > #[$m code] /\ [value <= #[$z code]]
-		ifTrue: [value: value - 13]].
+		ifTrue: [value := value - 13]].
   upper
     ifTrue: [(value as: ch) toUppercase]
     ifFalse: [value as: ch]
@@ -623,7 +622,7 @@ s@(ASCIIString traits) rot13
 s@(ASCIIString traits) as: a@(ByteArray traits)
 "Since ByteArrays cannot hold objects, they must store character codes."
 [| newA |
-  newA: (a newSizeOf: s).
+  newA := (a newSizeOf: s).
   s doWithIndex:
     [| :each :index | newA at: index put: (each as: a elementType)].
   newA
@@ -632,7 +631,7 @@ s@(ASCIIString traits) as: a@(ByteArray traits)
 a@(ByteArray traits) as: s@(ASCIIString traits)
 "Since ByteArrays cannot hold objects, they must store character codes."
 [| newS |
-  newS: (s newSizeOf: a).
+  newS := (s newSizeOf: a).
   a doWithIndex:
     [| :each :index | newS at: index put: (each as: s elementType)].
   newS

@@ -25,10 +25,10 @@ x@(Sequence traits) = y@(Symbol traits)
 
 s@(Symbol traits) newNamed: name
 [| newS index mutator |
-  mutator: (#at:put: findOn: {'' traits}).
-  newS: (s newSizeOf: name).
-  index: 0.
-  name do: [| :each | mutator apply*, newS, index, each. index: index + 1].
+  mutator := (#at:put: findOn: {'' traits}).
+  newS := (s newSizeOf: name).
+  index := 0.
+  name do: [| :each | mutator apply*, newS, index, each. index := index + 1].
   newS
 ].
 
@@ -45,12 +45,12 @@ s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
 (lobby globals hasSlotNamed: #Symbols)
   ifFalse:
     [lobby globals
-      addImmutableSlot: #Symbols
-      valued: (Dictionary new &capacity: bootstrapSymbols size * 2).
-      bootstrapSymbols
-        do: [| :each | globals Symbols at: each name put: each].
-      "Remove the bootstrap kluge."
-      #intern: removeMethodFrom: {lobby. ASCIIString traits}].
+       addImmutableSlot: #Symbols
+       valued: (Dictionary new &capacity: bootstrapSymbols size * 2).
+     bootstrapSymbols
+       do: [| :each | globals Symbols at: each name put: each].
+     "Remove the bootstrap kluge."
+     #intern: removeMethodFrom: {lobby. ASCIIString traits}].
 
 _@lobby intern: s@(String traits)
 "Answer a Symbol object with the string as its name. This will identify any
@@ -97,23 +97,22 @@ called by the core libraries:" (
 
 s@(Symbol traits) isUnarySelector
 [| name first |
-  name: s name.
-  name isEmpty not /\ [first: name first.
-		       first isLetter \/ [first = $_] /\ [name last ~= $:]]
+  (name := s name) isEmpty not
+    /\ [(first := name first) isLetter \/ [first = $_] /\ [name last ~= $:]]
 ].
 
 s@(Symbol traits) isBinarySelector
 [| name first |
-  name: s name.
-  name isEmpty not /\
-    [first: name first.
-     (first isLetter \/ [first = $_] \/ [first = $&] \/ [name last = $:]) not]
+  (name := s name) isEmpty not
+    /\ [(first := name first) isLetter not]
+    /\ [first ~= $_]
+    /\ [first ~= $&]
+    /\ [name last ~= $:]
 ].
 
 s@(Symbol traits) isKeywordSelector
 [| name |
-  name: s name.
-  name first ~= $& /\ [name last = $:]
+  (name := s name) first ~= $& /\ [name last = $:]
 ].
 
 s@(Symbol traits) isOptionalSelector
@@ -149,12 +148,11 @@ s@(globals Symbols) containing: segment
 ).
 
 s@(Symbol traits) findAllMethodsOn: args
-[| w m |
-  w: (ExtensibleArray new writer).
-  m: (s findOn: args).
-  [m isNotNil] whileTrue: [
-     w nextPut: m.
-     m: (s findOn: args after: m).
-  ].
-  w collection
+[
+  [| :result m |
+   m := s findOn: args.
+   [m isNotNil] whileTrue:
+     [result nextPut: m.
+      m := (s findOn: args after: m)].
+   ] writingAs: #{}
 ].

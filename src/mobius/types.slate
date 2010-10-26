@@ -22,8 +22,7 @@ c addDependency: t@(Types C Type traits) withVisited: visited
 
 t@(Types C Type traits) alignment
 [| bits |
-  bits := t bitSize.
-  bits >= Types C LongInt bitSize \/ [bits = 0]
+  (bits := t bitSize) >= Types C LongInt bitSize \/ [bits = 0]
     ifTrue: [Types C LongInt bitSize]
     ifFalse: [bits]
 ].
@@ -60,7 +59,7 @@ _@(Types C Pointer traits) bitSize
 ].
 
 t@(Types C Type traits) pointer
-[ 
+[
   Types C Pointer to: t
 ].
 
@@ -125,8 +124,8 @@ m@(Types C Modifier traits) for: b
 [m clone `>> [baseType := b. ]].
 
 Types C define: #Mutability &parents: {Types C Modifier}.
-Types C define: #Const &parents: {Types C Mutability}. 
-Types C define: #Volatile &parents: {Types C Mutability}. 
+Types C define: #Const &parents: {Types C Mutability}.
+Types C define: #Volatile &parents: {Types C Mutability}.
 
 Types C define: #Storage &parents: {Types C Modifier}.
 Types C Storage traits define: #None &builder: [Types C Storage clone].
@@ -167,7 +166,7 @@ t@(Types C Synonym traits) newNamed: name type: type
 [
   t clone `>> [| :newT |
     cName := name.
-    pointer := (Types C Pointer to: newT).
+    pointer := Types C Pointer to: newT.
     targetType := type. ]
 ].
 
@@ -181,11 +180,9 @@ c addDependency: t@(Types C Synonym traits) withVisited: visited
 [
   (visited includes: t)
     ifFalse:
-      [
-        visited include: t.
-        c include: t.
-        c addDependency: t targetType withVisited: visited
-      ]
+      [visited include: t.
+       c include: t.
+       c addDependency: t targetType withVisited: visited]
 ].
 
 t@(Types C Synonym traits) bitSize
@@ -237,7 +234,7 @@ c addDependency: t@(Types C Structure traits) withVisited: visited
 ].
 
 t@(Types C Structure traits) doElements: block
-[| previousSE bits | 
+[| previousSE bits |
   previousSE := t elementSpecs first.
   block applyTo: {previousSE. 0}.
   bits := previousSE bitSize.
@@ -268,18 +265,18 @@ _@(Types C Type traits) walkElements: _ withPath: _ atBitOffset: _
 t@(Types C Structure traits) walkElements: block withPath: path atBitOffset: baseOffset
 [
   t doElements:
-      [| :se :offset | 
-        path push: se.
-        block applyTo: {path. baseOffset + offset}.
-        se type walkElements: block withPath: path atBitOffset: baseOffset + offset.
-        path pop]
-].    
-  
+    [| :se :offset |
+     path push: se.
+     block applyTo: {path. baseOffset + offset}.
+     se type walkElements: block withPath: path atBitOffset: baseOffset + offset.
+     path pop]
+].
+
 t@(Types C Structure traits) unpaddedSize
 [| lastSE lastOffset |
   t elementSpecs isEmpty
     ifTrue: [^ 0].
-  t doElements: 
+  t doElements:
     [| :se :offset |
       lastSE := se.
       lastOffset := offset].
@@ -310,7 +307,7 @@ t@(Types C Union traits) doElements: block
 t@(Types C Union traits) unpaddedSize
 [| maxSize |
   maxSize := 0.
-  t doElements: 
+  t doElements:
     [| :se :_ |
       maxSize := maxSize max: se type bitSize].
   maxSize

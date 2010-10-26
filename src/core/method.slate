@@ -80,7 +80,9 @@ name@(Symbol traits) removeMethodFrom: args &ifNotFound: block
 "Removes the method with the given selector from the arguments."
 [
   block `defaultsTo: [name notFoundOn: args].
-  (name findOn: args) ifNil: block ifNotNilDo: [|:method| method removeFrom: args ]
+  (name findOn: args)
+    ifNil: block
+    ifNotNilDo: [| :method | method removeFrom: args]
 ].
 
 name@(Symbol traits) findsSameMethodOn: args1 asOn: args2
@@ -112,7 +114,7 @@ name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
 "Creates a method that just sends the given selector to the attribute
 of the argument at the specified index."
 [| src |
-  src: (Syntax Literal for: name) er.
+  src := (Syntax Literal for: name) er.
   src statements first arguments at: roleIndex infect:
     [| :arg | Syntax Message sending: attribute to: {arg}].
   src evaluate asMethod: name on: args
@@ -172,7 +174,7 @@ body@(Method traits) while: testBlock
 "Evaluates the body block once, and then again as long as the testBlock
 returns True, and returns the last return value of the body."
 [| result |
-  [result: body do.
+  [result := body do.
    testBlock do] whileTrue.
   result
 ].
@@ -181,7 +183,7 @@ body@(Method traits) until: testBlock
 "Evaluates the body block once, and then again as long as the testBlock
 returns False, and returns the last return value of the body."
 [| result |
-  [result: body do.
+  [result := body do.
    testBlock do] whileFalse.
   result
 ].
@@ -310,8 +312,8 @@ m@(Method traits) ifCompletes: successBlock ifFails: errorBlock
 errorBlock depending on whether there is a non-local exit that prevents the
 first from completing normally."
 [| exitedNormally result |
-  exitedNormally: False.
-  [result: m do. exitedNormally: True. result]
+  exitedNormally := False.
+  [result := m do. exitedNormally := True. result]
     ensure: [exitedNormally ifTrue: [successBlock do] ifFalse: [errorBlock do]]
 ].
 
@@ -364,10 +366,10 @@ possible to construct blocks that don't always return the same
 value for same input, so should there be another converge without this
 test?"
 [| current last |
-  current: (block applyWith: i).
+  current := (block applyWith: i).
   [{i. last} includes: current]
-    whileFalse: [last: current.
-		 current: (block applyWith: current)].
+    whileFalse: [last := current.
+		 current := (block applyWith: current)].
   current
 ].
 

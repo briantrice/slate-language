@@ -43,8 +43,9 @@ _@(Condition traits) describeOn: console
 block@(Method traits) on: c@(Condition traits) do: handler
 "Establishes a handler to be executed when the Condition is signaled within the block."
 [| context |
-  context: (c cloneSettingSlots: #{#handlers. #exitContinuation}
-	      to: {{handler}. [| :result | ^ result]}).
+  context := c clone `>>
+    [handlers := {handler}.
+     exitContinuation := [| :result | ^ result]. ].
   conditionStack push: context.
   block ensure: [conditionStack pop]
 ].
@@ -54,9 +55,9 @@ block@(Method traits) on: col@(Collection traits) do: handler
 [
   col do:
     [| :c context |
-     context:
-       (c cloneSettingSlots: #{#handlers. #exitContinuation}
-	  to: {{handler}. [| :result | ^ result]}).
+     context := c clone `>>
+       [handlers := {handler}.
+        exitContinuation := [| :result | ^ result]. ].
      conditionStack push: context].
   block ensure: [conditionStack pop: col size]
 ].
@@ -64,47 +65,46 @@ block@(Method traits) on: col@(Collection traits) do: handler
 block@(Method traits) handlingCases: handlers
 "Establishes handlers to be executed when their associated Conditions are
 signaled within the block."
-[| context continuation pos |
-  continuation: [| :result | ^ result].
-  pos: conditionStack position.
+[| context pos |
+  pos := conditionStack position.
   handlers
     reverseDo:
       [| :handler |
-       context: (handler key cloneSettingSlots: #{#handlers. #exitContinuation}
-			to: {{handler value}. continuation}).
+       context := handler key clone `>>
+         [handlers := {handler value}.
+          exitContinuation := [| :result | ^ result]. ].
        conditionStack push: context].
-  block ensure: [conditionStack position: pos]
+  block ensure: [conditionStack position := pos]
 ].
 
 c@(Condition traits) tryHandlers
 [| delegates |
-   c returnContinuation: [| :result | ^ result].
-   delegates: c allDelegates.
+   c returnContinuation := [| :result | ^ result].
+   delegates := c allDelegates.
    conditionStack
      reverseDoWithIndex:
        [| :context :index |
         (delegates includes: context traits)
 	  ifTrue:
-            [[index: index - 1.
+            [[index := index - 1.
               index >= 0 /\
                 [(conditionStack at: index) exitContinuation == context exitContinuation]]
                whileTrue.
-             c exitContinuation: context exitContinuation.
+             c exitContinuation := context exitContinuation.
              context handlers do: [| :handler | handler applyWith: c]]].
    c defaultHandler 
 ].
 
-
 "
 c@(Condition traits) tryHandlers
 [
-   c returnContinuation: [| :result | ^ result].
+   c returnContinuation := [| :result | ^ result].
    conditionStack
      reverseDo:
        [| :context |
         c == context
 	  ifTrue:
-            [c exitContinuation: context exitContinuation.
+            [c exitContinuation := context exitContinuation.
              context handlers do: [| :handler | handler applyWith: c]]].
    c defaultHandler 
 ].
@@ -147,7 +147,7 @@ purpose of handling it."
 "The actual signaled condition that invoked this restart."
 
 r@(Restart traits) newCondition: c
-[r new `>> [condition: c. ]].
+[r new `>> [condition := c. ]].
 
 r@(Restart traits) appliesTo: c@(Condition traits)
 "Answers whether the Restart applies to the Condition. The default is to
@@ -205,7 +205,7 @@ conditions define: #DescriptiveConditionMixin &parents: {Cloneable} &slots: {#de
 "Conditions which bear a description."
 
 c@(DescriptiveConditionMixin traits) newDescription: description
-[c new `>> [description: description. ]].
+[c new `>> [description := description. ]].
 
 c@(DescriptiveConditionMixin traits) signalSaying: description
 [
@@ -279,7 +279,7 @@ BreakPoint define: #Restart &parents: {Restart} &slots: {#breakPoint}.
 "A BreakPoint Restart is a Restart used to restart from a BreakPoint."
 
 bpr@(BreakPoint Restart traits) newBreakPoint: bp
-[bpr cloneSettingSlots: #{#breakPoint} to: {bp}].
+[bpr clone `>> [breakPoint := bp. ]].
 
 bpr@(BreakPoint Restart traits) describeOn: console
 [

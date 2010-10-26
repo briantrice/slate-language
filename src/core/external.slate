@@ -16,8 +16,8 @@ ExternalResource traits define: #openResources &builder: [IdentitySet new].
 r@(ExternalResource traits) schedule
 "Topologically schedule the resources according to their designated parent resource."
 [| schedule children workList |
-  children: IdentityDictionary new.
-  workList: Stack new.
+  children := IdentityDictionary new.
+  workList := Stack new.
   r openResources do:
     [| :resource |
       resource parentResource
@@ -27,11 +27,11 @@ r@(ExternalResource traits) schedule
           [| :parent |
             (children at: parent ifAbsentPut: [IdentitySet new])
               include: resource]].
-  schedule: ExtensibleArray new.
+  schedule := ExtensibleArray new.
   [workList isEmpty]
     whileFalse:
       [| resource |
-        resource: workList pop.
+        resource := workList pop.
         schedule addLast: resource.
         children at: resource
           ifPresent:
@@ -42,16 +42,16 @@ r@(ExternalResource traits) schedule
 r@(ExternalResource traits) resetStreams
 "Resets all the stream connections to and from the resource."
 [
-  r readStream ifNotNilDo: [| :s | s resource: Nil].
-  r writeStream ifNotNilDo: [| :s | s resource: Nil].
-  r readStream: (r writeStream: Nil).
+  r readStream ifNotNilDo: [| :s | s resource := Nil].
+  r writeStream ifNotNilDo: [| :s | s resource := Nil].
+  r readStream := (r writeStream := Nil).
 ].
 
 r@(ExternalResource traits) startup
 "The action to be performed to recover the resource on startup.
 The default is to open the resource after getting rid of the old handle."
 [
-  r handle: Nil.
+  r handle := Nil.
   r open
 ].
 
@@ -86,7 +86,7 @@ r@(ExternalResource traits) close
 [
   r isOpen
     ifTrue: [r disable.
-	     r handle: Nil.
+	     r handle := Nil.
 	     r openResources remove: r]
     ifFalse: [r signalClosed].
   r
@@ -121,7 +121,7 @@ transparently in an error-tolerant way. Nesting is handled by detecting
 if the resource was open beforehand and not cycling it if so.
 The return value of the block is answered if it completes without error."
 [| wasOpen |
-  wasOpen: r isOpen.
+  wasOpen := r isOpen.
   [wasOpen ifFalse: [r open].
    block applyWith: r]
      ensure: [r isOpen ifTrue:
@@ -169,20 +169,20 @@ r@(ExternalResource traits) reader
 "This defers access control to the one object that has been handed original
 access."
 [
-  r readStream ifNil: [r readStream: (r ReadStream newOn: r)]
+  r readStream `defaultsTo: (r ReadStream newOn: r)
 ].
 
 r@(ExternalResource traits) ASCIIReader
 "eventually use 'x reader &encoding: ASCIIEncoding' instead."
 [
-  r readStream ifNil: [r readStream: (r ASCIIReadStream newOn: r)]
+  r readStream `defaultsTo: (r ASCIIReadStream newOn: r)
 ].
 
 r@(ExternalResource traits) writer
 "This defers access control to the one object that has been handed original
 access."
 [
-  r writeStream ifNil: [r writeStream: (r WriteStream newOn: r)]
+  r writeStream `defaultsTo: (r WriteStream newOn: r)
 ].
 
 r@(ExternalResource traits) interactor
@@ -192,20 +192,20 @@ the same contents) access.
 This also defers access control to the one object that has been handed original
 access."
 [
-  r readStream: (r writeStream: (r ReadWriteStream newOn: r))
+  r readStream := (r writeStream := r ReadWriteStream newOn: r)
 ].
 
 r@(ExternalResource traits) iterator
 "This defers access control to the one object that has been handed original
 access."
 [
-  r readStream: (r writeStream: (r ReadWriteStream newOn: r))
+  r readStream := (r writeStream := r ReadWriteStream newOn: r)
 ].
 
 s@(ExternalResource Stream traits) on: r
 [
-  s resource: r.
-  s indexOfLastDirtyElement: 0.
+  s resource := r.
+  s indexOfLastDirtyElement := 0.
   s
 ].
 
@@ -247,7 +247,7 @@ s@(ExternalResource Stream traits) flush
   s isDirty ifTrue:
     [s resource isActive ifFalse: [s open].
      s flushWriteBuffer.
-     s indexOfLastDirtyElement: 0].
+     s indexOfLastDirtyElement := 0].
   s
 ].
 
@@ -272,7 +272,7 @@ transparently in an error-tolerant way. Nesting is handled by detecting
 if the resource was open beforehand and not cycling it if so.
 The return value of the block is answered if it completes without error."
 [| wasOpen |
-  wasOpen: s isOpen.
+  wasOpen := s isOpen.
   [wasOpen ifFalse: [s open].
    block applyWith: s]
      ensure: [s isOpen ifTrue:
@@ -343,7 +343,7 @@ ExternalResource traits define: #Closed
 "A condition where I/O is attempted on a closed resource."
 
 r@(ExternalResource traits) signalClosed
-[r Closed new `>> [resource: r. signal]].
+[r Closed new `>> [resource := r. signal]].
 
 r@(ExternalResource Closed traits) describeOn: out
 [
@@ -362,7 +362,7 @@ ExternalResource traits define: #ConnectionFailed
 "A condition where a connection attempt fails."
 
 r@(ExternalResource traits) connectionFailure
-[r ConnectionFailed new `>> [resource: r. signal]].
+[r ConnectionFailed new `>> [resource := r. signal]].
 
 r@(ExternalResource ConnectionFailed traits) describeOn: out
 [

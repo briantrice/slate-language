@@ -119,13 +119,12 @@ _ intersection: none@(Types None traits)
 Types define: #Not &parents: {Types Any} &slots: {#argument -> Types Any clone}.
 "A complement of a type, which may reduce itself automatically."
 
-
 type@(Types Any traits) complement
 "The most generic type-complementation."
 [
   type == Types Any
     ifTrue: [Types None]
-    ifFalse: [Types Not clone `>> [argument: type. ]]
+    ifFalse: [Types Not clone `>> [argument := type. ]]
 ].
 
 type@(Types Not traits) complement
@@ -151,7 +150,7 @@ not@(Types Not traits) intersection: type
 Types define: #Union &parents: {Types Any} &slots: {#args -> ExtensibleArray new.}.
 
 union@(Types Union traits) copy
-[union clone `>> [args: union args copy. ]].
+[union clone `>> [args := union args copy. ]].
 
 union@(Types Union traits) representative
 "Pick a representative from a random argument."
@@ -164,7 +163,7 @@ type1@(Types Any traits) union: type2@(Types Any traits)
 [
   type1 == Types Any \/ [type2 == Types Any]
     ifTrue: [^ Types Any].
-  Types Union clone `>> [| :newU | args: ({type1. type2} as: newU args). ]
+  Types Union clone `>> [| :newU | args := ({type1. type2} as: newU args). ]
 ].
 
 union@(Types Union traits) union: type
@@ -189,7 +188,7 @@ Types define: #Intersection &parents: {Types Any} &slots: {#args -> ExtensibleAr
 "An intersection of types, which may reduce itself automatically."
 
 intersection@(Types Intersection traits) copy
-[intersection clone `>> [args: intersection args copy. ]].
+[intersection clone `>> [args := intersection args copy. ]].
 
 type1@(Types Any traits) intersection: type2@(Types Any traits)
 "The most generic method for intersection."
@@ -199,7 +198,7 @@ type1@(Types Any traits) intersection: type2@(Types Any traits)
   type2 == Types Any
     ifTrue: [^ type1].
   Types Intersection clone `>>
-    [| :newT | args: ({type1. type2} as: newT args). ]
+    [| :newT | args := ({type1. type2} as: newT args). ]
 ].
 
 intersection@(Types Intersection traits) intersection: type
@@ -231,7 +230,7 @@ x@(Types Clone traits) = y@(Types Clone traits)
 
 c@(Types Clone traits) of: prototype
 "Create a new Clone type using the given object as a prototype."
-[c clone `>> [prototype: prototype. ]].
+[c clone `>> [prototype := prototype. ]].
 
 c@(Types Clone traits) representative
 "Use the prototype as a representative of the Clone family."
@@ -259,7 +258,7 @@ x@(Types Range traits) = y@(Types Range traits)
 
 range@(Types Range traits) of: type from: start to: end
 "Create a new Range type for the type, between the given boundaries."
-[range clone `>> [type: type. start: start. end: end. ]].
+[range clone `>> [type := type. start := start. end := end. ]].
 
 x@(Types Range traits) union: y@(Types Range traits)
 "Create a new Range type over the base Types' union if applicable."
@@ -274,10 +273,10 @@ x@(Types Range traits) intersection: y@(Types Range traits)
 "Create a new Range type over the base Types' intersection if applicable."
 "TODO: this depends on x and y's boundaries being comparable. Fix this."
 [| type start end |
-  type: (x type intersection: y type).
+  type := (x type intersection: y type).
   type == Types None ifTrue: [^ Types None].
-  start: (x start min: y start).
-  end: (x end max: y end).
+  start := (x start min: y start).
+  end := (x end max: y end).
   start > end ifTrue: [^ Types None].
   x of: type from: start to: end
 ].
@@ -300,7 +299,7 @@ x@(Types Member traits) = y@(Types Member traits)
 member@(Types Member traits) of: elements
 "Create a new Member type over the given collection, implicitly copying it
 with as:-conversion."
-[member clone `>> [elements: (elements as: member elements). ]].
+[member clone `>> [elements := (elements as: member elements). ]].
 
 x@(Types Member traits) union: y@(Types Member traits)
 [
@@ -334,7 +333,7 @@ x@(Types Singleton traits) = y@(Types Singleton traits)
 
 singleton@(Types Singleton traits) of: identity
 "Create a new Singleton type over the given object."
-[singleton clone `>> [identity: identity. ]].
+[singleton clone `>> [identity := identity. ]].
 
 member@(Types Member traits) union: singleton@(Types Singleton traits)
 "Create a new type between a Member and a Singleton type, a new Member type
@@ -344,7 +343,7 @@ or the existing one if the Member type is a supertype of the singleton."
     ifTrue: [member]
     ifFalse: [(member elements anyOne isSameAs: singleton identity)
 		ifTrue: [member clone `>>
-			   [elements: (member elements copyWith: singleton identity). ]]
+			   [elements := (member elements copyWith: singleton identity). ]]
 		ifFalse: [resend]]
 ].
 
@@ -415,7 +414,7 @@ array@(Types Array traits) representative
 
 array@(Types Array traits) of: type
 "Answer a new Array type over the given element type."
-[array clone `>> [type: type. ]].
+[array clone `>> [type := type. ]].
 
 x@(Types Array traits) = y@(Types Array traits)
 "Array types are equal simple on their underlying types."
@@ -433,7 +432,7 @@ x@(Types Array traits) intersection: y@(Types Array traits)
 "The intersection of Array types is the Array type of the intersection of the
 element types, or None if the intersection is None."
 [| type | 
-  type: (x type intersection: y type).
+  type := (x type intersection: y type).
   type = Types None ifTrue: [^ Types None].
   x of: type
 ].
@@ -452,8 +451,8 @@ block@(Types Block traits) from: argumentTypes to: resultType
 "Return a new Block type with the given type-signature."
 [
   block clone `>>
-   [argumentTypes: (argumentTypes as: Array).
-    resultType: resultType. ]
+   [argumentTypes := (argumentTypes as: Array).
+    resultType := resultType. ]
 ].
 
 x@(Types Block traits) = y@(Types Block traits)
@@ -481,8 +480,8 @@ x@(Types Block traits) intersection: y@(Types Block traits)
 with an intersection of their signature types."
 [| resultType |
   x argumentTypes size = y argumentTypes size ifFalse: [^ Types None].
-  resultType: (x resultType intersection: y resultType).
-  resultType == Types None ifTrue: [^ Types None].
+  (resultType := x resultType intersection: y resultType)
+    == Types None ifTrue: [^ Types None].
   x 
     from:
       (x argumentTypes

@@ -70,7 +70,7 @@ c@(Collection traits) anyOne
 c@(Collection traits) size
 "Tally up the number of elements in the Collection."
 [| tally |
-  tally: 0.
+  tally := 0.
   c do: [| :each | tally: tally + 1].
   tally
 ].
@@ -85,7 +85,7 @@ c@(Collection traits) hash
 the hash value of an unchanged object is constant over time, and 
 two equal objects have equal hash values."
 [| result |
-  result: c traits identityHash.
+  result := c traits identityHash.
   c size <= 10
     ifTrue: [c do: [| :each | result: (result bitXor: each hash)]].
   result bitXor: c size hash
@@ -103,10 +103,9 @@ c@(Collection traits) do: block
 c@(Collection traits) do: block separatedBy: sepBlock
 "Run the separator block between applying the block to each element."
 [| first |
-  first: True.
+  first := True.
   c do: [| :each |
-    first ifFalse: [sepBlock do].
-    first: False.
+    first ifTrue: [first := False] ifFalse: [sepBlock do].
     block apply*, each].
   c
 ].
@@ -116,8 +115,8 @@ c@(Collection traits) inject: start into: block
 and each element of a collection in turn. The result of the block is
 implicitly the next value."
 [| result |
-  result: start.
-  c do: [| :element | result: (block apply*, result, element)].
+  result := start.
+  c do: [| :element | result := (block apply*, result, element)].
   result
 ].
 
@@ -136,8 +135,8 @@ This returns a collection of the same kind."
 c@(Collection traits) count: test
 "Return the number of elements of the collection satisfying the test."
 [| sum |
-  sum: 0.
-  c do: [| :each | (test apply*, each) ifTrue: [sum: sum + 1]].
+  sum := 0.
+  c do: [| :each | (test apply*, each) ifTrue: [sum := sum + 1]].
   sum
 ].
 
@@ -201,7 +200,7 @@ c@(Collection traits) collect: block select: test
 [
   [| :result |
    c do: [| :each tmp |
-	  tmp: (block apply*, each).
+	  tmp := block apply*, each.
 	  (test apply*, tmp) ifTrue: [result nextPut: tmp]]]
     writingAs: c
 ].
@@ -217,9 +216,9 @@ e.g. {1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
     ifTrue: [init]
     ifFalse:
       [| reader result |
-       reader: c reader.
-       result: (init ifNil: [reader next]).
-       reader do: [| :each | result: (binBlock apply*, result, each)].
+       reader := c reader.
+       result := (init ifNil: [reader next]).
+       reader do: [| :each | result := binBlock apply*, result, each].
        result]
 ].
 
@@ -230,10 +229,10 @@ e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
 [| reader result |
   c isEmpty  
     ifTrue: [^ emptyBlock do].
-  reader: c reader.
-  result: reader next.
+  reader := c reader.
+  result := reader next.
   reader do:
-    [| :each | result: (binBlock apply*, result, each)].
+    [| :each | result := binBlock apply*, result, each].
   result
 ].
 
@@ -248,11 +247,11 @@ c@(Collection traits) trace: binBlock
 "Like reduce: but returns a Collection of intermediate values."
 [
   [| :result elem src |
-  src: c reader.
-  elem: src next.
-  result nextPut: elem.
-  src do:
-    [| :each | result nextPut: (each: (binBlock apply*, elem, each))]]
+   src := c reader.
+   elem := src next.
+   result nextPut: elem.
+   src do:
+     [| :each | result nextPut: (each := binBlock apply*, elem, each)]]
     writingInto: c newSameSize
 ].
 
@@ -275,11 +274,11 @@ c@(Collection traits) pairCollect: binBlock
 "Apply binBlock to every (stream-adjacent) pair of c."
 [
   [| :result src last current |
-   src: c reader.
-   last: src next.
+   src := c reader.
+   last := src next.
    src do: [| :current |
 	    result nextPut: (binBlock apply*, last, current).
-	    last: current]].
+	    last := current]].
      writingInto: (c new &capacity: c size - 1)
 ].
 
@@ -391,8 +390,8 @@ c@(Collection traits) includesAnyOf: d
 c@(Collection traits) occurrencesOf: obj
 "Return how many times the input object occurs in the collection."
 [| tally |
-  tally: 0.
+  tally := 0.
   c do: [| :each |
-    obj = each ifTrue: [tally: tally + 1]].
+    obj = each ifTrue: [tally := tally + 1]].
   tally
 ].

@@ -6,21 +6,21 @@ d@(Root traits) traitsTally
 d@(Derivable traits) traitsReverseDo: block
 "Least important to most important traits"
 [| index tally |
-  index: 0.
-  tally: d traitsTally.
+  index := 0.
+  tally := d traitsTally.
   [index = tally]
     whileFalse:
       [block apply*, (d traitsWindow _delegates at: index).
-       index: index + 1]
+       index := index + 1]
 ].
 
 d@(Derivable traits) traitsDo: block
 "Most important to least important traits"
 [| index |
-  index: d traitsTally.
+  index := d traitsTally.
   [index = 0]
     whileFalse:
-      [index: index - 1.
+      [index := index - 1.
        block apply*, (d traitsWindow _delegates at: index)]
 ].
 
@@ -29,12 +29,12 @@ d@(Derivable traits) orderTraits &mixins: mixins
 [| tally order index fixedOrder |
   mixins `defaultsTo: #{}.
   "TODO: Bootstrap-replace these two lines with the third (commented):"
-  tally: d traitsTally.
-  mixins do: [| :mixin | tally: tally + mixin traitsTally].
-  "tally: (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
-  order: (Array newSize: tally).
+  tally := d traitsTally.
+  mixins do: [| :mixin | tally := tally + mixin traitsTally].
+  "tally := (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
+  order := mixins newSize: tally.
 
-  index: mixins size + 1.
+  index := mixins size + 1.
 
   order at: 0 put: d traits.
   mixins doWithIndex: [| :each :i | order at: i + 1 put: each traits].
@@ -43,7 +43,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
     [| :traits |
      (order identityIncludes: traits)
        ifFalse:
-         [order at: index put: traits. index: index + 1]].
+         [order at: index put: traits. index := index + 1]].
 
   mixins do:
     [| :mixin |
@@ -51,7 +51,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
        [| :traits |
         (order identityIncludes: traits)
           ifFalse:
-            [order at: index put: traits. index: index + 1]]].
+            [order at: index put: traits. index := index + 1]]].
 
   (order first: index) reversed
 
@@ -60,13 +60,13 @@ d@(Derivable traits) orderTraits &mixins: mixins
 "this one ignores the d object"
 d@(Derivable traits) orderTraits: mixins
 [| tally order index fixedOrder |
-  tally: mixins size.
-  mixins do: [| :mixin | tally: tally + mixin traitsTally].
-  order: (Array newSize: tally).
+  tally := mixins size.
+  mixins do: [| :mixin | tally := tally + mixin traitsTally].
+  order := Array newSize: tally.
 
   mixins doWithIndex: [| :each :i | order at: i put: each traits].
 
-  index: mixins size.
+  index := mixins size.
 
   mixins do:
     [| :mixin |
@@ -74,7 +74,7 @@ d@(Derivable traits) orderTraits: mixins
        [| :traits |
         (order identityIncludes: traits)
           ifFalse:
-            [order at: index put: traits. index: index + 1]]].
+            [order at: index put: traits. index := index + 1]]].
 
   (order first: index) reversed
 
@@ -89,12 +89,12 @@ except for those named rejects."
 [| newWindow newObj |
   mixins `defaultsTo: #{}.
   rejectSlots `defaultsTo: #{}.
-  newWindow: Cloneable clone.
+  newWindow := Cloneable clone.
   newWindow restrictDelegation.
   "newWindow _delegates: (d orderTraits &mixins: mixins)."
   newWindow _delegates: (d orderTraits: mixins).
   newWindow addDelegate: Cloneable clone. "the traits for this object"
-  newObj: d clone.
+  newObj := d clone.
   newObj _delegates: {newWindow}.
   mixins do:
     [| :mixin | newObj addSlotsFrom: mixin].
@@ -111,20 +111,20 @@ transparently, and sets the traits name slot to the name for convenience."
   basedOn `defaultsTo: Cloneable.
   parents `defaultsTo: {Cloneable}.
   parents size = 0 ifTrue: [error: 'Parent objects must be supplied.'].
-  "newProto: ((parents at: 0) derive &mixins: (parents allButFirst: 1))."
-  newProto: (basedOn derive &mixins: parents).
-  immutable ifTrue: [newProto: newProto immutably].
+  "newProto := ((parents at: 0) derive &mixins: (parents allButFirst: 1))."
+  newProto := (basedOn derive &mixins: parents).
+  immutable ifTrue: [newProto := newProto immutably].
   "ensureSlot:is: may return the old value if =, but always returns what
   is installed after the method is done."
   (x hasSlotNamed: protoName)
     ifTrue: [| oldProto |
-             oldProto: (x atSlotNamed: protoName).
-             newProto: (x ensureSlot: protoName is: newProto
+             oldProto := x atSlotNamed: protoName.
+             newProto := (x ensureSlot: protoName is: newProto
                unlessSatisfies:
                  [| :old oldParents newParents |
                   "Modified equality using == over each delegate pair."
-                  oldParents: old traitsWindow _delegates.
-                  newParents: newProto traitsWindow _delegates.
+                  oldParents := old traitsWindow _delegates.
+                  newParents := newProto traitsWindow _delegates.
                   oldParents size = newParents size
                     /\ [oldParents keySet allSatisfy:
                       [| :index | (oldParents at: index) == (newParents at: index)]]]).
@@ -156,7 +156,7 @@ If such a slot already exists, recursively add slots from the built object
 with their values in cases where the slots do not already exist in the
 existing object. This is essentially a conservative object-slot tree builder."
 [| new |
-  new: builder do.
+  new := builder do.
   (x hasSlotNamed: slotName)
     ifTrue:
       [(x atSlotNamed: slotName)
@@ -169,7 +169,7 @@ existing object. This is essentially a conservative object-slot tree builder."
 x@(Root traits) define: slotName using: builder
 "Defines a new slot based on the result of running a block of code."
 [| result |
-  result: builder do.
+  result := builder do.
   x addImmutableSlot: slotName valued: result.
   result
 ].
@@ -181,8 +181,8 @@ x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
 [| proto |
   immutable `defaultsTo: False.
   slotSpecs `defaultsTo: #{}.
-  proto: (builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn]
-                  ifNotNil: [x define: protoName using: builder]).
+  proto := builder ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn]
+                   ifNotNil: [x define: protoName using: builder].
   slotSpecs do:
     [| :each |
      each ifNotNil: [(each is: Association)
@@ -212,7 +212,7 @@ x@(Root traits) undefine: name
 x@(Cloneable traits) instancesSetting: slotNames to: values
 [
   values collect: [| :columnValues newX |
-    newX: x new.
+    newX := x new.
     slotNames with: columnValues do:
       [| :slotName :slotValue | newX atSlotNamed: slotName put: slotValue].
     newX]
@@ -221,7 +221,7 @@ x@(Cloneable traits) instancesSetting: slotNames to: values
 x@(Root traits) commentTemplate
 "Answers a basic comment as a String for the object based on its definition."
 [| slotNames delegateNames |
-  slotNames: x slotNames.
+  slotNames := x slotNames.
   [| :result |
    result ; x printName asAn capitalize ; ' is ' ; x traits printName asAn ; '.\n'.
    x traitsTally > 1
@@ -238,8 +238,8 @@ x@(Root traits) commentTemplate
         slotNames do:
           [| :name val |
            result ; name name.
-           val: (x atSlotNamed: name).
-           val ifNotNil: [result ; ' -> ' ; val printString].
+           (val := x atSlotNamed: name)
+             ifNotNil: [result ; ' -> ' ; val printString].
            result ; '. ']].
    result ; '\n'
    ] writingAs: ''

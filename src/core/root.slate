@@ -56,13 +56,13 @@ x@(Root traits) mutatorNameFor: slotName
 "Answer the default name for a Method to access the value of this slot;
 by default the slotName appended with a colon."
 [| mutatorName nameString index |
-  nameString: slotName name.
-  mutatorName: (nameString newSize: nameString size + 1).
-  index: 0.
+  nameString := slotName name.
+  mutatorName := nameString newSize: nameString size + 1.
+  index := 0.
   [index = nameString size]
     whileFalse:
       [mutatorName at: index put: (nameString at: index).
-        index: index + 1].
+       index := index + 1].
   mutatorName at: index put: $:.
   intern: mutatorName
 ].
@@ -81,26 +81,25 @@ x@(Root traits) addAccessor: method for: slotName &accessorName: accessorName
 x@(Root traits) addAccessorFor: slotName &accessorName: accessorName
 "Adds and answers a new Method for accessing the slot's value,
 with overridable selector."
-[ | m regCount slotNameReg primNumReg resultReg |
+[| m regCount slotNameReg primNumReg resultReg |
 "  x addAccessor: [| :obj | obj atSlotNamed: slotName]
     for: slotName &accessorName: accessorName"
 
   "bypass method lookup by calling the primitive directly.
    because this is only defined on Root traits, we don't have to worry about the separate smallint primitive.
    now we just need to inline this into the caller to drop the interpreter_apply_to cost"
-  m: [| :obj | ] clone. "this should not be a closure"
-  regCount: m registerCount.
-  m registerCount: regCount + 3.
-  slotNameReg: regCount.
-  primNumReg: regCount + 1.
-  resultReg: regCount + 2.
-  m code: {#[VM SSACode loadLiteral]. slotNameReg. slotName.
-           #[VM SSACode loadLiteral]. primNumReg. 13.
-           #[VM SSACode primitiveDo]. primNumReg. 2. resultReg. 0. slotNameReg.  "primNum, arg count, result reg, args..."
-           #[VM SSACode returnRegister]. resultReg}.
+  m := [| :obj | ] clone. "this should not be a closure"
+  regCount := m registerCount.
+  m registerCount := regCount + 3.
+  slotNameReg := regCount.
+  primNumReg := regCount + 1.
+  resultReg := regCount + 2.
+  m code := {#[VM SSACode loadLiteral]. slotNameReg. slotName.
+             #[VM SSACode loadLiteral]. primNumReg. 13.
+             #[VM SSACode primitiveDo]. primNumReg. 2. resultReg. 0. slotNameReg.  "primNum, arg count, result reg, args..."
+             #[VM SSACode returnRegister]. resultReg}.
   x addAccessor: m
     for: slotName &accessorName: accessorName
-
 ].
 
 x@(Root traits) addMutator: method for: slotName &mutatorName: mutatorName
@@ -113,28 +112,27 @@ x@(Root traits) addMutator: method for: slotName &mutatorName: mutatorName
 x@(Root traits) addMutatorFor: slotName &mutatorName: mutatorName
 "Adds and answers a new Method for changing the slot's value,
 with overridable selector."
-[ | m regCount slotNameReg primNumReg resultReg |
+[| m regCount slotNameReg primNumReg resultReg |
 
   "bypass method lookup by calling the primitive directly.
    now we just need to inline this into the caller to drop the interpreter_apply_to cost"
-  m: [| :obj :val | ] clone. "this should not be a closure"
-  regCount: m registerCount.
-  m registerCount: regCount + 3.
-  slotNameReg: regCount.
-  primNumReg: regCount + 1.
-  resultReg: regCount + 2.
-  m code: {#[VM SSACode loadLiteral]. slotNameReg. slotName.
-           #[VM SSACode loadLiteral]. primNumReg. 15.
-           #[VM SSACode primitiveDo]. primNumReg. 3. resultReg. 0. slotNameReg. 1.  "primNum, arg count, result reg, args..."
-           #[VM SSACode returnRegister]. resultReg}.
+  m := [| :obj :val | ] clone. "this should not be a closure"
+  regCount := m registerCount.
+  m registerCount := regCount + 3.
+  slotNameReg := regCount.
+  primNumReg := regCount + 1.
+  resultReg := regCount + 2.
+  m code := {#[VM SSACode loadLiteral]. slotNameReg. slotName.
+             #[VM SSACode loadLiteral]. primNumReg. 15.
+             #[VM SSACode primitiveDo]. primNumReg. 3. resultReg. 0. slotNameReg. 1.  "primNum, arg count, result reg, args..."
+             #[VM SSACode returnRegister]. resultReg}.
   x addMutator: m
     for: slotName &mutatorName: mutatorName
-
 ].
 
 x@(Root traits) rawAddSlot: slotName valued: slotValue
 [| newObj |
-  newObj: (x cloneWithSlot: slotName valued: slotValue).
+  newObj := x cloneWithSlot: slotName valued: slotValue.
   x forwardTo: newObj
 ].
 
@@ -172,18 +170,19 @@ x@(Root traits) addImmutableSlot: slotName
 
 x@(Root traits) addDelegate: slotValue
 [| newObj newDelegates |
-  newDelegates: (x _delegates copyWith: slotValue).
-  x _delegates: newDelegates.
+  newDelegates := x _delegates copyWith: slotValue.
+  x _delegates := newDelegates.
   x
 ].
 
 x@(Root traits) insertDelegate: slotValue
 [| newObj newDelegates i |
-  newDelegates: (Array newSize: x _delegates size + 1).
-  i: 0.
-  [i = x _delegates size] whileFalse: [ newDelegates at: i + 1 put: (x _delegates at: i). i: i + 1].
+  newDelegates := Array newSize: x _delegates size + 1.
+  i := 0.
+  [i = x _delegates size] whileFalse:
+    [newDelegates at: i + 1 put: (x _delegates at: i). i := i + 1].
   newDelegates at: 0 put: slotValue.
-  x _delegates: newDelegates.
+  x _delegates := newDelegates.
   x
 ].
 
@@ -210,7 +209,7 @@ x@(Root traits) removeSlot: slotName
   ((x mutatorNameFor: slotName) findOn: {x. NoRole})
     ifNotNilDo: [| :mutator |
       mutator removeFrom: {x. NoRole}].
-  newObj: (x cloneWithoutSlot: slotName).
+  newObj := x cloneWithoutSlot: slotName.
   x forwardTo: newObj
 ].
 
@@ -218,14 +217,13 @@ x@(Root traits) defaultDelegate
 "The default to delegate to; this should really not be used often."
 [Nil].
 
-
 x@(Root traits) restrictDelegation
 "Sets the flag that marks this object->traits relationship as base-to-meta
 and therefore where to stop on method lookup. The map is replaced since we
 do not want to modify siblings in this way."
 [
-  x _map: x _map clone.
-  x _map flags: (x _map flags bitOr: 1).
+  x _map := x _map clone.
+  x _map flags := x _map flags bitOr: 1.
   x
 ].
 
@@ -235,7 +233,6 @@ x@(Root traits) cloneWithUpdates: slotsValuesArray
   x cloneSettingSlots: (slotsValuesArray collect: #key `er)
     to: (slotsValuesArray collect: #value `er)
 ].
-
 
 x@(Root traits) addSlots: col
 "Adds slots for all the names in the collection."
@@ -259,14 +256,14 @@ x@(Root traits) addSlotsFromRecursively: another &seen: seen
 "Copies the subtree of all slots from the second argument to the first,
 using a seen-Set to avoid multiple visits."
 [
-  seen `defaultsTo: IdentitySet new.
-  seen include: x.
+  (seen `defaultsTo: IdentitySet new)
+    include: x.
   another slotNames do:
     [| :slotName |
      (x hasSlotNamed: slotName)
        ifTrue:
 	 [| obj |
-	  (seen identityIncludes: (obj: (x atSlotNamed: slotName)))
+	  (seen identityIncludes: (obj := x atSlotNamed: slotName))
 	    ifFalse:
 	      [seen include: obj.
 	       obj addSlotsFromRecursively: (another atSlotNamed: slotName)
@@ -290,7 +287,7 @@ x@(Root traits) addSlotsNamed: slotNames from: another
 their values."
 "TODO: ensure that slot properties are carried over"
 [| otherSlotNames |
-  otherSlotNames: another slotNames.
+  otherSlotNames := another slotNames.
   slotNames
     do: [| :slotName |
 	 (anotherSlotNames identityIncludes: slotName)
@@ -322,7 +319,7 @@ x@(Root traits) renameSlot: slotName to: newName
 [| slotValue |
   (x hasSlotNamed: slotName)
     ifFalse: [x slotNotFoundNamed: slotName].
-  slotValue: (x atSlotNamed: slotName).
+  slotValue := x atSlotNamed: slotName.
   x removeSlot: slotName.
   x addSlot: newName valued: slotValue
 ].
@@ -335,7 +332,7 @@ slot if it fails. This always returns the resulting value of the slot."
 [
   (x hasSlotNamed: slotName)
     ifTrue: [| oldValue |
-	     oldValue: (x atSlotNamed: slotName).
+	     oldValue := x atSlotNamed: slotName.
 	     (testBlock applyWith: oldValue)
 		ifTrue: [oldValue]
 		ifFalse: [x atSlotNamed: slotName put: newValue. newValue]]
@@ -355,7 +352,8 @@ the slot."
 
 x@(Root traits) slotNamesAndValuesDo: block
 [
-  x slotNames do: [| :slotName | block applyWith: slotName with: (x atSlotNamed: slotName)]
+  x slotNames do:
+    [| :slotName | block applyWith: slotName with: (x atSlotNamed: slotName)]
 ].
 
 x@(Root traits) slotValuesDo: block
@@ -417,12 +415,11 @@ x@(Root traits) allSlotsAndDelegatesDo: block &seen: seen
   seen `defaultsTo: IdentitySet new.
   x slotValues ; x _delegates do:
     [| :obj |
-      (seen identityIncludes: obj)
-        ifFalse: [seen include: obj.
-		  block applyWith: obj.
-		  obj allSlotsAndDelegatesDo: block &seen: seen]].
+     (seen identityIncludes: obj)
+       ifFalse: [seen include: obj.
+		 block applyWith: obj.
+		 obj allSlotsAndDelegatesDo: block &seen: seen]].
 ].
-
 
 x isSameAs: y@(Root traits)
 "Answer whether the two objects have the exact same shared behavior."
@@ -432,7 +429,7 @@ x@(Root traits) commonAncestorWith: y@(Root traits)
 "Search for a common ancestor."
 [| yts |
   (x isSameAs: y) ifTrue: [^ x traits].
-  yts: y allDelegates.
+  yts := y allDelegates.
   x traits
     allDelegatesDo:
       [| :xt |
@@ -445,7 +442,7 @@ x isReally: y@(Root traits)
 "Determine if anything in x's delegation chains equals y's traits.
 Do not override this."
 [| yt |
-  yt: y traits.
+  yt := y traits.
   x traits == yt
     \/ [x allDelegatesDo:
 	  [| :each | each == yt ifTrue: [^ True]].
@@ -489,11 +486,11 @@ x@(Root traits) addLazySlot: slotName initializer: init
 "If the created slot is Nil then the accessor will call the init
 body and assign the returned value to the slot."
 [| newObj |
-  newObj: (x cloneWithSlot: slotName valued: x defaultSlotValue).
+  newObj := x cloneWithSlot: slotName valued: x defaultSlotValue.
   [| :obj :val |
-      obj addAccessorFor: slotName.
-      obj addMutatorFor: slotName.
-      obj atSlotNamed: slotName put: val]
+   obj addAccessorFor: slotName.
+   obj addMutatorFor: slotName.
+   obj atSlotNamed: slotName put: val]
     asAccessor: (x mutatorNameFor: slotName)
     for: slotName
     on: {newObj. NoRole}.

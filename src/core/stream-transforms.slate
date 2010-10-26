@@ -1,6 +1,6 @@
 streams define: #ConcatenatedReadStream
-	   &parents: {PositionableReadStream}
-           &slots: {
+  &parents: {PositionableReadStream}
+  &slots: {
 "A Stream acting as the result of concatenating all the source streams'
 sources into a single source to be read."
 #sources -> ExtensibleArray new.
@@ -24,9 +24,9 @@ cs@(ConcatenatedReadStream traits) ; s@(Stream traits)
 
 s@(ConcatenatedReadStream traits) on: sources
 [
-  s sources: (sources as: s sources).
-  s currentSource: s sources first.
-  s position: 0.
+  s sources := (sources as: s sources).
+  s currentSource := s sources first.
+  s position := 0.
   s
 ].
 
@@ -41,9 +41,9 @@ s@(ConcatenatedReadStream traits) next
 [
   s currentSource isAtEnd ifTrue:
     [| nextSrcIdx |
-     nextSrcIdx: (s sources indexOf: s currentSource) + 1.
+     nextSrcIdx := (s sources indexOf: s currentSource) + 1.
      nextSrcIdx = s sources size ifTrue: [^ s exhaustion].
-     s currentSource: (s sources at: nextSrcIdx)].
+     s currentSource := (s sources at: nextSrcIdx)].
   s currentSource next
 ].
 
@@ -59,7 +59,7 @@ s@(FlattenedReadStream traits) flatten
 
 s1@(FlattenedReadStream traits) on: s2
 [
-  s1 sources: (s1 sources newWith: s2).
+  s1 sources := (s1 sources newWith: s2).
   s1
 ].
 
@@ -75,11 +75,10 @@ s@(FlattenedReadStream traits) next
      [s sources size <= 1
        ifTrue: [s exhausted]
        ifFalse: [s sources pop]].
-  obj: s sources top next.
-  obj isSource
-   ifTrue: [s sources push: obj reader.
-            s next]
-   ifFalse: [obj]
+  (obj := s sources top next) isSource
+    ifTrue: [s sources push: obj reader.
+             s next]
+    ifFalse: [obj]
 ].
 
 "A GeneratorStream will generate a stream of values by applying a step
@@ -122,12 +121,12 @@ upon."
 _Using Prototypical Objects to Implement Shared Behavior in Object Oriented Systems_
 and archived at:
 http://lieber.www.media.mit.edu/people/lieber/Lieberary/OOP/Delegation/Delegation.html"
-"The target for the echo'ing operation, called dribble after the Lieberman / 
+"The target for the echo'ing operation, called dribble after the Lieberman /
 Lisp terminology."
 
 s@(Stream traits) echoTo: log
 "Creates and returns a new EchoStream from the first to the log Stream."
-[(s EchoStream newOn: s) `>> [dribble: log. ]].
+[(s EchoStream newOn: s) `>> [dribble := log. ]].
 
 s@(Stream traits) echo
 "Creates and returns a new EchoStream to the console."
@@ -135,14 +134,14 @@ s@(Stream traits) echo
 
 e@(Stream EchoStream traits) on: s
 [
-  e original: s.
+  e original := s.
   e
 ].
 
 e@(Stream EchoStream traits) echoTo: s
 "Chooses another Stream to dribble to, ensuring that echoTo: is not repeated."
 [
-  e dribble: s.
+  e dribble := s.
   e
 ].
 
@@ -170,7 +169,7 @@ e@(Stream EchoStream traits) nextPutAll: seq
 
 e@(Stream EchoStream traits) position: n
 [
-  e dribble position: (e original position: n)
+  e dribble position := (e original position := n)
 ].
 
 ReadStream traits define: #LineStream &parents: {StreamProcessor} &slots: {#trailingNL -> False}.
@@ -179,8 +178,8 @@ an appropriate line-ending (\r, \n or \r\n)."
 
 l@(ReadStream LineStream traits) on: s
 [
-  l source: s.
-  l trailingNL: False.
+  l source := s.
+  l trailingNL := False.
   l
 ].
 
@@ -195,9 +194,9 @@ l@(ReadStream LineStream traits) nextLine
     [underlying isAtEnd
         ifTrue: [line collection isEmpty ifTrue: [^ Nil]. False]
         ifFalse: [| char |
-          (char: underlying next) caseOf: {
-            $\r -> [l trailingNL: True. False].
-            $\n -> [| nl | nl: l trailingNL. l trailingNL: False. nl].
+          (char := underlying next) caseOf: {
+            $\r -> [l trailingNL := True. False].
+            $\n -> [| nl | nl := l trailingNL. l trailingNL := False. nl].
           } otherwise: [line nextPut: char. True]]
     ] whileTrue.
   ] writingAs: String
@@ -206,12 +205,11 @@ l@(ReadStream LineStream traits) nextLine
 l@(ReadStream LineStream traits) next: n putInto: seq startingAt: start
 [
   0 below: n
-    do: [ |:index line| 
-           line: l nextLine. 
-           line ifNil: [^ index] ifNotNil: [ seq at: index + start put: line]].
+    do: [| :index line |
+         (line := l nextLine)
+           ifNil: [^ index] ifNotNil: [seq at: index + start put: line]].
   n
 ].
-
 
 WriteStream traits define: #LineStream &parents: {Stream WrapperStream}.
 "A Stream that writes Strings of text to a wrapped Stream, interpolated with
@@ -224,7 +222,6 @@ l@(WriteStream LineStream traits) nextPutAll: c
 [c do: [| :each | l nextPut: each]].
 
 l@(WriteStream LineStream traits) collectionType [Array].
-
 
 ReadWriteStream traits define: #LineStream &parents:
   {ReadStream LineStream. WriteStream LineStream}.

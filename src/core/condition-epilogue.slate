@@ -10,7 +10,7 @@ conditions define: #SlotError &parents: {Error} &slots: {#object. #slotName}.
 conditions define: #SlotNotFound &parents: {SlotError}.
 
 obj@(Root traits) slotNotFoundNamed: name
-[(SlotNotFound new `>> [object: obj. slotName: name. ]) signal].
+[(SlotNotFound new `>> [object := obj. slotName := name. ]) signal].
 
 snf@(SlotNotFound traits) describeOn: out
 [
@@ -28,7 +28,7 @@ conditions define: #ProtocolError &parents: {Error}.
 conditions define: #LexicalContextExpired &parents: {ProtocolError} &slots: {#method. #lexicalContext}.
 
 method@(Method traits) mayNotReturnTo: lexicalContext
-[(LexicalContextExpired new `>> [method: method. lexicalContext: lexicalContext. ]) signal].
+[(LexicalContextExpired new `>> [method := method. lexicalContext := lexicalContext. ]) signal].
 
 lce@(LexicalContextExpired traits) describeOn: out
 [
@@ -39,7 +39,7 @@ conditions define: #WrongInputs &parents: {ProtocolError} &slots: {#method. #arg
 "A WrongInputs is a ProtocolError signaled when the wrong number of arguments are applied to a Method."
 
 args wrongInputsTo: method@(Method traits)
-[(WrongInputs new `>> [method: method. arguments: args. ]) signal].
+[(WrongInputs new `>> [method := method. arguments := args. ]) signal].
 
 wi@(WrongInputs traits) describeOn: out
 [
@@ -70,11 +70,11 @@ conditions define: #MethodNotFound &parents: {ProtocolError} &slots: {#message -
 selector@(Symbol traits) notFoundOn: arguments &optionals: optionals
 "Query the arguments for an abnormal handler before signalling MethodNotFound."
 [| message |
-  message: (Message sending: selector to: arguments &optionals: optionals).
+  message := Message sending: selector to: arguments &optionals: optionals.
   arguments doWithIndex:
     [| :arg :index | (arg didNotUnderstand: message at: index) ifNotNilDo:
       [| :result | ^ result do]].
-  (MethodNotFound new `>> [message: message. ]) signal
+  (MethodNotFound new `>> [message := message. ]) signal
 ].
 
 x@(Root traits) didNotUnderstand: message at: index
@@ -85,7 +85,7 @@ By default, do nothing and answer Nil, signalling that it was not handled."
 
 mnf@(MethodNotFound traits) describeOn: out
 [| message |
-  message: mnf message.
+  message := mnf message.
   out ; 'The method ' ; message selector printString
    ; ' was not found for the following arguments:\n' ; message arguments printString.
   message optionals isEmpty ifFalse:
@@ -99,8 +99,8 @@ conditions define: #MethodResentNotFound &parents: {MethodNotFound} &slots: {#me
 selector@(Symbol traits) notFoundOn: arguments after: method &optionals: optionals
 [
   (MethodResentNotFound new `>>
-    [message: (Message sending: selector to: arguments &optionals: optionals).
-     method: method. ]) signal
+    [message := Message sending: selector to: arguments &optionals: optionals.
+     method := method. ]) signal
 ].
 
 mnf@(MethodResentNotFound traits) describeOn: out
@@ -150,7 +150,7 @@ conditions define: #ConversionNotFound &parents: {Error} &slots: {#source. #targ
 for which no reasonable conversion exists."
 
 x@(Root traits) conversionNotFoundTo: y
-[(ConversionNotFound new `>> [source: x. target: y. ]) signal].
+[(ConversionNotFound new `>> [source := x. target := y. ]) signal].
 
 c@(ConversionNotFound traits) describeOn: out
 [
@@ -166,7 +166,7 @@ numerics OperationError define: #ReturnInput &parents: {Restart} &slots: {#newVa
 r@(OperationError ReturnInput traits) queryFrom: d
 [
   d console ; 'Select a value to return: '.
-  r newValue: (d evaluate: d parser next).
+  r newValue := d evaluate: d parser next.
 ].
 
 _@(OperationError ReturnInput traits) describeOn: out
@@ -195,12 +195,12 @@ e@(DivideByZero traits) describeOn: out
 ].
 
 e@(DivideByZero traits) of: x
-[e new `>> [dividend: x. ]].
+[e new `>> [dividend := x. ]].
 
 Collection traits define: #Condition &parents: {Condition} &slots: {#collection.}.
 
 cond@(Collection Condition traits) newFor: coll
-[cond new `>> [collection: coll. ]].
+[cond new `>> [collection := coll. ]].
 
 cond@(Collection Condition traits) describeOn: out
 [
@@ -218,7 +218,7 @@ enf@(Collection ElementNotFound traits) describeOn: out
 
 element elementNotFoundOn: c@(Collection traits)
 [
-  (c ElementNotFound newFor: c) `>> [element: element. signal]
+  (c ElementNotFound newFor: c) `>> [element := element. signal]
 ].
 
 Collection traits define: #IsEmpty &parents: {Error. Collection Condition}.
@@ -260,4 +260,4 @@ knf@(Mapping KeyNotFound traits) describeOn: out
 ].
 
 key keyNotFoundOn: m@(Mapping traits)
-[((m KeyNotFound newFor: m) `>> [key: key. ]) signal].
+[((m KeyNotFound newFor: m) `>> [key := key. ]) signal].

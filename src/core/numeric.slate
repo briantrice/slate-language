@@ -135,10 +135,10 @@ i@(SmallInteger traits) highBit
 [| n bit |
   i = SmallInteger minimumValue
     ifTrue: [^ (i bitNot highBit + 1)].
-  bit: 0.
-  n: i abs.
+  bit := 0.
+  n := i abs.
   [n > 2r1]
-    whileTrue: [bit: bit + 1. n: (n bitShift: -1)].
+    whileTrue: [bit := bit + 1. n := (n bitShift: -1)].
   bit
 ].
 
@@ -242,8 +242,8 @@ and exponential primitives - this is generally faster than the naive method."
 
 f@(Float traits) truncated
 [| significand exponent n |
-  significand: f significand.
-  exponent: f exponent.
+  significand := f significand.
+  exponent := f exponent.
   exponent = (f bias * 2 + 1)
     ifTrue:
       [error: 'Can\'t coerce floating-point Inf or NaN to an integer.'].
@@ -256,9 +256,9 @@ f@(Float traits) truncated
           ifTrue: [^ -1]
           ifFalse: [^ 0]
       ].
-  exponent: exponent - f bias.
-  significand: ((1 bitShift: f significandSize) bitOr: significand).
-  n: (significand bitShift: exponent - f significandSize).
+  exponent := exponent - f bias.
+  significand := ((1 bitShift: f significandSize) bitOr: significand).
+  n := (significand bitShift: exponent - f significandSize).
   f isNegative
     ifTrue: [n negated]
     ifFalse: [n]
@@ -274,19 +274,19 @@ i@(Integer traits) as: _@(Float traits)
   i isZero
     ifTrue: [^ SingleFloat zero].
 "  i highBit <= SingleFloat significandSize
-    ifTrue: [f: SingleFloat]
-    ifFalse: [f: DoubleFloat].
+    ifTrue: [f := SingleFloat]
+    ifFalse: [f := DoubleFloat].
 "
-  f: SingleFloat.
-  n: i abs.
-  length: n highBit.
+  f := SingleFloat.
+  n := i abs.
+  length := n highBit.
   length > f bias
     ifTrue:
       [error: 'Integer is too large to coerce to floating-point value.'].
-  significand:
+  significand :=
    ((n bitShift: f significandSize - length)
      bitAnd: (1 bitShift: f significandSize) - 1).
-  newF: (f withSignificand: significand exponent: length + f bias).
+  newF := (f withSignificand: significand exponent: length + f bias).
   i isNegative
    ifTrue: [newF negated]
    ifFalse: [newF]
@@ -327,9 +327,9 @@ n@(Integer traits) factorial
 x@(Integer traits) gcd: y@(Integer traits)
 "Euclid's algorithm for finding the greatest common divisor."
 [| n m temp |
-  n: x.
-  m: y.
-  [n isZero] whileFalse: [temp: n. n: m \\ temp. m: temp].
+  n := x.
+  m := y.
+  [n isZero] whileFalse: [temp := n. n := m \\ temp. m := temp].
   m abs
 ].
 
@@ -368,22 +368,22 @@ as it proceeds."
     ifTrue: [(base raisedTo: (expon negated) mod: n) inverseMod: n]
     ifFalse:
       [| z |
-       z: 1.
+       z := 1.
        [expon isZero] whileFalse:
-	[[(expon mod: 2) isZero] whileTrue:
-	  [expon: expon // 2.
-	   base: (base squared mod: n)].
-	 expon: expon - 1.
-	 z: (z * base mod: n)]
+        [[(expon mod: 2) isZero] whileTrue:
+          [expon := expon // 2.
+           base := (base squared mod: n)].
+         expon := expon - 1.
+         z := (z * base mod: n)]
        z]
 ].
 
 m@(Integer traits) inverseMod: n@(Integer traits)
 "Answer x such that (m * x) \\ n = 1."
 [| a b q |
-  a: 1. b: 0.
+  a := 1. b := 0.
   [m isZero] whileFalse:
-    [q: n // m. m: n \\ (n: m). a: (b - (q * (b: a)))].
+    [q := n // m. m := n \\ (n := m). a := (b - (q * (b := a)))].
   n ~= 1 ifTrue: [error: 'Integer does not have an inverse.'].
   b
 ].
@@ -405,12 +405,12 @@ m@(Integer traits) isPrime
 itself."
 [| k q |
   m isEven ifTrue: [^ (m = 2)].
-  k: 1.
-  q: (m - 1 bitShift: -1).
+  k := 1.
+  q := (m - 1 bitShift: -1).
   [q isOdd]
     whileFalse:
-      [q: (q bitShift: -1).
-       k: k + 1].
+      [q := (q bitShift: -1).
+       k := k + 1].
   25 timesRepeat: [(m isProbablyPrimeWithK: k andQ: q) ifFalse: [^ False]].
   True
 ].
@@ -420,32 +420,32 @@ m@(Integer traits) isProbablyPrimeWithK: k andQ: q
 Knuth, Donald E. 'The Art of Computer Programming', Vol 2,
 Third Edition, section 4.5.4, page 395."
 [| x j y |
-  x: (m - 2) atRandom + 1.
-  j: 0.
-  y: (x raisedTo: q mod: m).
+  x := (m - 2) atRandom + 1.
+  j := 0.
+  y := (x raisedTo: q mod: m).
   [(j isZero /\ [y isUnit] \/ [y + 1 = m]) ifTrue: [^ True].
    j isPositive /\ [y isUnit] ifTrue: [^ False].
    True]
     whileTrue:
-      [j: j + 1.
-       j < k ifTrue: [y: y squared \\ m]
-	     ifFalse: [^ False]]
+      [j := j + 1.
+       j < k ifTrue: [y := y squared \\ m]
+             ifFalse: [^ False]]
 ].
 
 n@(Integer traits) primesDo: block
 "Decomposes the Integer into primes, applying the block to each (in increasing
 order)."
 [| div next remaining |
-  div: 2.
-  next: 3.
-  remaining: n.
+  div := 2.
+  next := 3.
+  remaining := n.
   [[(remaining \\ div) isZero]
      whileTrue:
        [block apply*, div.
-	remaining: remaining // div].
+        remaining := remaining // div].
    remaining = 1] whileFalse:
-     [div: next.
-      next: next + 2] "Just looks at the next odd integer."
+     [div := next.
+      next := next + 2] "Just looks at the next odd integer."
 ].
 
 x@(Number traits) truncated
@@ -478,7 +478,7 @@ x@(Number traits) exp
 x@(Number traits) ceiling
 "The smallest greater Integer value."
 [| trunc |
-  trunc: x truncated.
+  trunc := x truncated.
   x = trunc \/ [x isNegative]
     ifTrue: [trunc]
     ifFalse: [trunc + 1]
@@ -487,7 +487,7 @@ x@(Number traits) ceiling
 x@(Number traits) floor
 "The largest lesser Integer value."
 [| trunc |
-  trunc: x truncated.
+  trunc := x truncated.
   x = trunc \/ [x isPositive]
     ifTrue: [trunc]
     ifFalse: [trunc - 1]
@@ -594,7 +594,7 @@ x@(Integer traits) // y@(Integer traits)
 "Integer division."
 [| q |
   y isZero ifTrue: [^ x divideByZero].
-  q: (x quo: y).
+  q := (x quo: y).
   (x isNegative xor: y isNegative) /\ [q * y ~= x]
     ifTrue: [q - 1]
     ifFalse: [q]
@@ -607,8 +607,8 @@ x@(Integer traits) / y@(Integer traits)
     ifTrue: [x divideByZero]
     ifFalse:
       [(x rem: y) isZero
-	 ifTrue: [x quo: y]
-	 ifFalse: [(Fraction newFor: x over: y) reduced]]
+         ifTrue: [x quo: y]
+         ifFalse: [(Fraction newFor: x over: y) reduced]]
 ].
 
 x@(Integer traits) lcm: y@(Integer traits)
@@ -622,22 +622,22 @@ n@(Integer traits) taken: r@(Integer traits)
 It's zero outside of Pascal's triangle."
 [| num denom |
   r isNegative \/ [r > n] ifTrue: [^ 0].
-  num: 1.
+  num := 1.
   n above: (r max: n - r)
-    do: [| :factor | num: num * factor].
-  denom: 1.
+    do: [| :factor | num := num * factor].
+  denom := 1.
   1 to: (r min: n - r)
-    do: [| :factor | denom: denom * factor].
+    do: [| :factor | denom := denom * factor].
   num // denom
 ].
 
 n@(Integer traits) hashMultiply
 "A copying of Squeak's hash-multiplier. TODO: To Be Replaced."
 [| low28 low14 |
-  low28: (n bitAnd: 268435455).
-  low14: (low28 bitAnd: 16383).
+  low28 := (n bitAnd: 268435455).
+  low14 := (low28 bitAnd: 16383).
   9741 * low14 + ((9741 * (low28 bitShift: -14) + (101 * low14)
-		     bitAnd: 16383) * 16384) bitAnd: 268435455
+                     bitAnd: 16383) * 16384) bitAnd: 268435455
 ].
 
 x@(Number traits) raisedTo: y@(Integer traits)
@@ -648,14 +648,14 @@ x@(Number traits) raisedTo: y@(Integer traits)
     ifTrue:
       "(x * x raisedTo: y // 2) * (x raisedTo: y \\ 2)"
       [| count result |
-       count: 1.
-       [(count: (count bitShift: 1)) < y] whileTrue.
-       result: x unit.
+       count := 1.
+       [(count := (count bitShift: 1)) < y] whileTrue.
+       result := x unit.
        [count isPositive]
-	 whileTrue:
-	   [result: result squared.
-	    (y bitAnd: count) isZero ifFalse: [result: result * x].
-	    count: (count bitShift: -1)].
+         whileTrue:
+           [result := result squared.
+            (y bitAnd: count) isZero ifFalse: [result := result * x].
+            count := (count bitShift: -1)].
        result]
     ifFalse: [(x raisedTo: y negated) reciprocal]
 ].
@@ -678,10 +678,12 @@ _@(Infinity traits) isInfinite [True].
 
 inf@(Infinity traits) * x
 [
-  x isZero ifTrue: [^ x].
-  x isNegative
-    ifTrue: [inf negated]
-    ifFalse: [inf]
+  x isZero
+    ifTrue: [x]
+    ifFalse:
+      [x isNegative
+         ifTrue: [inf negated]
+         ifFalse: [inf]]
 ].
 
 inf@(Infinity traits) + _@(Number traits)
@@ -745,8 +747,7 @@ _@(Epsilon traits) isZero
 x@(Number traits) * y@(Epsilon traits)
 [
   x isZero
-    ifTrue:
-      [x]
+    ifTrue: [x]
     ifFalse:
       [x isNegative
         ifTrue: [y negated]
@@ -756,8 +757,7 @@ x@(Number traits) * y@(Epsilon traits)
 x@(Epsilon traits) / y@(Number traits)
 [
   y isZero
-    ifTrue: 
-      [x divideByZero]
+    ifTrue: [x divideByZero]
     ifFalse:
       [y isNegative
         ifTrue: [x negated]
@@ -858,7 +858,7 @@ An error is raised if the return type does not match the requested one.
 Use as: if there is already a String whose full contents are exactly the
 digits."
 [| next |
-  next: (Syntax Lexer newOn: s reader) readNumber value.
+  next := (Syntax Lexer newOn: s reader) readNumber value.
   (next is: n)
     ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
   next
@@ -866,8 +866,8 @@ digits."
 
 n@(Integer traits) readFrom: s &radix: radix
 [| next |
-  radix ifNil: [radix: 10].
-  next: ((Syntax Lexer newOn: s reader) readInteger: radix).
+  radix `defaultsTo: 10.
+  next := ((Syntax Lexer newOn: s reader) readInteger: radix).
   (next is: n)
     ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
   next

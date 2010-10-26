@@ -14,8 +14,8 @@ s@(Collection Stream traits) close
 "Closes the link between the Stream and the Collection and resets it,
 returning the Collection."
 [| result |
-  result: s collection.
-  s collection: Nil.
+  result := s collection.
+  s collection := Nil.
   s reset.
   result
 ].
@@ -31,7 +31,7 @@ streamBlock@(Method traits) writingInto: c@(Collection traits)
 "Create a new WriteStream for the given collection and apply the block to it,
 answering the contents once done."
 [| stream |
-  stream: c writer.
+  stream := c writer.
   streamBlock applyWith: stream.
   stream contents
 ].
@@ -59,7 +59,7 @@ to Collection addition protocol."
 ws@(ExtensibleCollection WriteStream traits) on: c
 "Targets the collection."
 [
-  ws collection: c.
+  ws collection := c.
   ws
 ].
 
@@ -82,8 +82,8 @@ ws@(ExtensibleCollection WriteStream traits) next: n putAll: seq startingAt: sta
 ws@(ExtensibleCollection WriteStream traits) close
 "Closes the link between the Stream and the Collection and resets it."
 [| result |
-  result: ws collection.
-  ws collection: Nil.
+  result := ws collection.
+  ws collection := Nil.
   result
 ].
 
@@ -120,7 +120,7 @@ cols@(Sequence traits) allDo: block
 "Apply a coordinated do: over all of the collections in the given one,
 using iterators."
 [| iterators |
-  iterators: cols iterators.
+  iterators := cols iterators.
   [iterators anySatisfy: #isAtEnd `er]
      whileFalse: [block applyTo: (iterators collect: #next `er)].
 ].
@@ -161,7 +161,7 @@ elements across them, using a collection of streams and running with:do:
 across the collection-result mapping. In other words, unzip means to turn a
 list of pairs into a pair of lists (for general values of 'pair')."
 [| results |
-  results: (cols first collect: [| :_ | cols newSameSize writer]).
+  results := (cols first collect: [| :_ | cols newSameSize writer]).
   cols do:
     [| :col | col with: results do: [| :val :result | result nextPut: val]].
   results collect: #contents `er
@@ -170,8 +170,8 @@ list of pairs into a pair of lists (for general values of 'pair')."
 cols@(Sequence traits) allInject: start into: block
 "Runs inject:into: across all the given collection's collections' elements."
 [| result |
-  result: start.
-  cols allDo: [| *vals | result: (block applyTo: (vals copyWith: result at: 0))].
+  result := start.
+  cols allDo: [| *vals | result := (block applyTo: (vals copyWith: result at: 0))].
   result
 ].
 
@@ -190,20 +190,20 @@ cols@(Sequence traits) combinationsDo: block
 "This performs a basic increment-with-carry across the iterators until
 they are exhausted. The block is applied to all intermediate results."
 [| iterators values |
-  iterators: cols iterators.
+  iterators := cols iterators.
   (iterators anySatisfy: #isAtEnd `er)
     ifTrue: [^ Nil].
-  values: (iterators collect: #next `er).
+  values := (iterators collect: #next `er).
   block applyTo: values.
   [| position it |
-    position: iterators indexLast.
-    it: (iterators at: position).
+    position := iterators indexLast.
+    it := (iterators at: position).
     [it isAtEnd /\ [position > 0]]
       whileTrue:
         [it reset.
           values at: position put: it next.
-          position: position - 1.
-          it: (iterators at: position)].
+          position := position - 1.
+          it := (iterators at: position)].
     it isAtEnd /\ [position isZero]
       ifTrue:
         [^ Nil]
@@ -226,8 +226,8 @@ cols@(Sequence traits) combinationsCollect: block
 cols@(Sequence traits) combinationsInject: start into: block
 "Runs inject:into: across all the combinations of the given Sequence's Collections' elements."
 [| result |
-  result: start.
-  cols combinationsDo: [| *vals | result: (block applyTo: (vals copyWith: result at: 0))].
+  result := start.
+  cols combinationsDo: [| *vals | result := (block applyTo: (vals copyWith: result at: 0))].
   result
 ].
 
@@ -241,7 +241,7 @@ contents Array. They're not very efficient, having to check for Nil's."
 
 i@(Set ReadStream traits) on: c
 "Retargets to the new Set, and resets position, etc."
-[i `>> [collection: c. position: 0. index: 0. ]].
+[i `>> [collection := c. position := 0. index := 0. ]].
 
 i@(Set ReadStream traits) next
 "Increment the index through the array until a non-Nil element is reached.
@@ -251,22 +251,22 @@ This is poor for sparse Sets."
     ifNil: [i exhausted]
     ifNotNilDo:
       [| :nextIndex |
-       i index: nextIndex + 1.
-       i position: i position + 1.
+       i index := nextIndex + 1.
+       i position := i position + 1.
        i collection contents at: nextIndex]
 ].
 
 i@(Set ReadStream traits) next: n putInto: seq startingAt: start
 [| numRead contents nextIndex |
-  numRead: 0.
-  contents: i collection contents.
-  nextIndex: i index.
-  seqIndex: start.
-  [(nextIndex: (contents indexOfFirstSatisfying: [| :x | x isNotNil] startingAt: i index)) isNil] whileFalse:
-    [i index: nextIndex + 1.
-     i position: i position + 1.
+  numRead := 0.
+  contents := i collection contents.
+  nextIndex := i index.
+  seqIndex := start.
+  [(nextIndex := (contents indexOfFirstSatisfying: [| :x | x isNotNil] startingAt: i index)) isNil] whileFalse:
+    [i index := nextIndex + 1.
+     i position := i position + 1.
      seq at: seqIndex put: (contents at: nextIndex).
-     seqIndex: seqIndex + 1].
+     seqIndex := seqIndex + 1].
   numRead
 ].
 
@@ -283,7 +283,7 @@ the Sequence."
 
 s@(Sequence Stream traits) on: c
 "Target the stream to the specific collection, and reset the indices."
-[s `>> [reset. collection: c. readLimit: c size. ]].
+[s `>> [reset. collection := c. readLimit := c size. ]].
 
 s@(Sequence Stream traits) contents
 "Answer the contents of the target by copying, up to the limit."
@@ -312,10 +312,9 @@ all cases."
 
 rs@(Sequence ReadStream traits) next
 [| pos |
-  pos: rs position.
-  pos < rs readLimit
+  (pos := rs position) < rs readLimit
     ifTrue:
-      [rs position: pos + 1.
+      [rs position := pos + 1.
        rs collection at: pos]
     ifFalse: [rs exhausted]
 ].
@@ -323,17 +322,17 @@ rs@(Sequence ReadStream traits) next
 rs@(Sequence ReadStream traits) next: n
 "Overridden for efficiency."
 [| newC end |
-  end: (rs position + n min: rs readLimit).
-  newC: (rs collection copyFrom: rs position below: end).
-  rs position: end.
+  end := (rs position + n min: rs readLimit).
+  newC := (rs collection copyFrom: rs position below: end).
+  rs position := end.
   newC
 ].
 
 rs@(Sequence ReadStream traits) next: n putInto: c startingAt: start
 [| max |
-  max: ((rs readLimit - rs position) min: n).
+  max := ((rs readLimit - rs position) min: n).
   c replaceFrom: start to: start + max - 1 with: rs collection startingAt: rs position.
-  rs position: rs position + max.
+  rs position := rs position + max.
   max
 ].
 
@@ -347,7 +346,7 @@ rs@(Sequence ReadStream traits) peek
 
 rs@(Sequence ReadStream traits) peekBack
 [
-  rs position isZero ifFalse: [rs position: rs position - 1. rs next]
+  rs position isZero ifFalse: [rs position := rs position - 1. rs next]
 ].
 
 rs@(Sequence ReadStream traits) nextPut: obj
@@ -363,24 +362,24 @@ rs@(Sequence ReadStream traits) size
 rs@(Sequence ReadStream traits) upTo: obj
 "Answer all the elements until the given object is reached."
 [| start end |
-  start: rs position.
-  end: (rs collection indexOf: obj startingAt: start
-         ifAbsent: [rs position: rs collection size. ^ (rs collection copyFrom: start)]).
-  rs position: end + 1.
+  start := rs position.
+  end := (rs collection indexOf: obj startingAt: start
+         ifAbsent: [rs position := rs collection size. ^ (rs collection copyFrom: start)]).
+  rs position := end + 1.
   rs collection copyFrom: start below: end
 ].
 
 rs@(Sequence ReadStream traits) upToEnd
 "Answer all the elements up to the limit by a copy."
 [| start |
-  start: rs position.
-  rs position: rs collection size.
+  start := rs position.
+  rs position := rs collection size.
   rs collection copyFrom: start below: rs position
 ].
 
 rs@(Sequence ReadStream traits) on: c from: start to: end
 "Target the stream on a particular slice of a collection."
-[rs `>> [collection: c. readLimit: (end min: c size). position: start. ]].
+[rs `>> [collection := c. readLimit := (end min: c size). position := start. ]].
 
 Sequence traits define: #WriteStream
 		&parents: {Sequence Stream. WriteStream}
@@ -401,14 +400,14 @@ ws@(Sequence WriteStream traits) newOn: c &position: position
 ws@(Sequence WriteStream traits) on: c &position: position
 [
   resend.
-  ws writeLimit: c size.
-  position ifNotNil: [ws position: position].
+  ws writeLimit := c size.
+  position ifNotNil: [ws position := position].
   ws
 ].
 
 ws@(Sequence WriteStream traits) contents
 [
-  ws readLimit: (ws readLimit max: ws position).
+  ws readLimit := (ws readLimit max: ws position).
   ws collection copyFrom: 0 below: ws readLimit
 ].
 
@@ -417,46 +416,46 @@ ws@(Sequence WriteStream traits) next
 
 ws@(Sequence WriteStream traits) growCollectionAtEnd &byAtLeast: minGrowth
 [| c newSize |
-  c: ws collection.
-  newSize: c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
-  ws collection: (c newSize: newSize).
+  c := ws collection.
+  newSize := c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
+  ws collection := (c newSize: newSize).
   ws collection replaceFrom: 0 to: c size - 1 with: c.
-  ws writeLimit: newSize.
+  ws writeLimit := newSize.
 ].
 
 ws@(Sequence WriteStream traits) pastEndPut: obj
 [
   ws growCollectionAtEnd.
   ws collection at: ws position put: obj.
-  ws position: ws position + 1.
+  ws position := ws position + 1.
   obj
 ].
 
 ws@(Sequence WriteStream traits) nextPut: obj
 [| pos |
-  (pos: ws position) >= ws writeLimit
+  (pos := ws position) >= ws writeLimit
     ifTrue: [ws pastEndPut: obj]
-    ifFalse: [ws position: pos + 1.
+    ifFalse: [ws position := pos + 1.
               ws collection at: pos put: obj]
 ].
 
 ws@(Sequence WriteStream traits) next: n putAll: c startingAt: start
 [| newEnd |
-  (newEnd: ws position + n - 1) >= ws writeLimit ifTrue:
+  (newEnd := ws position + n - 1) >= ws writeLimit ifTrue:
     [ws growCollectionAtEnd &byAtLeast: newEnd - ws writeLimit + 4].
   ws collection replaceFrom: ws position to: newEnd with: c startingAt: start.
-  ws position: newEnd + 1.
+  ws position := newEnd + 1.
   n
 ].
 
 ws@(Sequence WriteStream traits) size
 [
-  ws readLimit: (ws readLimit max: ws position)
+  ws readLimit := (ws readLimit max: ws position)
 ].
 
 ws@(Sequence WriteStream traits) position: n
 [
-  ws readLimit: (ws readLimit max: n).
+  ws readLimit := (ws readLimit max: n).
   resend.
   ws
 ].
@@ -484,28 +483,28 @@ ws@(Sequence WriteStream traits) freshLine
 
 ws@(Sequence WriteStream traits) reset
 [
-  ws readLimit: (ws readLimit max: ws position).
-  ws position: 0.
+  ws readLimit := (ws readLimit max: ws position).
+  ws position := 0.
   ws
 ].
 
 ws@(Sequence WriteStream traits) resetToStart
 [
-  ws readLimit: (ws position: 0).
+  ws readLimit := (ws position := 0).
   ws
 ].
 
 ws@(Sequence WriteStream traits) setToEnd
 [
-  ws position: ws size.
+  ws position := ws size.
   ws
 ].
 
 ws@(Sequence WriteStream traits) on: c from: start to: end
 [
-  ws collection: c.
-  ws readLimit: (ws writeLimit: (end min: c size)).
-  ws position: start.
+  ws collection := c.
+  ws readLimit := (ws writeLimit := (end min: c size)).
+  ws position := start.
   ws
 ].
 
@@ -516,8 +515,8 @@ ws@(Sequence WriteStream traits) peekLast
 
 ws@(Sequence WriteStream traits) with: c
 [
-  ws collection: c.
-  ws position: (ws readLimit: (ws writeLimit: c size)).
+  ws collection := c.
+  ws position := (ws readLimit := (ws writeLimit := c size)).
   ws
 ].
 
@@ -531,25 +530,24 @@ rws@(Sequence traits) iterator
 
 rws@(Sequence ReadWriteStream traits) contents
 [
-  rws readLimit: (rws readLimit max: rws position).
+  rws readLimit := (rws readLimit max: rws position).
   rws collection copyFrom: 0 below: rws readLimit
 ].
 
 rws@(Sequence ReadWriteStream traits) next
 [| pos |
-  pos: rws position.
-  pos >= rws readLimit
+  (pos := rws position) >= rws readLimit
     ifTrue: [rws exhausted]
-    ifFalse: [rws position: pos + 1.
+    ifFalse: [rws position := pos + 1.
       rws collection at: pos]
 ].
 
 rws@(Sequence ReadWriteStream traits) next: n
 [| newC end |
-  rws readLimit: (rws readLimit max: rws position).
-  end: (rws position + n min: rws readLimit).
-  newC: (rws collection copyFrom: rws position below: end).
-  rws position: end.
+  rws readLimit := (rws readLimit max: rws position).
+  end := (rws position + n min: rws readLimit).
+  newC := (rws collection copyFrom: rws position below: end).
+  rws position := end.
   newC
 ].
 
@@ -570,17 +568,17 @@ ExtensibleSequence traits define: #WriteStream
 
 ws@(ExtensibleSequence WriteStream traits) pastEndPut: obj
 [| c |
-  c: ws collection.
+  c := ws collection.
   c addLast: obj.
-  ws writeLimit: c size.
-  ws position: ws position + 1.
+  ws writeLimit := c size.
+  ws position := ws position + 1.
   obj
 ].
 
 ws@(ExtensibleSequence WriteStream traits) next: n putAll: c startingAt: start
 [
   ws collection at: ws position insertAll: (c copyFrom: start below: start + n).
-  ws position: ws position + n.
+  ws position := ws position + n.
   n
 ].
 

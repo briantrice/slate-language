@@ -19,21 +19,21 @@ r@(Range traits) newFrom: start to: end by: step
 
 r@(Range traits) newFrom: start to: end
 "This method implicitly defines a sensible default stepping value."
-[ |step|
-  step: end <=> start.
-  step = 0 ifTrue: [step: 1]. "seems like whoever designed this didn't think of step=0"
+[| step |
+  (step := end <=> start)
+    isZero ifTrue: [step := 1].
   r newFrom: start to: end by: step
 ].
 
 s@(Sequence traits) as: r@(Range traits)
 [| newR size |
-  size: s size.
+  size := s size.
   size = 0 ifTrue: [^ (r newFrom: 0 to: 0 by: 0)].
   size = 1 ifTrue: [^ (r newFrom: s first to: s last)].
-  newR: (r newFrom: s first to: s last by: s last - s first // (size - 1)).
-  newR = s
-    ifFalse: [error: 'The Sequence is not an arithmetic progression.'].
-  newR
+  (newR := (r newFrom: s first to: s last by: s last - s first // (size - 1)))
+    = s
+    ifTrue: [newR]
+    ifFalse: [error: 'The Sequence is not an arithmetic progression.']
 ].
 
 start@(Number traits) to: end
@@ -128,10 +128,12 @@ r@(Range traits) copy
 
 r@(Range traits) at: n@(Integer traits)
 [
-  n isZero ifTrue: [^ r start].
-  n isPositive /\ [n < r size]
-    ifTrue: [r step * n + r start]
-    ifFalse: [n keyNotFoundOn: r]
+  n isZero
+    ifTrue: [r start]
+    ifFalse:
+      [n isPositive /\ [n < r size]
+         ifTrue: [r step * n + r start]
+         ifFalse: [n keyNotFoundOn: r]]
 ].
 
 r@(Range traits) at: n put: _
@@ -191,14 +193,14 @@ elements at all."
 r@(Range traits) collect: block
 "Ensure that an Array is produced of the right size."
 [| each result |
-  result: (r arrayType newSizeOf: r).
-  each: r start.
+  result := (r arrayType newSizeOf: r).
+  each := r start.
   0 below: r size
     do: [| :i |
 	   result
 	     at: i
 	     put: (block applyWith: each).
-	   each: each + r step].
+	   each := each + r step].
   result
 ].
 
@@ -208,23 +210,23 @@ r@(Range traits) project: block
 
 r@(Range traits) do: block
 [| each |
-  each: r start.
+  each := r start.
   r step isNegative
     ifTrue: [[r end <= each]
-	       whileTrue: [block applyWith: each. each: each + r step]]
+	       whileTrue: [block applyWith: each. each := each + r step]]
     ifFalse: [[r end >= each]
-		whileTrue: [block applyWith: each. each: each + r step]].
+		whileTrue: [block applyWith: each. each := each + r step]].
   r
 ].
 
 r@(Range traits) reverseDo: block
 [| each |
-  each: r start.
+  each := r start.
   r step isNegative
     ifTrue: [[r end >= each]
-	       whileTrue: [block applyWith: each. each: each - step]]
+	       whileTrue: [block applyWith: each. each := each - step]]
     ifFalse: [[r end <= each]
-		whileTrue: [block applyWith: each. each: each - step]].
+		whileTrue: [block applyWith: each. each := each - step]].
   r
 ].
 
@@ -268,17 +270,19 @@ r@(Range traits) - n@(Number traits)
 
 collections define: #LogicRange &parents: {Range}.
 "A Range which uses blocks for the end and step aspects."
-LogicRange start: 0.
+LogicRange start := 0.
 "The starting value."
-LogicRange end: [| :x | x > PositiveInfinity].
+LogicRange end := [| :x | x > PositiveInfinity].
 "A Block which should halt iteration when reaching True."
-LogicRange step: [| :x | x + 1].
+LogicRange step := [| :x | x + 1].
 "A Block returning the next value in the Sequence based on the current one."
 
 r@(LogicRange traits) newFrom: start to: end by: step
 "Coerces any numerical parameters into blocks where necessary."
 [| goesUp |
-  goesUp: ((step is: Number) ifTrue: [step > 0] ifFalse: [(step applyWith: start) > start]).
+  goesUp := (step is: Number)
+    ifTrue: [step isPositive]
+    ifFalse: [(step applyWith: start) > start].
   r cloneSettingSlots: #{#start. #end. #step}
     to: {start.
 	 (end is: Number)
@@ -327,10 +331,10 @@ r@(LogicRange traits) size
 
 r@(LogicRange traits) at: n
 [| result |
-  result: r start.
+  result := r start.
   0 below: n do:
     [| :each |
-       result: (r step applyWith: result).
+       result := (r step applyWith: result).
        (r end applyWith: result) ifTrue: [error: 'Subscript out of bounds.']].
   result
 ].
@@ -338,10 +342,10 @@ r@(LogicRange traits) at: n
 r@(LogicRange traits) do: block
 "Iterates through values from the start until the end-test is satisfied."
 [| each |
-  each: r start.
+  each := r start.
   [r end applyWith: each]
     whileFalse: [block applyWith: each.
-		 each: (r step applyWith: each)].
+		 each := (r step applyWith: each)].
   r
 ].
 
@@ -359,10 +363,11 @@ r@(LogicRange traits) isAscending
 
 r@(LogicRange traits) collect: block
 "Collect the Range's elements into a WriteStream of the arrayType."
-[| result |
-  result: r arrayType writer.
-  r do: [| :each | result nextPut: (block applyWith: each)].
-  result contents
+[
+  [| :result |
+   result := r arrayType writer.
+   r do: [| :each | result nextPut: (block applyWith: each)]
+  ] writingAs: r arrayType
 ].
 
 r@(LogicRange traits) rangeIncludes: n
