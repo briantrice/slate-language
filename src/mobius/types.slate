@@ -10,7 +10,7 @@ Types C define: #Type &parents: {Types Type}
 
 t@(Types C Type traits) clone
 [
-  resend `>> [dispatcher: t dispatcher clone. ]
+  resend `>> [dispatcher := t dispatcher clone. ]
 ].
 
 t@(Types C Type traits) dependencies
@@ -22,7 +22,7 @@ c addDependency: t@(Types C Type traits) withVisited: visited
 
 t@(Types C Type traits) alignment
 [| bits |
-  bits: t bitSize.
+  bits := t bitSize.
   bits >= Types C LongInt bitSize \/ [bits = 0]
     ifTrue: [Types C LongInt bitSize]
     ifFalse: [bits]
@@ -47,7 +47,7 @@ p@(Types C Pointer traits) to: targetType
 "TODO: Map an IdentityDictionary from types to types of pointers to those
 types, and unify implicitly?"
 [
-  p clone `>> [targetType: targetType. ]
+  p clone `>> [targetType := targetType. ]
 ].
 
 p@(Types C Pointer traits) cName ['P' ; p targetType slateName].
@@ -80,13 +80,13 @@ n@(Types C) define: slotName bitSize: size &parents: parents
 "Automatically adds a method #cName which returns the lower-cased version of
 the given name, as well as the parent Types C Type."
 [| type pointer printName |
-  type: (n define: slotName &parents: parents). "(parents copyWith: Types C Type))."
-  printName: slotName name fromCamelCase.
+  type := n define: slotName &parents: parents. "parents copyWith: Types C Type)."
+  printName := slotName name fromCamelCase.
   _@(type traits) cName [printName].
   _@(type traits) slateName [slotName].
 "C Syntax SizeOf of: (g generateCFor: args first)"
   _@(type traits) bitSize [size]. "easy to find first digits if added or subtracted from"
-  pointer: (Types C Pointer to: type).
+  pointer := Types C Pointer to: type.
   _@(type traits) pointer [pointer]
 ].
 
@@ -112,8 +112,8 @@ Types C define: #Modifier &parents: {Types C Type}
 
 t@(Types C Modifier traits) derive
 [| newT lowerName |
-  newT: resend.
-  lowerName: newT printName copy toLowercase intern.
+  newT := resend.
+  lowerName := newT printName copy toLowercase intern.
   _@(newT traits) modifierName [lowerName].
   [| :t | newT for: t] asMethod: lowerName on: {Types C Type traits}.
   newT
@@ -122,7 +122,7 @@ t@(Types C Modifier traits) derive
 t@(Types C Modifier traits) cName [t modifierName ; ' ' ; t baseType cName].
 
 m@(Types C Modifier traits) for: b
-[m clone `>> [baseType: b. ]].
+[m clone `>> [baseType := b. ]].
 
 Types C define: #Mutability &parents: {Types C Modifier}.
 Types C define: #Const &parents: {Types C Mutability}. 
@@ -140,7 +140,7 @@ Types C define: #Array &parents: {Types C Type} &slots:
    #size -> Nil}.
 
 t@(Types C Array traits) of: elementType size: size
-[t clone `>> [elementType: elementType. size: size. ]].
+[t clone `>> [elementType := elementType. size := size. ]].
 
 t@(Types C Array traits) of: elementType
 [t of: elementType size: Nil].
@@ -166,14 +166,14 @@ Types C define: #Synonym &parents: {Types C NamedType}
 t@(Types C Synonym traits) newNamed: name type: type
 [
   t clone `>> [| :newT |
-    cName: name.
-    pointer: (Types C Pointer to: newT).
-    targetType: type. ]
+    cName := name.
+    pointer := (Types C Pointer to: newT).
+    targetType := type. ]
 ].
 
 t@(Types C Synonym traits) export
 [
-  t isExported: True.
+  t isExported := True.
   t
 ].
 
@@ -200,11 +200,11 @@ Types C define: #Structure &parents: {Types C NamedType}
 t@(Types C Structure traits) newNamed: name basedOn: basis
 [
   t clone `>>
-   [| :newT | cName: name. basis: basis.
-    pointer: (Types C Pointer to: newT).
+   [| :newT | cName := name. basis := basis.
+    pointer := Types C Pointer to: newT.
     "pointer rules rawAddDelegate: #basisPointer valued: basis pointer rules.
     pointer dispatcher rawAddDelegate: #basisPointer valued: basis pointer dispatcher."
-    elementSpecs: basis elementSpecs copy.
+    elementSpecs := basis elementSpecs copy.
     elementSpecs do:
       [| :se | [| :_ | se type] asMethod: se cName asInferenceRule
 				on: {newT}]. ]
@@ -213,15 +213,15 @@ t@(Types C Structure traits) newNamed: name basedOn: basis
 t@(Types C Structure traits) newNamed: name
 [
   t clone `>> [| :newT |
-    cName: name.
-    basis: Nil.
-    pointer: (Types C Pointer to: newT).
-    elementSpecs: t elementSpecs new. ]
+    cName := name.
+    basis := Nil.
+    pointer := Types C Pointer to: newT.
+    elementSpecs := t elementSpecs new. ]
 ].
 
 t@(Types C Structure traits) export
 [
-  t isExported: True.
+  t isExported := True.
   t
 ].
 
@@ -238,22 +238,22 @@ c addDependency: t@(Types C Structure traits) withVisited: visited
 
 t@(Types C Structure traits) doElements: block
 [| previousSE bits | 
-  previousSE: t elementSpecs first.
+  previousSE := t elementSpecs first.
   block applyTo: {previousSE. 0}.
-  bits: previousSE bitSize.
+  bits := previousSE bitSize.
   t elementSpecs allButFirstDo:
     [| :se |
       previousSE packed /\ [se packed]
         ifFalse:
           [| alignment |
-            alignment: se type alignment.
+            alignment := se type alignment.
             previousSE packed
               ifTrue:
-                [alignment: (alignment max: previousSE type bitSize)].
-            bits: (bits / alignment) ceiling * alignment].
+                [alignment := alignment max: previousSE type bitSize].
+            bits := (bits / alignment) ceiling * alignment].
       block applyTo: {se. bits}.
-      bits: bits + se bitSize.
-      previousSE: se]
+      bits := bits + se bitSize.
+      previousSE := se]
 ].
 
 t@(Types C Type traits) walkElements: block &bitOffset: offset
@@ -281,23 +281,20 @@ t@(Types C Structure traits) unpaddedSize
     ifTrue: [^ 0].
   t doElements: 
     [| :se :offset |
-      lastSE: se.
-      lastOffset: offset].
+      lastSE := se.
+      lastOffset := offset].
   lastOffset + lastSE bitSize
 ].
 
 t@(Types C Structure traits) alignment
-[| maxAlign |
-  maxAlign: 0.
-  t elementSpecs do:
-    [| :se |
-      maxAlign: (maxAlign max: se type alignment)].
-  maxAlign
+[
+  t elementSpecs inject: 0 into:
+    [| :maxAlign :se | maxAlign max: se type alignment]
 ].
 
 t@(Types C Structure traits) bitSize
 [| maxAlign |
-  maxAlign: t alignment.
+  maxAlign := t alignment.
   (t unpaddedSize / maxAlign) ceiling * maxAlign
 ].
 
@@ -312,10 +309,10 @@ t@(Types C Union traits) doElements: block
 
 t@(Types C Union traits) unpaddedSize
 [| maxSize |
-  maxSize: 0.
+  maxSize := 0.
   t doElements: 
     [| :se :_ |
-      maxSize: (maxSize max: se type bitSize)].
+      maxSize := maxSize max: se type bitSize].
   maxSize
 ].
 
@@ -324,7 +321,7 @@ Types C define: #StructureElement &parents: {Types C NamedType}
 
 se@(Types C StructureElement traits) newNamed: name type: type
 [
-  se clone `>> [cName: name. type: type. ]
+  se clone `>> [cName := name. type := type. ]
 ].
 
 t@(Types C Structure traits) addElement: se
@@ -359,7 +356,7 @@ Types C define: #PackedStructureElement &parents: {Types C StructureElement}
 
 se@(Types C PackedStructureElement traits) newNamed: name size: size
 [
-  (se newNamed: name type: Types C UnsignedLongInt) `>> [bitSize: size. ]
+  (se newNamed: name type: Types C UnsignedLongInt) `>> [bitSize := size. ]
 ].
 
 t@(Types C Structure traits) addPackedElementNamed: name size: size
@@ -376,8 +373,8 @@ Types C define: #Function &parents: {Types C Type}
 fun@(Types C Function traits) from: argumentTypes to: resultType
 [
   fun clone `>>
-   [| :newFun | argumentTypes: (argumentTypes as: newFun argumentTypes).
-    resultType: resultType. ]
+   [| :newFun | argumentTypes := argumentTypes as: newFun argumentTypes.
+    resultType := resultType. ]
 ].
 
 Types C define: #FunctionPointer &parents: {Types C Pointer}.
