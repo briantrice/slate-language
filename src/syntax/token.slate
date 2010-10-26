@@ -84,7 +84,7 @@ parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
   parser nonInteractivelyDo:
     [([| :statements token |
        statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
-       [token: parser nextToken.
+       [token := parser nextToken.
 	token isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
@@ -108,12 +108,12 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
 [
   parser nonInteractivelyDo:
     [([| :statements token |
-       [token: parser peekToken.
+       [token := parser peekToken.
 	token isSameAs: Syntax EndArray]
           whileFalse:
             [statements nextPut:
 	       (parser nextAsStatement ifNil: [Syntax Literal Nil]).
-             token: parser peekToken.
+             token := parser peekToken.
              parser check: token is: parser EndArrayStatementTokens.
              (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
        parser nextToken] writingAs: #{}) as: Syntax Array]
@@ -148,7 +148,7 @@ parser nextLiteralFrom: _@(Syntax tokens BeginLiteralParenthesis traits)
 [
   parser nonInteractivelyDo:
     [[| :elements token |
-      [token: parser peekToken.
+      [token := parser peekToken.
        token isSameAs: Syntax EndParenthesis]
          whileFalse: [elements nextPut: parser nextLiteral].
       parser nextToken] writingAs: #{}]
@@ -163,7 +163,7 @@ parser nextFrom: _@(Syntax tokens BeginPartial traits)
   parser nonInteractivelyDo:
     [([| :statements token |
        statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
-       [token: parser nextToken.
+       [token := parser nextToken.
 	token isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
@@ -263,7 +263,7 @@ parser nextFrom: token@(Syntax tokens Eventually traits)
 [
   Syntax UnaryMessage sending: #eventually to:
     {(Syntax Block newFor: parser nextAtom) `>>
-      [parentScope: parser currentScope. ] recordPositionFrom: parser}
+      [parentScope := parser currentScope. ] recordPositionFrom: parser}
 ].
 
 _@(Syntax tokens Eventually traits) signifier ['%'].

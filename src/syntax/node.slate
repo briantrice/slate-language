@@ -256,7 +256,7 @@ opts@(Syntax nodes OptionalKeywords traits) walk: block
 
 opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 [
-  opts message: (opts message transformBy: block).
+  opts message := (opts message transformBy: block).
   opts arguments infect: [| :argument | argument transformBy: block].
   opts
 ].
@@ -294,7 +294,7 @@ rest@(Syntax nodes RestArguments traits) walk: block
 
 rest@(Syntax nodes RestArguments traits) transformChildren: block
 [
-  rest message: (rest message transformBy: block).
+  rest message := (rest message transformBy: block).
   rest arguments infect: [| :argument | argument transformBy: block].
   rest
 ].
@@ -500,24 +500,24 @@ block@(Syntax nodes Block traits) evaluateIn: namespace
 b@(Syntax nodes Block traits) new
 [
   resend `>>
-   [inputVariables: b inputVariables new.
-    localVariables: b localVariables new.
-    optionalKeywords: b optionalKeywords new.
-    optionalVariables: b optionalVariables new.
-    restVariable: Nil. ]
+   [inputVariables := b inputVariables new.
+    localVariables := b localVariables new.
+    optionalKeywords := b optionalKeywords new.
+    optionalVariables := b optionalVariables new.
+    restVariable := Nil. ]
 ].
 
 b@(Syntax nodes Block traits) body: body@(Syntax nodes Node traits)
 "Makes a given Node the body."
-[b statements: {body}].
+[b statements := {body}].
 
 b@(Syntax nodes Block traits) body: body@(Syntax nodes Parenthesis traits)
 "Takes the statements as the body of the block."
-[b statements: body statements].
+[b statements := body statements].
 
 b@(Syntax nodes Block traits) newFor: body@(Syntax nodes Node traits)
 "Creates a new Block with the given node as the body."
-[b new `>> [body: body. ]].
+[b new `>> [body := body. ]].
 
 block@(Syntax nodes Block traits) addVariable: var
 "Adds the Variable node to the block's locals and sets it as the
@@ -525,9 +525,9 @@ variable's scope (used to compile closures properly), and answers it."
 [
   (block localVariables anySatisfy: [| :other | other name = var name])
     ifTrue:
-      [var name: block uniqueVariableName].
-  var scope: block.
-  block localVariables: block localVariables ; { var }.
+      [var name := block uniqueVariableName].
+  var scope := block.
+  block localVariables := block localVariables ; { var }.
   var
 ].
 
@@ -538,12 +538,12 @@ then returning it."
 
 block@(Syntax Block traits) uniqueVariableName &prefix: prefix
 [| nameIndex |
-  prefix ifNil: [prefix: '_'].
-  nameIndex: 0.
+  prefix `defaultsTo: '_'.
+  nameIndex := 0.
   [nameIndex < 100 /\
      [(block findVariable: (prefix ; nameIndex printString) intern) isNotNil]]
     whileTrue:
-      [nameIndex: nameIndex + 1].
+      [nameIndex := nameIndex + 1].
   nameIndex < 100
     ifFalse:
       [error: 'Could not generate a unique variable name.'].
@@ -553,7 +553,7 @@ block@(Syntax Block traits) uniqueVariableName &prefix: prefix
 block@(Syntax nodes Block traits) addVariable &name: name &prefix: prefix
 "Calls addVariable: with a name guaranteed not to clash with other such names."
 [
-  name ifNil: [name: (block uniqueVariableName &prefix: prefix)].
+  name `defaultsTo: (block uniqueVariableName &prefix: prefix).
   block addVariableNamed: name
 ].
 
@@ -561,8 +561,8 @@ block@(Syntax nodes Block traits) addInputVariableNamed: name
 "Creates a new Variable with the given name and adds it as an input,
 then returning it."
 [| var |
-  var: (block addVariableNamed: name).
-  block inputVariables: block inputVariables ; { var }.
+  var := block addVariableNamed: name.
+  block inputVariables := block inputVariables ; { var }.
   var
 ].
 
@@ -570,7 +570,7 @@ block@(Syntax nodes Block traits) addInputVariable &name: name &prefix: prefix
 "Calls addInputVariable: with a name guaranteed not to clash with other such
 names."
 [
-  name ifNil: [name: (block uniqueVariableName &prefix: prefix)].
+  name `defaultsTo: (block uniqueVariableName &prefix: prefix).
   block addInputVariableNamed: name
 ].
 
@@ -578,9 +578,9 @@ block@(Syntax nodes Block traits) addOptionalKeyword: key named: name
 "Creates a new Variable with the given name and adds it as an optional,
 then returning it."
 [| var |
-  var: (block addVariableNamed: name).
-  block optionalKeywords: block optionalKeywords ; { key }.
-  block optionalVariables: block optionalVariables ; { var }.
+  var := block addVariableNamed: name.
+  block optionalKeywords := block optionalKeywords ; { key }.
+  block optionalVariables := block optionalVariables ; { var }.
   var
 ].
 
@@ -594,9 +594,9 @@ block@(Syntax nodes Block traits) outermostBlock
 "Answers the outermost scope that is still a Block or MethodDefinition and not
 a Namespace."
 [| scope |
-  scope: block.
+  scope := block.
   [scope parentScope isSameAs: Syntax Namespace]
-    whileFalse: [scope: scope parentScope].
+    whileFalse: [scope := scope parentScope].
   scope
 ].
 
@@ -618,11 +618,11 @@ code block with corresponding VariableNodes as inputs. The code block is
 expected to return the method body expression. The method then answers a new
 Block with that method body and those input variables."
 [| result |
-  result: block new.
+  result := block new.
   varNames do: [| :var | result addInputVariable &name: var].
   localNames ifNotNil: [localNames do: [| :var | result addVariable &name: var]].
   "ASSUME: newFor: does not clear inputs."
-  result body: (codeBlock applyTo: result localVariables).
+  result body := codeBlock applyTo: result localVariables.
   linkVariables ifNotNil: [result linkVariables].
   result
 ].
@@ -632,17 +632,17 @@ b@(Syntax nodes Block traits) deepCopy: scope &into: target
 [
   (target ifNil: [b]) clone `>>
    [| :newBlock |
-    parentScope: scope.
-    localVariables:
+    parentScope := scope.
+    localVariables :=
       (b localVariables collect:
         [| :var newVar | var clone `setting: #{#scope} to: {newBlock}]).
-    inputVariables:
+    inputVariables :=
       (b inputVariables collect: [| :var | newBlock findVariable: var name]).
-    optionalVariables:
+    optionalVariables :=
       (b optionalVariables collect: [| :var | newBlock findVariable: var name]).
-    restVariable:
+    restVariable :=
       (b restVariable ifNotNil: [newBlock findVariable: b restVariable name]).
-    statements:
+    statements :=
       (b statements collect: [| :statement | statement deepCopy: newBlock]).
   ]
 ].
@@ -700,7 +700,7 @@ b@(Syntax nodes Block traits) allSelectorsSent
 b@(Syntax nodes Block traits) allSelectorsSentToVar: var
 "Answers the Set of all selectors called in this method on the Variable object."
 [| loadExpr |
-  loadExpr: var load.
+  loadExpr := var load.
   [| :result |
    b statements walk:
      [| :expr | (expr is: Syntax Message)
@@ -742,13 +742,13 @@ Syntax nodes define: #MethodDefinition &parents: {Syntax nodes Block}
 "The object representing the definition of a Method."
 
 method@(Syntax nodes MethodDefinition traits) new
-[resend `>> [selector: Nil. roles: method roles new. ]].
+[resend `>> [selector := Nil. roles := method roles new. ]].
 
 method@(Syntax nodes MethodDefinition traits) of: selector on: roles 
   from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
 [
   (method from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables) `>>
-    [selector: selector. roles: roles. ]
+    [selector := selector. roles := roles. ]
 ].
 
 node1@(Syntax nodes MethodDefinition traits) = node2@(Syntax nodes MethodDefinition traits)
@@ -769,7 +769,7 @@ method@(Syntax nodes MethodDefinition traits) transformChildren: block
 method@(Syntax nodes MethodDefinition traits) deepCopy: scope &into: target
 [
   resend `>>
-    [roles: (method roles
+    [roles := (method roles
                collect: [| :role | role ifNotNil: [role deepCopy: scope]]). ]
 ].
 
@@ -846,7 +846,7 @@ store@(Syntax nodes StoreVariable traits) walk: block
 
 store@(Syntax nodes StoreVariable traits) transformChildren: block
 [
-  store value: (store value transformBy: block).
+  store value := store value transformBy: block.
   store
 ].
 
@@ -889,7 +889,7 @@ ret@(Syntax nodes Return traits) deepCopy: scope
 
 ret@(Syntax nodes Return traits) transformChildren: block
 [
-  ret value: (ret value transformBy: block).
+  ret value := ret value transformBy: block.
   ret
 ].
 
@@ -938,8 +938,8 @@ n@(Syntax nodes Node traits) allMacroSelectorsSent
 n@(Syntax nodes Node traits) nodeCount
 "Answer the number of nodes in this tree, analogous to the size of the tree."
 [| count |
-  count: 0.
-  n walk: [| :_ | count: count + 1].
+  count := 0.
+  n walk: [| :_ | count := count + 1].
   count
 ].
 

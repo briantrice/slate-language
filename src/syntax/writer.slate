@@ -84,31 +84,31 @@ w@(Syntax SourceWriter traits) printSelectorPrefixOf: _@(Syntax Deferred traits)
 
 w@(Syntax SourceWriter traits) withSurroundingArity: arity do: block
 [| previousArity |
-  previousArity: w surroundingArity.
-  w surroundingArity: arity.
+  previousArity := w surroundingArity.
+  w surroundingArity := arity.
   block do.
-  w surroundingArity: previousArity.
+  w surroundingArity := previousArity.
 ].
 
 w@(Syntax SourceWriter traits) print: node sending: selector to: args
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [| previousArity closeParen |
-  closeParen: False.
-  previousArity: w surroundingArity.
+  closeParen := False.
+  previousArity := w surroundingArity.
 "  w indentedDo: ["
     (Syntax isUnarySelector: selector)
       ifTrue: [w withSurroundingArity: 1 do:
                 [previousArity isZero /\
 		   [(args first isSameAs: Syntax ImplicitArgument) not]
-                    ifTrue: [w nextPut: $(. closeParen: True].
+                    ifTrue: [w nextPut: $(. closeParen := True].
                   (w printAsArgument: args first) ifTrue: [w newColumn].
                   w printSelectorPrefixOf: node.
 	          w ; selector name]].
     (Syntax isBinarySelector: selector)
       ifTrue: [w withSurroundingArity: 2 do:
 	        [(previousArity between: 0 and: 1) ifTrue:
-		    [w nextPut: $(. closeParen: True].
+		    [w nextPut: $(. closeParen := True].
 	          (w printAsArgument: args first) ifTrue: [w newColumn].
                   w printSelectorPrefixOf: node.
 	          w ; selector name.
@@ -120,9 +120,9 @@ source on the stream."
      alternately."
     (Syntax isKeywordSelector: selector)
       ifTrue: [| names |
-	        names: (selector name splitWith: $:).
+	        names := (selector name splitWith: $:).
 	        w withSurroundingArity: 3 do:
-	          [previousArity >= 0 ifTrue: [w nextPut: $(. closeParen: True].
+	          [previousArity >= 0 ifTrue: [w nextPut: $(. closeParen := True].
 	            (w printAsArgument: args first) ifTrue: [w newColumn].
 	            1 below: args size do:
 		      [| :index arg |
@@ -162,8 +162,8 @@ w@(Syntax SourceWriter traits) print: node@(Syntax Message traits)
 
 w@(Syntax SourceWriter traits) print: node@(Syntax OptionalKeywords traits)
 [| closeParen |
-  closeParen: False.
-  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen: True].
+  closeParen := False.
+  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
   w withSurroundingArity: -1 do:
     [w print: node message].
   w withSurroundingArity: 2 do:
@@ -180,8 +180,8 @@ w@(Syntax SourceWriter traits) print: node@(Syntax OptionalKeywords traits)
 
 w@(Syntax SourceWriter traits) print: node@(Syntax RestArguments traits)
 [| closeParen |
-  closeParen: False.
-  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen: True].
+  closeParen := False.
+  w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
   w withSurroundingArity: -1 do:
     [w print: node message].
   w withSurroundingArity: 2 do:
@@ -293,20 +293,20 @@ w@(Syntax SourceWriter traits) printMethodHeader: node@(Syntax MethodDefinition 
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [| args selector |
-  selector: node selector.
-  args: node inputVariables.
+  selector := node selector.
+  args := node inputVariables.
   w indentedDo: [
     (Syntax isUnarySelector: selector) /\ [args size = 1]
-      ifTrue: [ | role |
-               role: (node roles first).
+      ifTrue: [| role |
+               role := (node roles first).
 	       w printArg: args first withRole: role.
 	       w newColumn.
 	       w ; (selector as: String)
               ].
     (Syntax isBinarySelector: selector) /\ [args size = 2]
-      ifTrue: [ | role0 role1 |
-	       role0: (node roles first).
-               role1: (node roles second).
+      ifTrue: [| role0 role1 |
+	       role0 := (node roles first).
+               role1 := (node roles second).
 	       w printArg: args first withRole: role0.
 	       w newColumn.
 	       w ; (selector as: String).
@@ -319,8 +319,8 @@ source on the stream."
      alternately."
     (Syntax isKeywordSelector: selector)
       ifTrue: [| name names |
-	        name: (selector as: String).
-	        names: (name splitWith: $:).
+	        name := (selector as: String).
+	        names := (name splitWith: $:).
 	        w printArg: args first withRole: node roles first.
 	        1 below: args size
 		  do: [| :index |
@@ -370,8 +370,8 @@ w@(Syntax SourceWriter traits) print: _@(Syntax Resend traits)
 
 w@(Syntax SourceWriter traits) treatAsSimpleNode: node
 [| nodeCount |
-  nodeCount: 0.
-  node walk: [| :each | nodeCount: nodeCount + 1. nodeCount > 7 ifTrue: [ ^ False]].
+  nodeCount := 0.
+  node walk: [| :each | nodeCount := nodeCount + 1. nodeCount > 7 ifTrue: [ ^ False]].
   True
 ].
 

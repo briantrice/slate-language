@@ -1,6 +1,6 @@
 def@(Syntax MethodDefinition traits) inferenceRule
 [
-  def selector: def selector asInferenceRule.
+  def selector := def selector asInferenceRule.
   def
 ].
 
@@ -23,7 +23,7 @@ _@(Syntax ImplicitArgument traits) inferTypesIn: namespace
 
 ann@(Syntax Annotation traits) inferTypesIn: namespace
 [
-  ann type: (ann value inferTypesIn: namespace)
+  ann type := (ann value inferTypesIn: namespace)
 ].
 
 message@(Syntax Message traits) inferTypesIn: namespace
@@ -35,7 +35,7 @@ message@(Syntax Message traits) inferTypesIn: namespace
         do: [| :argument | argument inferTypesIn: namespace].
         ^ message type].
   message
-    type:
+    type :=
       (message selector
         inferOn:
           (message arguments
@@ -44,12 +44,12 @@ message@(Syntax Message traits) inferTypesIn: namespace
 
 opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
 [| msgType |
-  msgType: opts message inferTypes. 
+  msgType := opts message inferTypes. 
   opts arguments
     do: [| :argument | argument inferTypesIn: namespace].
   opts type == Types Any
     ifTrue:
-      [opts type: msgType].
+      [opts type := msgType].
   opts type
 ].
 
@@ -58,7 +58,7 @@ paren@(Syntax Parenthesis traits) inferTypesIn: namespace
   paren statements
     do: [| :statement | statement inferTypesIn: namespace].
   paren type == Types Any /\ [paren statements isNotEmpty]
-    ifTrue: [paren type: paren statements last type]
+    ifTrue: [paren type := paren statements last type]
     ifFalse: [paren type]
 ].
 
@@ -71,12 +71,12 @@ block@(Syntax Block traits) inferTypesIn: namespace
 [| resultType |
   block localVariables
     do: [| :var | var inferTypesIn: namespace].
-  resultType: Types Any.
+  resultType := Types Any.
   block statements
-    do: [| :statement | resultType: (statement inferTypesIn: namespace)].
+    do: [| :statement | resultType := (statement inferTypesIn: namespace)].
   block type == Types Any
     ifTrue: 
-      [block type:
+      [block type :=
         (Types Block
               from:
                 (block inputVariables
@@ -91,7 +91,7 @@ array@(Syntax Array traits) inferTypesIn: namespace
     do: [| :statement | statement inferTypesIn: namespace].
   array type == Types Any
     ifTrue:
-      [array type:
+      [array type :=
         (Types Array of:
           (array statements
             inject: Types None into: [| :x :y | x union: y type]))]
@@ -106,14 +106,14 @@ obj@(Root traits) literalTypeIn: _
 literal@(Syntax Literal traits) inferTypesIn: namespace
 [
   literal type == Types Any
-    ifTrue: [literal type: (literal value literalTypeIn: namespace)]
+    ifTrue: [literal type := (literal value literalTypeIn: namespace)]
     ifFalse: [literal type]
 ].
 
 load@(Syntax LoadVariable traits) inferTypesIn: _
 [
   load type == Types Any
-    ifTrue: [load type: load variable type]
+    ifTrue: [load type := load variable type]
     ifFalse: [load type]
 ].
 
@@ -121,7 +121,7 @@ Syntax define: #TypeMismatch &parents: {Warning} &slots: {#source. #target}.
 
 tm@(Syntax TypeMismatch traits) from: source to: target causedBy: description
 [
-  (tm newDescription: description) `>> [source: source. target: target. ]
+  (tm newDescription: description) `>> [source := source. target := target. ]
 ].
 
 store@(Syntax StoreVariable traits) signalTypeMismatch
@@ -140,7 +140,7 @@ store@(Syntax StoreVariable traits) inferTypesIn: namespace
   (store variable type subsumes: store value type)
     ifFalse: [store signalTypeMismatch].
   store type == Types Any
-    ifTrue: [store type: store value type]
+    ifTrue: [store type := store value type]
     ifFalse: [store type] 
 ].
 
@@ -148,7 +148,6 @@ return@(Syntax Return traits) inferTypesIn: namespace
 [
   return value inferTypesIn: namespace.
   return type == Types Any
-    ifTrue: [return type: return value type]
+    ifTrue: [return type := return value type]
     ifFalse: [return type]
 ].
-

@@ -12,8 +12,8 @@ ann@(Syntax Annotation traits) macroExpand &environment: env
 "Return the annotation node, but replace the expression that the node
 annotates with its expansion."
 [| expansion |
-  expansion: (ann value macroExpand &environment: env).
-  ann value == expansion ifFalse: [ann value: expansion].
+  expansion := (ann value macroExpand &environment: env).
+  ann value == expansion ifFalse: [ann value := expansion].
   ann
 ].
 
@@ -24,16 +24,15 @@ inherit the macro node's debugging information."
   macro selector = #macroExpand ifTrue:
     [error: 'Cannot macroExpand `macroExpand. Use `(expr) macroExpand instead'. 
       ^ macro].
-  opts:
+  opts :=
     (opts 
-      ifNil: 
-        [{}]
+      ifNil: [#{}]
       ifNotNil:
         [[| :result |
            opts keywords with: opts arguments
              do: [| :key :arg | result nextPutAll: {key. arg}]
          ] writingAs: Array]).
-  expansion: 
+  expansion := 
     ((macro selector sendTo: macro arguments 
       &optionals: (opts ; {#&environment:. env})) 
         macroExpand &environment: env). 
@@ -41,8 +40,7 @@ inherit the macro node's debugging information."
     ifNotNil:
       [expansion walk:
         [| :child |
-          child lineNumber
-            ifNil: [child lineNumber: macro lineNumber]]].
+         child lineNumber `defaultsTo: macro lineNumber]].
   expansion
 ].
 
@@ -52,13 +50,13 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
 [| expansion |
   "Ensure macro expansions properly refer to Variables."
   env ifNotNil:
-    [expansion: (env linkVariablesIn: message).
+    [expansion := (env linkVariablesIn: message).
       message == expansion
         ifFalse: [^ (expansion macroExpand &optionals: opts &environment: env)]].
   message arguments
     doWithIndex:
       [| :argument :index |
-        expansion: (argument macroExpand &environment: env).
+        expansion := (argument macroExpand &environment: env).
         argument == expansion
           ifFalse:
             [message arguments at: index put: expansion]].
@@ -68,11 +66,11 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
     ifNotNil:
       [opts message == message
         ifFalse:
-          [opts message: message].
+          [opts message := message].
         opts arguments
          doWithIndex:
            [| :argument :index |
-            expansion: (argument macroExpand &environment: env).
+            expansion := (argument macroExpand &environment: env).
              argument == expansion
                ifFalse:
                  [opts arguments at: index put: expansion]].
@@ -92,7 +90,7 @@ Arrays, Blocks, and Parentheses."
   group statements
     doWithIndex:
       [| :statement :index expansion |
-        expansion: (statement macroExpand &environment: env).
+        expansion := (statement macroExpand &environment: env).
         statement == expansion
           ifFalse:
             [group statements at: index put: expansion]].
@@ -104,7 +102,7 @@ block@(Syntax Block traits) macroExpand &environment: env
 and resend it on to handle the main structure."
 [
   env ifNotNil: [env linkVariablesIn: block].
-  env: block.
+  env := block.
   resend
 ].
 
@@ -117,7 +115,7 @@ method@(Syntax MethodDefinition traits) macroExpand &environment: env
         role
           ifNotNil:
             [| expansion |
-	     expansion: (role macroExpand &environment: env).
+	     expansion := (role macroExpand &environment: env).
              role == expansion
                ifFalse: [method roles at: index put: expansion]]].
   resend
@@ -136,23 +134,23 @@ store@(Syntax StoreVariable traits) macroExpand &environment: env
 "Expand the value to be stored."
 [| expansion |
   env ifNotNil:
-    [expansion: (env linkVariablesIn: store).
+    [expansion := (env linkVariablesIn: store).
       store == expansion
         ifFalse: [^ (expansion macroExpand &environment: env)]].
-  expansion: (store value macroExpand &environment: env).
+  expansion := (store value macroExpand &environment: env).
   store value == expansion
     ifFalse:
-      [store value: expansion].
+      [store value := expansion].
   store
 ].
 
 ret@(Syntax Return traits) macroExpand &environment: env
 "Expand the value to be returned."
 [| expansion |
-  expansion: (ret value macroExpand &environment: env).
+  expansion := (ret value macroExpand &environment: env).
   ret value == expansion
     ifFalse:
-      [ret value: expansion].
+      [ret value := expansion].
   ret
 ].
 
@@ -172,7 +170,7 @@ b@(Syntax Block traits) linkVariablesIn: load@(Syntax LoadVariable traits)
           [Syntax UnaryMessage sending: load variable name to: {Syntax ImplicitArgument}]
         ifNotNilDo:
           [| :var |
-            load variable: var.
+            load variable := var.
             load]]
 ].
 
@@ -188,7 +186,7 @@ b@(Syntax Block traits) linkVariablesIn: store@(Syntax StoreVariable traits)
              {Syntax ImplicitArgument. store value}]
         ifNotNilDo:
           [| :var |
-           store variable: var.
+           store variable := var.
            store]]
 ].
 
@@ -221,7 +219,7 @@ parent@(Syntax Block traits) linkVariablesIn: child@(Syntax Block traits)
 [
   child parentScope == parent \/ [child == parent]
     ifFalse:
-      [child parentScope: parent].
+      [child parentScope := parent].
   child
 ].
 
