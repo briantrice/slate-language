@@ -126,7 +126,7 @@ s@(ReadStream traits) next: n putInto: seq@(Sequence traits)
 s@(ReadStream traits) next: n putInto: seq@(ExtensibleArray traits)
 "Places the next N elements at the end of a given ExtensibleArray."
 [| elems |
-  elems := (s next: n).
+  elems := s next: n.
   seq addAllLast: elems.
   elems size
 ].
@@ -134,15 +134,15 @@ s@(ReadStream traits) next: n putInto: seq@(ExtensibleArray traits)
 s@(ReadStream traits) next: n
 "Answer the next N elements."
 [| arr read |
-  arr := (s collectionType new &capacity: n).
-  read := (s next: n putInto: arr startingAt: 0).
-  read = n ifTrue: [arr] ifFalse: [arr first: read]
+  arr := s collectionType new &capacity: n.
+  (read := s next: n putInto: arr startingAt: 0)
+    = n ifTrue: [arr] ifFalse: [arr first: read]
 ].
 
 s@(ReadStream traits) next
 "Obtain and answer the next element from the Stream."
 [| arr |
-  (arr := (s next: 1))
+  (arr := s next: 1)
     isEmpty ifTrue: [s exhausted] ifFalse: [arr first]
 ].
 
@@ -279,7 +279,7 @@ s@(WriteStream traits) nextPutAll: c
 s@(WriteStream traits) next: n put: obj
 "Make the next N values the argument object."
 [| buffer |
-  buffer := (s collectionType newSize: n).
+  buffer := s collectionType newSize: n.
   buffer atAllPut: obj.
   s nextPutAll: buffer
 ].
@@ -298,7 +298,7 @@ s@(WriteStream traits) next: n putAll: seq
 s@(WriteStream traits) nextPut: obj
 "Place the given element on the Stream."
 [| buffer |
-  buffer := (s collectionType newSize: 1).
+  buffer := s collectionType newSize: 1.
   buffer at: 0 put: obj.
   s next: 1 putAll: buffer startingAt: 0
 ].
@@ -357,7 +357,7 @@ source@(ReadStream traits) copyTo: sink &chunkSize: n
 "Write the contents from source to target in big blocks."
 [| buffer position total |
   n `defaultsTo: 4096.
-  buffer := (source collectionType new &capacity: n).
+  buffer := source collectionType new &capacity: n.
   total := 0.
   [source isAtEnd]
     whileFalse: [position :=
@@ -452,7 +452,7 @@ s@(PositionableStream traits) peek: n
 "Answer the next N results without advancing the stream."
 [| result origPosition |
   origPosition := s position.
-  result := (s next: n).
+  result := s next: n.
   s position := origPosition.
   result
 ].
@@ -491,8 +491,8 @@ s@(PositionableStream traits) upToAnyOf: c
 "Answer all objects up to the first occurrence of something in the collection,
 or up to the end of the Stream if they are not found."
 [| endMatch result |
-  endMatch := (s firstPositionOfAnyOf: c).
-  result := (s next: endMatch - s position - 1).
+  endMatch := s firstPositionOfAnyOf: c.
+  result := s next: endMatch - s position - 1.
   s position := endMatch.
   result
 ].
@@ -599,7 +599,7 @@ s@(PositionableStream traits) beginsWith: seq
   s size >= seq size /\
     [| starters oldPosition |
      oldPosition := s position.
-     starters := (s next: seq size).
+     starters := s next: seq size.
      s position := oldPosition.
      starters = seq]
 ].

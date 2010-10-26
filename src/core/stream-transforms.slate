@@ -24,7 +24,7 @@ cs@(ConcatenatedReadStream traits) ; s@(Stream traits)
 
 s@(ConcatenatedReadStream traits) on: sources
 [
-  s sources := (sources as: s sources).
+  s sources := sources as: s sources.
   s currentSource := s sources first.
   s position := 0.
   s
@@ -41,9 +41,9 @@ s@(ConcatenatedReadStream traits) next
 [
   s currentSource isAtEnd ifTrue:
     [| nextSrcIdx |
-     nextSrcIdx := (s sources indexOf: s currentSource) + 1.
-     nextSrcIdx = s sources size ifTrue: [^ s exhaustion].
-     s currentSource := (s sources at: nextSrcIdx)].
+     (nextSrcIdx := (s sources indexOf: s currentSource) + 1)
+       = s sources size ifTrue: [^ s exhaustion].
+     s currentSource := s sources at: nextSrcIdx].
   s currentSource next
 ].
 
@@ -59,7 +59,7 @@ s@(FlattenedReadStream traits) flatten
 
 s1@(FlattenedReadStream traits) on: s2
 [
-  s1 sources := (s1 sources newWith: s2).
+  s1 sources := s1 sources newWith: s2.
   s1
 ].
 
@@ -169,7 +169,7 @@ e@(Stream EchoStream traits) nextPutAll: seq
 
 e@(Stream EchoStream traits) position: n
 [
-  e dribble position := (e original position := n)
+  e dribble position := e original position := n
 ].
 
 ReadStream traits define: #LineStream &parents: {StreamProcessor} &slots: {#trailingNL -> False}.
@@ -204,10 +204,10 @@ l@(ReadStream LineStream traits) nextLine
 
 l@(ReadStream LineStream traits) next: n putInto: seq startingAt: start
 [
-  0 below: n
-    do: [| :index line |
-         (line := l nextLine)
-           ifNil: [^ index] ifNotNil: [seq at: index + start put: line]].
+  0 below: n do:
+    [| :index |
+     l nextLine
+       ifNil: [^ index] ifNotNilDo: [| :line | seq at: index + start put: line]].
   n
 ].
 
