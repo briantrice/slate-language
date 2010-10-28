@@ -217,12 +217,15 @@ _@shell didNotUnderstand: message at: position
                  command ; ' -' ; (key as: String) allButFirst allButLast ; ' ' ; (value as: String)]].
          message selector isKeywordSelector ifTrue:
            [| keywords args |
-            keywords := ((message selector as: String) splitWith: $:).
+            keywords := message selector keywords.
             command ; keywords first.
             keywords size = 1 ifTrue: "Read a string or array of arguments."
               [args := message arguments second.
-               (args is: String) ifTrue: [command ; ' ' ; args]
-                 ifFalse: [args do: [| :arg | command ; ' ' ; arg]]]].
+               `conditions: (
+                 [args is: String] -> [command ; ' ' ; args].
+                 [args is: Collection] -> [args do: [| :arg | command ; ' ' ; arg]]
+               )
+           ]].
          message arguments allButFirst: message selector arity do:
            [| :arg | command ; ' ' ; (arg as: String)]] writingAs: String)
          ifNil: [resend] ifNotNilDo: [| :cmd | [Platform run: cmd]]]

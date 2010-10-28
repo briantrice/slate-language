@@ -483,8 +483,7 @@ w@(Xml XHTMLWriter traits) didNotUnderstand: message at: position
        message selector isKeywordSelector ifTrue:
          [| keywords args |
           "selector's first keyword = tag-name, attributes = optionals, first argument is innerHTML"
-          keywords: ((message selector as: String) splitWith: $:).
-          keywords size = 1
+          (keywords := message selector keywords) size = 1
             ifTrue:
               [[w inTag: keywords first do:
                   [| :w |

@@ -119,8 +119,8 @@ source on the stream."
      and then loop from one to the end, printing the keywords and arguments
      alternately."
     (Syntax isKeywordSelector: selector)
-      ifTrue: [| names |
-	        names := (selector name splitWith: $:).
+      ifTrue: [| keywords |
+	        keywords := selector keywords.
 	        w withSurroundingArity: 3 do:
 	          [previousArity >= 0 ifTrue: [w nextPut: $(. closeParen := True].
 	            (w printAsArgument: args first) ifTrue: [w newColumn].
@@ -129,8 +129,7 @@ source on the stream."
                         index = 1
                           ifTrue: [w printSelectorPrefixOf: node]
                           ifFalse: [w newColumn].
-		        w ; ((names at: index - 1) as: String).
-		        w ; ': '.
+		        w ; ((keywords at: index - 1) as: String) ; ': '.
                         w printAsArgument: (args at: index)]]].
     closeParen ifTrue: [w nextPut: $)].
 "  ]."
@@ -318,15 +317,14 @@ source on the stream."
      and then loop from one to the end, printing the keywords and arguments
      alternately."
     (Syntax isKeywordSelector: selector)
-      ifTrue: [| name names |
+      ifTrue: [| name keywords |
 	        name := (selector as: String).
-	        names := (name splitWith: $:).
+	        keywords := selector keywords.
 	        w printArg: args first withRole: node roles first.
 	        1 below: args size
 		  do: [| :index |
 			w newColumn.
-			w ; ((names at: index - 1) as: String).
-			w nextPut: $:.
+			w ; ((keywords at: index - 1) as: String) ; ':'.
 			w newColumn.
 			w printArg: (args at: index) withRole: (node roles at: index)]].
     node optionalKeywords with: node optionalVariables do: [| :selector :variable |

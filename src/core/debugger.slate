@@ -441,15 +441,14 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
   position > 0
    ifTrue: [resend]
    ifFalse:
-     [| selector keywords |
+     [| selector |
       selector := message selector.
-      keywords := (selector as: String) splitWith: $:.
       "Handle an accessor."
       selector isUnarySelector
-        ifTrue: [^ [ns arg: keywords first]].
+        ifTrue: [^ [ns arg: selector]].
       "Handle a mutator."
       selector isKeywordSelector /\ [selector arity = 2]
-	ifTrue: [^ [ns arg: keywords first put: message arguments second]].
+	ifTrue: [^ [ns arg: selector keywords first put: message arguments second]].
       resend]
 ].
 

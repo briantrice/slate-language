@@ -27,7 +27,16 @@ ns@Syntax keywordsOf: s@(String traits)
 considered as a Slate selector."
 [
   (ns isKeywordSelector: s)
-    ifTrue: [((s as: '') splitWith: $:) collect: [| :each | each copyWith: $:]]
+    ifTrue: [| indices results resultIndex |
+      indices := s indicesOf: $:.
+      results := Array newSizeOf: indices.
+      indices addFirst: -1.
+      indices addLast: s indexLast.
+      resultIndex := 0.
+      s chainPairsDo: [| :previous :next |
+        result at: resultIndex put: (s copyFrom: previous + 1 to: end).
+        resultIndex := resultIndex + 1].
+      result]
     ifFalse: [#{}]
 ].
 

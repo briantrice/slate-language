@@ -19,16 +19,15 @@ w@(ObjC Writer traits) print: msg@(ObjC Message traits)
    and then loop from one to the end, printing the keywords and arguments
    alternately."
   selector isKeywordSelector ifTrue:
-    [| names |
-     names := selector name splitWith: $:.
+    [| keywords |
+     keywords := selector keywords.
      (w printAsArgument: args first) ifTrue: [w newColumn].
      1 below: args size do:
        [| :index arg |
         index = 1
           ifTrue: [w printSelectorPrefixOf: node]
           ifFalse: [w newColumn].
-	w ; ((names at: index - 1) as: String).
-	w ; ': '.
+	w ; ((keywords at: index - 1) as: String) ; ': '.
         w printAsArgument: (args at: index)]].
   w nextPut: $].
   w

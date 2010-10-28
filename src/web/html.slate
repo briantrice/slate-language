@@ -14,15 +14,14 @@ Html define: #SingletonTags &builder:
 b@(Html Builder traits) new &tag: tag &attributes: attributes
 [
   b clone `>>
-    [tag := (tag ifNil: ['']).
-     attributes := (attributes ifNil: [b attributes new]).
+    [tag := tag `defaultsTo: ''.
+     attributes := attributes `defaultsTo: b attributes new.
      children := b children new. ]
 ].
 
 b@(Html Builder traits) didNotUnderstand: message at: position
 [
-  [| tag attributes builder |
-   tag := (message selector as: b tag).
+  [| attributes builder |
    attributes := b attributes new.
 
    message optionals doWithIndex:
@@ -35,13 +34,12 @@ b@(Html Builder traits) didNotUnderstand: message at: position
 
    message selector isUnarySelector
      ifTrue:
-       [b children append: (b new &tag: tag &attributes: attributes)]
+       [b children append: (b new &tag: (message selector as: b tag) &attributes: attributes)]
      ifFalse:
-       [(tag splitWith: $:) doWithIndex:
+       [message selector keywords doWithIndex:
           [| :tag :i builder child |
            builder := (b new &attributes: attributes &tag: tag).
-           child := (message arguments at: i + 1).
-           (child is: Method)
+           ((message arguments at: i + 1) is: Method)
              ifTrue:
                [builder environment := child environment.
                 child environment := builder.
