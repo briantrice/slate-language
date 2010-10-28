@@ -1,37 +1,40 @@
-Graphics define: #DebuggerMorph &parents: {WindowMorph} &slots: {#condition -> Nil. #debugger -> Nil. #window -> Nil}.
+Graphics define: #DebuggerMorph &parents: {WindowMorph} &slots: {
+  #condition -> Nil.
+  #debugger -> Nil.
+  #window -> Nil.
+}.
 
-m@(DebuggerMorph traits) newOn: cond parent: parent window: window &x: x &y: y &width: width &height: height 
-[ | im backtraceListbox d restartButtons inspectButton|
-  im: m new.
-  im condition: cond.
-  im window: window.
-  d: (Debugger newFor: cond).
-  im debugger: d.
-  d findRestarts.
-  x `defaultsTo: 0.
-  y `defaultsTo: 0.
-  width `defaultsTo: 320.
-  height `defaultsTo: 240.
-  im percentages: {90 - (d restarts size * 10). 10} ; (d restarts collect: [|:x| 10]). "fixme"
-  im title: 'Debugging: ' ; cond printName.
-  backtraceListbox: ListboxMorph new `>> [printFunction: [|:item| item method printString]. ].
-  backtraceListbox setItemsTo: d frameList.
-  inspectButton: LabelMorph new `>> [text: 'Inspect selected frame'. ].
+m@(DebuggerMorph traits) newOn: cond parent: parent window: window &bounds: rect
+[| im backtraceListbox restartButtons inspectButton |
+  im := m new `>>
+    [condition := cond.
+     window := window.
+     debugger := Debugger newFor: cond. ].
+  im debugger findRestarts.
+  im percentages := {90 - (im debugger restarts size * 10). 10} ; (im debugger restarts collect: [| :x | 10]). "fixme"
+  im title := 'Debugging: %s', cond printName.
+  backtraceListbox := ListboxMorph new `>>
+    [printFunction := [| :item | item method printString].
+     items := im debugger frameList. ].
+  inspectButton := LabelMorph new `>>
+    [text := 'Inspect selected frame'. ].
   b@(inspectButton) handleMyself: e@(MouseButtonClickEvent traits)
-  [backtraceListbox selectedItems do:
-     [| :so | InspectorMorph newOn: so parent: parent]].
-  restartButtons:
-    (d restarts collect:
+  [
+    backtraceListbox selectedItems do:
+      [| :so | InspectorMorph newOn: so parent: parent]
+  ].
+  restartButtons :=
+    (im debugger restarts collect:
        [| :restart button |
-        button: LabelMorph new `>> [text: 'Restart: ' ; restart printString. ].
+        button := LabelMorph new `>> [text := 'Restart: ' ; restart printString. ].
         b@(button) handleMyself: e@(MouseButtonClickEvent traits)
         [
            im unlink.
-           (restart newCondition: cond) `>> [queryFrom: d. signal]
+           (restart newCondition: cond) `>> [queryFrom: im debugger. signal]
         ].
         button]).
-  im setChildren: {backtraceListbox. inspectButton} ; restartButtons.
-  im region: (Rectangle origin: x <> y extent: width <> height).
+  im children := {backtraceListbox. inspectButton} ; restartButtons.
+  im region := bounds `defaultsTo: Rectangle origin: 0 <> 0 extent: 320 <> 240.
   parent addChild: im.
   im pack.
   im

@@ -18,19 +18,31 @@ events define: #DeviceInputEvent &parents: {InputEvent}.
 
 events define: #KeyboardEvent &parents: {InputEvent} &slots: {#key. #modifiers}.
 
+e@(KeyboardEvent traits) character
+[e key as: ASCIICharacter].
+
+e@(KeyboardEvent traits) isControl
+[(e modifiers bitAnd: 4) = 4].
+
+e@(KeyboardEvent traits) isControlOnly
+[e modifiers = 4].
+
+e@(KeyboardEvent traits) isAlt
+[(e modifiers bitAnd: 8) = 8].
+
+e@(KeyboardEvent traits) isAltOnly
+[e modifiers = 8].
+
 events define: #KeyboardPressEvent &parents: {KeyboardEvent}.
 
 events define: #KeyboardReleaseEvent &parents: {KeyboardEvent}.
-
 
 events define: #PointerEvent &parents: {InputEvent}
   &slots: {#pointer. #position. #button. #modifiers}.
 
 event@(PointerEvent traits) copyOffset: offset
-[|c|
-    c: event copy.
-    c position: c position + offset.
-    c
+[
+  event copy `>> [position: c position + offset. ]
 ].
 
 events define: #MouseEvent &parents: {PointerEvent}.

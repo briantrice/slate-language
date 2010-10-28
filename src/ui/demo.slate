@@ -12,38 +12,38 @@ Graphics define: #Demo &slots: {
 }.
 
 "point to temp object so repaints don't fail"
-Demo background parent: Demo mainWindow.
+Demo background parent := Demo mainWindow.
 
-Demo blueButton canDrag: True.
-Demo blueButton canResize: True.
+Demo blueButton canDrag := True.
+Demo blueButton canResize := True.
 
-Demo background addChild: Demo blueButton `>> [text: 'blue button'. ].
-Demo background addChild: Demo redButton `>> [text: 'red button'. ].
-Demo background addChild: Demo textbox `>> [text: 'my text'. ].
+Demo background addChild: Demo blueButton `>> [text := 'blue button'. ].
+Demo background addChild: Demo redButton `>> [text := 'red button'. ].
+Demo background addChild: Demo textbox `>> [text := 'my text'. ].
 Demo background addChild: Demo window `>>
-  [region: (Rectangle origin: 300 <> 250 extent: 200 <> 100). 
-   percentages: {100}.
-   title: 'Repl'. ].
+  [region := Rectangle origin: 300 <> 250 extent: 200 <> 100.
+   percentages := {100}.
+   title := 'Repl'. ].
 
-Demo editor region: Rectangle new.  
+Demo editor region := Rectangle new.  
 Demo window addChild: Demo editor.
 Demo window pack.
 
-"Demo background addChild: Demo vertScrollbar `>> [region: (Rectangle origin: 400 <> 20 extent: 20 <> 150). ]."
+"Demo background addChild: Demo vertScrollbar `>> [region := Rectangle origin: 400 <> 20 extent: 20 <> 150. ]."
 
 Demo background addChild: Demo listbox `>>
-  [region: (Rectangle origin: 400 <> 20 extent: 200 <> 90).
-   setItemsTo: Demo listboxItems.
-   singleSelect: False.
-   selectedItems: (Set new*, Demo listboxItems first, Demo listboxItems third).
+  [region := Rectangle origin: 400 <> 20 extent: 200 <> 90.
+   items := Demo listboxItems.
+   singleSelect := False.
+   selectedItems := Set new*, Demo listboxItems first, Demo listboxItems third.
    selectionChanged. ].
 
-Demo redButton region: (Rectangle origin: 20 <> 20 extent: 200 <> 30).
-Demo blueButton region: (Rectangle origin: 200 <> 300 extent: 200 <> 30).
-Demo textbox region: (Rectangle origin: 20 <> 250 extent: 200 <> 20).
+Demo redButton region := Rectangle origin: 20 <> 20 extent: 200 <> 30.
+Demo blueButton region := Rectangle origin: 200 <> 300 extent: 200 <> 30.
+Demo textbox region := Rectangle origin: 20 <> 250 extent: 200 <> 20.
 
-Demo redButton theme: Demo redButton theme clone `>> [labelColor: Colors Red.].
-Demo blueButton theme: Demo blueButton theme clone `>> [labelColor: Colors Blue.].
+Demo redButton theme := Demo redButton theme clone `>> [labelColor := Colors Red.].
+Demo blueButton theme := Demo blueButton theme clone `>> [labelColor := Colors Blue.].
 
 InspectorMorph newOn: lobby parent: Demo background.
 ReplMorph newWithParent: Demo background &x: 300.
@@ -53,13 +53,13 @@ the children first. here it doesn't matter that much"
 
 b@(Demo redButton) handleMyself: e@(MouseButtonClickEvent traits)
 [
-  inform: 'red clicked @ ' ; e position printString.
+  inform: 'red clicked @ %s', e position.
   b
 ].
 
 b@(Demo blueButton) handleMyself: e@(MouseButtonClickEvent traits)
 [
-  inform: 'blue clicked @ ' ; e position printString.
+  inform: 'blue clicked @ %s', e position.
   b
 ].
 
@@ -72,10 +72,10 @@ w@(Demo mainWindow traits) handle: _@(MiddleMouseButtonPressEvent traits)
 demo@(Demo traits) start &guiDebugger: guiDebugger
 [
   guiDebugger `defaultsTo: False.
-  demo mainWindow: (WindowSceneElement newNamed: 'Untitled' width: 640 height: 480).
-  demo mainWindow child: demo background.
-  demo background parent: demo mainWindow.
-  demo background region: demo mainWindow region.
+  demo mainWindow := WindowSceneElement newNamed: 'Untitled' width: 640 height: 480.
+  demo mainWindow child := demo background.
+  demo background parent := demo mainWindow.
+  demo background region := demo mainWindow region.
   guiDebugger ifTrue: [DebuggerMorph enableDebuggerWithParent: demo background window: demo mainWindow].
   Image startupActions at: demo mainWindow put: [Image startupActions removeKey: demo mainWindow.
                                                  demo mainWindow exitRequested: True.

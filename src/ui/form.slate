@@ -8,29 +8,36 @@ bitmaps use 0-0xFF."
 "TODO: 32 & 24 bit Forms should use Word32Arrays (or whatever)"
 "TODO: Sort out Forms with other than 8bits per channel"
 
-Graphics define: #Form &parents: {Cloneable} &slots:
-{#width -> 0. #height -> 0.
- #depth -> 0. #repeat -> 0.
- #offset -> Point origin. "Centre of the Form"
- #clipRect -> (Rectangle origin: Point origin extent: Point origin).
- #colorMap. "ColorMap used to write into this Form"
- #bits
-}.
-
 "Bitmaps have a platform independant format"
-Graphics define: #Bitmap &parents: {WordArray BigEndian}.
+Graphics define: #Bitmap &parents: {WordArray BigEndian} &slots: {
+  #memory -> MemoryArea.
+}.
 
 w@(Bitmap traits) new &capacity: size
 [
-  w newFrom: (MemoryArea newSize: (size * 4) abs) enable &bytesPerWord: 4
+  w newFrom: (w memory newSize: (size * 4) abs) enable &bytesPerWord: 4
 ].
 
+w@(Bitmap traits) enable
+[w memory enable].
+
+w@(Bitmap traits) disable
+[w memory disable].
+
 "Graphics define: #Pixmap &parents: {WordArray}."
+
+Graphics define: #Form &parents: {Cloneable} &slots: {
+  #width -> 0. #height -> 0.
+  #depth -> 0. #repeat -> 0.
+  #offset -> Point origin. "Centre of the Form"
+  #clipRect -> (Rectangle origin: Point origin extent: Point origin).
+  #colorMap. "ColorMap used to write into this Form"
+  #bits -> Bitmap.
+}.
 
 "Forms mostly intended for masks and alpha channels"
 "Graphics define: #FormAlpha8 &parents: {Form}."
 "Graphics define: #FormAlpha1 &parents: {Form}."
-
 
 f@(Form traits) extent: extent@(Point traits) depth: bitsPerPixel
 "Creates a new blank Form with size extent and depth bitsPerPixel"
@@ -39,28 +46,34 @@ f@(Form traits) extent: extent@(Point traits) depth: bitsPerPixel
   Form copy `>> [setExtent: extent depth: bitsPerPixel. ]
 ].
 
+a@(Form traits) bits: w@(Bitmap traits)
+[
+  (a bits isSameAs: w)
+    ifTrue: [a bits disable].
+  a atSlotNamed: #bits := w
+].
+
 a@(Form traits) setExtent: extent@(Point traits) depth: bitsPerPixel
 [
  a close.
- a width: (extent x as: Integer).
- a height: (extent y as: Integer).
- a depth: bitsPerPixel.
- a bits: (Bitmap new &capacity: a bitSize).
+ a width := extent x as: Integer.
+ a height := extent y as: Integer.
+ a depth := bitsPerPixel.
+ a bits := a bits new &capacity: a bitSize.
  a
 ].
 
 a@(Form traits) close
 [
-  a bits ifNotNil: [a bits close. a bits: Nil]
+  a bits ifNotNil: [a bits close. a bits := Nil]
 ].
 
 a@(Form traits) bitSize
 "Size of needed Bitmap"
-[| pixelsPerWord size |
-  a depth ifNil: [a depth: 1].
-  pixelsPerWord: 32 // a depth.
-  size: a width + pixelsPerWord - 1 // pixelsPerWord * a height.
-  size
+[| pixelsPerWord |
+  a depth `defaultsTo: 1.
+  pixelsPerWord := 32 // a depth.
+  a width + pixelsPerWord - 1 // pixelsPerWord * a height
 ].  
 
 a@(Form traits) extent 

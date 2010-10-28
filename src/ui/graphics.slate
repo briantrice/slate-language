@@ -38,17 +38,15 @@ Graphics define: #SceneElement &parents: {Cloneable} &slots: {
 "this is the top level 'world' morph in a scene"
 
 Graphics define: #WindowSceneElement &parents: {SceneElement} &slots: {
-#exitRequested -> False.
-#repaintObjects -> ExtensibleArray new.
-#child -> Nil.
-#osWindow -> Nil. "the BasicWindowElement?"
-#conductor -> Conductor new.
+  #exitRequested -> False.
+  #repaintObjects -> ExtensibleArray new.
+  #child -> Nil.
+  #osWindow -> Nil. "the BasicWindowElement?"
+  #conductor -> Conductor new.
 }.
-
 
 "a default theme"
 Graphics define: #BasicTheme &parents: {Theme}.
-
 
 "a morph that can't do anything besides paint a solid color"
 Graphics define: #SolidBackgroundMorph &parents: {SceneElement} &slots: {#color. #alpha -> 1}.
@@ -70,21 +68,16 @@ Graphics define: #Morph &parents: {SceneElement}
 
 Graphics define: #LabelMorph &parents: {Morph} &slots: {#text -> ''. #fontSize -> 14}.
 
-
-
-
-
 " --- Methods --- "
 
 m@(SceneElement traits) new
 [
-  resend `>> [region: m region new. ]
+  resend `>> [region := m region new. ]
 ].
-
 
 m@(Morph traits) new
 [
-  resend `>> [theme: m theme. children: ExtensibleArray new. ]
+  resend `>> [theme := m theme. children := ExtensibleArray new. ]
 ].
 
 m@(Morph traits) unlink
@@ -93,15 +86,12 @@ m@(Morph traits) unlink
   m parent children remove: m
 ].
 
-
 wse@(WindowSceneElement traits) newNamed: name width: width height: height
-[ | res |
-  res: wse new.
-  res region: (Rectangle origin: 0 <> 0 extent: width <> height).
-  res conductor: wse conductor new.
-  res conductor focus: Nil. "set it to wse and we might have a loop"
-  res osWindow: (wse nativeSessionType newWindow: 'blah' width: 640 height: 480).
-  res
+[
+  wse new `>>
+    [region := (Rectangle origin: 0 <> 0 extent: width <> height).
+     conductor := wse conductor new `>> [focus := Nil. "set it to wse and we might have a loop"].
+     osWindow := wse nativeSessionType newWindow: 'blah' width: 640 height: 480. ]
 ].
 
 wse@(WindowSceneElement traits) handle: input@(WindowRepaintEvent traits)
@@ -122,24 +112,21 @@ wse@(WindowSceneElement traits) handle: input@(Event traits)
   wse conductor handle: input for: wse
 ].
 
-
 wse@(WindowSceneElement traits) defaultHandler [wse child].
 se@(WindowSceneElement traits) activeConductor [se conductor].
-
 
 "--- input handler: conductor---"
 
 c@(Conductor traits) setFocus: item
 [
-  c focus: item.
-  inform: 'focus set to ' ; item printName printString.
+  c focus := item.
   c mouseMovedAfterPress: False
 ].
 
 c@(Conductor traits) handle: input@(Event traits) for: wse@(WindowSceneElement traits)
 [
-  wse defaultHandler == wse ifTrue: [^ Nil].
-  wse defaultHandler handle: input
+  wse defaultHandler == wse
+    ifFalse: [wse defaultHandler handle: input]
 ].
 
 c@(Conductor traits) handle: input@(KeyboardEvent traits) for: wse@(WindowSceneElement traits)
@@ -149,17 +136,18 @@ c@(Conductor traits) handle: input@(KeyboardEvent traits) for: wse@(WindowSceneE
 
 c@(Conductor traits) handle: input@(MouseButtonReleaseEvent traits) for: wse@(WindowSceneElement traits)
 [ "cache because it will lose focus after it handles the event"
-  c focus `cache
+  c focus
     ifNil: [resend]
-    ifNotNil:
-      [c focus handle: input.
+    ifNotNilDo:
+      [| :focus |
+       focus handle: input.
        c mouseMovedAfterPress ifFalse:
-         [c focus handle: (MouseButtonClickEvent new `>>
-                             [source: input source.
-                              region: input region.
-                              pointer: input pointer.
-                              position: input position.
-                              window: input window. ])]]
+         [focus handle: (MouseButtonClickEvent new `>>
+                           [source := input source.
+                            region := input region.
+                            pointer := input pointer.
+                            position := input position.
+                            window := input window. ])]]
 ].
 
 c@(Conductor traits) handle: input@(MouseMotionEvent traits) for: wse@(WindowSceneElement traits)
@@ -174,8 +162,8 @@ se@(SceneElement traits) activeConductor [se parent activeConductor].
 se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window. ^ se].
 se@(SceneElement traits) handle: input@(Event traits) [^ se].
 "se@(SceneElement traits) handle: input@(MouseEvent traits) [inform: 'unhandled mouse event'.]."
-se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (RequestFocusEvent new `>> [source: se.])]].
-se@(SceneElement traits) dropFocus [se parent ifNotNilDo: [|:p| p handle: (DropFocusEvent new `>> [source: se.])]].
+se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (RequestFocusEvent new `>> [source := se.])]].
+se@(SceneElement traits) dropFocus [se parent ifNotNilDo: [|:p| p handle: (DropFocusEvent new `>> [source := se.])]].
 se@(SceneElement traits) paintOn: surface@(Surface traits) [].
 se@(SceneElement traits) repaint: obj [se parent repaint: obj].
 se@(SceneElement traits) repaint [se parent repaint: se].
@@ -197,55 +185,54 @@ se@(SceneElement traits) leftCenter [ se region leftCenter].
 se@(SceneElement traits) rightCenter [ se region rightCenter].
 
 se@(SceneElement traits) absolutePosition
-[ | point obj |
-  point: se region origin clone.
-  obj: se parent.
+[| point obj |
+  point := se region origin clone.
+  obj := se parent.
   [obj isSameAs: WindowSceneElement]
-    whileFalse: [point x: point x + obj region origin x. 
-                point y: point y + obj region origin y.
-                obj: obj parent].
+    whileFalse: [point x := point x + obj region origin x. 
+                point y := point y + obj region origin y.
+                obj := obj parent].
   point
 ].
 
 se@(Morph traits) startDragging: position
 [
-  se dragging: True.
-  se dragOffset: se absolutePosition - position.
+  se dragging := True.
+  se dragOffset := se absolutePosition - position.
 ].
 
 se@(Morph traits) startResizing: position
 [
-  se resizing: True.
-  se resizeOffset: (0 <> 0) - se absolutePosition.
+  se resizing := True.
+  se resizeOffset := (0 <> 0) - se absolutePosition.
 ].
 
 se@(Morph traits) stopDragging: position
 [
-  se dragging: False.
-  se dragOffset: Nil.
+  se dragging := False.
+  se dragOffset := Nil.
   se parent repaint.
 ].
 
 se@(Morph traits) stopResizing: position
 [
-  se resizing: False.
-  se resizeOffset: Nil.
+  se resizing := False.
+  se resizeOffset := Nil.
   se sizeChanged.
   se parent repaint.
 ].
 
 se@(SceneElement traits) sizeChanged [].
 
-
 surface@(Surface traits) ensurePaint: block
 [
-
   [surface save. block do. surface restore.]
     on: Error
-    do: [|:error| surface `>> [restore.
-                      sourceRGB: Colors Red.
-                      moveTo: 0 <> 0. showText: error printString.
-                      ]].
+    do: [| :error |
+         surface `>>
+           [restore.
+            sourceRGB := Colors Red.
+            moveTo: 0 <> 0. showText: error printString. ]].
 ].
 
 se@(WindowSceneElement traits) absolutePosition [ 0 <> 0].
@@ -264,7 +251,7 @@ se@(WindowSceneElement traits) paintOn: surface@(Surface traits)
 [
   se repaintObjects do: [| :obj | surface save.
                                   surface translate: obj absolutePosition.
-                                  surface rectangleObject: obj.
+                                  surface rectangleObject := obj.
                                   surface clip.
                                   obj paintOn: surface.
                                   surface restore].
@@ -280,7 +267,7 @@ se@(SceneElement traits) doWithRestart: block
 se@(WindowSceneElement traits) eventLoop
 "Temporary event loop"
 [
-    se exitRequested: False.
+    se exitRequested := False.
     inform: '**** Press middle mouse button to exit loop ****'.
     [se exitRequested] whileFalse:
         [
@@ -297,7 +284,7 @@ se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
     surface `>> [
        save.
        sourceRGB: se color alpha: se alpha.
-       rectangle: se.
+       rectangle := se.
        fill.
        restore].
 
@@ -306,7 +293,7 @@ se@(SolidBackgroundMorph traits) paintOn: surface@(Surface traits)
 "this is just a function that ensures/clips a region to paint within the current morph"
 m@(Morph traits) paintChild: child@(SceneElement traits) on: surface@(Surface traits)
 [
-  surface ensurePaint: [surface rectangle: child.
+  surface ensurePaint: [surface rectangle := child.
                         surface clip.
                         surface translate: child region origin.
                         child paintOn: surface]
@@ -322,7 +309,7 @@ m@(Morph traits) paintChildrenOn: surface@(Surface traits)
 m@(Morph traits) paintMyselfOn: surface@(Surface traits)
 [
   surface sourceRGB: m theme backgroundColor alpha: m theme backgroundAlpha.
-  surface rectangle: m.
+  surface rectangle := m.
   surface fill.
 ].
 
@@ -373,7 +360,7 @@ m@(Morph traits) handle: input@(DropFocusEvent traits)
 
 m@(Morph traits) handleMyself: input@(LeftMouseButtonPressEvent traits)
 [| bw |
-  bw: m borderWidth.
+  bw := m borderWidth.
   "handle in bottom right of window"
   m canResize /\ [(Rectangle origin: m absolutePosition + m region extent - (bw <> bw) extent: (bw <> bw)) contains: input position]
     ifTrue: [m startResizing: input position. m requestFocus]
@@ -392,11 +379,11 @@ m@(Morph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 
 m@(Morph traits) handleMyself: input@(MouseMotionEvent traits)
 [
-  m dragging ifTrue: [m region: (Rectangle origin: input position + m dragOffset extent: m region extent). m repaint].
+  m dragging ifTrue: [m region := (Rectangle origin: input position + m dragOffset extent: m region extent). m repaint].
   m resizing ifTrue:
     [| extent |
-     extent: input position + m resizeOffset.
-     m region: (Rectangle origin: m region origin
+     extent := input position + m resizeOffset.
+     m region := (Rectangle origin: m region origin
                   extent: (extent x max: m minHeight) <> (extent y max: m minWidth)).
      m repaint].
   m
@@ -405,27 +392,25 @@ m@(Morph traits) handleMyself: input@(MouseMotionEvent traits)
 m@(Morph traits) addChild: child@(SceneElement traits)
 [
   m children addLast: child.
-  child parent: m.
+  child parent := m.
   child
 ].
 
-m@(Morph traits) setChildren: array
+m@(Morph traits) children: array
 [
-  m children: ExtensibleArray new.
-  array do: [| :child |
-             m children addLast: child.
-             child parent: m].
+  m atSlotNamed: #children := array as: m children.
+  array do: [| :child | child parent := m].
 ].
 
 m@(LabelMorph traits) paintMyselfOn: surface@(Surface traits)
 [
   surface sourceRGB: m theme labelColor alpha: m theme labelAlpha.
-  surface rectangleObject: m.
+  surface rectangleObject := m.
   surface fill.
   surface sourceRGB: m theme foregroundColor alpha: m theme foregroundAlpha.
-  surface rectangleObject: m.
+  surface rectangleObject := m.
   surface stroke.
-  surface fontSize: m fontSize.
+  surface fontSize := m fontSize.
   surface moveTo: 10 <> (m height // 2).
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
   surface showText: m text.

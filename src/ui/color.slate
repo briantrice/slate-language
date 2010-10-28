@@ -27,29 +27,29 @@ _@(Color traits) h: hue s: saturation v: intensity
 
 hsv@(HSVColor traits) as: rgb@(RGBColor traits)
 [| hh c s x y z |
-  hh: (hsv hue - 0.5 mod: 1.0) * 2 * pi - pi.
-  c: hsv saturation cos.
-  s: hsv saturation sin.
-  x: #[(1 / 6) sqrt] * s * hh cos * hsv intensity.
-  y: #[(1 / 2) sqrt] * s * hh sin * hsv intensity.
-  z: #[(1 / 3) sqrt] * c * intensity.
+  hh := (hsv hue - 0.5 mod: 1.0) * 2 * pi - pi.
+  c := hsv saturation cos.
+  s := hsv saturation sin.
+  x := #[(1 / 6) sqrt] * s * hh cos * hsv intensity.
+  y := #[(1 / 2) sqrt] * s * hh sin * hsv intensity.
+  z := #[(1 / 3) sqrt] * c * intensity.
   rgb r: (1.0 min: x + x + z max: 0.0)
       g: (1.0 min: y + z - x max: 0.0)
       b: (1.0 min: z - x - y max: 0.0)
 ].
 
 rgb@(RGBColor traits) as: hsv@(HSVColor traits)
-[| x y z |
-  x: #[(1 / 6) sqrt] * (rgb red + rgb red - rgb blue - rgb green).
-  y: #[(1 / 2) sqrt] * (rgb green - rgb blue).
-  z: #[(1 / 3) sqrt] * (rgb red + rgb green + rgb blue).
-  q: x squared + y squared.
-  intensity: (q + z squared) sqrt. "sqrt(r^2 + g^2 + b^2)"
+[| x y z q intensity |
+  x := #[(1 / 6) sqrt] * (rgb red + rgb red - rgb blue - rgb green).
+  y := #[(1 / 2) sqrt] * (rgb green - rgb blue).
+  z := #[(1 / 3) sqrt] * (rgb red + rgb green + rgb blue).
+  q := x squared + y squared.
+  intensity := (q + z squared) sqrt. "sqrt(r^2 + g^2 + b^2)"
   q isZero "A totally unsaturated color"
     ifTrue: [newC h: 0.0 s: 0.0 v: intensity]
     ifFalse: [| a b |
-	      a: z / intensity.
-	      b: (1.0 - a squared) sqrt.
+	      a := z / intensity.
+	      b := (1.0 - a squared) sqrt.
 	      hsv h: ((y atan2: x) / (2 * pi) mod: 1.0)
 		  s: (b atan2: a)
 		  v: intensity]
@@ -90,7 +90,7 @@ cmy@(CMYColor traits) cmykValues
 "Answer an Array of C,M,Y,K values corresponding to this color - used only for
 four-color printing models."
 [| k |
-  k: ((cmy cyan min: cmy magenta) min: cmy yellow).
+  k := (cmy cyan min: cmy magenta) min: cmy yellow.
   {cmy cyan - k. cmy magenta - k. cmy yellow - k. k}
 ].
 

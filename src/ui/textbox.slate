@@ -5,22 +5,22 @@ Graphics define: #HashTableInputTranslator &parents: {InputTranslator} &slots: {
 Graphics define: #TextboxInputTranslator &parents: {InputTranslator}.
 Graphics define: #LineEditorInputTranslator &parents: {InputTranslator}.
 
-Graphics define: #TextboxMorph &parents: {Morph}
-  &slots: {#text -> '' new. 
-           #position -> 0. 
-           #fontSize -> 12. 
-           #inputTranslator -> TextboxInputTranslator new.
-           }.
+Graphics define: #TextboxMorph &parents: {Morph} &slots: {
+  #text -> '' new. 
+  #position -> 0. 
+  #fontSize -> 12. 
+  #inputTranslator -> TextboxInputTranslator new.
+}.
 
-Graphics define: #LineEditorMorph &parents: {Morph}
-  &slots: {#editor -> LineEditor new.
-           #fontSize -> 12. 
-           #inputTranslator -> LineEditorInputTranslator new.
-           }.
+Graphics define: #LineEditorMorph &parents: {Morph} &slots: {
+  #editor -> LineEditor new.
+  #fontSize -> 12. 
+  #inputTranslator -> LineEditorInputTranslator new.
+}.
 
 m@(LineEditorMorph traits) new
 [
-  resend `>> [editor: m editor new. ]
+  resend `>> [editor := m editor new. ]
 ].
 
 "let the input translator class handle all keyboard input on me"
@@ -36,7 +36,7 @@ m@(LineEditorMorph traits) handleMyself: e@(KeyboardEvent traits)
 
 it@(InputTranslator traits) handle: e@(InputEvent traits) on: m@(Morph traits)
 [
-  inform: 'Default handler ' ; it printString ; ' does not handle event ' ; e printString.
+  inform: 'Default handler %s does not handle event %s', it, e.
   Nil
 ].
 
@@ -52,118 +52,97 @@ it@(LineEditorInputTranslator traits) handle: e@(KeyboardPressEvent traits) on: 
 m@(TextboxMorph traits) activate [].
 
 it@(TextboxInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(TextboxMorph traits)
-[| char oldText pos |
-  inform: 'key: ' ; e key printString.
-  inform: 'mod: ' ; e modifiers printString.
-  e key = 276 ifTrue: [m repaint. m position: (m position - 1 max: 0). ^ Nil].
-  e key = 275 ifTrue: [m repaint. m position: (m position + 1 min: m printText size). ^ Nil].
-  oldText: m text.
-  pos: m position.
-  e key = 13 ifTrue: [^ m activate].
-  "backspace"
-  e key = 8 ifTrue: [m repaint.
-                     m text: (oldText first: pos - 1) ; (oldText allButFirst: pos).
-                     m position: (pos - 1 max: 0).
-                     ^ Nil].
-  "delete"
-  e key = 127 ifTrue: [m repaint.
-                       m text: (oldText first: pos) ; (oldText allButFirst: pos + 1).
-                     ^ Nil].
-
-  e key > 250 ifTrue: [^ Nil].
-  char: (e key as: ASCIICharacter).
-  char isPrintable ifTrue: [m repaint. 
-                            m text: (oldText first: pos) ; (char as: String) ; (oldText allButFirst: pos).
-                            m position: pos + 1.
-                            ^ Nil].
+[
+  `conditions: (
+    [e key = 276]
+      -> [m repaint. m position := m position - 1 max: 0].
+    [e key = 275]
+      -> [m repaint. m position := m position + 1 min: m printText size].
+    [e key = 13]
+      -> [m activate].
+    "backspace"
+    [e key = 8]
+      -> [m repaint.
+          m text := (m text first: m position - 1) ; (m text allButFirst: m position).
+          m position := m position - 1 max: 0].
+    "delete"
+    [e key = 127]
+      -> [m repaint.
+          m text := (m text first: m position) ; (m text allButFirst: m position + 1)].
+    [e key > 250]
+      -> [].
+    [e character isPrintable]
+      -> [m repaint. 
+          m text := (m text first: m position) ; (e character as: String) ; (m text allButFirst: m position).
+          m position := m position + 1]
+  )
 ].
-
-
 
 it@(LineEditorInputTranslator traits) handle: e@(KeyboardReleaseEvent traits) on: m@(LineEditorMorph traits)
-[| char oldText |
-  inform: 'key: ' ; e key printString.
-  inform: 'mod: ' ; e modifiers printString.
-
-  e key = 275 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor). ^ Nil].
-  e key = 102 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor).
-                                            m ensureVisibleCursor: m editor.
-                                            ^ Nil].
-
-  e key = 276 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor). ^ Nil].
-  e key = 98 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor).
-                                           m ensureVisibleCursor: m editor.
-                                           ^ Nil].
-
-  e key = 273 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor). ^ Nil].
-  e key = 112 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor).
-                                            m ensureVisibleCursor: m editor.
-                                            ^ Nil].
-
-  e key = 274 ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor). ^ Nil].
-  e key = 110 /\ [e modifiers = 4] ifTrue: [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor).
-                                            m ensureVisibleCursor: m editor.
-                                            ^ Nil].
-
-  "alt-d do it"
-  e key = 100 /\ [e modifiers = 8] ifTrue: [('' concatenateAll: (m editor lines collect: #contents `er) &separator: m editor lineDelimeter) evaluate.
-                                            ^ Nil].
-  "backspace"
-  e key = 8 ifTrue: [m repaint.
-                     m editor deleteBackwardAt: m editor cursor.
-                     ^ Nil].
-  "delete"
-  e key = 127 ifTrue: [m repaint.
-                       m editor deleteAt: m editor cursor.
-                     ^ Nil].
-  
-  "set mark C-space "
-  e key = 32 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                           m editor setMark.
-                                            ^ Nil].
-
-  "del mark C-g "
-  e key = 103 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                            m editor deleteMark.
-                                            ^ Nil].
-
-  "undo C-/ "
-  e key = 47 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                            m editor undo.
-                                            ^ Nil].
-
-  "redo C-\ "
-  e key = 92 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                            m editor redo.
-                                            ^ Nil].
-
-  "wipe C-w "
-  e key = 119 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                            m editor cutTo: e window.
-                                            ^ Nil].
-  "copy M-w "
-  e key = 119 /\ [e modifiers = 8] ifTrue: [m repaint.
-                                            m editor copyTo: e window.
-                                            ^ Nil].
-  "yank C-y "
-  e key = 121 /\ [e modifiers = 4] ifTrue: [m repaint.
-                                            m editor pasteFrom: e window.
-                                            ^ Nil].
-
-
-  e key > 250 ifTrue: [^ Nil].
-  char: (e key as: ASCIICharacter).
-  char isPrintable \/ [e key = 13] ifTrue: [m repaint. 
-                            m editor insert: char at: m editor cursor.
-                            ^ Nil].
+[
+  `conditions: (
+     [e key = 275]
+       -> [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor)].
+     [e key = 102 /\ [e isControlOnly]]
+       -> [m repaint. m editor cursor setTo: (m editor cursor forwardOn: m editor).
+           m ensureVisibleCursor: m editor].
+     [e key = 276]
+       -> [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor)].
+     [e key = 98 /\ [e isControlOnly]]
+       -> [m repaint. m editor cursor setTo: (m editor cursor backwardOn: m editor).
+           m ensureVisibleCursor: m editor].
+     [e key = 273]
+       -> [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor)].
+     [e key = 112 /\ [e isControlOnly]]
+       -> [m repaint. m editor cursor setTo: (m editor cursor previousLineOn: m editor).
+           m ensureVisibleCursor: m editor].
+     [e key = 274]
+       -> [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor)].
+     [e key = 110 /\ [e isControlOnly]]
+       -> [m repaint. m editor cursor setTo: (m editor cursor nextLineOn: m editor).
+           m ensureVisibleCursor: m editor].
+     "alt-d do it"
+     [e key = 100 /\ [e isAltOnly]]
+       -> [('' concatenateAll: (m editor lines collect: #contents `er) &separator: m editor lineDelimeter)
+             evaluate].
+     "backspace"
+     [e key = 8]
+       -> [m repaint. m editor deleteBackwardAt: m editor cursor].
+     "delete"
+     [e key = 127]
+       -> [m repaint. m editor deleteAt: m editor cursor].
+     "set mark C-space"
+     [e key = 32 /\ [e isControlOnly]]
+       -> [m repaint. m editor setMark].
+     "del mark C-g "
+     [e key = 103 /\ [e isControlOnly]]
+       -> [m repaint. m editor deleteMark].
+     "undo C-/ "
+     [e key = 47 /\ [e isControlOnly]]
+       -> [m repaint. m editor undo].
+     "redo C-\ "
+     [e key = 92 /\ [e isControlOnly]]
+       -> [m repaint. m editor redo].
+     "wipe C-w "
+     [e key = 119 /\ [e isControlOnly]]
+       -> [m repaint. m editor cutTo: e window].
+     "copy M-w "
+     [e key = 119 /\ [e isAltOnly]]
+       -> [m repaint. m editor copyTo: e window].
+     "yank C-y "
+     [e key = 121 /\ [e isControlOnly]]
+       -> [m repaint. m editor pasteFrom: e window].
+     [e key > 250]
+       -> [].
+     [e character `cache isPrintable \/ [e key = 13]]
+       -> [m repaint. m editor insert: e character at: m editor cursor]
+   )
 ].
-
 
 m@(TextboxMorph traits) printText
 ["this is the text as a string in case i change the underlying representation"
   m text
 ].
-
 
 m@(TextboxMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [ "don't drop focus like usual"
@@ -181,7 +160,7 @@ m@(TextboxMorph traits) paintMyselfOn: surface@(Surface traits)
   surface fontSize: m fontSize.
 "fixme, we should use cairo's text_extents function to see how large the text is and draw
 the appropriate cursor. "
-  text: m printText.
+  text := m printText.
 
   "print cursor... text is invisible here because we chose the foreground color"
   surface moveTo: 10 <> ((m height // 2) + 2).
@@ -195,7 +174,6 @@ the appropriate cursor. "
   surface sourceRGB: m theme textColor alpha: m theme textAlpha.
   surface showText: text.
 ].
-
 
 m@(LineEditorMorph traits) handleMyself: input@(LeftMouseButtonReleaseEvent traits)
 [ "don't drop focus like usual"
@@ -245,4 +223,3 @@ the appropriate cursor. "
          surface sourceRGB: m theme textColor alpha: m theme textAlpha.
          surface showText: line].
 ].
-

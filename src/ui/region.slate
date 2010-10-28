@@ -13,7 +13,7 @@ p@(PointND traits) origin
 
 t@(Tuple traits) as: p@(PointND traits)
 [| newP |
-  newP: p newSameSize.
+  newP := p newSameSize.
   p keysDo: [| :each | newP at: each put: (t at: each)].
   newP
 ].
@@ -31,10 +31,10 @@ _@(PointND traits) deriveForSize: n
 "Creates and returns a new prototype of size n with appropriate traits and
 creation methods defined."
 [| newT |
-  newT: (PointND derive &mixins: {PointND}).
+  newT := PointND derive &mixins: {PointND}.
   _@(newT traits) size [n].
   t@(newT traits) new &capacity: m &immutable: i
-  [m: n. i: True. resend].
+  [m := n. i := True. resend].
   newT traits define: #origin -> newT origin.
   newT
 ].
@@ -66,8 +66,8 @@ box for the other two points. This measures by perpendicular distance from
 the line instead of slope and intercept, avoiding divide-by-zero errors and
 being robust in case of round-off."
 [| dx dy |
-  dx: b x - a x.
-  dy: b y - a y.
+  dx := b x - a x.
+  dy := b y - a y.
   dx isZero /\ [dy isZero]
     \/ [((p y * dx - p x * dy) - (a y * b x - a x * b y)) squared
 	   <= (epsilon squared * (dx squared + dy squared))]
@@ -171,7 +171,7 @@ Graphics define: #RegionUnion &parents: {RegionSet}.
 "The union of many regions."
 
 r@(Region traits) \/ s@(Region traits)
-[(RegionUnion new &capacity: 2) `>> [regions add: r. regions add: s. ]].
+[(RegionUnion new &capacity: 2) `>> [regions addAll: {r. s}. ]].
 
 ru@(RegionUnion traits) \/ r@(Region traits)
 [ru cloneSettingSlots: #{#regions} to: {ru regions copyWith: r}].
@@ -368,10 +368,11 @@ r@(Rectangle traits) origin: p@(Point traits) extent: q@(Point traits)
 r@(Rectangle traits) newEncompassing: c
 "Return a new Rectangle containing all the points of c."
 [| newO newC |
-  c do: [| :point |
-    newO ifNil: [newO: (newC: point)]
-         ifNotNil: [newO: (newO min: point).
-           newC: (newC max: point)]].
+  newO := newC := c first.
+  c allButFirstDo:
+    [| :point |
+     newO := newO min: point.
+     newC := newC max: point].
   r origin: newO corner: newC
 ].
 
@@ -492,8 +493,7 @@ r@(Rectangle traits) center
 
 r@(Rectangle traits) corners
 [
-  {r topLeft. r bottomLeft. r bottomRight. r topRight}
-    as: ExtensibleArray
+  ExtensibleArray new*, r topLeft, r bottomLeft, r bottomRight, r topRight
 ].
 
 r@(Rectangle traits) innerCorners
@@ -509,18 +509,18 @@ r@(Rectangle traits) areasOutside: q@(Rectangle traits)
 "Return a collection of rectangles not intersecting q."
 [| areas oy cy |
   r origin <= q corner /\ [q origin <= r corner]
-    ifFalse: [^ ({r} as: ExtensibleArray)].
-  areas: (ExtensibleArray new &capacity: 3).
+    ifFalse: [^ (ExtensibleArray new*, r)].
+  areas := ExtensibleArray new &capacity: 3.
   q origin y > r origin y
     ifTrue: [areas addLast:
       (r origin: r origin
-	 corner: (r origin x <> (oy: q origin y)))]
-    ifFalse: [oy: r origin y].
+	 corner: (r origin x <> (oy := q origin y)))]
+    ifFalse: [oy := r origin y].
   q corner y < r corner y
     ifTrue: [areas addLast:
-      (r origin: (r origin x <> (cy: q corner y))
+      (r origin: (r origin x <> (cy := q corner y))
 	 corner: q corner)]
-    ifFalse: [cy: r corner y].
+    ifFalse: [cy := r corner y].
   q origin x > r origin x
     ifTrue: [areas addLast:
       (r origin: (r origin x <> yo)
@@ -543,16 +543,17 @@ r@(Rectangle traits) + p@(Point2D traits)
 ].
 
 r@(Rectangle traits) - q@(Rectangle traits)
-[RegionUnion cloneSettingSlots: #{#regions} to: {r areasOutside: q}].
+[RegionUnion clone `>> [regions := r areasOutside: q. ]].
 
 r@(Rectangle traits) /\ q@(Rectangle traits)
 [| left right top bottom |
-  left: (q origin x max: r origin x).
-  top: (q origin y max: r origin y).
-  right: (q corner x min: r corner x).
-  bottom: (q corner y min: r corner y).
-  left > right \/ [top > bottom] ifTrue: [^ Nowhere]
-  r origin: left <> top corner: right <> bottom
+  left := q origin x max: r origin x.
+  top := q origin y max: r origin y.
+  right := q corner x min: r corner x.
+  bottom := q corner y min: r corner y.
+  left > right \/ [top > bottom]
+    ifTrue: [Nowhere]
+    ifFalse: [r origin: left <> top corner: right <> bottom]
 ].
 
 r@(Rectangle traits) encompass: p@(Point traits)
@@ -573,14 +574,14 @@ r@(Rectangle traits) mergeWithAll: col
 "An optimized (non-allocating) method for merging many rectangles at once.
 Use this over merge: whenever possible."
 [| minX maxX minY maxY |
-  minX: r origin x. minY: r origin y.
-  maxX: r corner x. maxY: r corner y.
+  minX := r origin x. minY := r origin y.
+  maxX := r corner x. maxY := r corner y.
   col do: [| :each |
-	     minX: (each origin x min: minX).
-	     minY: (each origin y min: minY).
-	     maxX: (each corner x max: maxX).
-	     maxY: (each corner y max: maxY)].
-  r origin: (minX <> minY) corner: (maxX <> maxY)
+	     minX := each origin x min: minX.
+	     minY := each origin y min: minY.
+	     maxX := each corner x max: maxX.
+	     maxY := each corner y max: maxY].
+  r origin: minX <> minY corner: maxX <> maxY
 ].
 
 r@(Rectangle traits) contains: p@(Point traits)
@@ -615,13 +616,13 @@ Graphics define: #Path &parents: {Trace}
   &slots: {#points -> ExtensibleArray new}.
 
 p@(Path traits) copy
-[resend `>> [points: p points copy. ]].
+[resend `>> [points := p points copy. ]].
 
 s@(Sequence traits) as: p@(Path traits)
-[p copy `>> [points: (s collect: [| :each | each as: Point]). ]].
+[p copy `>> [points := s collect: [| :each | each as: Point]. ]].
 
 p@(Path traits) newFrom: start to: end
-[p copy `>> [points: ({start. end} as: p points). ]].
+[p copy `>> [points := {start. end} as: p points. ]].
 
 p@(Path traits) start
 [
@@ -638,10 +639,10 @@ Graphics define: #LineSegment &parents: {Trace} &slots: {#start. #end}.
 
 line1@(LineSegment traits) = line2@(LineSegment traits)
 [| s1 s2 e1 e2 |
-  s1: line1 start.
-  s2: line2 start.
-  e1: line1 end.
-  e2: line2 end.
+  s1 := line1 start.
+  s2 := line2 start.
+  e1 := line1 end.
+  e2 := line2 end.
   (s1 = s2 /\ [e1 = e2]) \/
     [s1 = e2 /\ [e1 = s2]]
 ].
@@ -652,8 +653,8 @@ line@(LineSegment traits) newFrom: start to: end
 p@(Path traits) segments
 "Answer the LineSegments that compose the Path."
 [| newOC ps |
-  ps: p points size.
-  newOC: (ExtensibleArray new &capacity: ps - 1).
+  ps := p points size.
+  newOC := ExtensibleArray new &capacity: ps - 1.
   1 below: ps do: [| :each |
     newOC add: (LineSegment newFrom: (p points at: each - 1) to: (p points at: each))].
   newOC
@@ -690,12 +691,11 @@ _@(Polygon traits) dimensions
 
 path@(Path traits) as: poly@(Polygon traits)
 "Coerce the path to be closed while converting."
-[| newP |
-  newP: (poly cloneSettingSlots: #{#points}
-	      to: {path points as: (poly points new &capacity: path points size + 1)}).
-  path isClosed
-    ifFalse: [newP points add: path points first].
-  newP
+[
+  poly clone `>>
+    [points := path isClosed
+       ifTrue: [path points]
+       ifFalse: [path points copyWith: path points first]. ]
 ].
 
 path@(Path traits) close
@@ -711,19 +711,19 @@ poly@(Polygon traits) contains: p@(Point traits)
 from (X,Y) to (+infinity,Y).  If there are an odd number of crossings,
 (X,Y) is considered to be inside the Polygon."
 [| crossings lastPoint testBlock |
-  crossings: 0.
-  lastPoint: poly first.
-  testBlock: [| :a :b |
+  crossings := 0.
+  lastPoint := poly first.
+  testBlock := [| :a :b |
 		(p x <= a y eqv: p y > b y) "The segment crosses the ray."
 		  /\ [a y ~= b y]
 		  /\ [(p x - a x) -
 			  ((p y - a y) * (b x - a x)) / (b y - a y) < 0]
 		"The point is to the left."
-		   ifTrue: [crossings: crossings + 1]].
+		   ifTrue: [crossings := crossings + 1]].
   1 below: poly size
     do: [| :index thisPoint |
-	 thisPoint: (poly at: index)
+	 thisPoint := poly at: index.
 	 testBlock applyWith: thisPoint with: lastPoint.
-	 lastPoint: thisPoint].
+	 lastPoint := thisPoint].
   crossings isOdd
 ].
