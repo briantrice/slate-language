@@ -444,7 +444,7 @@ c@(Sequence traits) replaceFrom: start with: replacement
 "Destructively modify the Sequence, beginning at start, with all the elements
 of the replacement that will fit."
 [
-  c replaceFrom: start to: start + replacement size - 1 with: replacement
+  c replaceFrom: start to: start + replacement indexLast with: replacement
 ].
 
 c@(Sequence traits) swap: index1 with: index2
@@ -460,8 +460,8 @@ c@(Sequence traits) ; d@(Sequence traits)
 "Concatenates the two Sequences, answering the result."
 [| result |
   result := (c newSize: c size `cache + d size).
-  result replaceFrom: 0 to: c size - 1 with: c.
-  result replaceFrom: c size to: result size - 1 with: d.
+  result replaceFrom: 0 to: c indexLast with: c.
+  result replaceFrom: c size to: result indexLast with: d.
   result
 ].
 
@@ -675,7 +675,7 @@ s@(Sequence traits) splitWith: obj &count: count &includeEmpty: empties
   empties \/ [keyEnd > 0] ifTrue: [subSeqs add: (s copyFrom: 0 to: keyEnd - 1)].
   [keyEnd < s size] whileTrue:
     [count isNotNil /\ [subSeqs size >= count] ifTrue:
-      [subSeqs add: (s copyFrom: keyEnd to: s size - 1).
+      [subSeqs add: (s copyFrom: keyEnd to: s indexLast).
       ^ subSeqs].
     keyStart := ((s indexOf: obj startingAt: keyEnd ifAbsent: [keyEnd]) + 1).
     keyEnd := (s indexOf: obj startingAt: keyStart ifAbsent: [s size]).
@@ -692,7 +692,7 @@ the given delimiting characters."
   keyEnd := 0.
   [keyEnd < s size]
     whileTrue: [count isNotNil /\ [subSeqs size >= count]
-                  ifTrue: [subSeqs add: (s copyFrom: keyEnd to: s size - 1).
+                  ifTrue: [subSeqs add: (s copyFrom: keyEnd to: s indexLast).
                     ^ subSeqs].
                 keyStart := (s indexPastAll: delims startingAt: keyEnd).
                 keyEnd := (s indexOfAny: delims startingAt: keyStart).
