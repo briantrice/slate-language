@@ -32,7 +32,7 @@ Obtaining Slate
 ---------------
 
 To get a slate repository on your computer to play with, run:
-    git clone git://repo.or.cz/cslatevm.git
+    git://github.com/briantrice/slate-language.git
 
 Setup
 -----
