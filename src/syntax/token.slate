@@ -84,8 +84,7 @@ parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
   parser nonInteractivelyDo:
     [([| :statements token |
        statements nextPut: parser nextAsStatementOrNil.
-       [token := parser nextToken.
-	token isSameAs: Syntax EndParenthesis]
+       [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
              statements nextPut: parser nextAsStatementOrNil]]
@@ -107,8 +106,7 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
 [
   parser nonInteractivelyDo:
     [([| :statements token |
-       [token := parser peekToken.
-	token isSameAs: Syntax EndArray]
+       [(token := parser peekToken) isSameAs: Syntax EndArray]
           whileFalse:
             [statements nextPut: parser nextAsStatementOrNil.
              token := parser peekToken.

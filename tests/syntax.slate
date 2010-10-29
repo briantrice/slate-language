@@ -1,7 +1,7 @@
-UnitTests addPrototype: #Syntax derivedFrom: {TestCase}.
+UnitTests define: #Syntax &parents: {TestCase} &slots: {
+  #inputFileName -> ('src/syntax/writer.slate' as: File Locator).
+}.
 "Test the Slate parser"
-
-UnitTests Syntax addSlot: #inputFileName valued: ('src/syntax/writer.slate' as: File Locator).
 
 t@(UnitTests Syntax traits) parseFile: file into: statements
 [
@@ -12,10 +12,10 @@ t@(UnitTests Syntax traits) parseFile: file into: statements
 
 t@(UnitTests Syntax traits) countStatements: statements
 [| count |
-  count: 0.
+  count := 0.
   statements do: [| :statement |
-          count: count + 1.
-                    statement walk: [| :node | count: count + 1]].
+    count := count + 1.
+    statement walk: [| :node | count := count + 1]].
   count
 ].
 
@@ -27,31 +27,30 @@ t@(UnitTests Syntax traits) writeStatements: statements into: buffer
 ].
 
 t@(UnitTests Syntax traits) testParsingAndWriting
-[ | originalStatements originalCount buffer1 statements1 count1 buffer2 statements2 count2 |
-  originalStatements: ExtensibleArray new.
-  statements1: ExtensibleArray new.
-  statements2: ExtensibleArray new.
-  buffer1: '' writer.
-  buffer2: '' writer.
+[| originalStatements originalCount buffer1 statements1 count1 buffer2 statements2 count2 |
+  originalStatements := ExtensibleArray new.
+  statements1 := ExtensibleArray new.
+  statements2 := ExtensibleArray new.
+  buffer1 := '' writer.
+  buffer2 := '' writer.
 
   "Parse original file"
   t parseFile: t inputFileName into: originalStatements.
-  originalCount: (t countStatements: originalStatements).
+  originalCount := t countStatements: originalStatements.
   t writeStatements: originalStatements into: buffer1.
 
   "Parse output of the first write"
   (Syntax Parser newOn: buffer1 contents reader) >> statements1 writer.
-  count1: (t countStatements: statements1).
+  count1 := t countStatements: statements1.
   t writeStatements: statements1 into: buffer2.
 
   "Parse output of second write"
   (Syntax Parser newOn: buffer2 contents reader) >> statements2 writer.
-  count2: (t countStatements: statements2).
+  count2 := t countStatements: statements2.
 
   t assert: count1 = count2 description: ('Statement count mismatch after parsing writer output: ' ; (count1 as: String) ; ' ~= ' ; (count2 as: String)).
   t assert: buffer1 contents = buffer2 contents description: 'Buffer contents mismatch'.
 ].
-
 
 t@(UnitTests Syntax traits) suite
 [t suiteForSelectors: {

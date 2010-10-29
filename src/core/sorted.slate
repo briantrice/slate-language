@@ -101,16 +101,15 @@ will not change, use the minimally-checking addLast: method vice addAll:."
 
 sc@(SortedArray traits) copyWith: obj
 "Non-destructively append, but don't use addLast: as ExtensibleArray does."
-[| newC |
-  (newC := sc copy) add: obj.
-  newC
+[
+  sc copy `>> [add: obj. ]
 ].
 
 sc@(SortedArray traits) copyFrom: start to: end
 "Copy the range into a new SortedArray which keeps the same sortBlock."
 [| newC |
   end < start \/ [sc isEmpty] ifTrue: [^ sc new].
-  newC := (sc new &capacity: end - start + 1).
+  newC := sc new &capacity: end - start + 1.
   start to: end do: [| :index | newC addLast: (sc at: index)].
   newC
 ].
@@ -121,7 +120,7 @@ sc@(SortedArray traits) reversed
 sc@(SortedArray traits) collect: block
 "Override in order to return an ExtensibleArray instead of a SortedArray."
 [| newC |
-  newC := (ExtensibleArray newSizeOf: sc).
+  newC := ExtensibleArray newSizeOf: sc.
   sc do: [| :each | newC addLast: (block applyWith: each)].
   newC
 ].
@@ -168,8 +167,7 @@ end, otherwise replace the element at that point with obj. This returns the
 destination index in any normal case. This operation does preserve the
 sort order."
 [| index |
-  index := (sc indexForInserting: obj).
-  index > sc indexLast
+  (index := sc indexForInserting: obj) > sc indexLast
     ifTrue: [sc addLast: obj. sc indexLast]
     ifFalse: [(sc at: index) = obj ifFalse:
       [sc contents at: index + sc firstIndex put: obj. index]]
