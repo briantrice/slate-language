@@ -12,30 +12,28 @@ ann@(Syntax Annotation traits) macroExpand &environment: env
 "Return the annotation node, but replace the expression that the node
 annotates with its expansion."
 [| expansion |
-  expansion := (ann value macroExpand &environment: env).
+  expansion := ann value macroExpand &environment: env.
   ann value == expansion ifFalse: [ann value := expansion].
   ann
 ].
 
 macro@(Syntax Macro traits) macroExpand &optionals: opts &environment: env
-"Simply apply the macro-method to its arguments. The generated nodes 
+"Simply apply the macro-method to its arguments. The generated nodes
 inherit the macro node's debugging information."
 [| expansion |
   macro selector = #macroExpand ifTrue:
-    [error: 'Cannot macroExpand `macroExpand. Use `(expr) macroExpand instead'. 
+    [error: 'Cannot macroExpand `macroExpand. Use `(expr) macroExpand instead'.
       ^ macro].
-  opts :=
-    (opts 
-      ifNil: [#{}]
-      ifNotNil:
-        [[| :result |
-           opts keywords with: opts arguments
-             do: [| :key :arg | result nextPutAll: {key. arg}]
-         ] writingAs: Array]).
-  expansion := 
-    ((macro selector sendTo: macro arguments 
-      &optionals: (opts ; {#&environment:. env})) 
-        macroExpand &environment: env). 
+  opts := opts
+    ifNil: [#{}]
+    ifNotNil:
+      [[| :result |
+        opts keywords with: opts arguments
+          do: [| :key :arg | result nextPutAll: {key. arg}]] writingAs: #{}].
+  expansion :=
+    (macro selector sendTo: macro arguments
+      &optionals: (opts ; {#&environment:. env}))
+        macroExpand &environment: env.
   macro lineNumber
     ifNotNil:
       [expansion walk:
@@ -50,30 +48,28 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
 [| expansion |
   "Ensure macro expansions properly refer to Variables."
   env ifNotNil:
-    [expansion := (env linkVariablesIn: message).
+    [expansion := env linkVariablesIn: message.
       message == expansion
         ifFalse: [^ (expansion macroExpand &optionals: opts &environment: env)]].
   message arguments
     doWithIndex:
       [| :argument :index |
-        expansion := (argument macroExpand &environment: env).
-        argument == expansion
-          ifFalse:
-            [message arguments at: index put: expansion]].
+       expansion := argument macroExpand &environment: env.
+       argument == expansion
+         ifFalse: [message arguments at: index put: expansion]].
   opts
     ifNil:
       [message]
     ifNotNil:
       [opts message == message
-        ifFalse:
-          [opts message := message].
-        opts arguments
+         ifFalse: [opts message := message].
+       opts arguments
          doWithIndex:
            [| :argument :index |
-            expansion := (argument macroExpand &environment: env).
-             argument == expansion
-               ifFalse:
-                 [opts arguments at: index put: expansion]].
+            expansion := argument macroExpand &environment: env.
+            argument == expansion
+              ifFalse:
+                [opts arguments at: index put: expansion]].
         opts]
 ].
 
@@ -90,7 +86,7 @@ Arrays, Blocks, and Parentheses."
   group statements
     doWithIndex:
       [| :statement :index expansion |
-        expansion := (statement macroExpand &environment: env).
+        expansion := statement macroExpand &environment: env.
         statement == expansion
           ifFalse:
             [group statements at: index put: expansion]].
@@ -112,45 +108,41 @@ method@(Syntax MethodDefinition traits) macroExpand &environment: env
   method roles
     doWithIndex:
       [| :role :index |
-        role
-          ifNotNil:
-            [| expansion |
-	     expansion := (role macroExpand &environment: env).
-             role == expansion
-               ifFalse: [method roles at: index put: expansion]]].
+       role
+         ifNotNil:
+           [| expansion |
+	    expansion := role macroExpand &environment: env.
+            role == expansion
+              ifFalse: [method roles at: index put: expansion]]].
   resend
 ].
 
 load@(Syntax LoadVariable traits) macroExpand &environment: env
 [
   env
-    ifNil:
-      [load]
-    ifNotNil:
-      [env linkVariablesIn: load]
+    ifNil: [load]
+    ifNotNil: [env linkVariablesIn: load]
 ].
 
 store@(Syntax StoreVariable traits) macroExpand &environment: env
 "Expand the value to be stored."
 [| expansion |
   env ifNotNil:
-    [expansion := (env linkVariablesIn: store).
-      store == expansion
-        ifFalse: [^ (expansion macroExpand &environment: env)]].
-  expansion := (store value macroExpand &environment: env).
+    [expansion := env linkVariablesIn: store.
+     store == expansion
+       ifFalse: [^ (expansion macroExpand &environment: env)]].
+  expansion := store value macroExpand &environment: env.
   store value == expansion
-    ifFalse:
-      [store value := expansion].
+    ifFalse: [store value := expansion].
   store
 ].
 
 ret@(Syntax Return traits) macroExpand &environment: env
 "Expand the value to be returned."
 [| expansion |
-  expansion := (ret value macroExpand &environment: env).
+  expansion := ret value macroExpand &environment: env.
   ret value == expansion
-    ifFalse:
-      [ret value := expansion].
+    ifFalse: [ret value := expansion].
   ret
 ].
 
@@ -170,8 +162,8 @@ b@(Syntax Block traits) linkVariablesIn: load@(Syntax LoadVariable traits)
           [Syntax UnaryMessage sending: load variable name to: {Syntax ImplicitArgument}]
         ifNotNilDo:
           [| :var |
-            load variable := var.
-            load]]
+           load variable := var.
+           load]]
 ].
 
 b@(Syntax Block traits) linkVariablesIn: store@(Syntax StoreVariable traits)
@@ -198,8 +190,7 @@ b@(Syntax Block traits) linkVariablesIn: msg@(Syntax UnaryMessage traits)
     ifNil:
       [msg]
     ifNotNilDo:
-      [| :var |
-        Syntax LoadVariable from: var]
+      [| :var | Syntax LoadVariable from: var]
 ].
 
 b@(Syntax Block traits) linkVariablesIn: msg@(Syntax KeywordMessage traits)
@@ -211,8 +202,7 @@ b@(Syntax Block traits) linkVariablesIn: msg@(Syntax KeywordMessage traits)
     ifNil:
       [msg]
     ifNotNilDo:
-      [| :var |
-        Syntax StoreVariable of: msg arguments second into: var]
+      [| :var | Syntax StoreVariable of: msg arguments second into: var]
 ].
 
 parent@(Syntax Block traits) linkVariablesIn: child@(Syntax Block traits)

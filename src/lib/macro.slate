@@ -47,11 +47,11 @@ same body with the roles reversed."
     ifTrue: [def]
     ifFalse:
       [{def.
-    def deepCopy `>>
-      [| :newDef |
-       roles: newDef roles reversed.
-       inputVariables: newDef inputVariables reversed.
-       ]} parenthesize]
+        def deepCopy `>>
+          [| :newDef |
+           roles: newDef roles reversed.
+           inputVariables: newDef inputVariables reversed.
+          ]} parenthesize]
 ].
 
 def@(Syntax MethodDefinition traits) alias: newName
@@ -274,7 +274,7 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
   env ifNil: [error: 'Cannot match a collection outside of a method'].
   keyword:
     (keyword 
-      ifNil: [keyword: #with:]
+      ifNil: [#with:]
       ifNotNil: [keyword evaluate]).
   elements: elements evaluate sort.
   tmpVar: env addVariable.
@@ -346,12 +346,21 @@ load@(Syntax LoadVariable traits) setTo: val
 [Syntax StoreVariable of: val into: load variable].
 
 literal@(Syntax Literal traits) setTo: val
-[
-  (literal value is: Symbol) \/ [literal value is: String]
+[| lhs |
+  lhs: literal value.
+  (lhs is: Symbol) \/ [lhs is: String]
     ifTrue:
-      [literal value: literal value intern.
-       Syntax KeywordMessage sending: #addSlot:valued: to: {Syntax ImplicitArgument. literal. val}]
-    ifFalse: [error: 'Assignment to literals not implemented.']
+      [literal value: lhs intern.
+       Syntax KeywordMessage
+         sending: #addImmutableSlot:valued:
+         to: {Syntax ImplicitArgument. literal. val}]
+    ifFalse:
+      [(lhs is: Integer)
+         ifTrue: [Syntax KeywordMessage
+                    sending: #at:put:
+                    to: {Syntax ImplicitArgument. literal. val}]
+         ifFalse:
+           [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
 ].
 
 message@(Syntax UnaryMessage traits) setTo: val
@@ -371,15 +380,15 @@ message@(Syntax KeywordMessage traits) setTo: val
       {#atSlotNamed: -> [#atSlotNamed:put:].
        #at: -> [#at:put:].
        #byteAt: -> [#byteAt:put:].
-       #wordAt: -> [#wordAt:put:]}
-              otherwise:
-            [| selectorWithPut |
-             selectorWithPut: (message selector name ; 'put:').
-             selectorWithPut isInterned ifTrue:
-               [selectorWithPut intern]]])
-  ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
-  ifNotNilDo:
-    [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+       #wordAt: -> [#wordAt:put:].
+   } otherwise:
+     [| selectorWithPut |
+      selectorWithPut: (message selector name ; 'put:').
+      selectorWithPut isInterned ifTrue:
+        [selectorWithPut intern]]])
+    ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
 node@(Syntax Node traits) defaultsTo: value

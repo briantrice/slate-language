@@ -256,7 +256,7 @@ opts@(Syntax nodes OptionalKeywords traits) walk: block
 
 opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 [
-  opts message := (opts message transformBy: block).
+  opts message := opts message transformBy: block.
   opts arguments infect: [| :argument | argument transformBy: block].
   opts
 ].
@@ -294,7 +294,7 @@ rest@(Syntax nodes RestArguments traits) walk: block
 
 rest@(Syntax nodes RestArguments traits) transformChildren: block
 [
-  rest message := (rest message transformBy: block).
+  rest message := rest message transformBy: block.
   rest arguments infect: [| :argument | argument transformBy: block].
   rest
 ].
@@ -769,8 +769,8 @@ method@(Syntax nodes MethodDefinition traits) transformChildren: block
 method@(Syntax nodes MethodDefinition traits) deepCopy: scope &into: target
 [
   resend `>>
-    [roles := (method roles
-               collect: [| :role | role ifNotNil: [role deepCopy: scope]]). ]
+    [roles := method roles
+       collect: [| :role | role ifNotNil: [role deepCopy: scope]]. ]
 ].
 
 method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
