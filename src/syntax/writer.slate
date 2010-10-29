@@ -159,12 +159,17 @@ w@(Syntax SourceWriter traits) print: node@(Syntax Message traits)
   w
 ].
 
+w@(Syntax SourceWriter traits) print: node@(Syntax MessageWrapper traits)
+[
+  w print: node message
+].
+
 w@(Syntax SourceWriter traits) print: node@(Syntax OptionalKeywords traits)
 [| closeParen |
   closeParen := False.
   w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
   w withSurroundingArity: -1 do:
-    [w print: node message].
+    [resend].
   w withSurroundingArity: 2 do:
     [node keywords with: node arguments do:
       [| :selector :argument |
@@ -182,7 +187,7 @@ w@(Syntax SourceWriter traits) print: node@(Syntax RestArguments traits)
   closeParen := False.
   w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
   w withSurroundingArity: -1 do:
-    [w print: node message].
+    [resend].
   w withSurroundingArity: 2 do:
     [node arguments do:
       [| :argument |
@@ -192,6 +197,16 @@ w@(Syntax SourceWriter traits) print: node@(Syntax RestArguments traits)
           w printAsArgument: argument]]].
   closeParen ifTrue: [w ; ')'].
   w
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Placeholder traits)
+[
+  w ; '_'
+].
+
+w@(Syntax SourceWriter traits) print: node@(Syntax Partial traits)
+[
+  resend
 ].
 
 w@(Syntax SourceWriter traits) isDefaultLastStatement: node

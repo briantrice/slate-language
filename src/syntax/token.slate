@@ -157,15 +157,22 @@ _@(Syntax tokens BeginLiteralParenthesis traits) signifier ['#('].
 Syntax tokens define: #BeginPartial &parents: {Syntax tokens Control}.
 
 parser nextFrom: _@(Syntax tokens BeginPartial traits)
-[
+[| statements |
   parser nonInteractivelyDo:
-    [([| :statements token |
+    [statements := [| :statements token |
        statements nextPut: parser nextAsStatementOrNil.
        [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
              statements nextPut: parser nextAsStatementOrNil]]
-       writingAs: #{}) as: Syntax Partial]
+       writingAs: #{}.
+     statements infect:
+       [| :statement |
+        statement transformBy: [| :node | node as: Syntax Placeholder].
+        Syntax Partial for: statement].
+     statements size = 1
+       ifTrue: [statements first]
+       ifFalse: [statements parenthesize]]
 ].
 
 _@(Syntax tokens BeginPartial traits) signifier ['#('].

@@ -225,8 +225,6 @@ Syntax nodes define: #UnaryDeferred &parents: {Syntax nodes Deferred}.
 Syntax nodes define: #BinaryDeferred &parents: {Syntax nodes Deferred}.
 Syntax nodes define: #KeywordDeferred &parents: {Syntax nodes Deferred}.
 
-Syntax nodes define: #Placeholder &parents: {Syntax nodes Node}.
-
 Syntax nodes define: #MessageWrapper &parents: {Syntax nodes Node}
   &slots: {#message}.
 
@@ -318,6 +316,23 @@ rest@(Syntax nodes RestArguments traits) evaluateIn: namespace &optionals: opts
     &optionals: opts
 ].
 
+Syntax nodes define: #Placeholder &parents: {Syntax nodes Node}.
+
+node@(Syntax nodes Node traits) as: _@(Syntax nodes Placeholder traits)
+[
+  node
+].
+
+node@(Syntax nodes UnaryMessage traits) as: ph@(Syntax nodes Placeholder traits)
+[
+  node selector = #_ ifTrue: [ph] ifFalse: [node]
+].
+
+ph@(Syntax nodes Placeholder traits) evaluateIn: namespace &optionals: opts
+[
+  ph
+].
+
 Syntax nodes define: #Partial &parents: {Syntax nodes MessageWrapper}.
 "Partial nodes are just like regular message-sends, except having only
 some arguments filled initially at parse-time. They may be treated as
@@ -328,6 +343,19 @@ w@(Syntax nodes Partial traits) keywords
 
 w@(Syntax nodes Partial traits) values
 [w message arguments].
+
+w@(Syntax nodes Partial traits) isComplete
+[
+  w walk: [| :node | node == Syntax Placeholder ifTrue: [^ False]].
+  True
+].
+
+w@(Syntax nodes Partial traits) evaluateIn: namespace &optionals: opts
+[
+  w isComplete
+    ifTrue: [w message evaluateIn: namespace &optionals: opts]
+    ifFalse: [w]
+].
 
 Syntax nodes define: #Literal &parents: {Syntax nodes Node} &slots: {#value}.
 "The syntax for a literal Slate object, i.e. something the Lexer can create
