@@ -38,12 +38,11 @@ that as starting index, or Nil if there is none."
   (m roleTable at: index) ifNotNilDo:
     [| :selector |
      EmbeddedRoleEntry
-       clone `setting:
-	 #{#selector. #rolePositions. #methodDefinition. #nextRoleIndex}
-       to: {selector.
-	    m roleTable at: index + 1.
-	    m roleTable at: index + 2.
-	    m roleTable at: index + 3}]
+       clone `>>
+         [selector := selector.
+          rolePositions := m roleTable at: index + 1.
+          methodDefinition := m roleTable at: index + 2.
+          nextRoleIndex := m roleTable at: index + 3. ]]
 ].
 
 Map traits define: #RoleReadStream &parents: {PeekableStream}
@@ -89,19 +88,7 @@ m@(Map RoleReadStream traits) next
     [result := m map roleInTableAt: m index.
      m index := m index + 4.
      result ifNotNil: [^ result]].
-  m exhaustion
-].
-
-x@(Root traits) roles
-"Answers all the roles applying to the object."
-[((x roleReader select: [| :role | role isNotNil]) >> #{} writer) contents].
-
-x@(Root traits) rolesAt: dispatchIndex
-"Answer the roles applying to the object at the given argument dispatch index."
-[
-  ((x roleReader select:
-    [| :role | role isNotNil /\ [role appliesToPosition: dispatchIndex]])
-    >> #{} writer) contents
+  m exhausted
 ].
 
 x@(Root traits) roleIndices
@@ -115,48 +102,68 @@ x@(Root traits) roleIndices
      [| :isRole :index | isRole ifTrue: [result nextPut: index]]] writingAs: #{}
 ].
 
+x@(Root traits) rolesSatisfying: testBlock &into: collection
+[
+  ((x roleReader select: testBlock) >> (collection ifNil: [#{}]) writer) contents
+].
+
+x@(Root traits) roles
+"Answers all the roles applying to the object."
+[
+  x rolesSatisfying: [| :role | role isNotNil]
+].
+
+x@(Root traits) rolesAt: dispatchIndex
+"Answer the roles applying to the object at the given argument dispatch index."
+[
+  x rolesSatisfying: [| :role | role isNotNil /\ [role appliesToPosition: dispatchIndex]]
+].
+
 x@(Root traits) rolesNamed: selector
 "Answer the roles applying to the object for the given selector, in any
 position. This will not return duplicates."
 [
-  ((x roleReader select:
-    [| :role | role isNotNil /\ [role selector == selector]])
-     >> IdentitySet new writer) contents
+  x rolesSatisfying: [| :role | role isNotNil /\ [role selector == selector]]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) rolesNamed: selector at: dispatchIndex
 "Answer the roles applying to the object for the given selector, in the given
 position. This will not return duplicates."
 [
-  ((x roleReader select:
+  x rolesSatisfying:
     [| :role | role isNotNil /\ [role selector == selector] /\
-       [role appliesToPosition: dispatchIndex]])
-    >> IdentitySet new writer) contents
+                 [role appliesToPosition: dispatchIndex]]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) methods
 [x roles collect: [| :r | r methodDefinition method]].
 
+x@(Root traits) methodsSatisfying: testBlock &into: collection
+[
+  (((x roleReader select: testBlock) collect: [| :r | r methodDefinition method])
+     >> (collection ifNil: [#{}]) writer) contents
+].
+
 x@(Root traits) accessorMethods
 [| selectors |
   selectors := x slotNames collect: [| :s | x accessorNameFor: s].
-  (((x roleReader select: [| :r | selectors includes: r selector])
-		 collect: [| :r | r methodDefinition method])
-    >> IdentitySet new writer) contents
+  x methodsSatisfying: [| :r | selectors includes: r selector]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) mutatorMethods
 [| selectors |
   selectors := x slotNames collect: [| :s | x mutatorNameFor: s].
-  (((x roleReader select: [| :r | selectors includes: r selector])
-		 collect: [| :r | r methodDefinition method])
-    >> IdentitySet new writer) contents
+  x methodsSatisfying: [| :r | selectors includes: r selector]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) methodsNamed: selector
 [
-  (x rolesNamed: selector) select:
-    [| :r | r selector = selector] collect: [| :r | r methodDefinition method]
+  x methodsSatisfying: [| :r | r selector = selector]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) hasMethodNamed: selector
@@ -184,11 +191,10 @@ x@(Root traits) methodsAt: dispatchIndex
 
 x@(Root traits) methodsSending: selector
 [
-  ((x roleReader select:
+  x methodsSatisfying:
     [| :r | r isNotNil /\
-       [r methodDefinition method allSelectorsSent includes: selector]])
-      >> [| :r | r methodDefinition method]
-      >> IdentitySet new writer) contents
+              [r methodDefinition method allSelectorsSent includes: selector]]
+    &into: IdentitySet new
 ].
 
 x@(Root traits) methodsSendingMacro: selector
