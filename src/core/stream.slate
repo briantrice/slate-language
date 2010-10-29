@@ -661,18 +661,18 @@ only returning or acting on elements that satisfy the test."
 not relying on the source stream being repositionable."
 
 s@(Stream traits) select: block
-[(FilterStream newOn: s) `>> [block: block. ]].
+[(FilterStream newOn: s) `>> [block := block. ]].
 
 s@(Stream traits) reject: block
-[(FilterStream newOn: s) `>> [block: [| :x | (block applyWith: x) not]. ]].
+[(FilterStream newOn: s) `>> [block := [| :x | (block applyWith: x) not]. ]].
 
 s@(FilterStream traits) next: n putInto: seq startingAt: start
 [| numWritten |
-  numWritten: 0.
+  numWritten := 0.
   [s source isAtEnd \/ [numWritten >= seq size]] whileFalse:
     [s source skipUntil: [| :elem | s block applyWith: elem].
      [s source isAtEnd not /\ [numWritten < seq size /\ [s block applyWith: s peek]]]
-       whileTrue: [result nextPut: s next. numWritten: numWritten + 1]].
+       whileTrue: [result nextPut: s next. numWritten := numWritten + 1]].
   numWritten
 ].
 
@@ -685,14 +685,14 @@ returning the block's result for each."
 s@(CollectStream traits) collectionType [Array].
 
 s@(ReadStream traits) collect: block
-[(CollectStream newOn: s) `>> [block: block. ]].
+[(CollectStream newOn: s) `>> [block := block. ]].
 
 s@(CollectStream traits) numAvailable [s source numAvailable].
 
 s@(CollectStream traits) next: n putInto: seq startingAt: start
 [| buffer numRead |
-  buffer: (s source collectionType newSize: n).
-  numRead: (s source next: n putInto: buffer startingAt: 0).
+  buffer := s source collectionType newSize: n.
+  numRead := s source next: n putInto: buffer startingAt: 0.
   0 below: numRead do:
     [| :index | seq at: index + start put: (s block apply*, (buffer at: index))].
   numRead
@@ -709,19 +709,19 @@ s@(Stream traits) inject: init into: accumulator
 
 s@(InjectStream traits) next: n putInto: seq startingAt: start
 [| buffer numRead |
-  buffer: (s collectionType newSize: n).
-  numRead: (s source next: n putInto: buffer startingAt: 0).
+  buffer := s collectionType newSize: n.
+  numRead := s source next: n putInto: buffer startingAt: 0.
   0 below: numRead do:
     [| :index |
      buffer at: index put:
-       (s currentValue: (s accumulator apply*, s currentValue, (buffer at: index)))].
+       (s currentValue := s accumulator apply*, s currentValue, (buffer at: index))].
   seq replaceFrom: start below: start + numRead with: buffer.
   numRead
 ].
 
 s@(InjectStream traits) last
 [| result |
-  [s isAtEnd] whileFalse: [result: s next].
+  [s isAtEnd] whileFalse: [result := s next].
   result
 ].
 
