@@ -11,10 +11,15 @@ c1@(Sequence traits) ;; c2@(Sequence traits)
 "Build a cord concatenation out of any 2 sequences,
 or lazily answer an argument if the other is empty."
 [
-  c1 isEmpty ifTrue: [^ c2].
-  c2 isEmpty ifTrue: [^ c1].
-  Cord clone `setting: #{#split. #firstBranch. #secondBranch. #size}
-       to: {c1 size. c1. c2. c1 size + c2 size}
+  `conditions: (
+    [c1 isEmpty] -> [c2].
+    [c2 isEmpty] -> [c1]
+  ) otherwise: [
+    Cord clone `>>
+      [split := c1 size.
+       firstBranch := c1.
+       secondBranch := c2.
+       size := c1 size + c2 size. ]]
 ].
 
 c1@(Sequence traits) ;; c2@(Cord traits)
