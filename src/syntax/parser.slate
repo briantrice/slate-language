@@ -161,6 +161,11 @@ p@(Syntax Parser traits) nextAsStatement
   expression
 ].
 
+p@(Syntax Parser traits) nextAsStatementOrNil
+[
+  p nextAsStatement ifNil: [Syntax Literal Nil]
+].
+
 p@(Syntax Parser traits) next
 "The top-level Stream processing to return the next syntax node."
 [| statement token terminatesCorrectly |
@@ -433,11 +438,11 @@ p@(Syntax Parser traits) nextBlock &updating: block
               /\ [(block optionalVariables includes: var) not]
               /\ [block restVariable ~== var]]).
        statements := #{} writer.
-       statements nextPut: (p nextAsStatement ifNil: [Syntax Literal Nil]).
+       statements nextPut: p nextAsStatementOrNil.
        [token := p nextToken. token isSameAs: Syntax EndBlock]
          whileFalse:
            [p check: token is: p EndBlockStatementTokens.
-            statements nextPut: (p nextAsStatement ifNil: [Syntax Literal Nil])]]].
+            statements nextPut: p nextAsStatementOrNil]]].
   block statements := statements contents.
   block
 ].

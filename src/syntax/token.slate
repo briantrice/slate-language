@@ -83,13 +83,12 @@ parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
 [
   parser nonInteractivelyDo:
     [([| :statements token |
-       statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
+       statements nextPut: parser nextAsStatementOrNil.
        [token := parser nextToken.
 	token isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
-             statements nextPut:
-               (parser nextAsStatement ifNil: [Syntax Literal Nil])]]
+             statements nextPut: parser nextAsStatementOrNil]]
        writingAs: #{}) as: Syntax Parenthesis]
 ].
 
@@ -111,8 +110,7 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
        [token := parser peekToken.
 	token isSameAs: Syntax EndArray]
           whileFalse:
-            [statements nextPut:
-	       (parser nextAsStatement ifNil: [Syntax Literal Nil]).
+            [statements nextPut: parser nextAsStatementOrNil.
              token := parser peekToken.
              parser check: token is: parser EndArrayStatementTokens.
              (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
@@ -162,13 +160,11 @@ parser nextFrom: _@(Syntax tokens BeginPartial traits)
 [
   parser nonInteractivelyDo:
     [([| :statements token |
-       statements nextPut: (parser nextAsStatement ifNil: [Syntax Literal Nil]).
-       [token := parser nextToken.
-	token isSameAs: Syntax EndParenthesis]
+       statements nextPut: parser nextAsStatementOrNil.
+       [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
-             statements nextPut:
-               (parser nextAsStatement ifNil: [Syntax Literal Nil])]]
+             statements nextPut: parser nextAsStatementOrNil]]
        writingAs: #{}) as: Syntax Partial]
 ].
 
