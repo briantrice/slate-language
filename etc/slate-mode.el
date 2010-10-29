@@ -155,7 +155,7 @@
   "The collection of characters that can compose a Slate binary selector.")
 
 (defconst slate-binop-regexp
-  (concat "\\([" slate-binop-chars "]\{1,3\}\\)" slate-name-regexp "*\\([" slate-binop-chars "]\{1,3\}\\)")
+  (concat "\\([" slate-binop-chars "]+\\|[" slate-binop-chars "]+[" slate-name-chars "]*[" slate-binop-chars "]+\\)")
   "A regular expression that matches a Slate binary selector")
 
 (defconst slate-keyword-regexp
@@ -257,8 +257,8 @@
     ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
      . font-lock-builtin-face)        ; globals
-    ;(,(concat "\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
-    ; . font-lock-function-name-face) ; method call
+;;     (,(concat "\\<" slate-binop-regexp "\\>")
+;;      . font-lock-string-face) ; binary message send
    )
   "Slate highlighting matchers.")
 
