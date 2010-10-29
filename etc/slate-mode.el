@@ -149,17 +149,17 @@
 
 (defconst slate-globals-regexp
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
-        "resend" "clone" "here" "it") 'words))
+        "resend" "clone" "here" "it" "_") 'words))
 
 (defconst slate-binop-chars "-+*/\\~;<>=&?"
   "The collection of characters that can compose a Slate binary selector.")
 
 (defconst slate-binop-regexp
-  (concat "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)" slate-name-regexp "\\([" slate-binop-chars "]\\{1,3\\}\\|||\\)")
+  (concat "\\([" slate-binop-chars "]\{1,3\}\\)" slate-name-regexp "*\\([" slate-binop-chars "]\{1,3\}\\)")
   "A regular expression that matches a Slate binary selector")
 
 (defconst slate-keyword-regexp
-  (concat "\\([-" slate-name-chars "_][-" slate-name-chars "_:]*:\\| :[^A-Za-z]\\)")
+  (concat "\\([-" slate-name-chars "_]+[-" slate-name-chars "_:]*:\\| :[^A-Za-z]+\\)")
   "A regular expression that matches a Slate keyword")
 
 (defconst slate-opt-keyword-regexp (concat "&" slate-keyword-regexp)
@@ -209,11 +209,6 @@
     table)
   "Slate character types")
 
-(defconst slate-array-face 'bold
-  "The face for Slate array braces.")
-(defconst slate-keyword-face 'bold
-  "The face for keywords in Slate message-sends.")
-
 (defconst bold 'bold
   "Emacs requires this; ugly.")
 
@@ -227,25 +222,24 @@
     (,(concat "[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x" hexdigit-regexp hexdigit-regexp "[^\\]\\)")
      . font-lock-string-face)        ; character
     ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
+    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp "[:]?\\)")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
     ("\\(=?:=\\|\\<^\\)\\>"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; assignment/match/unify/return specials
+      'font-lock-keyword-face)) ; assignment/match/unify/return specials
     ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; quotation syntax
     (,slate-opt-keyword-regexp
      . font-lock-variable-name-face)    ; optional keywords
-    ("#?{" . ,slate-array-face)        ; array
-    ("}" . ,slate-array-face)
     ("\\(?:_\\|[A-Za-z]+[_A-Za-z0-9]*\\)@+?"
      . font-lock-variable-name-face)    ; declaration dispatchings
-    (,slate-keyword-regexp . ,slate-keyword-face) ; keyword sends
+    (,slate-keyword-regexp
+     . font-lock-keyword-face) ; keyword sends
     ("|[A-Za-z0-9:&_*!() \n]*|"
      . font-lock-variable-name-face)    ; block local slots
     ("\\<\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
@@ -262,7 +256,7 @@
      . font-lock-type-face)        ; traits name
     ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
-     . font-lock-keyword-face)        ; globals
+     . font-lock-builtin-face)        ; globals
     ;(,(concat "\\(" slate-binop-regexp "\\|" slate-name-regexp ":?\\)")
     ; . font-lock-function-name-face) ; method call
    )
