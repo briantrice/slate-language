@@ -405,6 +405,25 @@ s@(PeekableStream traits) nextDelimitedBy: separatorBlock
   s nextUntil: separatorBlock
 ].
 
+s@(PeekableStream traits) skipUntil: condition
+"Move the position forward until the condition is satisfied."
+[
+  [s isAtEnd \/ [condition apply*, s peek]] whileFalse: [s next]
+].
+
+s@(PeekableStream traits) skipWhile: condition
+"Move the position forward until the condition is no longer satisfied."
+[
+  [s isAtEnd \/ [(condition apply*, s peek) not]] whileFalse: [s next]
+].
+
+s@(PeekableStream traits) skipTo: obj
+"Move the position forward until the object is found. This returns whether
+it was found or the end was reached before then."
+[
+  s skipUntil: [| :elem | elem = obj]
+].
+
 streams define: #PositionableStream &parents: {PeekableStream}
   &slots: {#position -> 0. #readLimit -> 0}.
 "PositionableStreams have an index and iterate over some sequenced collection,
@@ -565,25 +584,6 @@ s@(PositionableStream traits) skip: n
 [
   s position := s position + n.
   s
-].
-
-s@(PositionableStream traits) skipUntil: condition
-"Move the position forward until the condition is satisfied."
-[
-  [s isAtEnd \/ [condition apply*, s peek]] whileFalse: [s next]
-].
-
-s@(PositionableStream traits) skipWhile: condition
-"Move the position forward until the condition is no longer satisfied."
-[
-  [s isAtEnd \/ [(condition apply*, s peek) not]] whileFalse: [s next]
-].
-
-s@(PositionableStream traits) skipTo: obj
-"Move the position forward until the object is found. This returns whether
-it was found or the end was reached before then."
-[
-  s skipUntil: [| :elem | elem = obj]
 ].
 
 s@(PositionableStream traits) setFrom: start to: end

@@ -46,7 +46,7 @@ that as starting index, or Nil if there is none."
 	    m roleTable at: index + 3}]
 ].
 
-Map traits define: #RoleReadStream &parents: {ReadStream}
+Map traits define: #RoleReadStream &parents: {PeekableStream}
   &slots: {#map. #index -> 0 "The raw index into the role table."}.
 "An in-order traversal stream over the role-table in a Map, returning
 EmbeddedRoleEntry objects."
@@ -68,16 +68,20 @@ m@(Map RoleReadStream traits) isAtEnd
 "there isn't an easy way with the way this is designed to see if we are at the end.
 so we take the current location and go through the list manually and see if there is
 another entry later on before we get to the end of the array."
-m@(Map RoleReadStream traits) isAtEnd
-[ | result index |
+m@(Map RoleReadStream traits) peek
+[| result index |
   index := m index.
   [index > m map roleTable indexLast] whileFalse:
     [result := m map roleInTableAt: index.
      index := index + 4.
-     result ifNotNil: [^ False]].
-  True
+     result ifNotNil: [^ result]].
+  Nil
 ].
 
+m@(Map RoleReadStream traits) isAtEnd
+[
+  m peek isNotNil
+].
 
 m@(Map RoleReadStream traits) next
 [| result |
