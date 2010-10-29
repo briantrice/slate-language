@@ -31,11 +31,16 @@ r@(EmbeddedRoleEntry traits) nextRole
   r nextRoleIndex ifNotNilDo: [| :index | r table at: index]
 ].
 
+m@(Map traits) hasRoleInTableAt: index
+[
+  (m roleTable at: index ifAbsent: [Nil]) isNotNil
+].
+
 m@(Map traits) roleInTableAt: index
 "Takes a raw index into the RoleTable array and answers a RoleEntry object with
 that as starting index, or Nil if there is none."
 [
-  (m roleTable at: index) ifNotNilDo:
+  (m roleTable at: index ifAbsent: [Nil]) ifNotNilDo:
     [| :selector |
      EmbeddedRoleEntry
        clone `>>
@@ -71,9 +76,8 @@ m@(Map RoleReadStream traits) peek
 [| result index |
   index := m index.
   [index > m map roleTable indexLast] whileFalse:
-    [result := m map roleInTableAt: index.
-     index := index + 4.
-     result ifNotNil: [^ result]].
+    [(m map hasRoleInTableAt: index) ifTrue: [^ (m map roleInTableAt: index)].
+     index := index + 4].
   Nil
 ].
 
@@ -162,13 +166,13 @@ x@(Root traits) mutatorMethods
 
 x@(Root traits) methodsNamed: selector
 [
-  x methodsSatisfying: [| :r | r selector = selector]
+  x methodsSatisfying: [| :r | r isNotNil /\ [r selector = selector]]
     &into: IdentitySet new
 ].
 
 x@(Root traits) hasMethodNamed: selector
 [
-  x roleReader anySatisfy: [| :role | role selector == selector]
+  x roleReader anySatisfy: [| :role | role isNotNil /\ [role selector == selector]]
 ].
 
 x@(Root traits) methodsNamed: selector at: dispatchIndex
