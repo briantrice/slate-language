@@ -67,9 +67,8 @@ when possible by making very cheap comparisons first."
 [
   c == d
     \/ [c size = d size
-	  /\ [c do: [| :each |
-		     (d includes: each) ifFalse: [^ False]].
-	      c containsNil eqv: d containsNil]]
+	  /\ [c containsNil eqv: d containsNil]
+	  /\ [c allSatisfy: [| :each | (d includes: each)]]]
 ].
 
 c@(Set traits) copy
@@ -109,7 +108,7 @@ c@(Set traits) atRandomBy: random
 c@(Set traits) include: obj
 "Ensure that the object is a member of the Set by adding it if not found."
 [| index |
-  index := (c scanFor: obj).
+  index := c scanFor: obj.
   (c contents at: index) ifNil: [c atNewIndex: index put: obj].
   obj
 ].
@@ -118,12 +117,14 @@ c@(Set traits) include: _@Nil [c containsNil := True. ].
 
 c@(Set traits) remove: obj ifAbsent: block
 [| index |
-  index := (c scanFor: obj).
-  (c contents at: index) ifNil: [^ block do].
-  c contents at: index put: Nil.
-  c tally := c tally - 1.
-  c fixCollisionsFrom: index.
-  obj
+  index := c scanFor: obj.
+  (c contents at: index)
+    ifNil: [block do]
+    ifNotNil:
+      [c contents at: index put: Nil.
+       c tally := c tally - 1.
+       c fixCollisionsFrom: index.
+       obj]
 ].
 
 c@(Set traits) remove: _@Nil ifAbsent: block
@@ -143,9 +144,9 @@ c@(Set traits) collect: block
 c@(Set traits) do: block
 [
   c containsNil ifTrue: [block applyWith: Nil].
-  c tally = 0 ifTrue: [^ c].
-  c contents do:
-    [| :each | each ifNotNil: [block applyWith: each]].
+  c tally = 0 ifFalse:
+    [c contents do:
+       [| :each | each ifNotNil: [block applyWith: each]]].
 ].
 
 c@(Set traits) doWithIndex: block
@@ -174,9 +175,9 @@ placed below due to collisions with this one."
   length := c capacity.
   [oldIndex := oldIndex + 1.
     oldIndex >= length ifTrue: [oldIndex := 1].
-    (element := (c keyAt: oldIndex)) isNil]
+    (element := c keyAt: oldIndex) isNil]
       whileFalse:
-        [newIndex := (c scanFor: element).
+        [newIndex := c scanFor: element.
         oldIndex = newIndex ifFalse: [c swap: oldIndex with: newIndex]].
   c
 ].
@@ -201,7 +202,7 @@ c@(Set traits) growBy: growthAmount
 elements with the non-checking method."
 [| oldElems |
   oldElems := c contents.
-  c contents := (c contents new &capacity: c contents size + growthAmount).
+  c contents := c contents new &capacity: c contents size + growthAmount.
   c tally := 0.
   oldElems do: [| :each |
     each ifNotNil: [c noCheckAdd: each]].
@@ -259,10 +260,11 @@ found. Override this to provide different matching criteria."
 [| element start end block |
   end := c contents size.
   start := (c hashBlock applyWith: obj) \\ end.
-  block := [| :index |
-	  (element := (c contents at: index)) isNil
-	    \/ [c equalsBlock applyWith: element with: obj]
-          ifTrue: [^ index]].
+  block :=
+    [| :index |
+     (element := c contents at: index) isNil
+       \/ [c equalsBlock applyWith: element with: obj]
+       ifTrue: [^ index]].
   "Search from the hash MOD size to the end."
   start below: end do: block.
   "Search from the beginning."
