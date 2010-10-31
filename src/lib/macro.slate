@@ -22,6 +22,19 @@ can apply it to the number of arguments the Symbol can take as a selector."
   block
 ].
 
+n@(Syntax Partial traits) er &environment: env
+[| block message |
+  block: n surroundings Block new.
+  message: n message copy.
+  message arguments infect:
+    [| :arg |
+     ({n surroundings Placeholder. n surroundings ImplicitArgument} includes: arg)
+       ifTrue: [n surroundings LoadVariable from: block addInputVariable]
+       ifFalse: [arg]].
+  block statements: {message}.
+  block
+].
+
 expr@(Syntax Node traits) er &environment: method
 [(expr surroundings Literal for: (expr evaluateIn: method)) er].
 
