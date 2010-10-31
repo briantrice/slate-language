@@ -344,6 +344,14 @@ w@(Syntax nodes Partial traits) keywords
 w@(Syntax nodes Partial traits) values
 [w message arguments].
 
+w@(Syntax nodes Partial traits) arity
+[| count placeholders |
+  count := 0.
+  placeholders := {Syntax Placeholder. Syntax ImplicitArgument}.
+  w walk: [| :node | (placeholders includes: node) ifTrue: [count := count + 1]].
+  count
+].
+
 w@(Syntax nodes Partial traits) isComplete
 [
   w walk: [| :node | node == Syntax Placeholder ifTrue: [^ False]].
