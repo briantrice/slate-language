@@ -46,10 +46,12 @@ the attribute selector to each argument."
   attribSelector: attribute value.
   (selector is: Symbol) /\ [attribSelector is: Symbol]
     ifFalse: [error: '`erOnKey: may only use a Symbol literal.'].
-  block: n surroundings Block new.
-  block statements: {n surroundings Message sending: selector to:
-    ([n surroundings UnaryMessage sending: attribSelector to: {n surroundings LoadVariable from: block addInputVariable}] reader next: selector arity)}.
-  block
+  n surroundings Block new `>>
+    [| :block |
+     statements: {n surroundings Message sending: selector to:
+                    ([n surroundings UnaryMessage sending: attribSelector to:
+                        {n surroundings LoadVariable from: block addInputVariable}]
+                       reader next: selector arity)}. ]
 ].
 
 def@(Syntax MethodDefinition traits) commutatively

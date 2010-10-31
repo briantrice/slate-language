@@ -23,40 +23,36 @@ _@(Syntax ImplicitArgument traits) inferTypesIn: namespace
 
 ann@(Syntax Annotation traits) inferTypesIn: namespace
 [
-  ann type := (ann value inferTypesIn: namespace)
+  ann type := ann value inferTypesIn: namespace
 ].
 
 message@(Syntax Message traits) inferTypesIn: namespace
 [
-"inform: ('inferTypes: ' ; message printString ; ' type: ' ; message type printString)."
   message type == Types Any
+    ifTrue:
+      [message type := message selector inferOn:
+         (message arguments
+            collect: [| :argument | argument inferTypesIn: namespace])]
     ifFalse:
-      [message arguments
-        do: [| :argument | argument inferTypesIn: namespace].
-        ^ message type].
-  message
-    type :=
-      (message selector
-        inferOn:
-          (message arguments
-            collect: [| :argument | argument inferTypesIn: namespace]))
+      [message arguments do:
+         [| :argument | argument inferTypesIn: namespace].
+       message type]
 ].
 
 opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
 [| msgType |
   msgType := opts message inferTypes. 
-  opts arguments
-    do: [| :argument | argument inferTypesIn: namespace].
+  opts arguments do: 
+    [| :argument | argument inferTypesIn: namespace].
   opts type == Types Any
-    ifTrue:
-      [opts type := msgType].
-  opts type
+    ifTrue: [opts type := msgType]
+    ifFalse: [opts type]
 ].
 
 paren@(Syntax Parenthesis traits) inferTypesIn: namespace
 [
-  paren statements
-    do: [| :statement | statement inferTypesIn: namespace].
+  paren statements do:
+    [| :statement | statement inferTypesIn: namespace].
   paren type == Types Any /\ [paren statements isNotEmpty]
     ifTrue: [paren type := paren statements last type]
     ifFalse: [paren type]
@@ -69,32 +65,30 @@ var@(Syntax Variable traits) inferTypesIn: namespace
 
 block@(Syntax Block traits) inferTypesIn: namespace
 [| resultType |
-  block localVariables
-    do: [| :var | var inferTypesIn: namespace].
+  block localVariables do:
+    [| :var | var inferTypesIn: namespace].
   resultType := Types Any.
-  block statements
-    do: [| :statement | resultType := (statement inferTypesIn: namespace)].
+  "TODO: handle Return with a Union operation."
+  block statements do:
+    [| :statement | resultType := statement inferTypesIn: namespace].
   block type == Types Any
     ifTrue: 
-      [block type :=
-        (Types Block
-              from:
-                (block inputVariables
+      [block type := Types Block
+         from: (block inputVariables
                   collect: [| :variable | variable type])
-              to: resultType)]
+         to: resultType]
     ifFalse: [block type]
 ].
 
 array@(Syntax Array traits) inferTypesIn: namespace
 [
-  array statements
-    do: [| :statement | statement inferTypesIn: namespace].
+  array statements do:
+    [| :statement | statement inferTypesIn: namespace].
   array type == Types Any
     ifTrue:
-      [array type :=
-        (Types Array of:
-          (array statements
-            inject: Types None into: [| :x :y | x union: y type]))]
+      [array type := Types Array of:
+         (array statements
+            inject: Types None into: [| :x :y | x union: y type])]
     ifFalse: [array type]
 ].
 
@@ -106,7 +100,7 @@ obj@(Root traits) literalTypeIn: _
 literal@(Syntax Literal traits) inferTypesIn: namespace
 [
   literal type == Types Any
-    ifTrue: [literal type := (literal value literalTypeIn: namespace)]
+    ifTrue: [literal type := literal value literalTypeIn: namespace]
     ifFalse: [literal type]
 ].
 
@@ -136,7 +130,6 @@ store@(Syntax StoreVariable traits) signalTypeMismatch
 store@(Syntax StoreVariable traits) inferTypesIn: namespace
 [
   store value inferTypesIn: namespace.
-  "inform: ('store ' ; store value type printString ; ' to ' ; store variable type printString)."
   (store variable type subsumes: store value type)
     ifFalse: [store signalTypeMismatch].
   store type == Types Any

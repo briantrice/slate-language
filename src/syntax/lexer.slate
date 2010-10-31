@@ -92,8 +92,7 @@ of the character."
   number := 0.
   [l hasMoreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter == $_]]] whileTrue:
     [| c |
-     c := l nextCharacter.
-     (c toDigit: radix) ifNotNilDo:
+     ((c := l nextCharacter) toDigit: radix) ifNotNilDo:
        [| :digit | number := number * radix + digit]].
   number
 ].
@@ -105,8 +104,7 @@ l@(Syntax Lexer traits) readMantissa: radix
   place := 1.
   [l hasMoreCharacters /\ [(l peekCharacter isDigit: radix) \/ [l peekCharacter == $_]]] whileTrue:
     [| c |
-     c := l nextCharacter.
-     (c toDigit: radix) ifNotNilDo:
+     ((c := l nextCharacter) toDigit: radix) ifNotNilDo:
        [| :digit |
 	number := number * radix + digit.
         place := place * radix]].
@@ -150,10 +148,9 @@ l@(Syntax Lexer traits) readNumber
     [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
   "Conditionalize on the next character: it may set up a radix or a decimal."
   (c := l nextCharacter) == $r \/ [c == $R] ifTrue:
-    [radix := number.
-     (radix between: 2 and: 36) ifFalse:
+    [((radix := number) between: 2 and: 36) ifFalse:
        [l error: 'Number radix must be between 2 and 36.'].
-     number := (l readInteger: radix).
+     number := l readInteger: radix.
      l hasMoreCharacters ifFalse:
        [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
      c := l nextCharacter].
@@ -307,8 +304,7 @@ l@(Syntax Lexer traits) next
 
 t@(Syntax tokens Token traits) readFrom: s
 [| next |
-  next := (Syntax Lexer newOn: s reader) next.
-  (next is: t)
+  ((next := (Syntax Lexer newOn: s reader) next) is: t)
     ifFalse: [error: 'The source did not parse into ' ; t printName asAn ; '.'].
   next
 ].

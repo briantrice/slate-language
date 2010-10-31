@@ -172,15 +172,14 @@ source code."
       [block: cascade].
   sourceVar: (block ifNil: [env]) addVariable.
   cascade transformBy:
-    [| :node |
-      node substitutingSlotsOf: sourceVar for: cascade inputVariables].
+    [| :node | node substitutingSlotsOf: sourceVar for: cascade inputVariables].
   body: {Syntax StoreVariable of: source into: sourceVar} ; cascade statements.
   block
     ifNil:
       [body as: Syntax Parenthesis]
     ifNotNil:
       [block localVariables: (block localVariables difference: block inputVariables).
-        block inputVariables: #{}.
-        block statements: body.
-        Syntax UnaryMessage sending: #do to: {block}]
+       block inputVariables: #{}.
+       block statements: body.
+       Syntax UnaryMessage sending: #do to: {block}]
 ].

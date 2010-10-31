@@ -109,8 +109,7 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
        [(token := parser peekToken) isSameAs: Syntax EndArray]
           whileFalse:
             [statements nextPut: parser nextAsStatementOrNil.
-             token := parser peekToken.
-             parser check: token is: parser EndArrayStatementTokens.
+             parser check: (token := parser peekToken) is: parser EndArrayStatementTokens.
              (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
        parser nextToken] writingAs: #{}) as: Syntax Array]
 ].
@@ -144,8 +143,7 @@ parser nextLiteralFrom: _@(Syntax tokens BeginLiteralParenthesis traits)
 [
   parser nonInteractivelyDo:
     [[| :elements token |
-      [token := parser peekToken.
-       token isSameAs: Syntax EndParenthesis]
+      [(token := parser peekToken) isSameAs: Syntax EndParenthesis]
          whileFalse: [elements nextPut: parser nextLiteral].
       parser nextToken] writingAs: #{}]
 ].
