@@ -222,7 +222,7 @@
     (,(concat "[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x" hexdigit-regexp hexdigit-regexp "[^\\]\\)")
      . font-lock-string-face)        ; character
     ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
-    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp "[:]?\\)")
+    (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp "[:]?\\)\\>")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-builtin-face)) ; macro call
