@@ -249,7 +249,7 @@ m@(Method traits) printOn: o@(PrettyPrinterMixin traits)
 [
   o ; '['.
   o ; (m selector ifNil: ['(arity: ' ; m arity printString ; ')']
-                  ifNotNilDo: [| :sel | sel name]).
+                  ifNotNilDo: #name `er).
   m optionalKeywords do: [| :kw | o ; ' ' ; kw name].
   o ; ']'.
 ].
@@ -414,8 +414,7 @@ input if the argument is a literal collection, such as an Array."
 c@(Sequence traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 "A basis for other printing methods."
 [
-  c do: [| :each | each printOn: o]
-    separatedBy: [block do].
+  c do: #(printOn: o) `er separatedBy: [block do].
   o
 ].
 

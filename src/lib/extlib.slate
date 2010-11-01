@@ -437,9 +437,10 @@ functions with them."
 
 h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader: leader
 [| newH |
-  newH := (h clone `setting: #{#library. #primitives. #specs} to:
-    {(h library newNamed: libName). h primitives new.
-     h library signaturesForDefs: primSpecs &typesIn: ExternalMethod ArgumentFormat}).
+  newH := h clone `setting: #{#library. #primitives. #specs} to:
+    {h library newNamed: libName.
+     h primitives new.
+     h library signaturesForDefs: primSpecs &typesIn: ExternalMethod ArgumentFormat}.
   leader ifNotNil: [newH leader := leader].
   newH
 ].
@@ -447,7 +448,10 @@ h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leade
 h@(ExternalInterface traits) enable
 [
   h library enable.
-  h library installMethodsForSigs: h specs on: (h primitives) &nameTransformer: #; `er <- h leader.
+  h library
+    installMethodsForSigs: h specs
+    on: (h primitives)
+    &nameTransformer: #(h leader ; _) `er.
   h
 ].
 

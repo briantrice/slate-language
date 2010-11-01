@@ -143,7 +143,7 @@ Override as necessary."
 
 x@(Root traits) printDelegates
 [
-  x traitsWindow _delegates do: [|:d| inform: d printName].
+  x traitsWindow _delegates do: [| :d | inform: d printName].
 ].
 
 x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn: basedOn
@@ -161,7 +161,7 @@ existing object. This is essentially a conservative object-slot tree builder."
     ifTrue:
       [(x atSlotNamed: slotName)
         ifNil: [x atSlotNamed: slotName put: new]
-        ifNotNilDo: [| :old | old addSlotsFromRecursively: new]]
+        ifNotNilDo: #(addSlotsFromRecursively: new) `er]
     ifFalse: [x addImmutableSlot: slotName valued: new].
   x atSlotNamed: slotName
 ].

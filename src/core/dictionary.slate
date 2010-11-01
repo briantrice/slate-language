@@ -19,7 +19,7 @@ d@(Dictionary traits) new &capacity: n
 d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
 [| result |
   result := d new &capacity: (keys size min: values size).
-  keys with: values do: [| :key :value | result at: key put: value].
+  keys with: values do: #(result at: _ put: _) `er.
   result
 ].
 
@@ -75,7 +75,7 @@ d@(Dictionary traits) addAll: map@(Mapping traits)
 for any Mapping, but that other collections will not do."
 [
   d == map ifFalse:
-    [map keysAndValuesDo: [| :key :value | d at: key put: value]].
+    [map keysAndValuesDo: #(d at: _ put: _) `er].
   map
 ].
 
@@ -168,7 +168,7 @@ d@(Dictionary traits) keySet
 [| result |
   result := Set newSizeOf: d.
   result equalsBlock := d equalsBlock.
-  d keysDo: [| :key | result add: key].
+  d keysDo: #(result add: _) `er.
   result
 ].
 
@@ -178,7 +178,7 @@ d@(Dictionary traits) valueSet
 [| result |
   result := Set newSizeOf: d.
   result equalsBlock := d equalsBlock.
-  d valuesDo: [| :value | result add: value].
+  d valuesDo: #(result add: _) `er.
   result
 ].
 
@@ -212,7 +212,7 @@ d@(Dictionary traits) keysAndValuesRemove: block
   removals := ExtensibleArray new.
   d keysAndValuesDo: [| :key :value | (block applyWith: key with: value)
       ifTrue: [removals add: key]].
-  removals do: [| :each | d removeKey: each].
+  removals do: #(d removeKey: _) `er.
   d
 ].
 
@@ -298,7 +298,7 @@ d@(Dictionary traits) noCheckAdd: assoc
 d@(Dictionary traits) growBy: growthAmount
 [| tempDict |
   tempDict := d new &capacity: d contents size + growthAmount.
-  d keysAndValuesDo: [| :key :value | tempDict noCheckAt: key put: value].
+  d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
   d contents := tempDict contents.
   d values := tempDict values.
   d
@@ -307,7 +307,7 @@ d@(Dictionary traits) growBy: growthAmount
 d@(Dictionary traits) rehash
 [| tempDict |
   tempDict := d newSameSize.
-  d keysAndValuesDo: [| :key :value | tempDict noCheckAt: key put: value].
+  d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
   d contents := tempDict contents.
   d values := tempDict values.
   d
@@ -333,6 +333,6 @@ x@(Root traits) slotNamesAndValues
 "Answers a Dictionary of the slot names and values from the argument."
 [| result |
   result := Dictionary new.
-  x slotNamesAndValuesDo: [| :name :value | result at: name put: value].
+  x slotNamesAndValuesDo: #(result at: _ put: _) `er.
   result
 ].

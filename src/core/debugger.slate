@@ -61,7 +61,7 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod
      parser currentScope := Syntax Namespace for: newD namespace.
      parser parseInteractively:
        ([repl parser parseInteractively]
-	  on: SeriousCondition do: [| :c | c return: False]).
+	  on: SeriousCondition do: #(return: False) `er).
      baseFramePointer := d interpreter framePointerOf: symbol.
      buildFrames. ]
 ].
@@ -97,7 +97,7 @@ d@(Debugger traits) describeRestarts
   d printer ; '\nAvailable Restarts:\n'.
   d restarts isEmpty
     ifTrue: [d printer ; '(none available)']
-    ifFalse: [d restarts keysDo: [| :index | d describeRestartAt: index]].
+    ifFalse: [d restarts keysDo: #(d describeRestartAt: _) `er].
 ].
 
 d@(Debugger traits) stackAt: x
@@ -224,17 +224,17 @@ f@(Debugger Frame traits) describeOn: out
   0 below: method inputVariables
     do: [| :i | out
 	   ; ' arg: ' ; i printString
-	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :local | local name])
+	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #name `er)
 	   ; ' -> ' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
   out ; 'Locals:\n'.
   method inputVariables below: method inputVariables + method localVariables
     do: [| :i | out
 	   ; ' arg: ' ; i printString
-	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :local | local name])
+	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #name `er)
 	   ; ' -> ' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
   out ; 'Registers:\n'.
   method inputVariables + method localVariables below: method registerCount
-    do: [|:i| out ; ' arg: ' ; i printString ; '\t' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
+    do: [| :i | out ; ' arg: ' ; i printString ; '\t' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
   out ; 'Decompiled: ' ; '\n'.
   method printInstructionsOn: out.
 ].
@@ -361,14 +361,14 @@ d@(Debugger traits) currentFrameAt: name
 [
   (d currentFrame stackOffsetForLocal: name)
     ifNil: [error: 'Input or Local Variable not found']
-    ifNotNilDo: [| :index | d currentFrameAt: index]
+    ifNotNilDo: #(d currentFrameAt: _) `er
 ].
 
 d@(Debugger traits) currentFrameAt: name put: val
 [
   (d currentFrame stackOffsetForLocal: name)
     ifNil: [error: 'Input or Local Variable not found']
-    ifNotNilDo: [| :index | d currentFrameAt: index put: val]
+    ifNotNilDo: #(d currentFrameAt: _ put: val) `er
 ].
 
 d@(Debugger traits) printFrame

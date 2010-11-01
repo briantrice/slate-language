@@ -71,7 +71,7 @@ c@(Collection traits) size
 "Tally up the number of elements in the Collection."
 [| tally |
   tally := 0.
-  c do: [| :each | tally: tally + 1].
+  c do: [| :each | tally := tally + 1].
   tally
 ].
 
@@ -330,19 +330,19 @@ elements causing the input block to return False."
 c@(Collection traits) copyWithout: obj
 "Return a new collection with all elements equal to the given ones removed."
 [
-  c reject: [| :each | each = obj]
+  c reject: #(= obj) `er
 ].
 
 c@(Collection traits) difference: d@(Collection traits)
 "Answer the subset of c that are not elements of d."
 [
-  c reject: [| :each | d includes: each]
+  c reject: #(d includes: _) `er
 ].
 
 c@(Collection traits) intersection: d@(Collection traits)
 "Answer a collection of kind c with elements that are common to both c and d."
 [
-  c select: [| :each | d includes: each]
+  c select: #(d includes: _) `er
 ].
 
 c@(Collection traits) /\ d@(Collection traits)
@@ -364,13 +364,13 @@ c@(Collection traits) \/ d@(Collection traits)
 c@(Collection traits) includes: obj
 "Return whether some object equal to the input is in the collection."
 [
-  c anySatisfy: [| :each | each = obj]
+  c anySatisfy: #(= obj) `er
 ].
 
 c@(Collection traits) identityIncludes: obj
 "Return whether the input object is in the collection."
 [
-  c anySatisfy: [| :each | each == obj]
+  c anySatisfy: #(== obj) `er
 ].
 
 c@(Collection traits) includesAllOf: d

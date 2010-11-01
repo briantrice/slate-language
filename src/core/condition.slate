@@ -91,7 +91,7 @@ c@(Condition traits) tryHandlers
                 [(conditionStack at: index) exitContinuation == context exitContinuation]]
                whileTrue.
              c exitContinuation := context exitContinuation.
-             context handlers do: [| :handler | handler applyWith: c]]].
+             context handlers do: #(applyWith: c) `er]].
    c defaultHandler 
 ].
 
@@ -105,7 +105,7 @@ c@(Condition traits) tryHandlers
         c == context
 	  ifTrue:
             [c exitContinuation := context exitContinuation.
-             context handlers do: [| :handler | handler applyWith: c]]].
+             context handlers do: #(applyWith: c) `er]].
    c defaultHandler 
 ].
 "
@@ -133,12 +133,12 @@ c@(Condition traits) exit
 block@(Method traits) breakOn: c
 "Breaks execution in case the given Condition is signaled within the block."
 [
-  block on: c do: [| :inst | inst exit].
+  block on: c do: #exit `er.
 ].
 
 block@(Method traits) ignoring: c
 [
-  block on: c do: [| :w | w return]
+  block on: c do: #return `er
 ].
 
 conditions define: #Restart &parents: {Condition} &slots: {#condition}.

@@ -102,9 +102,10 @@ Syntax nodes define: #Message &parents: {Syntax nodes Node}
 
 m@(Syntax nodes Message traits) prototypeFor: selector
 [
-  (Syntax isUnarySelector: selector) ifTrue: [^ Syntax UnaryMessage].
-  (Syntax isBinarySelector: selector) ifTrue: [^ Syntax BinaryMessage].
-  Syntax KeywordMessage
+  `conditions: (
+    [Syntax isUnarySelector: selector] -> [Syntax UnaryMessage].
+    [Syntax isBinarySelector: selector] -> [Syntax BinaryMessage]
+  ) otherwise: [Syntax KeywordMessage]
 ].
 
 message@(Syntax nodes Message traits) sending: selector to: arguments
@@ -136,13 +137,13 @@ message@(Syntax nodes Message traits) transformChildren: block
 
 message@(Syntax nodes Message traits) deepCopy: scope
 [message clone `setting: #{#arguments} to:
-   {message arguments collect: [| :argument | argument deepCopy: scope]}].
+   {message arguments collect: #(deepCopy: scope) `er}].
 
 message@(Syntax nodes Message traits) evaluateIn: namespace &optionals: opts
 "Overridden to support the evaluateIn: for ImplicitArgument."
 [
   message selector sendTo:
-    (message arguments collect: [| :argument | argument evaluateIn: namespace])
+    (message arguments collect: #(evaluateIn: namespace) `er)
     &optionals: opts
 ].
 
@@ -191,9 +192,10 @@ condition which is resumable via macro-expansion?)"
 
 m@(Syntax nodes Macro traits) prototypeFor: selector
 [
-  (Syntax isUnarySelector: selector) ifTrue: [^ Syntax UnaryMacro].
-  (Syntax isBinarySelector: selector) ifTrue: [^ Syntax BinaryMacro].
-  Syntax KeywordMacro
+  `conditions: (
+    [Syntax isUnarySelector: selector] -> [Syntax UnaryMacro].
+    [Syntax isBinarySelector: selector] -> [Syntax BinaryMacro]
+  ) otherwise: [Syntax KeywordMacro]
 ].
 
 Syntax nodes define: #UnaryMacro &parents: {Syntax nodes Macro}.
@@ -209,16 +211,17 @@ message@(Syntax nodes Message traits) deferred
 
 message@(Syntax nodes Deferred traits) evaluateIn: namespace &optionals: opts
 [
-  (message arguments collect: #evaluateIn: `er <-* namespace)
+  (message arguments collect: #(evaluateIn: namespace) `er)
     whenFulfilled: [| *args | 
       message selector sendTo: args &optionals: opts]
 ].
 
 m@(Syntax nodes Deferred traits) prototypeFor: selector
 [
-  (Syntax isUnarySelector: selector) ifTrue: [^ Syntax UnaryDeferred].
-  (Syntax isBinarySelector: selector) ifTrue: [^ Syntax BinaryDeferred].
-  Syntax KeywordDeferred
+  `conditions: (
+    [Syntax isUnarySelector: selector] -> [Syntax UnaryDeferred].
+    [Syntax isBinarySelector: selector] -> [Syntax BinaryDeferred]
+  ) otherwise: [Syntax KeywordDeferred]
 ].
 
 Syntax nodes define: #UnaryDeferred &parents: {Syntax nodes Deferred}.
@@ -249,7 +252,7 @@ opts@(Syntax nodes OptionalKeywords traits) walk: block
   block applyWith: opts.
   opts message walk: block.
   opts arguments
-    do: [| :argument | argument walk: block]
+    do: #(walk: block) `er
 ].
 
 opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
@@ -262,7 +265,7 @@ opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 opts@(Syntax nodes OptionalKeywords traits) deepCopy: scope
 [opts clone `setting: #{#message. #arguments} to:
   {opts message deepCopy: scope.
-   opts arguments collect: [| :argument | argument deepCopy: scope]}].
+   opts arguments collect: #(deepCopy: scope) `er}].
 
 opts@(Syntax nodes OptionalKeywords traits) evaluateIn: namespace
 [
@@ -301,7 +304,7 @@ rest@(Syntax nodes RestArguments traits) deepCopy: scope
 [
   rest clone `setting: #{#message. #arguments} to:
     {rest message deepCopy: scope.
-     rest arguments collect: [| :argument | argument deepCopy: scope]}
+     rest arguments collect: #(deepCopy: scope) `er}
 ].
 
 rest@(Syntax nodes RestArguments traits) allArguments
@@ -312,7 +315,7 @@ rest@(Syntax nodes RestArguments traits) allArguments
 rest@(Syntax nodes RestArguments traits) evaluateIn: namespace &optionals: opts
 [
   rest selector sendTo:
-    (rest allArguments collect: [| :argument | argument evaluateIn: namespace])
+    (rest allArguments collect: #(evaluateIn: namespace) `er)
     &optionals: opts
 ].
 
@@ -436,7 +439,7 @@ Syntax nodes define: #Array &parents: {Syntax nodes CompoundStatement}.
 
 group@(Syntax nodes Array traits) evaluateIn: namespace
 [
-  group statements collect: [| :statement | statement evaluateIn: namespace]
+  group statements collect: #(evaluateIn: namespace) `er
 ].
 
 Syntax nodes define: #Parenthesis &parents: {Syntax nodes CompoundStatement}.
@@ -671,16 +674,16 @@ b@(Syntax nodes Block traits) deepCopy: scope &into: target
    [| :newBlock |
     parentScope := scope.
     localVariables :=
-      (b localVariables collect:
-        [| :var newVar | var clone `setting: #{#scope} to: {newBlock}]).
+      b localVariables collect:
+        [| :var newVar | var clone `setting: #{#scope} to: {newBlock}].
     inputVariables :=
-      (b inputVariables collect: [| :var | newBlock findVariable: var name]).
+      b inputVariables collect: [| :var | newBlock findVariable: var name].
     optionalVariables :=
-      (b optionalVariables collect: [| :var | newBlock findVariable: var name]).
+      b optionalVariables collect: [| :var | newBlock findVariable: var name].
     restVariable :=
-      (b restVariable ifNotNil: [newBlock findVariable: b restVariable name]).
+      b restVariable ifNotNil: [newBlock findVariable: b restVariable name].
     statements :=
-      (b statements collect: [| :statement | statement deepCopy: newBlock]).
+      b statements collect: #(deepCopy: newBlock) `er.
   ]
 ].
 
@@ -702,7 +705,7 @@ dst@(Syntax nodes Block traits) addVariablesFrom: src@(Syntax nodes Block traits
 "Copies over the local variable entries from the source block to the
 destination. Answers the locals found."
 [
-  src localVariables do: #addVariable: `er <- dst
+  src localVariables do: #(dst addVariable: _) `er
 ].
 
 b@(Syntax nodes Block traits) modifiesOwnVariables
@@ -814,7 +817,7 @@ method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
 [
   resend
     asMethod: method selector
-    on: (method roles collect: [| :role | role evaluateIn: namespace])
+    on: (method roles collect: #(evaluateIn: namespace) `er)
 ].
 
 Syntax nodes define: #Variable &parents: {Syntax nodes Node}

@@ -439,7 +439,7 @@ l@(File Locator traits) reduce
    curIndex isNotNil] whileTrue: [l path removeAt: curIndex].
   "Now, remove all non-initial .. entries and those that precede them."
   "Find the first non-.. entry."
-  (curIndex := l path indexOfFirstSatisfying: #~= `er <-* l parentString)
+  (curIndex := l path indexOfFirstSatisfying: #(~= l parentString) `er)
     ifNotNil:
       [[(curIndex := l path indexOf: l parentString startingAt: curIndex)
           isNotNil]
@@ -453,7 +453,7 @@ the basePath by climbing up the number of parents as there are initial ..
 entries in the path."
 [
   resend.
-  (l path indexOfFirstSatisfying: #~= `er <-* l parentString)
+  (l path indexOfFirstSatisfying: #(~= l parentString) `er)
     ifNotNilDo: [| :numParents |
       numParents isPositive
         ifTrue: [l basePath := l basePath locator copy. l basePath path removeLast: numParents].

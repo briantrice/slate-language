@@ -25,8 +25,8 @@ x@(Sequence traits) = y@(Symbol traits)
 
 s@(Symbol traits) newNamed: name
 [| newS index mutator |
-  mutator := (#at:put: findOn: {'' traits}).
-  newS := (s newSizeOf: name).
+  mutator := #at:put: findOn: {'' traits}.
+  newS := s newSizeOf: name.
   index := 0.
   name do: [| :each | mutator apply*, newS, index, each. index := index + 1].
   newS
@@ -47,8 +47,8 @@ s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
     [lobby globals
        addImmutableSlot: #Symbols
        valued: (Dictionary new &capacity: bootstrapSymbols size * 2).
-     bootstrapSymbols
-       do: [| :each | globals Symbols at: each name put: each].
+     bootstrapSymbols do:
+       [| :each | globals Symbols at: each name put: each].
      "Remove the bootstrap kluge."
      #intern: removeMethodFrom: {lobby. ASCIIString traits}].
 
@@ -134,19 +134,19 @@ would take if used as a selector. Keyword selectors must end in a colon."
 [
   s isBinarySelector
     ifTrue: [2]
-    ifFalse: [(s endsWith: ':')
-		ifTrue: [1 + (s name count: [| :c | c = $:])]
+    ifFalse: [s last = $:
+		ifTrue: [1 + (s name count: #(= $:) `er)]
 		ifFalse: [1]]
 ].
 
 s@(globals Symbols) beginningWith: prefix
-[(s select: #beginsWith: `er <-* prefix) keySet].
+[(s select: #(beginsWith: prefix) `er) keySet].
 
 s@(globals Symbols) endingWith: suffix
-[(s select: #endsWith: `er <-* suffix) keySet].
+[(s select: #(endsWith: suffix) `er) keySet].
 
 s@(globals Symbols) containing: segment
-[(s select: #includesSubSeq: `er <-* segment) keySet].
+[(s select: #(includesSubSeq: segment) `er) keySet].
 
 ).
 
