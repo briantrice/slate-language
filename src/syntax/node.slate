@@ -325,7 +325,8 @@ node@(Syntax nodes Node traits) as: _@(Syntax nodes Placeholder traits)
 
 node@(Syntax nodes UnaryMessage traits) as: ph@(Syntax nodes Placeholder traits)
 [
-  node selector = #_ ifTrue: [ph] ifFalse: [node]
+  node selector = #_ /\ [node arguments first == Syntax ImplicitArgument]
+    ifTrue: [ph] ifFalse: [node]
 ].
 
 ph@(Syntax nodes Placeholder traits) evaluateIn: namespace &optionals: opts
