@@ -186,17 +186,17 @@ a@(AbstractMatrix traits) * b@(AbstractMatrix traits)
 
 mat@(AbstractMatrix traits) * x@(Number traits)
 [
-  mat copy infect: #* `er <-* x
+  mat copy infect: #(* x) `er
 ].
 
 mat@(AbstractMatrix traits) / x@(Number traits)
 [
-  mat copy infect: #/ `er <-* x
+  mat copy infect: #(/ x) `er
 ].
 
 x@(Number traits) * mat@(AbstractMatrix traits)
 [
-  mat copy infect: #* `er <-* x
+  mat copy infect: #(* x) `er
 ].
 
 a@(AbstractMatrix traits) + b@(AbstractMatrix traits)
@@ -208,12 +208,12 @@ a@(AbstractMatrix traits) + b@(AbstractMatrix traits)
 
 mat@(AbstractMatrix traits) + x@(Number traits)
 [
-  mat copy infect: #+ `er <-* x
+  mat copy infect: #(+ x) `er
 ].
 
 x@(Number traits) + mat@(AbstractMatrix traits)
 [
-  mat copy infect: #+ `er <-* x
+  mat copy infect: #(+ x) `er
 ].
 
 a@(AbstractMatrix traits) - b@(AbstractMatrix traits)
@@ -225,20 +225,20 @@ a@(AbstractMatrix traits) - b@(AbstractMatrix traits)
 
 mat@(AbstractMatrix traits) - x@(Number traits)
 [
-  mat copy infect: #- `er <-* x
+  mat copy infect: #(- x) `er
 ].
 
 x@(Number traits) - mat@(AbstractMatrix traits)
 [
-  mat copy infect: #- `er <- x
+  mat copy infect: #(- x) `er
 ].
 
 mat@(AbstractMatrix traits) eigenvaluesByQR
 "This only works if all the eigenvalues are real."
 [| h q r iter |
   h := mat hessenbergSuperior.
-  q := (Matrix newSizeOf: mat).
-  r := (Matrix newSizeOf: mat).
+  q := Matrix newSizeOf: mat.
+  r := Matrix newSizeOf: mat.
   iter := 0.
   [h isFirstSubDiagonalZero] whileFalse: [
     h storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r.
@@ -276,7 +276,7 @@ mat@(AbstractMatrix traits) maxEigenvalueAndEigenVectorByPowerMethod
       eigenvectorApprox := swap.
       eigenvectorApprox fillWith: mat multipliedBy: prevApprox.
       eigenvalueApprox := eigenvectorApprox norm2Squared sqrt.
-      eigenvectorApprox infect: #/ `er <-* eigenvalueApprox].
+      eigenvectorApprox infect: #(/ eigenvalueApprox) `er].
   {eigenvalueApprox. eigenvectorApprox}
 ].
 

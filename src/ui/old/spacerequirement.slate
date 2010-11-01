@@ -30,8 +30,8 @@ sr@(SpaceRequirement traits) reset
 "Resets all parameters, causing the defaults to be active."
 [
   sr `>>
-     [preferredWidth: Nil. preferredHeight: Nil.
-      maxX: Nil. maxY: Nil. minX: Nil. minY: Nil. ]
+     [preferredWidth := Nil. preferredHeight := Nil.
+      maxX := Nil. maxY := Nil. minX := Nil. minY := Nil. ]
 ].
 
 sr@(SpaceRequirement traits) minWidth
@@ -56,22 +56,22 @@ sr@(SpaceRequirement traits) maxHeight
 
 sr@(SpaceRequirement traits) minWidth: n
 [
-  sr minX: n
+  sr minX := n
 ].
 
 sr@(SpaceRequirement traits) minHeight: n
 [
-  sr minY: n
+  sr minY := n
 ].
 
 sr@(SpaceRequirement traits) maxWidth: n
 [
-  sr maxX: n
+  sr maxX := n
 ].
 
 sr@(SpaceRequirement traits) maxHeight: n
 [
-  sr maxY: n
+  sr maxY := n
 ].
 
 sr@(SpaceRequirement traits) preferredSize
@@ -81,15 +81,15 @@ sr@(SpaceRequirement traits) preferredSize
 
 sr@(SpaceRequirement traits) preferredSize: n@(Number traits)
 [
-  sr preferredX: n.
-  sr preferredY: n.
+  sr preferredX := n.
+  sr preferredY := n.
   n
 ].
 
 sr@(SpaceRequirement traits) preferredSize: p@(Point traits)
 [
-  sr preferredX: p x.
-  sr preferredY: p y.
+  sr preferredX := p x.
+  sr preferredY := p y.
   p
 ].
 
@@ -99,12 +99,12 @@ sr1@(SpaceRequirement traits) with: sr2@(SpaceRequirement traits)
 block to each pair of slots from the originals."
 [
   result `>>
-    [preferredWidth: (block applyTo: {r preferredWidth. sr2 preferredWidth}).
-     preferredHeight: (block applyTo: {r preferredHeight. sr2 preferredHeight}).
-     maxX: (block applyTo: {r maxWidth with: sr2 maxWidth}).
-     maxY: (block applyTo: {r maxHeight with: sr2 maxHeight}).
-     minX: (block applyTo: {r maxWidth with: sr2 maxWidth}).
-     minY: (block applyTo: {r maxHeight with: sr2 maxHeight}). ]
+    [preferredWidth := block applyTo: {r preferredWidth. sr2 preferredWidth}.
+     preferredHeight := block applyTo: {r preferredHeight. sr2 preferredHeight}.
+     maxX := block applyTo: {r maxWidth with: sr2 maxWidth}.
+     maxY := block applyTo: {r maxHeight with: sr2 maxHeight}.
+     minX := block applyTo: {r maxWidth with: sr2 maxWidth}.
+     minY := block applyTo: {r maxHeight with: sr2 maxHeight}. ]
 ].
 
 sr1@(SpaceRequirement traits) with: sr2@(SpaceRequirement traits) collect: block
@@ -119,12 +119,12 @@ sr@(SpaceRequirement traits) collect: block into: result
 block to each slot value in the original."
 [
   result `>>
-    [preferredWidth: (block applyWith: sr preferredWidth).
-     preferredHeight: (block applyWith: sr preferredHeight).
-     maxX: (block applyWith: sr maxWidth).
-     maxY: (block applyWith: sr maxHeight).
-     minX: (block applyWith: sr maxWidth).
-     minY: (block applyWith: sr maxHeight). ]
+    [preferredWidth := block applyWith: sr preferredWidth.
+     preferredHeight := block applyWith: sr preferredHeight.
+     maxX := block applyWith: sr maxWidth.
+     maxY := block applyWith: sr maxHeight.
+     minX := block applyWith: sr maxWidth.
+     minY := block applyWith: sr maxHeight. ]
 ].
 
 sr@(SpaceRequirement traits) collect: block
@@ -141,13 +141,13 @@ sr1@(SpaceRequirement traits) - sr2@(SpaceRequirement traits)
 [sr1 with: sr2 collect: #- `er ].
 
 sr@(SpaceRequirement traits) * n
-[sr collect: #* `er <-* n].
+[sr collect: #(* n) `er].
 
 sr@(SpaceRequirement traits) / n
-[sr collect: #/ `er <-* n].
+[sr collect: #(/ n) `er].
 
 sr@(SpaceRequirement traits) + n@(Number traits)
-[sr collect: #+ `er <-* n].
+[sr collect: #(+ n) `er].
 
 sr@(SpaceRequirement traits) - n@(Number traits)
-[sr collect: #- `er <-* n].
+[sr collect: #(- n) `er].

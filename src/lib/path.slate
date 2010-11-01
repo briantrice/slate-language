@@ -201,17 +201,18 @@ reach the same object."
 [| names this |
   names := path names new writer.
   this := path root.
-  path names do: [| :each |
-		  (each is: Integer)
-		    ifTrue: [this hasIndexedSlots /\ [this acceptsKey: each]
-			       ifTrue: [names nextPut: each]
-			       ifFalse: [each keyNotFoundOn: this]]
-		    ifFalse:
-		      [(this hasSlotNamed: each)
-			ifTrue: [(this hasDelegateNamed: each)
-				   ifFalse: [names nextPut: each].
-				 this := this atSlotNamed: each]
-			ifFalse: [this slotNotFoundNamed: each]]].
+  path names do:
+    [| :each |
+     (each is: Integer)
+       ifTrue: [this hasIndexedSlots /\ [this acceptsKey: each]
+		  ifTrue: [names nextPut: each]
+		  ifFalse: [each keyNotFoundOn: this]]
+       ifFalse:
+	 [(this hasSlotNamed: each)
+	    ifTrue: [(this hasDelegateNamed: each)
+		       ifFalse: [names nextPut: each].
+		     this := this atSlotNamed: each]
+	    ifFalse: [this slotNotFoundNamed: each]]].
   names contents isEmpty /\ [path names isEmpty not]
     ifTrue: [names nextPut: path names last].
   names contents as: path

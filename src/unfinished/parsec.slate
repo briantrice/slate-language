@@ -64,7 +64,7 @@ p@(Parsec Parser traits) >>= f@(Method traits)
 ].
 
 p@(Parsec Parser traits) >> q@(Parsec Parser traits)
-[p >>= [|:x| q]].
+[p >>= [| :x | q]].
 
 p@(Parsec Parser traits) fail: message
 [p newWithBlock:
@@ -85,7 +85,7 @@ p@(Parsec Parser traits) <or> q@(Parsec Parser traits)
 "character parsers"
 
 p@(Parsec Parser traits) char: c
-[p satisfy: (#=`er <- c)].
+[p satisfy: #(= c) `er].
 
 p@(Parsec Parser traits) satisfy: pred
 [p tokenStopgapWithBlock:
@@ -136,7 +136,7 @@ p@(Parsec Parser traits) manyAccum: accum@(Method traits)
 "Combinators"
 
 p@(Parsec Parser traits) many1
-[p >>= [| :x | p many >>= [|:xs| p return: {x} ;; xs]]].
+[p >>= [| :x | p many >>= [| :xs | p return: {x} ;; xs]]].
 
 p@(Parsec Parser traits) many
 [p many1 <or> (p return: #{})].

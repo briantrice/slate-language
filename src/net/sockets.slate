@@ -72,20 +72,20 @@ Net Socket Protocols `>> [
 
 s@(Net Socket traits) throwError: code
 [
-  SocketError new `>> [error := (Net Socket ErrorCodes Dictionary at: code). errorCode := code. signal]
+  SocketError new `>> [error := Net Socket ErrorCodes Dictionary at: code. errorCode := code. signal]
 ].
 
 s@(Net Socket traits) newFor: domain type: type protocol: proto
 [| return |
   return := s new.
-  (return handle := (domain socketCreate: type protocol: proto))
+  (return handle := domain socketCreate: type protocol: proto)
     isNegative ifTrue: [s throwError: return handle].
   return
 ].
 
 addr@(Net SocketAddress traits) newOn: array port: port
 [
-  addr new `>> [address := (addr domain createIPAddress: array port: port options: #{}). ]
+  addr new `>> [address := addr domain createIPAddress: array port: port options: #{}. ]
 ].
 
 _@(Net SocketAddress traits) forDomain: domain
@@ -96,23 +96,23 @@ _@(Net SocketAddress traits) forDomain: domain
 
 addr@(Net SocketAddress traits) separatePort: string@(String traits)
 [| regex |
-  regex := (Regex Matcher newOn: '^([^:]+)(\\:(\\d+))?$').
+  regex := Regex Matcher newOn: '^([^:]+)(\\:(\\d+))?$'.
   (regex match: string) = -11
-                        ifTrue: [{Nil. Nil}]
-                        ifFalse: [{regex subexpression: 0. regex subexpression: 2}]
+    ifTrue: [{Nil. Nil}]
+    ifFalse: [{regex subexpression: 0. regex subexpression: 2}]
 ].
 
 addr@(Net SocketAddress traits) newOn: string@(String traits)
 [| regex portIp array |
   "fixme ipv6.. we don't lookup the name here"
-  portIp := (addr separatePort: string).
+  portIp := addr separatePort: string.
   (portIp anySatisfy: #isNil `er) ifTrue: [error: 'unable to separate port and ip'].
-  regex := (Regex Matcher newOn: '^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$').
+  regex := Regex Matcher newOn: '^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$'.
   (regex match: portIp first) = -1
       ifTrue: [error: 'cannot get ip from string: ' ; string].
-  array := ({regex subexpression: 0. regex subexpression: 1. regex subexpression: 2. regex subexpression: 3. }
-            collect: #as: `er <-* Integer).
-  Net IP4Address new `>> [address := (Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #{}). ]
+  array := {regex subexpression: 0. regex subexpression: 1. regex subexpression: 2. regex subexpression: 3. }
+    collect: #(as: Integer) `er.
+  Net IP4Address new `>> [address := Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #{}. ]
 ].
 
 addr@(Net IP4Address traits) domain
@@ -167,14 +167,14 @@ s@(Net Socket traits) bindTo: sa@(Net SocketAddress traits)
 [| return |
   s handle isNegative
     ifTrue: [s throwError: Net Socket ErrorCodes Invalid]
-    ifFalse: [(return := (s handle socketBindOn: sa address))
+    ifFalse: [(return := s handle socketBindOn: sa address)
                 isNegative ifTrue: [s throwError: return].
               return]
 ].
 
 s@(Net Socket traits) listenSize: count
 [| return |
-  (return := (s handle socketListenSize: count))
+  (return := s handle socketListenSize: count)
     isNegative ifTrue: [s throwError: return].
   return
 ].
@@ -198,7 +198,7 @@ s@(Net Socket traits) canWrite
 s@(Net Socket traits) acceptConnection
 [| return |
 
-  return := (s handle socketAcceptConnection).
+  return := s handle socketAcceptConnection.
   (return is: Integer)
     ifTrue: [s throwError: return].
   return first isNegative
@@ -217,27 +217,28 @@ s@(Net SocketServer traits) start &domain: addressDomain
   s pipeToLoop:
     (currentProcess forkAndDo:
       [| :commSock servSock |
-        servSock := (Net Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default).
+        servSock := Net Socket newFor: addressDomain domain type: Net Socket Types Stream protocol: Net Socket Protocols Default.
         "fixme handle ipv6"
         inform: 'Creating listening socket ' ; servSock printString.
         inform: 'bind: ' ; (servSock bindTo: (addressDomain newOn: s ip port: s port)) printString.
         inform: 'listen: '; (servSock listenSize: 5) printString.
         [| ready |
           inform: 'Waiting for connection...' ; {commSock. servSock handle} printString.
-          ready := ({commSock. servSock handle} selectOnReadPipesFor: Net Socket SelectTimeout).
+          ready := {commSock. servSock handle} selectOnReadPipesFor: Net Socket SelectTimeout.
           ready ifNil: [inform: 'Error waiting for pipes. Exiting...'. lobby exit].
           (ready includes: commSock) ifTrue: [inform: 'Got message from commsock. Exiting...'. commSock closePipe. servSock handle closePipe. lobby exit].
           (ready includes: servSock handle)
-            ifTrue: [| peer child |
-                       peer := ([servSock acceptConnection] on: Error do: [| :e | inform: 'Accept error: ' ; e description. e return: Nil]).
-                       peer ifNotNil:
-                         [child := (currentProcess
-                                   forkAndDo: [| :parent | [s dispatch applyWith: parent with: peer]
-                                                          ensure: [parent closePipe. peer handle closePipe. lobby quit]]).
-                          "fixme... have a way to communinicated back"
-                          peer handle closePipe.
-                          child closePipe.
-                          inform: 'Connection from ' ; peer peerAddress printString]]
+            ifTrue:
+              [([servSock acceptConnection] on: Error do: [| :e | inform: 'Accept error: ' ; e description. e return: Nil])
+                 ifNotNilDo:
+                   [| :peer child |
+                    child := currentProcess forkAndDo:
+                      [| :parent | [s dispatch applyWith: parent with: peer]
+                                     ensure: [parent closePipe. peer handle closePipe. lobby quit]].
+                    "fixme... have a way to communinicated back"
+                    peer handle closePipe.
+                    child closePipe.
+                    inform: 'Connection from %@', peer peerAddress]]
         ] loop.
       ]).
 

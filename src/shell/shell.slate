@@ -21,7 +21,7 @@ ffs@(Shell FormatSpecification traits) newFrom: s@(String traits)
   input do: [| :each |
     writer nextPut: (Shell FormatSpecification codes at: each ifAbsent: [error: 'bad code: ' ; each printString]).
     writer nextPut: (input upTo: $%)].
-  ffs new `>> [spec := (writer contents reject: [| :each | (each is: String) /\ [each isEmpty]]). ]
+  ffs new `>> [spec := writer contents reject: [| :each | (each is: String) /\ [each isEmpty]]. ]
 ].
 
 ffs@(Shell FormatSpecification traits) format: f@(File Locator traits)
@@ -51,7 +51,8 @@ l@(File Locator traits) maskedEntries: mask do: block
 
 d@(Directory traits) collectMasked: mask
 [
-  [| :result | d maskedEntries: mask do: #nextPut: `er <- result. result] writingAs: Shell FileArray
+  [| :result | d maskedEntries: mask do: #(result nextPut: _) `er]
+    writingAs: Shell FileArray
 ].
 
 d@(File Locator traits) /* mask
@@ -63,18 +64,19 @@ d@(Directory traits) /* mask
 d@(Directory traits) maskedEntries: mask do: block
 [ 
   d reader reset
-    do: [| :each | (mask matches: each) ifTrue: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
+    do: [| :each | (mask matches: each) ifTrue:
+                     [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
 ].
 
 a@(Shell FileCollection traits) format: formatString@(String traits)
 [| fmtSpec |
-  fmtSpec := (Shell FormatSpecification newFrom: formatString).
+  fmtSpec := Shell FormatSpecification newFrom: formatString.
   a collect: [| :each | fmtSpec format: each]
 ].
 
 a@(Shell FileCollection traits) format*
 [| *args fmtSpecs |
-  fmtSpecs := (args collect: [|:each| Shell FormatSpecification newFrom: each]).
+  fmtSpecs := args collect: [|:each| Shell FormatSpecification newFrom: each].
   a collect: [|:each| fmtSpecs collect: [|:spec| spec format: each]]
 ].
 

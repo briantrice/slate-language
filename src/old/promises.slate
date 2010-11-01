@@ -30,7 +30,7 @@ p@(Promise traits) isReady
 x@(Root traits) as: p@(Promise traits)
 "Making any old object into a Promise just sets up a reference to it, and
 states zero dependencies, so it can resolve as soon as scheduled."
-[p new `>> [value: x. dependencies: True. ]].
+[p new `>> [value := x. dependencies := True. ]].
 
 p@(Promise traits) as: _@(Promise traits)
 [p].
@@ -41,19 +41,19 @@ if those are already resolved, and mark it ready in the current process.
 Otherwise, add this Promise to the dependents of the unresolved dependencies
 (which makes them wake this Promise up."
 [
-  p dependencies: (deps collect: #as: `er <-* Promise into: Array).
+  p dependencies := deps collect: #(as: Promise) `er into: (p dependencies newSizeOf: deps).
   p isReady
     ifTrue: [currentProcess readyPromises add: p]
     ifFalse: [p dependencies do:
       [| :dep | dep isResolved
-		ifFalse: [dep dependents: (dep dependents copyWith: p)]]].
+		ifFalse: [dep dependents := dep dependents copyWith: p]]].
   p
 ].
 
 deps@(Sequence traits) whenFulfilled: m
 "Sets up the Method to run in a future turn with the given Sequence as its
 dependencies."
-[Promise new `>> [fulfilledBlock: m. ] waitOn: deps].
+[Promise new `>> [fulfilledBlock := m. ] waitOn: deps].
 
 p@(Promise traits) whenFulfilled: m
 "Sets up the Method to run in a future turn with the given Promise resolution
@@ -63,7 +63,7 @@ as its sole dependency."
 m@(Method traits) eventually
 "Schedules the Method to run in a turn, with no dependencies.
 This is the expansion of %(expr). The expression is converted to a Block."
-[{} whenFulfilled: m].
+[#{} whenFulfilled: m].
 
 p@(Promise traits) resolve
 "When a promise resolves, all the dependents should check to see if they are
@@ -71,15 +71,15 @@ ready and be scheduled if possible. Then, the Promise clears out its
 dependents."
 [
   currentProcess readyPromises addAll: (p dependents select: #isReady `er).
-  p dependents: {}.
+  p dependents := #{}.
 ].
 
 p@(Promise traits) fulfillWith: value
 "Fulfill the Promise by assigning the value, replacing the dependencies list
 with a True success-flag, marking it resolved, and answering the value."
 [
-  p value: value.
-  p dependencies: True.
+  p value := value.
+  p dependencies := True.
   p resolve.
   value
 ].
@@ -88,7 +88,7 @@ p@(Promise traits) break
 "Fulfill the Promise by marking it broken, by replacing the dependencies list
 with a False failure-flag, marking it resolved, and answering Nil."
 [
-  p dependencies: False.
+  p dependencies := False.
   p resolve.
 ].
 
@@ -110,8 +110,8 @@ concurrency define: #RecoverablePromise &parents: {Promise}
 deps@(Sequence traits) whenFulfilled: fulfilledBlock whenBroken: brokenBlock
 [
   RecoverablePromise new 
-    `>> [fulfilledBlock: fulfilledBlock.
-         brokenBlock: brokenBlock. ]
+    `>> [fulfilledBlock := fulfilledBlock.
+         brokenBlock := brokenBlock. ]
     waitOn: deps
 ].
 
@@ -149,15 +149,15 @@ p@(Process traits) run &limit: limit
 "Runs a single step of the Process, resolving all ready Promises up to a given
 limit (no limit if not given)."
 [
-  limit ifNil: [limit: PositiveInfinity].
+  limit `defaultsTo: PositiveInfinity.
   [p readyPromises isEmpty /\ [limit isPositive]]
     whileFalse:
       [| promise |
-        limit: limit - 1.
-        promise: p readyPromises pop.
-        [promise run]
-          unlessCompletes:
-            [promise break]]
+       limit := limit - 1.
+       promise := p readyPromises pop.
+       [promise run]
+         unlessCompletes:
+           [promise break]]
 ].
 
 concurrency addSlot: #currentProcess valued: Process new.
