@@ -139,10 +139,10 @@ r@(Interpreter InspectFrame traits) queryFrom: d
 [| offset |
    [d console ; 'Select a stack frame [0..' ;
       ']: '.
-    offset := (d console interactor upTo: $\n).
-    offset isEmpty not /\ [offset allSatisfy: #isDigit`er ]
+    (offset := d console interactor upTo: $\n) isEmpty not
+      /\ [offset allSatisfy: #isDigit`er ]
       ifTrue:
-	[(offset := (Integer readFrom: (offset as: String))) >= 0
+	[(offset := Integer readFrom: (offset as: String)) >= 0
 	   ifTrue:
              [r targetFrame: offset.
               ^ Nil]]
@@ -152,9 +152,9 @@ r@(Interpreter InspectFrame traits) queryFrom: d
 r@(Interpreter InspectFrame traits) defaultHandler
 [| framesLeft f method lexicalContext codePointer out |
   out := DebugConsole writer.
-  (f := (r interpreter framePointerOf: #invokeDebugger))
+  (f := r interpreter framePointerOf: #invokeDebugger)
     ifNil: [out ; 'The debugger must be invoked to inspect stack frames!\n'. ^ Nil].
-  f := (r interpreter frameAtIndex: f).
+  f := r interpreter frameAtIndex: f.
   framesLeft := r targetFrame.
   [(f := f previous)
      ifNil: [out ; 'That stack frame does not exist!\n'. ^ Nil].

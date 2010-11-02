@@ -586,12 +586,17 @@ gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: resul
 
 gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
 [| methodReg argRegs |
-  (args second isSameAs: Syntax Array) ifFalse: [^ resend].
-  result `defaultsTo: gen newRegister.
-  methodReg := gen generate: args first result: Nil.
-  argRegs := args second statements collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
-  result
+  (args second isSameAs: Syntax Array)
+    ifTrue:
+      [result `defaultsTo: gen newRegister.
+       methodReg := gen generate: args first result: Nil.
+       argRegs := args second statements collect:
+         [| :item | gen generate: item result: Nil].
+       gen emitInstruction: gen directApplyTo
+         withParameters: {methodReg. argRegs size. result} ; argRegs
+         from: msg.
+       result]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args from: msg result: result
@@ -639,13 +644,14 @@ Otherwise, fall back to evaluating it via 'do'."
   args first `cacheAs: #block.
   (block isSameAs: Syntax Block)
     /\ [block localVariables isEmpty]
-    ifFalse: [^ resend].
-  result `defaultsTo: gen newRegister.
-  block statements isEmpty
-    ifTrue: [gen emitInstruction: gen loadLiteral withParameters: {result. Nil} from: msg.
-             result]
-    ifFalse: [block statements allButLastDo: [| :node | gen generate: node result: Nil].
-              gen generate: block statements last result: result]
+    ifTrue:
+      [result `defaultsTo: gen newRegister.
+       block statements isEmpty
+         ifTrue: [gen emitInstruction: gen loadLiteral withParameters: {result. Nil} from: msg.
+                  result]
+         ifFalse: [block statements allButLastDo: [| :node | gen generate: node result: Nil].
+                   gen generate: block statements last result: result]]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generateExecutionOf: args from: msg result: result
@@ -958,9 +964,9 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: r
   block := args first.
   index := args second.
   value := args third.
-  (block isSameAs: Syntax Block) /\
-    [index isSameAs: Syntax Literal] /\
-    [block inputVariables acceptsKey: index value]
+  (block isSameAs: Syntax Block)
+    /\ [index isSameAs: Syntax Literal]
+    /\ [block inputVariables acceptsKey: index value]
     ifFalse: [^ resend].
   (value isSameAs: Syntax Literal)
     ifFalse:

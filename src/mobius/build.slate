@@ -14,7 +14,8 @@ inform: 'Adding primitives'.
   Image Definition primitives add: code ->
     (Syntax MethodDefinition new `>>
        [selector := selector.
-        roles := (roles collect: [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ]).
+        roles := roles collect:
+          [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]. ]).
 ] applier for: #{
   {0.   #asMethod:on:. {#MethodTraits. #SymbolTraits. #ArrayTraits}}.
   {1.   #asAccessor:for:on:. {#MethodTraits. #SymbolTraits. #NoRoleObject. #ArrayTraits}}.
@@ -201,7 +202,7 @@ like adding 3 + 4, say."
 def@(Image Definition traits) newNamed: filename endianness: endianness wordSize: wordSize
 [
   (def clone `setting: #{#endianness. #wordSize} to: {endianness. wordSize})
-   `>> [| :newDef | filename := (newDef defaultFilename &base: filename). ]
+   `>> [| :newDef | filename := newDef defaultFilename &base: filename. ]
 ].
 
 def@(Image Definition traits) defaultFilename &base: base
@@ -216,7 +217,7 @@ def@(Image Definition traits) defaultFilename &base: base
 
 def@(Image Definition traits) generate
 [| builder bootBlock |
-  builder := (Image Bootstrap Generator new &endianness: def endianness &wordSize: def wordSize).
+  builder := Image Bootstrap Generator new &endianness: def endianness &wordSize: def wordSize.
   def filename `defaultsTo: def defaultFilename.
   def bootstrapFilenames isEmpty ifTrue:
     [def bootstrapFilenames :=
@@ -227,14 +228,15 @@ def@(Image Definition traits) generate
               [| :line | line isEmpty ifFalse: [out nextPut: line]]].
         ] writingAs: def bootstrapFilenames)].
   bootBlock := Syntax Block new.
-  bootBlock statements := ([| :out |
-    (def bootstrapFilenames collect: [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
+  bootBlock statements := [| :out |
+    (def bootstrapFilenames collect:
+       [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
       [| :file |
        inform: 'Parsing: %r', file locator.
        file mode := file Read.
        file sessionDo:
          [| :file | (Syntax Parser newOn: file ASCIIReader) >> out]]
-    ] writingAs: bootBlock statements).
+    ] writingAs: bootBlock statements.
   inform: 'Building image: %r', def filename.
   builder generateImageBooting: bootBlock withPrims: def primitives.
   (File newNamed: def filename &mode: File CreateWrite) sessionDo:
@@ -258,7 +260,7 @@ based on the new VM Definition."
 [| def |
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
   endianness `defaultsTo: Platform Current endianness.
-  def := (i Definition newNamed: 'kernel.new' endianness: endianness wordSize: wordSize).
+  def := i Definition newNamed: 'kernel.new' endianness: endianness wordSize: wordSize.
   dir ifNotNil: [def bootstrapDirectory := dir].
   def cached at: {'new'. endianness. wordSize} put: def.
   def generate.
