@@ -48,6 +48,17 @@ node@(Syntax nodes Node traits) deepCopy
   node deepCopy: Syntax Ground
 ].
 
+node@(Syntax nodes Node traits) definitionLocation
+[
+  (node source hasSlotNamed: #resource)
+    ifTrue: [node source resource locator
+               ifNil: ['stdin:' ; (node lineNumber - 2) printString]
+               ifNotNilDo: [| :loc | (loc as: String) ; ':' ; node lineNumber printString]]
+    ifFalse: [node source
+                ifNil: ['Nil']
+                ifNotNil: [node source printString ; ':' ; node lineNumber printString]]
+].
+
 Syntax nodes define: #Annotation &parents: {Syntax nodes Node}
   &slots: {#value "The annotated node."}.
 "A wrapper for other Nodes that adds an annotative object."
