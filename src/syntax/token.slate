@@ -39,11 +39,13 @@ parser nextFrom: token@(Syntax tokens Selector traits)
   (Syntax isUnarySelector: token value)
     ifTrue:
       [(parser currentScope findVariable: token value)
-        ifNotNilDo:
-          [| :variable | ^ (Syntax LoadVariable from: variable)].
-       token value = #resend ifTrue: [^ Syntax Resend clone].
-       Syntax UnaryMessage
-         sending: token value to: {Syntax ImplicitArgument}]
+         ifNil:
+           [token value = #resend
+              ifTrue: [Syntax Resend clone]
+              ifFalse: [Syntax UnaryMessage
+                          sending: token value to: {Syntax ImplicitArgument}]]
+         ifNotNilDo:
+           [| :variable | Syntax LoadVariable from: variable]]
 ].
 
 s@(Syntax tokens Selector traits) messageType

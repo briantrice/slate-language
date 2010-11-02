@@ -97,7 +97,7 @@ x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign
 [| printer |
   [printer := '' prettyPrinter.
    x printOn: printer &radix: radix &precision: prec &forceSign: forceSign.
-   ^ printer contents] on: Error do: [| :c | ^ '<Printing failed>']
+   printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
 
 x@(Root traits) printOn: out &radix: radix &precision: prec &forceSign: forceSign
@@ -247,9 +247,9 @@ _@False printOn: o@(PrettyPrinterMixin traits)
 m@(Method traits) printOn: o@(PrettyPrinterMixin traits)
 "A simple print-out of brackets and the selector name if there is one."
 [
-  o ; '['.
-  o ; (m selector ifNil: ['(arity: ' ; m arity printString ; ')']
-                  ifNotNilDo: #name `er).
+  o ; '[' ; (m selector
+               ifNil: ['(arity: ' ; m arity printString ; ')']
+               ifNotNilDo: #name `er).
   m optionalKeywords do: [| :kw | o ; ' ' ; kw name].
   o ; ']'.
 ].

@@ -142,28 +142,29 @@ l@(Syntax Lexer traits) readNumber
     ifTrue: [isNegative := True]
     ifFalse: [c == $+ ifFalse: [l undoCharacter: c]].
   "Now read in all the continuous string of digits possible as an integer."
-  number := (l readInteger: radix).
+  number := l readInteger: radix.
   "Reaching the end of the lexing stream just finalizes the process."
-  l hasMoreCharacters ifFalse:
-    [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
-  "Conditionalize on the next character: it may set up a radix or a decimal."
-  (c := l nextCharacter) == $r \/ [c == $R] ifTrue:
-    [((radix := number) between: 2 and: 36) ifFalse:
-       [l error: 'Number radix must be between 2 and 36.'].
-     number := l readInteger: radix.
-     l hasMoreCharacters ifFalse:
-       [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
-     c := l nextCharacter].
-  c == $. /\ [l hasMoreCharacters] /\ [l peekCharacter isDigit: radix] ifTrue:
-    [number := (number as: Float) + (l readMantissa: radix).
-     l hasMoreCharacters ifFalse:
-       [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))].
-     c := l nextCharacter].
-  c == $e \/ [c == $E]
-    ifTrue:
-      [number := (number as: Float) * ((radix as: Float) raisedTo: (l readExponent: 10))]
-    ifFalse:
-      [l undoCharacter: c].
+  l hasMoreCharacters ifTrue:
+    ["Conditionalize on the next character: it may set up a radix or a decimal."
+     (c := l nextCharacter) == $r \/ [c == $R] ifTrue:
+       [((radix := number) between: 2 and: 36) ifFalse:
+          [l error: 'Number radix must be between 2 and 36.'].
+        number := l readInteger: radix.
+        l hasMoreCharacters
+          ifTrue: [c := l nextCharacter]
+          ifFalse:
+            [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))]].
+     c == $. /\ [l hasMoreCharacters] /\ [l peekCharacter isDigit: radix] ifTrue:
+       [number := (number as: Float) + (l readMantissa: radix).
+        l hasMoreCharacters
+          ifTrue: [c := l nextCharacter]
+          ifFalse:
+            [^ (l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number]))]].
+     c == $e \/ [c == $E]
+       ifTrue:
+         [number := (number as: Float) * ((radix as: Float) raisedTo: (l readExponent: 10))]
+       ifFalse:
+         [l undoCharacter: c]].
   l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number])
 ].
 

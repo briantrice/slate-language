@@ -48,9 +48,8 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
 [| expansion |
   "Ensure macro expansions properly refer to Variables."
   env ifNotNil:
-    [expansion := env linkVariablesIn: message.
-      message == expansion
-        ifFalse: [^ (expansion macroExpand &optionals: opts &environment: env)]].
+    [message == (expansion := env linkVariablesIn: message)
+       ifFalse: [^ (expansion macroExpand &optionals: opts &environment: env)]].
   message arguments
     doWithIndex:
       [| :argument :index |
@@ -58,19 +57,17 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
        argument == expansion
          ifFalse: [message arguments at: index put: expansion]].
   opts
-    ifNil:
-      [message]
+    ifNil: [message]
     ifNotNil:
       [opts message == message
          ifFalse: [opts message := message].
        opts arguments
          doWithIndex:
            [| :argument :index |
-            expansion := argument macroExpand &environment: env.
-            argument == expansion
+            argument == (expansion := argument macroExpand &environment: env)
               ifFalse:
                 [opts arguments at: index put: expansion]].
-        opts]
+       opts]
 ].
 
 opts@(Syntax OptionalKeywords traits) macroExpand &environment: env
@@ -128,8 +125,7 @@ store@(Syntax StoreVariable traits) macroExpand &environment: env
 "Expand the value to be stored."
 [| expansion |
   env ifNotNil:
-    [expansion := env linkVariablesIn: store.
-     store == expansion
+    [store == (expansion := env linkVariablesIn: store)
        ifFalse: [^ (expansion macroExpand &environment: env)]].
   expansion := store value macroExpand &environment: env.
   store value == expansion
@@ -185,31 +181,26 @@ b@(Syntax Block traits) linkVariablesIn: store@(Syntax StoreVariable traits)
 b@(Syntax Block traits) linkVariablesIn: msg@(Syntax UnaryMessage traits)
 [
   (msg arguments first isSameAs: Syntax ImplicitArgument)
-    ifFalse: [^ msg].
-  (b findVariable: msg selector)
-    ifNil:
-      [msg]
-    ifNotNilDo:
-      [| :var | Syntax LoadVariable from: var]
+    ifTrue: [(b findVariable: msg selector)
+               ifNil: [msg]
+               ifNotNilDo: [| :var | Syntax LoadVariable from: var]]
+    ifFalse: [msg]
 ].
 
 b@(Syntax Block traits) linkVariablesIn: msg@(Syntax KeywordMessage traits)
 [
   (msg arguments first isSameAs: Syntax ImplicitArgument)
     /\ [msg arguments size = 2]
-    ifFalse: [^ msg].
-  (b findVariable: msg selector name allButLast intern)
-    ifNil:
-      [msg]
-    ifNotNilDo:
-      [| :var | Syntax StoreVariable of: msg arguments second into: var]
+    ifTrue: [(b findVariable: msg selector name allButLast intern)
+               ifNil: [msg]
+               ifNotNilDo: [| :var | Syntax StoreVariable of: msg arguments second into: var]]
+    ifFalse: [msg]
 ].
 
 parent@(Syntax Block traits) linkVariablesIn: child@(Syntax Block traits)
 [
   child parentScope == parent \/ [child == parent]
-    ifFalse:
-      [child parentScope := parent].
+    ifFalse: [child parentScope := parent].
   child
 ].
 
