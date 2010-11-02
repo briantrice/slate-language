@@ -82,7 +82,7 @@ x@(Root traits) addAccessorFor: slotName &accessorName: accessorName
 "Adds and answers a new Method for accessing the slot's value,
 with overridable selector."
 [| m regCount slotNameReg primNumReg resultReg |
-"  x addAccessor: [| :obj | obj atSlotNamed: slotName]
+"  x addAccessor: #(atSlotNamed: slotName) `er
     for: slotName &accessorName: accessorName"
 
   "bypass method lookup by calling the primitive directly.
@@ -237,7 +237,7 @@ x@(Root traits) cloneWithUpdates: slotsValuesArray
 x@(Root traits) addSlots: col
 "Adds slots for all the names in the collection."
 [
-  col do: [| :name | x addSlot: name].
+  col do: #(x addSlot: _) `er.
   x
 ].
 
@@ -347,7 +347,7 @@ the slot if they're not equal. This always returns the resulting value of
 the slot."
 [
   x ensureSlot: slotName is: newValue
-    unlessSatisfies: [| :old | old = newValue]
+    unlessSatisfies: #(= newValue) `er
 ].
 
 x@(Root traits) slotNamesAndValuesDo: block
@@ -363,12 +363,12 @@ x@(Root traits) slotValuesDo: block
 ].
 
 x@(Root traits) slotValues
-[x slotNames collect: [| :slotName | x atSlotNamed: slotName]].
+[x slotNames collect: #(x atSlotNamed: _) `er].
 
 x@(Root traits) delegatesDo: block
 "Apply the code to all the immediately delegated objects."
 [
-  x _delegates do: [| :slotValue | block applyWith: slotValue]
+  x _delegates do: #(block applyWith: _) `er
 ].
 
 x@(Root traits) allDelegates &seen: seen

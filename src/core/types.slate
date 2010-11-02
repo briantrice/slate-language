@@ -36,7 +36,7 @@ and then return a type based on that as possible."
 "types do: [|:type| inform: ('    ' ; type printString) ]."
   (selector asInferenceRule findOn: types)
     ifNil: [Types Any]
-    ifNotNilDo: [| :rule | rule applyTo: types]
+    ifNotNilDo: #(applyTo: types) `er
 ].
 
 x@(Types Type traits) union: y@(Types Type traits)
@@ -163,7 +163,7 @@ type1@(Types Any traits) union: type2@(Types Any traits)
 [
   type1 == Types Any \/ [type2 == Types Any]
     ifTrue: [^ Types Any].
-  Types Union clone `>> [| :newU | args := ({type1. type2} as: newU args). ]
+  Types Union clone `>> [| :newU | args := {type1. type2} as: newU args. ]
 ].
 
 union@(Types Union traits) union: type
@@ -175,13 +175,13 @@ union1@(Types Union traits) union: union2@(Types Union traits)
 union@(Types Union traits) subsumes: type
 "Unions subsume their arguments."
 [
-  (union args anySatisfy: [| :arg | arg subsumes: type])
+  (union args anySatisfy: #(subsumes: type) `er)
     \/ [resend]
 ].
 
 type subsumes: union@(Types Union traits)
 [
-  union args allSatisfy: [| :arg | type subsumes: arg]
+  union args allSatisfy: #(type subsumes: _) `er
 ].
 
 Types define: #Intersection &parents: {Types Any} &slots: {#args -> ExtensibleArray new}.
@@ -198,7 +198,7 @@ type1@(Types Any traits) intersection: type2@(Types Any traits)
   type2 == Types Any
     ifTrue: [^ type1].
   Types Intersection clone `>>
-    [| :newT | args := ({type1. type2} as: newT args). ]
+    [| :newT | args := {type1. type2} as: newT args. ]
 ].
 
 intersection@(Types Intersection traits) intersection: type
@@ -210,13 +210,13 @@ int1@(Types Intersection traits) intersection: int2@(Types Intersection traits)
 type subsumes: intersection@(Types Intersection traits)
 "Each argument of an intersection subsumes it."
 [
-  (intersection args anySatisfy: [| :arg | type subsumes: arg])
+  (intersection args anySatisfy: #(type subsumes: _) `er)
     \/ [resend]
 ].
 
 intersection@(Types Intersection traits) subsumes: type
 [
-  intersection args allSatisfy: [| :arg | arg subsumes: type]
+  intersection args allSatisfy: #(subsumes: type) `er
 ].
 
 Types define: #Clone &parents: {Types Any} &slots: {#prototype.}.
@@ -273,10 +273,10 @@ x@(Types Range traits) intersection: y@(Types Range traits)
 "Create a new Range type over the base Types' intersection if applicable."
 "TODO: this depends on x and y's boundaries being comparable. Fix this."
 [| type start end |
-  type := (x type intersection: y type).
+  type := x type intersection: y type.
   type == Types None ifTrue: [^ Types None].
-  start := (x start min: y start).
-  end := (x end max: y end).
+  start := x start min: y start.
+  end := x end max: y end.
   start > end ifTrue: [^ Types None].
   x of: type from: start to: end
 ].
@@ -299,7 +299,7 @@ x@(Types Member traits) = y@(Types Member traits)
 member@(Types Member traits) of: elements
 "Create a new Member type over the given collection, implicitly copying it
 with as:-conversion."
-[member clone `>> [elements := (elements as: member elements). ]].
+[member clone `>> [elements := elements as: member elements. ]].
 
 x@(Types Member traits) union: y@(Types Member traits)
 [
@@ -343,7 +343,7 @@ or the existing one if the Member type is a supertype of the singleton."
     ifTrue: [member]
     ifFalse: [(member elements anyOne isSameAs: singleton identity)
 		ifTrue: [member clone `>>
-			   [elements := (member elements copyWith: singleton identity). ]]
+			   [elements := member elements copyWith: singleton identity. ]]
 		ifFalse: [resend]]
 ].
 
@@ -432,7 +432,7 @@ x@(Types Array traits) intersection: y@(Types Array traits)
 "The intersection of Array types is the Array type of the intersection of the
 element types, or None if the intersection is None."
 [| type | 
-  type := (x type intersection: y type).
+  type := x type intersection: y type.
   type = Types None ifTrue: [^ Types None].
   x of: type
 ].
@@ -451,7 +451,7 @@ block@(Types Block traits) from: argumentTypes to: resultType
 "Return a new Block type with the given type-signature."
 [
   block clone `>>
-   [argumentTypes := (argumentTypes as: Array).
+   [argumentTypes := argumentTypes as: Array.
     resultType := resultType. ]
 ].
 
@@ -466,12 +466,10 @@ x@(Types Block traits) union: y@(Types Block traits)
 with a union of their signature types."
 [
   x argumentTypes size = y argumentTypes size ifFalse: [^ resend].
-  x 
-    from:
-      (x argumentTypes
-        with: y argumentTypes
-        collect:
-          [| :t :u | t union: u])
+  x from:
+    (x argumentTypes
+       with: y argumentTypes
+       collect: #union: `er)
     to: (x resultType union: y resultType)
 ].
 
@@ -482,12 +480,10 @@ with an intersection of their signature types."
   x argumentTypes size = y argumentTypes size ifFalse: [^ Types None].
   (resultType := x resultType intersection: y resultType)
     == Types None ifTrue: [^ Types None].
-  x 
-    from:
-      (x argumentTypes
-        with: y argumentTypes
-        collect:
-          [| :t :u | t intersection: u])
+  x from:
+    (x argumentTypes
+       with: y argumentTypes
+       collect: #intersection: `er)
     to: resultType
 ].
 

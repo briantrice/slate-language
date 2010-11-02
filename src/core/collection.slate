@@ -87,7 +87,7 @@ two equal objects have equal hash values."
 [| result |
   result := c traits identityHash.
   c size <= 10
-    ifTrue: [c do: [| :each | result: (result bitXor: each hash)]].
+    ifTrue: [c do: [| :each | result := result bitXor: each hash]].
   result bitXor: c size hash
 ].
 
@@ -116,7 +116,7 @@ and each element of a collection in turn. The result of the block is
 implicitly the next value."
 [| result |
   result := start.
-  c do: [| :element | result := (block apply*, result, element)].
+  c do: [| :element | result := block apply*, result, element].
   result
 ].
 

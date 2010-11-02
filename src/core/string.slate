@@ -57,7 +57,7 @@ a@(ASCIIString Character traits) codeRange
 
 a@(ASCIIString Character traits) allCharacters
 [
-  a codeRange collect: [| :code | code as: a]
+  a codeRange collect: #(as: a) `er
 ].
 
 ch@(ASCIIString Character traits) isAlphanumeric
@@ -598,9 +598,7 @@ s1@(ASCIIString traits) lexicographicallyCompare: s2@(ASCIIString traits)
 "Answer a sign of comparing the two Strings' Characters in order."
 [
   s1 with: s2 do:
-    [| :c1 :c2 |
-     c1 code < c2 code ifTrue: [^ -1].
-     c1 code > c2 code ifTrue: [^ 1]].
+    [| :c1 :c2 cmp | (cmp := c1 code <=> c2 code) isZero ifFalse: [^ cmp]].
   s1 size <=> s2 size
 ].
 

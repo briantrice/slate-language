@@ -284,8 +284,8 @@ for each key returned by the block, with the set of values stored there."
 [
   values do:
     [| :value key | key: (valueBlock applyWith: value).
-     map at: key ifPresent: [| :set | set add: value ]
-                 ifAbsent: [map at: key put: ({value} as: Set)]].
+     map at: key ifPresent: #(add: value) `er
+                 ifAbsent: [map at: key put: (Set new*, value)]].
   map
 ].
 

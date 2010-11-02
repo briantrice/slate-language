@@ -46,7 +46,7 @@ o@(StructuredPrinterMixin traits) indentedDo: block
 o@(StructuredPrinterMixin traits) print: str paddingUntil: length
 "Print the given string and make sure the cursor is at least at the given column."
 [| padding |
-  padding := (length - str size max: 0).
+  padding := length - str size max: 0.
   o nextPutAll: str.
   o next: padding put: $\s.
   o
@@ -127,7 +127,7 @@ indented."
 [| doPrintName |
   x == NoRole
     ifTrue: [^ (o ; 'NoRole')].
-  doPrintName := (#printName isFoundOn: {x}).
+  doPrintName := #printName isFoundOn: {x}.
   o ; '('.
   doPrintName ifTrue:
     [o ; '"' ; x printName ; '"'].
@@ -160,7 +160,7 @@ ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits)
 "Print out only the slot names, since these tend to be really large and have
 unprintable prototypes in them."
 [| doPrintName |
-  doPrintName := (#name isFoundOn: {ns}).
+  doPrintName := #name isFoundOn: {ns}.
   o ; '('.
   doPrintName ifTrue:
     [o ; '"' ; ns name ; '"'].
@@ -190,7 +190,7 @@ original argument."
 [| name |
   s = #''
     ifTrue: [^ (o ; '#\'\'')].
-  name := (s as: String).
+  name := s as: String.
   o ; '#'.
   (name allSatisfy: [| :c | c isAlphanumeric \/ [':&_' includes: c]])
     ifTrue: [o ; name]
@@ -220,7 +220,7 @@ with sign. This works by collecting the digits and a "
   [x isPositive]
     whileTrue:
       [| qr d |
-       qr := (x quoRem: radix).
+       qr := x quoRem: radix.
        d := qr second.
        x := qr first.
        digits nextPut:
@@ -275,7 +275,7 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
          [^ (o ; (f first isZero ifTrue: [''] ifFalse: ['-']) ; '0.0')].
        exponent := 1]
     ifFalse:
-      [significand := ((1 bitShift: f significandSize) bitOr: significand)].
+      [significand := (1 bitShift: f significandSize) bitOr: significand].
   exponent := exponent - f bias - f significandSize.
   b := 2.
   exponent isNegative
@@ -293,7 +293,7 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
             mUp := 1]]
     ifFalse:
       [| be |
-       be := (1 bitShift: exponent).
+       be := 1 bitShift: exponent.
        significand = (1 bitShift: f significandSize)
          ifTrue:
            [r := significand * be * b * 2.
@@ -316,13 +316,13 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
       [s := s * (radix raisedTo: k)]
     ifFalse:
       [| bk |
-       bk := (radix raisedTo: k negated).
+       bk := radix raisedTo: k negated.
        r := r * bk.
        mUp := mUp * bk.
        mDown := mDown * bk].
   digits := '' prettyPrinter.
-  [d := (r * radix // s).
-   r := (r * radix \\ s).
+  [d := r * radix // s.
+   r := r * radix \\ s.
    mUp := mUp * radix.
    mDown := mDown * radix.
    r + mUp > s
