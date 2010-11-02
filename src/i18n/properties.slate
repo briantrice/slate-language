@@ -8,7 +8,7 @@ Unicode define: #Trie &parents: {ArrayBacked}.
 Unicode Trie addPrintName: 'Unicode Trie'.
 
 c@(Unicode Trie traits) new
-[c copy `>> [contents: (c contents newSize: 8704). ]].
+[c copy `>> [contents := c contents newSize: 8704. ]].
 
 c@(Unicode Trie traits) at: n
 [
@@ -168,7 +168,8 @@ c@(UnicodeCharacter traits) decompose
 
 c1@(Integer traits) composeWith: c2
 [
-  ((CharacterData Unicode PropertyTable atCode: c1) Compositions ifNotNilDo: [| :comp | comp at: c2 ifAbsent: [Nil]])
+  ((CharacterData Unicode PropertyTable atCode: c1) Compositions
+     ifNotNilDo: [| :comp | comp at: c2 ifAbsent: [Nil]])
     ifNotNilDo: [| :result | result as: UnicodeCharacter]
 ].
 

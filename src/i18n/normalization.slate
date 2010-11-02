@@ -24,7 +24,7 @@ composition. For NFC and NFD only canonical (de)compositions are done,
 for NFKC and NFKD both canonical and compatibility. NFKC and NFKD may
 lose information."
 [| decomp |
-  decomp: (s decomposeForForm: form).
+  decomp := s decomposeForForm: form.
   form Compose
     ifTrue: [decomp composeForForm: form]
     ifFalse: [decomp]
@@ -33,21 +33,20 @@ lose information."
 s@(UnicodeString traits) decomposeForForm: form@(Unicode NormalizationForm traits)
 "Decompose string for given normalization form."
 [| buffer current |
-  buffer: ExtensibleArray new.
+  buffer := ExtensibleArray new.
   ([| :result |
-   s do:
-     [| :each |
-      current: (each getRecursiveDecompositionFor: form).
-      current first combiningClass isZero 
-        ifTrue: 
-	  [result ; (buffer destructiveStableSortBy: 
-	    [| :a :b | a combiningClass <= b combiningClass]).
-	   buffer clear].
-      buffer addAll: current].
- buffer isNotEmpty \/ [current first combiningClass isZero not] ifTrue:
-   [result ; (buffer destructiveStableSortBy: 
-       [| :a :b | a combiningClass <= b combiningClass])]]
-    writingInto: (ExtensibleArray newSizeOf: s)) as: s
+    s do:
+      [| :each |
+       (current := each getRecursiveDecompositionFor: form) first combiningClass isZero
+         ifTrue: 
+	   [result ; (buffer destructiveStableSortBy: 
+	                [| :a :b | a combiningClass <= b combiningClass]).
+	    buffer clear].
+       buffer addAll: current].
+    buffer isNotEmpty \/ [current first combiningClass isZero not] ifTrue:
+      [result ; (buffer destructiveStableSortBy: 
+                   [| :a :b | a combiningClass <= b combiningClass])]]
+     writingInto: (ExtensibleArray newSizeOf: s)) as: s
 ].
 
 c@(UnicodeCharacter traits) getRecursiveDecompositionFor: form
@@ -63,32 +62,31 @@ If it's NFKC or NFKD, perform both canonical and compatibility decomposition."
         ifTrue: [{c}]
 	ifFalse:
 	  [| temp |
-	   temp: (decomp collect:
-	     [| :each | each getRecursiveDecompositionFor: form]).
+	   temp := decomp collect: #(getRecursiveDecompositionFor: form) `er.
 	   (temp gather: #; `er) ifNil: [#{}]]]
 ].
 
 s@(UnicodeString traits) composeForForm: form@(Unicode NormalizationForm traits)
 "Compose string for given normalization form."
 [| starterPos compPos starterCh lastClass ch chClass composite |
-  starterPos: 0.
-  compPos: 1.
-  starterCh: s first.
-  lastClass: starterCh combiningClass.
-  lastClass isZero ifFalse: [lastClass: 256].
+  starterPos := 0.
+  compPos := 1.
+  starterCh := s first.
+  lastClass := starterCh combiningClass.
+  lastClass isZero ifFalse: [lastClass := 256].
   s allButFirstDo:
     [| :ch |
-     chClass: ch combiningClass.
-     composite: (starterCh composeWith: ch).
+     chClass := ch combiningClass.
+     composite := (starterCh composeWith: ch).
      composite isNotNil /\ [(lastClass < chClass \/ [lastClass isZero]) 
 			      \/ [composite isHangulLV]]
        ifTrue: [s at: starterPos put: composite.
-		starterCh: composite]
-       ifFalse: [chClass isZero ifTrue: [starterPos: compPos.
-					 starterCh: ch].
-		 lastClass: chClass.
+		starterCh := composite]
+       ifFalse: [chClass isZero ifTrue: [starterPos := compPos.
+					 starterCh := ch].
+		 lastClass := chClass.
 		 s at: compPos put: ch.
-		 compPos: compPos + 1]].
+		 compPos := compPos + 1]].
   s first: compPos
 ].
 
@@ -96,17 +94,15 @@ c@(UnicodeCharacter traits) composeWith: c2
 "Compose c with c2. If both are hangul, perform composition algorithmically,
 otherwise get the composition from database."
 [
- c isHangulL /\ [c2 isHangulV] ifTrue:
-    [^ (((((c code - Unicode Hangul LBase) * Unicode Hangul VCount) 
-        + (c2 code - Unicode Hangul VBase)) * Unicode Hangul TCount 
-        + Unicode Hangul SBase)
-        as: UnicodeCharacter)].
- c isHangulLV /\ [c2 isHangulT] ifTrue:
-    [^ ((c code + (c2 code - Unicode Hangul TBase))
-        as: UnicodeCharacter)].
- c code composeWith: c2 code
+  `conditions: (
+    [c isHangulL /\ [c2 isHangulV]] ->
+      [((c code - Unicode Hangul LBase * Unicode Hangul VCount
+           + (c2 code - Unicode Hangul VBase)) * Unicode Hangul TCount 
+          + Unicode Hangul SBase) as: c].
+    [c isHangulLV /\ [c2 isHangulT]]
+      -> [c code + c2 code - Unicode Hangul TBase as: c]
+  ) otherwise: [c code composeWith: c2 code]
 ].
-
 
 "Hangul:"
 
@@ -147,13 +143,13 @@ c@(UnicodeCharacter traits) decomposeHangul
 [| SIndex result L V T |
  c isHangulSyllable
    ifFalse: [^ (c as: UnicodeString)].
- SIndex: c code - Unicode Hangul SBase.
- result: (ExtensibleArray new).
- L: Unicode Hangul LBase + (SIndex quo: Unicode Hangul NCount).
- V: Unicode Hangul VBase + ((SIndex rem: Unicode Hangul NCount) quo: Unicode Hangul TCount).
- T: Unicode Hangul TBase + (SIndex rem: Unicode Hangul TCount).
- result add: (L as: UnicodeCharacter).
- result add: (V as: UnicodeCharacter).
- T ~= Unicode Hangul TBase ifTrue: [result add: (T as: UnicodeCharacter)].
+ SIndex := c code - Unicode Hangul SBase.
+ result := (ExtensibleArray new).
+ L := Unicode Hangul LBase + (SIndex quo: Unicode Hangul NCount).
+ V := Unicode Hangul VBase + ((SIndex rem: Unicode Hangul NCount) quo: Unicode Hangul TCount).
+ T := Unicode Hangul TBase + (SIndex rem: Unicode Hangul TCount).
+ result add: (L as: c).
+ result add: (V as: c).
+ T ~= Unicode Hangul TBase ifTrue: [result add: (T as: c)].
  result
 ].

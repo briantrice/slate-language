@@ -26,10 +26,13 @@ _@Nil equals: _@Nil [False]. "We don't need obsolete links."
 
 a1@(Array traits) equals: a2@(Array traits)
 [
- a1 with: a2 do: [| :item1 :item2 |  
-		  item1 isNil \/ [item2 isNil] ifTrue: [^ False]. "We don't need obsolete links."
-		  (item1 equals: item2) ifFalse: [^ False]].
- True.
+  a1 with: a2 do:
+    [| :item1 :item2 |  
+     item1 isNil
+       \/ [item2 isNil]
+       \/ [(item1 equals: item2) not]
+       ifTrue: [^ False]]. "We don't need obsolete links."
+  True
 ].
 
 c@(Sequence traits) findDup: obj below: end
@@ -40,7 +43,7 @@ c@(Sequence traits) findDup: obj below: end
 
 c@(Sequence traits) findDup: obj
 [
-  c doWithIndex: [| :each :index | (each equals: obj) ifTrue: [^ index]].
+  c indexOfFirstSatisfying: #(equals: obj) `er
 ].
 
 buffer@(Sequence traits) findDuplicate: obj 
@@ -53,29 +56,34 @@ buffer@(Sequence traits) findDuplicate: obj
 non-duplicates. If not found there either, add obj to non-duplicates
 buffer. If found, move the found one from non-duplicates to duplicates. 
 Always when a duplicate is found, put the link between them to target."
-[| inbuf dup nd |
- dup: (buffer findDup: obj).
- dup ifNotNil: [target add: codepoint -> (duphash at: dup).
-		Console ; 'o'.
-		^ dup].
- nd: (nondup findDup: obj).
- nd ifNil: [nondup add: obj.
-	    nonduphash add: nondup indexLast -> codepoint.
-	    Console ; '.']
-    ifNotNil: [buffer add: (nondup at: nd).
-	       duphash add: buffer indexLast -> codepoint.	       
-	       nondup remove: nd.
-	       target add: codepoint -> (nonduphash at: nd).
-	       Console ; '!']
+[
+  (buffer findDup: obj)
+    ifNil:
+      [(nondup findDup: obj)
+         ifNil: [nondup add: obj.
+	         nonduphash add: nondup indexLast -> codepoint.
+	         Console ; '.']
+         ifNotNil:
+           [| :nd |
+            buffer add: (nondup at: nd).
+            duphash add: buffer indexLast -> codepoint.	       
+            nondup remove: nd.
+            target add: codepoint -> (nonduphash at: nd).
+            Console ; '!']]
+    ifNotNilDo:
+      [| :dup |
+       target add: codepoint -> (duphash at: dup).
+       Console ; 'o'.
+       dup]
 ].
 
 flat@(Unicode Trie traits) generatePhase2LinksInto: target
 [| flat duphash nonduphash codePoint current displayCounter |
- displayCounter: 0.
- duphash: Dictionary new.
- nonduphash: Dictionary new.
+ displayCounter := 0.
+ duphash := Dictionary new.
+ nonduphash := Dictionary new.
  0 upTo: 16r10FFFD do: [| :codePoint |
-   current: (flat atCode: codePoint).
+   current := (flat atCode: codePoint).
    current ifNotNil: [
       CharacterData Unicode DuplicateBuffer
 	 findDuplicate: current
@@ -84,21 +92,21 @@ flat@(Unicode Trie traits) generatePhase2LinksInto: target
 	 dupHash: duphash
 	 nonDupHash: nonduphash
 	 codePoint: codePoint.
-      displayCounter: displayCounter + 1.	      
+      displayCounter := displayCounter + 1.	      
       displayCounter > 70 ifTrue: 
 	[Console ; '\n'.
-	 displayCounter: 0]].
+	 displayCounter := 0]].
    ].
 ].
 
 table@(Unicode Trie traits) generatePhase1Links
 [| dup links current |
- links: (ExtensibleArray new).
+ links := (ExtensibleArray new).
  table contents
    doWithIndex:  [| :each :index |
-		  current: (table at: index).
+		  current := (table at: index).
 		  current ifNotNil: [
-		    dup: (table findDup: current below: index).
+		    dup := (table findDup: current below: index).
                     dup ifNotNil: [links add: index -> dup]]].
  links
 ].
@@ -109,20 +117,20 @@ links@(Sequence traits) writeCrosslinksTo: targetFileName
 [| targetStream byte1 byte2 byte3 c |
  File withOpenNamed: targetFileName
    do: [| :target |
-	targetStream: target writer.
+	targetStream := target writer.
 	links
 	  do: [| :each |
-	        c: each key.
-	        byte1: (c bitAnd:  16rFF).
-		byte2: ((c bitAnd: 16rFF00) bitShift: -8).
-		byte3: ((c bitAnd: 16rFF0000) bitShift: -16).
+	        c := each key.
+	        byte1 := (c bitAnd:  16rFF).
+		byte2 := ((c bitAnd: 16rFF00) bitShift: -8).
+		byte3 := ((c bitAnd: 16rFF0000) bitShift: -16).
 		targetStream nextPut: byte1.
 		targetStream nextPut: byte2.
 		targetStream nextPut: byte3.
-		c: each value.
-	        byte1: (c bitAnd:  16rFF).
-		byte2: ((c bitAnd: 16rFF00) bitShift: -8).
-		byte3: ((c bitAnd: 16rFF0000) bitShift: -16).
+		c := each value.
+	        byte1 := (c bitAnd:  16rFF).
+		byte2 := ((c bitAnd: 16rFF00) bitShift: -8).
+		byte3 := ((c bitAnd: 16rFF0000) bitShift: -16).
 		targetStream nextPut: byte1.
 		targetStream nextPut: byte2.
 		targetStream nextPut: byte3]
@@ -140,7 +148,7 @@ _@here generateCrosslinks
 	 addSlot: #NonDuplicateBuffer valued: ExtensibleArray new.
 	 addSlot: #Compositions valued: ExtensibleArray new. ].
 
-  compositions: ExtensibleArray new.
+  compositions := ExtensibleArray new.
   inform: 'Building flat table.'.
   CharacterData Unicode FlatTable 
     buildTableWithLinks: Nil
@@ -157,7 +165,7 @@ _@here generateCrosslinks
   CharacterData Unicode Links2 writeCrosslinksTo: 'src/i18n/Links2.data'.
 
   inform: 'Generating phase 1 links.\n'.
-  CharacterData Unicode Links1: CharacterData Unicode FlatTable generatePhase1Links.
+  CharacterData Unicode Links1 := CharacterData Unicode FlatTable generatePhase1Links.
 
   inform: 'Saving phase 1 links for properties to \'src/i18n/Links1.data'.
   CharacterData Unicode Links1 writeCrosslinksTo: 'src/i18n/Links1.data'.

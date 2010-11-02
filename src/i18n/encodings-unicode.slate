@@ -9,13 +9,13 @@ CharacterData ensureNamespace: #Unicode.
 
 "EncodedString is Unicode by default. encodings-unicode.slate must be the
 first encoding-file to be loaded."
-EncodedString elementType: UnicodeCharacter.
+EncodedString elementType := UnicodeCharacter.
 
 prototypes define: #UnicodeString &parents: {EncodedString}
  &slots: {#contents -> #{}}.
 
 s@(UnicodeString traits) new &capacity: n
-[s clone `>> [contents: (s contents new &capacity: n). ]].
+[s clone `>> [contents := s contents new &capacity: n. ]].
 
 s@(UnicodeString traits) size
 [
@@ -70,12 +70,10 @@ s@(SmallUnicodeString traits) isEmpty
 ].
 
 s@(SmallUnicodeString traits) at: n
-[| part1 part2 part3 value |
- part1: (s bytes1 at: n).
- part2: ((s bytes2 at: n) bitShift: 8).
- part3: ((s bytes3 at: n) bitShift: 16).
- value: ((part1 bitOr: part2) bitOr: part3).
- value as: UnicodeCharacter
+[
+  (((s bytes1 at: n)
+      bitOr: ((s bytes2 at: n) bitShift: 8))
+     bitOr: ((s bytes3 at: n) bitShift: 16)) as: s elementType
 ].
 
 s@(SmallUnicodeString traits) at: n put: char
@@ -373,27 +371,25 @@ CharacterData define: #MathematicalPeriods
 CharacterData define: #MathematicalExponents
               &builder: [{16r52 as: UnicodeCharacter.
                           16r72 as: UnicodeCharacter}].
-"TODO: move also thousands separators here"
+CharacterData define: #ThousandsSeparators
+              &builder: [{16r5F as: UnicodeCharacter.      "$_"
+                          16r66C as: UnicodeCharacter}].   "Arabian thousands separator"
 
 l@(ReadStream traits) readInteger &radix: radix &separators: separators
 "The general method for building integers from the raw characters, with a
 radix (number of digits) parameter. The separators are characters to be
 ignored."
 [| number |
-  separators ifNil: [separators: {(16r5F as: UnicodeCharacter).      "$_"
-                                  (16r66C as: UnicodeCharacter)}].  "Arabian thousands separator" 
-  radix ifNil: [radix: 10].
-  number: 0.
+  separators `defaultsTo: CharacterData ThousandsSeparators.
+  radix `defaultsTo: 10.
+  number := 0.
   [l isAtEnd not
      /\ [(l peek isDigit &radix: radix)
 	   \/ [separators includes: l peek]]]
     whileTrue:
       [| c |
-        c: l next.
-        (c isDigit &radix: radix)
-          ifTrue:
-            [number: number * radix + (c toDigit &radix: radix)]
-      ].
+       ((c := l next) isDigit &radix: radix) ifTrue:
+         [number := number * radix + (c toDigit &radix: radix)]].
   number
 ].
 
@@ -401,37 +397,36 @@ l@(ReadStream traits) readNumber &separators: separators
 "The overall routine for building numbers.
 FIXME: add checks that numbers are of same script"
 [| token number sign c pluses minuses |
-   separators ifNil: [separators: {(16r5F as: UnicodeCharacter).    "$_"
-                                  (16r66C as: UnicodeCharacter)}]. "Arabian thousands separator" 
+  separators `defaultsTo: CharacterData ThousandsSeparators.
   "Assign the default sign, then override it based on the presence of an
   explicit sign character."
-  sign: 1.
-  c: l peek.
+  sign := 1.
+  c := l peek.
   (CharacterData MathematicalPluses includes: c)
     \/ [CharacterData MathematicalMinuses includes: c]
     ifTrue: [(CharacterData MathematicalMinuses includes: c) 
-		ifTrue: [sign: -1].
+		ifTrue: [sign := -1].
 	     l next].
   "Now read in all the continuous string of digits possible as an integer."
-  number: (l readInteger &radix: 10).
+  number := (l readInteger &radix: 10).
   "Reaching the end of the lexing stream just finalizes the process."
   l isAtEnd ifTrue: [^ (sign * number)].
   "Conditionalize on the next character: it may set up a radix or a decimal."
-  c: l next.
+  c := l next.
   (CharacterData MathematicalExponents includes: c)
     ifTrue:
-      [number: (l readInteger &radix: number)]
+      [number := l readInteger &radix: number]
     ifFalse:
       [(CharacterData MathematicalPeriods includes: c)
 	 /\ [l isAtEnd not] /\ [l peek isDigit]
          ifTrue:
-           [number: (number as: Float) + (l readMantissa &separators: separators).
+           [number := (number as: Float) + (l readMantissa &separators: separators).
             l isAtEnd
               ifTrue: [^ (sign * number)].
-            c: l next].
+            c := l next].
        c = (16r65 as: UnicodeCharacter) \/ [c = (16r45 as: UnicodeCharacter)] "e or E"
          ifTrue:
-           [number: (number as: Float) * (10.0 raisedTo: l readExponent)]].
+           [number := (number as: Float) * (10.0 raisedTo: l readExponent)]].
   sign * number
 ].
 
@@ -439,19 +434,18 @@ l@(ReadStream traits) readMantissa &separators: separators
 "Build a floating-point number's fractional part."
 "FIXME: the mantissa should probably also follow the same radix"
 [| number place |
-  separators ifNil: [separators: {(16r5F as: UnicodeCharacter).      "$_"
-                                  (16r66C as: UnicodeCharacter)}].  "Arabian thousands separator" 
-  number: 0.
-  place: 1.
+  separators `defaultsTo: CharacterData ThousandsSeparators.
+  number := 0.
+  place := 1.
   [l isAtEnd not /\ [l peek isDigit \/ [separators includes: l peek]]]
     whileTrue:
       [| c |
-        c: l next.
+        c := l next.
 	c toDigit.
         c isDigit
           ifTrue:
-            [number: number * 10 + c toDigit.
-	     place: place * 10]
+            [number := number * 10 + c toDigit.
+	     place := place * 10]
       ].
   (number as: Float) / (place as: Float)
 ].
@@ -460,24 +454,22 @@ l@(ReadStream traits) readExponent
 "Build a floating-point number's exponent as an integer."
 "FIXME: the exponent should probably also follow the same radix"
 [| sign c |
-  sign: 1.
-  c: l peek.
-  (CharacterData MathematicalPluses includes: c)
-   \/ [CharacterData MathematicalMinuses includes: c]
-    ifTrue:
-      [(CharacterData MathematicalMinuses includes: c) ifTrue: [sign: -1]
-       l next].
+  sign := 1.
+  (CharacterData MathematicalPluses includes: (c := l peek))
+    ifTrue: [l next]
+    ifFalse: [(CharacterData MathematicalMinuses includes: c) ifTrue:
+                [sign := -1. l next]].
   sign * l readInteger
 ].
 
 c@(UnicodeString traits) as: _@(Number traits) &radix: radix
 [
- c reader readNumber &radix: radix
+  c reader readNumber &radix: radix
 ].
 
 c@(UnicodeString traits) as: _@(Integer traits) &radix: radix
 [
- (c as: Number) as: Integer
+  (c as: Number) as: Integer
 ].
 
 c@(UnicodeCharacter traits) as: _@(ASCIIString Character traits)
@@ -499,26 +491,21 @@ n@(Integer traits) as: s@(UnicodeString traits)
 f@(Float traits) as: s@(UnicodeString traits)
 [f printString as: s].
 
-c@(UnicodeCharacter traits) cr [16rA as: UnicodeCharacter].
+c@(UnicodeCharacter traits) cr [16rA as: c].
 
-c@(UnicodeCharacter traits) tab [16r9 as: UnicodeCharacter].
+c@(UnicodeCharacter traits) tab [16r9 as: c].
 
-c@(UnicodeCharacter traits) space [16r20 as: UnicodeCharacter].
+c@(UnicodeCharacter traits) space [16r20 as: c].
 
-c@(UnicodeCharacter traits) stringEscape [16r5C as: UnicodeCharacter].
+c@(UnicodeCharacter traits) stringEscape [16r5C as: c].
 
 s1@(UnicodeString traits) lexicographicallyCompare: s2@(UnicodeString traits)
 "Answer a sign of comparing the two strings' characters in order."
 "NOTE: this works only for basic latin characters. This is not really
 Unicode-aware, and should be fixed."
 [
-  (s1 toUppercase) with: (s2 toUppercase) do:
-    [| :c1 :c2 |
-     c1 code < c2 code ifTrue: [^ -1].
-     c1 code > c2 code ifTrue: [^ 1]].
-  s1 size < s2 size
-    ifTrue: [^ -1].
-  s1 size > s2 size
-    ifTrue: [^ 1].
-  0
+  s1 toUppercase with: s2 toUppercase do:
+    [| :c1 :c2 cmp |
+     (cmp := c1 code <=> c2 code) isZero ifFalse: [^ cmp]].
+  s1 size <=> s2 size
 ].

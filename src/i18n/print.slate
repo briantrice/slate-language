@@ -4,9 +4,9 @@ c@(UnicodeCharacter traits) printOn: w &inString: isInString &encodedIn: encodin
   makeEncoder `defaultsTo: False.
   isInString `defaultsTo: False.
   encoding `defaultsTo: UTF8.
-  encoder: (makeEncoder ifTrue: [encoding Encoder newOn: w] ifFalse: [w]).
+  encoder := (makeEncoder ifTrue: [encoding Encoder newOn: w] ifFalse: [w]).
   c code ifNil: [encoder ; '("' ; c printName ; '")']
-	 ifNotNil: [isInString ifFalse: [encoder nextPut: ($$ as: UnicodeCharacter)].
+	 ifNotNil: [isInString ifFalse: [encoder nextPut: ($$ as: c)].
 	            encoder nextPut: c].
 ].
 
@@ -23,32 +23,30 @@ is in 8-bit range. That might change."
 [| encoder |
   makeEncoder `defaultsTo: False.
   encoding `defaultsTo: UTF8.
-  encoder: (makeEncoder ifTrue: [encoding Encoder newOn: o] ifFalse: [o]).
-  encoder nextPut: ($\' as: UnicodeCharacter).
+  encoder := makeEncoder ifTrue: [encoding Encoder newOn: o] ifFalse: [o].
+  encoder nextPut: ($\' as: s elementType).
   s doWithIndex:
     [| :c :index |
-      index >= o stringLimit
-        ifTrue: ['...\'' printOn: encoder. ^ o].
-      c caseOf:
-        {
-          (16r27 as: UnicodeCharacter) -> ['\\\'' printOn: encoder].
-          (16r9 as: UnicodeCharacter) -> ['\\t' printOn: encoder].
-          (16rA as: UnicodeCharacter) -> ['\\n' printOn: encoder].
-          (16rB as: UnicodeCharacter) -> ['\\v' printOn: encoder].
-          (16rC as: UnicodeCharacter) -> ['\\f' printOn: encoder].
-          (16rD as: UnicodeCharacter) -> ['\\r' printOn: encoder].
-          (16r8 as: UnicodeCharacter) -> ['\\b' printOn: encoder].
-          (16r7 as: UnicodeCharacter) -> ['\\a' printOn: encoder].
-          (16r1B as: UnicodeCharacter) -> ['\\e' printOn: encoder].
-          (16r0 as: UnicodeCharacter) -> ['\\0' printOn: encoder].
-        }
-        otherwise:
-          [c isPrintable
-            ifTrue: [c printOn: encoder &inString: True]
-            ifFalse:
-              ['\\x' printOn: encoder.
-                (c as: Integer) // 16 printOn: o radix: 16.
-                (c as: Integer) \\ 16 printOn: o radix: 16]]].
-  encoder nextPut: ($\' as: UnicodeCharacter).
+     index >= o stringLimit
+       ifTrue: ['...\'' printOn: encoder. ^ o].
+     c caseOf: {
+       (16r27 as: s elementType) -> ['\\\'' printOn: encoder].
+       (16r9 as: s elementType) -> ['\\t' printOn: encoder].
+       (16rA as: s elementType) -> ['\\n' printOn: encoder].
+       (16rB as: s elementType) -> ['\\v' printOn: encoder].
+       (16rC as: s elementType) -> ['\\f' printOn: encoder].
+       (16rD as: s elementType) -> ['\\r' printOn: encoder].
+       (16r8 as: s elementType) -> ['\\b' printOn: encoder].
+       (16r7 as: s elementType) -> ['\\a' printOn: encoder].
+       (16r1B as: s elementType) -> ['\\e' printOn: encoder].
+       (16r0 as: s elementType) -> ['\\0' printOn: encoder]
+     } otherwise:
+       [c isPrintable
+          ifTrue: [c printOn: encoder &inString: True]
+          ifFalse:
+            ['\\x' printOn: encoder.
+             c code // 16 printOn: o radix: 16.
+             c code \\ 16 printOn: o radix: 16]]].
+  encoder nextPut: ($\' as: s elementType).
   o
 ].
