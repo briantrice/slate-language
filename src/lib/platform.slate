@@ -144,13 +144,13 @@ e@(Environment traits) currentPath [e at: 'PWD'].
 e@(Environment traits) temporaryPath [e at: 'TMPDIR'].
 e@(Environment traits) includedPaths
 "Where the shell expects to find binary executables."
-[(e at: 'PATH') ifNotNilDo: [| :paths | paths splitWith: $:]].
+[(e at: 'PATH') ifNil: [#{}] ifNotNilDo: #(splitWith: $:) `er].
 e@(Environment traits) userName [e at: 'LOGNAME'].
 e@(Environment traits) terminalType [e at: 'TERM'].
 
 e@(Environment traits) sourcePaths
 "Where Slate expects to find code."
-[(e at: 'SLATEPATH') ifNil: [#{}] ifNotNilDo: [| :paths | paths splitWith: $:]].
+[(e at: 'SLATEPATH') ifNil: [#{}] ifNotNilDo: #(splitWith: $:) `er].
 
 "Load defaultPaths addAll:
   (Environment sourcePaths collect: [| :each | each as: File Locator])."

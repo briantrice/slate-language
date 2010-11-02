@@ -3,7 +3,7 @@ collections addPrototype: #Heap derivedFrom: {SortedArray}.
 "A heap is a SortedArray of items.
 It is more efficient than a standard SortedArray if elements are only
 removed at the beginning, and elements are added in arbitrary sort order."
-Heap sortBlock := [| :a :b | a < b].
+Heap sortBlock := #< `er.
 "The block used for comparing items for sorting."
 
 h@(Heap traits) push: obj
@@ -30,7 +30,7 @@ h@(Heap traits) reSort
   h isEmpty ifTrue: [^ h].
   h firstIndex + h size // 2
     above: 0
-    do: [| :index | h checkDownFrom: index].
+    do: #(h checkDownFrom: _) `er.
   h
 ].
 
@@ -45,7 +45,7 @@ h@(Heap traits) add: obj
 h@(Heap traits) removeAt: index
 "Remove the element at the given index and ensure the sorting order is okay."
 [| removed |
-  removed := (h contents at: index).
+  removed := h contents at: index.
   h contents at: index put: (h contents at: h lastIndex).
   h contents at: h lastIndex put: Nil.
   h lastIndex := h lastIndex - 1.
@@ -85,9 +85,9 @@ h@(Heap traits) checkDownFrom: index
 Everything above (i.e. left of) the index is ok."
 [| value k n j |
   index <= h firstIndex ifTrue: [^ h].
-  n := (h lastIndex // 2).
+  n := h lastIndex // 2.
   k := index.
-  value := (h contents at: index).
+  value := h contents at: index.
   [k <= n] whileTrue:
     [j := k + k.
     "use max(j,j+1)"
@@ -112,9 +112,9 @@ position. Since the probability for being at the bottom of the heap is much
 larger than for being somewhere in the middle this version should be faster."
 [| value k n j |
   index <= h firstIndex ifTrue: [^ h].
-  n := (h lastIndex // 2).
+  n := h lastIndex // 2.
   k := index.
-  value := (h contents at: index).
+  value := h contents at: index.
   [k <= n] whileTrue:
     [j := k + k.
     "use max(j,j+1)"
@@ -134,8 +134,8 @@ Everything below the index is ok."
 [| value k kDiv2 tmp |
   index <= h firstIndex ifTrue: [^ h].
   k := index.
-  value := (h contents at: index).
-  [k > 1 /\ [h sorts: value before: (tmp := (h contents at: (kDiv2 := k // 2)))]]
+  value := h contents at: index.
+  [k > 1 /\ [h sorts: value before: (tmp := h contents at: (kDiv2 := k // 2))]]
     whileTrue: [array at: k put: tmp.
 		k := kDiv2].
   array at: k put: value

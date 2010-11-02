@@ -313,13 +313,13 @@ CompoundUnit traits compareAndHashUsingSlots: #{#units. #exponents}.
 cu@(CompoundUnit traits) reciprocal
 [
   cu units: cu units
-     exponents: (cu exponents collect: [| :each | each negated])
+     exponents: (cu exponents collect: #negated `er)
 ].
 
 cu@(CompoundUnit traits) raisedTo: expon
 [
   cu units: cu units
-     exponents: (cu exponents collect: [| :each | each * expon])
+     exponents: (cu exponents collect: #(* expon) `er)
 ].
 
 cu@(CompoundUnit traits) unitsAndExponentsDo: block
@@ -359,13 +359,13 @@ cu@(CompoundUnit traits) printOn: s@(PrettyPrinterMixin traits)
 
 cu@(CompoundUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
 [| pos neg |
-  pos := cu exponents anySatisfy: [| :expon | expon isPositive].
-  neg := cu exponents anySatisfy: [| :expon | expon isNegative].
-  pos ifTrue: [cu printUnitsWhereExponent: [| :expon | expon isPositive]
+  pos := cu exponents anySatisfy: #isPositive `er.
+  neg := cu exponents anySatisfy: #isNegative `er.
+  pos ifTrue: [cu printUnitsWhereExponent: #isPositive `er
                   on: s plural: b].
   neg /\ pos ifTrue: [s nextPut: $\s].
   neg ifTrue: [s ; 'per '.
-    cu printUnitsWhereExponent: [| :expon | expon isNegative] on: s plural: b].
+    cu printUnitsWhereExponent: #isNegative `er on: s plural: b].
   cu
 ].
 

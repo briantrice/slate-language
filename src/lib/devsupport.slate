@@ -1,7 +1,7 @@
 
 "Support functions to help with development"
 
-"#as: implementations do: [|:each| inform: each definitionLocation ]."
+"#as: implementations do: [| :each | inform: each definitionLocation ]."
 
 "(#parseExpression findOn: {Syntax Parser}) definitionLocation"
 
@@ -54,9 +54,7 @@ x@(Root traits) mostCommonlyCalledMethods
 x@(Root traits) printMostCommonlyCalledMethods
 [
   x mostCommonlyCalledMethods do:
-    [| :m | inform: m printString
-              ; ' count: ' ; m callCount printString
-              ; ' at: ' ; m definitionLocation].
+    [| :m | inform: '%@ count: %@ at: %r', m, m callCount, m definitionLocation].
 ].
 
 m@(CompiledMethod traits) breakOnEntry
@@ -72,12 +70,13 @@ m@(CompiledMethod traits) clearBreaks
 
 obj@(Root traits) completeSelectorFrom: s@(String traits)
 [ 
-  obj allRoles select: [|:item| (item value bitAnd: 1) = 1 /\ [item key beginsWith: s]] collect: [|:item| item key]
+  obj allRoles
+    select: [| :item | (item value bitAnd: 1) = 1 /\ [item key beginsWith: s]]
+    collect: #key `er
 ].
 
 m@(Method traits) reload
 [
   m sourceTree ifNotNilDo:
-    [| :src |
-     (src source resource as: Module) load]
+    [| :src | (src source resource as: Module) load]
 ].

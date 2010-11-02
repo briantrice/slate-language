@@ -77,7 +77,7 @@ m@(Module traits) copy
 
 m@(Module traits) newBasedOn: moduleSet
 [m clone initialize `>>
-   [requirements: (moduleSet select: [| :each | each is: Module]). ]].
+   [requirements := moduleSet select: #(is: Module) `er. ]].
 
 m@(Module traits) provide: obj
 [
@@ -106,7 +106,10 @@ m@(Module traits) allSelectorsSent
 m@(Module traits) allSelectorsSentNotDefined
 [
   [| :result | m methods do:
-    [| :each | result ; (each allSelectorsSent reject: [| :sel | m methods anySatisfy: [| :method | method selector = sel]])]]
+    [| :each |
+     result ; (each allSelectorsSent reject:
+                 [| :sel | m methods anySatisfy:
+                             [| :method | method selector = sel]])]]
     writingAs: IdentitySet
 ].
 
@@ -122,9 +125,7 @@ m@(Module traits) importAll: c from: prereq
 
 m@(Module traits) defines: obj
 [
-  (RootedPath to: obj)
-    ifNil: [m defines: (RootedPath to: obj traits)]
-    ifNotNilDo: [| :path | m defines: path]
+  m defines: ((RootedPath to: obj) ifNil: [RootedPath to: obj traits])
 ].
 
 m@(Module traits) defines: path@(Path traits)
@@ -186,8 +187,8 @@ l@(Load traits) process: source
   skip := ns define: #Skip &parents: {Restart}.
   _@skip describeOn: out [ out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
   l source := source.
-  [l run] handlingCases: {retry -> [|:_| ^ (l retry)].
-                          skip -> [|:_| ^ Nil]}.
+  [l run] handlingCases: {retry -> [| :_ | ^ (l retry)].
+                          skip -> [| :_ | ^ Nil]}.
 
 ].
 
@@ -259,7 +260,7 @@ contents within the argument namespace or an optional override."
   loader resolvePathOf: file.
   oldLevel := loader Level.
   loader Level := loader Level + 1.
-  [file ASCIIReader sessionDo: [| :input | loader process: input] &mode: file Read]
+  [file ASCIIReader sessionDo: #(loader process: _) `er &mode: file Read]
     ensure: [loader Level := oldLevel].
 ].
 

@@ -275,7 +275,7 @@ f@(Filter traits) nodesAfter: previous
 f@(Filter traits) selectAncestorOf: node after: previous
 [
   (f metaNode nodesFollowing: previous)
-    detect: [| :child | child isAncestorOf: node]
+    detect: #(isAncestorOf: node) `er
 ].
 
 browsing define: #ModalFilter &parents: {Filter} &slots: {#selection}.
@@ -318,15 +318,13 @@ Method traits define: #BrowseNode &parents: {Root BrowseNode}.
 n@(Method BrowseNode traits) senders &in: namespace
 [
   n object selector ifNil: [#{}] ifNotNilDo:
-    [| :sel | (sel senders &in: namespace) collect:
-      [| :sender | sender browseNode]]
+    [| :sel | (sel senders &in: namespace) collect: #browseNode `er]
 ].
 
 n@(Method BrowseNode traits) implementations &in: namespace
 [
   n object selector ifNil: [#{}] ifNotNilDo:
-    [| :sel | (sel implementations &in: namespace) collect:
-      [| :m | m browseNode]]
+    [| :sel | (sel implementations &in: namespace) collect: #browseNode `er]
 ].
 
 n@(Method BrowseNode traits) inheritance &limit: limit

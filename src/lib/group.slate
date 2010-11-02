@@ -6,13 +6,13 @@ collections define: #Grouping &parents: {ExtensibleCollection}
 applying a attributeBlock to each."
 
 g@(Grouping traits) new &capacity: n
-[g clone `setting: #(contents) to: {g contents new &capacity: n}].
+[g clone `>> [contents := g contents new &capacity: n. ]].
 
 c@(Collection traits) grouped
 [c groupedBy: Method Identity].
 
 c@(Collection traits) groupedBy: keyBlock
-[Grouping new `>> [attributeBlock: keyBlock. addAll: c. ]].
+[Grouping new `>> [attributeBlock := keyBlock. addAll: c. ]].
 
 g@(Grouping traits) add: obj
 [| key group |
@@ -34,8 +34,7 @@ g@(Grouping traits) remove: obj
 g@(Grouping traits) do: block
 "Perform the block for each occurrence of each element in the bag."
 [
-  g contents valuesDo: [| :val |
-    val do: block].
+  g contents valuesDo: #(do: block) `er.
   g
 ].
 

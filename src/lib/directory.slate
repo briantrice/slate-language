@@ -64,7 +64,7 @@ subdir@(Directory traits) isChildOf: dir@(Directory traits)
 dir@(Directory traits) enable
 "Reset the directory."
 [| dirname result |
-  [dir close] on: dir Closed do: [| :c | c return].
+  [dir close] on: dir Closed do: #return `er.
   dirname := dir locator as: String.
   (result := dir primitiveOpen: dirname) isNegative
     ifTrue: [error: result negated printString]
@@ -82,7 +82,7 @@ dir@(Directory traits) disable
 
 dir@(Directory traits) exists
 [
-  dir locator fileInfo ifNil: [False] ifNotNilDo: [|:info| info isDirectory]
+  dir locator fileInfo ifNil: [False] ifNotNilDo: #isDirectory `er
 ].
 
 dir@(Directory traits) delete

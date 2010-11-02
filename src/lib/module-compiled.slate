@@ -29,13 +29,12 @@ m@(CompiledModule traits) loadFrom: src
 
 m@(CompiledModule traits) loadFrom: src@(ExternalResource traits)
 [
-  src reader sessionDo: [| :src | m loadFrom: src]
+  src reader sessionDo: #(m loadFrom: _) `er
 ].
 
 m@(CompiledModule traits) loadFrom: r@(ReadStream traits)
 [| kind |
-  kind := r next.
-  kind caseOf: {
+  (kind := r next) caseOf: {
     $T -> [True].
     $F -> [False].
     $N -> [Nil].
@@ -58,8 +57,7 @@ m@(CompiledModule traits) loadFrom: r@(ReadStream traits)
 
 m@(CompiledModule traits) loadSyntaxTreeFrom: r@(ReadStream traits)
 [| kind proto |
-  kind := (m nextSyntaxTypeFrom: r).
-  proto := (kind caseOf: {
+  proto := ((kind := m nextSyntaxTypeFrom: r) caseOf: {
     'No' -> [Syntax Node].
     'An' -> [Syntax Annotation].
     'Cm' -> [Syntax Comment].
@@ -126,7 +124,7 @@ obj@(Root traits) saveInto: w@(WriteStream traits)
 
 obj@(Root traits) saveInto: sink@(ExternalResource traits)
 [
-  sink create writer sessionDo: [| :sink | obj saveInto: sink]
+  sink create writer sessionDo: #(obj saveInto: _) `er
 ].
 
 obj@(Root traits) saveInto: sink

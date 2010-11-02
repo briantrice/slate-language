@@ -13,7 +13,7 @@ s@(Sequence traits) as: v@(Version traits)
 str@(String traits) as: v@(Version traits)
 "Reads a string with number-strings separated by periods... a version name."
 [
-  ((str splitWith: $.) collect: [| :each | each as: Number]) as: v
+  ((str splitWith: $.) collect: #(as: Number) `er) as: v
 ].
 
 Version traits compareAndHashUsingSlots: #{#numbers}.
@@ -44,8 +44,8 @@ v1@(Version traits) commonVersionWith: v2@(Version traits)
      ifTrue: [short := v1 numbers. long := v2 numbers]
      ifFalse: [long := v1 numbers. short := v2 numbers].
   threshold := (0 below: short size)
-         detect: [| :index | (short at: index) ~= (long at: index)]
-	 ifNone: [^ (v1 newFrom: short)].
+    detect: [| :index | (short at: index) ~= (long at: index)]
+    ifNone: [^ (v1 newFrom: short)].
   v1 newFrom: (v1 numbers copyFrom: 0 to: threshold - 2)
     ;; {short at: threshold. long at: threshold}
 ].
@@ -73,7 +73,7 @@ v@(Version traits) branchNext
 v@(Version traits) versionStringOn: s
 [
   v numbers
-    do: [| :each | each printOn: s]
+    do: #(printOn: s) `er
     separatedBy: [s nextPut: $.].
   v
 ].
