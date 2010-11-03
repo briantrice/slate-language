@@ -238,27 +238,27 @@
      . font-lock-variable-name-face)    ; optional keywords
     ("\\(?:_\\|[A-Za-z]+[_A-Za-z0-9]*\\)@+?"
      . font-lock-variable-name-face)    ; declaration dispatchings
-    (,slate-keyword-regexp
-     . font-lock-keyword-face) ; keyword sends
     ("|[A-Za-z0-9:&_*!() \n]*|"
      . font-lock-variable-name-face)    ; block local slots
     ("\\<\\(:\\|&\\|*\\)[A-Za-z0-9_]+"
      . font-lock-variable-name-face)    ; block input slots
+    (,slate-keyword-regexp
+     . font-lock-keyword-face)          ; keyword sends
     ("!\\([A-Za-z]*\\|\([A-Za-z0-9_ ]*\)\\)"
-     . font-lock-type-face)        ; type-declaration
+     . font-lock-type-face)             ; type-declaration
     ("\\<[+-]?[0-9]+\\([.][0-9]+\\)?\\>"
-     . font-lock-constant-face) ; numbers (integers and floats)
+     . font-lock-constant-face)        ; numbers (integers and floats)
     (,(concat "\\<[+-]?[0-9_]+[Rr]" hexdigit-regexp "+\\([.]" hexdigit-regexp "+\\)?\\>")
-     . font-lock-constant-face) ; numbers (integers and floats)
+     . font-lock-constant-face)        ; numbers (integers and floats)
     ("\\([.]\\)\\(?:$\\|[^0-9\"]\\)"
-     . font-lock-warning-face)        ; statement separators
+     . font-lock-warning-face)          ; statement separators
     ("\\(?:[A-Za-z0-9_]* \\)*\\(?:traits\\|derive\\)"
-     . font-lock-type-face)        ; traits name
+     . font-lock-type-face)                     ; traits name
     ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
-     . font-lock-builtin-face)        ; globals
+     . font-lock-builtin-face)          ; globals
 ;;     (,(concat "\\<" slate-binop-regexp "\\>")
-;;      . font-lock-string-face) ; binary message send
+;;      . font-lock-string-face)        ; binary message send
    )
   "Slate highlighting matchers.")
 
