@@ -1,6 +1,6 @@
 "A library of methods for working with natural languages."
 
-lobby ensureNamespace: #languages &delegate: True.
+ensureNamespace: #languages &delegate: True.
 
 languages define: #Language &parents: {Cloneable}.
 
@@ -21,33 +21,44 @@ _@(Language traits) SmallWords
 
 l@(Language traits) titleCaseOf: s@(String traits)
 [| words |
-  words := s split.
-  words doWithIndex:
+  (words := s split) doWithIndex:
     [| :word :index |
      (word includes: $&)
        ifTrue: [word toUppercase]
        ifFalse:
          [(l SmallWords includes: word)
-            /\ (index > 0)
+            /\ [index isPositive]
             ifTrue: [word toLowercase]
             ifFalse: [word capitalize]]].
   words join &separator: ' '
 ].
 
+_@(Language traits) numeralGroupSize [3].
+
+_@(Language traits) numeralGroupSeparator ['.'].
+_@(Language traits) decimal [','].
+
+l@(Language traits) print: n@(Integer traits) on: o
+[
+  n printOn: o &groupSeparator: l numeralGroupSeparator &groupSize: l numeralGroupSize
+].
+
+l@(Language traits) print: f@(Float traits) on: o
+[
+  f printOn: o &groupSeparator: l numeralGroupSeparator &groupSize: l numeralGroupSize &decimal: l decimal
+].
+
 languages define: #LatinFamily &parents: {Language}.
 
 _@(LatinFamily traits) pluralOf: s@(String traits)
-[s ; 's'].
+[
+  s ; (s last isVowel ifTrue: ['s'] ifFalse: ['es'])
+].
 
 _@(LatinFamily traits) ordinalOf: n@(Number traits)
 [
-  (n as: String) ; 'o'
+  n printString ; 'o'
 ].
-
-_@(LatinFamily traits) numeralGroupSize [3].
-
-_@(LatinFamily traits) numeralGroupSeparator ['.'].
-_@(LatinFamily traits) decimal [','].
 
 languages define: #English &parents: {LatinFamily}.
 
@@ -58,23 +69,34 @@ it as specifying the instance of a noun named by the String."
   s first isVowel ifTrue: ['an ' ; s] ifFalse: ['a ' ; s]
 ].
 
+_@(English traits) numeralGroupSeparator [','].
+_@(English traits) decimal ['.'].
+
 _@(English traits) pluralOf: s@(String traits)
 "Answer a copy of the String appended with -s, -es, or -ies in order to treat
 it as a pluralized noun. This does not try to be too clever, because that
 requires a full lexicon (for English) - only use this for technical purposes."
 [
-  s last toLowercase = $o ifTrue: [^ (s ; 'es')].
-  s last isVowel ifTrue: [^ (s ; 's')].
-  s last toLowercase = $y
-    ifTrue: [^ ((s at: s indexLast - 1) isVowel not
-	       ifTrue: [s allButLast ; 'ies']
-	       ifFalse: [s ; 's'])].
-  (s last: 2) = 'us' ifTrue: [^ ((s allButLast: 2) ; 'i')].
-  (s last: 3) = 'sis' ifTrue: [^ ((s allButLast: 2) ; 'es')].
-  (s last: 2) = 'on' ifTrue: [^ ((s allButLast: 2) ; 'a')].
-  ({'ex'. 'ix'} includes: (s last: 2)) ifTrue: [^ ((s allButLast: 2) ; 'ices')].
-  ({'ss'. 'sh'. 'ch'. 'dge'} includes: (s last: 2)) ifTrue: [^ (s ; 'es')].
-  s ; 's'
+  `conditions: (
+    [s last toLowercase = $o]
+      -> [s ; 'es'].
+    [s last isVowel]
+      -> [s ; 's'].
+    [s last toLowercase = $y]
+      -> [(s at: s indexLast - 1) isVowel
+	    ifTrue: [s ; 's']
+	    ifFalse: [s allButLast ; 'ies']].
+    [(s last: 2) = 'us']
+      -> [(s allButLast: 2) ; 'i'].
+    [(s last: 3) = 'sis']
+      -> [(s allButLast: 2) ; 'es'].
+    [(s last: 2) = 'on']
+      -> [(s allButLast: 2) ; 'a'].
+    [#{'ex'. 'ix'} includes: (s last: 2)]
+      -> [(s allButLast: 2) ; 'ices'].
+    [#{'ss'. 'sh'. 'ch'. 'dge'} includes: (s last: 2)]
+      -> [s ; 'es']
+  ) otherwise: [s ; 's']
 ].
 
 l@(English traits) ordinalOf: n@(Integer traits)
@@ -114,4 +136,3 @@ l@(English traits) ordinateOfGroup: numerals@(String traits)
 [
   
 ].
-

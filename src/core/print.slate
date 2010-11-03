@@ -197,7 +197,7 @@ original argument."
     ifFalse: [name printOn: o]
 ].
 
-n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &forceSign: forceSign
+n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &forceSign: forceSign &groupSeparator: groupSeparator &groupSize: groupSize
 "Print the Integer in any given basis between 2 and 36 (alphanumeric limit),
 with sign. This works by collecting the digits and a "
 [| digits x |
@@ -227,7 +227,10 @@ with sign. This works by collecting the digits and a "
          ((d >= 10
             ifTrue: [($A as: Integer) + d - 10]
             ifFalse: [($0 as: Integer) + d]) as: ASCIIString Character)].
-  o ; digits contents reversed
+  o ; (groupSeparator
+         ifNil: [digits contents reversed]
+         ifNotNil: [((digits contents splitIntoSize: (groupSize ifNil: [3]))
+                       join &separator: groupSeparator reversed) reversed])
 ].
 
 n@(Integer traits) as: _@(String traits)
@@ -257,15 +260,17 @@ m@(Method traits) printOn: o@(PrettyPrinterMixin traits)
 m@(Method Converse traits) printOn: o@(PrettyPrinterMixin traits)
 [m method printOn: o. o ; ' converse'].
 
-f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision: precision &forceSign: forceSign
+f@(Float traits) printOn: o@(PrettyPrinterMixin traits)
+  &radix: radix &precision: precision &forceSign: forceSign
+  &groupSeparator: groupSeparator &decimal: decimalSep
 "Taken from 'Printing Floating-Point Numbers Quickly and Accurately',
  Robert G. Burger and R. Kent Dybvig, PLDI '96."
 [| digits significand exponent k b r s mUp mDown d decimal |
   radix `defaultsTo: o numberRadix.
   precision `defaultsTo: o numberPrecision.
+  decimalSep `defaultsTo: '.'.
   significand := f significand.
-  exponent := f exponent.
-  exponent = (f bias * 2 + 1)
+  (exponent := f exponent) = (f bias * 2 + 1)
     ifTrue:
       [^ (o ; (f isNegative ifTrue: ['-'] ifFalse: ['+'])
             ; (significand isZero ifTrue: ['Inf'] ifFalse: ['NaN']))].
@@ -347,7 +352,7 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &precision
        (k negated max: 0)
          timesRepeat: [o ; '0']]
     ifFalse:
-      [o ; '.'].
+      [o ; decimalSep].
   decimal >= digits size
     ifTrue: [o ; '0']
     ifFalse:
