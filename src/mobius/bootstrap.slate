@@ -1,40 +1,38 @@
-Image ensureNamespace: #Bootstrap.
-
 "fixme: this is overwritten everytime you make a new generator"
-Image Bootstrap define: #BytesPerWord -> 4.
+define: #BytesPerWord -> 4.
 "The size of a word in bytes on the target platform."
 "TODO: Make this an attribute of an accessible target description."
 
-Image Bootstrap define: #Chunk &parents: {Cloneable} &slots: {#oop}.
+define: #Chunk &slots: {#oop}.
 
-_@(Image Bootstrap Chunk traits) wordSize [overrideThis].
+_@(Chunk traits) wordSize [overrideThis].
 
-Image Bootstrap define: #SlotEntry &parents: {Cloneable} &slots: {#name. #offset}.
+define: #SlotEntry &slots: {#name. #offset}.
 
-se@(Image Bootstrap SlotEntry traits) newNamed: name offset: offset
+se@(SlotEntry traits) newNamed: name offset: offset
 [se clone `>> [name := name. offset := offset. ]].
 
-Image Bootstrap define: #RoleEntry &parents: {Cloneable} &slots:
+define: #RoleEntry &slots:
   {#name. #rolePositions -> 0. #methodDefinition}.
 
-re@(Image Bootstrap RoleEntry traits) newNamed: name rolePositions: positions methodDefinition: method
+re@(RoleEntry traits) newNamed: name rolePositions: positions methodDefinition: method
 [re clone `>>
    [name := name. rolePositions := positions. methodDefinition := method. ]].
 
-Image Bootstrap define: #MethodDefinition &parents: {Cloneable} &slots:
+define: #MethodDefinition &slots:
   {#dispatchPositions -> 0. #method. #slotAccessor}.
 
-md@(Image Bootstrap MethodDefinition traits) newDispatchPositions: positions method: method
+md@(MethodDefinition traits) newDispatchPositions: positions method: method
 [md clone `>> [dispatchPositions := positions. method := method. ]].
 
-Image Bootstrap define: #Map &parents: {Cloneable} &slots:
+define: #Map &slots:
   {#flags -> 0. #representative -> Nil.
    #delegates -> {}.
    #slotCount -> 0.
    #slotTable -> {}.
    #roleTable -> {}}.
 
-map@(Image Bootstrap Map traits) addSlotNamed: name at: offset
+map@(Map traits) addSlotNamed: name at: offset
 [
   map slotTable infect: #clone `er.
   map slotTable := map slotTable copyWith:
@@ -42,7 +40,7 @@ map@(Image Bootstrap Map traits) addSlotNamed: name at: offset
   map
 ].
 
-map@(Image Bootstrap Map traits) addRoleNamed: name at: position dispatching: def
+map@(Map traits) addRoleNamed: name at: position dispatching: def
 [
   map roleTable
     doWithIndex:
@@ -64,19 +62,19 @@ map@(Image Bootstrap Map traits) addRoleNamed: name at: position dispatching: de
   True
 ].
 
-Image Bootstrap define: #Object &parents: {Image Bootstrap Chunk} &slots:
-  {#idHash. #bmap -> Image Bootstrap Map. #slotValues -> {}}.
+define: #Object &parents: {Chunk} &slots:
+  {#idHash. #bmap -> Map. #slotValues -> {}}.
 
-_@(Image Bootstrap Object traits) headerWords
+_@(Object traits) headerWords
 [4].
 
-obj@(Image Bootstrap Object traits) wordSizeSansPayload
+obj@(Object traits) wordSizeSansPayload
 [obj headerWords + obj slotValues size].
 
-obj@(Image Bootstrap Object traits) wordSize
+obj@(Object traits) wordSize
 [obj wordSizeSansPayload].
 
-obj@(Image Bootstrap Object traits) makeSlotNamed: name valued: value
+obj@(Object traits) makeSlotNamed: name valued: value
 [| index |
   index := obj bmap slotCount.
   obj bmap := obj bmap clone `>>
@@ -86,19 +84,19 @@ obj@(Image Bootstrap Object traits) makeSlotNamed: name valued: value
   obj
 ].
 
-obj@(Image Bootstrap Object traits) addDelegateValued: value
+obj@(Object traits) addDelegateValued: value
 [
   obj bmap := obj bmap clone `>>
     [delegates := obj bmap delegates copyWith: value. ].
   obj
 ].
 
-obj@(Image Bootstrap Object traits) addRoleNamed: name at: position dispatching: def
+obj@(Object traits) addRoleNamed: name at: position dispatching: def
 [
   obj bmap addRoleNamed: name at: position dispatching: def
 ].
 
-obj@(Image Bootstrap Object traits) setSlot: name to: val
+obj@(Object traits) setSlot: name to: val
 [
   obj bmap slotTable
     do: [| :slot | slot name = name ifTrue:
@@ -106,12 +104,12 @@ obj@(Image Bootstrap Object traits) setSlot: name to: val
   Nil
 ].
 
-obj@(Image Bootstrap Object traits) setSlots: namesAndValues
+obj@(Object traits) setSlots: namesAndValues
 [
   namesAndValues do: [| :assoc | obj setSlot: assoc key to: assoc value]
 ].
 
-obj@(Image Bootstrap Object traits) getSlot: name
+obj@(Object traits) getSlot: name
 [
   obj bmap slotTable
     do: [| :slot | slot name = name ifTrue:
@@ -119,7 +117,7 @@ obj@(Image Bootstrap Object traits) getSlot: name
   Nil
 ].
 
-method@(Image Bootstrap Object traits) addMethodNamed: name on: roles
+method@(Object traits) addMethodNamed: name on: roles
 [| def |
   def := method surroundings MethodDefinition newDispatchPositions: 0 method: method.
   roles doWithIndex:
@@ -131,46 +129,46 @@ method@(Image Bootstrap Object traits) addMethodNamed: name on: roles
   def
 ].
 
-Image Bootstrap define: #Array &parents: {Image Bootstrap Object}.
+define: #Array &parents: {Object}.
 
-Image Bootstrap define: #OopArray &parents: {Image Bootstrap Array}
+define: #OopArray &parents: {Array}
   &slots: {#elements -> {}}.
 
-arr@(Image Bootstrap OopArray traits) wordSize
+arr@(OopArray traits) wordSize
 [arr wordSizeSansPayload + arr elements size].
 
-Image Bootstrap define: #ByteArray &parents: {Image Bootstrap Array}
-  &slots: {#elements -> ByteArray new}.
+define: #ByteArray &parents: {Array}
+  &slots: {#elements -> imports ByteArray new}.
 
-arr@(Image Bootstrap ByteArray traits) byteSize
+arr@(ByteArray traits) byteSize
 [
   arr wordSizeSansPayload * arr surroundings BytesPerWord + arr elements size
 ].
 
-arr@(Image Bootstrap ByteArray traits) wordSize
+arr@(ByteArray traits) wordSize
 [
   arr wordSizeSansPayload + (arr elements size + arr surroundings BytesPerWord - 1 // arr surroundings BytesPerWord)
 ].
 
-Image Bootstrap define: #CompiledMethod &parents: {Image Bootstrap Object}.
+define: #CompiledMethod &parents: {Object}.
 
-Image Bootstrap define: #Generator &parents: {Cloneable} &slots: {
+define: #Generator &slots: {
   #translations -> IdentityDictionary new.
   #chunks -> ExtensibleArray new.
-  #characters -> (Array newSizeOf: ASCIIString Character CharacterSet).
+  #characters -> ({} newSizeOf: imports ASCIIString Character CharacterSet).
   #symbols -> Dictionary new.
   #littleEndian -> True.
-  #bytesPerWord -> Image Bootstrap BytesPerWord.
+  #bytesPerWord -> BytesPerWord.
   #nextHash -> 0.
   #imageSize -> 0.
   #objects -> Dictionary new.
 }.
 
-gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &wordSize: wordSize
+gen@(Generator traits) new &littleEndian: littleEndian &wordSize: wordSize
 [
   littleEndian `defaultsTo: gen littleEndian.
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
-  Image Bootstrap define: #BytesPerWord -> (wordSize // 8).
+  define: #BytesPerWord -> (wordSize // 8).
   gen clone `setting:
     #{#objects. #translations. #chunks. #characters. #symbols. #bytesPerWord. #littleEndian}
     to: {gen objects new.
@@ -182,7 +180,7 @@ gen@(Image Bootstrap Generator traits) new &littleEndian: littleEndian &wordSize
 	 littleEndian}
 ].
 
-gen@(Image Bootstrap Generator traits) generateImageBooting: method withPrims: prims
+gen@(Generator traits) generateImageBooting: method withPrims: prims
 "Generates the primary image objects such that the supplied CompiledMethod
 will be interpreted immediately upon loading the image."
 [
@@ -204,10 +202,10 @@ will be interpreted immediately upon loading the image."
   gen generateLinkage
 ].
 
-gen@(Image Bootstrap Generator traits) objectNamed: name
+gen@(Generator traits) objectNamed: name
 [gen objects at: name].
 
-gen@(Image Bootstrap Generator traits) bytesAt: i in: arr put: val numBytes: bytes
+gen@(Generator traits) bytesAt: i in: arr put: val numBytes: bytes
 [
   0 below: bytes do:
     [| :index |
@@ -216,22 +214,22 @@ gen@(Image Bootstrap Generator traits) bytesAt: i in: arr put: val numBytes: byt
                                          ifFalse: [0 - bytes + index])) intoByte]
 ].
 
-gen@(Image Bootstrap Generator traits) shortAt: i in: arr put: val
+gen@(Generator traits) shortAt: i in: arr put: val
 [
   gen bytesAt: i in: arr put: val numBytes: gen bytesPerWord // 2
 ].
 
-gen@(Image Bootstrap Generator traits) longAt: i in: arr put: val
+gen@(Generator traits) longAt: i in: arr put: val
 [
   gen bytesAt: i in: arr put: val numBytes: gen bytesPerWord
 ].
 
-gen@(Image Bootstrap Generator traits) capacityForTable: table
+gen@(Generator traits) capacityForTable: table
 [
   (table size * 5 // 4) leastGreaterPowerOfTwo
 ].
 
-gen@(Image Bootstrap Generator traits) generateSlotTableFor: map
+gen@(Generator traits) generateSlotTableFor: map
 [| obj capacity selector hash |
   capacity := gen capacityForTable: map slotTable.
   obj := gen cloneOf: (gen objectNamed: #ArrayProto) sized: 2 * capacity.
@@ -247,7 +245,7 @@ gen@(Image Bootstrap Generator traits) generateSlotTableFor: map
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) generateRoleTableFor: map
+gen@(Generator traits) generateRoleTableFor: map
 [| obj capacity selector hash insert |
   capacity := gen capacityForTable: map roleTable.
   obj := gen cloneOf: (gen objectNamed: #ArrayProto) sized: 4 * capacity.
@@ -274,7 +272,7 @@ gen@(Image Bootstrap Generator traits) generateRoleTableFor: map
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) generateMethodDef: def
+gen@(Generator traits) generateMethodDef: def
 [
   gen translations at: def
     ifAbsentPut:
@@ -289,7 +287,7 @@ gen@(Image Bootstrap Generator traits) generateMethodDef: def
        obj]
 ].
 
-gen@(Image Bootstrap Generator traits) generateMap: map
+gen@(Generator traits) generateMap: map
 [
   gen translations at: map
     ifAbsentPut:
@@ -302,7 +300,7 @@ gen@(Image Bootstrap Generator traits) generateMap: map
                      #roleTable -> (gen generateRoleTableFor: map)}. ]]
 ].
 
-gen@(Image Bootstrap Generator traits) generateMaps
+gen@(Generator traits) generateMaps
 [
   gen objects keysAndValuesDo:
     [| :name :obj |
@@ -310,11 +308,11 @@ gen@(Image Bootstrap Generator traits) generateMaps
      gen generateMap: obj bmap]
 ].
 
-obj@(Image Bootstrap Object traits) nextOop
+obj@(Object traits) nextOop
 "Answer the pointer to just beyond this object."
 [obj oop + (obj wordSize * obj surroundings BytesPerWord)].
 
-gen@(Image Bootstrap Generator traits) assignOops
+gen@(Generator traits) assignOops
 "Assign oops to all of the chunks, accumulating the final oop which is used
 to set the image size."
 [
@@ -322,30 +320,30 @@ to set the image size."
     [| :oop :chunk | chunk oop := oop. chunk nextOop]
 ].
 
-gen@(Image Bootstrap Generator traits) emitInteger: val on: stream byteSize: byteSize
+gen@(Generator traits) emitInteger: val on: stream byteSize: byteSize
 "Takes an integer and outputs the binary data value in the correct byte-order
 onto the stream."
 [
   stream next: byteSize putInteger: val &littleEndian: gen littleEndian
 ].
 
-gen@(Image Bootstrap Generator traits) emitLong: val on: stream
+gen@(Generator traits) emitLong: val on: stream
 "Takes an integer and outputs the binary data value in the correct byte-order
 onto the stream."
 [
   gen emitInteger: val on: stream byteSize: gen bytesPerWord
 ].
 
-gen@(Image Bootstrap Generator traits) emitOopOf: chunk on: stream
+gen@(Generator traits) emitOopOf: chunk on: stream
 [gen emitLong: chunk oop on: stream].
 
-gen@(Image Bootstrap Generator traits) emitOopOf: _@Nil on: stream
+gen@(Generator traits) emitOopOf: _@Nil on: stream
 [gen emitOopOf: (gen objectNamed: #NilObject) on: stream].
 
-gen@(Image Bootstrap Generator traits) emitOopOf: i@(SmallInteger traits) on: stream
+gen@(Generator traits) emitOopOf: i@(imports SmallInteger traits) on: stream
 [gen emitLong: (i << 1 bitOr: 1) on: stream].
 
-gen@(Image Bootstrap Generator traits) emitObjectHashed: hash sized: size payload: payload format: format on: stream
+gen@(Generator traits) emitObjectHashed: hash sized: size payload: payload format: format on: stream
 [
   "fix: check big endian"
   "header"
@@ -374,7 +372,7 @@ gen@(Image Bootstrap Generator traits) emitObjectHashed: hash sized: size payloa
   stream
 ].
 
-gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap Object traits) on: stream
+gen@(Generator traits) emit: obj@(Object traits) on: stream
 [
   gen emitObjectHashed: obj idHash sized: obj wordSize payload: 0 format: 2r00 on: stream.
   gen emitLong: (gen translations at: obj bmap) oop on: stream.
@@ -383,7 +381,7 @@ gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap Object traits)
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap OopArray traits) on: stream
+gen@(Generator traits) emit: obj@(OopArray traits) on: stream
 [
   gen emitObjectHashed: obj idHash
     sized: obj wordSizeSansPayload
@@ -396,7 +394,7 @@ gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap OopArray trait
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap ByteArray traits) on: stream
+gen@(Generator traits) emit: obj@(ByteArray traits) on: stream
 [
   gen emitObjectHashed: obj idHash
     sized: obj wordSizeSansPayload
@@ -410,7 +408,7 @@ gen@(Image Bootstrap Generator traits) emit: obj@(Image Bootstrap ByteArray trai
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) emitHeaderOn: stream
+gen@(Generator traits) emitHeaderOn: stream
 [
   gen emitLong: 16rABCDEF43 on: stream.
   gen emitLong: gen imageSize on: stream.
@@ -421,7 +419,7 @@ gen@(Image Bootstrap Generator traits) emitHeaderOn: stream
 
 ].
 
-gen@(Image Bootstrap Generator traits) emitOn: stream
+gen@(Generator traits) emitOn: stream
 "Emits a bootstrap image on the stream after it has been generated."
 [
   inform: 'Assigning oops'.
@@ -431,21 +429,21 @@ gen@(Image Bootstrap Generator traits) emitOn: stream
   gen chunks do: [| :chunk | gen emit: chunk on: stream]
 ].
 
-gen@(Image Bootstrap Generator traits) addObjectNamed: name valued: obj
+gen@(Generator traits) addObjectNamed: name valued: obj
 [
   inform: ' Adding object %s', name.
   gen objects at: name put: obj.
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) newIdentityHash
+gen@(Generator traits) newIdentityHash
 [| hash |
   hash := gen nextHash.
   gen nextHash := gen nextHash + 1.
   hash
 ].
 
-gen@(Image Bootstrap Generator traits) new: layout fromMap: map
+gen@(Generator traits) new: layout fromMap: map
 [| obj |
   obj := layout clone `>> [idHash := gen newIdentityHash. bmap := map. ].
   obj slotValues := obj slotValues newSize: map slotCount.
@@ -454,37 +452,37 @@ gen@(Image Bootstrap Generator traits) new: layout fromMap: map
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) newMap
+gen@(Generator traits) newMap
 [
   gen surroundings Map clone
 ].
 
-gen@(Image Bootstrap Generator traits) newObject
+gen@(Generator traits) newObject
 [
   gen new: gen surroundings Object
 ].
 
-gen@(Image Bootstrap Generator traits) new: layout
+gen@(Generator traits) new: layout
 [
   gen new: layout fromMap: gen newMap
 ].
 
-gen@(Image Bootstrap Generator traits) cloneOf: proto@(Image Bootstrap Object traits)
+gen@(Generator traits) cloneOf: proto@(Object traits)
 [
   gen chunks addLast: proto clone `>>
     [idHash := gen newIdentityHash. slotValues := proto slotValues copy. ]
 ].
 
-gen@(Image Bootstrap Generator traits) cloneOf: arr@(Image Bootstrap Array traits)
+gen@(Generator traits) cloneOf: arr@(Array traits)
 [resend `>> [elements := arr elements copy. ]].
 
-gen@(Image Bootstrap Generator traits) cloneOf: proto sized: size
+gen@(Generator traits) cloneOf: proto sized: size
 [(gen cloneOf: proto) `>> [elements := proto elements newSize: size. ]].
 
-gen@(Image Bootstrap Generator traits) cloneOf: proto elements: elements
+gen@(Generator traits) cloneOf: proto elements: elements
 [(gen cloneOf: proto) `>> [elements := elements as: proto elements. ]].
 
-gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj
+gen@(Generator traits) addAccessorFor: slotName on: obj
 [| accessor selector |
   selector := obj accessorNameFor: slotName.
   accessor := gen cloneOf: (gen objectNamed: #CompiledMethodProto).
@@ -509,7 +507,7 @@ gen@(Image Bootstrap Generator traits) addAccessorFor: slotName on: obj
   accessor
 ].
 
-gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj
+gen@(Generator traits) addMutatorFor: slotName on: obj
 [| mutator selector |
   mutator := gen cloneOf: (gen objectNamed: #CompiledMethodProto).
   selector := obj mutatorNameFor: slotName.
@@ -536,20 +534,20 @@ gen@(Image Bootstrap Generator traits) addMutatorFor: slotName on: obj
   mutator
 ].
 
-gen@(Image Bootstrap Generator traits) addAccessorsFor: slotName on: obj
+gen@(Generator traits) addAccessorsFor: slotName on: obj
 [
   gen addAccessorFor: slotName on: obj.
   gen addMutatorFor: slotName on: obj
 ].
 
-gen@(Image Bootstrap Generator traits) generateKernelAccessors
+gen@(Generator traits) generateKernelAccessors
 [
   gen objects do:
     [| :obj |
      obj bmap slotTable do: [| :slot | gen addAccessorsFor: slot name on: obj]]
 ].
 
-gen@(Image Bootstrap Generator traits) generatePrototype: name &suffix: suffix &layout: layout &parents: parents &slots: slotSpecs &elements: elements
+gen@(Generator traits) generatePrototype: name &suffix: suffix &layout: layout &parents: parents &slots: slotSpecs &elements: elements
 [| traits window result |
   suffix `defaultsTo: 'Proto'.
   slotSpecs `defaultsTo: {}.
@@ -573,12 +571,12 @@ gen@(Image Bootstrap Generator traits) generatePrototype: name &suffix: suffix &
   result
 ].
 
-gen@(Image Bootstrap Generator traits) generateInstance: name of: window
+gen@(Generator traits) generateInstance: name of: window
 [(gen addObjectNamed: name valued: gen newObject) `>>
   [addDelegateValued: window.]
 ].
 
-gen@(Image Bootstrap Generator traits) generateKernel
+gen@(Generator traits) generateKernel
 [
   gen generatePrototype: 'Root'.
   gen generatePrototype: 'Oddball' &parents: {gen objectNamed: #RootTraits}.
@@ -694,7 +692,7 @@ gen@(Image Bootstrap Generator traits) generateKernel
           elements: {VM SSACode resume})].
 ].
 
-gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
+gen@(Generator traits) generateInterpreterBooting: method
 [| compiler stackObj stackSize methodObj codeSize |
   compiler := VM SSACompiler new.
   _@compiler branchTableHash: key
@@ -738,7 +736,7 @@ gen@(Image Bootstrap Generator traits) generateInterpreterBooting: method
   gen longAt: 4 * gen bytesPerWord in: (gen objectNamed: #InterpreterObject) put: stackSize
 ].
 
-gen@(Image Bootstrap Generator traits) generateUtilities
+gen@(Generator traits) generateUtilities
 [
   gen generateInstance: #ConsoleObject of: (gen objectNamed: #OddballWindow).
 
@@ -762,7 +760,7 @@ gen@(Image Bootstrap Generator traits) generateUtilities
   }.
 ].
 
-gen@(Image Bootstrap Generator traits) generateLobby
+gen@(Generator traits) generateLobby
 [
   gen addObjectNamed: #PrototypesObject valued: (gen cloneOf: (gen objectNamed: #NamespaceProto)).
   (gen objectNamed: #BootstrapObject) addDelegateValued: (gen objectNamed: #PrototypesObject).
@@ -835,7 +833,7 @@ gen@(Image Bootstrap Generator traits) generateLobby
   gen addMutatorFor: #features on: (gen objectNamed: #GlobalsObject)
 ].
 
-gen@(Image Bootstrap Generator traits) generateLinkage
+gen@(Generator traits) generateLinkage
 "TODO: The order in this method must be the same as in memory.slate, enforce it"
 [
   (gen objectNamed: #GlobalsObject) setSlot: #specialOops to:
@@ -870,7 +868,7 @@ gen@(Image Bootstrap Generator traits) generateLinkage
   (gen objectNamed: #GlobalsObject) setSlot: #bootstrapSymbols to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: gen symbols valueSet).
 ].
 
-gen@(Image Bootstrap Generator traits) generatePrimitive: prim at: index
+gen@(Generator traits) generatePrimitive: prim at: index
 "Given a MethodDefinition representing a Pidgin primitive definition,
 this defines a PrimitiveMethod stub that will invoke the given primitive
 index. Must be called after generateImageBooting:."
@@ -890,41 +888,41 @@ index. Must be called after generateImageBooting:."
               gen objectNamed: role selector]]) ]
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: literal
+gen@(Generator traits) generateLiteral: literal
 [
   literal == NoRole
     ifTrue: [gen objectNamed: #NoRoleObject]
     ifFalse: [error: 'Unsupported literal.']
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: i@(SmallInteger traits)
+gen@(Generator traits) generateLiteral: i@(imports SmallInteger traits)
 [i].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: _@(BigInteger traits)
+gen@(Generator traits) generateLiteral: _@(imports BigInteger traits)
 [
   error: 'The bootstrap generator does not support big integers.'
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: _@True
+gen@(Generator traits) generateLiteral: _@True
 [gen objectNamed: #TrueObject].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: _@False
+gen@(Generator traits) generateLiteral: _@False
 [gen objectNamed: #FalseObject].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: _@Nil
+gen@(Generator traits) generateLiteral: _@Nil
 [gen objectNamed: #NilObject].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: _@lobby
+gen@(Generator traits) generateLiteral: _@lobby
 [gen objectNamed: #BootstrapObject].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: s@(ASCIIString traits)
+gen@(Generator traits) generateLiteral: s@(imports ASCIIString traits)
 [
   s isEmpty
     ifTrue: [gen objectNamed: #ASCIIStringProto]
     ifFalse: [gen cloneOf: (gen objectNamed: #ASCIIStringProto) elements: (s collect: #code`er into: (ByteArray newSizeOf: s))]
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: s@(Symbol traits)
+gen@(Generator traits) generateLiteral: s@(imports Symbol traits)
 [
   gen symbols
     at: s
@@ -932,7 +930,7 @@ gen@(Image Bootstrap Generator traits) generateLiteral: s@(Symbol traits)
       [gen cloneOf: (gen objectNamed: #SymbolProto) elements: (s name collect: #code`er into: (ByteArray newSizeOf: s name))]
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: f@(SingleFloat traits)
+gen@(Generator traits) generateLiteral: f@(imports SingleFloat traits)
 [| obj |
   obj := gen cloneOf: (gen objectNamed: #FloatProto) elements: (ByteArray newWithAll: f).
   gen littleEndian = -1.0 isLittleEndian
@@ -940,26 +938,26 @@ gen@(Image Bootstrap Generator traits) generateLiteral: f@(SingleFloat traits)
   obj
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: a@(ByteArray traits)
+gen@(Generator traits) generateLiteral: a@(imports ByteArray traits)
 [
   a isEmpty
     ifTrue: [gen objectNamed: #ByteArrayProto]
     ifFalse: [gen cloneOf: (gen objectNamed: #ByteArrayProto) elements: a]
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: a@(Array traits)
+gen@(Generator traits) generateLiteral: a@(imports Array traits)
 [
   a isEmpty
     ifTrue: [gen objectNamed: #ArrayProto]
     ifFalse: [gen cloneOf: (gen objectNamed: #ArrayProto) elements: (a collect: [| :each | gen generateLiteral: each])]
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: c@(ASCIIString Character traits)
+gen@(Generator traits) generateLiteral: c@(imports ASCIIString Character traits)
 [
   gen characters at: c code
 ].
 
-gen@(Image Bootstrap Generator traits) generateLiteral: block@(CompiledMethod traits)
+gen@(Generator traits) generateLiteral: block@(imports CompiledMethod traits)
 [| obj |
   obj := (gen cloneOf: (gen objectNamed: #CompiledMethodProto)) `>>
    [setSlots: {

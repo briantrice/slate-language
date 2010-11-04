@@ -1,5 +1,17 @@
+#ns := ensureNamespace: #Bootstrap.
+ns addDelegate: globals.
 
-load: 'src/mobius/bootstrap.slate'.
-load: 'src/mobius/build.slate'.
+_@ns imports [lobby prototypes].
 
+[| :x | ns import: x from: collections] for: {
+  #IdentityDictionary.
+  #ExtensibleArray.
+  #Dictionary.
+}.
 
+[| :x | ns import: x from: lobby] for: {
+  #Syntax.
+}.
+
+ns load: 'src/mobius/bootstrap.slate'.
+ns load: 'src/mobius/build.slate'.
