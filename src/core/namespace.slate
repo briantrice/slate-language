@@ -5,7 +5,7 @@ ns@(Namespace traits) new
 [Namespace clone].
 
 ns@(Namespace traits) newDelegatingTo: parentObj
-[ | newNS |
+[| newNS |
   newNS := ns new.
   newNS _delegates := {parentObj. newNS traitsWindow}.
   newNS
@@ -54,7 +54,7 @@ ns@(Namespace traits) here
 
 ns@(Namespace traits) import: objName from: nsParent
 [
-  ns addSlotNamed: objName from: nsParent
+  ns addImmutableSlot: objName valued: (nsParent atSlotNamed: objName)
 ].
 
 "TODO: FIXME: this needs to be fixed to treat delegates right (Huh?)"
