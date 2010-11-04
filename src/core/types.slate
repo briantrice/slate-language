@@ -162,8 +162,8 @@ type1@(Types Any traits) union: type2@(Types Any traits)
 "The most generic method for union."
 [
   type1 == Types Any \/ [type2 == Types Any]
-    ifTrue: [^ Types Any].
-  Types Union clone `>> [| :newU | args := {type1. type2} as: newU args. ]
+    ifTrue: [Types Any]
+    ifFalse: [Types Union clone `>> [| :newU | args := {type1. type2} as: newU args. ]]
 ].
 
 union@(Types Union traits) union: type
@@ -193,12 +193,12 @@ intersection@(Types Intersection traits) copy
 type1@(Types Any traits) intersection: type2@(Types Any traits)
 "The most generic method for intersection."
 [
-  type1 == Types Any
-    ifTrue: [^ type2].
-  type2 == Types Any
-    ifTrue: [^ type1].
-  Types Intersection clone `>>
-    [| :newT | args := {type1. type2} as: newT args. ]
+  `conditions: (
+    [type1 == Types Any] -> [type2].
+    [type2 == Types Any] -> [type1]
+  ) otherwise:
+    [Types Intersection clone `>>
+       [| :newT | args := {type1. type2} as: newT args. ]]
 ].
 
 intersection@(Types Intersection traits) intersection: type
@@ -273,12 +273,11 @@ x@(Types Range traits) intersection: y@(Types Range traits)
 "Create a new Range type over the base Types' intersection if applicable."
 "TODO: this depends on x and y's boundaries being comparable. Fix this."
 [| type start end |
-  type := x type intersection: y type.
-  type == Types None ifTrue: [^ Types None].
-  start := x start min: y start.
-  end := x end max: y end.
-  start > end ifTrue: [^ Types None].
-  x of: type from: start to: end
+  (type := x type intersection: y type) == Types None
+    ifTrue: [Types None]
+    ifFalse: [(start := x start min: y start) > (end := x end max: y end)
+                ifTrue: [Types None]
+                ifFalse: [x of: type from: start to: end]]
 ].
 
 Types define: #Member &parents: {Types Any} &slots: {#elements -> Set new}.
@@ -432,9 +431,9 @@ x@(Types Array traits) intersection: y@(Types Array traits)
 "The intersection of Array types is the Array type of the intersection of the
 element types, or None if the intersection is None."
 [| type | 
-  type := x type intersection: y type.
-  type = Types None ifTrue: [^ Types None].
-  x of: type
+  (type := x type intersection: y type) = Types None
+    ifTrue: [Types None]
+    ifFalse: [x of: type]
 ].
 
 Types define: #Block &parents: {Types Any} &slots: {#argumentTypes. #resultType}.
@@ -465,25 +464,28 @@ x@(Types Block traits) union: y@(Types Block traits)
 "x and y must have the same number of arguments. This returns a Block type
 with a union of their signature types."
 [
-  x argumentTypes size = y argumentTypes size ifFalse: [^ resend].
-  x from:
-    (x argumentTypes
-       with: y argumentTypes
-       collect: #union: `er)
-    to: (x resultType union: y resultType)
+  x argumentTypes size = y argumentTypes size
+    ifTrue:
+      [x from:
+         (x argumentTypes
+            with: y argumentTypes
+            collect: #union: `er)
+         to: (x resultType union: y resultType)]
+    ifFalse: [resend]
 ].
 
 x@(Types Block traits) intersection: y@(Types Block traits)
 "x and y must have the same number of arguments. This returns a Block type
 with an intersection of their signature types."
 [| resultType |
-  x argumentTypes size = y argumentTypes size ifFalse: [^ Types None].
-  (resultType := x resultType intersection: y resultType)
-    == Types None ifTrue: [^ Types None].
-  x from:
-    (x argumentTypes
-       with: y argumentTypes
-       collect: #intersection: `er)
-    to: resultType
+  x argumentTypes size = y argumentTypes size
+    ifTrue:
+      [(resultType := x resultType intersection: y resultType) == Types None
+         ifTrue: [Types None]
+         ifFalse: [x from:
+                     (x argumentTypes
+                        with: y argumentTypes
+                        collect: #intersection: `er)
+                     to: resultType]]
+    ifFalse: [Types None]
 ].
-

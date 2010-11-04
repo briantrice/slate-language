@@ -185,8 +185,7 @@ placed below due to collisions with this one."
 c@(Set traits) fullCheck
 "Keep the array at least 1/4 free for decent hash behavior."
 [| size |
-  size := c contents size.
-  size - c tally < (size // 4 max: 1)
+  (size := c contents size) - c tally < (size // 4 max: 1)
     ifTrue: [c grow].
   c
 ].
@@ -298,6 +297,6 @@ element (encountered by do:) distinct according to the comparison is included."
   equalsBlock ifNotNil: [seen equalsBlock := equalsBlock].
   [| :result |
    c do: [| :each | (seen includes: each)
-		    ifFalse: [result nextPut: each. seen include: each]]
+		      ifFalse: [result nextPut: (seen include: each)]]
    ] writingAs: c
 ].

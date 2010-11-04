@@ -59,11 +59,11 @@ s@(Sequence traits) newWith: obj
 [(s new &capacity: 1) `>> [at: s indexFirst put: obj. ]].
 
 s@(Sequence traits) newWithAll: c@(Collection traits)
-[| newS index |
-  newS := (s newSizeOf: c).
+[| result index |
+  result := s newSizeOf: c.
   index := 0.
-  c do: [| :each | newS at: index put: each. index := index + 1].
-  newS
+  c do: [| :each | result at: index put: each. index := index + 1].
+  result
 ].
 
 s@(Sequence traits) newWithAll: c@(Sequence traits)
@@ -178,11 +178,11 @@ given Collection."
 c@(Sequence traits) atAll: d@(Sequence traits)
 "Returns a new Sequence of the elements corresponding to the indexes in the
 given Sequence."
-[| newC |
-  newC := (c newSizeOf: d).
-  newC keysDo: [| :index |
-    newC at: index put: (c at: (d at: index))].
-  newC
+[| result |
+  result := c newSizeOf: d.
+  result keysDo: [| :index |
+    result at: index put: (c at: (d at: index))].
+  result
 ].
 
 c@(Sequence traits) atAll: d put: obj
@@ -225,10 +225,8 @@ through the elements in a linear scan =-comparison."
 ].
 
 c@(Sequence traits) hash
-[| hash |
-  hash := c traits identityHash.
-  c doWithIndex: [| :each :index | hash := (hash + each hash) hashMultiply].
-  hash
+[
+  c inject: c traits identityHash into: [| :hash :each | (hash + each hash) hashMultiply]
 ].
 
 c@(Sequence traits) atPin: index
@@ -328,17 +326,19 @@ O(n) time in worst cases (most of them, when the element isn't found."
 ].
 
 c@(Sequence traits) indexOfSubSeq: subSeq startingAt: start ifAbsent: block
-[| first index |
-  subSeq isEmpty ifTrue: [^ block do].
-  subSeq size = 1 ifTrue: [^ (c indexOf: subSeq first startingAt: start ifAbsent: block)].
-  first := subSeq first.
-  start upTo: c size - subSeq size do: [| :startIndex |
-    (c at: startIndex) = first ifTrue:
-      [index := 1.
-       [(c at: startIndex + index) = (subSeq at: index)]
-	  whileTrue: [index := index + 1.
-		      index = subSeq size ifTrue: [^ startIndex]]]].
-  block do
+[
+  `conditions: (
+    [subSeq isEmpty] -> [block do].
+    [subSeq size = 1] -> [c indexOf: subSeq first startingAt: start ifAbsent: block]
+  ) otherwise:
+    [| first index |
+     first := subSeq first.
+     start upTo: c size - subSeq size do: [| :startIndex |
+       (c at: startIndex) = first ifTrue:
+         [index := 1.
+          [(c at: startIndex + index) = (subSeq at: index)]
+	    whileTrue: [(index := index + 1) = subSeq size ifTrue: [^ startIndex]]]].
+     block do]
 ].
 
 c@(Sequence traits) indexOfSubSeq: subSeq startingAt: start
@@ -404,10 +404,10 @@ start, returning -1 on failure."
 c@(Sequence traits) replaceAll: obj with: newOne
 "Replace all elements equal to the given object with the replacement given."
 [| index |
-  index := (c indexOf: obj startingAt: 0).
+  index := c indexOf: obj startingAt: 0.
   [index isNil]
     whileFalse: [c at: index put: newOne.
-      index := (c indexOf: obj startingAt: index)].
+      index := c indexOf: obj startingAt: index].
   c
 ].
 
@@ -450,7 +450,7 @@ of the replacement that will fit."
 c@(Sequence traits) swap: index1 with: index2
 "Swaps the objects stored at the given indices."
 [| obj |
-  obj := (c at: index1).
+  obj := c at: index1.
   c at: index1 put: (c at: index2).
   c at: index2 put: obj.
   c
@@ -459,7 +459,7 @@ c@(Sequence traits) swap: index1 with: index2
 c@(Sequence traits) ; d@(Sequence traits)
 "Concatenates the two Sequences, answering the result."
 [| result |
-  result := (c newSize: c size `cache + d size).
+  result := c newSize: c size `cache + d size.
   result replaceFrom: 0 to: c indexLast with: c.
   result replaceFrom: c size to: result indexLast with: d.
   result
@@ -472,9 +472,10 @@ delimiter Sequence (or nothing when not given)."
 [| result targetIndex |
   seq ifNil: [^ c].
   delim `defaultsTo: #{}.
-  result := (c new &capacity: (seq inject: c size into:
-    [| :accum :each | accum + each size])
-	 + (seq size - (c isEmpty ifTrue: [1] ifFalse: [0]) * delim size)).
+  result := c new &capacity:
+    (seq inject: c size into:
+       [| :accum :each | accum + each size])
+    + (seq size - (c isEmpty ifTrue: [1] ifFalse: [0]) * delim size).
   targetIndex := 0.
   c isEmpty ifFalse:
     [result replaceFrom: targetIndex below: c size with: c.
@@ -509,7 +510,7 @@ each instance. The fact that this is optional is why join is not joinWith:."
 c@(Sequence traits) concatenatedTimes: n
 "Answer a Sequence the result of concatenating N copies of the original together."
 [| result |
-  result := (c new &capacity: c size * n).
+  result := c new &capacity: c size * n.
   0 below: result capacity by: c size do:
     [| :index |
      c doWithIndex:
@@ -557,7 +558,7 @@ appends at the end."
 [| result resultSize endReplace |
   resultSize := c size + d size `cache - (end - start + 1).
   endReplace := start - 1 + d size.
-  result := (c new &capacity: resultSize).
+  result := c new &capacity: resultSize.
   start > 0 ifTrue:
     [result replaceFrom: 0 to: start - 1 with: c].
   start <= endReplace ifTrue:
@@ -576,7 +577,7 @@ given replacement."
   [(currentIndex := result indexOfSubSeq: seq startingAt: start) isNotNil]
     whileTrue:
       [end := currentIndex + seq indexLast.
-       result := (result copyReplaceFrom: currentIndex to: end with: replacement).
+       result := result copyReplaceFrom: currentIndex to: end with: replacement.
        start := currentIndex + replacement size].
   result
 ].
@@ -584,12 +585,12 @@ given replacement."
 c@(Sequence traits) copyReplace: element with: obj
 "Answer a copy with any occurrences of the element replaced with the given
 object."
-[| newS |
-  newS := c newSameSize.
+[| result |
+  result := c newSameSize.
   c doWithIndex:
     [| :each :index |
-     newS at: index put: (each = element ifTrue: [obj] ifFalse: [each])].
-  newS
+     result at: index put: (each = element ifTrue: [obj] ifFalse: [each])].
+  result
 ].
 
 c@(Sequence traits) copyUpTo: obj
@@ -671,14 +672,14 @@ s@(Sequence traits) splitWith: obj &count: count &includeEmpty: empties
 [| subSeqs keyStart keyEnd |
   empties `defaultsTo: False.
   subSeqs := ExtensibleArray new.
-  keyEnd := (s indexOf: obj startingAt: 0 ifAbsent: [s size]).
+  keyEnd := s indexOf: obj startingAt: 0 ifAbsent: [s size].
   empties \/ [keyEnd > 0] ifTrue: [subSeqs add: (s copyFrom: 0 to: keyEnd - 1)].
   [keyEnd < s size] whileTrue:
     [count isNotNil /\ [subSeqs size >= count] ifTrue:
       [subSeqs add: (s copyFrom: keyEnd to: s indexLast).
       ^ subSeqs].
-    keyStart := ((s indexOf: obj startingAt: keyEnd ifAbsent: [keyEnd]) + 1).
-    keyEnd := (s indexOf: obj startingAt: keyStart ifAbsent: [s size]).
+    keyStart := (s indexOf: obj startingAt: keyEnd ifAbsent: [keyEnd]) + 1.
+    keyEnd := s indexOf: obj startingAt: keyStart ifAbsent: [s size].
     (keyStart < keyEnd) \/ [empties /\ [keyStart <= keyEnd]] ifTrue:
       [subSeqs add: (s copyFrom: keyStart to: keyEnd - 1)]].
   subSeqs
@@ -694,8 +695,8 @@ the given delimiting characters."
     whileTrue: [count isNotNil /\ [subSeqs size >= count]
                   ifTrue: [subSeqs add: (s copyFrom: keyEnd to: s indexLast).
                     ^ subSeqs].
-                keyStart := (s indexPastAll: delims startingAt: keyEnd).
-                keyEnd := (s indexOfAny: delims startingAt: keyStart).
+                keyStart := s indexPastAll: delims startingAt: keyEnd.
+                keyEnd := s indexOfAny: delims startingAt: keyStart.
                 keyStart < keyEnd
                   ifTrue: [subSeqs add:
                     (s copyFrom: keyStart to: keyEnd - 1)]].
@@ -713,7 +714,7 @@ s@(Sequence traits) copySize: n
 with repetitions of the source's contents throughout its length."
 [| result |
   s size `cache.
-  result := (s new &capacity: n).
+  result := s new &capacity: n.
   result keysDo: [| :index | result at: index put: (s at: index // s size)].
   result
 ].
@@ -723,11 +724,13 @@ c@(Sequence traits) choose: k of: n into: workingArray do: block
 This uses a single array as an iterator object which should not be modified
 by the client code."
 [
-  n < k ifTrue: [^ c].
-  k = 0 ifTrue: [^ (block apply*, workingArray)].
-  workingArray at: k - 1 put: (c at: n - 1).
-  c choose: k - 1 of: n - 1 into: workingArray do: block.
-  c choose: k of: n - 1 into: workingArray do: block.
+  `conditions: (
+    [n < k] -> [c].
+    [k isZero] -> [block apply*, workingArray]
+  ) otherwise:
+    [workingArray at: k - 1 put: (c at: n - 1).
+     c choose: k - 1 of: n - 1 into: workingArray do: block.
+     c choose: k of: n - 1 into: workingArray do: block. ]
 ].
 
 c@(Sequence traits) choose: n do: block
@@ -745,9 +748,12 @@ c@(Sequence traits) collect: block
 
 c@(Sequence traits) collect: block from: start to: end
 [| result j |
-  result := (c new &capacity: end - start + 1).
-  j := start.
-  result keysDo: [| :index | result at: index put: (block apply*, (c at: j)). j := j + 1].
+  end < start \/ [c isEmpty]
+    ifTrue: [result := c new]
+    ifFalse:
+      [result := c new &capacity: end - start + 1.
+       j := start.
+       result keysDo: [| :index | result at: index put: (block apply*, (c at: j)). j := j + 1]].
   result
 ].
 
@@ -960,7 +966,7 @@ c@(Sequence traits) shiftFrom: index by: steps count: items
 indicating right-ward. Overwritten elements are shifted back-ward."
 [| elems |
   items := items abs.
-  elems := (c copyFrom: index below: index + items).
+  elems := c copyFrom: index below: index + items.
   steps isNegative ifTrue:
     [steps := steps abs. index := index + items - 1. items := items negated].
   steps timesRepeat: [
@@ -981,7 +987,7 @@ c@(Sequence traits) rotate &times: count
 indicating right-ward (increasing indices of elements until wrapped around)."
 [| index steps |
   count `defaultsTo: 1.
-  count := (count mod: c size).
+  count := count mod: c size.
   count isPositive
     ifTrue: [index := c size - count. steps := count - c size]
     ifFalse: [index := 0. steps := c size + count].
@@ -997,8 +1003,8 @@ elements until wrapped around)."
   c size isZero \/ count isZero
     ifTrue: [c copy]
     ifFalse:
-      [count := (count mod: c size).
-       index := (c size - count mod: c size).
+      [count := count mod: c size.
+       index := c size - count mod: c size.
        c newSameSize `>>
          [replaceFrom: 0 with: (c sliceFrom: index).
           replaceFrom: c size - index with: c. ]]
@@ -1011,7 +1017,7 @@ c@(Sequence traits) with: d@(Sequence traits) collect: binBlock
 "Collect the result from applying the block to as many pairs of elements from
 each Sequence as possible."
 [| result |
-  result := (c new &capacity: (c size min: d size)).
+  result := c new &capacity: (c size min: d size).
   result keysDo: [| :index |
     result at: index put: (binBlock apply*, (c at: index), (d at: index))].
   result
@@ -1035,10 +1041,10 @@ c@(Sequence traits) gather: binBlock &initial: init
 	 ifNil:
 	   [result := c first.
 	    c allButFirstDo:
-	      [| :each | result := (binBlock apply*, result, each)]]
+	      [| :each | result := binBlock apply*, result, each]]
 	 ifNotNil:
 	   [result := init.
-	    c do: [| :each | result := (binBlock apply*, result, each)]].
+	    c do: [| :each | result := binBlock apply*, result, each]].
        result]
 ].
 
@@ -1052,10 +1058,10 @@ c@(Sequence traits) reverseGather: binBlock &initial: init
 	 ifNil:
 	   [result := c last.
 	    c reverseAllButLastDo:
-	      [| :each | result := (binBlock apply*, result, each)]]
+	      [| :each | result := binBlock apply*, result, each]]
 	 ifNotNil:
 	   [result := init.
-	    c reverseDo: [| :each | result := (binBlock apply*, result, each)]].
+	    c reverseDo: [| :each | result := binBlock apply*, result, each]].
        result]
 ].
 
@@ -1069,7 +1075,7 @@ e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
     ifFalse: [| result |
        result := c first.
        c allButFirstDo:
-	 [| :each | result := (binBlock apply*, result, each)].
+	 [| :each | result := binBlock apply*, result, each].
        result]
 ].
 
@@ -1089,7 +1095,7 @@ c@(Sequence traits) reverseReduce: binBlock ifEmpty: emptyBlock
       [| result |
        result := c last.
        c reverseAllButLastDo:
-	 [| :each | result := (binBlock apply*, each, result)].
+	 [| :each | result := binBlock apply*, each, result].
        result]
 ].
 
@@ -1103,10 +1109,10 @@ prefix@(Sequence traits) isPrefixOf: seq@(Sequence traits)
 "Answer whether the first elements of the Sequence match the potential prefix
 Sequence's elements in order."
 [
-  prefix size <= seq size ifFalse: [^ False].
-  prefix doWithIndex: [| :each :index |
-    each = (seq at: index) ifFalse: [^ False]].
-  True
+  prefix size <= seq size
+    /\ [prefix doWithIndex: [| :each :index |
+          each = (seq at: index) ifFalse: [^ False]].
+        True]
 ].
 
 suffix@(Sequence traits) isSuffixOf: seq@(Sequence traits)
@@ -1134,7 +1140,7 @@ c@(Sequence traits) reverse
 c@(Sequence traits) reversed
 "Answer a new Sequence with the element order reversed."
 [| result srcIdx |
-  result := (c new &capacity: c size `cache).
+  result := c new &capacity: c size `cache.
   srcIdx := c size.
   c keysDo: [| :destIdx | result at: destIdx put: (c at: (srcIdx := srcIdx - 1))].
   result
@@ -1147,7 +1153,7 @@ comparison."
   a isEmpty ifTrue: [^ True].
   lastObj := a first.
   1 below: a size do: [| :index |
-    obj := (a at: index).
+    obj := a at: index.
     (block apply*, lastObj, obj) ifFalse: [^ False].
     lastObj := obj].
   True
@@ -1159,7 +1165,7 @@ s@(Sequence traits) sortFrom: start to: end by: block
   start >= end ifTrue: [^ s].
   low := start + 1.
   high := end.
-  pivot := (s at: start).
+  pivot := s at: start.
   [low <= high]
     whileTrue:
       [[low <= high /\ [block apply*, (s at: low), pivot]]
@@ -1206,16 +1212,16 @@ start/end bounds using the sort block."
  scopy stableSortFrom: middle + 1 to: end by: block.
  i1 := start.
  i2 := middle + 1.
- val1 := (scopy at: i1).
- val2 := (scopy at: i2).
+ val1 := scopy at: i1.
+ val2 := scopy at: i2.
  out := start - 1.
  [(i1 <= middle) /\ [i2 <= end]] whileTrue:
    [(block apply*, val1, val2)
       ifTrue: [s at: (out := out + 1) put: val1.
-	       val1 := (scopy at: (i1 := i1 + 1))]
+	       val1 := scopy at: (i1 := i1 + 1)]
       ifFalse: [s at: (out := out + 1) put: val2.
 		i2 := i2 + 1.
-		i2 <= end ifTrue: [val2 := (scopy at: i2)]]].
+		i2 <= end ifTrue: [val2 := scopy at: i2]]].
  i1 <= middle 
    ifTrue:  [s replaceFrom: out + 1 to: end with: scopy startingAt: i1]
    ifFalse: [s replaceFrom: out + 1 to: end with: scopy startingAt: i2]
@@ -1284,17 +1290,20 @@ s@(Sequence traits) splitIntoSize: n
 "Answers the result of splitting the sequence into n-sized sequences.
 If size of the sequence is not divisible by n, the last element will be
 smaller."
-[| subSeqs sepIndex |
-   n <= 0 ifTrue: [error: 'Split size must be positive.'].
-   n >= s size ifTrue: [^ {s copy}].
-   subSeqs := (Array newSize: s size // n + 1) writer.
-   sepIndex := 0.
-   [sepIndex < (s size - (s size mod: n))]
-      whileTrue: [subSeqs nextPut: (s copyFrom: sepIndex to: sepIndex + n - 1).
-                  sepIndex := sepIndex + n].
-   sepIndex = s size "There are extra elements; a remainder to be added."
-      ifFalse: [subSeqs nextPut: (s copyFrom: sepIndex to: s indexLast)].
-   subSeqs contents
+[
+   `conditions: (
+     [n <= 0] -> [error: 'Split size must be positive.'].
+     [n >= s size] -> [{s copy}]
+   ) otherwise:
+     [| subSeqs sepIndex |
+      subSeqs := (Array newSize: s size // n + 1) writer.
+      sepIndex := 0.
+      [sepIndex < (s size - (s size mod: n))]
+        whileTrue: [subSeqs nextPut: (s copyFrom: sepIndex to: sepIndex + n - 1).
+                    sepIndex := sepIndex + n].
+      sepIndex = s size "There are extra elements; a remainder to be added."
+        ifFalse: [subSeqs nextPut: (s copyFrom: sepIndex to: s indexLast)].
+      subSeqs contents]
 ].
 
 x@(Sequence traits) beginsWith: y@(Sequence traits)

@@ -108,9 +108,11 @@ sc@(SortedArray traits) copyWith: obj
 sc@(SortedArray traits) copyFrom: start to: end
 "Copy the range into a new SortedArray which keeps the same sortBlock."
 [| newC |
-  end < start \/ [sc isEmpty] ifTrue: [^ sc new].
-  newC := sc new &capacity: end - start + 1.
-  start to: end do: [| :index | newC addLast: (sc at: index)].
+  end < start \/ [sc isEmpty]
+    ifTrue: [newC := sc new]
+    ifFalse:
+      [newC := sc new &capacity: end - start + 1.
+       start to: end do: [| :index | newC addLast: (sc at: index)]].
   newC
 ].
 
@@ -133,11 +135,12 @@ isn't."
   low := sc firstIndex + start.
   high := sc lastIndex.
   [index := high + low // 2. low > high]
-    whileFalse: [(sc contents at: index) = obj
-      ifTrue: [^ index].
-      (sc shouldArrange: (sc contents at: index) before: obj)
-        ifTrue: [low := index + 1]
-        ifFalse: [high := index - 1]].
+    whileFalse:
+      [(sc contents at: index) = obj
+         ifTrue: [^ index].
+       (sc shouldArrange: (sc contents at: index) before: obj)
+         ifTrue: [low := index + 1]
+         ifFalse: [high := index - 1]].
   block do
 ].
 

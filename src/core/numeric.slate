@@ -138,7 +138,7 @@ i@(SmallInteger traits) highBit
   bit := 0.
   n := i abs.
   [n > 2r1]
-    whileTrue: [bit := bit + 1. n := (n bitShift: -1)].
+    whileTrue: [bit := bit + 1. n := n bitShift: -1].
   bit
 ].
 
@@ -210,10 +210,11 @@ f@(SingleFloat traits) hash
 x@(Number traits) isCloseTo: y@(Number traits)
 "Whether the two Floats are close to each other in value."
 [
-  x isZero ifTrue: [^ (y abs < y tolerance)].
-  y isZero ifTrue: [^ (x abs < x tolerance)].
-  x isNaN \/ [y isNaN] ifTrue: [^ False].
-  (x - y) abs <= (x tolerance min: y tolerance)
+  `conditions: (
+    [x isZero] -> [y abs < y tolerance].
+    [y isZero] -> [x abs < x tolerance].
+    [x isNaN \/ [y isNaN]] -> [False]
+  ) otherwise: [(x - y) abs <= (x tolerance min: y tolerance)]
 ].
 
 f@(SingleFloat traits) significandSize
@@ -235,30 +236,27 @@ x@(Float traits) raisedTo: y@(Float traits)
 "Implements floating-point exponentiation in terms of the natural logarithm
 and exponential primitives - this is generally faster than the naive method."
 [
-  y isZero ifTrue: [^ x unit].
-  x isZero \/ [y isUnit] ifTrue: [^ x].
-  (x ln * y) exp
+  `conditions: (
+    [y isZero] -> [x unit].
+    [x isZero \/ [y isUnit]] -> [x]
+  ) otherwise: [(x ln * y) exp]
 ].
 
 f@(Float traits) truncated
 [| significand exponent n |
   significand := f significand.
   exponent := f exponent.
-  exponent = (f bias * 2 + 1)
-    ifTrue:
-      [error: 'Can\'t coerce floating-point Inf or NaN to an integer.'].
-  exponent isZero
-    ifTrue:
-      [
-        significand isZero
-          ifTrue: [^ 0].
-        f isNegative
-          ifTrue: [^ -1]
-          ifFalse: [^ 0]
-      ].
+  exponent = (f bias * 2 + 1) ifTrue:
+    [error: 'Can\'t coerce floating-point Inf or NaN to an integer.'].
+  exponent isZero ifTrue:
+    [^ (significand isZero
+          ifTrue: [0]
+          ifFalse: [f isNegative
+                      ifTrue: [-1]
+                      ifFalse: [0]])].
   exponent := exponent - f bias.
-  significand := ((1 bitShift: f significandSize) bitOr: significand).
-  n := (significand bitShift: exponent - f significandSize).
+  significand := (1 bitShift: f significandSize) bitOr: significand.
+  n := significand bitShift: exponent - f significandSize.
   f isNegative
     ifTrue: [n negated]
     ifFalse: [n]
@@ -273,9 +271,9 @@ i@(Integer traits) as: _@(Float traits)
 [| f n length significand bits newF |
   i isZero
     ifTrue: [^ SingleFloat zero].
-"  i highBit <= SingleFloat significandSize
-    ifTrue: [f := SingleFloat]
-    ifFalse: [f := DoubleFloat].
+"  f := i highBit <= SingleFloat significandSize
+    ifTrue: [SingleFloat]
+    ifFalse: [DoubleFloat].
 "
   f := SingleFloat.
   n := i abs.
@@ -286,7 +284,7 @@ i@(Integer traits) as: _@(Float traits)
   significand :=
    ((n bitShift: f significandSize - length)
      bitAnd: (1 bitShift: f significandSize) - 1).
-  newF := (f withSignificand: significand exponent: length + f bias).
+  newF := f withSignificand: significand exponent: length + f bias.
   i isNegative
    ifTrue: [newF negated]
    ifFalse: [newF]
@@ -372,9 +370,9 @@ as it proceeds."
        [expon isZero] whileFalse:
         [[(expon mod: 2) isZero] whileTrue:
           [expon := expon // 2.
-           base := (base squared mod: n)].
+           base := base squared mod: n].
          expon := expon - 1.
-         z := (z * base mod: n)]
+         z := z * base mod: n]
        z]
 ].
 
@@ -383,7 +381,7 @@ m@(Integer traits) inverseMod: n@(Integer traits)
 [| a b q |
   a := 1. b := 0.
   [m isZero] whileFalse:
-    [q := n // m. m := n \\ (n := m). a := (b - (q * (b := a)))].
+    [q := n // m. m := n \\ (n := m). a := b - (q * (b := a))].
   n ~= 1 ifTrue: [error: 'Integer does not have an inverse.'].
   b
 ].
@@ -406,10 +404,10 @@ itself."
 [| k q |
   m isEven ifTrue: [^ (m = 2)].
   k := 1.
-  q := (m - 1 bitShift: -1).
+  q := m - 1 bitShift: -1.
   [q isOdd]
     whileFalse:
-      [q := (q bitShift: -1).
+      [q := q bitShift: -1.
        k := k + 1].
   25 timesRepeat: [(m isProbablyPrimeWithK: k andQ: q) ifFalse: [^ False]].
   True
@@ -422,7 +420,7 @@ Third Edition, section 4.5.4, page 395."
 [| x j y |
   x := (m - 2) atRandom + 1.
   j := 0.
-  y := (x raisedTo: q mod: m).
+  y := x raisedTo: q mod: m.
   [(j isZero /\ [y isUnit] \/ [y + 1 = m]) ifTrue: [^ True].
    j isPositive /\ [y isUnit] ifTrue: [^ False].
    True]
@@ -594,7 +592,7 @@ x@(Integer traits) // y@(Integer traits)
 "Integer division."
 [| q |
   y isZero ifTrue: [^ x divideByZero].
-  q := (x quo: y).
+  q := x quo: y.
   (x isNegative xor: y isNegative) /\ [q * y ~= x]
     ifTrue: [q - 1]
     ifFalse: [q]
@@ -634,30 +632,30 @@ It's zero outside of Pascal's triangle."
 n@(Integer traits) hashMultiply
 "A copying of Squeak's hash-multiplier. TODO: To Be Replaced."
 [| low28 low14 |
-  low28 := (n bitAnd: 268435455).
-  low14 := (low28 bitAnd: 16383).
+  low28 := n bitAnd: 268435455.
+  low14 := low28 bitAnd: 16383.
   9741 * low14 + ((9741 * (low28 bitShift: -14) + (101 * low14)
                      bitAnd: 16383) * 16384) bitAnd: 268435455
 ].
 
 x@(Number traits) raisedTo: y@(Integer traits)
 [
-  y isZero ifTrue: [^ x unit].
-  x isZero \/ [y = 1] ifTrue: [^ x].
-  y isPositive
-    ifTrue:
-      "(x * x raisedTo: y // 2) * (x raisedTo: y \\ 2)"
+  `conditions: (
+    [y isZero] -> [x unit].
+    [x isZero \/ [y = 1]] -> [x].
+    [y isPositive]
+      -> "(x * x raisedTo: y // 2) * (x raisedTo: y \\ 2)"
       [| count result |
        count := 1.
-       [(count := (count bitShift: 1)) < y] whileTrue.
+       [(count := count bitShift: 1) < y] whileTrue.
        result := x unit.
        [count isPositive]
          whileTrue:
            [result := result squared.
             (y bitAnd: count) isZero ifFalse: [result := result * x].
-            count := (count bitShift: -1)].
+            count := count bitShift: -1].
        result]
-    ifFalse: [(x raisedTo: y negated) reciprocal]
+  ) otherwise: [(x raisedTo: y negated) reciprocal]
 ].
 
 numerics define: #UniqueNumber &parents: {Number}.
@@ -867,7 +865,7 @@ digits."
 n@(Integer traits) readFrom: s &radix: radix
 [| next |
   radix `defaultsTo: 10.
-  next := ((Syntax Lexer newOn: s reader) readInteger: radix).
+  next := (Syntax Lexer newOn: s reader) readInteger: radix.
   (next is: n)
     ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
   next

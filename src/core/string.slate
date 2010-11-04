@@ -78,13 +78,14 @@ ch@(ASCIIString Character traits) isDelimiter
 ch@(ASCIIString Character traits) isDigit: radix
 [| value |
   value := ch code.
-  (value between: #[$0 code] and: #[$9 code])
-    ifTrue: [^ (value - #[$0 code] < radix)].
-  (value between: #[$A code] and: #[$Z code])
-    ifTrue: [^ (value - #[$A code] < (radix - 10))].
-  (value between: #[$a code] and: #[$z code])
-    ifTrue: [^ (value - #[$a code] < (radix - 10))].
-  False
+  `conditions: (
+    [value between: #[$0 code] and: #[$9 code]]
+      -> [value - #[$0 code] < radix].
+    [value between: #[$A code] and: #[$Z code]]
+      -> [value - #[$A code] < (radix - 10)].
+    [value between: #[$a code] and: #[$z code]]
+      -> [value - #[$a code] < (radix - 10)]
+  ) otherwise: [False]
 ].
 
 ch@(ASCIIString Character traits) isDigit
@@ -96,10 +97,14 @@ ch@(ASCIIString Character traits) toDigit: radix
 [| value |
   (ch isDigit: radix) ifFalse: [^ Nil].
   value := ch code.
-  value >= #[$a code] ifTrue: [^ (value - #[$a code] + 10)].
-  value >= #[$A code] ifTrue: [^ (value - #[$A code] + 10)].
-  value >= #[$0 code] ifTrue: [^ (value - #[$0 code])].
-  Nil
+  `conditions: (
+    [value >= #[$a code]]
+      -> [value - #[$a code] + 10].
+    [value >= #[$A code]]
+      -> [value - #[$A code] + 10].
+    [value >= #[$0 code]]
+      -> [value - #[$0 code]]
+  ) otherwise: [Nil]
 ].
 
 ch@(ASCIIString Character traits) toDigit
@@ -154,11 +159,7 @@ c1@(ASCIIString Character traits) > c2@(ASCIIString Character traits)
 
 s1@(ASCIIString traits) < s2@(ASCIIString traits)
 [
-  0 below: (s1 size min: s2 size) do: [| :i |
-    (s1 at: i) < (s2 at: i)
-       ifTrue: [^ True]
-       ifFalse: [((s1 at: i) > (s2 at: i)) ifTrue: [^ False]]].
-  False
+  (s1 lexicographicallyCompare: s2) = -1
 ].
 
 s1@(ASCIIString traits) <= s2@(ASCIIString traits)
@@ -353,11 +354,11 @@ s@(String traits) readFrom: src
 "Reads the first thing in the String (or Stream) as a String literal.
 An error is raised if the return type does not match the requested one."
 [| srcStream next |
-  srcStream := src reader.
-  srcStream peek = $\'
-    ifTrue: [srcStream next]
-    ifFalse: [error: 'The source does not start with a quotation mark.'].
-  (Syntax Lexer newOn: srcStream) readString value
+  (srcStream := src reader) peek = $\'
+    ifTrue:
+      [srcStream next.
+       (Syntax Lexer newOn: srcStream) readString value]
+    ifFalse: [error: 'The source does not start with a quotation mark.']
 ].
 
 s@(String traits) unescaped
@@ -375,18 +376,19 @@ s@(String traits) plural
 it as a pluralized noun. This does not try to be too clever, because that
 requires a full lexicon (for English) - only use this for technical purposes."
 [
-  s last toLowercase = $o ifTrue: [^ (s ; 'es')].
-  s last isVowel ifTrue: [^ (s ; 's')].
-  s last toLowercase = $y
-    ifTrue: [^ ((s at: s indexLast - 1) isVowel not
-	       ifTrue: [s allButLast ; 'ies']
-	       ifFalse: [s ; 's'])].
-  (s last: 2) = 'us' ifTrue: [^ ((s allButLast: 2) ; 'i')].
-  (s last: 3) = 'sis' ifTrue: [^ ((s allButLast: 2) ; 'es')].
-  (s last: 2) = 'on' ifTrue: [^ ((s allButLast: 2) ; 'a')].
-  ({'ex'. 'ix'} includes: (s last: 2)) ifTrue: [^ ((s allButLast: 2) ; 'ices')].
-  ({'ss'. 'sh'. 'ch'. 'dge'} includes: (s last: 2)) ifTrue: [^ (s ; 'es')].
-  s ; 's'
+  `conditions: (
+    [s last toLowercase = $o] -> [s ; 'es'].
+    [s last isVowel] -> [s ; 's'].
+    [s last toLowercase = $y]
+      -> [(s at: s indexLast - 1) isVowel not
+	    ifTrue: [s allButLast ; 'ies']
+	    ifFalse: [s ; 's']].
+    [s endsWith: 'us'] -> [(s allButLast: 2) ; 'i'].
+    [s endsWith: 'sis'] -> [(s allButLast: 2) ; 'es'].
+    [s endsWith: 'on'] -> [(s allButLast: 2) ; 'a'].
+    [#{'ex'. 'ix'} anySatisfy: #(s endsWith: _)] -> [(s allButLast: 2) ; 'ices'].
+    [#{'ss'. 'sh'. 'ch'. 'dge'} anySatisfy: #(s endsWith: _)] -> [s ; 'es']
+  ) otherwise: [s ; 's']
 ].
 
 s@(String traits) split &separators: delims
@@ -535,8 +537,7 @@ s@(String traits) evaluate
 s@(String traits) evaluateIn: namespace
 [| parser expr |
   parser := Syntax Parser newOn: s.
-  [[expr := parser next.
-    expr evaluateIn: lobby.
+  [[(expr := parser next) evaluateIn: lobby.
     parser isAtEnd] on: Stream Exhaustion do: [False]] whileFalse.
 ].
 
@@ -547,12 +548,12 @@ s@(String traits) as: i@(Integer traits) &radix: radix
 "Reads a radix-(10) Integer from the string."
 [
   (s isNotEmpty /\ [s first = $-])
-    ifTrue:
-      [^ ((s copyFrom: 1) as: i &radix: radix) negated].
-  radix `defaultsTo: 10.
-  s inject: 0 into:
-    [| :n :c | (c isDigit: radix) ifFalse: [^ n].
-     n * radix + (c toDigit: radix)]
+    ifTrue: [((s copyFrom: 1) as: i &radix: radix) negated]
+    ifFalse:
+      [radix `defaultsTo: 10.
+       s inject: 0 into:
+         [| :n :c | (c isDigit: radix) ifFalse: [^ n].
+                    n * radix + (c toDigit: radix)]]
 ].
 
 "ASCIIString traitsWindow `>> [
