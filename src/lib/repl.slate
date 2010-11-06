@@ -2,6 +2,7 @@ prototypes define: #REPL &parents: {Cloneable} &slots: {
   #parser -> Syntax Parser clone.
   #printer -> String writer.
   #resource -> DebugConsole.
+  #originalNamespace -> lobby.
   #namespace -> lobby newSubSpace.
   #lineCount -> 0.
   #basePrompt -> '> '.
@@ -98,19 +99,25 @@ and control."
     [| :selector :method | method asMethod: selector on: {repl namespace}].
 ].
 
+REPL traits define: #CommandSelectors -> #{
+   #repl.
+   #pasteMode. #interactiveMode.
+   #it. #it1. #it2. #it3. #it4. #it5.
+   #inform:. #query:. #confirm:.
+   #help.
+}.
+
 repl@(REPL traits) removeMethods
 "This removes methods defined in installMethods."
 [
   [| :sel | 
    (sel findOn: {repl namespace}) ifNotNilDo:
-     [| :m | m removeFrom: {repl namespace}]] for: {
-   #repl. #pasteMode. #interactiveMode. #it. #it1. #it2. #it3. #it4. #it5.
-   #inform:. #query:. #confirm:. #help}
+     [| :m | m removeFrom: {repl namespace}]] for: repl CommandSelectors
 ].
 
 repl@(REPL traits) refreshWorkspace
 [
-  repl namespace := repl Workspace newDelegatingTo: lobby.
+  repl namespace := repl Workspace newDelegatingTo: repl originalNamespace.
   repl installMethods.
   repl parser currentScope := repl parser currentScope for: repl namespace.
 ].
@@ -130,7 +137,6 @@ repl@(REPL traits) on: resource
   repl parser := repl parser newOn: resource reader.
   repl printer := resource writer.
   repl resource := resource.
-  repl
 ].
 
 repl@(REPL traits) reset
@@ -181,7 +187,7 @@ This does not normally exit unless there is a serious error."
     repl printer newLine.
     repl printer flush.
     "repl namespace interpretHook: [currentProcess run &limit: 1000]"]
-     loop] ensure: [repl removeMethods].
+     loop] ensure: [repl removeMethods. Image startupActions removeKey: repl].
   repl
 ].
 
@@ -197,13 +203,17 @@ TODO: sort the results by some suitable precedence."
    writingAs: #{}
 ].
 
-repl@(REPL traits) start &resource: r
+repl@(REPL traits) start &namespace: ns &resource: r
 "Enter a new REPL instance on the resource."
 [
-  r `defaultsTo: repl resource.
-  (repl newBasedOn: r) enter
+  (repl newBasedOn: (r `defaultsTo: repl resource)) `>> [namespace := ns. enter]
 ].
 
 repl@(REPL traits) resetOnStartup
 "Adds a handler for Image startup to reset the REPL."
 [Image startupActions at: repl := [repl reset]].
+
+ns@(Namespace traits) repl
+[
+  REPL start &namespace: ns
+].
