@@ -52,9 +52,14 @@ ns@(Namespace traits) here
 "A convenient implicit context handle to the Namespace object."
 [ns].
 
-ns@(Namespace traits) import: objName from: nsParent
+ns@(Namespace traits) import: objName@(Symbol traits) from: nsParent
 [
   ns addImmutableSlot: objName valued: (nsParent atSlotNamed: objName)
+].
+
+ns@(Namespace traits) import: names"@(Collections traits)" from: nsParent
+[
+  #(ns import: _ from: nsParent) `er for: names
 ].
 
 "TODO: FIXME: this needs to be fixed to treat delegates right (Huh?)"
