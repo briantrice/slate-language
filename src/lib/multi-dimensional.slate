@@ -1,8 +1,8 @@
-collections define: #ArrayMD &parents: {Collection. Mapping}
+define: #ArrayMD &parents: {Collection. Mapping}
 "Multi-dimensional arrays don't readily admit to sequencing or mutation."
 &slots: {#dimensions -> {1}.
 "Default is a scalar: one dimension, of extent 1."
-#contents -> (Array newSize: 1)
+#contents -> {}
 "Store the contents in an array of exactly the right size."}.
 
 amd@(ArrayMD traits) new &capacity: n &dimensions: seq
@@ -179,11 +179,10 @@ is because it indents only one character per indentation-level, whereas the
 pretty printer could be set to indent something else. So, changing the
 indentation level of the pretty printer temporarily would mess up the printing
 of the elements."
-[| reader |
+[
   o newLine.
-  reader := amd contents reader.
   amd printDimension: 0
-      reader: reader
+      reader: amd contents reader
       dimensions: amd dimensions reversed
       indentLevel: 0
       isLast: False
@@ -244,8 +243,7 @@ s@(ArrayMD WriteStream traits) on: c
 
 ws@(ArrayMD WriteStream traits) nextPut: obj
 [| pos |
-  pos := ws position.
-  pos >= ws writeLimit
+  (pos := ws position) >= ws writeLimit
     ifTrue: [ws pastEndPut: obj]
     ifFalse: [ws position := pos + 1.
               ws collection contents at: pos put: obj]
@@ -279,14 +277,13 @@ amd@(ArrayMD traits) keySetFilteredBy: filter@Nil at: dimension
 amd@(ArrayMD traits) at: s@(Sequence traits)
 [| filters result |
   (s includes: Nil) ifFalse: [^ (amd contents at: (amd indexOf: s))].
-  filters := (s collectWithIndex: [| :filter :index | amd keySetFilteredBy: filter at: index]).
-  (filters anySatisfy: #isEmpty `er )
-    ifTrue: [^ Nil].
-  result := (amd new &dimensions: (filters collect: #size `er )).
-  result keysDo:
-    [| :indices |
-     filters].
-  result
+  filters := s collectWithIndex:
+    [| :filter :index | amd keySetFilteredBy: filter at: index].
+  (filters anySatisfy: #isEmpty `er)
+    ifTrue: [Nil]
+    ifFalse: [(result := amd new &dimensions: (filters collect: #size `er )) keysDo:
+                [| :indices | filters].
+              result]
 ].
 
 amd@(ArrayMD traits) at: s@(Sequence traits) put: value

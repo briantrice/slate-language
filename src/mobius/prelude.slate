@@ -2,27 +2,80 @@
 customized without requiring a full bootstrap. This is loaded by post-bootstrap
 code which is compiled in to the kernel image."
 
-(({'src/mobius/map'} ;
-  ({'fraction'. 'complex'. 'numericMixin'.
-   'linkedlist'. 'cord'. 'sortedSet'.
-   'traversal'. 'lookup'. 'path'. "These require TraversalStream."
-   'tokenizer'.
-   'subsequence'. 'bag'. 'queue'. 'repetition'. 'buffer'. 'mapping-epilogue'.
-   'multi-dimensional'.
-   'precedence'.
-   'inspect'. 'directory'.
-   'time'. 'concurrency'. 'observer'. 'devsupport'. 'method'}
-     collect: #('src/lib/' ; _) `er) ;
-  {'src/mobius/role'.
-   'src/lib/image'.
-   'src/lib/platform'.
-   'src/lib/method-query'.
-   'src/mobius/memory'.
-   'src/mobius/disassemble'.
-   'src/mobius/primitive-method'.
-   'src/mobius/types'.
-   'src/lib/extlib'.
-   'src/lib/repl' }) collect: #(; '.slate') `er) do: #(here load: _) `er.
+here load: 'src/mobius/map.slate'.
+
+numerics import: #Mixin from: Mixins.
+#(numerics load: _) `er for: {
+  'src/lib/fraction.slate'.
+  'src/lib/complex.slate'.
+  'src/lib/numericMixin.slate'.
+}.
+#(collections load: _) `er for: {
+  'src/lib/linkedlist.slate'.
+  'src/lib/cord.slate'.
+  'src/lib/sortedSet.slate'.
+}.
+here load: 'src/lib/traversal.slate'. "Collection Sequence IdentitySet Stack"
+prototypes load: 'src/lib/lookup.slate'.
+
+_@prototypes lobby [here].
+_@prototypes Syntax [Syntax].
+prototypes import: #ReadStream from: streams.
+prototypes import: #TraversalStream from: here.
+prototypes load: 'src/lib/path.slate'. "lobby IdentitySet ReadStream"
+"These require TraversalStream."
+prototypes load: 'src/lib/tokenizer.slate'.
+
+collections import: #WriteStream from: streams.
+collections import: #PrettyPrinterMixin from: Mixins.
+collections import: #Root from: prototypes.
+#(collections load: _) `er for: {
+  'src/lib/subsequence.slate'. "WriteStream PrettyPrinterMixin Root"
+  'src/lib/bag.slate'.
+  'src/lib/queue.slate'.
+  'src/lib/repetition.slate'. "Root PrettyPrinterMixin"
+}.
+
+mappings import: #Set from: collections.
+mappings load: 'src/lib/mapping-epilogue.slate'.
+collections load: 'src/lib/ringbuffer.slate'. "Queue"
+
+streams import: {#RingBuffer. #Sequence} from: collections.
+streams load: 'src/lib/buffer.slate'. "RingBuffer Stream BufferStream WriteStream ReadStream Sequence"
+
+collections import: #Mapping from: mappings.
+collections import: {#ReadStream. #WriteStream. #PositionableStream} from: streams.
+collections import: #Integer from: numerics.
+collections import: {#Method. #Boolean} from: prototypes.
+_@collections Nil [Nil].
+collections load: 'src/lib/multi-dimensional.slate'. "Mapping Integer Range Method Boolean"
+
+Syntax import: #Stack from: collections.
+Syntax load: 'src/lib/precedence.slate'. "Stack"
+
+#(here load: _) `er for: {
+'src/lib/inspect.slate'.
+'src/lib/directory.slate'.
+'src/lib/time.slate'.
+'src/lib/concurrency.slate'.
+'src/lib/observer.slate'.
+'src/lib/method.slate'.
+'src/mobius/role.slate'.
+'src/lib/image.slate'.
+'src/lib/method-query.slate'.
+'src/mobius/memory.slate'.
+'src/mobius/disassemble.slate'.
+'src/mobius/primitive-method.slate'.
+'src/mobius/types.slate'.
+'src/lib/repl.slate'.
+}.
+
+prototypes import: #C from: Types.
+prototypes load: 'src/lib/extlib.slate'.
+prototypes load: 'src/lib/devsupport.slate'.
+
+prototypes import: #Image from: globals.
+prototypes load: 'src/lib/platform.slate'.
 
 "Totally optional, makes for pretty source output and enables C code output."
 load: 'src/syntax/writer.slate'.

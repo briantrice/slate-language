@@ -1,19 +1,20 @@
-
-mappings define: #EmptyMapping &builder: [Mapping clone].
+define: #EmptyMapping &parents: {Mapping}.
 "The Mapping that doesn't point to anything."
 
-_@EmptyMapping size [0].
-_@EmptyMapping capacity [0].
+m@EmptyMapping new [m].
 
-_@EmptyMapping do: _ [].
-_@EmptyMapping keysAndValuesDo: _ [].
+_@(EmptyMapping traits) size [0].
+_@(EmptyMapping traits) capacity [0].
 
-e@EmptyMapping at: key [ key keyNotFoundOn: e].
-e@EmptyMapping at: key put: _ [ key keyNotFoundOn: e].
-_@EmptyMapping at: _ ifAbsent: block [block do].
-_@EmptyMapping at: _ ifPresent: _ [].
+_@(EmptyMapping traits) do: _ [].
+_@(EmptyMapping traits) keysAndValuesDo: _ [].
 
-mappings define: #MapOverlay &parents: {Mapping} &slots: {#original -> EmptyMapping. #overlay}.
+e@(EmptyMapping traits) at: key [ key keyNotFoundOn: e].
+e@(EmptyMapping traits) at: key put: _ [ key keyNotFoundOn: e].
+_@(EmptyMapping traits) at: _ ifAbsent: block [block do].
+_@(EmptyMapping traits) at: _ ifPresent: _ [].
+
+define: #MapOverlay &parents: {Mapping} &slots: {#original -> EmptyMapping. #overlay}.
 "This class implements a Mapping that takes an existing mapping
 and 'overlays' it with another existing mapping.
 
@@ -117,7 +118,7 @@ of the original."
   m overlay capacity + m original size
 ].
 
-mappings define: #SingleValueMap &parents: {Mapping} &slots: {#keys -> Set new. #value}.
+define: #SingleValueMap &parents: {Mapping} &slots: {#keys -> Set new. #value}.
 "Maps a set of keys to a single value. This in combination with MapOverlay
 helps to represent sparse Mappings."
 

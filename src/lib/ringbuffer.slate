@@ -1,0 +1,68 @@
+define: #RingBuffer &parents: {Queue}.
+"A RingBuffer is an ExtensibleSequence like a Queue in that it uses a gap
+to optimize for adding elements at one end and removing them from another.
+Unlike a Queue, it does not grow when its underlying Array is used up.
+Instead, it starts overwriting elements at the other end.
+It can be grown on request, however."
+
+r@(RingBuffer traits) addLast: obj
+[
+  r contents at: r lastIndex := obj.
+  r isFull ifTrue: [r firstIndex := r firstIndex + 1 \\ r contents size].
+  r lastIndex := r lastIndex + 1 \\ r contents size.
+  obj
+].
+
+r@(RingBuffer traits) addFirst: obj
+[
+  r isFull ifTrue: [r lastIndex := r lastIndex - 1 \\ r contents size].
+  r firstIndex := r firstIndex - 1 \\ r contents size.
+  r contents at: r firstIndex := obj.
+  obj
+].
+
+r@(RingBuffer traits) addAllLast: seq
+[| newLastIndex |
+  seq size > r capacity
+    ifTrue: [seq := (seq sliceFrom: seq size - r capacity)].
+  "The new lastIndex after all the elements are added."
+  newLastIndex := r lastIndex + seq size \\ r contents size.
+  "Update the firstIndex if adding the elements will fill up the contents."
+  seq size > r gapSize ifTrue: [r firstIndex := r firstIndex + (seq size - r gapSize) \\ r contents size].
+  "Whether adding the elements to the end will push the lastIndex past the
+   underlying Array's end."
+  newLastIndex < r lastIndex
+    ifTrue:
+      [| split |
+       "The number of elements that will fit before wrap-around."
+       split := r contents size - r lastIndex.
+       r contents replaceFrom: r lastIndex below: r contents size with: seq.
+       r contents replaceFrom: 0 below: seq size - split with: seq &startingAt: split]
+    ifFalse: [r contents replaceFrom: r lastIndex below: newLastIndex with: seq].
+  "Finally, update the lastIndex."
+  r lastIndex := newLastIndex.
+  seq
+].
+
+r@(RingBuffer traits) addAllFirst: seq
+[| newFirstIndex |
+  seq size > r capacity
+    ifTrue: [seq := (seq sliceFrom: seq size - r capacity)].
+  "The new firstIndex after all the elements are added."
+  newFirstIndex := r firstIndex - seq size \\ r contents size.
+  "Update the lastIndex if adding the elements will fill up the contents."
+  seq size > r gapSize ifTrue: [r lastIndex := r lastIndex - (seq size - r gapSize) \\ r contents size].
+  "Whether adding the elements to the end will push the firstIndex past the
+   underlying Array's start."
+  newFirstIndex > r firstIndex
+    ifTrue:
+      [| split |
+       "The number of elements that will need to be added at the end of the Array."
+       split := seq size - r firstIndex.
+       r contents replaceFrom: 0 below: r firstIndex with: seq &startingAt: split.
+       r contents replaceFrom: newFirstIndex below: r contents size with: seq]
+    ifFalse: [r contents replaceFrom: newFirstIndex below: r firstIndex with: seq].
+  "Finally, update the firstIndex."
+  r firstIndex := newFirstIndex.
+  seq
+].

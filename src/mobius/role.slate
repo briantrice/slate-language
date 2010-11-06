@@ -1,32 +1,32 @@
-prototypes define: #RoleEntry &parents: {Cloneable}
+Map traits define: #RoleEntry &parents: {Cloneable}
   &slots: {#selector. #rolePositions. #methodDefinition}.
 "An object representing an entry in the object Map table for a method dispatch
 installation."
 
-r1@(RoleEntry traits) = r2@(RoleEntry traits)
+r1@(Map RoleEntry traits) = r2@(Map RoleEntry traits)
 [
   r1 selector == r2 selector
    /\ [r1 rolePositions = r2 rolePositions]
    /\ [r1 methodDefinition = r2 methodDefinition]
 ].
 
-r@(RoleEntry traits) hash
+r@(Map RoleEntry traits) hash
 [
   (r selector hash bitXor: r rolePositions hash)
     bitXor: r methodDefinition hash
 ].
 
-r@(RoleEntry traits) appliesToPosition: dispatchIndex
+r@(Map RoleEntry traits) appliesToPosition: dispatchIndex
 [
   (r rolePositions >> dispatchIndex bitAnd: 1) = 1
 ].
 
-prototypes define: #EmbeddedRoleEntry &parents: {RoleEntry}
+Map traits define: #EmbeddedRoleEntry &parents: {Map RoleEntry}
   &slots: {#nextRoleIndex. #table}.
 "A RoleEntry subtype for describing the dispatch record installation as-is
 within the table, so that the table can be traversed."
 
-r@(EmbeddedRoleEntry traits) nextRole
+r@(Map EmbeddedRoleEntry traits) nextRole
 [
   r nextRoleIndex ifNotNilDo: [| :index | r table at: index]
 ].
@@ -42,7 +42,7 @@ that as starting index, or Nil if there is none."
 [
   (m roleTable at: index ifAbsent: [Nil]) ifNotNilDo:
     [| :selector |
-     EmbeddedRoleEntry
+     m EmbeddedRoleEntry
        clone `>>
          [selector := selector.
           rolePositions := m roleTable at: index + 1.
@@ -63,7 +63,7 @@ obj@(Root traits) roleReader [obj _map roleReadStream].
 
 m@(Map RoleReadStream traits) reset [m index := 0. m].
 
-m@(Map RoleReadStream traits) elementType [RoleEntry].
+m@(Map RoleReadStream traits) elementType [Map RoleEntry].
 "
 m@(Map RoleReadStream traits) isAtEnd
 [m index > m map roleTable indexLast].

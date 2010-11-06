@@ -1,4 +1,4 @@
-prototypes define: #Tokenizer &parents: {StreamProcessor} &slots:
+define: #Tokenizer &parents: {StreamProcessor} &slots:
 {#separators -> ASCIIString Character Whitespace copy}.
 "A stream that collects characters and emits words separated by
 any of the given separators."
@@ -7,10 +7,10 @@ Being a whitespace needs some abstraction over the actual encoding."
 "TODO: Design extension: parametrize Tokenizer on something more high level that works at the level of overriding #skipSeparators."
 
 s@(Tokenizer traits) newOn: target &separators: separators
-[| newS |
-  newS := resend.
-  separators ifNotNil: [newS separators := separators].
-  newS
+[| result |
+  result := resend.
+  separators ifNotNil: [result separators := separators].
+  result
 ].
 
 s@(ReadStream traits) split

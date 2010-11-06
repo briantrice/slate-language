@@ -1,5 +1,4 @@
-prototypes define: #Path &parents: {Cloneable}
-  &slots: {#names -> ExtensibleArray new}.
+define: #Path &slots: {#names -> ExtensibleArray new}.
 "A Path represents a sequence of slot-name traversals which can be used to
 reach a destination.  Nil represents impossible path."
 
@@ -127,7 +126,7 @@ path@(Path traits) printOn: s &root: root
   s ; ')'
 ].
 
-prototypes define: #RootedPath &parents: {Path} &slots: {#root -> lobby}.
+define: #RootedPath &parents: {Path} &slots: {#root -> lobby}.
 "A Path that is based on a particular root object."
 
 rooted@(RootedPath traits) as: path@(Path traits)
@@ -254,8 +253,8 @@ x@(Root traits) whereIs: obj
 "Answers a path from the first argument to the second."
 [RootedPath from: x to: obj].
 
-prototypes define: #PathFinder &parents: {ReadStream} &slots:
-  {#source -> (TraversalStream newOn: lobby &traversal: DepthFirst &childrenVia: [| :x | x slotValues]).
+define: #PathFinder &parents: {ReadStream} &slots:
+  {#source -> (TraversalStream newOn: lobby &childrenVia: #slotValues `er).
    #filterBlock -> [| :src :name :tgt | True]. "predicate for avoidance on {source. name. target}."
    #foundBlock -> [| :src :name :tgt | x == Nil] "predicate for selection on {source. name. target}."}.
 

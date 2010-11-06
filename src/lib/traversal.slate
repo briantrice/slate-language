@@ -1,38 +1,37 @@
+define: #Order.
 
-Stream traits define: #Order.
-
-streams define: #Priority &parents: {Stream Order}.
+define: #Priority &parents: {Order}.
 "A Stream Priority order specifies the order in which siblings are visited
 relative to each other."
 
-streams define: #Forward &builder: [Priority clone].
+define: #Forward &builder: [Priority clone].
 "Standard left-to-right, increasing index traversal of siblings."
 
-streams define: #Reverse &builder: [Priority clone].
+define: #Reverse &builder: [Priority clone].
 "Right-to-left, decreasing index reverse traversal of siblings."
 
-streams define: #LeastToGreatest &builder: [Priority clone].
-streams define: #GreatestToLeast &builder: [Priority clone].
+define: #LeastToGreatest &builder: [Priority clone].
+define: #GreatestToLeast &builder: [Priority clone].
 
-streams define: #Traversal &parents: {Stream Order}.
+define: #Traversal &parents: {Order}.
 "A Stream Traversal order specifies when the parent-child boundary is crossed,
 e.g. before other siblings or after all siblings."
 
-streams define: #DepthFirst &builder: [Traversal clone].
+define: #DepthFirst &builder: [Traversal clone].
 "Recurse through the next element encountered before proceeding on to
 following siblings of it."
 
-streams define: #BreadthFirst &builder: [Traversal clone].
+define: #BreadthFirst &builder: [Traversal clone].
 "Recurse across all siblings at the current level before recursing through
 each sibling's children in the same way."
 
-streams define: #Topological &builder: [Traversal clone].
+define: #Topological &builder: [Traversal clone].
 
-streams define: #Direction &parents: {Stream Order}.
+define: #Direction &parents: {Order}.
 ""
 
-streams define: #PreOrder &builder: [Direction clone].
-streams define: #PostOrder &builder: [Direction clone].
+define: #PreOrder &builder: [Direction clone].
+define: #PostOrder &builder: [Direction clone].
 
 c@(Collection traits) readerTest &priority: priority &direction: direction &traversal: traversal
 [
@@ -48,7 +47,7 @@ seq@(Sequence traits) readerWithDirection: _ priority: priority@Reverse traversa
 Don't do explicit reversal, just build it into the Stream type."
 [seq ReadStream newOn: seq reversed].
 
-streams define: #TraversalStream &parents: {ReadStream} &slots:
+define: #TraversalStream &parents: {ReadStream} &slots:
 {#seen -> IdentitySet new. "Remembers seen objects."
  #todo -> Stack new. "Should be a LIFO or FIFO."
  #childrenBlock -> #reader `er
@@ -58,10 +57,11 @@ s@(TraversalStream traits) on: x &traversal: traversal &childrenVia: childrenBlo
 "Target the object by making it the contents of the todo Collection.
 Set up the traversal order parameters as needed."
 [
-  traversal ifNotNil:
-    [s todo := (s todo as: (traversal caseOf:
-	{BreadthFirst -> [Queue].
-         DepthFirst -> [Stack]} otherwise: [s todo]))].
+  traversal `defaultsTo: DepthFirst.
+  s todo :=
+    s todo as: (traversal caseOf:
+	          {BreadthFirst -> [Queue].
+                   DepthFirst -> [Stack]} otherwise: [s todo]).
   s todo push: x.
   s seen := s seen new.
   childrenBlock ifNotNil: [s childrenBlock := childrenBlock].

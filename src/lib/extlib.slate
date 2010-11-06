@@ -2,7 +2,7 @@ ExternalLibrary traitsWindow _map delegates at: ExternalLibrary traitsWindow _ma
 ExternalLibrary addSlotsFrom: ExternalResource.
 ExternalLibrary addSlot: #name valued: Nil.
 
-prototypes define: #ExternalMethod &parents: {Method. ExternalResource}
+define: #ExternalMethod &parents: {Method. ExternalResource}
   &slots: {#name. #argumentsFormat -> {}. #callFormat. #resultFormat}.
 
 m@(ExternalMethod traits) selector [m name ifNotNilDo: #intern `er].
@@ -49,25 +49,25 @@ ExternalMethod traits ensureNamespace: #CallFormat
 
 ExternalLibrary traits define: #cTypeToExtlibType ->
 (Dictionary new*,
-   Types C Void             -> ExternalMethod ArgumentFormat Void,
-   Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Int,
-   Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Int,
-   Types C UnsignedChar     -> ExternalMethod ArgumentFormat Int,
-   Types C LongInt          -> ExternalMethod ArgumentFormat Int,
-   Types C ShortInt         -> ExternalMethod ArgumentFormat Int,
-   Types C Char             -> ExternalMethod ArgumentFormat Int
+   C Void             -> ExternalMethod ArgumentFormat Void,
+   C UnsignedLongInt  -> ExternalMethod ArgumentFormat Int,
+   C UnsignedShortInt -> ExternalMethod ArgumentFormat Int,
+   C UnsignedChar     -> ExternalMethod ArgumentFormat Int,
+   C LongInt          -> ExternalMethod ArgumentFormat Int,
+   C ShortInt         -> ExternalMethod ArgumentFormat Int,
+   C Char             -> ExternalMethod ArgumentFormat Int
 ).
 
 ExternalLibrary traits define: #pointedCTypeToExtlibType ->
 (Dictionary new*,
-   Types C Void             -> ExternalMethod ArgumentFormat Bytes,
-   Types C UnsignedLongInt  -> ExternalMethod ArgumentFormat Bytes,
-   Types C UnsignedShortInt -> ExternalMethod ArgumentFormat Bytes,
-   Types C LongInt          -> ExternalMethod ArgumentFormat Bytes,
-   Types C ShortInt         -> ExternalMethod ArgumentFormat Bytes,
+   C Void             -> ExternalMethod ArgumentFormat Bytes,
+   C UnsignedLongInt  -> ExternalMethod ArgumentFormat Bytes,
+   C UnsignedShortInt -> ExternalMethod ArgumentFormat Bytes,
+   C LongInt          -> ExternalMethod ArgumentFormat Bytes,
+   C ShortInt         -> ExternalMethod ArgumentFormat Bytes,
 
-   Types C UnsignedChar     -> ExternalMethod ArgumentFormat CString,
-   Types C Char             -> ExternalMethod ArgumentFormat CString
+   C UnsignedChar     -> ExternalMethod ArgumentFormat CString,
+   C Char             -> ExternalMethod ArgumentFormat CString
 ).
 
 ExternalMethod `>> [
@@ -133,8 +133,8 @@ e@(ExternalLibrary traits) externalTypeFor: sym@(Symbol traits) in: ns &argument
   af ifNotNil: [result := (af at: sym ifAbsent: [Nil])].
   result isNil /\ [structName isFoundOn: {ns}] ifTrue: [result := (structName sendWith: ns)].
   result isNil /\ [sym isFoundOn: {ns}] ifTrue: [result := (sym sendWith: ns)].
-  result isNil /\ [ns ~== Types C] /\ [sym isFoundOn: {Types C}] 
-    ifTrue: [result := (sym sendWith: Types C)].
+  result isNil /\ [ns ~== C] /\ [sym isFoundOn: {C}] 
+    ifTrue: [result := (sym sendWith: C)].
   result isNil /\ [sym isFoundOn: {ExternalMethod ArgumentFormat}]
     ifTrue: [result := (sym sendWith: ExternalMethod ArgumentFormat)].
   result ifNil: [error: 'No type translation found for ' ; sym printString].
@@ -142,18 +142,18 @@ e@(ExternalLibrary traits) externalTypeFor: sym@(Symbol traits) in: ns &argument
   e externalTypeFor: result in: ns
 ].
 
-e@(ExternalLibrary traits) externalTypeFor: ctype@(Types C Type traits) in: ns
+e@(ExternalLibrary traits) externalTypeFor: ctype@(C Type traits) in: ns
 [
   e cTypeToExtlibType at: ctype ifAbsent: [error: 'No type translation found for ' ; ctype cName printString]
 ].
 
-e@(ExternalLibrary traits) externalTypeFor: _@(Types C Structure traits) in: _
+e@(ExternalLibrary traits) externalTypeFor: _@(C Structure traits) in: _
 [ExternalMethod ArgumentFormat CStructValue].
 
-e@(ExternalLibrary traits) externalTypeFor: ctype@(Types C Pointer traits) in: ns
+e@(ExternalLibrary traits) externalTypeFor: ctype@(C Pointer traits) in: ns
 [
   "Structures are not singletons, we must spacial-case them here"
-  (ctype targetType is: Types C Structure)
+  (ctype targetType is: C Structure)
     ifTrue: [ExternalMethod ArgumentFormat Bytes]
     ifFalse: [e pointedCTypeToExtlibType at: ctype targetType ifAbsent:
                 [ExternalMethod ArgumentFormat Pointer]]
@@ -181,7 +181,7 @@ as symbols (can be empty).
     Symbol -> ExternalMethod ArgumentFormat mappings
     TODO: argumentFormats is a bad name."
 [
-  ns `defaultsTo: Types C.
+  ns `defaultsTo: C.
   defs collect:
     [| :return :fname :args |
      e signatureNamed: fname
@@ -244,16 +244,16 @@ m@(ExternalMethod traits) as: _@(CompiledMethod traits)
   [ |*rest| m externalApplyTo: rest]
 ].
 
-prototypes define: #CObject &parents: {ByteArray}
-  &slots: {#specification -> Types C Structure clone.
+define: #CObject &parents: {ByteArray}
+  &slots: {#specification -> C Structure clone.
 	   #storage -> ByteArray new "Where the data is stored; could also be a MemoryArea or a slice thereof."}.
 "CObject uses a ByteArray to hold the payload contents of an actual or
 potential C struct value. It can automatically generate accessor methods based
 on a struct definition."
 
-s@(CObject traits) newBasedOn: spec@(Types C Structure traits)
+s@(CObject traits) newBasedOn: spec@(C Structure traits)
 "This creates a new CObject with accessor methods as defined by the supplied
-Types C Structure spec. Call this method once, and clone the result,
+C Structure spec. Call this method once, and clone the result,
 because this call is relatively expensive."
 [
   (s clone `setting: #{#storage. #specification} to:
@@ -274,66 +274,66 @@ s@(CObject traits) addAccessors
 
 "Various accessor blocks:" (
 
-type@(Types C Type traits) accessorForOffset: offset
+type@(C Type traits) accessorForOffset: offset
 "Answers a Method appropriate for getting the data value stored in an object
 of this C Type at the given offset."
 [overrideThis].
 
-type@(Types C Type traits) mutatorForOffset: offset
+type@(C Type traits) mutatorForOffset: offset
 "Answers a Method appropriate for setting a new data value in an object of
 this C Type at the given offset."
 [overrideThis].
 
-type@(Types C Structure traits) accessorForOffset: offset [Nil].
-type@(Types C Structure traits) mutatorForOffset: offset [Nil].
+type@(C Structure traits) accessorForOffset: offset [Nil].
+type@(C Structure traits) mutatorForOffset: offset [Nil].
 
-type@(Types C Char traits) accessorForOffset: offset
+type@(C Char traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage at: offset) > 16r7f
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
-type@(Types C UnsignedChar traits) accessorForOffset: offset
+type@(C UnsignedChar traits) accessorForOffset: offset
 [[| :s | s storage at: offset]].
 
-type@(Types C Char traits) mutatorForOffset: offset
+type@(C Char traits) mutatorForOffset: offset
 [[| :s :value | s storage at: offset put: value]].
 
-type@(Types C UnsignedChar traits) mutatorForOffset: offset
+type@(C UnsignedChar traits) mutatorForOffset: offset
 [[| :s :value | s storage at: offset put: value]].
 
 "ShortInt"
 
-type@(Types C ShortInt traits) accessorForOffset: offset
+type@(C ShortInt traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage int16At: offset / 2) > 16r7fff
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
-type@(Types C UnsignedShortInt traits) accessorForOffset: offset
+type@(C UnsignedShortInt traits) accessorForOffset: offset
 [[| :s | s storage int16At: offset / 2]].
 
-type@(Types C ShortInt traits) mutatorForOffset: offset
+type@(C ShortInt traits) mutatorForOffset: offset
 [[| :s :value | s storage int16At: offset / 2 put: value]].
 
-type@(Types C UnsignedShortInt traits) mutatorForOffset: offset
+type@(C UnsignedShortInt traits) mutatorForOffset: offset
 [[| :s :value | s storage int16At: offset / 2 put: value]].
 
 "LongInt"
 
-type@(Types C LongInt traits) accessorForOffset: offset
+type@(C LongInt traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage int32At: offset / 4) > 16r7fffffff
 		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
-type@(Types C UnsignedLongInt traits) accessorForOffset: offset
+type@(C UnsignedLongInt traits) accessorForOffset: offset
 [[| :s | s storage int32At: offset / 4]].
 
-type@(Types C LongInt traits) mutatorForOffset: offset
+type@(C LongInt traits) mutatorForOffset: offset
 [[| :s :value | s storage int32At: offset / 4 put: value]].
 
-type@(Types C UnsignedLongInt traits) mutatorForOffset: offset
+type@(C UnsignedLongInt traits) mutatorForOffset: offset
 [[| :s :value | s storage int32At: offset / 4 put: value]].
 
 ).
@@ -347,37 +347,37 @@ s@(CObject traits) parseDefinition: def named: name in: ns
   def
 ].
 
-s@(CObject traits) parseDefinition: type@(Types C Type traits) named: name in: ns
+s@(CObject traits) parseDefinition: type@(C Type traits) named: name in: ns
 [
-  Types C StructureElement newNamed: name type: type
+  C StructureElement newNamed: name type: type
 ].
 
 _@(CObject traits) parseDefinition: typeName@(Symbol traits) named: name in: ns
 "Try to find a struct prefixed by '_' then look for a defined type in ns. If
-neither was found try Types C"
+neither was found try C"
 [| structName |
   structName := ('_' ; typeName) intern.
-  Types C StructureElement newNamed: name type:
+  C StructureElement newNamed: name type:
     ((structName isFoundOn: {ns})
       ifTrue: [structName sendWith: ns]
       ifFalse: [typeName sendWith: ((typeName isFoundOn: {ns})
-        ifTrue: [ns] ifFalse: [Types C])])
+        ifTrue: [ns] ifFalse: [C])])
 ].
 
 s@(CObject traits) parseDefinition: col@(Collection traits) named: name in: ns
 [| type |
-  type := ((col first sendWith: Types C) newNamed: name).
+  type := ((col first sendWith: C) newNamed: name).
   col allButFirst do:
     [| :name :def |
      type addElement: (s parseDefinition: def named: name intern in: ns)]
     applier.
-  Types C StructureElement newNamed: name type: type
+  C StructureElement newNamed: name type: type
 ].
 
 s@(CObject traits) parseDefinitionsFrom: col@(Collection traits) into: ns@(Namespace traits)
 "Expects a 2*n sized collection. First element is a name, second is a definition. A definition
 can be either a symbol or a collection. Symbols are tried to be looked up first in the
-provided namespace, then in Types C. In case the definition is a collection the first element
+provided namespace, then in C. In case the definition is a collection the first element
 defines its type (#Structure/#Union), rest is the same recursively. Successfully
 processed definitions are added as slot values to the namespace. Structure names are
 prefixed by '_' and a CObject is created from them which is then added by the name
@@ -388,7 +388,7 @@ without any prefix. This CObject is to be cloned later."
     s addDefinition: (s parseDefinition: def named: name in: ns) named: name into: ns] applier.
 ].
 
-_@(CObject traits) addDefinition: def@(Types C Structure traits) named: name into: ns
+_@(CObject traits) addDefinition: def@(C Structure traits) named: name into: ns
 "Add the specification prefixed by '_' and create a CObject which is added by the name.
 Later on this CObject should be clone'd"
 [| baseName |
@@ -398,7 +398,7 @@ Later on this CObject should be clone'd"
   ns addSlot: baseName valued: (CObject newBasedOn: def)
 ].
 
-s@(CObject traits) addDefinition: def@(Types C StructureElement traits) named: name into: ns
+s@(CObject traits) addDefinition: def@(C StructureElement traits) named: name into: ns
 "Strip off top level StructureElement and add the type itself"
 [
   s addDefinition: def type named: name into: ns
@@ -409,8 +409,7 @@ _@(CObject traits) addDefinition: def named: name into: ns
   ns addSlot: name valued: def
 ].
 
-prototypes define: #ExternalInterface
-  &parents: {Cloneable}
+define: #ExternalInterface
   &slots: {#primitives -> Namespace clone.
 	   #library -> ExternalLibrary. #specs -> {}. #leader -> ''}.
 "This facade manages ExternalLibrary objects, by also setting up and
