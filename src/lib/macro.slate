@@ -344,16 +344,20 @@ array@(Syntax Array traits) setTo: vals &environment: env
              (Syntax UnaryMessage sending: #first to: {vals})]
     } otherwise:
       [| result tmpVar |
-       tmpVar: env addVariable.
        result: array copy.
-       "result statements: (array statements collectWithIndex:"
-       array statements doWithIndex:
-         [| :statement :index |
-          result statements at: index put:
-            (statement setTo:
-               (Syntax KeywordMessage sending: #at: to:
-                  {tmpVar load. Syntax Literal for: index}))].
-          Syntax Parenthesis of: {tmpVar store: vals. result}]
+       env
+         ifNil:
+           [TODO: 'Can\'t handle this outside of a block context.']
+         ifNotNil:
+           [tmpVar: env addVariable.
+            "result statements: (array statements collectWithIndex:"
+            array statements doWithIndex:
+              [| :statement :index |
+               result statements at: index put:
+                 (statement setTo:
+                    (Syntax KeywordMessage sending: #at: to:
+                       {tmpVar load. Syntax Literal for: index}))].
+            Syntax Parenthesis of: {tmpVar store: vals. result}]]
 ].
 
 load@(Syntax LoadVariable traits) setTo: val
