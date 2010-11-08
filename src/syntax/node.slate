@@ -136,13 +136,12 @@ node1@(Syntax nodes Message traits) = node2@(Syntax nodes Message traits)
 message@(Syntax nodes Message traits) walk: block
 [
   resend.
-  message arguments
-    do: [| :argument | argument walk: block]
+  message arguments do: #(_ walk: block) `er
 ].
 
 message@(Syntax nodes Message traits) transformChildren: block
 [
-  message arguments infect: [| :argument | argument transformBy: block].
+  message arguments infect: #(_ transformBy: block) `er.
   message
 ].
 
@@ -269,7 +268,7 @@ opts@(Syntax nodes OptionalKeywords traits) walk: block
 opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 [
   opts message := opts message transformBy: block.
-  opts arguments infect: [| :argument | argument transformBy: block].
+  opts arguments infect: #(_ transformBy: block) `er.
   opts
 ].
 
@@ -300,14 +299,13 @@ rest@(Syntax nodes RestArguments traits) walk: block
 [
   block applyWith: rest.
   rest message walk: block.
-  rest arguments
-    do: [| :argument | argument walk: block]
+  rest arguments do: #(_ walk: block) `er
 ].
 
 rest@(Syntax nodes RestArguments traits) transformChildren: block
 [
   rest message := rest message transformBy: block.
-  rest arguments infect: [| :argument | argument transformBy: block].
+  rest arguments infect: #(_ transformBy: block) `er.
   rest
 ].
 
@@ -391,8 +389,8 @@ l@(Syntax nodes Literal traits) noteReusable: obj
 [l ReusableValues at: obj ifAbsentPut:
   [l new `setting: #{#value} to: {obj}]].
 
-{Array new. ByteArray new. #''. ''}
-  do: [| :each | Syntax nodes Literal noteReusable: each].
+[| :each | Syntax nodes Literal noteReusable: each] for:
+  {Array new. ByteArray new. #''. ''}.
 
 node@(Syntax nodes Literal traits) for: obj
 [node ReusableValues at: obj ifAbsent: [node new `setting: #{#value} to: {obj}]].
@@ -430,20 +428,19 @@ node1@(Syntax nodes CompoundStatement traits) = node2@(Syntax nodes CompoundStat
 group@(Syntax nodes CompoundStatement traits) walk: block
 [
   resend.
-  group statements
-    do: [| :statement | statement walk: block]
+  group statements do: #(_ walk: block) `er
 ].
 
 group@(Syntax nodes CompoundStatement traits) transformChildren: block
 [
-  group statements infect: [| :statement | statement transformBy: block].
+  group statements infect: #(_ transformBy: block) `er.
   group
 ].
 
 group@(Syntax nodes CompoundStatement traits) deepCopy: scope
 [
   (group statements collect:
-    [| :statement | statement deepCopy: scope]) as: group
+    #(_ deepCopy: scope) `er) as: group
 ].
 
 Syntax nodes define: #Array &parents: {Syntax nodes CompoundStatement}.
@@ -460,7 +457,7 @@ group@(Syntax nodes Parenthesis traits) evaluateIn: namespace
   group statements isEmpty
     ifTrue: [Nil]
     ifFalse:
-      [group statements allButLastDo: [| :statement | statement evaluateIn: namespace].
+      [group statements allButLastDo: #(_ evaluateIn: namespace) `er.
        group statements last evaluateIn: namespace]
 ].
 
@@ -861,9 +858,9 @@ load@(Syntax nodes LoadVariable traits) deepCopy: scope
 [
   (scope findVariable: load variable name)
     ifNil: [Syntax UnaryMessage
-		 sending: load variable name
-		 to: {Syntax ImplicitArgument}]
-    ifNotNilDo: [| :var | load from: var]
+	      sending: load variable name
+	      to: {Syntax ImplicitArgument}]
+    ifNotNilDo: #(load from: _) `er
 ].
 
 load@(Syntax nodes LoadVariable traits) evaluateIn: namespace &optionals: opts
