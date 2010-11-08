@@ -32,18 +32,16 @@ message@(Syntax Message traits) inferTypesIn: namespace
     ifTrue:
       [message type := message selector inferOn:
          (message arguments
-            collect: [| :argument | argument inferTypesIn: namespace])]
+            collect: #(_ inferTypesIn: namespace) `er)]
     ifFalse:
-      [message arguments do:
-         [| :argument | argument inferTypesIn: namespace].
+      [message arguments do: #(_ inferTypesIn: namespace) `er.
        message type]
 ].
 
 opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
 [| msgType |
   msgType := opts message inferTypes. 
-  opts arguments do: 
-    [| :argument | argument inferTypesIn: namespace].
+  opts arguments do: #(_ inferTypesIn: namespace) `er.
   opts type == Types Any
     ifTrue: [opts type := msgType]
     ifFalse: [opts type]
@@ -51,8 +49,7 @@ opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
 
 paren@(Syntax Parenthesis traits) inferTypesIn: namespace
 [
-  paren statements do:
-    [| :statement | statement inferTypesIn: namespace].
+  paren statements do: #(_ inferTypesIn: namespace) `er.
   paren type == Types Any /\ [paren statements isNotEmpty]
     ifTrue: [paren type := paren statements last type]
     ifFalse: [paren type]
@@ -65,8 +62,7 @@ var@(Syntax Variable traits) inferTypesIn: namespace
 
 block@(Syntax Block traits) inferTypesIn: namespace
 [| resultType |
-  block localVariables do:
-    [| :var | var inferTypesIn: namespace].
+  block localVariables do: #(_ inferTypesIn: namespace) `er.
   resultType := Types Any.
   "TODO: handle Return with a Union operation."
   block statements do:
@@ -74,16 +70,14 @@ block@(Syntax Block traits) inferTypesIn: namespace
   block type == Types Any
     ifTrue: 
       [block type := Types Block
-         from: (block inputVariables
-                  collect: [| :variable | variable type])
+         from: (block inputVariables collect: #type `er)
          to: resultType]
     ifFalse: [block type]
 ].
 
 array@(Syntax Array traits) inferTypesIn: namespace
 [
-  array statements do:
-    [| :statement | statement inferTypesIn: namespace].
+  array statements do: #(_ inferTypesIn: namespace) `er.
   array type == Types Any
     ifTrue:
       [array type := Types Array of:

@@ -36,14 +36,10 @@ literal@(Syntax Literal traits) setTo: val
   (lhs is: Symbol) \/ [lhs is: String]
     ifTrue:
       [literal value: lhs intern.
-       Syntax KeywordMessage
-         sending: #addSlot:valued:
-         to: {Syntax ImplicitArgument. literal. val}]
+       `(addSlot: literal `unquote valued: val `unquote)]
     ifFalse:
       [(lhs is: Integer)
-         ifTrue: [Syntax KeywordMessage
-                    sending: #at:put:
-                    to: {Syntax ImplicitArgument. literal. val}]
+         ifTrue: [`(at: literal `unquote put: val `unquote)]
          ifFalse:
            [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
 ].
@@ -84,8 +80,7 @@ array@(Syntax Array traits) setTo: vals &environment: env
 [
   array statements size caseOf:
     {0 -> [vals].
-     1 -> [array statements last setTo:
-             (Syntax UnaryMessage sending: #first to: {vals})]
+     1 -> [array statements last setTo: `(vals `unquote first)]
     } otherwise:
       [| result tmpVar |
        result: array copy.
@@ -119,9 +114,7 @@ node@(Syntax Node traits) setToIfNotNil: value &environment: env
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
 [
-  Syntax Message sending: #ifNotNil: to:
-    {value.
-     Syntax Block newFor: (node setTo: value)}
+  `(value `unquote ifNotNil: [(node setTo: value) `unquote])
 ].
 
 node@(Syntax Node traits) ?= value
@@ -146,7 +139,7 @@ node@(Syntax Node traits) *= value
 
 node@(Syntax Node traits) /= value
 [
-  node setTo: (Syntax BinaryMessage sending: #/ to: {node. value})
+  node setTo: `(node `unquote / value `unquote)
 ].
 
 node@(Syntax Node traits) checkForBindingOrElseDo: block &environment: env
@@ -165,9 +158,7 @@ literal@(Syntax Literal traits) bindTo: val
   (lhs is: Symbol) \/ [lhs is: String]
     ifTrue:
       [literal value: lhs intern.
-       Syntax KeywordMessage
-         sending: #addSlotImmutable:valued:
-         to: {Syntax ImplicitArgument. literal. val}]
+       `(addSlotImmutable: literal `unquote valued: val `unquote)]
     ifFalse:
       [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]
 ].
@@ -273,7 +264,7 @@ of that local."
     [| :node | node = expr \/ [node = macroCall]
        ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
-  Syntax StoreVariable of: expr into: newVar
+  newVar store: expr
 ].
 
 expr@(Syntax Node traits) cacheAs: varName &environment: method
@@ -296,7 +287,7 @@ of that local."
     [| :node | node = expr \/ [node = macroCall] \/ [node = unaryAccess]
        ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
-  Syntax StoreVariable of: expr into: newVar
+  newVar store: expr
 ].
 
 expr@(Syntax Node traits) rememberAs: varName &environment: method
@@ -317,7 +308,7 @@ of that local."
   method transformBy:
     [| :node | node = unaryAccess ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
-  Syntax StoreVariable of: expr into: newVar
+  newVar store: expr
 ].
 
 x@(Root traits) compareAndHashUsingSlots: relevantSlotNames
@@ -330,34 +321,34 @@ NOTE: This is not a macro but relies on the macro facilities."
 
   xLiteral := Syntax Literal for: x.
   Syntax Block new
-    `>> [statements:
-      {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
-        from: #{#obj1. #obj2} to:
-          [| :obj1 :obj2 |
-       "relevantSlotNames collect:
+    `>> [statements :=
+           {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
+              from: #{#obj1. #obj2} to:
+                [| :obj1 :obj2 |
+                 "relevantSlotNames collect:
          [| :slotName |
           (obj1 `load atSlotNamed: slotName `unquote)
                 = (obj2 `load atSlotNamed: slotName `unquote)]"
-            relevantSlotNames allButFirst 
-              inject: 
-                `((obj1 `load atSlotNamed: relevantSlotNames first `unquote)
-                   = (obj2 `load atSlotNamed: relevantSlotNames first `unquote))
-              into: [| :expr :slotName |
-                `(expr `unquote /\
-                   [(obj1 `load atSlotNamed: slotName `unquote)
-                     = (obj2 `load atSlotNamed: slotName `unquote)])]]
-          &linkVariables: True.
-       Syntax MethodDefinition of: #hash on: {xLiteral}
-         from: #{#obj} to:
-           [| :obj |
-             relevantSlotNames allButFirst
-               inject:
-                 `((obj `load atSlotNamed: relevantSlotNames first `unquote) hash)
-               into: [| :hash :slotName |
-                 `(hash `unquote bitXor:
-                    (obj `load atSlotNamed: slotName `unquote) hash)]]
-           &linkVariables: True}.
-      compileAndRun].
+                 relevantSlotNames allButFirst
+                   inject:
+                     `((obj1 `load atSlotNamed: relevantSlotNames first `unquote)
+                         = (obj2 `load atSlotNamed: relevantSlotNames first `unquote))
+                   into: [| :expr :slotName |
+                          `(expr `unquote /\
+                              [(obj1 `load atSlotNamed: slotName `unquote)
+                                 = (obj2 `load atSlotNamed: slotName `unquote)])]]
+              &linkVariables: True.
+            Syntax MethodDefinition of: #hash on: {xLiteral}
+              from: #{#obj} to:
+                [| :obj |
+                 relevantSlotNames allButFirst
+                   inject:
+                     `((obj `load atSlotNamed: relevantSlotNames first `unquote) hash)
+                   into: [| :hash :slotName |
+                          `(hash `unquote bitXor:
+                              (obj `load atSlotNamed: slotName `unquote) hash)]]
+              &linkVariables: True}.
+         compileAndRun].
 ].
 
 x@(Root traits) extendCompareAndHashUsingSlots: relevantSlotNames
@@ -456,10 +447,9 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
   &otherwise: failBlock &append: keyword &environment: env
 [| tmpVar cases |
   env ifNil: [error: 'Cannot match a collection outside of a method'].
-  keyword:
-    (keyword 
-      ifNil: [#with:]
-      ifNotNil: [keyword evaluate]).
+  keyword := keyword
+    ifNil: [#with:]
+    ifNotNil: [keyword evaluate].
   elements := elements evaluate sort.
   tmpVar := env addVariable.
   cases :=
@@ -470,7 +460,7 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
               element <= size
                 ifTrue:
                   [message matchAppend: keyword with: `(tmpVar `load at: element `literal)]
-                ifFalse: 
+                ifFalse:
                   [message]]) `block)]).
   failBlock
     ifNil:

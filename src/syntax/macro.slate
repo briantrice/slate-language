@@ -23,7 +23,7 @@ inherit the macro node's debugging information."
 [| expansion |
   macro selector = #macroExpand ifTrue:
     [error: 'Cannot macroExpand `macroExpand. Use `(expr) macroExpand instead'.
-      ^ macro].
+     ^ macro].
   opts := opts
     ifNil: [#{}]
     ifNotNil:
@@ -35,10 +35,10 @@ inherit the macro node's debugging information."
       &optionals: (opts ; {#&environment:. env}))
         macroExpand &environment: env.
   macro lineNumber
-    ifNotNil:
-      [expansion walk:
-        [| :child |
-         child lineNumber `defaultsTo: macro lineNumber]].
+    ifNotNilDo:
+      [| :lineNumber |
+       expansion walk:
+         [| :child | child lineNumber `defaultsTo: lineNumber]].
   expansion
 ].
 
