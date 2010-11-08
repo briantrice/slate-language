@@ -849,8 +849,6 @@ selector."
                (setq indent-amount 0))
               ((eq (nth 3 state) ?\))
                (setq indent-amount (+ (current-column) slate-indent-increment))))
-        (when indent-amount
-          (return-from slate-calculate-indent indent-amount))
         (slate-narrow-to-method)
         (beginning-of-line)
         (setq state (parse-partial-sexp (point-min) (point)))
