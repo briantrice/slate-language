@@ -844,7 +844,9 @@ var@(Syntax nodes Variable traits) deepCopy: scope
 
 Syntax nodes define: #RestVariable &parents: {Syntax nodes Variable}.
 
-Syntax nodes define: #LoadVariable &parents: {Syntax nodes Node} &slots: {#variable}.
+Syntax nodes define: #VariableOperation &parents: {Syntax nodes Node} &slots: {#variable}.
+
+Syntax nodes define: #LoadVariable &parents: {Syntax nodes VariableOperation} &slots: {}.
 
 load@(Syntax nodes LoadVariable traits) from: variable
 [load new `setting: #{#variable} to: {variable}].
@@ -871,8 +873,8 @@ load@(Syntax nodes LoadVariable traits) evaluateIn: namespace &optionals: opts
 
 Syntax nodes define: #LoadRestVariable &parents: {Syntax nodes LoadVariable}.
 
-Syntax nodes define: #StoreVariable &parents: {Syntax nodes Node}
-  &slots: {#variable. #value}.
+Syntax nodes define: #StoreVariable &parents: {Syntax nodes VariableOperation}
+  &slots: {#value}.
 
 store@(Syntax nodes StoreVariable traits) of: value into: variable
 [store new `setting: #{#value. #variable} to: {value. variable}].
