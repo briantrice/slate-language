@@ -1,43 +1,50 @@
 "Pipes for interprocess communication"
 
-prototypes define: #ProcessPipe &parents: {ExternalResource} &slots: {#args -> #{}. #readHandle. #writeHandle}.
+prototypes define: #ProcessPipe &parents: {ExternalResource} &slots: {
+  #arguments -> #{}.
+  #readHandle.
+  #writeHandle
+}.
 
 ProcessPipe traits define: #ReadStream &parents: {ExternalResource ReadStream}.
 
-p@(ProcessPipe traits) newOn: name@(String traits) &args: arguments
+p@(ProcessPipe traits) newOn: name@(String traits) &arguments: arguments
 [
   arguments `defaultsTo: #{}.
-  p new `>> [locator := name. args := {name} ; arguments. ]
+  p new `>> [locator := name. arguments := {name} ; arguments. ]
 ].
 
 p@(ProcessPipe traits) enable
 [| pipeName |
   pipeName := p locator as: ASCIIString.
-  (p handle := lobby openProcessPipe: pipeName args: p args)
-    ifNotNil: [p readHandle := p handle second.
-               p writeHandle := p handle first].
+  (p handle := lobby openProcessPipe: pipeName args: p arguments)
+    ifNotNilDo:
+      [| :handles | p readHandle := handles first. p writeHandle := handles second].
   p
 ].
 
 p@(ProcessPipe traits) closeWriter
 [
-  p writeHandle ifNotNil: [lobby closeProcessPipe: p writeHandle.
-                           p writeHandle := Nil].
+  p writeHandle ifNotNilDo:
+    [| :handle | lobby closeProcessPipe: handle.
+     p writeHandle := Nil].
   p handle := {p readHandle}.
   p
 ].
 
 p@(ProcessPipe traits) closeReader
 [
-  p readHandle ifNotNil: [lobby closeProcessPipe: p readHandle.
-                           p readHandle := Nil].
+  p readHandle ifNotNilDo:
+    [| :handle | lobby closeProcessPipe: handle.
+     p readHandle := Nil].
   p handle := {p writeHandle}.
   p
 ].
 
 p@(ProcessPipe traits) disable
 [
-  p handle ifNotNil: [p handle do: [|:fd| lobby closeProcessPipe: fd]].
+  p handle ifNotNilDo:
+    [| :handles | handles do: [| :fd | lobby closeProcessPipe: fd]].
 ].
 
 p@(ProcessPipe traits) read: n from: ignoredHandle into: array startingAt: start
@@ -52,7 +59,10 @@ p@(ProcessPipe traits) write: n to: ignoredHandle from: array startingAt: start
 
 p@(ProcessPipe traits) writingOutputAs: outputType
 [
-  p reader sessionDo: [|:reader| p closeWriter. ([|:s| reader >> s] writingAs: reader collectionType) as: outputType]
+  p reader sessionDo:
+    [| :reader |
+     p closeWriter.
+     ([| :s | reader >> s] writingAs: reader collectionType) as: outputType]
 ].
 
 p@(ProcessPipe ReadStream traits) isAtEnd
