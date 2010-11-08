@@ -10,6 +10,177 @@ Of course it does nothing to actual run-time configuration of the thing
 described."
 [n surroundings Literal Nil].
 
+n@(Syntax Node traits) setTo: val
+"A macro to expand the node and value into an appropriate assignment for the
+location that the message appears to use."
+"TODO: Use type inference on arguments to detect if there should be a concrete
+slot attribute or other type of accessor to verify or distinguish."
+[overrideThis].
+
+load@(Syntax LoadVariable traits) setTo: val
+"Expands a local variable reference into a store to it."
+[load store: val].
+
+message@(Syntax UnaryMessage traits) setTo: val
+"Makes a substitution of the unary message with a keyword message that is the
+mutator form of that selector (appends a colon)."
+[
+  Syntax KeywordMessage
+    sending: (message argument mutatorNameFor: message selector)
+    to: {message argument. val}
+].
+
+literal@(Syntax Literal traits) setTo: val
+[| lhs |
+  lhs: literal value.
+  (lhs is: Symbol) \/ [lhs is: String]
+    ifTrue:
+      [literal value: lhs intern.
+       Syntax KeywordMessage
+         sending: #addSlot:valued:
+         to: {Syntax ImplicitArgument. literal. val}]
+    ifFalse:
+      [(lhs is: Integer)
+         ifTrue: [Syntax KeywordMessage
+                    sending: #at:put:
+                    to: {Syntax ImplicitArgument. literal. val}]
+         ifFalse:
+           [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
+].
+
+message@(Syntax KeywordMessage traits) setTo: val
+"Expands a message by looking at its selector and picking the right setter."
+[
+  (message selector isKeywordSelector ifTrue:
+    [message selector caseOf:
+      {#atSlotNamed: -> [#atSlotNamed:put:].
+       #at: -> [#at:put:].
+       #byteAt: -> [#byteAt:put:].
+       #wordAt: -> [#wordAt:put:].
+   } otherwise:
+     [| selectorWithPut |
+      (selectorWithPut: message selector name ; 'put:')
+        isInterned ifTrue: [selectorWithPut intern]]])
+    ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+].
+
+paren@(Syntax Parenthesis traits) setTo: val
+"Transforms the last statement into an assignment."
+[
+  paren statements size caseOf:
+    {0 -> [paren].
+     1 -> [paren statements last setTo: val]
+  } otherwise:
+    [| result |
+     (result: paren copy) statements at: result statements indexLast put:
+       (result statements last setTo: val).
+     result]
+].
+
+array@(Syntax Array traits) setTo: vals &environment: env
+"Performs a multiple-assignment."
+[
+  array statements size caseOf:
+    {0 -> [vals].
+     1 -> [array statements last setTo:
+             (Syntax UnaryMessage sending: #first to: {vals})]
+    } otherwise:
+      [| result tmpVar |
+       result: array copy.
+       env
+         ifNil:
+           [TODO: 'Can\'t handle this outside of a block context.']
+         ifNotNil:
+           [tmpVar: (vals is: Syntax LoadVariable)
+              ifTrue: [vals variable] ifFalse: [env addVariable].
+            "result statements: array statements collectWithIndex:"
+            array statements doWithIndex:
+              [| :statement :index |
+               result statements at: index put:
+                 (statement setTo:
+                    (Syntax KeywordMessage sending: #at: to:
+                       {tmpVar load. Syntax Literal for: index}))].
+            Syntax Parenthesis of: {tmpVar store: vals. result}]]
+].
+
+load@(Syntax LoadVariable traits) defaultsTo: default
+"A macro that expands to an expression that sets a variable in the scope to
+the expression in the default."
+[`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
+
+node@(Syntax Node traits) defaultsTo: default
+"Conditional assignment on the value being Nil or absent.
+This generalizes on Load defaultsTo:."
+[`(node `unquote ifNil: [(node setTo: default) `unquote])].
+
+node@(Syntax Node traits) setToIfNotNil: value &environment: env
+"Conditional assignment on the value being Nil or absent.
+This generalizes on Load defaultsTo:."
+[
+  Syntax Message sending: #ifNotNil: to:
+    {value.
+     Syntax Block newFor: (node setTo: value)}
+].
+
+node@(Syntax Node traits) ?= value
+[
+  node setToIfNotNil: value
+].
+
+node@(Syntax Node traits) += value
+[
+  node setTo: (Syntax BinaryMessage sending: #+ to: {node. value})
+].
+
+node@(Syntax Node traits) -= value
+[
+  node setTo: (Syntax BinaryMessage sending: #- to: {node. value})
+].
+
+node@(Syntax Node traits) *= value
+[
+  node setTo: (Syntax BinaryMessage sending: #* to: {node. value})
+].
+
+node@(Syntax Node traits) /= value
+[
+  node setTo: (Syntax BinaryMessage sending: #/ to: {node. value})
+].
+
+node@(Syntax Node traits) checkForBindingOrElseDo: block &environment: env
+[
+  env ifNil: [] ifNotNil: []
+].
+
+node@(Syntax Node traits) bindTo: value
+[
+  node setTo: value
+].
+
+literal@(Syntax Literal traits) bindTo: val
+[| lhs |
+  lhs: literal value.
+  (lhs is: Symbol) \/ [lhs is: String]
+    ifTrue:
+      [literal value: lhs intern.
+       Syntax KeywordMessage
+         sending: #addSlotImmutable:valued:
+         to: {Syntax ImplicitArgument. literal. val}]
+    ifFalse:
+      [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]
+].
+
+node@(Syntax LoadVariable traits) bindTo: value &environment: env
+[
+].
+
+msg@(Syntax UnaryMessage traits) bindTo: value &environment: env
+[
+  (Syntax Literal for: msg selector) setTo: value
+].
+
 n@(Syntax Literal traits) er
 "Takes a piece of Symbol/String literal syntax and expands into a block which
 can apply it to the number of arguments the Symbol can take as a selector."
@@ -22,16 +193,22 @@ can apply it to the number of arguments the Symbol can take as a selector."
   block
 ].
 
+#: alias: #setTo: on: {Syntax Node traits. NoRole}.
+#:= alias: #setTo: on: {Syntax Node traits. NoRole}.
+"Shorthands for the setTo: macro."
+
+#::= alias: #bindTo: on: {Syntax Node traits. NoRole}.
+
 n@(Syntax Partial traits) er &environment: env
 [| block message |
-  block: n surroundings Block new.
-  message: n message copy.
+  block := n surroundings Block new.
+  message := n message copy.
   message arguments infect:
     [| :arg |
      ({n surroundings Placeholder. n surroundings ImplicitArgument} includes: arg)
        ifTrue: [n surroundings LoadVariable from: block addInputVariable]
        ifFalse: [arg]].
-  block statements: {message}.
+  block statements := {message}.
   block
 ].
 
@@ -42,13 +219,13 @@ n@(Syntax Literal traits) erOnKey: attribute@(Syntax Literal traits)
 "Variant on the `er macro which calls the selector on the results of sending
 the attribute selector to each argument."
 [| selector attribSelector block |
-  selector: n value.
-  attribSelector: attribute value.
+  selector := n value.
+  attribSelector := attribute value.
   (selector is: Symbol) /\ [attribSelector is: Symbol]
     ifFalse: [error: '`erOnKey: may only use a Symbol literal.'].
   n surroundings Block new `>>
     [| :block |
-     statements: {n surroundings Message sending: selector to:
+     statements := {n surroundings Message sending: selector to:
                     ([n surroundings UnaryMessage sending: attribSelector to:
                         {n surroundings LoadVariable from: block addInputVariable}]
                        reader next: selector arity)}. ]
@@ -64,14 +241,14 @@ same body with the roles reversed."
       [{def.
         def deepCopy `>>
           [| :newDef |
-           roles: newDef roles reversed.
-           inputVariables: newDef inputVariables reversed.
+           roles := newDef roles reversed.
+           inputVariables := newDef inputVariables reversed.
           ]} parenthesize]
 ].
 
 def@(Syntax MethodDefinition traits) alias: newName
 [
-  {def. def deepCopy `>> [selector: newName evaluate. ]} parenthesize
+  {def. def deepCopy `>> [selector := newName evaluate. ]} parenthesize
 ].
 
 expr@(Syntax Node traits) suspend
@@ -88,10 +265,10 @@ of that local."
   "Do nothing outside of a method."
   method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
   "Make the new local, uniquely named."
-  newVar: method addVariable.
+  newVar := method addVariable.
   "Replace any equal expression (except this one) with a load of the variable."
-  loadExpr: newVar load.
-  macroCall: expr `cache `quote.
+  loadExpr := newVar load.
+  macroCall := expr `cache `quote.
   method transformBy:
     [| :node | node = expr \/ [node = macroCall]
        ifTrue: [loadExpr] ifFalse: [node]].
@@ -109,12 +286,12 @@ of that local."
   "Do nothing outside of a method."
   method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
   "Make the new local, uniquely named."
-  newVar: (method addVariableNamed: varName value intern).
+  newVar := method addVariableNamed: varName value intern.
   "Replace any equal expression (except this one) with a load of the variable."
-  loadExpr: newVar load.
-  macroCall: expr `cache `quote.
-  unaryAccess: (Syntax UnaryMessage sending: varName value intern
-                    to: {Syntax ImplicitArgument}).
+  loadExpr := newVar load.
+  macroCall := expr `cache `quote.
+  unaryAccess := Syntax UnaryMessage sending: varName value intern
+    to: {Syntax ImplicitArgument}.
   method transformBy:
     [| :node | node = expr \/ [node = macroCall] \/ [node = unaryAccess]
        ifTrue: [loadExpr] ifFalse: [node]].
@@ -132,11 +309,11 @@ of that local."
   "Do nothing outside of a method."
   method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
   "Make the new local, uniquely named."
-  newVar: (method addVariableNamed: varName value intern).
+  newVar := method addVariableNamed: varName value intern.
   "Replace any equal expression (except this one) with a load of the variable."
-  loadExpr: newVar load.
-  unaryAccess: (Syntax UnaryMessage sending: varName value intern
-                    to: {Syntax ImplicitArgument}).
+  loadExpr := newVar load.
+  unaryAccess := Syntax UnaryMessage sending: varName value intern
+    to: {Syntax ImplicitArgument}.
   method transformBy:
     [| :node | node = unaryAccess ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
@@ -151,7 +328,7 @@ NOTE: This is not a macro but relies on the macro facilities."
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
-  xLiteral: (Syntax Literal new `>> [value: x. ]).
+  xLiteral := Syntax Literal for: x.
   Syntax Block new
     `>> [statements:
       {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
@@ -193,7 +370,7 @@ NOTE: This is not a macro but relies on the macro facilities."
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
-  xLiteral: (Syntax Literal new `>> [value: x. ]).
+  xLiteral := Syntax Literal for: x.
   Syntax Block new
     `>> [statements:
       {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
@@ -237,14 +414,6 @@ Types Range traits compareAndHashUsingSlots: #{#type. #start. #end}.
 Types Array traits compareAndHashUsingSlots: #{#type}.
 ).
 
-load@(Syntax LoadVariable traits) defaultsTo: default
-"A macro that expands to an expression that sets a variable in the scope to
-the expression in the default."
-[`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
-
-node@(Syntax Node traits) defaultsTo: default
-[`(node `unquote ifNil: [(node setTo: default) `unquote])].
-
 x@(Syntax Node traits) swapWith: y@(Syntax Node traits) &environment: env
 [
   TODO: 'Determine how to perform a generic variable swap outside of a Method context without a global.'
@@ -255,7 +424,7 @@ x@(Syntax LoadVariable traits) swapWith: y@(Syntax LoadVariable traits) &environ
 in the current scope."
 [| tmpVar |
   env ifNil: [error: 'Cannot swap variables outside of a method'].
-  tmpVar: env addVariable.
+  tmpVar := env addVariable.
   {tmpVar store: x variable load.
    x variable store: y variable load.
    y variable store: tmpVar load} parenthesize
@@ -291,9 +460,9 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
     (keyword 
       ifNil: [#with:]
       ifNotNil: [keyword evaluate]).
-  elements: elements evaluate sort.
-  tmpVar: env addVariable.
-  cases: 
+  elements := elements evaluate sort.
+  tmpVar := env addVariable.
+  cases :=
     ((elements first upTo: elements last) collect:
       [| :size |
         `((size + 1) `literal ->
@@ -310,149 +479,17 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
       [`((tmpVar `store: collection) size caseOf: cases `array otherwise: failBlock `unquote)]
 ].
 
-n@(Syntax Node traits) setTo: val
-"A macro to expand the node and value into an appropriate assignment for the
-location that the message appears to use."
-"TODO: Use type inference on arguments to detect if there should be a concrete
-slot attribute or other type of accessor to verify or distinguish."
-[overrideThis].
-
-#: alias: #setTo: on: {Syntax Node traits. NoRole}.
-#:= alias: #setTo: on: {Syntax Node traits. NoRole}.
-"Shorthands for the setTo: macro."
-
-paren@(Syntax Parenthesis traits) setTo: val
-"Transforms the last statement into an assignment."
-[
-  paren statements size caseOf:
-    {0 -> [paren].
-     1 -> [paren statements last setTo: val]
-   } otherwise:
-     [| result |
-      result: paren copy.
-      result statements at: result statements indexLast put:
-        (result statements last setTo: val).
-      result]
-].
-
-array@(Syntax Array traits) setTo: vals &environment: env
-"Performs a multiple-assignment."
-[
-  array statements size caseOf:
-    {0 -> [vals].
-     1 -> [array statements last setTo:
-             (Syntax UnaryMessage sending: #first to: {vals})]
-    } otherwise:
-      [| result tmpVar |
-       result: array copy.
-       env
-         ifNil:
-           [TODO: 'Can\'t handle this outside of a block context.']
-         ifNotNil:
-           [tmpVar: ((vals is: Syntax LoadVariable)
-                       ifTrue: [vals variable] ifFalse: [env addVariable]).
-            "result statements: (array statements collectWithIndex:"
-            array statements doWithIndex:
-              [| :statement :index |
-               result statements at: index put:
-                 (statement setTo:
-                    (Syntax KeywordMessage sending: #at: to:
-                       {tmpVar load. Syntax Literal for: index}))].
-            Syntax Parenthesis of: {tmpVar store: vals. result}]]
-].
-
-load@(Syntax LoadVariable traits) setTo: val
-"Expands a local variable reference into a store to it."
-[Syntax StoreVariable of: val into: load variable].
-
-literal@(Syntax Literal traits) setTo: val
-[| lhs |
-  lhs: literal value.
-  (lhs is: Symbol) \/ [lhs is: String]
-    ifTrue:
-      [literal value: lhs intern.
-       Syntax KeywordMessage
-         sending: #addImmutableSlot:valued:
-         to: {Syntax ImplicitArgument. literal. val}]
-    ifFalse:
-      [(lhs is: Integer)
-         ifTrue: [Syntax KeywordMessage
-                    sending: #at:put:
-                    to: {Syntax ImplicitArgument. literal. val}]
-         ifFalse:
-           [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
-].
-
-message@(Syntax UnaryMessage traits) setTo: val
-"Makes a substitution of the unary message with a keyword message that is the
-mutator form of that selector (appends a colon)."
-[
-  Syntax KeywordMessage
-    sending: (message argument mutatorNameFor: message selector)
-    to: {message argument. val}
-].
-
-message@(Syntax KeywordMessage traits) setTo: val
-"Expands a message by looking at its selector and picking the right setter."
-[
-  (message selector isKeywordSelector ifTrue:
-    [message selector caseOf:
-      {#atSlotNamed: -> [#atSlotNamed:put:].
-       #at: -> [#at:put:].
-       #byteAt: -> [#byteAt:put:].
-       #wordAt: -> [#wordAt:put:].
-   } otherwise:
-     [| selectorWithPut |
-      selectorWithPut: (message selector name ; 'put:').
-      selectorWithPut isInterned ifTrue:
-        [selectorWithPut intern]]])
-    ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
-    ifNotNilDo:
-      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
-].
-
-node@(Syntax Node traits) defaultsTo: value
-"Conditional assignment on the value being Nil or absent.
-This generalizes on Load defaultsTo:."
-[
-  Syntax Message sending: #ifNil: to:
-    {node.
-     Syntax Block newFor: (node setTo: value)}
-].
-
-node@(Syntax Node traits) ?= value
-[
-  node defaultsTo: value
-].
-
-node@(Syntax Node traits) += value
-[
-  node setTo: (Syntax BinaryMessage sending: #+ to: {node. value})
-].
-
-node@(Syntax Node traits) -= value
-[
-  node setTo: (Syntax BinaryMessage sending: #- to: {node. value})
-].
-
-node@(Syntax Node traits) *= value
-[
-  node setTo: (Syntax BinaryMessage sending: #* to: {node. value})
-].
-
-node@(Syntax Node traits) /= value
-[
-  node setTo: (Syntax BinaryMessage sending: #/ to: {node. value})
-].
-
 node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement traits) otherwise: fallbackAction@(Syntax Block traits)
 [| result |
-  result: fallbackAction.
+  result := fallbackAction.
   testsToActions statements reverseDo:
     [| :assocExpr test action |
-     test: assocExpr arguments first.
-     action: assocExpr arguments second.
-     result: (test `unquote do ifTrue: action `unquote ifFalse: (((result isSameAs: Syntax Block) ifTrue: [result] ifFalse: [Syntax Block newFor: result]) `unquote )) `quote ].
+     test := assocExpr arguments first.
+     action := assocExpr arguments second.
+     result := (test `unquote do ifTrue: action `unquote ifFalse:
+                  (((result isSameAs: Syntax Block)
+                      ifTrue: [result]
+                      ifFalse: [Syntax Block newFor: result]) `unquote)) `quote].
   result
 ].
 
