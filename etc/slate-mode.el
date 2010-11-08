@@ -849,38 +849,39 @@ selector."
                (setq indent-amount 0))
               ((eq (nth 3 state) ?\))
                (setq indent-amount (+ (current-column) slate-indent-increment))))
-        (slate-narrow-to-method)
-        (beginning-of-line)
-        (setq state (parse-partial-sexp (point-min) (point)))
-        (slate-narrow-to-paren state)
-        (slate-backward-whitespace)
-        (cond ((bobp)         ;must be first statement in block or exp
-               (if (nth 1 state)        ;within a paren exp
-                   (setq indent-amount (+ (slate-current-column)
-                                          slate-indent-increment))
-                 ;; we're top level
-                 (setq indent-amount slate-indent-increment)))
-              ((equal (nth 0 state) 0)  ;at top-level
-               (beginning-of-line)
-               (slate-forward-whitespace)
-               (setq indent-amount (slate-current-column)))
-              ((eq (preceding-char) ?.) ;at end of statement
-               (slate-find-statement-begin)
-               (setq indent-amount (slate-current-column)))
-              ((memq (preceding-char) '(?\[ ?\())
-               (setq indent-amount (slate-current-column)))
-              ((eq (preceding-char) ?|)
-               (slate-find-statement-begin)
-               (setq indent-amount (slate-current-column)))
-              ((eq (preceding-char) ?:)
-               (beginning-of-line)
-               (slate-forward-whitespace)
-               (setq indent-amount (+ (slate-current-column)
-                                      slate-indent-increment)))
-              (t                     ;must be a statement continuation
-               (slate-find-statement-begin)
-               (setq indent-amount (+ (slate-current-column)
-                                      slate-indent-increment))))))
+        (unless indent-amount
+          (slate-narrow-to-method)
+          (beginning-of-line)
+          (setq state (parse-partial-sexp (point-min) (point)))
+          (slate-narrow-to-paren state)
+          (slate-backward-whitespace)
+          (cond ((bobp)         ;must be first statement in block or exp
+                 (if (nth 1 state)        ;within a paren exp
+                     (setq indent-amount (+ (slate-current-column)
+                                            slate-indent-increment))
+                   ;; we're top level
+                   (setq indent-amount slate-indent-increment)))
+                ((equal (nth 0 state) 0)  ;at top-level
+                 (beginning-of-line)
+                 (slate-forward-whitespace)
+                 (setq indent-amount (slate-current-column)))
+                ((eq (preceding-char) ?.) ;at end of statement
+                 (slate-find-statement-begin)
+                 (setq indent-amount (slate-current-column)))
+                ((memq (preceding-char) '(?\[ ?\())
+                 (setq indent-amount (slate-current-column)))
+                ((eq (preceding-char) ?|)
+                 (slate-find-statement-begin)
+                 (setq indent-amount (slate-current-column)))
+                ((eq (preceding-char) ?:)
+                 (beginning-of-line)
+                 (slate-forward-whitespace)
+                 (setq indent-amount (+ (slate-current-column)
+                                        slate-indent-increment)))
+                (t                     ;must be a statement continuation
+                 (slate-find-statement-begin)
+                 (setq indent-amount (+ (slate-current-column)
+                                        slate-indent-increment)))))))
     (save-excursion
       (save-restriction
       (widen)
@@ -891,7 +892,7 @@ selector."
       (while (memq (following-char) '(?\} ?\) ?\]))
         (setq indent-amount (max 0 (- indent-amount slate-indent-increment)))
         (forward-char))))
-    (when (equal indent-amount 3) (setq indent-amount (1- indent-amount)))
+    (when (memq indent-amount '(1 3)) (setq indent-amount 2))
     indent-amount))
 
 (defun slate-indent-line ()
