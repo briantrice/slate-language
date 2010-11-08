@@ -1,43 +1,44 @@
 
-Gdk define: #LibNames &builder: [{'Win32' -> ({'gdk-wrapper' -> 'gdk-wrapper'.
-                                                  'gdk' -> 'libgdk-win32-2.0-0'} as: Dictionary).
-                                   'Linux' -> ({'gdk-wrapper' -> 'gdk-wrapper'.
-                                                  'gdk' -> 'libgdk-x11-2.0'} as: Dictionary).
- } as: Dictionary].
-
+Gdk define: #LibNames &builder:
+  [Dictionary new*,
+     'Win32' -> (Dictionary new*
+                   , 'gdk-wrapper' -> 'gdk-wrapper'
+                   , 'gdk' -> 'libgdk-win32-2.0-0').
+     'Linux' -> (Dictionary new*
+                   , 'gdk-wrapper' -> 'gdk-wrapper'
+                   , 'gdk' -> 'libgdk-x11-2.0')].
 
 Gdk define: #LibWrapper -> (
-	ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk-wrapper') primitives: #(		
-		(Void wrapper_gdk_lib_init())
-		
-	)
+  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk-wrapper') primitives: ##(    
+    (Void wrapper_gdk_lib_init())
+    
+  )
 ).
 
 Gdk LibWrapper enable.
 
 l@(Gdk LibWrapper traits) init [
-	l primitives wrapper_gdk_lib_init do.
+  l primitives wrapper_gdk_lib_init do.
 ].
 
-
 Gdk define: #Lib -> (
-	ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk') primitives: #(
+  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk') primitives: ##(
 
-		(Void gdk_threads_enter())
-		(Void gdk_threads_leave())
-		(Void gdk_flush())
+    (Void gdk_threads_enter())
+    (Void gdk_threads_leave())
+    (Void gdk_flush())
 
-		(Pointer gdk_atom_intern(CString Boolean))
-	)
+    (Pointer gdk_atom_intern(CString Boolean))
+  )
 ).
 
 Gdk Lib enable.
 
-l@(Gdk Lib traits) protectedDo: aBlock [
-	| r |
-	l primitives gdk_threads_enter do.
-	r: aBlock do.
-	l primitives gdk_flush do.
-	l primitives gdk_threads_leave do.
-	r
+l@(Gdk Lib traits) protectedDo: block
+[| r |
+  l primitives gdk_threads_enter do.
+  r := block do.
+  l primitives gdk_flush do.
+  l primitives gdk_threads_leave do.
+  r
 ].

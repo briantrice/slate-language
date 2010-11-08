@@ -9,68 +9,68 @@ CObject parseDefinitionsFrom:
   'Nil' -> 0.
   'nil' -> 0.
   'objc_ivar' ->
-    #(Structure
-      ('ivar_name' CString)
-      ('ivar_type' CString)
-      ('ivar_offset' Int)).
+    ##(Structure
+         ('ivar_name' CString)
+         ('ivar_type' CString)
+         ('ivar_offset' Int)).
   'Ivar' -> ObjC objc_ivar pointer
 } into: ObjC.
 
 CObject parseDefinitionsFrom:
 {
   'objc_ivar_list' ->
-    #(Structure
-      ('ivar_count' Int)
-      ('ivar_list' Array 'ivar_count')).
+    ##(Structure
+        ('ivar_count' Int)
+        ('ivar_list' Array 'ivar_count')).
   'objc_class' ->
-    #(Structure
-      ('isa' Pointer)
-      ('super_class' Pointer)
-      ('name' CString)
-      ('version' LongInt)
-      ('info' LongInt)
-      ('instance_size' LongInt)
-      ('ivars' objc_ivar_list)
-      ('methodLists' objc_method_lists)
-      ('objc_cache' cache)
-      ('protocols' objc_protocol_list))
+    ##(Structure
+         ('isa' Pointer)
+         ('super_class' Pointer)
+         ('name' CString)
+         ('version' LongInt)
+         ('info' LongInt)
+         ('instance_size' LongInt)
+         ('ivars' objc_ivar_list)
+         ('methodLists' objc_method_lists)
+         ('objc_cache' cache)
+         ('protocols' objc_protocol_list))
 } into: ObjC.
 
 CObject parseDefinitionsFrom:
 {
-  'objc_object' -> #(Structure ('isa' objc_class)
+  'objc_object' -> ##(Structure ('isa' objc_class)
 			 "Variable-length array of instance variables.").
   'id' -> objc_object pointer.
-  'objc_super' -> #(Structure ('receiver' id) ('class' objc_class)).
+  'objc_super' -> ##(Structure ('receiver' id) ('class' objc_class)).
   'SEL' -> #objc_selector.
-  'IMP' -> #(Function id (id SEL)).
-  'objc_method' -> #(Structure ('method_name' SEL) ('method_types' CString) ('method_imp' IMP)).
+  'IMP' -> ##(Function id (id SEL)).
+  'objc_method' -> ##(Structure ('method_name' SEL) ('method_types' CString) ('method_imp' IMP)).
   'marg_list' -> #Pointer
 } into: ObjC.
 
 ObjC define: #Lib &builder:
-  [ExternalInterface newForLibrary: 'libobjc' primitives:
-    #((id objc_msgSend (id SEL ...))
-      (id objc_msgSendSuper (objc_super SEL ...))
-      (void objc_msgSendSuper_stret (Pointer objc_super SEL ...))
-      (id objc_msgSendv (id SEL UnsignedLongInt marg_list))
-      (void objc_msgSendv_stret (Pointer id SEL UnsignedLongInt marg_list))
-      (objc_msgSend_stret (Pointer id SEL ...))
-      (id objc_getClass (CString))
-      (id objc_getMetaClass (CString))
-      (id objc_lookUpClass (CString))
-      (UnsignedLongInt method_getNumberOfArguments (objc_method))
-      (UnsignedLongInt method_getSizeOfArguments (objc_method))
-      (LongInt marg_getValue (marg_list LongInt CString))
-      (LongInt marg_setValue (marg_list LongInt CString id))
-      (id class_createInstance (objc_class UnsignedLongInt))
-      (Ivar object_setInstanceVariable (id CString Pointer))
-      (Ivar object_getInstanceVariable (id CString Pointer))
-      (CString sel_getName (SEL))
-      (SEL sel_getUid (CString))
-      (Boolean sel_isMapped (SEL))
-      (SEL sel_registerName (CString))
-      )].
+  [ExternalInterface newForLibrary: 'libobjc' primitives: ##(
+       (id objc_msgSend (id SEL ...))
+       (id objc_msgSendSuper (objc_super SEL ...))
+       (void objc_msgSendSuper_stret (Pointer objc_super SEL ...))
+       (id objc_msgSendv (id SEL UnsignedLongInt marg_list))
+       (void objc_msgSendv_stret (Pointer id SEL UnsignedLongInt marg_list))
+       (objc_msgSend_stret (Pointer id SEL ...))
+       (id objc_getClass (CString))
+       (id objc_getMetaClass (CString))
+       (id objc_lookUpClass (CString))
+       (UnsignedLongInt method_getNumberOfArguments (objc_method))
+       (UnsignedLongInt method_getSizeOfArguments (objc_method))
+       (LongInt marg_getValue (marg_list LongInt CString))
+       (LongInt marg_setValue (marg_list LongInt CString id))
+       (id class_createInstance (objc_class UnsignedLongInt))
+       (Ivar object_setInstanceVariable (id CString Pointer))
+       (Ivar object_getInstanceVariable (id CString Pointer))
+       (CString sel_getName (SEL))
+       (SEL sel_getUid (CString))
+       (Boolean sel_isMapped (SEL))
+       (SEL sel_registerName (CString))
+  )].
 
 ObjC define: #Object &parents: {ExternalResource}.
 

@@ -21,8 +21,10 @@ Net Socket addSlot: #AddressTypes valued: {Net IP4Address. Net IP6Address. Net U
 
 Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
 
-{
-
+[| :item |
+  Net Socket ErrorCodes addImmutableSlot: item key valued: item value.
+  Net Socket ErrorCodes Dictionary add: item value -> item key.
+] for: {
   #Error -> -1.
   #AccessDenied -> -2.
   #NoSupport -> -3.
@@ -41,11 +43,7 @@ Net Socket ErrorCodes addSlot: #Dictionary valued: Dictionary new.
   #AlreadyConnected -> -16.
   #NetworkUnreachable -> -17.
   #Timeout -> -18.
-
-} do: [| :item |
-         Net Socket ErrorCodes addImmutableSlot: item key valued: item value.
-         Net Socket ErrorCodes Dictionary add: item value -> item key.
-       ].
+}.
 
 conditions define: #SocketError
   &parents: {ExternalResource SeriousCondition}

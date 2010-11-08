@@ -159,11 +159,11 @@ c@(Conductor traits) handle: input@(MouseMotionEvent traits) for: wse@(WindowSce
 
 "***the #handle: function must return itself if it handled the event and nil if it didn't***"
 se@(SceneElement traits) activeConductor [se parent activeConductor].
-se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window. ^ se].
-se@(SceneElement traits) handle: input@(Event traits) [^ se].
+se@(SceneElement traits) handle: input@(PaintEvent traits) [se paintOn: input window. se].
+se@(SceneElement traits) handle: input@(Event traits) [se].
 "se@(SceneElement traits) handle: input@(MouseEvent traits) [inform: 'unhandled mouse event'.]."
-se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [|:p| p handle: (RequestFocusEvent new `>> [source := se.])]].
-se@(SceneElement traits) dropFocus [se parent ifNotNilDo: [|:p| p handle: (DropFocusEvent new `>> [source := se.])]].
+se@(SceneElement traits) requestFocus [se parent ifNotNilDo: [| :p | p handle: (RequestFocusEvent new `>> [source := se.])]].
+se@(SceneElement traits) dropFocus [se parent ifNotNilDo: [| :p | p handle: (DropFocusEvent new `>> [source := se.])]].
 se@(SceneElement traits) paintOn: surface@(Surface traits) [].
 se@(SceneElement traits) repaint: obj [se parent repaint: obj].
 se@(SceneElement traits) repaint [se parent repaint: se].
@@ -325,7 +325,7 @@ m@(Morph traits) paintOn: surface@(Surface traits)
 "by default pass all the events down"
 m@(Morph traits) handle: input@(Event traits)
 [
-  m children reverseDo: [|:child| (child handle: input) ifNotNilDo: [|:handler| ^ handler]].
+  m children reverseDo: [| :child | (child handle: input) ifNotNilDo: [| :handler | ^ handler]].
   m handleMyself: input
 ].
 
@@ -333,10 +333,9 @@ m@(Morph traits) handle: input@(Event traits)
 m@(Morph traits) handle: input@(MouseEvent traits)
 [
   "(input is: MouseMotionEvent) ifTrue: [^ False]."
-  m children reverseDo: [|:child|
+  m children reverseDo: [| :child |
                          ((Rectangle origin: child absolutePosition extent: child region extent)
                              contains: input position) ifTrue: [^ (child handle: input)]].
-
   m handleMyself: input
 ].
 

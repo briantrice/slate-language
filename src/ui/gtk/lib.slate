@@ -11,219 +11,219 @@ Gtk define: #LibNames &builder: [{'Win32' -> ({'gtk-wrapper' -> 'gtk-wrapper'.
 
 
 Gtk define: #LibWrapper -> (
-	ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk-wrapper') primitives: #(		
-		(Pointer wrapper_gtk_dialog_get_vbox(Pointer))
+  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk-wrapper') primitives: ##(
+    (Pointer wrapper_gtk_dialog_get_vbox(Pointer))
 
-		(Void wrapper_gtk_lib_init())
-		
-		(Pointer wrapper_gtk_stock_item_new())
-		(CString wrapper_gtk_stock_item_get_stock_id(Pointer))
-		(CString wrapper_gtk_stock_item_get_label(Pointer))
-		(Int wrapper_gtk_stock_item_get_keyval(Pointer))
-		(Int wrapper_gtk_stock_item_get_modifier(Pointer))
+    (Void wrapper_gtk_lib_init())
 
-		(Pointer wrapper_gtk_text_iter_new())
+    (Pointer wrapper_gtk_stock_item_new())
+    (CString wrapper_gtk_stock_item_get_stock_id(Pointer))
+    (CString wrapper_gtk_stock_item_get_label(Pointer))
+    (Int wrapper_gtk_stock_item_get_keyval(Pointer))
+    (Int wrapper_gtk_stock_item_get_modifier(Pointer))
 
-		(Pointer wrapper_gtk_tree_iter_new())
+    (Pointer wrapper_gtk_text_iter_new())
 
-	)
+    (Pointer wrapper_gtk_tree_iter_new())
+
+  )
 ).
 
 Gtk LibWrapper enable.
 
 l@(Gtk LibWrapper) init [
-	l primitives wrapper_gtk_lib_init do.
+  l primitives wrapper_gtk_lib_init do.
 ].
 
 Gtk define: #Lib -> (
-       ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk') primitives: #(
+  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk') primitives: ##(
 
-		(Pointer gtk_accel_group_new())
-		(Void gtk_accel_group_connect(Pointer Int Int Int Pointer))
+    (Pointer gtk_accel_group_new())
+    (Void gtk_accel_group_connect(Pointer Int Int Int Pointer))
 
-		(CString gtk_accelerator_name(Int Int))
-		(CString gtk_accelerator_get_label(Int Int))
-		(Int gtk_accelerator_get_default_mod_mask())
-		(Void gtk_accelerator_set_default_mod_mask(Int))
+    (CString gtk_accelerator_name(Int Int))
+    (CString gtk_accelerator_get_label(Int Int))
+    (Int gtk_accelerator_get_default_mod_mask())
+    (Void gtk_accelerator_set_default_mod_mask(Int))
 
-		(Pointer gtk_adjustment_new(Double Double Double Double Double Double))
-		
-		(Pointer gtk_alignment_new(Float Float Float Float))
+    (Pointer gtk_adjustment_new(Double Double Double Double Double Double))
 
-		(Void gtk_box_pack_start(Pointer Pointer Boolean Boolean Int))
-		(Void gtk_box_pack_end(Pointer Pointer Boolean Boolean Int))
-		
-		(Pointer gtk_button_new())
-		(Pointer gtk_button_new_with_label(CString))
-		(Pointer gtk_button_new_from_stock(CString))
-		
-		(Pointer gtk_cell_renderer_pixbuf_new())
-		
-		(Pointer gtk_cell_renderer_text_new())
-		
-		(Pointer gtk_clipboard_get(Pointer))
+    (Pointer gtk_alignment_new(Float Float Float Float))
 
-		(Void gtk_container_set_border_width(Pointer Int))
-		(Void gtk_container_add(Pointer Pointer))
+    (Void gtk_box_pack_start(Pointer Pointer Boolean Boolean Int))
+    (Void gtk_box_pack_end(Pointer Pointer Boolean Boolean Int))
 
-		(Pointer gtk_dialog_new())
-		(Pointer gtk_dialog_new_with_buttons(CString Pointer Int Pointer))
-		"(Int gtk_dialog_run(Pointer))"
-		(Pointer gtk_dialog_add_button(Pointer CString Int))
-		
-		(Pointer gtk_file_chooser_dialog_new(CString Pointer Int CString))
-		(CString gtk_file_chooser_get_filename(Pointer))
-		(Boolean gtk_file_chooser_set_filename(Pointer CString))
+    (Pointer gtk_button_new())
+    (Pointer gtk_button_new_with_label(CString))
+    (Pointer gtk_button_new_from_stock(CString))
 
-		(Pointer gtk_frame_new())
-		(Void gtk_frame_set_label(Pointer CString))
+    (Pointer gtk_cell_renderer_pixbuf_new())
 
-		(Pointer gtk_hbox_new(Boolean Int))
+    (Pointer gtk_cell_renderer_text_new())
 
-		(Pointer gtk_hpaned_new())
-		
-		(Pointer gtk_image_new_from_stock(CString Int))
-		(Pointer gtk_image_new())
-		(Void gtk_image_set_from_stock(Pointer CString Int))
+    (Pointer gtk_clipboard_get(Pointer))
 
-		(Pointer gtk_image_menu_item_new())
-		(Pointer gtk_image_menu_item_new_with_mnemonic(CString))
-		(Pointer gtk_image_menu_item_new_with_label(CString))
-		(Pointer gtk_image_menu_item_new_from_stock(CString Pointer))
+    (Void gtk_container_set_border_width(Pointer Int))
+    (Void gtk_container_add(Pointer Pointer))
 
-		(Pointer gtk_label_new(CString))
-		(Pointer gtk_label_new_with_mnemonic(CString))
-		(Pointer gtk_label_new_with_mnemonic(CString))
-		(Void gtk_label_set_use_underline(Pointer Boolean))
-		(Boolean gtk_label_get_use_underline(Pointer))
-		(Void gtk_label_set_label(Pointer CString))
+    (Pointer gtk_dialog_new())
+    (Pointer gtk_dialog_new_with_buttons(CString Pointer Int Pointer))
+    "(Int gtk_dialog_run(Pointer))"
+    (Pointer gtk_dialog_add_button(Pointer CString Int))
 
-		
-		(Pointer gtk_list_store_newv(Int Bytes))
-		(Void gtk_list_store_clear(Pointer))
-		(Void gtk_list_store_append(Pointer Pointer))
-		(Void gtk_list_store_set_value(Pointer Pointer Int Pointer))
-		(Boolean gtk_list_store_iter_is_valid(Pointer Pointer))
-		
-		(Void gtk_main_quit())
-		
-		(Pointer gtk_menu_bar_new())
-	
-		(Pointer gtk_menu_item_new())
-		(Pointer gtk_menu_item_new_with_mnemonic(CString))
-		(Void gtk_menu_item_set_submenu(Pointer Pointer))
-		
-		(Void gtk_menu_shell_append(Pointer Pointer))
-		
-		(Pointer gtk_menu_new())
-	
-		(Pointer gtk_message_dialog_new(Pointer Int Int Int CString))
-		
-		(Pointer gtk_notebook_new())
-		(Int gtk_notebook_append_page(Pointer Pointer Pointer))
-		
-		(Void gtk_paned_pack1(Pointer Pointer Boolean Boolean))
-		(Void gtk_paned_pack2(Pointer Pointer Boolean Boolean))
-		(Void gtk_paned_add1(Pointer Pointer))
-		(Void gtk_paned_add2(Pointer Pointer))
-		
-		(Pointer gtk_scrolled_window_new(Pointer Pointer))
-		(Void gtk_scrolled_window_set_policy(Pointer Int Int))
-		
-		(Pointer gtk_separator_menu_item_new())
+    (Pointer gtk_file_chooser_dialog_new(CString Pointer Int CString))
+    (CString gtk_file_chooser_get_filename(Pointer))
+    (Boolean gtk_file_chooser_set_filename(Pointer CString))
 
-		(Pointer gtk_statusbar_new())
-		
-		(Pointer gtk_stock_list_ids())
-		(Boolean gtk_stock_lookup(CString Pointer))
-				
-		(Pointer gtk_text_buffer_new(Pointer))
-		(Boolean gtk_text_buffer_get_selection_bounds(Pointer Pointer Pointer))
-		(Pointer gtk_text_buffer_get_selection_bound(Pointer))
-		(CString gtk_text_buffer_get_text(Pointer Pointer Pointer Boolean))
-		(Pointer gtk_text_buffer_get_insert(Pointer))
-		(Void gtk_text_buffer_get_iter_at_mark(Pointer Pointer Pointer))
-		(Void gtk_text_buffer_get_iter_at_line(Pointer Pointer Int))
-		(Void gtk_text_buffer_get_iter_at_offset(Pointer Pointer Int))
-		(Void gtk_text_buffer_move_mark_by_name(Pointer CString Pointer))
-		(Void gtk_text_buffer_insert_at_cursor(Pointer CString Int))
-		(Void gtk_text_buffer_get_start_iter(Pointer Pointer))		
-		(Void gtk_text_buffer_get_end_iter(Pointer Pointer))
-		(Void gtk_text_buffer_delete(Pointer Pointer Pointer))		
-		(Void gtk_text_buffer_set_text(Pointer CString Int))
-		(Void gtk_text_buffer_copy_clipboard(Pointer Pointer))
-		(Void gtk_text_buffer_cut_clipboard(Pointer Pointer Boolean))
-		(Void gtk_text_buffer_paste_clipboard(Pointer Pointer Pointer Boolean))
-		
-		(Int gtk_text_iter_get_line(Pointer))
-		(Void gtk_text_iter_set_line(Pointer Int))
-		(Void gtk_text_iter_forward_to_end(Pointer))
-		(Void gtk_text_iter_forward_to_line_end(Pointer))
-		(Int gtk_text_iter_get_offset(Pointer))
+    (Pointer gtk_frame_new())
+    (Void gtk_frame_set_label(Pointer CString))
 
-		(Pointer gtk_text_mark_new(CString Boolean))
-		
-		(Pointer gtk_text_view_new())
-		(Pointer gtk_text_view_get_buffer(Pointer))
-		(Pointer gtk_text_view_new_with_buffer(Pointer))
-		(Void gtk_text_view_set_wrap_mode(Pointer Int))
-		(Void gtk_text_view_scroll_mark_onscreen(Pointer Pointer))
-		(Boolean gtk_text_view_scroll_to_iter(Pointer Pointer Double Boolean Double Double))
-		
-		(Pointer gtk_toolbar_new())
-		(Void gtk_toolbar_insert(Pointer Pointer Int))
-		
-		(Pointer gtk_tool_button_new_from_stock(CString))
+    (Pointer gtk_hbox_new(Boolean Int))
 
-		(Pointer gtk_tool_item_new())
-		
-		
-		(Pointer gtk_tree_model_get_path(Pointer Pointer))
-		(CString gtk_tree_model_get_string_from_iter(Pointer Pointer))
-		(Void gtk_tree_model_get_value(Pointer Pointer Int Pointer))
-		(Int gtk_tree_model_get_n_columns(Pointer))
-		
-		(Pointer gtk_tree_path_new())
-		(CString gtk_tree_path_to_string(Pointer))
-		(Void gtk_tree_path_free(Pointer))
-		
-		(Boolean gtk_tree_selection_get_selected(Pointer Pointer Pointer))
-		(Pointer gtk_tree_selection_get_tree_view(Pointer))
-		
-		(Pointer gtk_tree_store_newv(Int Bytes))
-		(Void gtk_tree_store_clear(Pointer))
-		(Void gtk_tree_store_append(Pointer Pointer Pointer))
-		(Void gtk_tree_store_set_value(Pointer Pointer Int Pointer))
-		(Boolean gtk_tree_store_iter_is_valid(Pointer Pointer))
-		
-		(Pointer gtk_tree_view_column_new())
-		(Void gtk_tree_view_column_set_title(Pointer CString))
-		(Void gtk_tree_view_column_pack_start(Pointer Pointer Boolean))
-		(Void gtk_tree_view_column_add_attribute(Pointer Pointer CString Int))
-		
-		(Pointer gtk_tree_view_new())
-		(Pointer gtk_tree_view_new_with_model(Pointer))
-		(Int gtk_tree_view_append_column(Pointer Pointer))
-		(Pointer gtk_tree_view_get_model(Pointer))
-		(Void gtk_tree_view_expand_all(Pointer))
-		(Void gtk_tree_view_set_grid_lines(Pointer Int))
-		(Pointer gtk_tree_view_get_selection(Pointer))
-		
-		(Pointer gtk_vbox_new(Boolean Int))
-		
-		(Pointer gtk_vpaned_new())
-		
-		(Void gtk_widget_show(Pointer))
-		(Void gtk_widget_show_all(Pointer))
-		(Void gtk_widget_destroy(Pointer))
-		(Void gtk_widget_set_size_request(Pointer Int Int))
-		(Void gtk_widget_add_accelerator(Pointer CString Pointer Int Int Int))
+    (Pointer gtk_hpaned_new())
 
-		(Pointer gtk_window_new(Int))
-		(Void gtk_window_set_title(Pointer CString))
-		(Void gtk_window_set_default_size(Pointer Int Int))
-		(Void gtk_window_set_modal(Pointer Boolean))
-		(Void gtk_window_add_accel_group(Pointer Pointer))
+    (Pointer gtk_image_new_from_stock(CString Int))
+    (Pointer gtk_image_new())
+    (Void gtk_image_set_from_stock(Pointer CString Int))
+
+    (Pointer gtk_image_menu_item_new())
+    (Pointer gtk_image_menu_item_new_with_mnemonic(CString))
+    (Pointer gtk_image_menu_item_new_with_label(CString))
+    (Pointer gtk_image_menu_item_new_from_stock(CString Pointer))
+
+    (Pointer gtk_label_new(CString))
+    (Pointer gtk_label_new_with_mnemonic(CString))
+    (Pointer gtk_label_new_with_mnemonic(CString))
+    (Void gtk_label_set_use_underline(Pointer Boolean))
+    (Boolean gtk_label_get_use_underline(Pointer))
+    (Void gtk_label_set_label(Pointer CString))
+
+
+    (Pointer gtk_list_store_newv(Int Bytes))
+    (Void gtk_list_store_clear(Pointer))
+    (Void gtk_list_store_append(Pointer Pointer))
+    (Void gtk_list_store_set_value(Pointer Pointer Int Pointer))
+    (Boolean gtk_list_store_iter_is_valid(Pointer Pointer))
+
+    (Void gtk_main_quit())
+
+    (Pointer gtk_menu_bar_new())
+
+    (Pointer gtk_menu_item_new())
+    (Pointer gtk_menu_item_new_with_mnemonic(CString))
+    (Void gtk_menu_item_set_submenu(Pointer Pointer))
+
+    (Void gtk_menu_shell_append(Pointer Pointer))
+
+    (Pointer gtk_menu_new())
+
+    (Pointer gtk_message_dialog_new(Pointer Int Int Int CString))
+
+    (Pointer gtk_notebook_new())
+    (Int gtk_notebook_append_page(Pointer Pointer Pointer))
+
+    (Void gtk_paned_pack1(Pointer Pointer Boolean Boolean))
+    (Void gtk_paned_pack2(Pointer Pointer Boolean Boolean))
+    (Void gtk_paned_add1(Pointer Pointer))
+    (Void gtk_paned_add2(Pointer Pointer))
+
+    (Pointer gtk_scrolled_window_new(Pointer Pointer))
+    (Void gtk_scrolled_window_set_policy(Pointer Int Int))
+
+    (Pointer gtk_separator_menu_item_new())
+
+    (Pointer gtk_statusbar_new())
+
+    (Pointer gtk_stock_list_ids())
+    (Boolean gtk_stock_lookup(CString Pointer))
+
+    (Pointer gtk_text_buffer_new(Pointer))
+    (Boolean gtk_text_buffer_get_selection_bounds(Pointer Pointer Pointer))
+    (Pointer gtk_text_buffer_get_selection_bound(Pointer))
+    (CString gtk_text_buffer_get_text(Pointer Pointer Pointer Boolean))
+    (Pointer gtk_text_buffer_get_insert(Pointer))
+    (Void gtk_text_buffer_get_iter_at_mark(Pointer Pointer Pointer))
+    (Void gtk_text_buffer_get_iter_at_line(Pointer Pointer Int))
+    (Void gtk_text_buffer_get_iter_at_offset(Pointer Pointer Int))
+    (Void gtk_text_buffer_move_mark_by_name(Pointer CString Pointer))
+    (Void gtk_text_buffer_insert_at_cursor(Pointer CString Int))
+    (Void gtk_text_buffer_get_start_iter(Pointer Pointer))
+    (Void gtk_text_buffer_get_end_iter(Pointer Pointer))
+    (Void gtk_text_buffer_delete(Pointer Pointer Pointer))
+    (Void gtk_text_buffer_set_text(Pointer CString Int))
+    (Void gtk_text_buffer_copy_clipboard(Pointer Pointer))
+    (Void gtk_text_buffer_cut_clipboard(Pointer Pointer Boolean))
+    (Void gtk_text_buffer_paste_clipboard(Pointer Pointer Pointer Boolean))
+
+    (Int gtk_text_iter_get_line(Pointer))
+    (Void gtk_text_iter_set_line(Pointer Int))
+    (Void gtk_text_iter_forward_to_end(Pointer))
+    (Void gtk_text_iter_forward_to_line_end(Pointer))
+    (Int gtk_text_iter_get_offset(Pointer))
+
+    (Pointer gtk_text_mark_new(CString Boolean))
+
+    (Pointer gtk_text_view_new())
+    (Pointer gtk_text_view_get_buffer(Pointer))
+    (Pointer gtk_text_view_new_with_buffer(Pointer))
+    (Void gtk_text_view_set_wrap_mode(Pointer Int))
+    (Void gtk_text_view_scroll_mark_onscreen(Pointer Pointer))
+    (Boolean gtk_text_view_scroll_to_iter(Pointer Pointer Double Boolean Double Double))
+
+    (Pointer gtk_toolbar_new())
+    (Void gtk_toolbar_insert(Pointer Pointer Int))
+
+    (Pointer gtk_tool_button_new_from_stock(CString))
+
+    (Pointer gtk_tool_item_new())
+
+
+    (Pointer gtk_tree_model_get_path(Pointer Pointer))
+    (CString gtk_tree_model_get_string_from_iter(Pointer Pointer))
+    (Void gtk_tree_model_get_value(Pointer Pointer Int Pointer))
+    (Int gtk_tree_model_get_n_columns(Pointer))
+
+    (Pointer gtk_tree_path_new())
+    (CString gtk_tree_path_to_string(Pointer))
+    (Void gtk_tree_path_free(Pointer))
+
+    (Boolean gtk_tree_selection_get_selected(Pointer Pointer Pointer))
+    (Pointer gtk_tree_selection_get_tree_view(Pointer))
+
+    (Pointer gtk_tree_store_newv(Int Bytes))
+    (Void gtk_tree_store_clear(Pointer))
+    (Void gtk_tree_store_append(Pointer Pointer Pointer))
+    (Void gtk_tree_store_set_value(Pointer Pointer Int Pointer))
+    (Boolean gtk_tree_store_iter_is_valid(Pointer Pointer))
+
+    (Pointer gtk_tree_view_column_new())
+    (Void gtk_tree_view_column_set_title(Pointer CString))
+    (Void gtk_tree_view_column_pack_start(Pointer Pointer Boolean))
+    (Void gtk_tree_view_column_add_attribute(Pointer Pointer CString Int))
+
+    (Pointer gtk_tree_view_new())
+    (Pointer gtk_tree_view_new_with_model(Pointer))
+    (Int gtk_tree_view_append_column(Pointer Pointer))
+    (Pointer gtk_tree_view_get_model(Pointer))
+    (Void gtk_tree_view_expand_all(Pointer))
+    (Void gtk_tree_view_set_grid_lines(Pointer Int))
+    (Pointer gtk_tree_view_get_selection(Pointer))
+
+    (Pointer gtk_vbox_new(Boolean Int))
+
+    (Pointer gtk_vpaned_new())
+
+    (Void gtk_widget_show(Pointer))
+    (Void gtk_widget_show_all(Pointer))
+    (Void gtk_widget_destroy(Pointer))
+    (Void gtk_widget_set_size_request(Pointer Int Int))
+    (Void gtk_widget_add_accelerator(Pointer CString Pointer Int Int Int))
+
+    (Pointer gtk_window_new(Int))
+    (Void gtk_window_set_title(Pointer CString))
+    (Void gtk_window_set_default_size(Pointer Int Int))
+    (Void gtk_window_set_modal(Pointer Boolean))
+    (Void gtk_window_add_accel_group(Pointer Pointer))
        )
 ).
 
