@@ -62,7 +62,7 @@ i18n-support:
 
 bootstrap: src/mobius/init.slate
 	$(info Bootstrapping new images)
-	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Image bootstrap &bootstrapDirectory: '$(BOOTSTRAP_DIR)' &littleEndian: $(LITTLE_ENDIAN_SLATE) &wordSize: $(WORD_SIZE)." --eval "quit"
+	$(SILENT) $(VM) $(QUIETNESS) -i $(DEFAULT_IMAGE) --load src/mobius/init.slate --eval "Bootstrap ImageDefinition bootstrap &bootstrapDirectory: '$(BOOTSTRAP_DIR)' &littleEndian: $(LITTLE_ENDIAN_SLATE) &wordSize: $(WORD_SIZE)." --eval "quit"
 
 backup: superclean
 	tar  '--exclude=*.git*' -jcvf ../slate-backup.tar.bz2 .
