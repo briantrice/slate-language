@@ -18,11 +18,11 @@ repl@(SmartREPL traits) on: resource
 "Re-target the REPL to the specified resource."
 [
   resend.
-  repl terminal: (Terminal newBasedOn: resource).
+  repl terminal := (Terminal newBasedOn: resource).
   "Override the default LineEditor for the Terminal to be our one that can
    interact with the repl when needed."
-  (repl terminal commandEditor: (repl LineEditor newOn: repl terminal))
-    repl: repl
+  (repl terminal commandEditor := (repl LineEditor newOn: repl terminal))
+    repl := repl
 ].
 
 repl@(SmartREPL traits) enter
@@ -30,28 +30,28 @@ repl@(SmartREPL traits) enter
   repl terminal sessionDo: [| :terminal |
   [| editor |
     repl installMethods.
-    editor: terminal commandEditor.
+    editor := terminal commandEditor.
     repl interpretHook: 
       [| input parser firstRun |
-       parser: repl parser.
-       input: ExtensibleArray new.
-       firstRun: True.
+       parser := repl parser.
+       input := ExtensibleArray new.
+       firstRun := True.
        [| line |
-        repl lineCount: repl lineCount + 1.
+        repl lineCount := repl lineCount + 1.
         repl printer flush.
-        editor prompt: repl prompt.
+        editor prompt := repl prompt.
 	"Catch Stream Exhaustion from this block which means the end
          of input, issued by Ctrl+d on an empty line"
-        [[line: (editor readLine &echoNewLine: True &showPrompt: firstRun).
+        [[line := (editor readLine &echoNewLine: True &showPrompt: firstRun).
           line isEmpty] whileTrue] on: Stream Exhaustion do: [| :_ | ^ Nil].
-        firstRun: False.
+        firstRun := False.
         input addAll: line.
         input add: $\n.
         editor hasInput ifFalse:
 	  [parser on: input reader.
            parser do:
 	     [| :expr result |
-	      result: (expr evaluateIn: repl namespace).
+	      result := (expr evaluateIn: repl namespace).
               [result printOn: repl printer] on: Error do:
 	        [| :c |
                  inform: 'Printing failed.'.
@@ -59,8 +59,8 @@ repl@(SmartREPL traits) enter
                  c return: Nil].
               repl printer newLine.
               repl printer flush].
-           input: input new.
-           firstRun: True]] loop]] ensure: [repl removeMethods]].
+           input := input new.
+           firstRun := True]] loop]] ensure: [repl removeMethods]].
   repl
 ].
 
