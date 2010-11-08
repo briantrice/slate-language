@@ -31,8 +31,7 @@ CursesConsole traits `>> [
        ) &leader: 'sc_'].
   addSlot: #maxColorPairs.
   addSlot: #currentColorPair.
-  addSlot: #colorToPairs.
-  colorToPairs: Dictionary new.
+  addSlot: #colorToPairs valued: Dictionary new.
 
   "Create new prorotypes for the streams for methods we install on them"
   define: #EventStream &parents: {CursesConsole EventStream}.
@@ -45,8 +44,8 @@ w@(CursesConsole WriteStream traits) next: n putAll: seq startingAt: start
 "Override the generic cursor tracking mechanism with reading the cursor position
 after the output"
 [| result c |
-  result: resend.
-  c: w resource.
+  result := resend.
+  c := w resource.
   c moveCursorTo: {c actualCursorColumn. c actualCursorRow}.
   result
 ].
@@ -72,9 +71,9 @@ c@(CursesConsole traits) enterStructuredMode
 [
   (c Lib primitives enterStructuredMode do)
     ifTrue: 
-      [c maxColorPairs: c Lib primitives maxColorPairs do.
-       c currentColorPair: 0.
-       c colorToPairs: c colorToPairs new.
+      [c maxColorPairs := c Lib primitives maxColorPairs do.
+       c currentColorPair := 0.
+       c colorToPairs := c colorToPairs new.
        c Lib primitives clear do.
        True]
     ifFalse:
@@ -84,7 +83,7 @@ c@(CursesConsole traits) enterStructuredMode
 
 c@(CursesConsole traits) leaveStructuredMode
 [| result |
-  result: c Lib primitives leaveStructuredMode do.
+  result := c Lib primitives leaveStructuredMode do.
   c Lib primitives slotNamesAndValuesDo: [| :name :value |
     (value is: ExternalMethod) ifTrue:
       [value close. c Lib primitives removeSlot: name]].
@@ -112,15 +111,15 @@ c@(CursesConsole traits) initKeyMappings
     (Backspace  'kbs')
     (Tab        'ktab' $\t)
   ) do: [| :entry keyName cursesName |
-    keyName: entry first.
-    cursesName: entry second.
+    keyName := entry first.
+    cursesName := entry second.
 
     (c Lib primitives keySequenceOf applyTo: {cursesName as: String})
       ifNil: [
         c ; 'Warning: Can\'t find TerminInfo entry for "' ; cursesName ; '" which is key "' ; keyName ; '"\n'.
         ]
       ifNotNilDo: [| :sequence char |
-        entry size >= 3 ifTrue: [char: entry third].
+        entry size >= 3 ifTrue: [char := entry third].
         sequence size = 1
           ifTrue: [c keyCodeToKeyName at: (sequence first as: Integer) put: {keyName. char}]
           ifFalse: [
@@ -131,14 +130,14 @@ c@(CursesConsole traits) initKeyMappings
                   put: {keyName. char}]
               ifFalse: [| keyCode |
                 sequence size = 4 /\ [sequence first = $\\]
-                  /\ [(keyCode: ((sequence copyFrom: 1) as: Integer &radix: 8)) ~= 0]
+                  /\ [(keyCode := ((sequence copyFrom: 1) as: Integer &radix: 8)) ~= 0]
                     ifTrue: [c keyCodeToKeyName at: keyCode put: {keyName. Nil}]
                     ifFalse: [c sequenceToKeyName at: sequence put: keyName]]]].
   ].
 
   "Add function keys"
   0 to: 63 do: [| :index indexStr |
-    indexStr: (index as: String).
+    indexStr := (index as: String).
     (c Lib primitives keySequenceOf applyTo: {'kf' ; indexStr})
       ifNotNilDo: [| :sequence |
         c sequenceToKeyName at: sequence put: ('Function' ; indexStr as: Symbol)].
@@ -202,29 +201,29 @@ c@(CursesConsole traits) actualCursorRow
 c@(CursesConsole traits) scroll &lines: lines
 [
   c assumeStructuredMode.
-  lines ifNil: [lines: 1].
+  lines `defaultsTo: 1.
   c Lib primitives scroll applyTo: {lines}
 ].
 
 c@(CursesConsole traits) readEscapedKeyInto: event
 [| keyCode seq count |
-  seq: '' writer.
-  count: 0.
+  seq := '' writer.
+  count := 0.
   "Read up to 4 key codes without blocking"
-  [(keyCode: (c Lib primitives nextEvent applyTo: {0})) > 0 /\
+  [(keyCode := (c Lib primitives nextEvent applyTo: {0})) > 0 /\
     [count <= 4]]
       whileTrue: [| result |
-        count: count + 1.
+        count := count + 1.
         "Reenter for double escaped keys like alt+right arrow"
         count = 1 /\ [keyCode = 27]
           ifTrue: [
-            event leftAltState: True.
+            event leftAltState := True.
             ^ (c readEscapedKeyInto: event)].
         seq nextPut: (keyCode as: ASCIICharacter).
         (c translateEscapedSequence: seq contents into: event)
           ifTrue: [^ Nil]].
   "If nothing was read unblockingly then it's a simple Escape"
-  count isZero ifTrue: [event keyName: #Escape].
+  count isZero ifTrue: [event keyName := #Escape].
 ].
 
 c@(CursesConsole traits) write: n to: handle from: array startingAt: start
@@ -274,10 +273,9 @@ c@(CursesConsole traits) ensurePairForFg: fg forBg: bg
 [
   c colorToPairs at: fg <> bg ifAbsentPut:
     [| oldPair |
-     oldPair: c currentColorPair.
-     oldPair >= c maxColorPairs ifTrue:
-      [error: 'Ran out of terminal color pairs (this is how lame ncurses is with its color pairs)'].
-    c currentColorPair: oldPair + 1.
+     (oldPair := c currentColorPair) >= c maxColorPairs ifTrue:
+       [error: 'Ran out of terminal color pairs (this is how lame ncurses is with its color pairs)'].
+    c currentColorPair := oldPair + 1.
     c Lib primitives initColorPair applyTo: {oldPair. fg. bg}.
     oldPair]
 ].
@@ -311,33 +309,23 @@ c@(CursesConsole traits) setAttributeMode: mode withFg: fg withBg: bg
 
 s@(CursesConsole EventStream traits) hasNext
 [| c |
-  c: s console.
-  c assumeStructuredMode.
+  (c := s console) assumeStructuredMode.
   c Lib primitives hasEvent do
 ].
 
 s@(CursesConsole EventStream traits) next
 [| c keyCode |
-  c: s console.
-  c assumeStructuredMode.
-  keyCode: (c Lib primitives nextEvent applyTo: {-1}).
-  
-  keyCode caseOf: {
-    410 -> [
-      c resized.
-      ^ (c ResizeEvent new)].
-
-    127 -> [
-      ^ ((c KeyDownEvent newForKeyCode: 8) `>> [
-            keyName: #BackSpace.
-            leftControlState: True. ])].
-
+  (c := s console) assumeStructuredMode.
+  (keyCode := c Lib primitives nextEvent apply*, -1) caseOf: {
+    410 -> [c resized.
+            c ResizeEvent new].
+    127 -> [(c KeyDownEvent newForKeyCode: 8) `>>
+              [keyName := #BackSpace.
+               leftControlState := True. ]].
     27 -> [| event |
-      event: (c KeyDownEvent newForKeyCode: keyCode).
-      c readEscapedKeyInto: event.
-      "event keyName ifNil: [unknown key sequence]."
-      ^ event].
-  } otherwise: [
-    c resolveEvent: (c KeyDownEvent newForKeyCode: keyCode)]
+           event := c KeyDownEvent newForKeyCode: keyCode.
+           c readEscapedKeyInto: event.
+           "event keyName ifNil: [error: 'unknown key sequence']."
+           event]
+  } otherwise: [c resolveEvent: (c KeyDownEvent newForKeyCode: keyCode)]
 ].
-
