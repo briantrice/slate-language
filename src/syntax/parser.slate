@@ -18,7 +18,8 @@ Syntax Parser traits define: #EndArrayStatementTokens &builder: [{Syntax EndStat
 Syntax Parser traits define: #InteractiveExcludeTokens &builder: [{Syntax tokens Comment}].
 Syntax Parser traits define: #ExcludeTokens &builder: [{Syntax tokens Comment. Syntax EndLine}].
 
-Syntax Parser traits define: #SpecialBinarySelectors &builder: [#{#:=. #=:=}].
+Syntax Parser traits define: #SpecialBinarySelectors &builder:
+  [#{#:=. #::=. #=:=. #?=. #+=. #-=. #*=. #/=}].
 
 obj@(Root traits) recordPositionFrom: p@(Syntax Parser traits)
 [(Syntax Literal for: obj) recordPositionFrom: p].
@@ -331,7 +332,7 @@ into a single selector with arguments."
   (token is: Syntax Selector) /\ [Syntax isKeywordSelector: token value]
     ifTrue:
       [arguments :=
-        ([| :result |
+         [| :result |
           result nextPut: (argument ifNil: [Syntax ImplicitArgument]).
           [((token := p nextToken &interactive: p parseInteractively)
               is: Syntax Selector)
@@ -345,7 +346,7 @@ into a single selector with arguments."
                selector ; token value name.
                result nextPut:
                  (p nextBinaryMessages ifNil: [p error: 'Bad keyword argument (being implicit).'])].
-          p undoToken: token] writingAs: #{}).
+          p undoToken: token] writingAs: #{}.
        selector := selector contents.
        "Handle the special case of a StoreVariable:"
        arguments size = 2 /\ [arguments first isSameAs: Syntax ImplicitArgument]
