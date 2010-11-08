@@ -349,7 +349,8 @@ array@(Syntax Array traits) setTo: vals &environment: env
          ifNil:
            [TODO: 'Can\'t handle this outside of a block context.']
          ifNotNil:
-           [tmpVar: env addVariable.
+           [tmpVar: ((vals is: Syntax LoadVariable)
+                       ifTrue: [vals variable] ifFalse: [env addVariable]).
             "result statements: (array statements collectWithIndex:"
             array statements doWithIndex:
               [| :statement :index |
