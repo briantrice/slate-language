@@ -231,7 +231,7 @@ l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
     [l nextWordCharactersInto: result].
   result contents isEmpty
     ifTrue:
-      [emptyToken ifNil: [error: 'Message selector must not be empty.']]
+      [emptyToken ifNil: [l error: 'Message selector must not be empty.']]
     ifFalse:
       [type for: result contents intern]
 ].
@@ -240,7 +240,7 @@ l@(Syntax Lexer traits) readLiteral
 "This handles the literal brace array syntaxes."
 [
   l hasMoreCharacters
-    /\ ['({[\'' includes: l peekCharacter]
+    /\ ['({[\'#' includes: l peekCharacter]
     ifTrue:
       [l nextCharacter caseOf: {
          $\( -> [Syntax BeginPartial].
@@ -250,7 +250,11 @@ l@(Syntax Lexer traits) readLiteral
                   [(c := l nextCharacter) == $\']
                     whileFalse:
                       [result nextPut: (l characterFor: c)]] writingAs: String)
-                   intern]}]
+                   intern].
+         $#  -> [l nextCharacter = $\(
+                   ifTrue: [Syntax BeginLiteralParenthesis]
+                   ifFalse: [l error: 'Expected ( after ##']]
+     }]
     ifFalse:
       [l newLiteralFor:
          ([| :result | l nextWordCharactersInto: result] writingAs: String) intern]
