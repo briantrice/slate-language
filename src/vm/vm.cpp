@@ -68,6 +68,15 @@ void print_usage (char *progName) {
   fprintf(stderr, "<image> defaults: `./%s', then `%s/%s'.\n", xstr (SLATE_DEFAULT_IMAGE), xstr (SLATE_DATADIR), xstr (SLATE_DEFAULT_IMAGE));
 }
 
+void print_version () {
+  fprintf(stderr, "Slate VM\n");
+  //fprintf(stderr, "Version: %s\n", VERSION);
+  fprintf(stderr, "Build type: %s\n", SLATE_BUILD_TYPE);
+  word_t le_test_ = 1;
+  char* le_test = (char*)&le_test_;
+  fprintf(stderr, "Platform word-size: %d bits; byte-order: %s endian\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little" : "big");
+}
+
 int main(int argc, char** argv, char **envp) {
 
   const char* image_name = NULL;
@@ -79,8 +88,6 @@ int main(int argc, char** argv, char **envp) {
   word_t young_limit = 5 * MB;
   size_t res;
   bool_t automaticallyInline = 0;
-  word_t le_test_ = 1;
-  char* le_test = (char*)&le_test_;
   int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
@@ -98,10 +105,7 @@ int main(int argc, char** argv, char **envp) {
         error("You must specify an image filename after -i/--image.");
       }
     } else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0)) {
-      fprintf(stderr, "Slate VM\n");
-      //fprintf(stderr, "Version: %s\n", VERSION);
-      fprintf(stderr, "Build type: %s\n", SLATE_BUILD_TYPE);
-      fprintf(stderr, "Platform word-size: %d bits; byte-order: %s endian\n", (int)sizeof(word_t)*8, (le_test[0] == 1)? "little" : "big");
+      print_version();
       return 0;
     } else if (strcmp(argv[i], "-mo") == 0) {
       memory_limit = memory_string_to_bytes(argv[i+1]);
@@ -164,12 +168,14 @@ int main(int argc, char** argv, char **envp) {
   fread_num = fread(&sih.current_dispatch_id, sizeof(sih.current_dispatch_id), 1, image_file); assert(fread_num == 1);
 
   if (sih.size == 0) {
-    fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wrong WORD_SIZE. Run slate without any options to see your build configuration.\n");
+    fprintf(stderr, "Image size is zero. You have probably tried to load a file that isn't an image file or a file that is the wrong WORD_SIZE. Build configuration:\n");
+    print_version();
     return 1;
   }
 
   if (sih.magic != SLATE_IMAGE_MAGIC) {
-    fprintf(stderr, "Magic number (0x%" PRIxPTR ") doesn't match (word_t)0xABCDEF43. Make sure you have a valid slate image and it is the correct endianess. Run slate without arguments to see more info.\n", sih.magic);
+    fprintf(stderr, "Magic number (0x%" PRIxPTR ") doesn't match (word_t)0xABCDEF43. Make sure you have a valid slate image and it is the correct endianess. Build configuration:\n", sih.magic);
+    print_version();
     fprintf(stderr, "Image filename: '%s'\n", image_name);
     return 1;
   }
