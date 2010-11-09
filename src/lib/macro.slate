@@ -172,6 +172,27 @@ msg@(Syntax UnaryMessage traits) bindTo: value &environment: env
   (Syntax Literal for: msg selector) setTo: value
 ].
 
+message@(Syntax KeywordMessage traits) bindTo: val
+"Expands a message by looking at its selector and picking the right setter."
+[
+  (message selector isKeywordSelector ifTrue:
+    [message selector caseOf:
+      {#addSlotNamed: -> [#addImmutableSlotNamed:valued:].
+       #addImmutableSlotNamed: -> [#addImmutableSlotNamed:valued:].
+       #addDelegateNamed: -> [#addImmutableDelegateNamed:valued:].
+       #addImmutableDelegateNamed: -> [#addImmutableDelegateNamed:valued:].
+       #at: -> [#at:put:].
+       #byteAt: -> [#byteAt:put:].
+       #wordAt: -> [#wordAt:put:].
+   } otherwise:
+     [| selectorWithPut |
+      (selectorWithPut: message selector name ; 'put:')
+        isInterned ifTrue: [selectorWithPut intern]]])
+    ifNil: [error: 'The selector cannot be handled via bindTo:.'. message]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+].
+
 n@(Syntax Literal traits) er
 "Takes a piece of Symbol/String literal syntax and expands into a block which
 can apply it to the number of arguments the Symbol can take as a selector."
