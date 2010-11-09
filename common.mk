@@ -93,6 +93,13 @@ else
   LITTLE_ENDIAN_SLATE := False
 endif
 
+WORD_SIZE_FN := $(slateroot)/wordsize
+WORD_SIZE_SRC  := "int main(){return sizeof(long)*8;}"
+WORD_SIZE  := $(shell echo $(WORD_SIZE_SRC) > $(WORD_SIZE_FN).c)
+WORD_SIZE  := $(shell $(CC) -o $(WORD_SIZE_FN) $(WORD_SIZE_FN).c)
+WORD_SIZE  := $(shell $(WORD_SIZE_FN); echo $$?)
+WORD_SIZE_ := $(shell $(RM) $(WORD_SIZE_FN).* $(WORD_SIZE_FN) 1>&2)
+
 ## Default variables
 
 PLATFORM    := unix
