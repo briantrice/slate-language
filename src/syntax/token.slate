@@ -157,20 +157,25 @@ Syntax tokens define: #BeginPartial &parents: {Syntax tokens Control}.
 parser nextFrom: _@(Syntax tokens BeginPartial traits)
 [| statements |
   parser nonInteractivelyDo:
-    [statements := [| :statements token |
-       statements nextPut: parser nextAsStatementOrNil.
-       [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
+    [statements :=
+       [| :statements token |
+        statements nextPut: parser nextAsStatementOrNil.
+        [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
-             statements nextPut: parser nextAsStatementOrNil]]
+             statements nextPut:
+               (token == Syntax At
+                  ifTrue:
+                    [parser nextMessage &after:
+                       (parser recordDeclaredTypeOf: parser nextSignature)]
+                  ifFalse:
+                    [parser nextAsStatementOrNil])]]
        writingAs: #{}.
      statements infect:
        [| :statement |
         statement transformBy: [| :node | node as: Syntax Placeholder].
-        Syntax Partial for: statement].
-     statements size = 1
-       ifTrue: [statements first]
-       ifFalse: [statements parenthesize]]
+        Syntax Partial for: statement]].
+  statements parenthesize
 ].
 
 _@(Syntax tokens BeginPartial traits) signifier ['#('].

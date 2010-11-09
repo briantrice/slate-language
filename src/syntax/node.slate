@@ -189,7 +189,7 @@ macro@(Syntax nodes Macro traits) evaluateIn: namespace &optionals: opts
 "Evaluate the expansion. Should this be relied on? (I.e. should this throw a
 condition which is resumable via macro-expansion?)"
 [
-  (macro macroExpand &optionals: 
+  (macro macroExpand &optionals:
     (opts
       ifNotNil:
         [Syntax OptionalKeywords new
@@ -222,7 +222,7 @@ message@(Syntax nodes Message traits) deferred
 message@(Syntax nodes Deferred traits) evaluateIn: namespace &optionals: opts
 [
   (message arguments collect: #(evaluateIn: namespace) `er)
-    whenFulfilled: [| *args | 
+    whenFulfilled: [| *args |
       message selector sendTo: args &optionals: opts]
 ].
 
@@ -473,7 +473,7 @@ node@(Syntax nodes Node traits) parenthesize
 
 seq@(Sequence traits) parenthesize
 [
-  seq as: Syntax Parenthesis
+  seq size = 1 ifTrue: [seq first] ifFalse: [seq as: Syntax Parenthesis]
 ].
 
 Syntax nodes define: #Namespace &parents: {Syntax nodes Node} &slots: {#namespace -> lobby}.
@@ -652,7 +652,7 @@ block@(Syntax nodes Block traits) findVariable: name
 "Searches through the current scope, and then upward, for the entry
 corresponding to the given name, and answers what it can find, or Nil if none."
 [
-  block localVariables 
+  block localVariables
     detect: [| :var | var name = name]
     ifNone: [block parentScope findVariable: name]
 ].
@@ -792,7 +792,7 @@ Syntax nodes define: #MethodDefinition &parents: {Syntax nodes Block}
 method@(Syntax nodes MethodDefinition traits) new
 [resend `>> [selector := Nil. roles := method roles new. ]].
 
-method@(Syntax nodes MethodDefinition traits) of: selector on: roles 
+method@(Syntax nodes MethodDefinition traits) of: selector on: roles
   from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
 [
   (method from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables) `>>
@@ -826,6 +826,50 @@ method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
   resend
     asMethod: method selector
     on: (method roles collect: #(evaluateIn: namespace) `er)
+].
+
+Syntax nodes define: #Signature &parents: {Syntax nodes Node}
+  &slots: {#selector. #roles -> #{}}.
+"The object representing the definition of a Method without the body."
+
+sig@(Syntax nodes Signature traits) new
+[resend `>> [selector := Nil. roles := sig roles new. ]].
+
+method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature traits)
+[sig ew `>> [selector := method selector. roles := method roles. ]].
+
+sig@(Syntax nodes Signature traits) of: selector on: roles
+  from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
+[
+  (sig from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables) `>>
+    [selector := selector. roles := roles. ]
+].
+
+node1@(Syntax nodes Signature traits) = node2@(Syntax nodes Signature traits)
+[[node1 selector = node2 selector] /\ [node1 roles = node2 roles]].
+
+sig@(Syntax nodes Signature traits) walk: block
+[
+  sig roles do: [| :role | role ifNotNil: [role walk: block]]
+].
+
+sig@(Syntax nodes Signature traits) transformChildren: block
+[
+  sig roles infect: [| :role | role ifNotNil: [role transformBy: block]].
+].
+
+sig@(Syntax nodes Signature traits) deepCopy: scope &into: target
+[
+  resend `>>
+    [roles := sig roles
+       collect: [| :role | role ifNotNil: [role deepCopy: scope]]. ]
+].
+
+sig@(Syntax nodes Signature traits) evaluateIn: namespace
+[
+  resend
+    asMethod: sig selector
+    on: (sig roles collect: #(evaluateIn: namespace) `er)
 ].
 
 Syntax nodes define: #Variable &parents: {Syntax nodes Node}
@@ -907,7 +951,7 @@ store@(Syntax nodes StoreVariable traits) deepCopy: scope
       [Syntax KeywordMessage
 	sending: (store variable name name ; ':') intern
 	to: {Syntax ImplicitArgument. store value deepCopy: scope}]
-    ifNotNilDo: 
+    ifNotNilDo:
       [| :var | store of: (store value deepCopy: scope) into: var]
 ].
 
