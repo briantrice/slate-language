@@ -683,7 +683,7 @@ b@(Syntax nodes Block traits) deepCopy: scope &into: target
     parentScope := scope.
     localVariables :=
       b localVariables collect:
-        [| :var newVar | var clone `setting: #{#scope} to: {newBlock}].
+        [| :var newVar | var clone `>> [scope := newBlock. ]].
     inputVariables :=
       b inputVariables collect: [| :var | newBlock findVariable: var name].
     optionalVariables :=
@@ -828,25 +828,54 @@ method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
     on: (method roles collect: #(evaluateIn: namespace) `er)
 ].
 
-Syntax nodes define: #Signature &parents: {Syntax nodes Node}
-  &slots: {#selector. #roles -> #{}}.
+Syntax nodes define: #Signature &parents: {Syntax nodes Node} &slots: {
+  #selector.
+  #roles -> #{}.
+  #inputVariables -> #{}.
+  #restVariable -> Nil.
+  #optionalKeywords -> #{}.
+  #optionalVariables -> #{}
+}.
 "The object representing the definition of a Method without the body."
 
 sig@(Syntax nodes Signature traits) new
-[resend `>> [selector := Nil. roles := sig roles new. ]].
+[
+  resend `>>
+    [selector := Nil.
+     roles := sig roles new.
+     inputVariables := sig inputVariables new.
+     restVariable := Nil.
+     optionalKeywords := sig optionalKeywords new.
+     optionalVariables := sig optionalVariables new. ]
+].
 
 method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature traits)
-[sig ew `>> [selector := method selector. roles := method roles. ]].
-
-sig@(Syntax nodes Signature traits) of: selector on: roles
-  from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
 [
-  (sig from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables) `>>
-    [selector := selector. roles := roles. ]
+  sig new `>>
+    [selector := method selector.
+     roles := method roles.
+     inputVariables := method inputVariables.
+     restVariable := method restVariable.
+     optionalKeywords := method optionalKeywords.
+     optionalVariables := method optionalVariables. ]
+].
+
+sig@(Syntax nodes Signature traits) as: method@(Syntax nodes MethodDefinition traits)
+[
+  method new `>>
+    [| :method |
+     selector := sig selector.
+     roles := sig roles.
+     inputVariables := sig inputVariables.
+     inputVariables do: [| :var | var scope := method].
+     localVariables := sig inputVariables copy.
+     restVariable := sig restVariable.
+     optionalKeywords := sig optionalKeywords.
+     optionalVariables := sig optionalVariables. ]
 ].
 
 node1@(Syntax nodes Signature traits) = node2@(Syntax nodes Signature traits)
-[[node1 selector = node2 selector] /\ [node1 roles = node2 roles]].
+[node1 selector = node2 selector /\ [node1 roles = node2 roles]].
 
 sig@(Syntax nodes Signature traits) walk: block
 [
@@ -867,13 +896,13 @@ sig@(Syntax nodes Signature traits) deepCopy: scope &into: target
 
 sig@(Syntax nodes Signature traits) evaluateIn: namespace
 [
-  resend
-    asMethod: sig selector
-    on: (sig roles collect: #(evaluateIn: namespace) `er)
+  sig
 ].
 
-Syntax nodes define: #Variable &parents: {Syntax nodes Node}
-  &slots: {#name -> #''. #scope -> Syntax nodes Ground}.
+Syntax nodes define: #Variable &parents: {Syntax nodes Node} &slots: {
+  #name -> #''.
+  #scope -> Syntax nodes Ground
+}.
 
 node1@(Syntax nodes Variable traits) = node2@(Syntax nodes Variable traits)
 [node1 name = node2 name /\ [node1 scope = node2 scope]].

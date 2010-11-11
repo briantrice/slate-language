@@ -303,7 +303,7 @@ w@(Syntax SourceWriter traits) printArg: arg withRole: role
      w printAsRole: role]
 ].
 
-w@(Syntax SourceWriter traits) printMethodHeader: node@(Syntax MethodDefinition traits)
+w@(Syntax SourceWriter traits) print: node@(Syntax Signature traits)
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [| args selector |
@@ -350,6 +350,13 @@ source on the stream."
   ].
 ].
 
+w@(Syntax SourceWriter traits) printSignatureOf: node@(Syntax MethodDefinition traits)
+"Accepts a method name and array of arguments, and print the appropriate
+source on the stream."
+[
+  w print: (node as: Syntax Signature)
+].
+
 w@(Syntax SourceWriter traits) printAsMethodBody: node@(Syntax Block traits)
 [
   w newLine.
@@ -365,7 +372,7 @@ w@(Syntax SourceWriter traits) printAsMethodBody: node@(Syntax Block traits)
 w@(Syntax SourceWriter traits) print: node@(Syntax MethodDefinition traits)
 [
   w newLine.
-  w printMethodHeader: node.
+  w printSignatureOf: node.
   w printAsMethodBody: node.
 ].
 
