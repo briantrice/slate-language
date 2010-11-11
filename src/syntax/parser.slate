@@ -529,7 +529,7 @@ p@(Syntax Parser traits) nextDefinition
       [| variable |
        (token isSameAs: Syntax Selector)
          /\ [Syntax isUnarySelector: token value]
-         ifFalse: [p error: 'Bad input variable name in method definition: ' ; token printString].
+         ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
        variable := p newVariableNamed: token value in: result.
        token := p nextToken.
        optsReached
@@ -541,7 +541,13 @@ p@(Syntax Parser traits) nextDefinition
               ifFalse:
                 [(token isSameAs: Syntax BeginBlock)
                    ifFalse:
-                     [p error: 'Bad optional keyword in method definition: ' ; token printString].
+                     [^ ((result `>>
+                          [selector := selector.
+                           roles := roles contents.
+                           inputVariables := inputVariables contents.
+                           optionalKeywords := optKeywords contents.
+                           optionalVariables := optVariables contents. ])
+                         as: Syntax Signature)].
                  p undoToken: token]]
          ifFalse:
            [inputVariables nextPut: variable.
@@ -555,7 +561,7 @@ p@(Syntax Parser traits) nextDefinition
                    /\ [selector isKeywordSelector not
                          \/ [token value isKeywordSelector not]]
                    ifTrue:
-                     [p error: 'Bad selector name in method definition: ' ; selector].
+                     [p error: 'Bad selector name in method signature: ' ; selector].
                  (Syntax isUnarySelector: token value)
                    ifTrue:
                      [selector := token value.
@@ -575,18 +581,14 @@ p@(Syntax Parser traits) nextDefinition
                      [optKeywords nextPut: token value.
                       optsReached := True]]
               ifFalse:
-                [token caseOf:
-                   {Syntax BeginBlock -> [].
-                    Syntax EndParenthesis ->
-                      [^ ((result `>>
-                            [selector := selector.
-                             roles := roles.
-                             inputVariables := inputVariables contents.
-                             optionalKeywords := optKeywords contents.
-                             optionalVariables := optVariables contents. ])
-                            as: Syntax Signature)]}
-                   otherwise:
-                     [p error: 'Bad selector name in method definition: ' ; token signifier].
+                [token == Syntax BeginBlock ifFalse:
+                   [^ ((result `>>
+                          [selector := selector.
+                           roles := roles contents.
+                           inputVariables := inputVariables contents.
+                           optionalKeywords := optKeywords contents.
+                           optionalVariables := optVariables contents. ])
+                         as: Syntax Signature)].
                  p undoToken: token]]].
   selector ifNil: [p error: 'No selector name specified in method definition'].
   result selector := selector.
