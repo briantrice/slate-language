@@ -96,43 +96,43 @@ source on the stream."
 [| previousArity closeParen |
   closeParen := False.
   previousArity := w surroundingArity.
-"  w indentedDo: ["
-    (Syntax isUnarySelector: selector)
-      ifTrue: [w withSurroundingArity: 1 do:
-                [previousArity isZero /\
-		   [(args first isSameAs: Syntax ImplicitArgument) not]
-                    ifTrue: [w nextPut: $(. closeParen := True].
-                  (w printAsArgument: args first) ifTrue: [w newColumn].
-                  w printSelectorPrefixOf: node.
-	          w ; selector name]].
-    (Syntax isBinarySelector: selector)
-      ifTrue: [w withSurroundingArity: 2 do:
-	        [(previousArity between: 0 and: 1) ifTrue:
-		    [w nextPut: $(. closeParen := True].
-	          (w printAsArgument: args first) ifTrue: [w newColumn].
-                  w printSelectorPrefixOf: node.
-	          w ; selector name.
-	          w newColumn.
-	          w printAsArgument: args second]].
+  `conditions: (
+    [Syntax isUnarySelector: selector]
+      -> [w withSurroundingArity: 1 do:
+            [previousArity isZero
+               /\ [(args first isSameAs: Syntax ImplicitArgument) not]
+               ifTrue: [w nextPut: $\(. closeParen := True].
+             (w printAsArgument: args first) ifTrue: [w newColumn].
+             w printSelectorPrefixOf: node.
+	     w ; selector name]].
+    [Syntax isBinarySelector: selector]
+      -> [w withSurroundingArity: 2 do:
+	    [(previousArity between: 0 and: 1)
+               ifTrue: [w nextPut: $\(. closeParen := True].
+	     (w printAsArgument: args first) ifTrue: [w newColumn].
+             w printSelectorPrefixOf: node.
+	     w ; selector name.
+	     w newColumn.
+	     w printAsArgument: args second]].
     "For keyword sends, print the first argument, partition the selector by
-     the colons, (at an offset of 1 to synchronize indices for looping),
-     and then loop from one to the end, printing the keywords and arguments
-     alternately."
-    (Syntax isKeywordSelector: selector)
-      ifTrue: [| keywords |
-	        keywords := selector keywords.
-	        w withSurroundingArity: 3 do:
-	          [previousArity >= 0 ifTrue: [w nextPut: $(. closeParen := True].
-	            (w printAsArgument: args first) ifTrue: [w newColumn].
-	            1 below: args size do:
-		      [| :index arg |
-                        index = 1
-                          ifTrue: [w printSelectorPrefixOf: node]
-                          ifFalse: [w newColumn].
-		        w ; ((keywords at: index - 1) as: String) ; ': '.
-                        w printAsArgument: (args at: index)]]].
-    closeParen ifTrue: [w nextPut: $)].
-"  ]."
+      the colons, (at an offset of 1 to synchronize indices for looping),
+      and then loop from one to the end, printing the keywords and arguments
+      alternately."
+    [Syntax isKeywordSelector: selector]
+      -> [| keywords |
+	  keywords := selector keywords.
+	  w withSurroundingArity: 3 do:
+	    [previousArity >= 0 ifTrue:
+               [w nextPut: $\(. closeParen := True].
+	        (w printAsArgument: args first) ifTrue: [w newColumn].
+	        1 below: args size do:
+		  [| :index arg |
+                   index = 1
+                     ifTrue: [w printSelectorPrefixOf: node]
+                     ifFalse: [w newColumn].
+		   w ; ((keywords at: index - 1) as: String) ; ': '.
+                   w printAsArgument: (args at: index)]]]).
+  closeParen ifTrue: [w nextPut: $\)].
   w
 ].
 
@@ -309,45 +309,39 @@ source on the stream."
 [| args selector |
   selector := node selector.
   args := node inputVariables.
-  w indentedDo: [
-    (Syntax isUnarySelector: selector) /\ [args size = 1]
-      ifTrue: [| role |
-               role := (node roles first).
-	       w printArg: args first withRole: role.
-	       w newColumn.
-	       w ; (selector as: String)
-              ].
-    (Syntax isBinarySelector: selector) /\ [args size = 2]
-      ifTrue: [| role0 role1 |
-	       role0 := (node roles first).
-               role1 := (node roles second).
-	       w printArg: args first withRole: role0.
-	       w newColumn.
-	       w ; (selector as: String).
-	       w newColumn.
-	       w printArg: args second withRole: role1
-              ].
-    "For keyword sends, print the first argument, partition the selector by
-     the colons, (at an offset of 1 to synchronize indices for looping),
-     and then loop from one to the end, printing the keywords and arguments
-     alternately."
-    (Syntax isKeywordSelector: selector)
-      ifTrue: [| name keywords |
-	        name := (selector as: String).
-	        keywords := selector keywords.
-	        w printArg: args first withRole: node roles first.
-	        1 below: args size
-		  do: [| :index |
-			w newColumn.
-			w ; ((keywords at: index - 1) as: String) ; ':'.
-			w newColumn.
-			w printArg: (args at: index) withRole: (node roles at: index)]].
-    node optionalKeywords with: node optionalVariables do: [| :selector :variable |
-      w newColumn.
-      w ; selector name.
-      w newColumn.
-      w ; variable name].
-  ].
+  w indentedDo:
+    [`conditions: (
+       [(Syntax isUnarySelector: selector) /\ [args size = 1]]
+         -> [w printArg: args first withRole: node roles first.
+	     w newColumn.
+	     w ; selector name].
+       [(Syntax isBinarySelector: selector) /\ [args size = 2]]
+         -> [w printArg: args first withRole: node roles first.
+	     w newColumn.
+	     w ; selector name.
+	     w newColumn.
+	     w printArg: args second withRole: node roles second].
+       "For keyword sends, print the first argument, partition the selector by
+         the colons, (at an offset of 1 to synchronize indices for looping),
+         and then loop from one to the end, printing the keywords and arguments
+         alternately."
+       [Syntax isKeywordSelector: selector]
+         -> [| name keywords |
+	     name := selector name.
+	     keywords := selector keywords.
+	     w printArg: args first withRole: node roles first.
+	     1 below: args size do:
+               [| :index |
+		w newColumn.
+		w ; ((keywords at: index - 1) as: String) ; ':'.
+		w newColumn.
+		w printArg: (args at: index) withRole: (node roles at: index)]]).
+     node optionalKeywords with: node optionalVariables do:
+       [| :selector :variable |
+        w newColumn.
+        w ; selector name.
+        w newColumn.
+        w ; variable name]].
 ].
 
 w@(Syntax SourceWriter traits) printSignatureOf: node@(Syntax MethodDefinition traits)
@@ -380,7 +374,7 @@ w@(Syntax SourceWriter traits) print: node@(Syntax Return traits)
 [
   w ; node selector ; ' '.
   w withSurroundingArity: 2 do:
-   [w print: node value].
+    [w print: node value].
 ].
 
 w@(Syntax SourceWriter traits) print: _@(Syntax Resend traits)
@@ -411,11 +405,11 @@ w@(Syntax SourceWriter traits) printAsArgument: node
 
 w@(Syntax SourceWriter traits) printAsArgument: def@(Syntax MethodDefinition traits)
 [
-  w surroundingArity < 0
-    ifFalse: [w nextPut: $(].
+  w surroundingArity isNegative
+    ifFalse: [w ; '('].
   w print: node.
-  w surroundingArity < 0
-    ifFalse: [w nextPut: $)].
+  w surroundingArity isNegative
+    ifFalse: [w ; ')'].
   True
 ].
 
