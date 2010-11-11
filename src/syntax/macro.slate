@@ -12,8 +12,8 @@ ann@(Syntax Annotation traits) macroExpand &environment: env
 "Return the annotation node, but replace the expression that the node
 annotates with its expansion."
 [| expansion |
-  expansion := ann value macroExpand &environment: env.
-  ann value == expansion ifFalse: [ann value := expansion].
+  ann value == (expansion := ann value macroExpand &environment: env)
+    ifFalse: [ann value := expansion].
   ann
 ].
 
@@ -53,8 +53,7 @@ When appropriate substitute a LoadVariable or StoreVariable for the message."
   message arguments
     doWithIndex:
       [| :argument :index |
-       expansion := argument macroExpand &environment: env.
-       argument == expansion
+       argument == (expansion := argument macroExpand &environment: env)
          ifFalse: [message arguments at: index put: expansion]].
   opts
     ifNil: [message]
@@ -83,10 +82,9 @@ Arrays, Blocks, and Parentheses."
   group statements
     doWithIndex:
       [| :statement :index expansion |
-        expansion := statement macroExpand &environment: env.
-        statement == expansion
-          ifFalse:
-            [group statements at: index put: expansion]].
+       statement == (expansion := statement macroExpand &environment: env)
+         ifFalse:
+           [group statements at: index put: expansion]].
   group
 ].
 
@@ -105,12 +103,10 @@ method@(Syntax MethodDefinition traits) macroExpand &environment: env
   method roles
     doWithIndex:
       [| :role :index |
-       role
-         ifNotNil:
-           [| expansion |
-	    expansion := role macroExpand &environment: env.
-            role == expansion
-              ifFalse: [method roles at: index put: expansion]]].
+       role ifNotNil:
+         [| expansion |
+          role == (expansion := role macroExpand &environment: env)
+            ifFalse: [method roles at: index put: expansion]]].
   resend
 ].
 
@@ -127,8 +123,7 @@ store@(Syntax StoreVariable traits) macroExpand &environment: env
   env ifNotNil:
     [store == (expansion := env linkVariablesIn: store)
        ifFalse: [^ (expansion macroExpand &environment: env)]].
-  expansion := store value macroExpand &environment: env.
-  store value == expansion
+  store value == (expansion := store value macroExpand &environment: env)
     ifFalse: [store value := expansion].
   store
 ].
@@ -136,8 +131,7 @@ store@(Syntax StoreVariable traits) macroExpand &environment: env
 ret@(Syntax Return traits) macroExpand &environment: env
 "Expand the value to be returned."
 [| expansion |
-  expansion := ret value macroExpand &environment: env.
-  ret value == expansion
+  ret value == (expansion := ret value macroExpand &environment: env)
     ifFalse: [ret value := expansion].
   ret
 ].
