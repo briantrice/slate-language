@@ -156,12 +156,7 @@ p@(Syntax Parser traits) nextExpression
 p@(Syntax Parser traits) nextAsStatement
 "Find a complete expression suitable as a statement."
 [
-  p nextExpression
-].
-
-p@(Syntax Parser traits) nextAsStatementOrNil
-[
-  p nextAsStatement ifNil: [Syntax Literal Nil]
+  p nextExpression ifNil: [Syntax Literal Nil]
 ].
 
 p@(Syntax Parser traits) next
@@ -432,11 +427,11 @@ p@(Syntax Parser traits) nextBlock &updating: block
                 /\ [(block optionalVariables includes: var) not]
                 /\ [block restVariable ~== var]]).
         statements := #{} writer.
-        statements nextPut: p nextAsStatementOrNil.
+        statements nextPut: p nextAsStatement.
         [(token := p nextToken) isSameAs: Syntax EndBlock]
           whileFalse:
             [p check: token is: p EndBlockStatementTokens.
-             statements nextPut: p nextAsStatementOrNil]]].
+             statements nextPut: p nextAsStatement]]].
   block statements := statements contents.
   block
 ].

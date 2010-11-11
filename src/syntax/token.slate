@@ -85,11 +85,11 @@ parser nextFrom: _@(Syntax tokens BeginParenthesis traits)
 [
   parser nonInteractivelyDo:
     [([| :statements token |
-       statements nextPut: parser nextAsStatementOrNil.
+       statements nextPut: parser nextAsStatement.
        [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
-             statements nextPut: parser nextAsStatementOrNil]]
+             statements nextPut: parser nextAsStatement]]
        writingAs: #{}) as: Syntax Parenthesis]
 ].
 
@@ -110,7 +110,7 @@ parser nextFrom: _@(Syntax tokens BeginArray traits)
     [([| :statements token |
        [(token := parser peekToken) isSameAs: Syntax EndArray]
           whileFalse:
-            [statements nextPut: parser nextAsStatementOrNil.
+            [statements nextPut: parser nextAsStatement.
              parser check: (token := parser peekToken) is: parser EndArrayStatementTokens.
              (token isSameAs: Syntax EndStatement) ifTrue: [parser nextToken]].
        parser nextToken] writingAs: #{}) as: Syntax Array]
@@ -159,7 +159,7 @@ parser nextFrom: _@(Syntax tokens BeginPartial traits)
   parser nonInteractivelyDo:
     [statements :=
        [| :statements token |
-        statements nextPut: parser nextAsStatementOrNil.
+        statements nextPut: parser nextAsStatement.
         [(token := parser nextToken) isSameAs: Syntax EndParenthesis]
           whileFalse:
             [parser check: token is: parser EndParenthesisStatementTokens.
@@ -169,7 +169,7 @@ parser nextFrom: _@(Syntax tokens BeginPartial traits)
                     [parser nextMessage &after:
                        (parser recordDeclaredTypeOf: parser nextSignature)]
                   ifFalse:
-                    [parser nextAsStatementOrNil])]]
+                    [parser nextAsStatement])]]
        writingAs: #{}.
      statements infect:
        [| :statement |
