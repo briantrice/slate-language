@@ -30,12 +30,13 @@ l@(Syntax Lexer traits) isAtEnd
 "The lexer has reached its end when the stream is exhausted and the buffer is
 empty."
 [
-  l buffer isEmpty /\ [l source isAtEnd] \/
-  [| c |
-   [c := l nextCharacter.
-    l buffer isEmpty /\ [l source isAtEnd]
-      \/ [c isWhitespace not] \/ [l isEndOfLine: c]] whileFalse.
-   c isWhitespace /\ [(l isEndOfLine: c) not] \/ [l undoCharacter: c. False]]
+  l buffer isEmpty
+    /\ [l source isAtEnd]
+    \/ [| c |
+        [c := l nextCharacter.
+         l buffer isEmpty /\ [l source isAtEnd]
+           \/ [c isWhitespace not] \/ [l isEndOfLine: c]] whileFalse.
+        c isWhitespace /\ [(l isEndOfLine: c) not] \/ [l undoCharacter: c. False]]
 ].
 
 l@(Syntax Lexer traits) hasMoreCharacters

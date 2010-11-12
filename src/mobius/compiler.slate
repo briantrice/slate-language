@@ -312,11 +312,11 @@ code and generate that. When done, pop both, set up the block as a literal
 and push it onto the stack."
 [| newBlock isClosure statements |
   topLevel `defaultsTo: False.
-  newBlock := CompiledMethod new.
-  newBlock environment := gen contexts isEmpty
-    ifTrue: [block parentScope topLevel namespace]
-    ifFalse: [gen currentMethod environment].
-  newBlock sourceTree := block.
+  newBlock := CompiledMethod new `>>
+    [environment := gen contexts isEmpty
+       ifTrue: [block parentScope topLevel namespace]
+       ifFalse: [gen currentMethod environment].
+     sourceTree := block. ].
   gen contexts push: (gen Context newOn: newBlock).
   "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
   statements := block statements collect:

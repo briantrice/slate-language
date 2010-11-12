@@ -855,6 +855,7 @@ method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature tr
     [selector := method selector.
      roles := method roles.
      inputVariables := method inputVariables.
+     inputVariables do: [| :var | var scope := Nil].
      restVariable := method restVariable.
      optionalKeywords := method optionalKeywords.
      optionalVariables := method optionalVariables. ]
@@ -863,12 +864,12 @@ method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature tr
 sig@(Syntax nodes Signature traits) as: method@(Syntax nodes MethodDefinition traits)
 [
   method new `>>
-    [| :method |
+    [| :result |
      selector := sig selector.
      roles := sig roles.
-     inputVariables := sig inputVariables.
-     inputVariables do: [| :var | var scope := method].
-     localVariables := sig inputVariables copy.
+     inputVariables := sig inputVariables copy.
+     inputVariables do: [| :var | var scope := result].
+     localVariables := result inputVariables copy.
      restVariable := sig restVariable.
      optionalKeywords := sig optionalKeywords.
      optionalVariables := sig optionalVariables. ]
