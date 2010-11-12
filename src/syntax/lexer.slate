@@ -58,13 +58,13 @@ l@(Syntax Lexer traits) nextCharacter
 stream of characters. Raise an error if this is used at the end, and advance
 the line number if a new-line is reached."
 [| c |
-  c := (l buffer isEmpty
+  c := l buffer isEmpty
     ifTrue:
       [l source isAtEnd
          ifTrue: [l error: 'Unexpected end of stream'].
        l source next]
-    ifFalse: [l buffer removeLast]).
-  (l isEndOfLine: c) ifTrue: [l lineNumber := l lineNumber + 1].
+    ifFalse: [l buffer removeLast].
+  (l isEndOfLine: c) ifTrue: [l lineNumber += 1].
   c
 ].
 
@@ -72,7 +72,7 @@ l@(Syntax Lexer traits) undoCharacter: c
 "Put the character back into the buffer, and decrement the line number if it's
 a new-line."
 [
-  (l isEndOfLine: c) ifTrue: [l lineNumber := l lineNumber - 1].
+  (l isEndOfLine: c) ifTrue: [l lineNumber -= 1].
   l buffer addLast: c
 ].
 
@@ -111,7 +111,7 @@ l@(Syntax Lexer traits) readMantissa: radix
      ((c := l nextCharacter) toDigit: radix) ifNotNilDo:
        [| :digit |
 	number := number * radix + digit.
-        place := place * radix]].
+        place *= radix]].
   (number as: Float) / (place as: Float)
 ].
 

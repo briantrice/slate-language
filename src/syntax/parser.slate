@@ -141,11 +141,11 @@ p@(Syntax Parser traits) nextExpression
 [| token lookAheadIndex |
   lookAheadIndex := 0.
   [token := p lookAheadBuffer at: lookAheadIndex ifAbsent: [p extendBuffer].
-   lookAheadIndex += 1.
    (token isSameAs: Syntax BeginVariables) ifTrue:
      [p error: 'Block headers are only valid in block literals.'].
    token == Syntax At ifTrue:
      [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextDefinition))].
+   lookAheadIndex += 1.
    (token isSameAs: Syntax Selector)
      \/ [token isSameAs: Syntax tokens Comment]
      \/ [p parseInteractively not \/ [lookAheadIndex = 1]
@@ -235,17 +235,17 @@ p@(Syntax Parser traits) parseRestArgumentsFor: expr
 ].
 
 p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
-[| token rest arguments |
+[| token arguments |
   arguments :=
-    ([| :arguments |
-      [(token := p nextToken) isSameAs: Syntax Comma]
-        whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #{}).
+    [| :arguments |
+     [(token := p nextToken) isSameAs: Syntax Comma]
+       whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #{}.
   p undoToken: token.
   arguments isEmpty
     ifTrue: [message]
     ifFalse: [(Syntax RestArguments for: message) `>>
-                [arguments := arguments contents.
-                 recordPositionFrom: p. ]]
+                [arguments := arguments.
+                 recordPositionFrom: p]]
 ].
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
@@ -260,13 +260,13 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
 [| token keywords argumentNames |
   argumentNames := #{} writer.
   keywords :=
-    ([| :keywords |
-      [((token := p nextToken) isSameAs: Syntax Selector)
-         /\ [Syntax isOptionalSelector: token value]]
-        whileTrue:
-          [keywords nextPut: token value.
-           argumentNames nextPut: p nextBinaryMessages]]
-       writingAs: #{}).
+    [| :keywords |
+     [((token := p nextToken) isSameAs: Syntax Selector)
+        /\ [Syntax isOptionalSelector: token value]]
+       whileTrue:
+         [keywords nextPut: token value.
+          argumentNames nextPut: p nextBinaryMessages]]
+       writingAs: #{}.
   p undoToken: token.
   keywords isEmpty
     ifTrue: [message]
@@ -438,13 +438,12 @@ p@(Syntax Parser traits) nextBlock &updating: block
 
 p@(Syntax Parser traits) nextSignature
 "Parses and returns a method signature, which has the highest precedence."
-[| selector roles inputVariables optKeywords optVariables optsReached token signature |
+[| selector roles inputVariables optKeywords optVariables token signature |
   selector := Nil.
   roles := #{} writer.
   inputVariables := #{} writer.
   optKeywords := #{} writer.
   optVariables := #{} writer.
-  optsReached := False.
   (signature := Syntax Signature new)
     recordPositionFrom: p.
   [((token := p nextToken) isSameAs: Syntax BeginBlock)
@@ -456,18 +455,8 @@ p@(Syntax Parser traits) nextSignature
          ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
        variable := p newVariableNamed: name in: Nil.
        token := p nextToken.
-       optsReached
+       optKeywords size isZero
          ifTrue:
-           [optVariables nextPut: variable.
-            (token isSameAs: Syntax Selector)
-              /\ [Syntax isOptionalSelector: token value]
-              ifTrue: [optKeywords nextPut: token value]
-              ifFalse:
-                [(token isSameAs: Syntax BeginBlock)
-                   ifFalse:
-                     [p error: 'Bad optional keyword in method signature: ' ; token printString].
-                 p undoToken: token]]
-         ifFalse:
            [inputVariables nextPut: variable.
             roles nextPut: ((token == Syntax At
                                ifTrue: [p nextAtom]
@@ -497,12 +486,21 @@ p@(Syntax Parser traits) nextSignature
                         ifNotNil: [(selector name ; token value name) intern]].
                  (Syntax isOptionalSelector: token value)
                    ifTrue:
-                     [optKeywords nextPut: token value.
-                      optsReached := True]]
+                     [optKeywords nextPut: token value]]
               ifFalse:
                 [(token isSameAs: Syntax BeginBlock)
                    ifFalse:
                      [p error: 'Bad selector name in method signature: ' ; token signifier].
+                 p undoToken: token]]
+         ifFalse:
+           [optVariables nextPut: variable.
+            (token isSameAs: Syntax Selector)
+              /\ [Syntax isOptionalSelector: token value]
+              ifTrue: [optKeywords nextPut: token value]
+              ifFalse:
+                [(token isSameAs: Syntax BeginBlock)
+                   ifFalse:
+                     [p error: 'Bad optional keyword in method signature: ' ; token printString].
                  p undoToken: token]]].
   selector ifNil: [p error: 'No selector name specified in method signature'].
   signature selector := selector.
@@ -515,13 +513,12 @@ p@(Syntax Parser traits) nextSignature
 
 p@(Syntax Parser traits) nextDefinition
 "Parses and returns a method definition, which has the highest precedence."
-[| selector roles inputVariables optKeywords optVariables optsReached token result |
+[| selector roles inputVariables optKeywords optVariables token result |
   selector := Nil.
   roles := #{} writer.
   inputVariables := #{} writer.
   optKeywords := #{} writer.
   optVariables := #{} writer.
-  optsReached := False.
   (result := Syntax MethodDefinition new)
     recordPositionFrom: p.
   [(token := p nextToken) isSameAs: Syntax BeginBlock]
@@ -532,24 +529,8 @@ p@(Syntax Parser traits) nextDefinition
          ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
        variable := p newVariableNamed: token value in: result.
        token := p nextToken.
-       optsReached
+       optKeywords size isZero
          ifTrue:
-           [optVariables nextPut: variable.
-            (token isSameAs: Syntax Selector)
-              /\ [Syntax isOptionalSelector: token value]
-              ifTrue: [optKeywords nextPut: token value]
-              ifFalse:
-                [(token isSameAs: Syntax BeginBlock)
-                   ifFalse:
-                     [^ ((result `>>
-                          [selector := selector.
-                           roles := roles contents.
-                           inputVariables := inputVariables contents.
-                           optionalKeywords := optKeywords contents.
-                           optionalVariables := optVariables contents. ])
-                         as: Syntax Signature)].
-                 p undoToken: token]]
-         ifFalse:
            [inputVariables nextPut: variable.
             token == Syntax At
               ifTrue: [roles nextPut: p nextAtom. token := p nextToken]
@@ -578,18 +559,33 @@ p@(Syntax Parser traits) nextDefinition
                         ifNotNil: [(selector name ; token value name) intern]].
                  (Syntax isOptionalSelector: token value)
                    ifTrue:
-                     [optKeywords nextPut: token value.
-                      optsReached := True]]
+                     [optKeywords nextPut: token value]]
               ifFalse:
-                [token == Syntax BeginBlock ifFalse:
+                [p undoToken: token.
+                 token == Syntax BeginBlock ifFalse:
                    [^ ((result `>>
                           [selector := selector.
                            roles := roles contents.
                            inputVariables := inputVariables contents.
                            optionalKeywords := optKeywords contents.
-                           optionalVariables := optVariables contents. ])
-                         as: Syntax Signature)].
-                 p undoToken: token]]].
+                           optionalVariables := optVariables contents. ]
+                         as: Syntax Signature) recordPositionFrom: p)]]]
+         ifFalse:
+           [optVariables nextPut: variable.
+            (token isSameAs: Syntax Selector)
+              /\ [Syntax isOptionalSelector: token value]
+              ifTrue: [optKeywords nextPut: token value]
+              ifFalse:
+                [p undoToken: token.
+                 (token isSameAs: Syntax BeginBlock)
+                   ifFalse:
+                     [^ ((result `>>
+                            [selector := selector.
+                             roles := roles contents.
+                             inputVariables := inputVariables contents.
+                             optionalKeywords := optKeywords contents.
+                             optionalVariables := optVariables contents. ]
+                            as: Syntax Signature) recordPositionFrom: p)]]]].
   selector ifNil: [p error: 'No selector name specified in method definition'].
   result selector := selector.
   result roles := roles contents.
