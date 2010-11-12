@@ -12,14 +12,14 @@ m@(CompiledMethod traits) allSelectorsSent
 method's body. This excludes local accessors which count as loads and stores."
 [
   [| :result |
-  result ; m selectors.
-  (m selectors includesAnyOf:
-      {#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
-    ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
-  m literals do: [| :each | (each is: Method) ifTrue:
-    [result ; each allSelectorsSent]].
-  m sourceTree ifNotNilDo: [| :src | result ; src allSelectorsSent].
-  ] writingAs: IdentitySet
+   result ; m selectors.
+   (m selectors includesAnyOf:
+      #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+     ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+   m literals do: [| :each | (each is: Method) ifTrue:
+                     [result ; each allSelectorsSent]].
+   m sourceTree ifNotNilDo: [| :src | result ; src allSelectorsSent]]
+    writingAs: IdentitySet
 ].
 
 m@(CompiledMethod traits) allSelectorsSentToInputs
@@ -37,15 +37,17 @@ implement that selector."
 "(#allSelectorsSentToInputAt: findOn: {[]}) allSelectorsSentToInputAt: 0.
 (#allSelectorsSentToInputAt: findOn: {[]}) allSelectorsSentToInputAt: 1."
 [
-  (n between: 0 and: m arity) ifFalse: [error: 'Invalid argument index.'. ^ {}].
   [| :result |
-  (m selectors includesAnyOf:
-      {#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
-    ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
-  m sourceTree
-    ifNil: []
-    ifNotNilDo: [| :src | result ; src allSelectorsSentToInputAt: n].
-  ] writingAs: Set
+   (n between: 0 and: m arity)
+     ifTrue:
+       [(m selectors includesAnyOf:
+           #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+          ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+        m sourceTree
+          ifNil: []
+          ifNotNilDo: [| :src | result ; (src allSelectorsSentToInputAt: n)]]
+     ifFalse: [error: 'Invalid argument index.']]
+    writingAs: Set
 ].
 
 m@(CompiledMethod traits) allSelectorsSentImplicitly
@@ -54,15 +56,15 @@ so that it can be inferred that objects acting as the context should
 implement that selector."
 [
   [| :result |
-  (m selectors includesAnyOf:
-      {#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
-    ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
-  m literals do: [| :each | (each is: Method) ifTrue:
-    [result ; each allSelectorsSentImplicitly]].
-  m sourceTree
-    ifNil: []
-    ifNotNilDo: [| :src | result ; src allSelectorsSentImplicitly].
-  ] writingAs: Set
+   (m selectors includesAnyOf:
+      #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+     ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+   m literals do: [| :each | (each is: Method) ifTrue:
+                     [result ; each allSelectorsSentImplicitly]].
+   m sourceTree
+     ifNil: []
+     ifNotNilDo: [| :src | result ; src allSelectorsSentImplicitly]]
+    writingAs: Set
 ].
 
 m@(Closure traits) new [m clone].
@@ -149,8 +151,8 @@ selector@(Symbol traits) findRoleHoldersOn: args &in: namespace
 defined for the given arguments."
 [| result method |
   namespace `defaultsTo: here.
-  method := (selector findOn: args).
-  result := (args newSize: selector arity).
+  method := selector findOn: args.
+  result := args newSize: selector arity.
   result infect: [| :_ | NoRole ].
   args doWithIndex:
     [| :each :index |
@@ -175,7 +177,7 @@ method and answers a new Signature object describing it."
 [| result selector |
   selector := m selector.
   namespace `defaultsTo: here.
-  result := (Array newSize: m arity).
+  result := Array newSize: m arity.
   result infect: [| :_ | NoRole].
   result keysDo:
     [| :index |
