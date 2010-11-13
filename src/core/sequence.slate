@@ -108,7 +108,7 @@ c@(Sequence traits) after: obj ifAbsent: block
   (c indexOf: obj)
     ifNil: [block do]
     ifNotNilDo:
-      [| :index | index = c indexLast ifTrue: [Nil] ifFalse: [c at: index + 1]]
+      [| :index | index = c indexLast ifFalse: [c at: index + 1]]
 ].
 
 c@(Sequence traits) after: obj
@@ -179,9 +179,9 @@ c@(Sequence traits) atAll: d@(Sequence traits)
 "Returns a new Sequence of the elements corresponding to the indexes in the
 given Sequence."
 [| result |
-  result := c newSizeOf: d.
-  result keysDo: [| :index |
-    result at: index put: (c at: (d at: index))].
+  (result := c newSizeOf: d) keysDo:
+    [| :index |
+     result at: index put: (c at: (d at: index))].
   result
 ].
 

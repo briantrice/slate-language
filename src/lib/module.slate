@@ -142,7 +142,13 @@ m@(Module traits) build
 m@(Module traits) locator
 [overrideThis].
 
-prototypes define: #Load &parents: {Cloneable} &slots: {#source. #parser -> Syntax Parser. #targetNamespace -> lobby. #verbose -> False. #showMessage -> True}.
+prototypes define: #Load &parents: {Cloneable} &slots: {
+  #source.
+  #parser -> Syntax Parser.
+  #targetNamespace -> lobby.
+  #verbose -> False.
+  #showMessage -> True.
+}.
 Load traits addSlot: #Level valued: 0.
 "How many levels of recursion has load: been invoked on."
 "TODO: This should be a dynamic, not a global."
@@ -179,12 +185,14 @@ l@(Load traits) retry
 ].
 
 l@(Load traits) process: source
-[ |retry skip ns|
+[| retry skip ns |
   ns := Namespace new. 
   retry := ns define: #Retry &parents: {Restart}.
-  _@retry describeOn: out [ out ; 'Retry loading ' ; l source resource locator printString ;'\n' ].
+  _@retry describeOn: out
+  [out ; 'Retry loading ' ; l source resource locator printString ;'\n'].
   skip := ns define: #Skip &parents: {Restart}.
-  _@skip describeOn: out [ out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
+  _@skip describeOn: out
+  [out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
   l source := source.
   [l run] handlingCases: {retry -> [| :_ | ^ (l retry)].
                           skip -> [| :_ | ^ Nil]}.
@@ -213,7 +221,7 @@ l@(Load traits) run
      l verbose ifTrue:
        [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
 	inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
-	each evaluateIn: l targetNamespace].
+     each evaluateIn: l targetNamespace].
 ].
 
 _@(Root traits) copyright
@@ -230,7 +238,7 @@ x@(Root traits) license
 
 ns@(Namespace traits) load: fileName@(String traits)
 [
-  ns load: (fileName as: File Locator).
+  ns load: (fileName as: File Locator)
 ].
 
 ns@(Namespace traits) load: locator@(File Locator traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
@@ -246,14 +254,14 @@ contents within the argument namespace or an optional override."
     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Returning the input: ' ; locator printString. locator]
 ].
 
-ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showMessage
+ns@(Namespace traits) load: file@(File traits) &in: namespace
+  &verbose: verbose &showLoadMessage: showMessage
 "A command to open the file, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| oldLevel loader |
-  verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
-  showMessage `defaultsTo: True.
-  loader := Load clone `setting: #{#targetNamespace. #verbose. #showMessage} to: {namespace. verbose. showMessage}.
+  loader := Load clone `>>
+    [targetNamespace := namespace. verbose ?= verbose. showMessage ?= showMessage. ].
   loader resolvePathOf: file.
   oldLevel := loader Level.
   loader Level := loader Level + 1.
