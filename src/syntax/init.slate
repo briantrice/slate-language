@@ -1,13 +1,19 @@
-lobby ensureNamespace: #Syntax.
+ensureNamespace: #Syntax.
 
 ns@Syntax isUnarySelector: s@(String traits)
-[s isEmpty not /\ [s first isLetter \/ [s first = $_] /\ [s last ~= $:]]].
+[
+  s isEmpty not
+    /\ [s first isLetter
+          \/ [s first = $_]
+          /\ [s last ~= $:]]
+].
 
 ns@Syntax isBinarySelector: s@(String traits)
 [
-  s isEmpty not /\
-    [(s first `cache isLetter \/ [#{$_. $&. $%} includes: s first]
-       \/ [s last = $:]) not]
+  s isEmpty not
+    /\ [(s first `cache isLetter
+           \/ [#{$_. $&. $%} includes: s first]
+           \/ [s last = $:]) not]
 ].
 
 ns@Syntax isKeywordSelector: s@(String traits)
@@ -18,8 +24,7 @@ ns@Syntax isOptionalSelector: s@(String traits)
 
 ns@Syntax isReturnSelector: s@(String traits)
 [
-  s first = $^ /\
-    [s size = 1 \/ [s size = 2 /\ ['123456789^' includes: s second]]]
+  s first = $^ /\ [s size = 1 \/ [s size = 2 /\ ['123456789^' includes: s second]]]
 ].
 
 ns@Syntax keywordsOf: s@(String traits)
@@ -27,16 +32,7 @@ ns@Syntax keywordsOf: s@(String traits)
 considered as a Slate selector."
 [
   (ns isKeywordSelector: s)
-    ifTrue: [| indices results resultIndex |
-      indices := s indicesOf: $:.
-      results := Array newSizeOf: indices.
-      indices addFirst: -1.
-      indices addLast: s indexLast.
-      resultIndex := 0.
-      s chainPairsDo: [| :previous :next |
-        result at: resultIndex put: (s copyFrom: previous + 1 to: end).
-        resultIndex := resultIndex + 1].
-      result]
+    ifTrue: [(s as: '') splitWith: $:]
     ifFalse: [#{}]
 ].
 

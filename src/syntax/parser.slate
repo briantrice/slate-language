@@ -224,7 +224,7 @@ p@(Syntax Parser traits) nextMessage &after: node
 [
   p parseRestArgumentsFor:
     (p parseOptionalKeywordsFor:
-      (p nextSpecialBinaryMessages &after: node))
+      (p nextPartial &after: node))
 ].
 
 p@(Syntax Parser traits) parseRestArgumentsFor: expr
@@ -360,6 +360,21 @@ p@(Syntax Parser traits) nextSpecialBinaryMessages &after: node
     whileTrue:
       [result := Syntax nodes BinaryMacro sending: token value to:
          (p nextExpression ifNil: [{result}] ifNotNilDo: [| :rhs | {result. rhs}])].
+  p undoToken: token.
+  result
+].
+
+p@(Syntax Parser traits) nextPartial &after: node
+[| token result |
+  result := p nextSpecialBinaryMessages &after: node.
+  [(token := p nextToken &interactive: p parseInteractively) is: Syntax BeginPartial]
+    whileTrue:
+      [| partial |
+       (partial := p nextFrom: token) arity = 1
+         ifTrue:
+           [partial completeWith: {node}.
+            result := partial message]
+         ifFalse: [p error: 'Partial cascaded with too many placeholders.']].
   p undoToken: token.
   result
 ].

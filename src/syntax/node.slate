@@ -146,8 +146,9 @@ message@(Syntax nodes Message traits) transformChildren: block
 ].
 
 message@(Syntax nodes Message traits) deepCopy: scope
-[message clone `setting: #{#arguments} to:
-   {message arguments collect: #(deepCopy: scope) `er}].
+[
+  message clone `>> [arguments := message arguments collect: #(deepCopy: scope) `er. ]
+].
 
 message@(Syntax nodes Message traits) evaluateIn: namespace &optionals: opts
 "Overridden to support the evaluateIn: for ImplicitArgument."
@@ -247,6 +248,23 @@ w@(Syntax nodes MessageWrapper traits) for: message
 w@(Syntax nodes MessageWrapper traits) selector
 [w message selector].
 
+w@(Syntax nodes MessageWrapper traits) transformChildren: block
+[
+  w message := w message transformBy: block.
+  w
+].
+
+w@(Syntax nodes MessageWrapper traits) walk: block
+[
+  block applyWith: w.
+  w message walk: block.
+].
+
+w@(Syntax nodes MessageWrapper traits) deepCopy: scope
+[
+  w clone `>> [message := w message deepCopy: scope. ]
+].
+
 Syntax nodes define: #OptionalKeywords &parents: {Syntax nodes MessageWrapper}
   &slots: {#keywords. #arguments}.
 "Annotates a Message with optional keywords and values given."
@@ -259,23 +277,22 @@ opts@(Syntax nodes OptionalKeywords traits) new
 
 opts@(Syntax nodes OptionalKeywords traits) walk: block
 [
-  block applyWith: opts.
-  opts message walk: block.
+  resend.
   opts arguments
     do: #(walk: block) `er
 ].
 
 opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
 [
-  opts message := opts message transformBy: block.
+  resend.
   opts arguments infect: #(_ transformBy: block) `er.
   opts
 ].
 
 opts@(Syntax nodes OptionalKeywords traits) deepCopy: scope
-[opts clone `setting: #{#message. #arguments} to:
-  {opts message deepCopy: scope.
-   opts arguments collect: #(deepCopy: scope) `er}].
+[
+  resend `>> [arguments := opts arguments collect: #(deepCopy: scope) `er. ]
+].
 
 opts@(Syntax nodes OptionalKeywords traits) evaluateIn: namespace
 [
@@ -297,23 +314,20 @@ rest@(Syntax nodes RestArguments traits) new
 
 rest@(Syntax nodes RestArguments traits) walk: block
 [
-  block applyWith: rest.
-  rest message walk: block.
+  resend.
   rest arguments do: #(_ walk: block) `er
 ].
 
 rest@(Syntax nodes RestArguments traits) transformChildren: block
 [
-  rest message := rest message transformBy: block.
+  resend.
   rest arguments infect: #(_ transformBy: block) `er.
   rest
 ].
 
 rest@(Syntax nodes RestArguments traits) deepCopy: scope
 [
-  rest clone `setting: #{#message. #arguments} to:
-    {rest message deepCopy: scope.
-     rest arguments collect: #(deepCopy: scope) `er}
+  resend `>> [arguments := rest arguments collect: #(deepCopy: scope) `er. ]
 ].
 
 rest@(Syntax nodes RestArguments traits) allArguments
@@ -357,18 +371,35 @@ w@(Syntax nodes Partial traits) keywords
 w@(Syntax nodes Partial traits) values
 [w message arguments].
 
+Syntax nodes Partial traits define: #BlankTokens &builder:
+  [{Syntax Placeholder. Syntax ImplicitArgument}].
+
+w@(Syntax nodes Partial traits) isPlaceholder: node
+[
+  w BlankTokens includes: node
+].
+
 w@(Syntax nodes Partial traits) arity
-[| count placeholders |
+[| count |
   count := 0.
-  placeholders := {Syntax Placeholder. Syntax ImplicitArgument}.
-  w walk: [| :node | (placeholders includes: node) ifTrue: [count := count + 1]].
+  w walk: [| :node | (w isPlaceholder: node) ifTrue: [count := count + 1]].
   count
 ].
 
 w@(Syntax nodes Partial traits) isComplete
+"Answers whether it can be evaluated successfully."
 [
   w walk: [| :node | node == Syntax Placeholder ifTrue: [^ False]].
   True
+].
+
+w@(Syntax nodes Partial traits) completeWith: values
+[| valuesIn |
+  valuesIn := values reader.
+  w transformBy:
+    [| :node | (w isPlaceholder: node) /\ [valuesIn isAtEnd not]
+       ifTrue: [valuesIn next] ifFalse: [node]].
+  w
 ].
 
 w@(Syntax nodes Partial traits) evaluateIn: namespace &optionals: opts
