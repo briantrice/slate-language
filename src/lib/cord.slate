@@ -7,6 +7,12 @@ without allocating a new piece of literal memory for the whole result."
 	 #depth -> 1. "The default for a couple of strings ;;'d."
 	 #size "The incrementally-calculated Cord size."}.
 
+obj ;; seq@(Sequence traits)
+[{obj} ;; seq].
+
+seq@(Sequence traits) ;; obj
+[seq ;; {obj}].
+
 c1@(Sequence traits) ;; c2@(Sequence traits)
 "Build a cord concatenation out of any 2 sequences,
 or lazily answer an argument if the other is empty."
@@ -30,6 +36,12 @@ c1@(Cord traits) ;; c2@(Sequence traits)
 "Set up the depth if the first element is a cord."
 [resend `>> [depth := c1 depth + 1. ]].
 
+obj ;; c@(Cord traits)
+[{obj} ;; seq].
+
+c@(Cord traits) ;; obj
+[c ;; {obj}].
+
 c1@(Cord traits) ;; c2@(Cord traits)
 "If both are cords, the deepest counts for the depth."
 [resend `>> [depth := (c1 depth max: c2 depth) + 1. ]].
@@ -50,7 +62,6 @@ since it is more expensive for Cords to perform."
 [
   c firstBranch do: block.
   c secondBranch do: block.
-  c
 ].
 
 c@(Cord traits) doWithIndex: block
@@ -59,7 +70,11 @@ c@(Cord traits) doWithIndex: block
   idx := 0.
   c do: [| :each | block applyWith: each with: idx.
 	 idx := idx + 1].
-  c
+].
+
+c@(Cord traits) collectionType
+[
+  c detect: [| :each | (each isSameAs: c) not]
 ].
 
 c@(Cord traits) shouldBeFlattened
@@ -71,15 +86,28 @@ sequence for, and make sure that it's not just a base Cord."
 
 c@(Cord traits) flatten
 [
-  c as: Array
+  c as: c collectionType
 ].
 
 c@(Cord traits) shouldBeBalanced
 [
-  c depth
+  c depth >= 4
 ].
 
 c@(Cord traits) balance
 [
   c notYetImplemented
+].
+
+s@(Sequence traits) join &separator: delim
+"#join is the opposite of #splitWith:, taking a collection of Sequences and
+splicing them together. Optionally, a delimiter may be given to use between
+each instance. The fact that this is optional is why join is not joinWith:."
+[
+  (s reduce:
+     (delim
+        ifNil: [#;;`er]
+        ifNotNil: [[| :result :each | result ;; delim ;; each]])
+     ifEmpty: [s])
+    as: (delim ifNil: [s first])
 ].
