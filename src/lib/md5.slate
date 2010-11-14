@@ -23,10 +23,12 @@ _@Md5Sum mask: x@(Integer traits)
 md5@Md5Sum stringFrom: array@(ByteArray traits)
 [| sum |
   sum := md5 of: array.
-  ([| :output |
-    0 below: 16 do: [| :i |
-      output ; (((sum >> (i * 8)) intoByte printString &radix: 16) truncateTo: 2 paddedBy: $0)].
-   ] writingAs: '') toLowercase
+  [| :output |
+   0 below: 16 do:
+     [| :i |
+      output ; ((sum >> (i * 8))
+                  #(intoByte printString &radix: 16)
+                  #(toLowercase truncateTo: 2 paddedBy: $0))]] writingAs: ''
 ].
 
 md5@Md5sum of: array@(ByteArray traits)

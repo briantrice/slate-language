@@ -109,10 +109,13 @@ c@(Base64Decoder traits) convert
      (byte2 := c nextValue) ifNil: [^ Nil].
      c out nextPut: ((byte1 << 2 bitOr: byte2 >> 4) as: ASCIIString Character).
      (byte3 := c nextValue) ifNil: [^ Nil].
-     c out nextPut: (((byte2 << 4 bitAnd: 16rFF) bitOr: byte3 >> 2)
-      as: ASCIIString Character).
+     c out nextPut: (byte2 << 4 bitAnd: 16rFF)
+       #(bitOr: byte3 >> 2)
+       #(as: ASCIIString Character).
      (byte4 := c nextValue) ifNil: [^ Nil].
-     c out nextPut: (((byte3 << 6 bitAnd: 16rFF) bitOr: byte4) as: ASCIIString Character)].
+     c out nextPut: (byte3 << 6 bitAnd: 16rFF)
+       #(bitOr: byte4)
+       #(as: ASCIIString Character)].
 ].
 
 c@(Base64Decoder traits) nextValue

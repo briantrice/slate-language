@@ -65,6 +65,11 @@ p@(Profile traits) showResults
   p results
 ].
 
+p@(Profile traits) formatTime: timeMSecs
+[
+  timeMSecs #(/ 1000000.0) #(roundTo: 0.01) #(as: String)
+].
+
 p@(Profile traits) writeDotTo: filename &maxCount: maxCount
 [
   maxCount `defaultsTo: p results size.
@@ -79,15 +84,15 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                   name := (entry method selector ifNil: ['Nil']) ; ' @ ' ; entry method method definitionLocation.
                   out ; entry id ; ' [color="#000000", fontcolor="#ffffff", fontsize="10.00", '
                       ; 'label="' ; name ; '\\n total: '
-                      ; (((entry cumulativeTime / 1000000.0) roundTo: 0.01) as: String)
+                      ; (p formatTime: entry cumulativeTime)
                       ; ' sec \\nself: '
-                      ; (((entry selfTime / 1000000.0) roundTo: 0.01) as: String)
+                      ; (p formatTime: entry selfTime)
                       ; ' sec \\ncalled: '
                       ; entry callCount printString ; '"]\n'.
 
                   totalChildTime := 0.
                   entry childCallTime valuesDo: [|:childTime | totalChildTime := totalChildTime + childTime].
-                  totalChildTime = 0 ifTrue: [totalChildTime := 1].
+                  totalChildTime := totalChildTime max: 1.
                   entry childCallCounts keysAndValuesDo:
                     [| :childMethod :childCallCount childTime |
                        (resultsMethods identityIncludes: childMethod)
@@ -95,7 +100,7 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                                   out ; entry id ; ' -> ' ; (p results at: childMethod) id
                                       ; ' [color="#000000", fontcolor="#000000", fontsize="10.00", penwidth="1.0", label="'
                                       "; ((childTime * 100.0 / totalChildTime roundTo: 0.01) as: String) ; ' %\\n'"
-                                      ; (((childTime / 1000000.0) roundTo: 0.01) as: String) ; ' sec\\n'
+                                      ; (p formatTime: childTime) ; ' sec\\n'
                                       ; childCallCount printString ; ' calls"]\n'
                                   ]
                     ]

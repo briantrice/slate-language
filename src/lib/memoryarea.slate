@@ -53,19 +53,23 @@ m@(MemoryArea traits) at: index
 
 m@(MemoryArea traits) at: index put: value
 [
-  (({value} as: ByteArray) write: 1 into: m handle startingAt: index) isNegative
+  {value}
+    #(as: ByteArray)
+    #(write: 1 into: m handle startingAt: index) isNegative
     ifTrue: [error: 'Primitive write error']
     ifFalse: [value]
 ].
 
-"m@(MemoryArea traits) replaceFrom: start to: end with: replacement startingAt: repStart
+m@(MemoryArea traits) replaceFrom: start to: end with: replacement startingAt: repStart
 [| numToWrite |
   numToWrite := end - start - 1.
-  (((replacement sliceFrom: repStart to: repStart + numToWrite) as: ByteArray)
-    write: numToWrite into: m handle startingAt: start) isNegative
+  ((replacement sliceFrom: repStart to: repStart + numToWrite)
+    #(as: ByteArray)
+    #(write: numToWrite into: m handle startingAt: start))
+    isNegative
     ifTrue: [error: 'Primitive write error']
     ifFalse: [m]
-]."
+].
 
 m@(MemoryArea traits) size
 [m sizeOf: m handle].
