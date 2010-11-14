@@ -416,24 +416,6 @@ filled in with a value, essentially currying the method."
   [| *args | m applyTo: (args copyWith: val at: arg)]
 ].
 
-m@(Method traits) <- val
-[m fill: 0 with: val].
-
-m@(Method traits) <-1 val
-[m fill: 0 with: val].
-
-m@(Method traits) <-2 val
-[m fill: 1 with: val].
-
-m@(Method traits) <-3 val
-[m fill: 2 with: val].
-
-m@(Method traits) <-4 val
-[m fill: 3 with: val].
-
-m@(Method traits) <-5 val
-[m fill: 4 with: val].
-
 m@(Method traits) <-* val
 [
   [| *args | m applyTo: (args copyWith: val)]
@@ -458,7 +440,7 @@ Method traits define: #SequentialComposition &parents: {Method} &slots: {#method
 signatures and applies them in order to the same arguments."
 
 mc@(Method SequentialComposition traits) newForAll: c
-[mc cloneSettingSlots: #{#methods} to: {c as: mc methods}].
+[mc clone `>> [methods := c as: mc methods. ]].
 
 mc@(Method SequentialComposition traits) applyTo: args
 [mc contents do: #applyTo: `er <-* args].

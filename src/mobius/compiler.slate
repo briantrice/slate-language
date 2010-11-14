@@ -988,39 +988,16 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: r
   gen generate: block result: result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#<- on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg result: result].
-
-gen@(VM SSACompiler traits) generate: _@#<-1 on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 0) at: 1) from: msg result: result].
-
-gen@(VM SSACompiler traits) generate: _@#<-2 on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 1) at: 1) from: msg result: result].
-
-gen@(VM SSACompiler traits) generate: _@#<-3 on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 2) at: 1) from: msg result: result].
-
-gen@(VM SSACompiler traits) generate: _@#<-4 on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 3) at: 1) from: msg result: result].
-
-gen@(VM SSACompiler traits) generate: _@#<-5 on: args from: msg result: result
-"Optimizes currying calls on literal blocks using #fill:with:."
-[gen generate: #fill:with: on: (args copyWith: (Syntax Literal for: 4) at: 1) from: msg result: result].
-
 gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
 "Optimizes currying calls on literal blocks using #fill:with:."
 [
   (args first isSameAs: Syntax Block)
     ifTrue:
-      [gen generate: #fill:with:
-	   on: (args copyWith:
-	     (Syntax Literal for: args first inputVariables indexLast) at: 1)
-	   from: msg
-           result: result]
+      [gen
+         generate: #fill:with:
+         on: (args copyWith:
+                (Syntax Literal for: args first inputVariables indexLast) at: 1)
+         from: msg
+         result: result]
     ifFalse: [resend]
 ].
