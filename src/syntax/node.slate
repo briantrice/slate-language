@@ -380,9 +380,16 @@ w@(Syntax nodes Partial traits) isPlaceholder: node
 ].
 
 w@(Syntax nodes Partial traits) arity
-[| count |
+[| count countedImplicit |
   count := 0.
-  w walk: [| :node | (w isPlaceholder: node) ifTrue: [count := count + 1]].
+  w walk:
+    [| :node |
+     `conditions: (
+        [node == Syntax Placeholder]
+          -> [count += 1].
+        [node == Syntax ImplicitArgument /\ [countedImplicit isNil]]
+          -> [countedImplicit := node. count += 1]
+    )].
   count
 ].
 
@@ -394,11 +401,19 @@ w@(Syntax nodes Partial traits) isComplete
 ].
 
 w@(Syntax nodes Partial traits) completeWith: values
-[| valuesIn |
+[| valuesIn countedImplicit |
   valuesIn := values reader.
   w transformBy:
-    [| :node | (w isPlaceholder: node) /\ [valuesIn isAtEnd not]
-       ifTrue: [valuesIn next] ifFalse: [node]]
+    [| :node |
+     valuesIn isAtEnd
+       ifTrue: [node]
+       ifFalse:
+         [`conditions: (
+            [node == Syntax ImplicitArgument /\ [countedImplicit isNil]]
+              -> [countedImplicit := node. valuesIn next].
+            [node == Syntax Placeholder]
+              -> [valuesIn next]
+          ) otherwise: [node]]]
 ].
 
 w@(Syntax nodes Partial traits) evaluateIn: namespace &optionals: opts
