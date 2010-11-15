@@ -144,7 +144,7 @@ p@(Syntax Parser traits) nextExpression
    (token isSameAs: Syntax BeginVariables) ifTrue:
      [p error: 'Block headers are only valid in block literals.'].
    token == Syntax At ifTrue:
-     [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextDefinition))].
+     [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextSignatureOrDefinition))].
    lookAheadIndex += 1.
    (token isSameAs: Syntax Selector)
      \/ [token isSameAs: Syntax tokens Comment]
@@ -451,82 +451,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
   block
 ].
 
-p@(Syntax Parser traits) nextSignature
-"Parses and returns a method signature, which has the highest precedence."
-[| selector roles inputVariables optKeywords optVariables token signature |
-  selector := Nil.
-  roles := #{} writer.
-  inputVariables := #{} writer.
-  optKeywords := #{} writer.
-  optVariables := #{} writer.
-  (signature := Syntax Signature new)
-    recordPositionFrom: p.
-  [((token := p nextToken) isSameAs: Syntax BeginBlock)
-     \/ [token isSameAs: Syntax EndParenthesis]]
-    whileFalse:
-      [| variable |
-       (token isSameAs: Syntax Selector)
-         /\ [Syntax isUnarySelector: token value]
-         ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
-       variable := p newVariableNamed: name in: Nil.
-       token := p nextToken.
-       optKeywords size isZero
-         ifTrue:
-           [inputVariables nextPut: variable.
-            roles nextPut: ((token == Syntax At
-                               ifTrue: [p nextAtom]
-                               ifFalse: [Syntax Literal for: NoRole]) recordPositionFrom: p).
-            token == Syntax At ifTrue: [token := p nextToken].
-            (token isSameAs: Syntax Selector)
-              ifTrue:
-                [selector isNotNil
-                   /\ [(Syntax isOptionalSelector: token value) not]
-                   /\ [selector isKeywordSelector not
-                         \/ [token value isKeywordSelector not]]
-                   ifTrue:
-                     [p error: 'Bad selector name in method signature: ' ; selector].
-                 (Syntax isUnarySelector: token value)
-                   ifTrue:
-                     [selector := token value.
-                      (p peekToken isSameAs: Syntax Selector)
-                        /\ [Syntax isOptionalSelector: p peekToken value]
-                        ifTrue: [token := p nextToken]].
-                 (Syntax isBinarySelector: token value)
-                   ifTrue:
-                     [selector := token value].
-                 (Syntax isKeywordSelector: token value)
-                   ifTrue:
-                     [selector := selector
-                        ifNil: [token value]
-                        ifNotNil: [(selector name ; token value name) intern]].
-                 (Syntax isOptionalSelector: token value)
-                   ifTrue:
-                     [optKeywords nextPut: token value]]
-              ifFalse:
-                [(token isSameAs: Syntax BeginBlock)
-                   ifFalse:
-                     [p error: 'Bad selector name in method signature: ' ; token signifier].
-                 p undoToken: token]]
-         ifFalse:
-           [optVariables nextPut: variable.
-            (token isSameAs: Syntax Selector)
-              /\ [Syntax isOptionalSelector: token value]
-              ifTrue: [optKeywords nextPut: token value]
-              ifFalse:
-                [(token isSameAs: Syntax BeginBlock)
-                   ifFalse:
-                     [p error: 'Bad optional keyword in method signature: ' ; token printString].
-                 p undoToken: token]]].
-  selector ifNil: [p error: 'No selector name specified in method signature'].
-  signature selector := selector.
-  signature roles := roles contents.
-  signature inputVariables := inputVariables contents.
-  signature optionalKeywords := optKeywords contents.
-  signature optionalVariables := optVariables contents.
-  signature
-].
-
-p@(Syntax Parser traits) nextDefinition
+p@(Syntax Parser traits) nextSignatureOrDefinition
 "Parses and returns a method definition, which has the highest precedence."
 [| selector roles inputVariables optKeywords optVariables token result |
   selector := Nil.
