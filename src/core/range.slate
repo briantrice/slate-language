@@ -115,10 +115,10 @@ r1@(Range traits) = r2@(Range traits)
 
 r@(Range traits) hash
 [
-  (((r start hash bitShift: 2)
-      bitOr: r end hash)
-     bitShift: 1)
-    bitOr: r size
+  (r start hash bitShift: 2)
+    #(bitOr: r end hash)
+    #(bitShift: 1)
+    #(bitOr: r size)
 ].
 
 r@(Range traits) copy
@@ -198,7 +198,7 @@ r@(Range traits) collect: block
   0 below: r size do:
     [| :i |
      result at: i put: (block applyWith: each).
-     each := each + r step].
+     each += r step].
   result
 ].
 
@@ -211,9 +211,9 @@ r@(Range traits) do: block
   each := r start.
   r step isNegative
     ifTrue: [[r end <= each]
-	       whileTrue: [block applyWith: each. each := each + r step]]
+	       whileTrue: [block applyWith: each. each += r step]]
     ifFalse: [[r end >= each]
-		whileTrue: [block applyWith: each. each := each + r step]].
+		whileTrue: [block applyWith: each. each += r step]].
   r
 ].
 
@@ -222,9 +222,9 @@ r@(Range traits) reverseDo: block
   each := r start.
   r step isNegative
     ifTrue: [[r end >= each]
-	       whileTrue: [block applyWith: each. each := each - step]]
+	       whileTrue: [block applyWith: each. each -= step]]
     ifFalse: [[r end <= each]
-		whileTrue: [block applyWith: each. each := each - step]].
+		whileTrue: [block applyWith: each. each -= step]].
   r
 ].
 

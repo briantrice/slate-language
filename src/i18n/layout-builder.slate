@@ -78,13 +78,13 @@ Always when a duplicate is found, put the link between them to target."
 ].
 
 flat@(Unicode Trie traits) generatePhase2LinksInto: target
-[| flat duphash nonduphash codePoint current displayCounter |
+[| flat duphash nonduphash codePoint displayCounter |
  displayCounter := 0.
  duphash := Dictionary new.
  nonduphash := Dictionary new.
  0 upTo: 16r10FFFD do: [| :codePoint |
-   current := (flat atCode: codePoint).
-   current ifNotNil: [
+   (flat atCode: codePoint) ifNotNilDo:
+     [| :current |
       CharacterData Unicode DuplicateBuffer
 	 findDuplicate: current
 	 nonDuplicates: CharacterData Unicode NonDuplicateBuffer
@@ -92,22 +92,21 @@ flat@(Unicode Trie traits) generatePhase2LinksInto: target
 	 dupHash: duphash
 	 nonDupHash: nonduphash
 	 codePoint: codePoint.
-      displayCounter := displayCounter + 1.	      
-      displayCounter > 70 ifTrue: 
+      (displayCounter += 1) > 70 ifTrue: 
 	[Console ; '\n'.
 	 displayCounter := 0]].
    ].
 ].
 
 table@(Unicode Trie traits) generatePhase1Links
-[| dup links current |
- links := (ExtensibleArray new).
+[| links current |
+ links := ExtensibleArray new.
  table contents
    doWithIndex:  [| :each :index |
-		  current := (table at: index).
+		  current := table at: index.
 		  current ifNotNil: [
-		    dup := (table findDup: current below: index).
-                    dup ifNotNil: [links add: index -> dup]]].
+		    (table findDup: current below: index)
+                      ifNotNilDo: [| :dup | links add: index -> dup]]].
  links
 ].
 
@@ -121,16 +120,16 @@ links@(Sequence traits) writeCrosslinksTo: targetFileName
 	links
 	  do: [| :each |
 	        c := each key.
-	        byte1 := (c bitAnd:  16rFF).
-		byte2 := ((c bitAnd: 16rFF00) bitShift: -8).
-		byte3 := ((c bitAnd: 16rFF0000) bitShift: -16).
+	        byte1 := c bitAnd:  16rFF.
+		byte2 := (c bitAnd: 16rFF00) bitShift: -8.
+		byte3 := (c bitAnd: 16rFF0000) bitShift: -16.
 		targetStream nextPut: byte1.
 		targetStream nextPut: byte2.
 		targetStream nextPut: byte3.
 		c := each value.
-	        byte1 := (c bitAnd:  16rFF).
-		byte2 := ((c bitAnd: 16rFF00) bitShift: -8).
-		byte3 := ((c bitAnd: 16rFF0000) bitShift: -16).
+	        byte1 := c bitAnd:  16rFF.
+		byte2 := (c bitAnd: 16rFF00) bitShift: -8.
+		byte3 := (c bitAnd: 16rFF0000) bitShift: -16.
 		targetStream nextPut: byte1.
 		targetStream nextPut: byte2.
 		targetStream nextPut: byte3]

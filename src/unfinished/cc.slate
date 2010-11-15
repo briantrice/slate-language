@@ -478,7 +478,7 @@ par@(CC Parser traits) binarySearchIn: row for: symbolIndex size: step
   [start <= stop]
     whileTrue: [(row at: start) == symbolIndex
                   ifTrue: [^ start].
-                start := start + step].
+                start += step].
   0
 ].
 
@@ -700,7 +700,7 @@ node@(CC FSM Node traits) compileInto: class usingSelectorMap: dict
            stream := (String new &capacity: 1000) writer.
            stream ; (each == node
                        ifTrue: ['scanForToken']
-                       ifFalse: ['scan' ; ((index := index + 1) printName)]).
+                       ifFalse: ['scan' ; ((index += 1) printName)]).
            stream nextPut: $\n.
            stream ; (each asStatement: methodMap
                           usingSelectorMap: dict
@@ -719,7 +719,7 @@ node@(CC FSM Node traits) methodNameMapFor: methodNodes
              at: value
              put: (value == node
                      ifTrue: ['^ node scanForToken']
-                     ifFalse: ['^ node scan' ; (index := index + 1) printName])].
+                     ifFalse: ['^ node scan' ; (index += 1) printName])].
   methodMap
 ].
 
@@ -1161,7 +1161,7 @@ lr1@(CC LR1Item traits) printOn: s
            i = lr1 location ifTrue: [s ; ' . '].
            s nextPut: $\s.
            each printOn: s.
-           i := i + 1].
+           i += 1].
   lr1 location > lr1 rhs size
     ifTrue: [s ; ' . '].
   s nextPut: $;.
@@ -1553,7 +1553,7 @@ gr@(CC Grammar traits) reduceTableIndexFor: sym rhs: rhs
     [| :each |
      each = sym
        ifTrue: [^ (index + (each positionOf: rhs))].
-     index := index + each size].
+     index += each size].
   0
 ].
 

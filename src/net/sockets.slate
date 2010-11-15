@@ -324,8 +324,7 @@ s@(Net SocketStream traits) next: n
                 fds isEmpty ifTrue: [^ (arr first: totalRead)].
                 read := (s next: n - totalRead putInto: arr startingAt: totalRead).
                 read <= 0 ifTrue: [^ (arr first: totalRead)]. "fixme throw error?"
-                totalRead := totalRead + read.
-                totalRead = n ifTrue: [^ arr]]
+                (totalRead += read) = n ifTrue: [^ arr]]
 ].
 
 "This write should return immediately with the number written"
@@ -344,7 +343,6 @@ s@(Net SocketStream traits) nextPutAll: bytes
                 fds isEmpty ifTrue: [^ (bytes first: totalWritten)].
                 written := (s next: n - totalWritten putAll: bytes startingAt: totalWritten).
                 written <= 0 ifTrue: [^ (bytes first: totalWritten)]. "fixme throw error?"
-                totalWritten := totalWritten + written.
-                totalWritten = n ifTrue: [^ bytes]].
+                (totalWritten += written) = n ifTrue: [^ bytes]].
   bytes
 ].

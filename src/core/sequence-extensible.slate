@@ -340,7 +340,7 @@ es@(ExtensibleArray traits) remove: obj ifAbsent: block
           es contents at: es lastIndex put: es contents defaultElement.
           es lastIndex := es lastIndex - 1.
           ^ obj]
-      ifFalse: [index := index + 1]].
+      ifFalse: [index += 1]].
   block do
 ].
 
@@ -353,7 +353,7 @@ The method in ExtensibleCollection is O(N^2); this is O(N)."
    [| :index |
     (test applyWith: (es contents at: index)) ifFalse:
       [es contents at: n put: (es contents at: index).
-       n := n + 1]].
+       n += 1]].
   n to: es lastIndex do: [| :index | es contents at: index put: Nil].
   es lastIndex := n - 1.
   es
@@ -417,7 +417,7 @@ es@(ExtensibleArray traits) removeLast: n
   n > es size ifTrue: [n := es size].
   result := es contents new &capacity: n.
   es lastIndex above: (es lastIndex := es lastIndex - n)
-    do: [| :i | result at: (n := n - 1) put: (es contents at: i).
+    do: [| :i | result at: (n -= 1) put: (es contents at: i).
 	 es contents at: i put: es contents defaultElement].
   result
 ].
@@ -447,7 +447,7 @@ es@(ExtensibleArray traits) do: block
   limit := es lastIndex.
   [index <= limit] whileTrue:
     [block applyWith: (es contents at: index).
-     index := index + 1].
+     index += 1].
   es
 ].
 
@@ -456,7 +456,7 @@ es@(ExtensibleArray traits) reverseDo: block
   index := es lastIndex.
   [index >= es firstIndex] whileTrue:
     [block applyWith: (es contents at: index).
-     index := index - 1].
+     index -= 1].
   es
 ].
 
@@ -479,7 +479,7 @@ es@(ExtensibleArray traits) find: obj
   index := es firstIndex.
   [index <= es lastIndex] whileTrue:
     [(es contents at: index) = obj ifTrue: [^ index].
-     index := index + 1].
+     index += 1].
   Nil
 ].
 

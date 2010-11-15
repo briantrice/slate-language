@@ -149,7 +149,7 @@ indented."
       separatedBy:
         [o ; '.'.
           o newElement.
-          index := index + 1.
+          index += 1.
           index >= o collectionLimit
             ifTrue:
               [o ; '...)'. ^ o]]].
@@ -177,7 +177,7 @@ unprintable prototypes in them."
       separatedBy:
         [o ; '.'.
          o newElement.
-         index := index + 1.
+         index += 1.
          index >= o collectionLimit
            ifTrue:
              [o ; '...)'. ^ o]]].
@@ -315,24 +315,24 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits)
      ifTrue: [r + mUp > ((radix raisedTo: k) * s)]
      ifFalse: [(radix raisedTo: k negated) * (r + mUp) > s]]
     whileTrue:
-      [k := k + 1].
+      [k += 1].
   k >= 0
     ifTrue:
-      [s := s * (radix raisedTo: k)]
+      [s *= (radix raisedTo: k)]
     ifFalse:
       [| bk |
        bk := radix raisedTo: k negated.
-       r := r * bk.
-       mUp := mUp * bk.
-       mDown := mDown * bk].
+       r *= bk.
+       mUp *= bk.
+       mDown *= bk].
   digits := '' prettyPrinter.
   [d := r * radix // s.
    r := r * radix \\ s.
-   mUp := mUp * radix.
-   mDown := mDown * radix.
+   mUp *= radix.
+   mDown *= radix.
    r + mUp > s
      /\ [r >= mDown \/ [r * 2 >= s]]
-     ifTrue: [d := d + 1].
+     ifTrue: [d += 1].
    d printOn: digits &radix: radix.
    r < mDown \/ [r + mUp > s]
   ] whileFalse.
@@ -386,7 +386,7 @@ c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
   c do:
     [| :each |
      each printOn: o.
-     (index := index + 1) < tally
+     (index += 1) < tally
        ifTrue: [block do]].
   o
 ].
@@ -410,7 +410,7 @@ input if the argument is a literal collection, such as an Array."
      c printContentsOn: o separatedBy:
        [o ; '.'.
         o newElement.
-        index := index + 1.
+        index += 1.
         index >= o collectionLimit ifTrue:
           [o ; '...}.'. ^ o]]].
   o ; '}'
@@ -452,13 +452,13 @@ c@(Dictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
 [| index tally |
   index := 0.
   tally := 0.
-  c keysAndValuesDo: [| :key :val | tally := tally + 1].
+  c keysAndValuesDo: [| :key :val | tally += 1].
   c keysAndValuesDo:
     [| :key :val |
      key printOn: o.
      o ; ' -> '.
      val printOn: o.
-     (index := index + 1)
+     (index += 1)
        < tally ifTrue: [block do]].
   o
 ].

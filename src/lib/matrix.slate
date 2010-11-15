@@ -153,7 +153,7 @@ mat@(AbstractMatrix traits) fillWith: a multipliedBy: b
     0 below: mat width do: [| :col |
       elem := 0.
       0 below: a width do: [| :aCol |
-        elem := elem + ((a atRow: row column: aCol) *
+        elem += ((a atRow: row column: aCol) *
           (b atRow: aCol column: col))].
       mat atRow: row column: col put: elem]].
   mat
@@ -243,7 +243,7 @@ mat@(AbstractMatrix traits) eigenvaluesByQR
   [h isFirstSubDiagonalZero] whileFalse: [
     h storeQRDecompositionOfHessenbergSuperiorOnQ: q r: r.
     h fillWith: r multipliedBy: q.
-    (iter := iter + 1)
+    (iter += 1)
       > 1000 ifTrue: [error: 'Could not find real eigenvalues.']].
   h diagonal
 ].
@@ -464,7 +464,7 @@ argument."
   n - 2 downTo: 0 do: [| :i |
     sum := mat atRow: i column: n.
     n - 2 downTo: i + 1 do: [| :k |
-      sum := sum - ((mat atRow: i column: k) * (x atRow: k column: 0))].
+      sum -= ((mat atRow: i column: k) * (x atRow: k column: 0))].
     x atRow: i column: 0 put: sum / (mat atRow: i column: i)].
   x
 ].
@@ -480,11 +480,11 @@ mat@(AbstractMatrix traits) triangleWithPartialPivoting
      "Look for the pivot for j, from rowI down. Call it rowK."
      rowK := (mat rowWithMaxInColumn: j startingAtRow: rowI).
      (mat atRow: k column: j) = 0 /\ [j < self width]]
-      whileTrue: [jdelta := jdelta + 1].
+      whileTrue: [jdelta += 1].
     "Permute rowI and rowK."
     rowI = rowK ifFalse: [
       mat permuteRow: rowI with: rowK.
-      permCount := permCount + 1].
+      permCount += 1].
     "Subtract rowI to all the ones below it."
     rowI + 1 below: mat height do: [| :ii |
       (mat atRow: ii column: j) = 0.0 ifFalse: [
@@ -503,7 +503,7 @@ mat@(AbstractMatrix traits) determinant
   rowPermCount := mat triangleWithPartialPivoting.
   result := (-1 raisedTo: rowPermCount).
   0 below mat width do: [| :i |
-    result := result * (aux atRow: i column: i)].
+    result *= (aux atRow: i column: i)].
   result
 ].
 
@@ -600,9 +600,9 @@ mat@(AbstractMatrix traits) norm2Squared
   result := 0.0.
   mat width = 1
     ifTrue: [0 below: mat height do: [| :i |
-      result := result + (mat atRow: i column: 0) squared]].
+      result += (mat atRow: i column: 0) squared]].
     ifTrue: [0 below: mat width do: [| :i |
-      result := result + (mat atRow: 0 column: i) squared]].
+      result += (mat atRow: 0 column: i) squared]].
   result
 ].
 
@@ -612,7 +612,7 @@ mat@(AbstractMatrix traits) normalizeColumns
   0 below: mat width do: [| :col |
     normSquared := 0.0.
     0 below: mat height do: [| :row |
-      normSquared := normSquared + (mat atRow: row column: col) squared].
+      normSquared += (mat atRow: row column: col) squared].
     norm := normSquared sqrt.
     norm > 0 ifTrue: [mat multiplyColumn: col by: 1 / norm]].
   mat
@@ -624,7 +624,7 @@ mat@(AbstractMatrix traits) normalizeRows
   0 below: mat height do: [| :row |
     normSquared := 0.0.
     0 below: mat width do: [| :col |
-      normSquared := normSquared + (mat atRow: row column: col) squared].
+      normSquared += (mat atRow: row column: col) squared].
     (norm := normSquared sqrt)
       isPositive ifTrue: [mat multiplyColumn: col by: 1 / norm]].
   mat
@@ -811,7 +811,7 @@ r@(Matrix traits) fillWith: a@(Matrix traits) multipliedBy: b@(Matrix traits)
     0 below: r width do: [| :colR |
       elem := 0.
       0 below: a width do: [| :colA |
-        elem := elem + ((a elements at: colA * a height + rowR)
+        elem += ((a elements at: colA * a height + rowR)
           * (b elements at: colR * b height + colA))].
       r elements at: colR * r height + rowR put: elem]].
   r
@@ -839,10 +839,10 @@ mat@(Matrix traits) triangleWithPartialPivoting
       "Look for the pivot for column j, from row i down. Call it row k"
       k := mat rowWithMaxInColumn: j startingAtRow: i.
       (mat atRow: k column: j) = 0 /\ (j < mat width)]
-        whileTrue: [jdelta := jdelta + 1].
+        whileTrue: [jdelta += 1].
       "Permute rows k and i"
       i = k ifFalse: [mat permuteRow: i withRow: k.
-          permutationCount := permutationCount + 1].
+          permutationCount += 1].
       "Substract the row i to all the ones below it"
       jLessOneTimesHeight := j - 1 * mat height.
       pivot := (mat elements at: jLessOneTimesHeight + i).

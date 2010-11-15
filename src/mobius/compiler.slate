@@ -685,7 +685,7 @@ gen@(VM SSACompiler traits) buildBranchTableMapping: keys
   tableSize := 1.
   [tableSize < keys size]
     whileTrue:
-      [tableSize := tableSize * 2].
+      [tableSize *= 2].
   table := Array newSize: tableSize * 2.
   keys do:
     [| :key hash |
@@ -695,7 +695,7 @@ gen@(VM SSACompiler traits) buildBranchTableMapping: keys
           [key = (table at: hash)
             ifTrue:
               [error: 'Duplicate key ' ; key printString ; ' in caseOf:.'].
-            (hash := hash + 2) >= (tableSize * 2) ifTrue:
+            (hash += 2) >= (tableSize * 2) ifTrue:
               [hash := 0]].
       table at: hash put: key].
   table

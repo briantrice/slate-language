@@ -86,9 +86,8 @@ c@(Condition traits) tryHandlers
        [| :context :index |
         (delegates includes: context traits)
 	  ifTrue:
-            [[index := index - 1.
-              index >= 0 /\
-                [(conditionStack at: index) exitContinuation == context exitContinuation]]
+            [[(index -= 1) >= 0
+                /\ [(conditionStack at: index) exitContinuation == context exitContinuation]]
                whileTrue.
              c exitContinuation := context exitContinuation.
              context handlers do: #(applyWith: c) `er]].

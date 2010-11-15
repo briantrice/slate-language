@@ -70,8 +70,8 @@ a lot of calculation."
   final := 0.
   offset := 1.
   sc with: amd dimensions do: [| :index :dimSize |
-    final := final + (index * offset).
-    offset := offset * dimSize].
+    final += index * offset.
+    offset *= dimSize].
   final
 ].
 
@@ -110,7 +110,7 @@ s@(ArrayMD KeyStream traits) next
      keyValue < (s collection dimensionAt: keyIndex)
        ifTrue: [s nextKey at: keyIndex put: keyValue + 1.
                 incrementedIndex := keyIndex].
-     keyIndex := keyIndex - 1].
+     keyIndex -= 1].
   incrementedIndex
     ifNil: [s nextKey := Nil]
     ifNotNil:

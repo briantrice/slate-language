@@ -137,14 +137,13 @@ c@(Bag traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
 [| index tally |
   index := 0.
   tally := 0.
-  c contents keysDo: [| :_ | tally := tally + 1].
+  c contents keysDo: [| :_ | tally += 1].
   c elementsAndOccurrencesDo:
     [| :each :count |
      each printOn: o.
      o ; ' x '.
      count printOn: o.
-     index := index + 1.
-     index < tally ifTrue:
+     (index += 1) < tally ifTrue:
        [block do]].
   o
 ].

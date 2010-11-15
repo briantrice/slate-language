@@ -40,7 +40,7 @@ byte and then any following bytes as encoded, advancing the index."
   val := code bitAnd: 16r7F.
   [code >= 16r80]
     whileTrue:
-      [n := n + 1.
+      [n += 1.
        code := s method code at: n.
        val := val << 7 bitOr: (code bitAnd: 16r7F)].
   s codePosition := n + 1.
@@ -112,7 +112,7 @@ m@(CompiledMethod traits) printInstructionAt: pos on: out
     [| :codeIndex |
      out ; '     ' ; (m code at: codeIndex) printString
          ; ' ' ; (argOffset < instr argNames size ifTrue: [instr argNames at: argOffset] ifFalse: ['']) ; '\n'.
-     argOffset := argOffset + 1].
+     argOffset += 1].
   nextStart
 ].
 
@@ -133,7 +133,7 @@ m@(CompiledMethod traits) printCondensedInstructionAt: pos on: out
     [| :codeIndex |
      out ; ', ' ; (m code at: codeIndex) printString.
      argOffset < instr argNames size ifTrue: [out ; ' ' ; (instr argNames at: argOffset)].
-     argOffset := argOffset + 1].
+     argOffset += 1].
   out ; '\n'.
   nextStart
 ].

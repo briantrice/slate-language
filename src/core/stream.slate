@@ -364,7 +364,7 @@ source@(ReadStream traits) copyTo: sink &chunkSize: n
                    ([source next: n putInto: buffer]
                      on: source Exhaustion
                      do: #return `er ).
-		 total := total + position.
+		 total += position.
 		 sink next: position putAll: buffer].
   total
 ].
@@ -501,7 +501,7 @@ or (one past) the end of the Stream if nothing was found."
   [s isAtEnd not /\ [(targets includes: s next) not]] whileTrue.
   firstMatch := s position.
   s isAtEnd /\ [s position := s position - 1. (targets includes: s next) not]
-    ifTrue: [firstMatch := firstMatch + 1].
+    ifTrue: [firstMatch += 1].
   s position := start.
   firstMatch
 ].
@@ -672,7 +672,7 @@ s@(FilterStream traits) next: n putInto: seq startingAt: start
   [s source isAtEnd \/ [numWritten >= seq size]] whileFalse:
     [s source skipUntil: [| :elem | s block applyWith: elem].
      [s source isAtEnd not /\ [numWritten < seq size /\ [s block applyWith: s peek]]]
-       whileTrue: [result nextPut: s next. numWritten := numWritten + 1]].
+       whileTrue: [result nextPut: s next. numWritten += 1]].
   numWritten
 ].
 

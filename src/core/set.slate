@@ -154,7 +154,7 @@ c@(Set traits) doWithIndex: block
 [| index |
   index := -1.
   c do: [| :item |
-	 item ifNotNil: [block applyWith: item with: (index := index + 1)]].
+	 item ifNotNil: [block applyWith: item with: (index += 1)]].
 ].
 
 c@(Set traits) atNewIndex: index put: obj
@@ -173,7 +173,7 @@ placed below due to collisions with this one."
 [| length oldIndex newIndex element |
   oldIndex := index.
   length := c capacity.
-  [oldIndex := oldIndex + 1.
+  [oldIndex += 1.
     oldIndex >= length ifTrue: [oldIndex := 1].
     (element := c keyAt: oldIndex) isNil]
       whileFalse:

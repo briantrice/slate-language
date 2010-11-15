@@ -155,7 +155,7 @@ t@(SmartTerminal traits) display: cmd cursorAt: cursorPos &incremental: incremen
 t@(SmartTerminal traits) moveCursorTo: pos inCommand: cmd
 [| cols |
   cols := t columns.
-  pos := pos + t basePosition first.
+  pos += t basePosition first.
   t console moveCursorTo: (Tuple new*, (pos rem: cols), t basePosition second + (pos // cols)).
 ].
 
@@ -336,13 +336,13 @@ word and goes one word back."
 
   pos > line indexLast
     ifTrue: [pos := line indexLast]
-    ifFalse: [dynamic ifTrue: [pos := pos - 1. pos isNegative ifTrue: [^ 0]]].
+    ifFalse: [dynamic ifTrue: [pos -= 1. pos isNegative ifTrue: [^ 0]]].
   [pos isPositive /\
     [(line at: pos) isDelimiter]]
-      whileTrue: [pos := pos - 1].
+      whileTrue: [pos -= 1].
   [pos >= 0 /\
     [(line at: pos) isDelimiter not]]
-      whileTrue: [pos := pos - 1].
+      whileTrue: [pos -= 1].
   (line includesKey: pos + 1)
     ifTrue: [pos + 1]
     ifFalse: [pos]
@@ -360,14 +360,14 @@ word and goes one word forward."
 
   pos > line indexLast
     ifTrue: [pos := line indexLast]
-    ifFalse: [dynamic ifTrue: [pos := pos + 1. pos >= size ifTrue: [^ size]]].
+    ifFalse: [dynamic ifTrue: [pos += 1. pos >= size ifTrue: [^ size]]].
   (line at: pos) isDelimiter ifTrue: [^ pos].
   [pos < line indexLast /\
     [(line at: pos) isDelimiter]]
-      whileTrue: [pos := pos + 1].
+      whileTrue: [pos += 1].
   [pos < size /\
     [(line at: pos) isDelimiter not]]
-      whileTrue: [pos := pos + 1].
+      whileTrue: [pos += 1].
   pos
 ].
 
@@ -529,7 +529,7 @@ e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #DeleteWordBackwards)
 [| start |
   start := e wordStart.
-  start > 0 ifTrue: [start := start - 1].
+  start > 0 ifTrue: [start -= 1].
   e lineString at: start remove: e position - start.
   e position := start.
 ].
@@ -538,7 +538,7 @@ e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #DeleteWordForwards)
 [| end |
   end := e wordEnd.
-  end < e lineString size ifTrue: [end := end + 1].
+  end < e lineString size ifTrue: [end += 1].
   e lineString at: e position remove: end - e position.
 ].
 

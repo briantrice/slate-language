@@ -11,7 +11,7 @@ d@(Derivable traits) traitsReverseDo: block
   [index = tally]
     whileFalse:
       [block apply*, (d traitsWindow _delegates at: index).
-       index := index + 1]
+       index += 1]
 ].
 
 d@(Derivable traits) traitsDo: block
@@ -20,7 +20,7 @@ d@(Derivable traits) traitsDo: block
   index := d traitsTally.
   [index = 0]
     whileFalse:
-      [index := index - 1.
+      [index -= 1.
        block apply*, (d traitsWindow _delegates at: index)]
 ].
 
@@ -30,7 +30,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
   mixins `defaultsTo: #{}.
   "TODO: Bootstrap-replace these two lines with the third (commented):"
   tally := d traitsTally.
-  mixins do: [| :mixin | tally := tally + mixin traitsTally].
+  mixins do: [| :mixin | tally += mixin traitsTally].
   "tally := (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
   order := mixins newSize: tally.
 
@@ -43,7 +43,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
     [| :traits |
      (order identityIncludes: traits)
        ifFalse:
-         [order at: index put: traits. index := index + 1]].
+         [order at: index put: traits. index += 1]].
 
   mixins do:
     [| :mixin |
@@ -51,7 +51,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
        [| :traits |
         (order identityIncludes: traits)
           ifFalse:
-            [order at: index put: traits. index := index + 1]]].
+            [order at: index put: traits. index += 1]]].
 
   (order first: index) reversed
 
@@ -61,7 +61,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
 d@(Derivable traits) orderTraits: mixins
 [| tally order index fixedOrder |
   tally := mixins size.
-  mixins do: [| :mixin | tally := tally + mixin traitsTally].
+  mixins do: [| :mixin | tally += mixin traitsTally].
   order := Array newSize: tally.
 
   mixins doWithIndex: [| :each :i | order at: i put: each traits].
@@ -74,7 +74,7 @@ d@(Derivable traits) orderTraits: mixins
        [| :traits |
         (order identityIncludes: traits)
           ifFalse:
-            [order at: index put: traits. index := index + 1]]].
+            [order at: index put: traits. index += 1]]].
 
   (order first: index) reversed
 

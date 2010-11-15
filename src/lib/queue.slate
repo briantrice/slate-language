@@ -22,7 +22,7 @@ q@(Queue traits) new &capacity: n
 "The Queue always maintains atleast one unusable sentinel element so that
 all n requested elements may fit without lastIndex = firstIndex (the empty
 condition) occurring."
-[n ifNotNil: [n := n + 1]. resend clear].
+[n ifNotNil: [n += 1]. resend clear].
 
 s@(Sequence traits) as: es@(Queue traits)
 "Likewise, we have to protect the buggy coding of whoever wrote this class."
@@ -96,7 +96,7 @@ q@(Queue traits) at: n
 [| index |
   index := q firstIndex + n.
   index >= q contents size
-    ifTrue: [index := index - q contents size].
+    ifTrue: [index -= q contents size].
   q contents at: index
 ].
 
@@ -105,7 +105,7 @@ q@(Queue traits) at: n put: obj
 [| index |
   index := q firstIndex + n.
   index >= q contents size
-    ifTrue: [index := index - q contents size].
+    ifTrue: [index -= q contents size].
   q contents at: index put: obj
 ].
 

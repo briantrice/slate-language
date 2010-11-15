@@ -23,8 +23,8 @@ array@(Sequence traits) as: int@(Integer traits) &bigEndian: bigEndian &radix: r
   result := 0.
   position := 1.
   bigEndian
-    ifTrue: [array size - 1 downTo: 0 do: [| :i | result := (array at: i) * position + result. position := position * radix]]
-    ifFalse: [0 below: array size do: [| :i | result := (array at: i) * position + result. position := position * radix]].
+    ifTrue: [array size - 1 downTo: 0 do: [| :i | result := (array at: i) * position + result. position *= radix]]
+    ifFalse: [0 below: array size do: [| :i | result := (array at: i) * position + result. position *= radix]].
   result
 ].
 
@@ -46,7 +46,7 @@ i@(BigInteger traits) isZero
 
 x@(SmallInteger traits) as: i@(BigInteger traits)
 [| newI carry |
-  newI := (i newSize: x highBit // 8 + 1).
+  newI := i newSize: x highBit // 8 + 1.
   x isNegative
     ifTrue:
       [carry := 16r100.
@@ -54,12 +54,12 @@ x@(SmallInteger traits) as: i@(BigInteger traits)
          [| :index |
           carry := (carry byteShift: -1) + (x bitXor: 16rFF) intoByte.
           newI at: index put: carry intoByte.
-          x := (x byteShift: -1)]]
+          x := x byteShift: -1]]
     ifFalse:
       [newI keysDo:
         [| :index |
          newI at: index put: x intoByte.
-         x := (x byteShift: -1)]].
+         x := x byteShift: -1]].
   newI isNegative := x isNegative.
   newI
 ].
@@ -78,13 +78,13 @@ x@(BigInteger traits) as: i@(SmallInteger traits)
     ifTrue:
       [x do:
         [| :digit |
-          n := n + (digit negated byteShift: shift).
-          shift := shift + 1]]
+          n += (digit negated byteShift: shift).
+          shift += 1]]
     ifFalse:
       [x do:
         [| :digit |
-          n := n + (digit byteShift: shift).
-          shift := shift + 1]].
+          n += (digit byteShift: shift).
+          shift += 1]].
   n
 ].
 
@@ -94,7 +94,7 @@ i@(BigInteger traits) digitSize
 i@(BigInteger traits) hash
 [| result |
   result := 0.
-  i do: [| :digit | result := (result bitXor: digit)].
+  i do: [| :digit | result := result bitXor: digit].
   result
 ].
 
@@ -108,7 +108,7 @@ number of digits, then highest-to-lowest."
   size2 < size1 ifTrue: [^ 1].
   size1 - 1 downTo: 0
     do: [| :index |
-	 (digit2 := (i2 at: index)) = (digit1 := (i1 at: index))
+	 (digit2 := (i2 at: index)) = (digit1 := i1 at: index)
 	   ifFalse: [digit1 < digit2 ifTrue: [^ -1] ifFalse: [^ 1]]].
   0
 ].
@@ -174,8 +174,7 @@ shrunken to the smallest applicable size."
   i1 size < i2 size
     ifTrue: [smaller := i1. bigger := i2]
     ifFalse: [smaller := i2. bigger := i1].
-  newI := (bigger newSize: bigger size + 1).
-  newI isNegative :=
+  (newI := bigger newSize: bigger size + 1) isNegative :=
     (logicOp
       applyWith: (smaller isNegative ifTrue: [1] ifFalse: [0])
       with: (bigger isNegative ifTrue: [1] ifFalse: [0])) = 1.
@@ -184,25 +183,25 @@ shrunken to the smallest applicable size."
   c := 16r100.
   0 below: bigger size
     do: [| :index |
-      x := (index < smaller size ifTrue: [smaller at: index] ifFalse: [0]).
+      x := index < smaller size ifTrue: [smaller at: index] ifFalse: [0].
       smaller isNegative
         ifTrue:
           [a := (a byteShift: -1) + (x bitXor: 16rFF).
            x := a intoByte].
-      y := (bigger at: index).
+      y := bigger at: index.
       bigger isNegative
         ifTrue:
           [b := (b byteShift: -1) + (y bitXor: 16rFF).
            y := b intoByte].
-      z := (logicOp applyWith: x with: y).
+      z := logicOp applyWith: x with: y.
       newI isNegative
         ifTrue:
           [c := (c byteShift: -1) + (z bitXor: 16rFF).
            z := c intoByte].
       newI at: index put: z].
-  x := (smaller isNegative ifTrue: [16rFF] ifFalse: [0]).
-  y := (bigger isNegative ifTrue: [16rFF] ifFalse: [0]).
-  z := (logicOp applyWith: x with: y).
+  x := smaller isNegative ifTrue: [16rFF] ifFalse: [0].
+  y := bigger isNegative ifTrue: [16rFF] ifFalse: [0].
+  z := logicOp applyWith: x with: y.
   newI isNegative
     ifTrue:
       [c := (c byteShift: -1) + (z bitXor: 16rFF).
@@ -232,7 +231,7 @@ i1@(BigInteger traits) add: i2@(BigInteger traits)
     ifTrue: [smaller := i1. bigger := i2]
     ifFalse: [smaller := i2. bigger := i1].
   carry := 0.
-  sum := (i1 new &capacity: bigger size). "Sum gets the same sign as i1."
+  sum := i1 new &capacity: bigger size. "Sum gets the same sign as i1."
   0 below: smaller size
     do: [| :index |
       carry := (carry byteShift: -1)
@@ -244,7 +243,7 @@ i1@(BigInteger traits) add: i2@(BigInteger traits)
        + (bigger at: index).
      sum at: index put: carry intoByte].
   carry > 16rFF
-    ifTrue: [sum := (sum grownBy: 1).
+    ifTrue: [sum := sum grownBy: 1.
 	     sum at: sum size - 1 put: 1].
   sum
 ].
@@ -256,7 +255,7 @@ i1@(BigInteger traits) subtract: i2@(BigInteger traits)
     ifFalse: [smaller := i2. bigger := i1].
   borrow := 0.
   diff := bigger newSameSize.
-  diff isNegative := (i1 isNegative xor: i1 == smaller).
+  diff isNegative := i1 isNegative xor: i1 == smaller.
   0 below: smaller size
     do: [| :index |
       borrow := (borrow byteShift: -1)
@@ -285,8 +284,8 @@ i1@(BigInteger traits) - i2@(BigInteger traits)
 i1@(BigInteger traits) * i2@(BigInteger traits)
 [| result carry |
   i1 isZero \/ [i2 isZero] ifTrue: [^ 0].
-  result := (i1 new &capacity: (i1 highBit + i2 highBit + 1) // 8 + 1).
-  result isNegative := (i1 isNegative xor: i2 isNegative).
+  result := i1 new &capacity: (i1 highBit + i2 highBit + 1) // 8 + 1.
+  result isNegative := i1 isNegative xor: i2 isNegative.
   i1 doWithIndex:
     [| :each1 :index1 |
       carry := 0.
@@ -316,7 +315,7 @@ i@(BigInteger traits) lowBit
     ifFalse:
       [index := 0.
        [(i at: index) isZero]
-         whileTrue: [index := index + 1].
+         whileTrue: [index += 1].
        (i at: index) lowBit + (8 * index)]
 ].
 
@@ -327,13 +326,13 @@ i1@(BigInteger traits) add: i2 scaledBy: q at: offset
     [| :digit |
       carry := (carry byteShift: -1) + (i1 at: offset) + (digit * q).
       i1 at: offset put: carry intoByte.
-      offset := offset + 1
+      offset += 1
     ].
   [carry > 16rFF]
     whileTrue:
       [carry := (carry byteShift: -1) + (i1 at: offset).
         i1 at: offset put: carry intoByte.
-        offset := offset + 1].
+        offset += 1].
   i1
 ].
 
@@ -344,7 +343,7 @@ i1@(BigInteger traits) subtract: i2 at: offset
     [| :digit |
       borrow := (borrow byteShift: -1) + (i1 at: offset) - digit.
       i1 at: offset put: borrow intoByte.
-      offset := offset + 1
+      offset += 1
     ].
   borrow < 0
     ifTrue:
@@ -373,7 +372,7 @@ i1@(BigInteger traits) quoRem: i2@(BigInteger traits)
         0 -> [^ {1. 0}]
       }.
   shift := 7 - (i2 highBit bitAnd: 7).
-  quoRem := (i1 new &capacity: i1 size + 2).
+  quoRem := i1 new &capacity: i1 size + 2.
   i1 bitShift: shift into: quoRem.
   d := i2 newSameSize.
   i2 bitShift: shift into: d.
@@ -382,17 +381,17 @@ i1@(BigInteger traits) quoRem: i2@(BigInteger traits)
   quoRem size - 2
     downTo: d size
     do: [| :index |
-      q := (quoRem at: index).
-      q := (q = lastD
+      q := quoRem at: index.
+      q := q = lastD
         ifTrue: [16rFF]
-        ifFalse: [(q byteShift: 1) + (quoRem at: index - 1) quo: lastD]).
+        ifFalse: [(q byteShift: 1) + (quoRem at: index - 1) quo: lastD].
       quoRem add: d scaledBy: q at: index - d size.
       [(quoRem at: index) = q]
         whileFalse:
           [quoRem subtract: d at: index - d size.
-            q := q - 1]].      
-  quo := (i1 new &capacity: quoRem size - d size).
-  quo isNegative := (i1 isNegative xor: i2 isNegative).
+            q -= 1]].      
+  quo := i1 new &capacity: quoRem size - d size.
+  quo isNegative := i1 isNegative xor: i2 isNegative.
   quoRem bitShift: d size * -8 into: quo.
   rem := i2 newSameSize.
   quoRem at: d size put: 0.
@@ -402,8 +401,7 @@ i1@(BigInteger traits) quoRem: i2@(BigInteger traits)
   
 i1@(BigInteger traits) / i2@(BigInteger traits)
 [| quoRem |
-  quoRem := (i1 quoRem: i2).
-  quoRem second isZero "No remainder."
+  (quoRem := i1 quoRem: i2) second isZero "No remainder."
     ifTrue: [quoRem first]
     ifFalse: [resend] "Make a fraction."
 ].
@@ -456,7 +454,7 @@ i@(BigInteger traits) bitShift: n into: result
   carry := n isNegative /\ [offset isPositive] /\ [-1 - source < i size]
     ifTrue: [(i at: -1 - source) bitShift: offset]
     ifFalse: [0].
-  limit := (i size min: result size - source).
+  limit := i size min: result size - source.
   (source negated max: 0) below: limit 
     do: [| :index |
       carry := (carry byteShift: -1) + ((i at: index) bitShift: offset).
@@ -469,7 +467,7 @@ i@(BigInteger traits) bitShift: n into: result
 i@(BigInteger traits) bitShift: n@(SmallInteger traits)
 [| result |
   i isZero \/ [n isZero] ifTrue: [^ i].
-  result := (i new &capacity: (i highBit + n // 8 max: 0) + 1).
+  result := i new &capacity: (i highBit + n // 8 max: 0) + 1.
   i bitShift: n into: result.
   i isNegative /\ [i lowBit < n negated]
     ifTrue: [result - 1]
@@ -484,13 +482,10 @@ x@(Integer traits) raisedTo: y mod: n
   u := y.
   [u isZero]
     whileFalse:
-      [u isOdd
-	 ifTrue:
-	   [s := s * t.
-	    s >= n ifTrue: [s := s \\ n]].
-       t := t * t.
-       t >= n ifTrue: [t := t \\ n].
-       u := (u bitShift: -1)].
+      [u isOdd ifTrue:
+	 [(s *= t) >= n ifTrue: [s := s \\ n]].
+       (t *= t) >= n ifTrue: [t := t \\ n].
+       u := u bitShift: -1].
   s
 ].
 

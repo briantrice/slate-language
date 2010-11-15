@@ -350,13 +350,13 @@ p@(TextBuffer Pointer traits) moveOn: tb@(TextBuffer traits) distance: i@(Intege
          [p columnNo isZero
             ifTrue: [p lineNo := p lineNo - 1. p columnNo := (tb endOfLine: p lineNo)]
             ifFalse: [p columnNo := p columnNo - 1].
-          i := i + 1]]
+          i += 1]]
     ifFalse: "move forward"
       [[p = tb endOfBuffer \/ [i isZero]] whileFalse:
          [(p columnNo = (tb endOfLine: p lineNo))
             ifTrue: [p lineNo := p lineNo + 1. p columnNo := 0]
             ifFalse: [p columnNo := p columnNo + 1].
-          i := i - 1]].
+          i -= 1]].
 
   lobby inform: 'move to: ' ; p printString ; ' dist: ' ; i printString.
   p

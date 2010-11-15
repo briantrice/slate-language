@@ -260,7 +260,6 @@ s@(String traits) uncapitalized
     ifFalse: [s copy uncapitalize]
 ].
 
-
 s@(String traits) toUppercase
 "Modifies the Characters to be uppercase."
 [s infect: #toUppercase `er ].
@@ -500,11 +499,11 @@ s@(String traits) sprintf*
                 "Check for type specifiers:"
                 position ifNil:
                   [position := argsIndex.
-                   argsIndex := argsIndex + 1].
+                   argsIndex += 1].
                 width isNil /\ [star isNotNil] ifTrue:
                   [width := args at: position.
-                   position := position + 1.
-                   argsIndex := argsIndex + 1].
+                   position += 1.
+                   argsIndex += 1].
                 arg := args at: position.
                 nextChar := input next.
                 arg := (nextChar toLowercase caseOf: {
@@ -610,9 +609,9 @@ ch@(ASCIIString Character traits) rot13
 [| code |
   code := ch toLowercase code.
   code >= #[$a code] /\ [code < #[$n code]]
-    ifTrue: [code := code + 13]
+    ifTrue: [code += 13]
     ifFalse: [code > #[$m code] /\ [code <= #[$z code]]
-		ifTrue: [code := code - 13]].
+		ifTrue: [code -= 13]].
   ch isUppercase
     ifTrue: [(code as: ch) toUppercase]
     ifFalse: [code as: ch]

@@ -38,16 +38,16 @@ p@(Profile traits) parseResults
   p rawResults do:
     [| :method :callCount :selfTime :childCounts :childTimes countDict timeDict cumTime entry |
      method
-       ifNotNil: [totalTime := totalTime + selfTime.
+       ifNotNil: [totalTime += selfTime.
                   cumTime := selfTime.
                   countDict := Dictionary new.
                   timeDict := Dictionary new.
                   childCounts do: [| :key :val | key ifNotNil: [countDict at: key put: val]] inGroupsOf: 2.
-                  childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime := cumTime + val]]] inGroupsOf: 2.
+                  childTimes do: [| :key :val | key ifNotNil: [timeDict at: key put: val. key == method ifFalse: [cumTime += val]]] inGroupsOf: 2.
                   entry := p Entry clone `setting: #{#id. #method. #callCount. #selfTime. #cumulativeTime. #childCallCounts. #childCallTime}
                     to: {id as: String. method. callCount. selfTime. cumTime. countDict. timeDict }.
                   p results at: method put: entry.
-                  id := id + 1].
+                  id += 1].
  ] inGroupsOf: 5.
   p totalTime := totalTime.
 ].
@@ -91,7 +91,7 @@ p@(Profile traits) writeDotTo: filename &maxCount: maxCount
                       ; entry callCount printString ; '"]\n'.
 
                   totalChildTime := 0.
-                  entry childCallTime valuesDo: [|:childTime | totalChildTime := totalChildTime + childTime].
+                  entry childCallTime valuesDo: [|:childTime | totalChildTime += childTime].
                   totalChildTime := totalChildTime max: 1.
                   entry childCallCounts keysAndValuesDo:
                     [| :childMethod :childCallCount childTime |

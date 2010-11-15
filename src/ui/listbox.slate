@@ -220,7 +220,7 @@ m@(ListboxMorph traits) paintMyselfOn: surface@(Surface traits)
                                ifNil: [surface showText: item printString]
                                ifNotNil: [surface showText: (m printFunction applyWith: item)]].
 
-       heightOffset := heightOffset + itemHeight.
+       heightOffset += itemHeight.
    ].
 
 ].
@@ -233,9 +233,8 @@ m@(ListboxMorph traits) visibleItems
     [| :itemPos item itemHeight |
      item := m items at: itemPos.
      itemHeight := m itemSize := item.
-     itemCount := itemCount + 1.
-     heightOffset := heightOffset + itemHeight.
-     heightOffset > m height ifTrue: [^ itemCount]].
+     itemCount += 1.
+     (heightOffset += itemHeight) > m height ifTrue: [^ itemCount]].
   itemCount " = range size"
 ].
 
@@ -250,7 +249,7 @@ m@(ListboxMorph traits) selectionChanged
        (m selectedItems identityIncludes: item)
          ifTrue: [m selectionBoxes addLast: (Rectangle origin: 0 <> heightOffset
                                                corner: m width <> (heightOffset + itemHeight))].
-       heightOffset := heightOffset + itemHeight.
+       heightOffset += itemHeight.
 
    ].
 
@@ -278,9 +277,9 @@ m@(ListboxMorph traits) handleMyself: e@(MouseButtonClickEvent traits)
     [| :itemPos itemHeight |
      item := m items at: itemPos.
      itemHeight := m itemSize := item.
-     heightOffset := heightOffset + itemHeight.
+     heightOffset += itemHeight.
      clickPosition < heightOffset ifTrue: [m selectItem: item. ^ m].
-     heightOffset > m height ifTrue: [ ^ Nil]].
+     heightOffset > m height ifTrue: [^ Nil]].
   m selectItem: item.
   m
 ].

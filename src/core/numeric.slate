@@ -138,7 +138,7 @@ i@(SmallInteger traits) highBit
   bit := 0.
   n := i abs.
   [n > 2r1]
-    whileTrue: [bit := bit + 1. n := n bitShift: -1].
+    whileTrue: [bit += 1. n := n bitShift: -1].
   bit
 ].
 
@@ -254,7 +254,7 @@ f@(Float traits) truncated
           ifFalse: [f isNegative
                       ifTrue: [-1]
                       ifFalse: [0]])].
-  exponent := exponent - f bias.
+  exponent -= f bias.
   significand := (1 bitShift: f significandSize) bitOr: significand.
   n := significand bitShift: exponent - f significandSize.
   f isNegative
@@ -371,7 +371,7 @@ as it proceeds."
         [[(expon mod: 2) isZero] whileTrue:
           [expon := expon // 2.
            base := base squared mod: n].
-         expon := expon - 1.
+         expon -= 1.
          z := z * base mod: n]
        z]
 ].
@@ -408,7 +408,7 @@ itself."
   [q isOdd]
     whileFalse:
       [q := q bitShift: -1.
-       k := k + 1].
+       k += 1].
   25 timesRepeat: [(m isProbablyPrimeWithK: k andQ: q) ifFalse: [^ False]].
   True
 ].
@@ -425,9 +425,9 @@ Third Edition, section 4.5.4, page 395."
    j isPositive /\ [y isUnit] ifTrue: [^ False].
    True]
     whileTrue:
-      [j := j + 1.
-       j < k ifTrue: [y := y squared \\ m]
-             ifFalse: [^ False]]
+      [(j += 1) < k
+         ifTrue: [y := y squared \\ m]
+         ifFalse: [^ False]]
 ].
 
 n@(Integer traits) primesDo: block
@@ -443,7 +443,7 @@ order)."
         remaining := remaining // div].
    remaining = 1] whileFalse:
      [div := next.
-      next := next + 2] "Just looks at the next odd integer."
+      next += 2] "Just looks at the next odd integer."
 ].
 
 x@(Number traits) truncated
@@ -622,10 +622,10 @@ It's zero outside of Pascal's triangle."
   r isNegative \/ [r > n] ifTrue: [^ 0].
   num := 1.
   n above: (r max: n - r)
-    do: [| :factor | num := num * factor].
+    do: [| :factor | num *= factor].
   denom := 1.
   1 to: (r min: n - r)
-    do: [| :factor | denom := denom * factor].
+    do: [| :factor | denom *= factor].
   num // denom
 ].
 
@@ -652,7 +652,7 @@ x@(Number traits) raisedTo: y@(Integer traits)
        [count isPositive]
          whileTrue:
            [result := result squared.
-            (y bitAnd: count) isZero ifFalse: [result := result * x].
+            (y bitAnd: count) isZero ifFalse: [result *= x].
             count := count bitShift: -1].
        result]
   ) otherwise: [(x raisedTo: y negated) reciprocal]
