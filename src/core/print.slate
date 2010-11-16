@@ -79,11 +79,11 @@ c@(Collection traits) prettyPrinter
 "Answer a new PrettyPrinter on the argument."
 [c writer prettyPrinter].
 
-x@(Root traits) prettyPrintOn: s
-[x printOn: s writer prettyPrinter].
+x@(Root traits) prettyPrintOn: s &depth: depth
+[x printOn: s writer prettyPrinter &depth: depth].
 
-x@(Root traits) prettyPrinted
-[(x prettyPrintOn: '') contents].
+x@(Root traits) prettyPrinted &depth: depth
+[(x prettyPrintOn: '') contents &depth: depth].
 
 "Ensure the Console writer and DebugConsole writer are PrettyPrinter objects."
 "Only do this once during bootstrap"
@@ -92,24 +92,24 @@ x@(Root traits) prettyPrinted
 (DebugConsole writeStream is: Stream PrettyPrinter)
   ifFalse: [DebugConsole atSlotNamed: #writeStream put: (Stream PrettyPrinter newOn: DebugConsole writer)].
 
-x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign
+x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign &depth: depth
 "Utility for pretty-printing to a String."
 [| printer |
   [printer := '' prettyPrinter.
-   x printOn: printer &radix: radix &precision: prec &forceSign: forceSign.
+   x printOn: printer &radix: radix &precision: prec &forceSign: forceSign &depth: depth.
    printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
 
-x@(Root traits) printOn: out &radix: radix &precision: prec &forceSign: forceSign
+x@(Root traits) printOn: out &radix: radix &precision: prec &forceSign: forceSign &depth: depth
 "Print the object on the Console. Always answers the object back."
 [
-  x printOn: out writer &radix: radix &precision: prec &forceSign: forceSign
+  x printOn: out writer &radix: radix &precision: prec &forceSign: forceSign &depth: depth
 ].
 
-x@(Root traits) print &radix: radix &precision: prec &forceSign: forceSign
+x@(Root traits) print &radix: radix &precision: prec &forceSign: forceSign &depth: depth
 "Print the object on the Console. Always answers the object back."
 [
-  x printOn: Console writer &radix: radix &precision: prec &forceSign: forceSign.
+  x printOn: Console writer &radix: radix &precision: prec &forceSign: forceSign &depth: depth.
   x
 ].
 
@@ -120,13 +120,15 @@ x printOn: o@(PrettyPrinterMixin traits)
   o ; '("Unprintable")'
 ].
 
-x@(Root traits) printOn: o@(PrettyPrinterMixin traits)
+x@(Root traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "Handle the (non-dispatchable) NoRole case, then print whatever suitable
 defined name along in braces and followed by the slot names and values,
 indented."
 [| doPrintName |
   x == NoRole
     ifTrue: [^ (o ; 'NoRole')].
+  depth `defaultsTo: 3.
+  depth isZero ifTrue: [^ Nil].
   doPrintName := #printName isFoundOn: {x}.
   o ; '('.
   doPrintName ifTrue:
@@ -145,7 +147,7 @@ indented."
       [| :each |
         o ; (each as: String)
           ; ': '.
-        (x atSlotNamed: each) printOn: o]
+        (x atSlotNamed: each) printOn: o &depth: depth - 1]
       separatedBy:
         [o ; '.'.
           o newElement.
@@ -156,10 +158,12 @@ indented."
   o ; ')'
 ].
 
-ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits)
+ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "Print out only the slot names, since these tend to be really large and have
 unprintable prototypes in them."
 [| doPrintName |
+  depth `defaultsTo: 3.
+  depth isZero ifTrue: [^ Nil].
   doPrintName := #name isFoundOn: {ns}.
   o ; '('.
   doPrintName ifTrue:
@@ -378,23 +382,27 @@ x@(Association traits) printOn: o@(PrettyPrinterMixin traits)
   x value printOn: o.
 ].
 
-c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block &depth: depth
 "A generic iteration through the elements, with printing of each."
 [| index tally |
+  depth `defaultsTo: 3.
+  depth isZero ifTrue: [^ Nil].
   tally := c size.
   index := 0.
   c do:
     [| :each |
-     each printOn: o.
+     each printOn: o &depth: depth - 1.
      (index += 1) < tally
        ifTrue: [block do]].
   o
 ].
 
-c@(Collection traits) printOn: o@(PrettyPrinterMixin traits)
+c@(Collection traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "The template for all collection object printing; this is only valid Slate
 input if the argument is a literal collection, such as an Array."
 [| doPrintName |
+  depth `defaultsTo: 3.
+  depth isZero ifTrue: [^ Nil].
   doPrintName := (c isSameAs: Array) not /\ [#printName isFoundOn: {c}].
   o ; '{'.
   doPrintName ifTrue: [o ; '"' ; c printName ; '"'].
@@ -412,14 +420,16 @@ input if the argument is a literal collection, such as an Array."
         o newElement.
         index += 1.
         index >= o collectionLimit ifTrue:
-          [o ; '...}.'. ^ o]]].
+          [o ; '...}.'. ^ o]] &depth: depth - 1].
   o ; '}'
 ].
 
-c@(Sequence traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+c@(Sequence traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block &depth: depth
 "A basis for other printing methods."
 [
-  c do: #(printOn: o) `er separatedBy: [block do].
+  depth `defaultsTo: 3.
+  depth isZero ifTrue: [^ Nil].
+  c do: [| :each | each printOn: o &depth: depth] separatedBy: [block do].
   o
 ].
 
