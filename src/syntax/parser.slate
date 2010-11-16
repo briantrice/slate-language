@@ -257,22 +257,22 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
 ].
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message traits)
-[| token keywords argumentNames |
-  argumentNames := #{} writer.
+[| token keywords arguments |
+  arguments := #{} writer.
   keywords :=
     [| :keywords |
      [((token := p nextToken) isSameAs: Syntax Selector)
         /\ [Syntax isOptionalSelector: token value]]
        whileTrue:
          [keywords nextPut: token value intern.
-          argumentNames nextPut: p nextBinaryMessages]]
+          arguments nextPut: p nextBinaryMessages]]
        writingAs: #{}.
   p undoToken: token.
   keywords isEmpty
     ifTrue: [message]
     ifFalse: [(Syntax OptionalKeywords for: message) `>>
                 [keywords := keywords.
-                 arguments := argumentNames contents.
+                 arguments := arguments contents.
                  recordPositionFrom: p. ]]
 ].
 

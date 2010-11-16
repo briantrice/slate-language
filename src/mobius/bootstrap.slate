@@ -548,7 +548,6 @@ gen@(Generator traits) generateKernelAccessors
 gen@(Generator traits) generatePrototype: name &suffix: suffix &layout: layout &parents: parents &slots: slotSpecs &elements: elements
 [| traits window result |
   suffix `defaultsTo: 'Proto'.
-  slotSpecs `defaultsTo: {}.
   traits := (gen addObjectNamed: (name ; 'Traits') intern valued: gen newObject)
     `>> [addDelegateValued: Nil. ].
   window := (gen addObjectNamed: (name ; 'Window') intern valued: gen newObject)
@@ -564,7 +563,7 @@ gen@(Generator traits) generatePrototype: name &suffix: suffix &layout: layout &
     `>> [addDelegateValued: window. ].
   elements ifNotNil:
     [(result hasSlotNamed: #elements) ifTrue: [result elements := elements]].
-  slotSpecs do:
+  (slotSpecs `defaultsTo: {}) do:
     [| :spec | result makeSlotNamed: spec key valued: spec value].
   result
 ].
