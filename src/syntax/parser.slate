@@ -127,7 +127,7 @@ p@(Syntax Parser traits) check: found is: expected@(Sequence traits)
 
 p@(Syntax Parser traits) expected: expected@(Sequence traits) butFound: found
 [| expectNames |
-  (expectNames := expected collect: #signifier `er select: #isNotNil `er )
+  (expectNames := expected collect: #signifier `er select: #isNotNil `er)
     size > 1 ifTrue:
       [expectNames
          at: expectNames indexLast
@@ -213,7 +213,7 @@ Type annotation suffixes may also be chained (for no particular reason)."
     [[(token := p nextToken &interactive: p parseInteractively)
         isSameAs: Syntax Type]
        whileTrue:
-	 [node type := p nextAtom
+         [node type := p nextAtom
             ifNil: [p error: 'No type given after type declaration marker.']
             ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace]].
      p undoToken: token].
@@ -264,7 +264,7 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
      [((token := p nextToken) isSameAs: Syntax Selector)
         /\ [Syntax isOptionalSelector: token value]]
        whileTrue:
-         [keywords nextPut: token value.
+         [keywords nextPut: token value intern.
           argumentNames nextPut: p nextBinaryMessages]]
        writingAs: #{}.
   p undoToken: token.
@@ -295,13 +295,13 @@ p@(Syntax Parser traits) nextBinaryMessages &after: node
   [((token := p nextToken &interactive: p parseInteractively)
       is: Syntax Selector)
      /\ [Syntax isBinarySelector: token value]
-     /\ [(p SpecialBinarySelectors includes: token value) not]]
+     /\ [p SpecialBinarySelectors noneSatisfy: [| :sel | token value =~ sel]]]
     whileTrue:
       [result := result isNil /\ [Syntax isReturnSelector: token value]
          ifTrue:
            [(token value caseOf:
-               {#^ -> [Syntax ReturnClose].
-                 #^^ -> [Syntax ReturnFar]}
+               {'^' -> [Syntax ReturnClose].
+                '^^' -> [Syntax ReturnFar]}
                otherwise: [Syntax ReturnLevel by:
                              (Integer readFrom: token value allButFirst)])
               of: p nextUnaryMessages]
@@ -336,7 +336,7 @@ into a single selector with arguments."
               [messageType ifNil: [messageType := token messageType].
                (Syntax isKeywordSelector: token value)
                  ifFalse: [p error: 'Bad keyword token'].
-               selector ; token value name.
+               selector ; token value.
                result nextPut:
                  (p nextBinaryMessages ifNil: [p error: 'Bad keyword argument (being implicit).'])].
           p undoToken: token] writingAs: #{}.
@@ -347,7 +347,7 @@ into a single selector with arguments."
            [(p currentScope findVariable: selector allButLast intern)
               ifNotNilDo:
                 [| :variable | ^ ((variable store: arguments second) recordPositionFrom: p)]].
-       (messageType sending: selector intern to: arguments) recordPositionFrom: p]
+       (messageType sending: selector to: arguments) recordPositionFrom: p]
     ifFalse: [argument]
 ].
 
@@ -356,7 +356,7 @@ p@(Syntax Parser traits) nextSpecialBinaryMessages &after: node
 [| token result |
   result := p nextKeywordMessages &after: node.
   [((token := p nextToken &interactive: p parseInteractively) is: Syntax Selector)
-     /\ [p SpecialBinarySelectors includes: token value]]
+     /\ [p SpecialBinarySelectors anySatisfy: [| :sel | token value =~ sel]]]
     whileTrue:
       [result := Syntax nodes BinaryMacro sending: token value to:
          (p nextExpression ifNil: [{result}] ifNotNilDo: [| :rhs | {result. rhs}])].
@@ -381,7 +381,7 @@ p@(Syntax Parser traits) nextPartial &after: node
 
 p@(Syntax Parser traits) newVariableNamed: name in: block
 [
-  Syntax Variable clone `>> [name := name. scope := block. recordPositionFrom: p ]
+  Syntax Variable clone `>> [name := name intern. scope := block. recordPositionFrom: p ]
 ].
 
 p@(Syntax Parser traits) nextBlock &updating: block
@@ -400,43 +400,43 @@ p@(Syntax Parser traits) nextBlock &updating: block
              [token isSameAs: Syntax EndVariables]
                whileFalse:
                  [| variable name varName |
-		  (token isSameAs: Syntax Selector)
+                  (token isSameAs: Syntax Selector)
                     ifFalse: [p error: 'Bad variable declaration'].
-		  name := token value.
-		  (Syntax isUnarySelector: name)
+                  name := token value.
+                  (Syntax isUnarySelector: name)
                     ifTrue:
                       [variable := block localVariables
-                         detect: [| :var | var name = name /\ [name ~= #_]]
+                         detect: [| :var | name =~ var name /\ [(name =~ #_) not]]
                          ifNone: [p newVariableNamed: name in: block]]
                     ifFalse:
-                      [varName := name name allButFirst intern.
+                      [varName := name allButFirst intern.
                        (Syntax isUnarySelector: varName) ifFalse:
                          [p error: 'Bad rest variable declaration: ' ; name].
-                       varName ~= #_
-                         /\ [block localVariables anySatisfy: [| :var | var name = varName]]
+                       (varName =~ #_) not
+                         /\ [block localVariables anySatisfy: [| :var | varName =~ var name]]
                          ifTrue: [p error: 'Variable already declared: ' ; varName].
                        variable := p newVariableNamed: varName in: block.
                        name first caseOf:
                          {$* -> [block restVariable := variable].
                           $: -> [inputVariables nextPut: variable].
-                          $& -> [optKeywords nextPut: name.
+                          $& -> [optKeywords nextPut: name intern.
                                  optVariables nextPut: variable]}
-			 otherwise: [p error: 'Bad declaration in Block header: ' ; name]].
-		  p recordDeclaredTypeOf: variable.
-		  token := p nextToken.
-		  variable name = #_
-                    \/ [block localVariables noneSatisfy: [| :var | var name = variable name]]
-		    ifTrue: [block localVariables := block localVariables copyWith: variable]]]
-	  ifFalse: [p undoToken: token].
+                         otherwise: [p error: 'Bad declaration in Block header: ' ; name]].
+                  p recordDeclaredTypeOf: variable.
+                  token := p nextToken.
+                  variable name =~ #_
+                    \/ [block localVariables noneSatisfy: [| :var | variable name =~ var name]]
+                    ifTrue: [block localVariables := block localVariables copyWith: variable]]]
+          ifFalse: [p undoToken: token].
         block inputVariables := block inputVariables ; inputVariables contents.
         block optionalKeywords := block optionalKeywords ; optKeywords contents.
         block optionalVariables := block optionalVariables ; optVariables contents.
         "Defines the order of locals: inputs, optionals, rest, then non-optional locals."
         block localVariables :=
-	  block inputVariables ;
-	  block optionalVariables ;
-	  (block restVariable ifNil: [#{}] ifNotNil: [{block restVariable}]) ;
-	  (block localVariables select:
+          block inputVariables ;
+          block optionalVariables ;
+          (block restVariable ifNil: [#{}] ifNotNil: [{block restVariable}]) ;
+          (block localVariables select:
              [| :var |
               (block inputVariables includes: var) not
                 /\ [(block optionalVariables includes: var) not]
@@ -479,8 +479,8 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
               ifTrue:
                 [selector isNotNil
                    /\ [(Syntax isOptionalSelector: token value) not]
-                   /\ [selector isKeywordSelector not
-                         \/ [token value isKeywordSelector not]]
+                   /\ [(Syntax isKeywordSelector: selector) not
+                         \/ [(Syntax isKeywordSelector: token value) not]]
                    ifTrue:
                      [p error: 'Bad selector name in method signature: ' ; selector].
                  (Syntax isUnarySelector: token value)
@@ -496,15 +496,15 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
                    ifTrue:
                      [selector := selector
                         ifNil: [token value]
-                        ifNotNil: [(selector name ; token value name) intern]].
+                        ifNotNil: [selector ; token value]].
                  (Syntax isOptionalSelector: token value)
                    ifTrue:
-                     [optKeywords nextPut: token value]]
+                     [optKeywords nextPut: token value intern]]
               ifFalse:
                 [p undoToken: token.
                  token == Syntax BeginBlock ifFalse:
                    [^ ((result `>>
-                          [selector := selector.
+                          [selector := selector intern.
                            roles := roles contents.
                            inputVariables := inputVariables contents.
                            optionalKeywords := optKeywords contents.
@@ -514,20 +514,20 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
            [optVariables nextPut: variable.
             (token isSameAs: Syntax Selector)
               /\ [Syntax isOptionalSelector: token value]
-              ifTrue: [optKeywords nextPut: token value]
+              ifTrue: [optKeywords nextPut: token value intern]
               ifFalse:
                 [p undoToken: token.
                  (token isSameAs: Syntax BeginBlock)
                    ifFalse:
                      [^ ((result `>>
-                            [selector := selector.
+                            [selector := selector intern.
                              roles := roles contents.
                              inputVariables := inputVariables contents.
                              optionalKeywords := optKeywords contents.
                              optionalVariables := optVariables contents. ]
                             as: Syntax Signature) recordPositionFrom: p)]]]].
   selector ifNil: [p error: 'No selector name specified in method definition'].
-  result selector := selector.
+  result selector := selector intern.
   result roles := roles contents.
   result inputVariables := inputVariables contents.
   result optionalKeywords := optKeywords contents.

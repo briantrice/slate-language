@@ -237,7 +237,7 @@ l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
     ifTrue:
       [emptyToken ifNil: [l error: 'Message selector must not be empty.']]
     ifFalse:
-      [type for: result contents intern]
+      [type for: result contents]
 ].
 
 l@(Syntax Lexer traits) readLiteral
@@ -253,8 +253,7 @@ l@(Syntax Lexer traits) readLiteral
          $\' -> [l newLiteralFor: ([| :result c |
                   [(c := l nextCharacter) == $\']
                     whileFalse:
-                      [result nextPut: (l characterFor: c)]] writingAs: String)
-                   intern].
+                      [result nextPut: (l characterFor: c)]] writingAs: String)].
          $#  -> [l nextCharacter = $\(
                    ifTrue: [Syntax BeginLiteralParenthesis]
                    ifFalse: [l error: 'Expected ( after ##']]

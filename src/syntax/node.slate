@@ -121,7 +121,7 @@ m@(Syntax nodes Message traits) prototypeFor: selector
 
 message@(Syntax nodes Message traits) sending: selector to: arguments
 [(message prototypeFor: selector) clone `setting: #{#selector. #arguments} to:
-  {selector. arguments}].
+  {selector intern. arguments}].
 
 x@(Syntax nodes Message traits) as: y@(Syntax nodes Message traits)
 [y sending: x selector to: x arguments].
@@ -698,7 +698,7 @@ block@(Syntax nodes Block traits) findVariable: name
 corresponding to the given name, and answers what it can find, or Nil if none."
 [
   block localVariables
-    detect: [| :var | var name = name]
+    detect: [| :var | name =~ var name]
     ifNone: [block parentScope findVariable: name]
 ].
 
@@ -1024,7 +1024,7 @@ store@(Syntax nodes StoreVariable traits) deepCopy: scope
   (scope findVariable: store variable name)
     ifNil:
       [Syntax KeywordMessage
-	sending: (store variable name name ; ':') intern
+	sending: store variable name name ; ':'
 	to: {Syntax ImplicitArgument. store value deepCopy: scope}]
     ifNotNilDo:
       [| :var | store of: (store value deepCopy: scope) into: var]
