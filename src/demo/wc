@@ -8,17 +8,17 @@ define: #options -> (scriptArgs select: [| :arg | arg first = $-] collect: #allB
 
 options isEmpty ifTrue: [define: #options -> 'clw'].
 
-define: #rawInputs ->
-((scriptArgs indexOf: [| :each | (each first = $-) not])
+#rawInputs :=
+(scriptArgs indexOf: [| :each | (each first = $-) not])
   ifNil: [{Console}]
   ifNotNilDo:
     [| :index |
      ((index below: scriptArgs indexLast)
-       collect: [| :idx | File newNamed: (scriptArgs at: idx)])]).
+       collect: [| :idx | File newNamed: (scriptArgs at: idx)])].
 
-define: #byteCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
-define: #wordCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
-define: #lineCounts -> (rawInputs collect: [| :_ | Counter newOn: 0]).
+#byteCounts := rawInputs collect: [| :_ | Counter newOn: 0].
+#wordCounts := rawInputs collect: [| :_ | Counter newOn: 0].
+#lineCounts := rawInputs collect: [| :_ | Counter newOn: 0].
 
 rawInputs doWithIndex:
   [| :in :idx |

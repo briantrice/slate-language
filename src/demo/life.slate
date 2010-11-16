@@ -32,12 +32,12 @@ g@(LifeGame traits) new
   (Console is: SmartConsole) ifFalse:
     [error: 'The Life demo only runs on a SmartConsole. If the plugin is loaded and available then entering "repl." should activate it.'. ^ Nil].
   g clone `>> [| :newG |
-    screen: Console.
-    height: Console height.
-    width: Console width.
-    cells: (g cells new &capacity: newG height * newG width).
-    newCells: newG cells copy.
-    randomStream: (g randomStream newSeed: 4357).
+    screen := Console.
+    height := Console height.
+    width := Console width.
+    cells := g cells new &capacity: newG height * newG width.
+    newCells := newG cells copy.
+    randomStream := g randomStream newSeed: 4357.
     init. ]
 ].
 
@@ -53,23 +53,23 @@ g@(LifeGame traits) at: x at: y
 
 g@(LifeGame traits) neighborsOf: array
 [| index n atTop atBottom atLeft atRight |
-  n: 0.
-  index: array first + (array second * g width).
-  atTop: array second isZero.
-  atBottom: array second = (g height - 1).
-  atLeft: array first isZero.
-  atRight: array first = (g width - 1).
+  n := 0.
+  index := array first + (array second * g width).
+  atTop := array second isZero.
+  atBottom := array second = (g height - 1).
+  atLeft := array first isZero.
+  atRight := array first = (g width - 1).
 
   atTop ifFalse: [
-    n: n + (g cells at: index - g width).
-    atLeft ifFalse: [n: n + (g cells at: index - g width - 1)].
-    atRight ifFalse: [n: n + (g cells at: index - g width + 1)]].
-  atLeft ifFalse: [n: n + (g cells at: index - 1)].
-  atRight ifFalse: [n: n + (g cells at: index + 1)].
+    n += g cells at: index - g width.
+    atLeft ifFalse: [n += g cells at: index - g width - 1].
+    atRight ifFalse: [n += g cells at: index - g width + 1]].
+  atLeft ifFalse: [n += g cells at: index - 1].
+  atRight ifFalse: [n += g cells at: index + 1].
   atBottom ifFalse: [
-    n: n + (g cells at: index + g width).
-    atLeft ifFalse: [n: n + (g cells at: index + g width - 1)].
-    atRight ifFalse: [n: n + (g cells at: index + g width + 1)]].
+    n += g cells at: index + g width.
+    atLeft ifFalse: [n += g cells at: index + g width - 1].
+    atRight ifFalse: [n += g cells at: index + g width + 1]].
   n
 ].
 
@@ -78,9 +78,9 @@ g@(LifeGame traits) calcNewState
 [| n index |
   0 below: g height do: [| :y |
     0 below: g width do: [| :x |
-      n: (g neighborsOf: {x. y}).
-      index: x + (y * g width).
-      (n > 3 or: [n < 2])
+      n := g neighborsOf: {x. y}.
+      index := x + (y * g width).
+      n > 3 \/ [n < 2]
         ifTrue: [g newCells at: index put: 0]
         ifFalse: [n = 3
           ifTrue: [g newCells at: index put: 1]
@@ -92,9 +92,9 @@ g@(LifeGame traits) step
 "Iterate: swap new with old arrays, and display the new one."
 [| temp |
   g calcNewState.
-  temp: g newCells.
-  g newCells: g cells.
-  g cells: temp.
+  temp := g newCells.
+  g newCells := g cells.
+  g cells := temp.
   g redraw
 ].
 
@@ -103,12 +103,12 @@ g@(LifeGame traits) redraw
   0 below: g height do: [| :y width |
     g screen moveCursorTo: {0. y}.
     (y >= (g height - 1)) /\ [g screen autoScrollsAtBottom]
-      ifTrue: [width: g width - 1]
-      ifFalse: [width: g width].
+      ifTrue: [width := g width - 1]
+      ifFalse: [width := g width].
     0 below: width do: [| :x |
       (g at: x at: y) isZero
-        ifTrue: [g screen backgroundColor: g screen colors Blue]
-        ifFalse: [g screen backgroundColor: g screen colors Green].
+        ifTrue: [g screen backgroundColor := g screen colors Blue]
+        ifFalse: [g screen backgroundColor := g screen colors Green].
       g screen writer nextPut: $\s]].
   g screen flush.
 ].
