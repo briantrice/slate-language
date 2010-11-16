@@ -266,7 +266,7 @@ w@(Syntax nodes MessageWrapper traits) deepCopy: scope
 ].
 
 Syntax nodes define: #OptionalKeywords &parents: {Syntax nodes MessageWrapper}
-  &slots: {#keywords. #arguments}.
+  &slots: {#keywords -> {}. #arguments -> {}}.
 "Annotates a Message with optional keywords and values given."
 
 x@(Syntax nodes OptionalKeywords traits) = y@(Syntax nodes OptionalKeywords traits)
@@ -299,8 +299,8 @@ opts@(Syntax nodes OptionalKeywords traits) evaluateIn: namespace
   opts message evaluateIn: namespace &optionals:
     ([| :result |
        opts keywords with: opts arguments
-         do: [| :key :arg | result nextPutAll: {key. arg evaluateIn: namespace}]
-     ] writingAs: Array)
+         do: [| :key :arg | result nextPutAll: {key intern. arg evaluateIn: namespace}]
+     ] writingAs: #{})
 ].
 
 Syntax nodes define: #RestArguments &parents: {Syntax nodes MessageWrapper}
@@ -672,7 +672,7 @@ block@(Syntax nodes Block traits) addOptionalKeyword: key named: name
 then returning it."
 [| var |
   var := block addVariableNamed: name.
-  block optionalKeywords := block optionalKeywords ; { key }.
+  block optionalKeywords := block optionalKeywords ; { key intern }.
   block optionalVariables := block optionalVariables ; { var }.
   var
 ].
