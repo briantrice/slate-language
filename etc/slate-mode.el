@@ -216,32 +216,36 @@
 
 (defconst slate-font-lock-keywords
   `((,(concat "#[" slate-name-chars slate-binop-chars "_:]+")
-     . font-lock-constant-face)    ; symbol
+     . font-lock-constant-face)                        ; symbol
     ("#'\\([^']\\|\\'\\)*'" . font-lock-constant-face) ; quoted symbol
     ("\"\\([^\"]\\|\\\"\\)\"" . font-lock-comment-face) ; comment
     (,(concat "[$]\\([^\\\\]\\|\\\\[^x]\\|\\\\x" hexdigit-regexp hexdigit-regexp "[^\\]\\)")
-     . font-lock-string-face)        ; character
+     . font-lock-string-face)                          ; character
     ("[^#$\\]'\\(.\\|\'\\)*'" . font-lock-string-face) ; string
     (,(concat "`" slate-name-regexp ":[^" slate-name-chars "_]")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; macro keyword call
+      'font-lock-builtin-face))         ; macro keyword call
     (,(concat "`\\(" slate-binop-regexp "\\|" slate-name-regexp "[:]?\\)\\>")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; macro call
-    ("\\(=?:=\\|\\<^\\)\\>"
+      'font-lock-builtin-face))         ; macro call
+    ("[^#]\\(=?:=\\>\\)"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-keyword-face)) ; assignment/match/unify/return specials
+      'font-lock-keyword-face))      ; assignment/match/unify specials
     ("\\<[-+*/]=\\>"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-keyword-face)) ; op-assignment specials
+      'font-lock-keyword-face))         ; op-assignment specials
+    ("\\<\\(\\^[0-9^]?\\>\\)"
+     . ,(if (boundp 'font-lock-preprocessor-face)
+        'font-lock-preprocessor-face
+     'font-lock-keyword-face))          ; return specials
     ("`+"
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
-      'font-lock-builtin-face)) ; quotation syntax
+      'font-lock-builtin-face))         ; quotation syntax
     (,slate-opt-keyword-regexp
      . font-lock-variable-name-face)    ; optional keywords
     ("\\(?:_\\|[A-Za-z]+[_A-Za-z0-9]*\\)@+?"
