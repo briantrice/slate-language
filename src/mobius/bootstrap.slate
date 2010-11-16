@@ -37,7 +37,6 @@ map@(Map traits) addSlotNamed: name at: offset
   map slotTable infect: #clone `er.
   map slotTable := map slotTable copyWith:
     (map surroundings SlotEntry newNamed: name offset: offset).
-  map
 ].
 
 map@(Map traits) addRoleNamed: name at: position dispatching: def
@@ -84,24 +83,12 @@ obj@(Object traits) makeSlotNamed: name valued: value
   obj
 ].
 
-obj@(Object traits) addDelegateValued: value
-[
-  obj bmap := obj bmap clone `>>
-    [delegates := obj bmap delegates copyWith: value. ].
-  obj
-].
-
-obj@(Object traits) addRoleNamed: name at: position dispatching: def
-[
-  obj bmap addRoleNamed: name at: position dispatching: def
-].
-
 obj@(Object traits) setSlot: name to: val
 [
   obj bmap slotTable
     do: [| :slot | slot name = name ifTrue:
       [^ (obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords put: val)]].
-  Nil
+  error: 'Slot missing: ' ; name
 ].
 
 obj@(Object traits) setSlots: namesAndValues
@@ -114,7 +101,19 @@ obj@(Object traits) getSlot: name
   obj bmap slotTable
     do: [| :slot | slot name = name ifTrue:
       [^ (obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords)]].
-  Nil
+  error: 'Slot missing: ' ; name
+].
+
+obj@(Object traits) addDelegateValued: value
+[
+  obj bmap := obj bmap clone `>>
+    [delegates := obj bmap delegates copyWith: value. ].
+  obj
+].
+
+obj@(Object traits) addRoleNamed: name at: position dispatching: def
+[
+  obj bmap addRoleNamed: name at: position dispatching: def
 ].
 
 method@(Object traits) addMethodNamed: name on: roles
@@ -347,7 +346,8 @@ gen@(Generator traits) emitObjectHashed: hash sized: size payload: payload forma
 [
   "fix: check big endian"
   "header"
-  (gen littleEndian not) ifTrue: [ gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
+  gen littleEndian ifFalse:
+    [gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
   stream nextPutAll:
     ((gen littleEndian
       ifTrue:
@@ -360,14 +360,13 @@ gen@(Generator traits) emitObjectHashed: hash sized: size payload: payload forma
           (hash >> 8) intoByte.
           hash intoByte.
           format}]) as: ByteArray).
-  (gen littleEndian) ifTrue: [ gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
+  gen littleEndian ifTrue:
+    [gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
 
   "size in words of slot data"
   gen emitLong: size on: stream.
   "size in bytes of payload (oop array or byte array)"
   gen emitLong: payload on: stream.  
-
-
 
   stream
 ].
@@ -416,7 +415,6 @@ gen@(Generator traits) emitHeaderOn: stream
   gen emitLong: ((gen objectNamed: #GlobalsObject) getSlot: #specialOops) oop on: stream.
 "i shortened dispatch id to one word"
   gen emitLong: 0 on: stream.
-
 ].
 
 gen@(Generator traits) emitOn: stream
@@ -439,7 +437,7 @@ gen@(Generator traits) addObjectNamed: name valued: obj
 gen@(Generator traits) newIdentityHash
 [| hash |
   hash := gen nextHash.
-  gen nextHash := gen nextHash + 1.
+  gen nextHash += 1.
   hash
 ].
 
@@ -771,12 +769,12 @@ gen@(Generator traits) generateLobby
    set up traits traits, and set up printName. Make sure all bootstrapped protos
    are listed here, otherwise these important steps are left out for them."
   [| :slotName :objectName obj window traits |
-    obj: (gen objectNamed: objectName).
+    obj := gen objectNamed: objectName.
     (gen objectNamed: #PrototypesObject) makeSlotNamed: slotName valued: obj.
     gen addAccessorFor: slotName on: (gen objectNamed: #PrototypesObject).
-    window: obj bmap delegates first.
+    window := obj bmap delegates first.
     window bmap delegates at: 0 put: (gen objectNamed: #CloneableWindow).
-    traits: window bmap delegates last"(window getSlot: #traits)".
+    traits := window bmap delegates last"(window getSlot: #traits)".
     traits bmap delegates at: 0 put: (gen objectNamed: #CloneableWindow).
     traits makeSlotNamed: #printName valued: (gen generateLiteral: slotName name ; ' traits').
     gen addAccessorFor: #printName on: traits.
@@ -837,35 +835,45 @@ gen@(Generator traits) generateLinkage
 "TODO: The order in this method must be the same as in memory.slate, enforce it"
 [
   (gen objectNamed: #GlobalsObject) setSlot: #specialOops to:
-    (gen cloneOf: (gen objectNamed: #ArrayProto)
-      elements:
-        {(gen objectNamed: #BootstrapObject).
-         (gen objectNamed: #NoRoleObject). (gen objectNamed: #NilObject). (gen objectNamed: #TrueObject). (gen objectNamed: #FalseObject).
-         (gen objectNamed: #ArrayProto).
-         (gen objectNamed: #ByteArrayProto).
-         (gen objectNamed: #ASCIIStringProto).
-         (gen objectNamed: #MapProto). (gen objectNamed: #MethodDefinitionProto).
-         (gen objectNamed: #SmallIntegerProto). (gen objectNamed: #FloatProto).
-         (gen objectNamed: #ClosureWindow). (gen objectNamed: #CompiledMethodWindow). (gen objectNamed: #PrimitiveMethodWindow).
-         (gen objectNamed: #ClosureProto). (gen objectNamed: #LexicalContextProto). (gen objectNamed: #InterpreterObject).
-         (gen objectNamed: #EnsureMarkerObject).
-         gen generateLiteral: #notFoundOn:.
-         gen generateLiteral: #notFoundOn:after:.
-         gen generateLiteral: #wrongInputsTo:.
-         gen generateLiteral: #mayNotReturnTo:.
-         gen generateLiteral: #slotNotFoundNamed:.
-         gen generateLiteral: #keyNotFoundOn:.
-	 gen generateLiteral: #immutable.
-         gen generateLiteral: #bitShiftOverflow:.
-         gen generateLiteral: #addOverflow:.
-         gen generateLiteral: #subtractOverflow:.
-         gen generateLiteral: #multiplyOverflow:.
-         gen generateLiteral: #divideByZero.
-         gen generateLiteral: #notABoolean.
-         gen generateLiteral: #applyTo:.
-         gen generateLiteral: #&optionals:.
-         gen generateLiteral: #badTypeError}).
-  (gen objectNamed: #GlobalsObject) setSlot: #bootstrapSymbols to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: gen symbols valueSet).
+    (gen cloneOf: (gen objectNamed: #ArrayProto) elements:
+       (#{#BootstrapObject.
+          #NoRoleObject.
+          #NilObject.
+          #TrueObject.
+          #FalseObject.
+          #ArrayProto.
+          #ByteArrayProto.
+          #ASCIIStringProto.
+          #MapProto.
+          #MethodDefinitionProto.
+          #SmallIntegerProto.
+          #FloatProto.
+          #ClosureWindow.
+          #CompiledMethodWindow.
+          #PrimitiveMethodWindow.
+          #ClosureProto.
+          #LexicalContextProto.
+          #InterpreterObject.
+          #EnsureMarkerObject.
+      } collect: #(gen objectNamed: _) `er)
+       ; ({#notFoundOn:.
+           #notFoundOn:after:.
+           #wrongInputsTo:.
+           #mayNotReturnTo:.
+           #slotNotFoundNamed:.
+           #keyNotFoundOn:.
+	   #immutable.
+           #bitShiftOverflow:.
+           #addOverflow:.
+           #subtractOverflow:.
+           #multiplyOverflow:.
+           #divideByZero.
+           #notABoolean.
+           #applyTo:.
+           #&optionals:.
+           #badTypeError} collect: #(gen generateLiteral: _) `er)).
+  (gen objectNamed: #GlobalsObject) setSlot: #bootstrapSymbols to:
+    (gen cloneOf: (gen objectNamed: #ArrayProto) elements: gen symbols valueSet).
 ].
 
 gen@(Generator traits) generatePrimitive: prim at: index
@@ -879,13 +887,13 @@ index. Must be called after generateImageBooting:."
       #inputVariables -> prim roles size.
       #index -> index
     }.
-    addMethodNamed: prim selector
-      on: (prim roles collect:
-	[| :role |
-         (role isSameAs: Syntax UnaryMessage)
-           ifTrue:
-             [inform: ' Adding primitive %s to %s', index, role selector.
-              gen objectNamed: role selector]]) ]
+    addMethodNamed: prim selector on:
+      (prim roles collect:
+	 [| :role |
+          (role isSameAs: Syntax UnaryMessage)
+            ifTrue:
+              [inform: ' Adding primitive %s to %s', index, role selector.
+               gen objectNamed: role selector]]) ]
 ].
 
 gen@(Generator traits) generateLiteral: literal
@@ -919,7 +927,8 @@ gen@(Generator traits) generateLiteral: s@(imports ASCIIString traits)
 [
   s isEmpty
     ifTrue: [gen objectNamed: #ASCIIStringProto]
-    ifFalse: [gen cloneOf: (gen objectNamed: #ASCIIStringProto) elements: (s collect: #code`er into: (ByteArray newSizeOf: s))]
+    ifFalse: [gen cloneOf: (gen objectNamed: #ASCIIStringProto) elements:
+                (s collect: #code`er into: (ByteArray newSizeOf: s))]
 ].
 
 gen@(Generator traits) generateLiteral: s@(imports Symbol traits)
@@ -927,7 +936,8 @@ gen@(Generator traits) generateLiteral: s@(imports Symbol traits)
   gen symbols
     at: s
     ifAbsentPut:
-      [gen cloneOf: (gen objectNamed: #SymbolProto) elements: (s name collect: #code`er into: (ByteArray newSizeOf: s name))]
+      [gen cloneOf: (gen objectNamed: #SymbolProto) elements:
+         (s name collect: #code`er into: (ByteArray newSizeOf: s name))]
 ].
 
 gen@(Generator traits) generateLiteral: f@(imports SingleFloat traits)
@@ -949,7 +959,8 @@ gen@(Generator traits) generateLiteral: a@(imports Array traits)
 [
   a isEmpty
     ifTrue: [gen objectNamed: #ArrayProto]
-    ifFalse: [gen cloneOf: (gen objectNamed: #ArrayProto) elements: (a collect: [| :each | gen generateLiteral: each])]
+    ifFalse: [gen cloneOf: (gen objectNamed: #ArrayProto) elements:
+                (a collect: #(gen generateLiteral: _) `er)]
 ].
 
 gen@(Generator traits) generateLiteral: c@(imports ASCIIString Character traits)
@@ -970,8 +981,7 @@ gen@(Generator traits) generateLiteral: block@(imports CompiledMethod traits)
       #selectors -> (gen generateLiteral: block selectors).
       #code -> (gen generateLiteral: block code)}. ].
   obj setSlot: #method to: obj.
-  block optionalKeywords isEmpty
-    ifFalse:
-      [obj setSlot: #optionalKeywords to: (gen generateLiteral: block optionalKeywords)].
+  block optionalKeywords isEmpty ifFalse:
+    [obj setSlot: #optionalKeywords to: (gen generateLiteral: block optionalKeywords)].
   obj
 ].
