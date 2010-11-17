@@ -32,11 +32,32 @@ Syntax tokens define: #Selector &parents: {Syntax tokens TokenWithValue}.
 _@(Syntax tokens Selector traits) is: _@(Syntax tokens Selector traits) [True].
 _@(Syntax tokens Token traits) is: _@(Syntax tokens Selector traits) [False].
 
+ns@Syntax isUnarySelector: sel@(Syntax tokens Selector traits)
+[ns isUnarySelector: sel value].
+
+ns@Syntax isBinarySelector: sel@(Syntax tokens Selector traits)
+[ns isBinarySelector: sel value].
+
+ns@Syntax isKeywordSelector: sel@(Syntax tokens Selector traits)
+[ns isKeywordSelector: sel value].
+
+ns@Syntax isOptionalSelector: sel@(Syntax tokens Selector traits)
+[ns isOptionalSelector: sel value].
+
+ns@Syntax isReturnSelector: sel@(Syntax tokens Selector traits)
+[ns isReturnSelector: sel value].
+
+ns@Syntax isUnarySelector: sel@(Syntax tokens Token traits) [False].
+ns@Syntax isBinarySelector: sel@(Syntax tokens Token traits) [False].
+ns@Syntax isKeywordSelector: sel@(Syntax tokens Token traits) [False].
+ns@Syntax isOptionalSelector: sel@(Syntax tokens Token traits) [False].
+ns@Syntax isReturnSelector: sel@(Syntax tokens Token traits) [False].
+
 _ nextLiteralFrom: token@(Syntax tokens Selector traits) [token value].
 
 parser nextFrom: token@(Syntax tokens Selector traits)
 [
-  (Syntax isUnarySelector: token value)
+  (Syntax isUnarySelector: token)
     ifTrue:
       [(parser currentScope findVariable: token value)
          ifNil:
@@ -55,7 +76,7 @@ Syntax tokens define: #MacroSelector &parents: {Syntax tokens Selector}.
 
 _ nextFrom: token@(Syntax tokens MacroSelector traits)
 [
-  (Syntax isUnarySelector: token value) ifTrue:
+  (Syntax isUnarySelector: token) ifTrue:
     [Syntax UnaryMacro sending: token value to: {Syntax ImplicitArgument}]
 ].
 
@@ -66,7 +87,7 @@ Syntax tokens define: #DeferredSelector &parents: {Syntax tokens Selector}.
 
 _ nextFrom: token@(Syntax tokens DeferredSelector traits)
 [
-  (Syntax isUnarySelector: token value) ifTrue:
+  (Syntax isUnarySelector: token) ifTrue:
     [Syntax UnaryDeferred
        sending: token value to: {Syntax ImplicitArgument}]
 ].
@@ -269,7 +290,7 @@ parser nextFrom: token@(Syntax tokens Eventually traits)
 [
   Syntax UnaryMessage sending: #eventually to:
     {(Syntax Block newFor: parser nextAtom) `>>
-      [parentScope := parser currentScope. ] recordPositionFrom: parser}
+      [parentScope := parser currentScope. recordPositionFrom: parser]}
 ].
 
 _@(Syntax tokens Eventually traits) signifier ['%'].

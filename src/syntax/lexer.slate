@@ -229,19 +229,20 @@ l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
 
 l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
 "Read a selector symbol into a token."
-[| result c |
-  result := '' writer.
-  l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
-    [l nextWordCharactersInto: result].
-  result contents isEmpty
+[| result |
+  result :=
+    [| :result |
+     l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
+       [l nextWordCharactersInto: result]] writingAs: ''.
+  result isEmpty
     ifTrue:
       [emptyToken ifNil: [l error: 'Message selector must not be empty.']]
     ifFalse:
-      [type for: result contents]
+      [type for: result]
 ].
 
-l@(Syntax Lexer traits) readLiteral
-"This handles the literal brace array syntaxes."
+l@(Syntax Lexer traits) readLiteralPastHash
+"This handles the literal brace array syntaxes as well as literal symbols."
 [
   l hasMoreCharacters
     /\ ['({[\'#' includes: l peekCharacter]
@@ -250,10 +251,12 @@ l@(Syntax Lexer traits) readLiteral
          $\( -> [Syntax BeginPartial].
          $\{ -> [Syntax BeginLiteralArray].
          $\[ -> [Syntax BeginLiteralBlock].
-         $\' -> [l newLiteralFor: ([| :result c |
-                  [(c := l nextCharacter) == $\']
-                    whileFalse:
-                      [result nextPut: (l characterFor: c)]] writingAs: String)].
+         $\' -> [l newLiteralFor:
+                   ([| :result c |
+                     [(c := l nextCharacter) == $\']
+                       whileFalse:
+                         [result nextPut: (l characterFor: c)]]
+                      writingAs: String) intern].
          $#  -> [l nextCharacter = $\(
                    ifTrue: [Syntax BeginLiteralParenthesis]
                    ifFalse: [l error: 'Expected ( after ##']]
@@ -280,7 +283,7 @@ read-table."
     $\' -> [l readString].
     $\" -> [l readComment].
     $$ -> [l readCharacter].
-    $# -> [l readLiteral].
+    $# -> [l readLiteralPastHash].
     $( -> [Syntax BeginParenthesis].
     $) -> [Syntax EndParenthesis].
     ${ -> [Syntax BeginArray].
@@ -290,7 +293,7 @@ read-table."
     $@ -> [Syntax At].
     $. -> [Syntax EndStatement].
     $, -> [Syntax Comma].
-    $| -> [Syntax BeginVariables].
+    $\| -> [Syntax BeginVariables].
     $! -> [Syntax Type].
     $` -> [l readSelector: Syntax MacroSelector &ifEmpty: Syntax Quote].
     $% -> [l readSelector: Syntax DeferredSelector &ifEmpty: Syntax Eventually].

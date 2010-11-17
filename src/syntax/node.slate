@@ -165,8 +165,8 @@ b@(Syntax nodes Node traits) allSelectorsSent
    b walk: [| :node | (node is: Syntax Message) ifTrue:
      [result nextPut: node selector.
       ({#sendTo:. #sendTo:through:} includes: result selector)
-	/\ [node arguments first is: Symbol]
-	ifTrue: [result nextPut: node arguments first]]]]
+        /\ [node arguments first is: Symbol]
+        ifTrue: [result nextPut: node arguments first]]]]
     writingAs: IdentitySet
 ].
 
@@ -193,11 +193,10 @@ condition which is resumable via macro-expansion?)"
   (macro macroExpand &optionals:
     (opts
       ifNotNil:
-        [Syntax OptionalKeywords new
-	   `setting: #{#message. #keywords. #arguments}
-		 to: {macro.
-                      opts atAll: (0 below: opts size by: 2).
-		      opts atAll: (1 below: opts size by: 2)}]))
+        [Syntax OptionalKeywords new `>>
+           [message := macro.
+            keywords := opts atAll: (0 below: opts size by: 2).
+            arguments := opts atAll: (1 below: opts size by: 2). ]]))
     evaluateIn: namespace
 ].
 
@@ -773,7 +772,7 @@ b@(Syntax nodes Block traits) modifiesInputVariables
 "Answers whether there are any direct variable stores to inputs."
 [
   b walk: [| :node | (node is: Syntax StoreVariable) /\
-	     [b inputVariables includes: node variable] ifTrue: [^ True]].
+             [b inputVariables includes: node variable] ifTrue: [^ True]].
   False
 ].
 
@@ -783,10 +782,10 @@ b@(Syntax nodes Block traits) allSelectorsSent
    b walk:
      [| :node |
       (node isSameAs: Syntax LoadVariable) \/
-	[node isSameAs: Syntax StoreVariable]
+        [node isSameAs: Syntax StoreVariable]
       ifTrue: [result nextPut: node variable name]
       ifFalse: [(node is: Syntax Message)
-		ifTrue: [result nextPut: node selector]]].
+                ifTrue: [result nextPut: node selector]]].
    ] writingAs: Set
 ].
 
@@ -797,8 +796,8 @@ b@(Syntax nodes Block traits) allSelectorsSentToVar: var
   [| :result |
    b statements walk:
      [| :expr | (expr is: Syntax Message)
-	/\ [expr arguments includes: loadExpr]
-	ifTrue: [result nextPut: expr selector]]
+        /\ [expr arguments includes: loadExpr]
+        ifTrue: [result nextPut: expr selector]]
    ] writingAs: Set
 ].
 
@@ -823,10 +822,10 @@ b@(Syntax nodes Block traits) allSelectorsSentImplicitly
   [| :result |
    b statements walk:
      [| :node | (node is: Syntax Message)
-		ifTrue: [node arguments do:
-		  [| :arg | (arg is: Syntax LoadVariable) /\
-		     [arg variable = Syntax ImplicitArgument]
-			    ifTrue: [result nextPut: node selector]]]].
+                ifTrue: [node arguments do:
+                  [| :arg | (arg is: Syntax LoadVariable) /\
+                     [arg variable = Syntax ImplicitArgument]
+                            ifTrue: [result nextPut: node selector]]]].
    ] writingAs: Set
 ].
 
@@ -977,8 +976,8 @@ load@(Syntax nodes LoadVariable traits) deepCopy: scope
 [
   (scope findVariable: load variable name)
     ifNil: [Syntax UnaryMessage
-	      sending: load variable name
-	      to: {Syntax ImplicitArgument}]
+              sending: load variable name
+              to: {Syntax ImplicitArgument}]
     ifNotNilDo: #(load from: _) `er
 ].
 
@@ -1024,8 +1023,8 @@ store@(Syntax nodes StoreVariable traits) deepCopy: scope
   (scope findVariable: store variable name)
     ifNil:
       [Syntax KeywordMessage
-	sending: store variable name name ; ':'
-	to: {Syntax ImplicitArgument. store value deepCopy: scope}]
+        sending: store variable name name ; ':'
+        to: {Syntax ImplicitArgument. store value deepCopy: scope}]
     ifNotNilDo:
       [| :var | store of: (store value deepCopy: scope) into: var]
 ].
@@ -1091,7 +1090,7 @@ n@(Syntax nodes Node traits) allSelectorsSent
 [
   [| :calls |
    n walk: [| :node | (node is: Syntax Message)
-		        ifTrue: [calls nextPut: node selector]]]
+                        ifTrue: [calls nextPut: node selector]]]
     writingAs: (IdentitySet new &capacity: 100)
 ].
 
@@ -1100,7 +1099,7 @@ n@(Syntax nodes Node traits) allMacroSelectorsSent
 [
   [| :calls |
    n walk: [| :node | (node is: Syntax Macro)
-		        ifTrue: [calls nextPut: node selector]]]
+                        ifTrue: [calls nextPut: node selector]]]
     writingAs: (IdentitySet new &capacity: 100)
 ].
 

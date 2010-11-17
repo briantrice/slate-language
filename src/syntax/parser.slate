@@ -250,8 +250,7 @@ p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
 
 p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
 [| token |
-  ((token := p peekToken) isSameAs: Syntax Selector)
-    /\ [Syntax isOptionalSelector: token value]
+  (Syntax isOptionalSelector: (token := p peekToken))
     ifTrue: [p unexpectedlyFound: token after: expr]
     ifFalse: [expr]
 ].
@@ -261,8 +260,7 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
   arguments := #{} writer.
   keywords :=
     [| :keywords |
-     [((token := p nextToken) isSameAs: Syntax Selector)
-        /\ [Syntax isOptionalSelector: token value]]
+     [Syntax isOptionalSelector: (token := p nextToken)]
        whileTrue:
          [keywords nextPut: token value intern.
           arguments nextPut: p nextBinaryMessages]]
@@ -273,14 +271,13 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
     ifFalse: [(Syntax OptionalKeywords for: message) `>>
                 [keywords := keywords.
                  arguments := arguments contents.
-                 recordPositionFrom: p. ]]
+                 recordPositionFrom: p]]
 ].
 
 p@(Syntax Parser traits) nextUnaryMessages &after: node
 [| result token |
   result := node `defaultsTo: p nextAtom.
-  [((token := p nextToken &interactive: p parseInteractively) is: Syntax Selector)
-     /\ [Syntax isUnarySelector: token value]]
+  [Syntax isUnarySelector: (token := p nextToken &interactive: p parseInteractively)]
     whileTrue:
       [(result := token messageType sending: token value to: {result})
          recordPositionFrom: p.
@@ -290,14 +287,12 @@ p@(Syntax Parser traits) nextUnaryMessages &after: node
 ].
 
 p@(Syntax Parser traits) nextBinaryMessages &after: node
-[| result token |
+[| result token firstArg |
   result := p nextUnaryMessages &after: node.
-  [((token := p nextToken &interactive: p parseInteractively)
-      is: Syntax Selector)
-     /\ [Syntax isBinarySelector: token value]
+  [(Syntax isBinarySelector: (token := p nextToken &interactive: p parseInteractively))
      /\ [p SpecialBinarySelectors noneSatisfy: [| :sel | token value =~ sel]]]
     whileTrue:
-      [result := result isNil /\ [Syntax isReturnSelector: token value]
+      [result := result isNil /\ [Syntax isReturnSelector: token]
          ifTrue:
            [(token value caseOf:
                {'^' -> [Syntax ReturnClose].
@@ -306,10 +301,11 @@ p@(Syntax Parser traits) nextBinaryMessages &after: node
                              (Integer readFrom: token value allButFirst)])
               of: p nextUnaryMessages]
          ifFalse:
-           [| firstArg |
-            firstArg := result ifNil: [Syntax ImplicitArgument].
+           [firstArg := result ifNil: [Syntax ImplicitArgument].
             token messageType sending: token value to:
-              (p nextUnaryMessages ifNil: [{firstArg}] ifNotNilDo: [| :secondArg | {firstArg. secondArg}])].
+              (p nextUnaryMessages
+                 ifNil: [{firstArg}]
+                 ifNotNilDo: [| :secondArg | {firstArg. secondArg}])].
        result recordPositionFrom: p].
   p undoToken: token.
   result
@@ -322,19 +318,17 @@ into a single selector with arguments."
   argument := p nextBinaryMessages &after: argument.
   token := p peekToken &interactive: p parseInteractively.
   selector := '' writer.
-  (token is: Syntax Selector) /\ [Syntax isKeywordSelector: token value]
+  (Syntax isKeywordSelector: token)
     ifTrue:
       [arguments :=
          [| :result |
           result nextPut: (argument ifNil: [Syntax ImplicitArgument]).
-          [((token := p nextToken &interactive: p parseInteractively)
-              is: Syntax Selector)
-             /\ [Syntax isKeywordSelector: token value]
+          [(Syntax isKeywordSelector: (token := p nextToken &interactive: p parseInteractively))
              /\ [messageType isNil \/ [token messageType == Syntax Message]]
-             /\ [(Syntax isOptionalSelector: token value) not]]
+             /\ [(Syntax isOptionalSelector: token) not]]
             whileTrue:
               [messageType ifNil: [messageType := token messageType].
-               (Syntax isKeywordSelector: token value)
+               (Syntax isKeywordSelector: token)
                  ifFalse: [p error: 'Bad keyword token'].
                selector ; token value.
                result nextPut:
@@ -355,7 +349,7 @@ p@(Syntax Parser traits) nextSpecialBinaryMessages &after: node
 "Handles/creates all special-message-send forms."
 [| token result |
   result := p nextKeywordMessages &after: node.
-  [((token := p nextToken &interactive: p parseInteractively) is: Syntax Selector)
+  [(Syntax isBinarySelector: (token := p nextToken &interactive: p parseInteractively))
      /\ [p SpecialBinarySelectors anySatisfy: [| :sel | token value =~ sel]]]
     whileTrue:
       [result := Syntax nodes BinaryMacro sending: token value to:
@@ -381,7 +375,8 @@ p@(Syntax Parser traits) nextPartial &after: node
 
 p@(Syntax Parser traits) newVariableNamed: name in: block
 [
-  Syntax Variable clone `>> [name := name intern. scope := block. recordPositionFrom: p ]
+  Syntax Variable clone `>>
+    [name := name intern. scope := block. recordPositionFrom: p]
 ].
 
 p@(Syntax Parser traits) nextBlock &updating: block
@@ -424,7 +419,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
                          otherwise: [p error: 'Bad declaration in Block header: ' ; name]].
                   p recordDeclaredTypeOf: variable.
                   token := p nextToken.
-                  variable name =~ #_
+                  variable name = #_
                     \/ [block localVariables noneSatisfy: [| :var | variable name =~ var name]]
                     ifTrue: [block localVariables := block localVariables copyWith: variable]]]
           ifFalse: [p undoToken: token].
@@ -435,7 +430,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
         block localVariables :=
           block inputVariables ;
           block optionalVariables ;
-          (block restVariable ifNil: [#{}] ifNotNil: [{block restVariable}]) ;
+          (block restVariable ifNil: [#{}] ifNotNilDo: [| :rest | {rest}]) ;
           (block localVariables select:
              [| :var |
               (block inputVariables includes: var) not
@@ -459,13 +454,11 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
   inputVariables := #{} writer.
   optKeywords := #{} writer.
   optVariables := #{} writer.
-  (result := Syntax MethodDefinition new)
-    recordPositionFrom: p.
+  result := Syntax MethodDefinition new recordPositionFrom: p.
   [(token := p nextToken) isSameAs: Syntax BeginBlock]
     whileFalse:
       [| variable |
-       (token isSameAs: Syntax Selector)
-         /\ [Syntax isUnarySelector: token value]
+       (Syntax isUnarySelector: token)
          ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
        variable := p newVariableNamed: token value in: result.
        token := p nextToken.
@@ -478,26 +471,25 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
             (token isSameAs: Syntax Selector)
               ifTrue:
                 [selector isNotNil
-                   /\ [(Syntax isOptionalSelector: token value) not]
+                   /\ [(Syntax isOptionalSelector: token) not]
                    /\ [(Syntax isKeywordSelector: selector) not
-                         \/ [(Syntax isKeywordSelector: token value) not]]
+                         \/ [(Syntax isKeywordSelector: token) not]]
                    ifTrue:
                      [p error: 'Bad selector name in method signature: ' ; selector].
-                 (Syntax isUnarySelector: token value)
+                 (Syntax isUnarySelector: token)
                    ifTrue:
                      [selector := token value.
-                      (p peekToken isSameAs: Syntax Selector)
-                        /\ [Syntax isOptionalSelector: p peekToken value]
+                      (Syntax isOptionalSelector: p peekToken)
                         ifTrue: [token := p nextToken]].
-                 (Syntax isBinarySelector: token value)
+                 (Syntax isBinarySelector: token)
                    ifTrue:
                      [selector := token value].
-                 (Syntax isKeywordSelector: token value)
+                 (Syntax isKeywordSelector: token)
                    ifTrue:
                      [selector := selector
                         ifNil: [token value]
                         ifNotNil: [selector ; token value]].
-                 (Syntax isOptionalSelector: token value)
+                 (Syntax isOptionalSelector: token)
                    ifTrue:
                      [optKeywords nextPut: token value intern]]
               ifFalse:
@@ -512,8 +504,7 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
                          as: Syntax Signature) recordPositionFrom: p)]]]
          ifFalse:
            [optVariables nextPut: variable.
-            (token isSameAs: Syntax Selector)
-              /\ [Syntax isOptionalSelector: token value]
+            (Syntax isOptionalSelector: token)
               ifTrue: [optKeywords nextPut: token value intern]
               ifFalse:
                 [p undoToken: token.
