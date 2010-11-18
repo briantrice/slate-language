@@ -94,8 +94,7 @@ and adjust the indices to match, then replace the old one."
 q@(Queue traits) at: n
 "The firstIndex is treated as the 0 address. Wrap-around is handled."
 [| index |
-  index := q firstIndex + n.
-  index >= q contents size
+  (index := q firstIndex + n) >= q contents size
     ifTrue: [index -= q contents size].
   q contents at: index
 ].
@@ -103,8 +102,7 @@ q@(Queue traits) at: n
 q@(Queue traits) at: n put: obj
 "The firstIndex is treated as the 0 address. Wrap-around is handled."
 [| index |
-  index := q firstIndex + n.
-  index >= q contents size
+  (index := q firstIndex + n) >= q contents size
     ifTrue: [index -= q contents size].
   q contents at: index put: obj
 ].
@@ -128,8 +126,9 @@ q@(Queue traits) addLast: obj
 q@(Queue traits) addFirst: obj
 [
   q isFull ifTrue: [q grow].
-  q firstIndex := q firstIndex - 1 \\ q contents size.
-  q contents at: q firstIndex put: obj.
+  q contents
+    at: (q firstIndex := q firstIndex - 1 \\ q contents size)
+    put: obj.
   obj
 ].
 

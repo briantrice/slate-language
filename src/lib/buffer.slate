@@ -16,8 +16,7 @@ define: #WriteBufferStream &parents: {BufferStream. WriteStream}.
 s@(WriteBufferStream traits) flush
 "Empty the buffer into the stream all at once."
 [| b |
-  b := s buffer.
-  b isSplit
+  (b := s buffer) isSplit
     ifTrue: [s nextPutAll: b from: b firstIndex to: b size - 1.
 	     s nextPutAll: b from: 0 to: b lastIndex]
     ifFalse: [s nextPutAll: b from: b firstIndex to: b lastIndex].
@@ -36,17 +35,21 @@ s@(WriteBufferStream traits) nextPutAll: seq
 [
   s buffer gapSize < seq size ifFalse: [s flush].
   s buffer isSplit
-    ifTrue: [seq doWithIndex: [| :each :index |
-      s contents at: s buffer firstIndex + index := each].
-      s firstIndex := s buffer firstIndex + seq size]
-    ifFalse: [| dstIndex |
-      dstIndex := s lastIndex.
-      0 below: seq size do: [| :each |
-	   dstIndex := (dstIndex = s contents size
-		     ifTrue: [0]
-		     ifFalse: [dstIndex + 1]).
-	   s contents at: dstIndex := each].
-      s lastIndex := dstIndex].
+    ifTrue:
+      [seq doWithIndex:
+         [| :each :index |
+          s contents at: s buffer firstIndex + index := each].
+       s firstIndex := s buffer firstIndex + seq size]
+    ifFalse:
+      [| dstIndex |
+       dstIndex := s lastIndex.
+       0 below: seq size do:
+         [| :each |
+	  dstIndex := dstIndex = s contents size
+	    ifTrue: [0]
+	    ifFalse: [dstIndex + 1].
+	  s contents at: dstIndex := each].
+       s lastIndex := dstIndex].
   seq
 ].
 
@@ -62,8 +65,7 @@ define: #ReadBufferStream &parents: {BufferStream. ReadStream}.
 s@(ReadBufferStream traits) flush
 "Fill the buffer from the stream all at once."
 [| b |
-  b := s buffer.
-  b isSplit
+  (b := s buffer) isSplit
     ifTrue: [s stream next: b gapSize putInto: b]
     ifFalse: [s stream next: b capacity - b lastIndex putInto: b.
 	      s stream next: b firstIndex putInto: b].
@@ -75,7 +77,7 @@ s@(ReadBufferStream traits) next
   s buffer isEmpty
     ifTrue: 
       [s buffer firstIndex := 0. 
-        s buffer lastIndex := (s stream next: s buffer capacity putInto: s buffer contents)].
+       s buffer lastIndex := s stream next: s buffer capacity putInto: s buffer contents].
   s buffer removeFirst
 ].
 

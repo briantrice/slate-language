@@ -23,12 +23,13 @@ r@(RingBuffer traits) addFirst: obj
 
 r@(RingBuffer traits) addAllLast: seq
 [| newLastIndex |
-  seq size > r capacity
-    ifTrue: [seq := (seq sliceFrom: seq size - r capacity)].
+  seq size > r capacity ifTrue:
+    [seq := seq sliceFrom: seq size - r capacity].
   "The new lastIndex after all the elements are added."
   newLastIndex := r lastIndex + seq size \\ r contents size.
   "Update the firstIndex if adding the elements will fill up the contents."
-  seq size > r gapSize ifTrue: [r firstIndex := r firstIndex + (seq size - r gapSize) \\ r contents size].
+  seq size > r gapSize ifTrue:
+    [r firstIndex := r firstIndex + (seq size - r gapSize) \\ r contents size].
   "Whether adding the elements to the end will push the lastIndex past the
    underlying Array's end."
   newLastIndex < r lastIndex
@@ -46,12 +47,13 @@ r@(RingBuffer traits) addAllLast: seq
 
 r@(RingBuffer traits) addAllFirst: seq
 [| newFirstIndex |
-  seq size > r capacity
-    ifTrue: [seq := (seq sliceFrom: seq size - r capacity)].
+  seq size > r capacity ifTrue:
+    [seq := seq sliceFrom: seq size - r capacity].
   "The new firstIndex after all the elements are added."
   newFirstIndex := r firstIndex - seq size \\ r contents size.
   "Update the lastIndex if adding the elements will fill up the contents."
-  seq size > r gapSize ifTrue: [r lastIndex := r lastIndex - (seq size - r gapSize) \\ r contents size].
+  seq size > r gapSize ifTrue:
+    [r lastIndex := r lastIndex - (seq size - r gapSize) \\ r contents size].
   "Whether adding the elements to the end will push the firstIndex past the
    underlying Array's start."
   newFirstIndex > r firstIndex
