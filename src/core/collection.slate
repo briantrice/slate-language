@@ -1,4 +1,3 @@
-
 collections addPrototype: #Collection derivedFrom: {Cloneable}.
 "The abstract object type for Collections, objects which other objects can be
 added and removed and tested for as elements."
@@ -10,6 +9,21 @@ c@(Collection traits) isEmpty
 c@(Collection traits) isNotEmpty [c isEmpty not].
 c@(Collection traits) isNotFull [c size < c capacity].
 c@(Collection traits) isFull [c isNotFull not].
+
+c@(Collection traits) ifEmpty: block
+[c isEmpty ifTrue: [block do]].
+
+c@(Collection traits) ifNotEmpty: block
+[c isEmpty ifFalse: [block do]].
+
+c@(Collection traits) ifNotEmptyDo: block
+[c isEmpty ifFalse: [block apply*, c]].
+
+c@(Collection traits) ifEmpty: emptyBlock ifNotEmpty: block
+[c isEmpty ifTrue: [emptyBlock do] ifFalse: [block do]].
+
+c@(Collection traits) ifEmpty: emptyBlock ifNotEmptyDo: block
+[c isEmpty ifTrue: [emptyBlock do] ifFalse: [block apply*, c]].
 
 c@(Collection traits) new &capacity: n
 "Answer a new Collection based on the given one which isEmpty and has the
