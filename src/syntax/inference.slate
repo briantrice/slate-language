@@ -1,32 +1,32 @@
-def@(Syntax MethodDefinition traits) inferenceRule
+def@(nodes MethodDefinition traits) inferenceRule
 [
   def selector := def selector asInferenceRule.
   def
 ].
 
-node@(Syntax Node traits) inferTypesIn: namespace
+node@(nodes Node traits) inferTypesIn: namespace
 "Assigns a type for the node as determined through propagation of
 existing type information and hints."
 [
   node type
 ].
 
-node@(Syntax Node traits) inferTypes
+node@(nodes Node traits) inferTypes
 [
   node inferTypesIn: lobby literalType
 ].
 
-_@(Syntax ImplicitArgument traits) inferTypesIn: namespace
+_@(nodes ImplicitArgument traits) inferTypesIn: namespace
 [
   namespace
 ].
 
-ann@(Syntax Annotation traits) inferTypesIn: namespace
+ann@(nodes Annotation traits) inferTypesIn: namespace
 [
   ann type := ann value inferTypesIn: namespace
 ].
 
-message@(Syntax Message traits) inferTypesIn: namespace
+message@(nodes Message traits) inferTypesIn: namespace
 [
   message type == Types Any
     ifTrue:
@@ -38,7 +38,7 @@ message@(Syntax Message traits) inferTypesIn: namespace
        message type]
 ].
 
-opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
+opts@(nodes OptionalKeywords traits) inferTypesIn: namespace
 [| msgType |
   msgType := opts message inferTypes. 
   opts arguments do: #(_ inferTypesIn: namespace) `er.
@@ -47,7 +47,7 @@ opts@(Syntax OptionalKeywords traits) inferTypesIn: namespace
     ifFalse: [opts type]
 ].
 
-paren@(Syntax Parenthesis traits) inferTypesIn: namespace
+paren@(nodes Parenthesis traits) inferTypesIn: namespace
 [
   paren statements do: #(_ inferTypesIn: namespace) `er.
   paren type == Types Any /\ [paren statements isNotEmpty]
@@ -55,12 +55,12 @@ paren@(Syntax Parenthesis traits) inferTypesIn: namespace
     ifFalse: [paren type]
 ].
 
-var@(Syntax Variable traits) inferTypesIn: namespace
+var@(nodes Variable traits) inferTypesIn: namespace
 [
   var type
 ].
 
-block@(Syntax Block traits) inferTypesIn: namespace
+block@(nodes Block traits) inferTypesIn: namespace
 [| resultType |
   block localVariables do: #(_ inferTypesIn: namespace) `er.
   resultType := Types Any.
@@ -75,7 +75,7 @@ block@(Syntax Block traits) inferTypesIn: namespace
     ifFalse: [block type]
 ].
 
-array@(Syntax Array traits) inferTypesIn: namespace
+array@(nodes Array traits) inferTypesIn: namespace
 [
   array statements do: #(_ inferTypesIn: namespace) `er.
   array type == Types Any
@@ -91,37 +91,37 @@ obj@(Root traits) literalTypeIn: _
   Types Singleton of: obj
 ].
 
-literal@(Syntax Literal traits) inferTypesIn: namespace
+literal@(nodes Literal traits) inferTypesIn: namespace
 [
   literal type == Types Any
     ifTrue: [literal type := literal value literalTypeIn: namespace]
     ifFalse: [literal type]
 ].
 
-load@(Syntax LoadVariable traits) inferTypesIn: _
+load@(nodes LoadVariable traits) inferTypesIn: _
 [
   load type == Types Any
     ifTrue: [load type := load variable type]
     ifFalse: [load type]
 ].
 
-Syntax define: #TypeMismatch &parents: {Warning} &slots: {#source. #target}.
+nodes define: #TypeMismatch &parents: {Warning} &slots: {#source. #target}.
 
-tm@(Syntax TypeMismatch traits) from: source to: target causedBy: description
+tm@(nodes TypeMismatch traits) from: source to: target causedBy: description
 [
   (tm newDescription: description) `>> [source := source. target := target. ]
 ].
 
-store@(Syntax StoreVariable traits) signalTypeMismatch
+store@(nodes StoreVariable traits) signalTypeMismatch
 [
-  (Syntax TypeMismatch
+  (nodes TypeMismatch
      from: store value
      to: store variable
      causedBy: 'Type mismatch in assignment to local variable: '
 	; store variable name name "; ' type:' ; store variable type printString ; ' New type: ' ; store value type printString") signal
 ].
 
-store@(Syntax StoreVariable traits) inferTypesIn: namespace
+store@(nodes StoreVariable traits) inferTypesIn: namespace
 [
   store value inferTypesIn: namespace.
   (store variable type subsumes: store value type)
@@ -131,7 +131,7 @@ store@(Syntax StoreVariable traits) inferTypesIn: namespace
     ifFalse: [store type] 
 ].
 
-return@(Syntax Return traits) inferTypesIn: namespace
+return@(nodes Return traits) inferTypesIn: namespace
 [
   return value inferTypesIn: namespace.
   return type == Types Any

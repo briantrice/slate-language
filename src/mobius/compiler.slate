@@ -263,7 +263,7 @@ gen@(VM SSACompiler traits) mapTo: sourceTree
 gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameters: values from: node
 "this gets called before the real function"
 [
-  "values do: [| :value | (value is: Syntax Node) ifTrue: [error: 'bad code']]." "commented out because we could actually load node literals in compiler code"
+  "values do: [| :value | (value is: nodes Node) ifTrue: [error: 'bad code']]." "commented out because we could actually load node literals in compiler code"
   resend
 ].
 
@@ -291,21 +291,21 @@ Generate methods. They all must return the register(s) with the results
 =======================================================================
 "
 
-_@(VM SSACompiler traits) generate: _@(Syntax Node traits)
+_@(VM SSACompiler traits) generate: _@(nodes Node traits)
 "Do nothing in the default case, for comments and annotations and such."
 [error: 'do not call generate without a result'].
 
-_@(VM SSACompiler traits) generate: _@(Syntax Node traits) result: result
+_@(VM SSACompiler traits) generate: _@(nodes Node traits) result: result
 "Do nothing in the default case, for comments and annotations and such."
 [].
 
-gen@(VM SSACompiler traits) generate: ann@(Syntax Annotation traits) result: result
+gen@(VM SSACompiler traits) generate: ann@(nodes Annotation traits) result: result
 "Generate the annotation's value."
 [
   gen generate: ann value
 ].
 
-gen@(VM SSACompiler traits) generate: block@(Syntax Block traits) result: result &topLevel: topLevel
+gen@(VM SSACompiler traits) generate: block@(nodes Block traits) result: result &topLevel: topLevel
 "Encountering a new block, build a new CompiledMethod object and push it and
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
@@ -349,12 +349,17 @@ and push it onto the stack."
   gen contexts isEmpty \/ [topLevel] ifTrue: [newBlock] ifFalse: [result]
 ].
 
-gen@(VM SSACompiler traits) generate: def@(Syntax MethodDefinition traits) result: resultRegister
+gen@(VM SSACompiler traits) generate: sig@(nodes Signature traits) result: resultRegister
+[
+  shouldNotImplement
+].
+
+gen@(VM SSACompiler traits) generate: def@(nodes MethodDefinition traits) result: resultRegister
 "Translate method definitions to equivalent asMethod:on: invocations."
 [| blockRegister roleRegisters arrayRegister resultRegister selectorRegister |
   gen contexts isEmpty
     ifTrue: [^ resend].
-  blockRegister := #generate:result: sendTo: {gen. def. Nil} through: {gen. Syntax Block. Nil}.
+  blockRegister := #generate:result: sendTo: {gen. def. Nil} through: {gen. nodes Block. Nil}.
   arrayRegister := gen newRegister.
   selectorRegister := gen registerFor: def selector from: def result: Nil.
   roleRegisters := def roles collect: #(gen generate: _ result: Nil) `er.
@@ -364,11 +369,11 @@ gen@(VM SSACompiler traits) generate: def@(Syntax MethodDefinition traits) resul
   resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax Resend traits) result: resultRegister
+gen@(VM SSACompiler traits) generate: r@(nodes Resend traits) result: resultRegister
 [| lexOffset scope |
   scope := gen currentMethod sourceTree.
   lexOffset := gen contexts indexLast -
-    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: nodes MethodDefinition])
       ifNil:
         [error: 'resend must be used within a method definition.']).
   lexOffset isPositive
@@ -380,10 +385,10 @@ gen@(VM SSACompiler traits) generate: r@(Syntax Resend traits) result: resultReg
   resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax Return traits) result: blah
+gen@(VM SSACompiler traits) generate: r@(nodes Return traits) result: blah
 [overrideThis].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax Return traits) by: lexOffset result: resultRegister
+gen@(VM SSACompiler traits) generate: r@(nodes Return traits) by: lexOffset result: resultRegister
 [
   resultRegister `defaultsTo: gen newRegister.
   lexOffset isPositive
@@ -395,36 +400,36 @@ gen@(VM SSACompiler traits) generate: r@(Syntax Return traits) by: lexOffset res
   resultRegister.
 ].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax ReturnClose traits) result: resultRegister
+gen@(VM SSACompiler traits) generate: r@(nodes ReturnClose traits) result: resultRegister
 "Exits the first enclosing named method in the lexical scope."
 [| lexOffset |
   lexOffset := gen contexts indexLast -
-    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+    ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: nodes MethodDefinition])
       ifNil:
         [error: '^ must be used within a method definition.']).
   gen generate: r by: lexOffset result: resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax ReturnFar traits) result: result
+gen@(VM SSACompiler traits) generate: r@(nodes ReturnFar traits) result: result
 "Exits the last enclosing named method in the lexical scope."
 [| lexOffset |
   lexOffset := gen contexts indexLast -
-    ((gen contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: Syntax MethodDefinition])
+    ((gen contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: nodes MethodDefinition])
       ifNil:
         [error: '^^ must be used within a method definition.']).
   gen generate: r by: lexOffset result: result
 ].
 
-gen@(VM SSACompiler traits) generate: r@(Syntax ReturnLevel traits) result: result
+gen@(VM SSACompiler traits) generate: r@(nodes ReturnLevel traits) result: result
 "Exits the Nth enclosing lexical scope."
 [gen generate: r by: r level result: result].
 
-gen@(VM SSACompiler traits) generate: literal@(Syntax Literal traits) result: result
+gen@(VM SSACompiler traits) generate: literal@(nodes Literal traits) result: result
 [
   gen registerFor: literal value from: literal result: result
 ].
 
-gen@(VM SSACompiler traits) generate: n@(Syntax CompoundStatement traits) result: result
+gen@(VM SSACompiler traits) generate: n@(nodes CompoundStatement traits) result: result
 "return the registers that the values were saved into"
 [
   n statements isEmpty
@@ -433,7 +438,7 @@ gen@(VM SSACompiler traits) generate: n@(Syntax CompoundStatement traits) result
                 ; {(gen generate: n statements last result: result)}]
 ].
 
-gen@(VM SSACompiler traits) generate: n@(Syntax Parenthesis traits) result: result
+gen@(VM SSACompiler traits) generate: n@(nodes Parenthesis traits) result: result
 "return the registers that the values were saved into"
 [
   n statements isEmpty
@@ -442,17 +447,17 @@ gen@(VM SSACompiler traits) generate: n@(Syntax Parenthesis traits) result: resu
              gen generate: n statements last result: result]
 ].
 
-gen@(VM SSACompiler traits) generate: i@(Syntax ImplicitArgument traits) result: result
+gen@(VM SSACompiler traits) generate: i@(nodes ImplicitArgument traits) result: result
 [
   result `defaultsTo: gen newRegister.
   gen emitInstruction: gen loadEnvironment withParameters: {result} from: i.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@(Syntax Namespace traits) result: result
+gen@(VM SSACompiler traits) generate: _@(nodes Namespace traits) result: result
 [shouldNotImplement].
 
-gen@(VM SSACompiler traits) generate: load@(Syntax LoadVariable traits) result: result
+gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: result
 [| lexOffset varIndex |
   load variable scope `cacheAs: #scope.
   varIndex := scope localVariables indexOf: load variable.
@@ -474,7 +479,7 @@ gen@(VM SSACompiler traits) generate: load@(Syntax LoadVariable traits) result: 
   result
 ].
 
-gen@(VM SSACompiler traits) generate: store@(Syntax StoreVariable traits) result: result
+gen@(VM SSACompiler traits) generate: store@(nodes StoreVariable traits) result: result
 [| lexOffset varIndex |
   store variable scope `cacheAs: #scope.
   varIndex := scope localVariables indexOf: store variable.
@@ -498,7 +503,7 @@ gen@(VM SSACompiler traits) generate: store@(Syntax StoreVariable traits) result
   result
 ].
 
-gen@(VM SSACompiler traits) generate: array@(Syntax Array traits) result: result
+gen@(VM SSACompiler traits) generate: array@(nodes Array traits) result: result
 "Generate the code to push the element expression results on the stack,
 then the appropriate literal-array constructor bytecode."
 [| registers |
@@ -508,7 +513,7 @@ then the appropriate literal-array constructor bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: msg@(Syntax Message traits) result: result
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: msg@(nodes Message traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [| argRegisters |
@@ -518,37 +523,37 @@ the push for the selector, and then the appropriate message send bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: msg@(Syntax Message traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals: opts
 [
   gen generate: msg selector on: msg arguments from: (opts ifNil: [msg]) result: result
 ].
 
-gen@(VM SSACompiler traits) generate: macro@(Syntax Macro traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals: opts
 [
   "gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree) result: result"
   error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
-gen@(VM SSACompiler traits) generate: def@(Syntax Deferred traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result &optionals: opts
 [| block message |
-  block := Syntax Block new `>> [parentScope := gen currentMethod sourceTree. ].
+  block := nodes Block new `>> [parentScope := gen currentMethod sourceTree. ].
   def arguments size timesRepeat: [block addInputVariable].
-  message := Syntax Message sending: def selector to:
-    (block inputVariables collect: #(Syntax LoadVariable from: _) `er).
+  message := nodes Message sending: def selector to:
+    (block inputVariables collect: #(nodes LoadVariable from: _) `er).
   opts
     ifNotNil:
       [message :=
-        ((Syntax OptionalArguments for: message)
+        ((nodes OptionalArguments for: message)
           `>> [arguments := opts arguments deepCopy: block. ])].
   block statements := {message}.
   gen generate:
-    (Syntax KeywordMessage
+    (nodes KeywordMessage
       sending: #whenFulfilled:
-      to: {def arguments as: Syntax Array. block})
+      to: {def arguments as: nodes Array. block})
     result: result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: opts@(Syntax OptionalKeywords traits) result: result
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: opts@(nodes OptionalKeywords traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [| argRegisters optsArray optsWriter |
@@ -565,12 +570,12 @@ the push for the selector, and then the appropriate message send bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: opts@(Syntax OptionalKeywords traits) result: result
+gen@(VM SSACompiler traits) generate: opts@(nodes OptionalKeywords traits) result: result
 [
   gen generate: opts message result: result &optionals: opts
 ].
 
-gen@(VM SSACompiler traits) generate: rest@(Syntax RestArguments traits) result: result
+gen@(VM SSACompiler traits) generate: rest@(nodes RestArguments traits) result: result
 [
   gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result
 ].
@@ -586,7 +591,7 @@ gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: resul
 
 gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
 [| methodReg argRegs |
-  (args second isSameAs: Syntax Array)
+  (args second isSameAs: nodes Array)
     ifTrue:
       [result `defaultsTo: gen newRegister.
        methodReg := gen generate: args first result: Nil.
@@ -610,21 +615,21 @@ gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args from: msg resu
 
 gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result
 [
-  (args first isSameAs: Syntax ImplicitArgument)
+  (args first isSameAs: nodes ImplicitArgument)
     ifTrue: [gen registerFor: True from: msg result: result]
     ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#False on: args from: msg result: result
 [
-  (args first isSameAs: Syntax ImplicitArgument)
+  (args first isSameAs: nodes ImplicitArgument)
     ifTrue: [gen registerFor: False from: msg result: result]
     ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#Nil on: args from: msg result: result
 [
-  (args first isSameAs: Syntax ImplicitArgument)
+  (args first isSameAs: nodes ImplicitArgument)
     ifTrue: [gen registerFor: Nil from: msg result: result]
     ifFalse: [resend]
 ].
@@ -642,7 +647,7 @@ gen@(VM SSACompiler traits) generate: _@#do on: args from: msg result: result
 Otherwise, fall back to evaluating it via 'do'."
 [
   args first `cacheAs: #block.
-  (block isSameAs: Syntax Block)
+  (block isSameAs: nodes Block)
     /\ [block localVariables isEmpty]
     ifTrue:
       [result `defaultsTo: gen newRegister.
@@ -707,12 +712,12 @@ further analysis; currently this is the case where the second argument is a
 literal array, and the appropriate Associations and their elements are laid
 out with literal keys."
 [
-  (msg arguments second isSameAs: Syntax Array) /\
+  (msg arguments second isSameAs: nodes Array) /\
    [msg arguments second statements allSatisfy:
      [| :assoc |
-      (assoc is: Syntax Message)
+      (assoc is: nodes Message)
         /\ [assoc selector = #->]
-        /\ [assoc arguments first is: Syntax Literal]
+        /\ [assoc arguments first is: nodes Literal]
         /\ [{Symbol. ASCIIString Character. SmallInteger} anySatisfy:
           [| :proto | assoc arguments first value is: proto]]]]
 ].
@@ -857,7 +862,7 @@ gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args from: msg result: fi
 gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResult
 "Optionally evaluates a block."
 [| falseLabel endLabel condResult |
-  (args second isSameAs: Syntax Block)
+  (args second isSameAs: nodes Block)
     ifFalse: [^ resend].
   falseLabel := gen newLabelIndex.
   endLabel := gen newLabelIndex.
@@ -878,7 +883,7 @@ gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResu
 gen@(VM SSACompiler traits) generate: _@#\/ on: args from: msg result: finalResult
 "Optionally evaluates a block."
 [| block falseLabel endLabel condResult |
-  (args second isSameAs: Syntax Block)
+  (args second isSameAs: nodes Block)
     ifFalse: [^ resend].
   falseLabel := gen newLabelIndex.
   endLabel := gen newLabelIndex.
@@ -964,16 +969,16 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: r
   block := args first.
   index := args second.
   value := args third.
-  (block isSameAs: Syntax Block)
-    /\ [index isSameAs: Syntax Literal]
+  (block isSameAs: nodes Block)
+    /\ [index isSameAs: nodes Literal]
     /\ [block inputVariables acceptsKey: index value]
     ifFalse: [^ resend].
-  (value isSameAs: Syntax Literal)
+  (value isSameAs: nodes Literal)
     ifFalse:
       [| tmp |
         tmp := gen currentMethod sourceTree addVariable.
-        gen generate: (Syntax StoreVariable of: value into: tmp) result: Nil. "fixme"
-        value := Syntax LoadVariable from: tmp].
+        gen generate: (nodes StoreVariable of: value into: tmp) result: Nil. "fixme"
+        value := nodes LoadVariable from: tmp].
   index := index value.
   var := block inputVariables at: index.
   block inputVariables := block inputVariables copyWithoutAt: index.
@@ -984,19 +989,19 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: r
     startingAt: index + 1.
   block localVariables at: block localVariables indexLast put: var.
   block statements:
-    {(Syntax StoreVariable of: value into: var)} ; block statements.
+    {(nodes StoreVariable of: value into: var)} ; block statements.
   gen generate: block result: result
 ].
 
 gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
 "Optimizes currying calls on literal blocks using #fill:with:."
 [
-  (args first isSameAs: Syntax Block)
+  (args first isSameAs: nodes Block)
     ifTrue:
       [gen
          generate: #fill:with:
          on: (args copyWith:
-                (Syntax Literal for: args first inputVariables indexLast) at: 1)
+                (nodes Literal for: args first inputVariables indexLast) at: 1)
          from: msg
          result: result]
     ifFalse: [resend]

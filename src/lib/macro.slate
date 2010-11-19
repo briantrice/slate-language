@@ -1,36 +1,36 @@
 
-n@(Syntax Node traits) bootstrapping
+n@(nodes Node traits) bootstrapping
 "Override of the bootstrapping macro so that source marked that way no longer
 has any effect when evaluated."
 [n surroundings Literal Nil].
 
-n@(Syntax Node traits) disable
+n@(nodes Node traits) disable
 "Expands a textual program element into nothing, effectively commenting it out.
 Of course it does nothing to actual run-time configuration of the thing
 described."
 [n surroundings Literal Nil].
 
-n@(Syntax Node traits) setTo: val
+n@(nodes Node traits) setTo: val
 "A macro to expand the node and value into an appropriate assignment for the
 location that the message appears to use."
 "TODO: Use type inference on arguments to detect if there should be a concrete
 slot attribute or other type of accessor to verify or distinguish."
 [overrideThis].
 
-load@(Syntax LoadVariable traits) setTo: val
+load@(nodes LoadVariable traits) setTo: val
 "Expands a local variable reference into a store to it."
 [load store: val].
 
-message@(Syntax UnaryMessage traits) setTo: val
+message@(nodes UnaryMessage traits) setTo: val
 "Makes a substitution of the unary message with a keyword message that is the
 mutator form of that selector (appends a colon)."
 [
-  Syntax KeywordMessage
+  nodes KeywordMessage
     sending: (message argument mutatorNameFor: message selector)
     to: {message argument. val}
 ].
 
-literal@(Syntax Literal traits) setTo: val
+literal@(nodes Literal traits) setTo: val
 [| lhs |
   lhs: literal value.
   (lhs is: Symbol) \/ [lhs is: String]
@@ -44,7 +44,7 @@ literal@(Syntax Literal traits) setTo: val
            [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
 ].
 
-message@(Syntax KeywordMessage traits) setTo: val
+message@(nodes KeywordMessage traits) setTo: val
 "Expands a message by looking at its selector and picking the right setter."
 [
   (message selector isKeywordSelector ifTrue:
@@ -62,7 +62,7 @@ message@(Syntax KeywordMessage traits) setTo: val
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
-paren@(Syntax Parenthesis traits) setTo: val
+paren@(nodes Parenthesis traits) setTo: val
 "Transforms the last statement into an assignment."
 [
   paren statements size caseOf:
@@ -75,7 +75,7 @@ paren@(Syntax Parenthesis traits) setTo: val
      result]
 ].
 
-array@(Syntax Array traits) setTo: vals &environment: env
+array@(nodes Array traits) setTo: vals &environment: env
 "Performs a multiple-assignment."
 [
   array statements size caseOf:
@@ -88,71 +88,71 @@ array@(Syntax Array traits) setTo: vals &environment: env
          ifNil:
            [TODO: 'Can\'t handle this outside of a block context.']
          ifNotNil:
-           [tmpVar: (vals is: Syntax LoadVariable)
+           [tmpVar: (vals is: nodes LoadVariable)
               ifTrue: [vals variable] ifFalse: [env addVariable].
             "result statements: array statements collectWithIndex:"
             array statements doWithIndex:
               [| :statement :index |
                result statements at: index put:
                  (statement setTo:
-                    (Syntax KeywordMessage sending: #at: to:
-                       {tmpVar load. Syntax Literal for: index}))].
-            {tmpVar store: vals. result} as: Syntax Parenthesis]]
+                    (nodes KeywordMessage sending: #at: to:
+                       {tmpVar load. nodes Literal for: index}))].
+            {tmpVar store: vals. result} as: nodes Parenthesis]]
 ].
 
-load@(Syntax LoadVariable traits) defaultsTo: default
+load@(nodes LoadVariable traits) defaultsTo: default
 "A macro that expands to an expression that sets a variable in the scope to
 the expression in the default."
 [`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
 
-node@(Syntax Node traits) defaultsTo: default
+node@(nodes Node traits) defaultsTo: default
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
 [`(node `unquote ifNil: [(node setTo: default) `unquote])].
 
-node@(Syntax Node traits) setToIfNotNil: value &environment: env
+node@(nodes Node traits) setToIfNotNil: value &environment: env
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
 [
   `(value `unquote ifNotNil: [(node setTo: value) `unquote])
 ].
 
-node@(Syntax Node traits) ?= value
+node@(nodes Node traits) ?= value
 [
   node setToIfNotNil: value
 ].
 
-node@(Syntax Node traits) += value
+node@(nodes Node traits) += value
 [
-  node setTo: (Syntax BinaryMessage sending: #+ to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #+ to: {node. value})
 ].
 
-node@(Syntax Node traits) -= value
+node@(nodes Node traits) -= value
 [
-  node setTo: (Syntax BinaryMessage sending: #- to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #- to: {node. value})
 ].
 
-node@(Syntax Node traits) *= value
+node@(nodes Node traits) *= value
 [
-  node setTo: (Syntax BinaryMessage sending: #* to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #* to: {node. value})
 ].
 
-node@(Syntax Node traits) /= value
+node@(nodes Node traits) /= value
 [
   node setTo: `(node `unquote / value `unquote)
 ].
 
-node@(Syntax Node traits) checkForBindingOrElseDo: block &environment: env
+node@(nodes Node traits) checkForBindingOrElseDo: block &environment: env
 [
   env ifNil: [] ifNotNil: []
 ].
 
-node@(Syntax Node traits) bindTo: value
+node@(nodes Node traits) bindTo: value
 [
   node setTo: value
 ].
 
-literal@(Syntax Literal traits) bindTo: val
+literal@(nodes Literal traits) bindTo: val
 [| lhs |
   lhs: literal value.
   (lhs is: Symbol) \/ [lhs is: String]
@@ -163,16 +163,16 @@ literal@(Syntax Literal traits) bindTo: val
       [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]
 ].
 
-node@(Syntax LoadVariable traits) bindTo: value &environment: env
+node@(nodes LoadVariable traits) bindTo: value &environment: env
 [
 ].
 
-msg@(Syntax UnaryMessage traits) bindTo: value &environment: env
+msg@(nodes UnaryMessage traits) bindTo: value &environment: env
 [
-  (Syntax Literal for: msg selector) setTo: value
+  (nodes Literal for: msg selector) setTo: value
 ].
 
-message@(Syntax KeywordMessage traits) bindTo: val
+message@(nodes KeywordMessage traits) bindTo: val
 "Expands a message by looking at its selector and picking the right setter."
 [
   (message selector isKeywordSelector ifTrue:
@@ -193,7 +193,7 @@ message@(Syntax KeywordMessage traits) bindTo: val
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
-n@(Syntax Literal traits) er
+n@(nodes Literal traits) er
 "Takes a piece of Symbol/String literal syntax and expands into a block which
 can apply it to the number of arguments the Symbol can take as a selector."
 [| selector block |
@@ -205,13 +205,13 @@ can apply it to the number of arguments the Symbol can take as a selector."
   block
 ].
 
-#: alias: #setTo: on: {Syntax Node traits. NoRole}.
-#:= alias: #setTo: on: {Syntax Node traits. NoRole}.
+#: alias: #setTo: on: {nodes Node traits. NoRole}.
+#:= alias: #setTo: on: {nodes Node traits. NoRole}.
 "Shorthands for the setTo: macro."
 
-#::= alias: #bindTo: on: {Syntax Node traits. NoRole}.
+#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
 
-n@(Syntax Partial traits) er &environment: env
+n@(nodes Partial traits) er &environment: env
 [| block message |
   block := n surroundings Block new.
   message := n message copy.
@@ -224,10 +224,10 @@ n@(Syntax Partial traits) er &environment: env
   block
 ].
 
-expr@(Syntax Node traits) er &environment: method
+expr@(nodes Node traits) er &environment: method
 [(expr surroundings Literal for: (expr evaluateIn: method)) er].
 
-n@(Syntax Literal traits) erOnKey: attribute@(Syntax Literal traits)
+n@(nodes Literal traits) erOnKey: attribute@(nodes Literal traits)
 "Variant on the `er macro which calls the selector on the results of sending
 the attribute selector to each argument."
 [| selector attribSelector block |
@@ -243,7 +243,7 @@ the attribute selector to each argument."
                        reader next: selector arity)}. ]
 ].
 
-def@(Syntax MethodDefinition traits) commutatively
+def@(nodes MethodDefinition traits) commutatively
 "Expands into a sequence of the original meethod and another having the
 same body with the roles reversed."
 [
@@ -258,16 +258,16 @@ same body with the roles reversed."
           ]} parenthesize]
 ].
 
-def@(Syntax MethodDefinition traits) alias: newName
+def@(nodes MethodDefinition traits) alias: newName
 [
   {def. def deepCopy `>> [selector := newName evaluate. ]} parenthesize
 ].
 
-expr@(Syntax Node traits) suspend
+expr@(nodes Node traits) suspend
 "Expands into a suspension-creating expression for a Block."
-[`((Syntax Block newFor: expr) `unquote suspend)].
+[`((nodes Block newFor: expr) `unquote suspend)].
 
-expr@(Syntax Node traits) cache &environment: method
+expr@(nodes Node traits) cache &environment: method
 "An environment-altering macro that performs no transformation on the argument:
 It creates a new local binding with the result of evaluating the expression
 when the surrounding method is run. All other uses of an equivalent (=)
@@ -288,7 +288,7 @@ of that local."
   newVar store: expr
 ].
 
-expr@(Syntax Node traits) cacheAs: varName &environment: method
+expr@(nodes Node traits) cacheAs: varName &environment: method
 "An environment-altering macro that performs no transformation on the argument:
 It creates a new local binding with the result of evaluating the expression
 when the surrounding method is run. All other uses of an equivalent (=)
@@ -302,8 +302,8 @@ of that local."
   "Replace any equal expression (except this one) with a load of the variable."
   loadExpr := newVar load.
   macroCall := expr `cache `quote.
-  unaryAccess := Syntax UnaryMessage sending: varName value intern
-    to: {Syntax ImplicitArgument}.
+  unaryAccess := nodes UnaryMessage sending: varName value intern
+    to: {nodes ImplicitArgument}.
   method transformBy:
     [| :node | node = expr \/ [node = macroCall] \/ [node = unaryAccess]
        ifTrue: [loadExpr] ifFalse: [node]].
@@ -311,7 +311,7 @@ of that local."
   newVar store: expr
 ].
 
-expr@(Syntax Node traits) rememberAs: varName &environment: method
+expr@(nodes Node traits) rememberAs: varName &environment: method
 "An environment-altering macro that performs no transformation on the argument:
 It creates a new local binding with the result of evaluating the expression
 when the surrounding method is run. All other uses of an equivalent (=)
@@ -324,8 +324,8 @@ of that local."
   newVar := method addVariableNamed: varName value intern.
   "Replace any equal expression (except this one) with a load of the variable."
   loadExpr := newVar load.
-  unaryAccess := Syntax UnaryMessage sending: varName value intern
-    to: {Syntax ImplicitArgument}.
+  unaryAccess := nodes UnaryMessage sending: varName value intern
+    to: {nodes ImplicitArgument}.
   method transformBy:
     [| :node | node = unaryAccess ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
@@ -340,10 +340,10 @@ NOTE: This is not a macro but relies on the macro facilities."
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
-  xLiteral := Syntax Literal for: x.
-  Syntax Block new
+  xLiteral := nodes Literal for: x.
+  nodes Block new
     `>> [statements :=
-           {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
+           {nodes MethodDefinition of: #= on: {xLiteral. xLiteral}
               from: #{#obj1. #obj2} to:
                 [| :obj1 :obj2 |
                  "relevantSlotNames collect:
@@ -359,7 +359,7 @@ NOTE: This is not a macro but relies on the macro facilities."
                               [(obj1 `load atSlotNamed: slotName `unquote)
                                  = (obj2 `load atSlotNamed: slotName `unquote)])]]
               &linkVariables: True.
-            Syntax MethodDefinition of: #hash on: {xLiteral}
+            nodes MethodDefinition of: #hash on: {xLiteral}
               from: #{#obj} to:
                 [| :obj |
                  relevantSlotNames allButFirst
@@ -382,22 +382,22 @@ NOTE: This is not a macro but relies on the macro facilities."
   relevantSlotNames
    isEmpty ifTrue: [error: 'Some slot names must be specified.'].
 
-  xLiteral := Syntax Literal for: x.
-  Syntax Block new
+  xLiteral := nodes Literal for: x.
+  nodes Block new
     `>> [statements:
-      {Syntax MethodDefinition of: #= on: {xLiteral. xLiteral}
+      {nodes MethodDefinition of: #= on: {xLiteral. xLiteral}
         from: #{#obj1. #obj2} to:
           [| :obj1 :obj2 |
-            relevantSlotNames inject: Syntax Resend into:
+            relevantSlotNames inject: nodes Resend into:
               [| :expr :slotName |
                 `(expr `unquote /\
                    [(obj1 `load atSlotNamed: slotName `unquote)
                      = (obj2 `load atSlotNamed: slotName `unquote)])]]
           &linkVariables: True.
-       Syntax MethodDefinition of: #hash on: {xLiteral}
+       nodes MethodDefinition of: #hash on: {xLiteral}
          from: #{#obj} to:
            [| :obj |
-             relevantSlotNames inject: Syntax Resend into:
+             relevantSlotNames inject: nodes Resend into:
                [| :hash :slotName |
                  `(hash `unquote bitXor:
                     (obj `load atSlotNamed: slotName `unquote) hash)]]
@@ -410,14 +410,14 @@ ExternalResource traits compareAndHashUsingSlots: #{#locator}.
 File Locator traits compareAndHashUsingSlots: #{#name. #path. #version. #fileType}.
 File RelativeLocator traits compareAndHashUsingSlots: #{#basePath. #path. #name. #fileType. #version}.
 Directory traits compareAndHashUsingSlots: #{#locator}.
-Syntax Annotation traits compareAndHashUsingSlots: #{#value}.
-Syntax Comment traits compareAndHashUsingSlots: #{#comment. #value}.
-Syntax OptionalKeywords traits compareAndHashUsingSlots: #{#message. #keywords. #arguments}.
-Syntax Literal traits compareAndHashUsingSlots: #{#value}.
-Syntax Namespace traits compareAndHashUsingSlots: #{#namespace}.
-Syntax Variable traits compareAndHashUsingSlots: #{#name. #scope}.
-Syntax LoadVariable traits compareAndHashUsingSlots: #{#variable}.
-Syntax StoreVariable traits compareAndHashUsingSlots: #{#variable. #value}.
+nodes Annotation traits compareAndHashUsingSlots: #{#value}.
+nodes Comment traits compareAndHashUsingSlots: #{#comment. #value}.
+nodes OptionalKeywords traits compareAndHashUsingSlots: #{#message. #keywords. #arguments}.
+nodes Literal traits compareAndHashUsingSlots: #{#value}.
+nodes Namespace traits compareAndHashUsingSlots: #{#namespace}.
+nodes Variable traits compareAndHashUsingSlots: #{#name. #scope}.
+nodes LoadVariable traits compareAndHashUsingSlots: #{#variable}.
+nodes StoreVariable traits compareAndHashUsingSlots: #{#variable. #value}.
 CompiledMethod traits compareAndHashUsingSlots: #{#literals. #selectors. #code}.
 Types Not traits compareAndHashUsingSlots: #{#argument}.
 Types Member traits compareAndHashUsingSlots: #{#elements}.
@@ -426,12 +426,12 @@ Types Range traits compareAndHashUsingSlots: #{#type. #start. #end}.
 Types Array traits compareAndHashUsingSlots: #{#type}.
 ).
 
-x@(Syntax Node traits) swapWith: y@(Syntax Node traits) &environment: env
+x@(nodes Node traits) swapWith: y@(nodes Node traits) &environment: env
 [
   TODO: 'Determine how to perform a generic variable swap outside of a Method context without a global.'
 ].
 
-x@(Syntax LoadVariable traits) swapWith: y@(Syntax LoadVariable traits) &environment: env
+x@(nodes LoadVariable traits) swapWith: y@(nodes LoadVariable traits) &environment: env
 "A macro that expands into simple code swapping the values of two variables
 in the current scope."
 [| tmpVar |
@@ -442,29 +442,29 @@ in the current scope."
    y variable store: tmpVar load} parenthesize
 ].
 
-_@(Syntax Node traits) matchAppend: keyword with: val
+_@(nodes Node traits) matchAppend: keyword with: val
 "Encapsulates the idiom of taking a message and adding a keyword to denote an
 additional yet non-optional parameter.
 E.g. foo -> fooWith: -> fooWith:with:, fooWith:with:with: ..."
 "TODO: Provide a way to call methods with syntactic *rest: parameters instead?"
 [overrideThis].
 
-message@(Syntax UnaryMessage traits) matchAppend: keyword with: val
+message@(nodes UnaryMessage traits) matchAppend: keyword with: val
 [
-  Syntax KeywordMessage sending: (intern: message selector name ; keyword name capitalized)
+  nodes KeywordMessage sending: (intern: message selector name ; keyword name capitalized)
     to: {message arguments first. val}
 ].
 
-message@(Syntax KeywordMessage traits) matchAppend: keyword with: val
+message@(nodes KeywordMessage traits) matchAppend: keyword with: val
 [
-  Syntax KeywordMessage sending: (intern: message selector name ; keyword name)
+  nodes KeywordMessage sending: (intern: message selector name ; keyword name)
     to: message arguments ; {val}
 ].
 
-paren@(Syntax Parenthesis traits) matchAppend: keyword with: val
+paren@(nodes Parenthesis traits) matchAppend: keyword with: val
 [paren statements first matchAppend: keyword with: val].
 
-collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: message@(Syntax Node traits)
+collection@(nodes Node traits) match: elements@(nodes Node traits) with: message@(nodes Node traits)
   &otherwise: failBlock &append: keyword &environment: env
 [| tmpVar cases |
   env ifNil: [error: 'Cannot match a collection outside of a method'].
@@ -490,7 +490,7 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
       [`((tmpVar `store: collection) size caseOf: cases `array otherwise: failBlock `unquote)]
 ].
 
-node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement traits) otherwise: fallbackAction@(Syntax Block traits)
+node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement traits) otherwise: fallbackAction@(nodes Block traits)
 [| result |
   result := fallbackAction.
   testsToActions statements reverseDo:
@@ -498,11 +498,11 @@ node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement t
      test := assocExpr arguments first.
      action := assocExpr arguments second.
      result := (test `unquote do ifTrue: action `unquote ifFalse:
-                  (((result isSameAs: Syntax Block)
+                  (((result isSameAs: nodes Block)
                       ifTrue: [result]
-                      ifFalse: [Syntax Block newFor: result]) `unquote)) `quote].
+                      ifFalse: [nodes Block newFor: result]) `unquote)) `quote].
   result
 ].
 
-node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement traits)
+node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement traits)
 [node conditions: testsToActions otherwise: `[Nil]].

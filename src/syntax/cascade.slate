@@ -1,15 +1,15 @@
-node@(Syntax Node traits) cascadedTo: _
-"The default behavior for treating a Syntax Node as cascaded onto some
+node@(nodes Node traits) cascadedTo: _
+"The default behavior for treating a nodes Node as cascaded onto some
 source variable - no-transformation."
 [node].
 
-imp@(Syntax ImplicitArgument traits) cascadedTo: sourceVar
+imp@(nodes ImplicitArgument traits) cascadedTo: sourceVar
 "Implicit argument sends cascaded to a variable are treated as loads."
 [
-  Syntax LoadVariable from: sourceVar
+  nodes LoadVariable from: sourceVar
 ].
 
-msg@(Syntax Message traits) cascadedTo: sourceVar
+msg@(nodes Message traits) cascadedTo: sourceVar
 "Arbitrary messages are treated by first transforming the first argument,
 then replacing it in the arguments as necessary."
 [| replacement |
@@ -19,7 +19,7 @@ then replacing it in the arguments as necessary."
   msg
 ].
 
-opts@(Syntax OptionalKeywords traits) cascadedTo: sourceVar
+opts@(nodes OptionalKeywords traits) cascadedTo: sourceVar
 "Forward the cascade to the enclosed message."
 [| replacement |
   replacement: (opts message cascadedTo: sourceVar).
@@ -28,7 +28,7 @@ opts@(Syntax OptionalKeywords traits) cascadedTo: sourceVar
   opts
 ].
 
-"rest@(Syntax RestArguments traits) cascadedTo: sourceVar
+"rest@(nodes RestArguments traits) cascadedTo: sourceVar
 [| replacement |
   replacement: (rest message cascadedTo: sourceVar).
   rest message == replacement ifFalse:
@@ -36,25 +36,25 @@ opts@(Syntax OptionalKeywords traits) cascadedTo: sourceVar
   rest
 ]."
 
-store@(Syntax StoreVariable traits) cascadedTo: sourceVar
+store@(nodes StoreVariable traits) cascadedTo: sourceVar
 "A store to a variable when cascaded is treated as a mutator keyword
 message to a load of it."
 [
-  Syntax KeywordMessage
+  nodes KeywordMessage
     sending: (store mutatorNameFor: store variable name)
-    to: {Syntax LoadVariable from: sourceVar. store value}
+    to: {nodes LoadVariable from: sourceVar. store value}
 ].
 
-load@(Syntax LoadVariable traits) cascadedTo: sourceVar
+load@(nodes LoadVariable traits) cascadedTo: sourceVar
 "A load of a variable when cascaded is treated as an accessor
 message to a load of it."
 [
-  Syntax UnaryMessage
+  nodes UnaryMessage
     sending: load variable name
-    to: {Syntax LoadVariable from: sourceVar}
+    to: {nodes LoadVariable from: sourceVar}
 ].
 
-"paren@(Syntax Parenthesis traits) cascadedTo: sourceVar
+"paren@(nodes Parenthesis traits) cascadedTo: sourceVar
 [| replacement |
   replacement: (paren statements first cascadedTo: sourceVar).
   (paren statements at: 0) == replacement ifFalse:
@@ -62,10 +62,10 @@ message to a load of it."
   paren
 ]."
 
-source@(Syntax Node traits) >> cascade@(Syntax Block traits) &environment: env
+source@(nodes Node traits) >> cascade@(nodes Block traits) &environment: env
 [cascade doWithinContextOf: source &environment: env].
 
-cascade@(Syntax Block traits) doWithinContextOf: source@(Syntax Node traits) &environment: env
+cascade@(nodes Block traits) doWithinContextOf: source@(nodes Node traits) &environment: env
 "This is the cascading macro. It transforms an expression and a block into
 a form where the top-level statements' expressions are cascaded onto the result
 of evaluating the first at run-time. Technically, it expands into a new block.
@@ -74,7 +74,7 @@ so it can be explicitly referenced for statements where non-top-level access is
 necessary."
 [| sourceVar body block |
   env ifNil:
-    [block: Syntax Block new].
+    [block: nodes Block new].
   cascade localVariables size > cascade inputVariables size ifTrue: 
     [block: cascade].
   cascade inputVariables isEmpty
@@ -85,102 +85,102 @@ necessary."
        block == cascade ifFalse:
          [(block ifNil: [env]) addVariable: sourceVar]].
   body:
-    {Syntax StoreVariable of: source into: sourceVar} ;
+    {nodes StoreVariable of: source into: sourceVar} ;
       (cascade statements
         collect: [| :statement | statement cascadedTo: sourceVar]).
-  (body last isSameAs: Syntax Literal) /\ [body last value isNil] ifTrue:
-    [body at: body indexLast put: (Syntax LoadVariable from: sourceVar)].
+  (body last isSameAs: nodes Literal) /\ [body last value isNil] ifTrue:
+    [body at: body indexLast put: (nodes LoadVariable from: sourceVar)].
   block
     ifNil:
-      [body as: Syntax Parenthesis]
+      [body as: nodes Parenthesis]
     ifNotNil:
       [block inputVariables: #{}.
        block statements: body.
-       Syntax UnaryMessage sending: #do to: {block}]
+       nodes UnaryMessage sending: #do to: {block}]
 ].
 
-source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray@(Syntax Array traits) &environment: env
+source@(nodes Node traits) setting: slotsArray@(nodes Literal traits) to: valuesArray@(nodes Array traits) &environment: env
 "This generates the kind of input that `>> expects for the simple case of just
 setting a bunch of slot values."
 [| cascade statements |
-  cascade: Syntax Block new.
+  cascade: nodes Block new.
   cascade inputVariables: #{}.
   cascade statements:
     ([| :out |
       slotsArray value with: valuesArray statements do:
         [| :name :value |
-         out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
-                                             to: {Syntax ImplicitArgument. value})].
-      out nextPut: Syntax Literal Nil] writingAs: #{}).
+         out nextPut: (nodes KeywordMessage sending: (Root mutatorNameFor: name)
+                                             to: {nodes ImplicitArgument. value})].
+      out nextPut: nodes Literal Nil] writingAs: #{}).
   source >> cascade &environment: env
 ].
 
-source@(Syntax Node traits) setting: slotsArray@(Syntax Literal traits) to: valuesArray@(Syntax Literal traits) &environment: env
+source@(nodes Node traits) setting: slotsArray@(nodes Literal traits) to: valuesArray@(nodes Literal traits) &environment: env
 [| cascade statements |
-  cascade: Syntax Block new.
+  cascade: nodes Block new.
   cascade inputVariables: #{}.
   cascade statements:
     ([| :out |
       slotsArray value with: valuesArray value do:
         [| :name :value |
-         out nextPut: (Syntax KeywordMessage sending: (Root mutatorNameFor: name)
-                                             to: {Syntax ImplicitArgument. Syntax Literal for: value})].
-      out nextPut: Syntax Literal Nil] writingAs: #{}).
+         out nextPut: (nodes KeywordMessage sending: (Root mutatorNameFor: name)
+                                             to: {nodes ImplicitArgument. nodes Literal for: value})].
+      out nextPut: nodes Literal Nil] writingAs: #{}).
   source >> cascade &environment: env
 ].
 
-source@(Syntax Node traits) setting: slotsArray to: valuesArray &environment: env
+source@(nodes Node traits) setting: slotsArray to: valuesArray &environment: env
 [
-  Syntax KeywordMessage sending: #cloneSettingSlots:to: to: {source. slotsArray. valuesArray}
+  nodes KeywordMessage sending: #cloneSettingSlots:to: to: {source. slotsArray. valuesArray}
 ].
 
-node@(Syntax Node traits) substitutingSlotsOf: source for: vars
+node@(nodes Node traits) substitutingSlotsOf: source for: vars
 [
   node
 ].
 
-load@(Syntax LoadVariable traits) substitutingSlotsOf: source for: vars
+load@(nodes LoadVariable traits) substitutingSlotsOf: source for: vars
 [
   (vars includes: load variable)
     ifTrue:
-      [Syntax UnaryMessage sending: load variable name to:
-        {Syntax LoadVariable from: source}]
+      [nodes UnaryMessage sending: load variable name to:
+        {nodes LoadVariable from: source}]
     ifFalse:
       [load]
 ].
 
-store@(Syntax StoreVariable traits) substitutingSlotsOf: source for: vars
+store@(nodes StoreVariable traits) substitutingSlotsOf: source for: vars
 [
   (vars includes: store variable)
     ifTrue:
-      [Syntax KeywordMessage
+      [nodes KeywordMessage
          sending: store variable name name ; ':'
-         to: {Syntax LoadVariable from: source. store value}]
+         to: {nodes LoadVariable from: source. store value}]
     ifFalse:
       [store]
 ].
 
-source@(Syntax Node traits) withSlotsDo: cascade@(Syntax Block traits) &environment: env
+source@(nodes Node traits) withSlotsDo: cascade@(nodes Block traits) &environment: env
 "A macro for a different type of cascade. This searches the cascade block's input
 arguments and binds them to corresponding slots in the result of evaluating the
 source code."
 [| sourceVar body block |
   env
     ifNil:
-      [block: Syntax Block new].
+      [block: nodes Block new].
   cascade localVariables size > cascade inputVariables size
     ifTrue:
       [block: cascade].
   sourceVar: (block ifNil: [env]) addVariable.
   cascade transformBy:
     [| :node | node substitutingSlotsOf: sourceVar for: cascade inputVariables].
-  body: {Syntax StoreVariable of: source into: sourceVar} ; cascade statements.
+  body: {nodes StoreVariable of: source into: sourceVar} ; cascade statements.
   block
     ifNil:
-      [body as: Syntax Parenthesis]
+      [body as: nodes Parenthesis]
     ifNotNil:
       [block localVariables: (block localVariables difference: block inputVariables).
        block inputVariables: #{}.
        block statements: body.
-       Syntax UnaryMessage sending: #do to: {block}]
+       nodes UnaryMessage sending: #do to: {block}]
 ].

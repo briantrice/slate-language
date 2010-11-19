@@ -11,7 +11,7 @@ conditions define: #Debugger &parents: {Cloneable}
            #restarts -> ExtensibleArray new.
            #interpreter -> bootstrapInterpreter.
            #resource -> DebugConsole.
-           #parser -> Syntax Parser.
+           #parser -> Parser.
            #printer -> DebugConsole writer.
            #namespace -> Nil.
            #frameList -> ExtensibleArray new.
@@ -58,7 +58,7 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod
      condition := c.
      restarts := d restarts new.
      namespace := d namespace clone.
-     parser currentScope := Syntax Namespace for: newD namespace.
+     parser currentScope := nodes Namespace for: newD namespace.
      parser parseInteractively:
        ([repl parser parseInteractively]
 	  on: SeriousCondition do: #(return: False) `er).
@@ -472,10 +472,10 @@ in the selected option number, returning it if valid."
    [expr := d parser next] on: Stream Exhaustion do:
      [| :c | c stream == d resource reader ifTrue: [lobby exit: 1]].
    result := expr evaluateIn: d namespace.
-   restartNumeric := (expr is: Syntax Literal) /\ [result is: Integer].
+   restartNumeric := (expr is: nodes Literal) /\ [result is: Integer].
    "Exclude selections of restarts and other commands from printing."
    restartNumeric \/
-     [(expr is: Syntax Message)
+     [(expr is: nodes Message)
         /\ [#{#:. #restart:. #frame. #frame:. #restarts. #help. #bt. #backtrace} includes: expr selector]]
       ifFalse:
         [[result printOn: d printer]

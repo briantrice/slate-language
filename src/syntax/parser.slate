@@ -1,8 +1,6 @@
-Syntax define: #Parser &parents: {ReadStream} &slots: {
-  #lexer -> Syntax Lexer.
-  #lookAheadBuffer -> ExtensibleArray new.
-  "A backing buffer of tokens for undo functionality."
-  #currentScope -> Syntax Ground.
+define: #Parser &parents: {ReadStream} &slots: {
+  #lexer -> Lexer.
+  #currentScope -> nodes Ground.
   "Where expressions are evaluated."
   #typesNamespace -> Types.
   "Where expressions following ! annotations are evaluated."
@@ -11,121 +9,106 @@ Syntax define: #Parser &parents: {ReadStream} &slots: {
 }.
 "Reads tokens from a Lexer and builds a Syntax Node tree for it."
 
-Syntax Parser traits define: #EndStatementTokens &builder: [{Syntax EndStatement. Syntax EndStream}].
-Syntax Parser traits define: #EndBlockStatementTokens &builder: [{Syntax EndStatement. Syntax EndBlock}].
-Syntax Parser traits define: #EndParenthesisStatementTokens &builder: [{Syntax EndStatement. Syntax EndParenthesis}].
-Syntax Parser traits define: #EndArrayStatementTokens &builder: [{Syntax EndStatement. Syntax EndArray}].
-Syntax Parser traits define: #InteractiveExcludeTokens &builder: [{Syntax tokens Comment}].
-Syntax Parser traits define: #ExcludeTokens &builder: [{Syntax tokens Comment. Syntax EndLine}].
+(Syntax import: #Parser from: here) `bootstrapping.
 
-Syntax Parser traits define: #SpecialBinarySelectors &builder:
+Parser traits define: #EndStatementTokens &builder: [{tokens EndStatement. tokens EndStream}].
+Parser traits define: #EndBlockStatementTokens &builder: [{tokens EndStatement. tokens EndBlock}].
+Parser traits define: #EndParenthesisStatementTokens &builder: [{tokens EndStatement. tokens EndParenthesis}].
+Parser traits define: #EndArrayStatementTokens &builder: [{tokens EndStatement. tokens EndArray}].
+Parser traits define: #InteractiveExcludeTokens &builder: [{tokens Comment}].
+Parser traits define: #ExcludeTokens &builder: [{tokens Comment. tokens EndLine}].
+
+Parser traits define: #SpecialBinarySelectors &builder:
   [#{#:=. #::=. #=:=. #?=. #+=. #-=. #*=. #/=}].
 
-obj@(Root traits) recordPositionFrom: p@(Syntax Parser traits)
-[(Syntax Literal for: obj) recordPositionFrom: p].
+obj@(Root traits) recordPositionFrom: p@(Parser traits)
+[(nodes Literal for: obj) recordPositionFrom: p].
 
-node@(Syntax Node traits) recordPositionFrom: p@(Syntax Parser traits)
+node@(nodes Node traits) recordPositionFrom: p@(Parser traits)
 [
   node `>>
    [lineNumber := p lexer lineNumber.
     source := p lexer source. ]
 ].
 
-p@(Syntax Parser traits) on: source
+p@(Parser traits) on: source
 [
-  p `>> [lexer := p lexer newOn: source reader.
-         reset. ]
+  p `>>
+    [lexer := p lexer newOn: source reader.
+     reset. ]
 ].
 
-p@(Syntax Parser traits) reset
+p@(Parser traits) reset
 [
-  p lookAheadBuffer := p lookAheadBuffer new.
   p lexer reset.
 ].
 
-p@(Syntax Parser traits) extendBuffer
-"Places a new token at the end of the look-ahead buffer."
-[
-  p lookAheadBuffer addLast: p lexer next
-].
-
-p@(Syntax Parser traits) is: token likeAnyOf: options
+p@(Parser traits) is: token likeAnyOf: options
 [
   options anySatisfy: [| :opt | token isSameAs: opt]
 ].
 
-p@(Syntax Parser traits) nextToken &interactive: interactive
+p@(Parser traits) excludedTokens &interactive: interactive
+[
+  (interactive `defaultsTo: p parseInteractively)
+    ifTrue: [p InteractiveExcludeTokens]
+    ifFalse: [p ExcludeTokens]
+].
+
+p@(Parser traits) nextToken &interactive: interactive
 "Takes the next token from either the buffer or the lexer transparently."
 [| exclude token |
-  exclude := (interactive `defaultsTo: False)
-    ifTrue: [p InteractiveExcludeTokens]
-    ifFalse: [p ExcludeTokens].
-  [token := p lookAheadBuffer isEmpty
-     ifTrue: [p lexer next]
-     ifFalse: [p lookAheadBuffer removeFirst].
-   p is: token likeAnyOf: exclude] whileTrue.
+  exclude := p excludedTokens &interactive: interactive.
+  [p is: (token := p lexer next) likeAnyOf: exclude] whileTrue.
   token
 ].
 
-p@(Syntax Parser traits) peekToken &interactive: interactive
+p@(Parser traits) peekToken &interactive: interactive
 "Return the next non-stop token from the Lexer, but leave it in the buffer
 and don't update the position."
-[| exclude token |
-  exclude := (interactive `defaultsTo: False)
-    ifTrue: [p InteractiveExcludeTokens]
-    ifFalse: [p ExcludeTokens].
-  "Return the next non-stop token in the buffer"
-  p lookAheadBuffer do:
-    [| :token | (p is: token likeAnyOf: exclude) ifFalse: [^ token]].
-  "None found, so buffer more and return the first non-stop token."
-  [p is: (token := p extendBuffer) likeAnyOf: exclude] whileTrue.
+[| exclude token lookAheadIndex |
+  exclude := p excludedTokens &interactive: interactive.
+  "Return the next non-stop token."
+  lookAheadIndex := -1.
+  [p is: (token := p lexer peekForwardBy: (lookAheadIndex += 1))
+     likeAnyOf: exclude] whileTrue.
   token
 ].
 
-p@(Syntax Parser traits) isAtEnd
+p@(Parser traits) isAtEnd
 [
-  p lookAheadBuffer isEmpty /\ [p lexer isAtEnd]
+  p lexer isAtEnd
 ].
 
-p@(Syntax Parser traits) undoToken: token
-"Place the token back onto the stream buffer."
-[
-  p lookAheadBuffer addFirst: token
-].
-
-_@(Syntax Parser traits) undoToken: t@(Syntax EndStream traits)
-"Avoid placing EndStream tokens in the look-ahead buffer."
-[t].
-
-Syntax Parser traits define: #Error &parents: {Syntax Lexer Error}.
+Parser traits define: #Error &parents: {Lexer Error}.
 "An error that occurred in parsing, always requiring a description."
 
-p@(Syntax Parser traits) error: description
+p@(Parser traits) error: description
 [
   (p Error newDescription:
     'Line ' ; p lexer lineNumber printString ; ': ' ; description)
    `>> [lineNumber := p lexer lineNumber. signal]
 ].
 
-p@(Syntax Parser traits) unexpectedlyFound: found after: expr
+p@(Parser traits) unexpectedlyFound: found after: expr
 [
   p error: 'Expected: (anything else) but found: ' ; found signifier ; ' after: ' ; expr printString
 ].
 
-p@(Syntax Parser traits) expected: expected butFound: found@(Syntax Token traits)
+p@(Parser traits) expected: expected butFound: found@(tokens Token traits)
 [
   p error: 'Expected: ' ; expected signifier  ; ' but found: ' ; found signifier
 ].
 
-p@(Syntax Parser traits) check: found is: expected@(Syntax Token traits)
+p@(Parser traits) check: found is: expected@(tokens Token traits)
 [(found isSameAs: expected) ifFalse:
   [p expected: expected butFound: found]].
 
-p@(Syntax Parser traits) check: found is: expected@(Sequence traits)
+p@(Parser traits) check: found is: expected@(Sequence traits)
 [(expected anySatisfy: #(isSameAs: found) `er) ifFalse:
   [p expected: expected butFound: found]].
 
-p@(Syntax Parser traits) expected: expected@(Sequence traits) butFound: found
+p@(Parser traits) expected: expected@(Sequence traits) butFound: found
 [| expectNames |
   (expectNames := expected collect: #signifier `er select: #isNotNil `er)
     size > 1 ifTrue:
@@ -137,29 +120,29 @@ p@(Syntax Parser traits) expected: expected@(Sequence traits) butFound: found
   p error: 'Expected ' ; expectNames ; ' but found ' ; found signifier
 ].
 
-p@(Syntax Parser traits) nextExpression
+p@(Parser traits) nextExpression
 [| token lookAheadIndex |
   lookAheadIndex := 0.
-  [token := p lookAheadBuffer at: lookAheadIndex ifAbsent: [p extendBuffer].
-   (token isSameAs: Syntax BeginVariables) ifTrue:
+  [token := p lexer peekForwardBy: lookAheadIndex.
+   (token isSameAs: tokens BeginVariables) ifTrue:
      [p error: 'Block headers are only valid in block literals.'].
-   token == Syntax At ifTrue:
+   token == tokens At ifTrue:
      [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextSignatureOrDefinition))].
    lookAheadIndex += 1.
-   (token isSameAs: Syntax Selector)
-     \/ [token isSameAs: Syntax tokens Comment]
+   (token isSameAs: tokens Selector)
+     \/ [token isSameAs: tokens Comment]
      \/ [p parseInteractively not \/ [lookAheadIndex = 1]
-           /\ [token isSameAs: Syntax EndLine]]] whileTrue.
+           /\ [token isSameAs: tokens EndLine]]] whileTrue.
   p nextMessage
 ].
 
-p@(Syntax Parser traits) nextAsStatement
+p@(Parser traits) nextAsStatement
 "Find a complete expression suitable as a statement."
 [
-  p nextExpression ifNil: [Syntax Literal Nil]
+  p nextExpression ifNil: [nodes Literal Nil]
 ].
 
-p@(Syntax Parser traits) next
+p@(Parser traits) next
 "The top-level Stream processing to return the next syntax node."
 [| statement token terminatesCorrectly |
   statement := p nextExpression.
@@ -170,92 +153,92 @@ p@(Syntax Parser traits) next
   statement
     ifNil:
       [terminatesCorrectly
-         ifTrue: [Syntax Literal Nil]
+         ifTrue: [nodes Literal Nil]
          ifFalse: [p expected: p EndStatementTokens
                      butFound: (p nextToken &interactive: p parseInteractively)]]
 ].
 
-p@(Syntax Parser traits) nonInteractivelyDo: block
+p@(Parser traits) nonInteractivelyDo: block
 [| interactive |
   interactive := p parseInteractively.
   p parseInteractively := False.
   [block do] ensure: [p parseInteractively: interactive]
 ].
 
-p@(Syntax Parser traits) inScope: scope do: block
+p@(Parser traits) inScope: scope do: block
 [| oldScope |
   oldScope := p currentScope.
   p currentScope := scope.
   [block do] ensure: [p currentScope := oldScope]
 ].
 
-p@(Syntax Parser traits) nextAtom
+p@(Parser traits) nextAtom
 [| token |
   (p nextFrom: (token := p nextToken))
-    ifNil: [p undoToken: token. ]
+    ifNil: [p lexer undoToken: token. ]
     ifNotNilDo: [| :node | p recordDeclaredTypeOf: (node recordPositionFrom: p)]
 ].
 
-p@(Syntax Parser traits) nextLiteral
+p@(Parser traits) nextLiteral
 [
   p nextLiteralFrom: p nextToken
 ].
 
-p@(Syntax Parser traits) recordDeclaredTypeOf: obj
+p@(Parser traits) recordDeclaredTypeOf: obj
 [obj].
 
-p@(Syntax Parser traits) recordDeclaredTypeOf: node@(Syntax Node traits)
+p@(Parser traits) recordDeclaredTypeOf: node@(nodes Node traits)
 "Sets the type attribute of the node based on the suffixed type annotation.
 Type expressions are evaluated in a separate namespace for convenience.
 Type annotation suffixes may also be chained (for no particular reason)."
 [| token |
   p inScope: (p currentScope topLevel for: p typesNamespace) do:
     [[(token := p nextToken &interactive: p parseInteractively)
-        isSameAs: Syntax Type]
+        isSameAs: tokens Type]
        whileTrue:
          [node type := p nextAtom
             ifNil: [p error: 'No type given after type declaration marker.']
             ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace]].
-     p undoToken: token].
+     p lexer undoToken: token].
   node
 ].
 
-p@(Syntax Parser traits) nextMessage &after: node
+p@(Parser traits) nextMessage &after: node
 [
   p parseRestArgumentsFor:
     (p parseOptionalKeywordsFor:
       (p nextPartial &after: node))
 ].
 
-p@(Syntax Parser traits) parseRestArgumentsFor: expr
+p@(Parser traits) parseRestArgumentsFor: expr
 [| token |
-  ((token := p peekToken) isSameAs: Syntax Comma)
+  ((token := p peekToken) isSameAs: tokens Comma)
     ifTrue: [p unexpectedlyFound: token after: expr]
     ifFalse: [expr]
 ].
 
-p@(Syntax Parser traits) parseRestArgumentsFor: message@(Syntax Message traits)
+p@(Parser traits) parseRestArgumentsFor: message@(nodes Message traits)
 [| token arguments |
   arguments :=
     [| :arguments |
-     [(token := p nextToken) isSameAs: Syntax Comma]
+     [(token := p nextToken) isSameAs: tokens Comma]
        whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #{}.
-  p undoToken: token.
-  arguments isEmpty
-    ifTrue: [message]
-    ifFalse: [(Syntax RestArguments for: message) `>>
-                [arguments := arguments.
-                 recordPositionFrom: p]]
+  p lexer undoToken: token.
+  arguments
+    ifEmpty: [message]
+    ifNotEmpty: [(nodes RestArguments for: message) `>>
+                   [arguments := arguments.
+                    recordPositionFrom: p]]
 ].
 
-p@(Syntax Parser traits) parseOptionalKeywordsFor: expr
+p@(Parser traits) parseOptionalKeywordsFor: expr
 [| token |
   (Syntax isOptionalSelector: (token := p peekToken))
     ifTrue: [p unexpectedlyFound: token after: expr]
     ifFalse: [expr]
 ].
 
-p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message traits)
+p@(Parser traits) parseOptionalKeywordsFor: message@(nodes Message traits)
 [| token keywords arguments |
   arguments := #{} writer.
   keywords :=
@@ -265,16 +248,16 @@ p@(Syntax Parser traits) parseOptionalKeywordsFor: message@(Syntax Message trait
          [keywords nextPut: token value intern.
           arguments nextPut: p nextBinaryMessages]]
        writingAs: #{}.
-  p undoToken: token.
-  keywords isEmpty
-    ifTrue: [message]
-    ifFalse: [(Syntax OptionalKeywords for: message) `>>
-                [keywords := keywords.
-                 arguments := arguments contents.
-                 recordPositionFrom: p]]
+  p lexer undoToken: token.
+  keywords
+    ifEmpty: [message]
+    ifNotEmpty: [(nodes OptionalKeywords for: message) `>>
+                   [keywords := keywords.
+                    arguments := arguments contents.
+                    recordPositionFrom: p]]
 ].
 
-p@(Syntax Parser traits) nextUnaryMessages &after: node
+p@(Parser traits) nextUnaryMessages &after: node
 [| result token |
   result := node `defaultsTo: p nextAtom.
   [Syntax isUnarySelector: (token := p nextToken &interactive: p parseInteractively)]
@@ -282,11 +265,11 @@ p@(Syntax Parser traits) nextUnaryMessages &after: node
       [(result := token messageType sending: token value to: {result})
          recordPositionFrom: p.
        p recordDeclaredTypeOf: result].
-  p undoToken: token.
+  p lexer undoToken: token.
   result
 ].
 
-p@(Syntax Parser traits) nextBinaryMessages &after: node
+p@(Parser traits) nextBinaryMessages &after: node
 [| result token firstArg |
   result := p nextUnaryMessages &after: node.
   [(Syntax isBinarySelector: (token := p nextToken &interactive: p parseInteractively))
@@ -295,23 +278,23 @@ p@(Syntax Parser traits) nextBinaryMessages &after: node
       [result := result isNil /\ [Syntax isReturnSelector: token]
          ifTrue:
            [(token value caseOf:
-               {'^' -> [Syntax ReturnClose].
-                '^^' -> [Syntax ReturnFar]}
-               otherwise: [Syntax ReturnLevel by:
+               {'^' -> [nodes ReturnClose].
+                '^^' -> [nodes ReturnFar]}
+               otherwise: [nodes ReturnLevel by:
                              (Integer readFrom: token value allButFirst)])
               of: p nextUnaryMessages]
          ifFalse:
-           [firstArg := result ifNil: [Syntax ImplicitArgument].
+           [firstArg := result ifNil: [nodes ImplicitArgument].
             token messageType sending: token value to:
               (p nextUnaryMessages
                  ifNil: [{firstArg}]
                  ifNotNilDo: [| :secondArg | {firstArg. secondArg}])].
        result recordPositionFrom: p].
-  p undoToken: token.
+  p lexer undoToken: token.
   result
 ].
 
-p@(Syntax Parser traits) nextKeywordMessages &after: argument
+p@(Parser traits) nextKeywordMessages &after: argument
 "Handles/creates all kewyord-message-send forms. It must gather all keywords
 into a single selector with arguments."
 [| messageType token result arguments selector |
@@ -322,9 +305,9 @@ into a single selector with arguments."
     ifTrue:
       [arguments :=
          [| :result |
-          result nextPut: (argument ifNil: [Syntax ImplicitArgument]).
+          result nextPut: (argument ifNil: [nodes ImplicitArgument]).
           [(Syntax isKeywordSelector: (token := p nextToken &interactive: p parseInteractively))
-             /\ [messageType isNil \/ [token messageType == Syntax Message]]
+             /\ [messageType isNil \/ [token messageType == nodes Message]]
              /\ [(Syntax isOptionalSelector: token) not]]
             whileTrue:
               [messageType ifNil: [messageType := token messageType].
@@ -333,10 +316,10 @@ into a single selector with arguments."
                selector ; token value.
                result nextPut:
                  (p nextBinaryMessages ifNil: [p error: 'Bad keyword argument (being implicit).'])].
-          p undoToken: token] writingAs: #{}.
+          p lexer undoToken: token] writingAs: #{}.
        selector := selector contents.
        "Handle the special case of a StoreVariable:"
-       arguments size = 2 /\ [arguments first isSameAs: Syntax ImplicitArgument]
+       arguments size = 2 /\ [arguments first isSameAs: nodes ImplicitArgument]
          ifTrue:
            [(p currentScope findVariable: selector allButLast intern)
               ifNotNilDo:
@@ -345,23 +328,23 @@ into a single selector with arguments."
     ifFalse: [argument]
 ].
 
-p@(Syntax Parser traits) nextSpecialBinaryMessages &after: node
+p@(Parser traits) nextSpecialBinaryMessages &after: node
 "Handles/creates all special-message-send forms."
 [| token result |
   result := p nextKeywordMessages &after: node.
   [(Syntax isBinarySelector: (token := p nextToken &interactive: p parseInteractively))
      /\ [p SpecialBinarySelectors anySatisfy: [| :sel | token value =~ sel]]]
     whileTrue:
-      [result := Syntax nodes BinaryMacro sending: token value to:
+      [result := nodes BinaryMacro sending: token value to:
          (p nextExpression ifNil: [{result}] ifNotNilDo: [| :rhs | {result. rhs}])].
-  p undoToken: token.
+  p lexer undoToken: token.
   result
 ].
 
-p@(Syntax Parser traits) nextPartial &after: node
+p@(Parser traits) nextPartial &after: node
 [| token result |
   result := p nextSpecialBinaryMessages &after: node.
-  [(token := p nextToken &interactive: p parseInteractively) is: Syntax BeginPartial]
+  [(token := p nextToken &interactive: p parseInteractively) is: tokens BeginPartial]
     whileTrue:
       [| partial |
        (partial := p nextFrom: token) arity >= 1
@@ -369,19 +352,19 @@ p@(Syntax Parser traits) nextPartial &after: node
            [partial completeWith: {result}.
             result := partial message]
          ifFalse: [p error: 'Partial cascaded with too many placeholders.']].
-  p undoToken: token.
+  p lexer undoToken: token.
   result
 ].
 
-p@(Syntax Parser traits) newVariableNamed: name in: block
+p@(Parser traits) newVariableNamed: name in: block
 [
-  Syntax Variable clone `>>
+  nodes Variable clone `>>
     [name := name intern. scope := block. recordPositionFrom: p]
 ].
 
-p@(Syntax Parser traits) nextBlock &updating: block
+p@(Parser traits) nextBlock &updating: block
 [| token statements lineNumber inputVariables optKeywords optVariables |
-  block `defaultsTo: (Syntax Block new recordPositionFrom: p).
+  block `defaultsTo: (nodes Block new recordPositionFrom: p).
   lineNumber := p lexer lineNumber.
   inputVariables := #{} writer.
   optKeywords := #{} writer.
@@ -389,13 +372,13 @@ p@(Syntax Parser traits) nextBlock &updating: block
   block parentScope := p currentScope.
   p inScope: block do:
     [p nonInteractivelyDo:
-       [((token := p nextToken) isSameAs: Syntax BeginVariables)
+       [((token := p nextToken) isSameAs: tokens BeginVariables)
           ifTrue:
             [token := p nextToken.
-             [token isSameAs: Syntax EndVariables]
+             [token isSameAs: tokens EndVariables]
                whileFalse:
                  [| variable name varName |
-                  (token isSameAs: Syntax Selector)
+                  (token isSameAs: tokens Selector)
                     ifFalse: [p error: 'Bad variable declaration'].
                   name := token value.
                   (Syntax isUnarySelector: name)
@@ -422,7 +405,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
                   variable name = #_
                     \/ [block localVariables noneSatisfy: [| :var | variable name =~ var name]]
                     ifTrue: [block localVariables := block localVariables copyWith: variable]]]
-          ifFalse: [p undoToken: token].
+          ifFalse: [p lexer undoToken: token].
         block inputVariables := block inputVariables ; inputVariables contents.
         block optionalKeywords := block optionalKeywords ; optKeywords contents.
         block optionalVariables := block optionalVariables ; optVariables contents.
@@ -438,7 +421,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
                 /\ [block restVariable ~== var]]).
         statements := #{} writer.
         statements nextPut: p nextAsStatement.
-        [(token := p nextToken) isSameAs: Syntax EndBlock]
+        [(token := p nextToken) isSameAs: tokens EndBlock]
           whileFalse:
             [p check: token is: p EndBlockStatementTokens.
              statements nextPut: p nextAsStatement]]].
@@ -446,7 +429,7 @@ p@(Syntax Parser traits) nextBlock &updating: block
   block
 ].
 
-p@(Syntax Parser traits) nextSignatureOrDefinition
+p@(Parser traits) nextSignatureOrDefinition
 "Parses and returns a method definition, which has the highest precedence."
 [| selector roles inputVariables optKeywords optVariables token result |
   selector := Nil.
@@ -454,8 +437,8 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
   inputVariables := #{} writer.
   optKeywords := #{} writer.
   optVariables := #{} writer.
-  result := Syntax MethodDefinition new recordPositionFrom: p.
-  [(token := p nextToken) isSameAs: Syntax BeginBlock]
+  result := nodes MethodDefinition new recordPositionFrom: p.
+  [(token := p nextToken) isSameAs: tokens BeginBlock]
     whileFalse:
       [| variable |
        (Syntax isUnarySelector: token)
@@ -465,10 +448,10 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
        optKeywords size isZero
          ifTrue:
            [inputVariables nextPut: variable.
-            token == Syntax At
+            token == tokens At
               ifTrue: [roles nextPut: p nextAtom. token := p nextToken]
-              ifFalse: [roles nextPut: ((Syntax Literal for: NoRole) recordPositionFrom: p)].
-            (token isSameAs: Syntax Selector)
+              ifFalse: [roles nextPut: ((nodes Literal for: NoRole) recordPositionFrom: p)].
+            (token isSameAs: tokens Selector)
               ifTrue:
                 [selector isNotNil
                    /\ [(Syntax isOptionalSelector: token) not]
@@ -493,22 +476,22 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
                    ifTrue:
                      [optKeywords nextPut: token value intern]]
               ifFalse:
-                [p undoToken: token.
-                 token == Syntax BeginBlock ifFalse:
+                [p lexer undoToken: token.
+                 token == tokens BeginBlock ifFalse:
                    [^ ((result `>>
                           [selector := selector intern.
                            roles := roles contents.
                            inputVariables := inputVariables contents.
                            optionalKeywords := optKeywords contents.
                            optionalVariables := optVariables contents. ]
-                         as: Syntax Signature) recordPositionFrom: p)]]]
+                         as: nodes Signature) recordPositionFrom: p)]]]
          ifFalse:
            [optVariables nextPut: variable.
             (Syntax isOptionalSelector: token)
               ifTrue: [optKeywords nextPut: token value intern]
               ifFalse:
-                [p undoToken: token.
-                 (token isSameAs: Syntax BeginBlock)
+                [p lexer undoToken: token.
+                 (token isSameAs: tokens BeginBlock)
                    ifFalse:
                      [^ ((result `>>
                             [selector := selector intern.
@@ -516,7 +499,7 @@ p@(Syntax Parser traits) nextSignatureOrDefinition
                              inputVariables := inputVariables contents.
                              optionalKeywords := optKeywords contents.
                              optionalVariables := optVariables contents. ]
-                            as: Syntax Signature) recordPositionFrom: p)]]]].
+                            as: nodes Signature) recordPositionFrom: p)]]]].
   selector ifNil: [p error: 'No selector name specified in method definition'].
   result selector := selector intern.
   result roles := roles contents.

@@ -1,54 +1,56 @@
-Syntax ensureNamespace: #nodes &delegate: True.
+ensureNamespace: #nodes &delegate: True.
 
-Syntax nodes define: #Node &parents: {Cloneable} &slots:
+(Syntax addDelegateNamed: #nodes valued: nodes) `bootstrapping.
+
+nodes define: #Node &parents: {Cloneable} &slots:
 {#type -> Types Any. "The annotated type, by the inferencer or manually."
  #source -> Nil. "The source of the lexer stream"
  #lineNumber -> Nil "The line number in the source code at which the node was read."}.
 "The general syntax object for expressions."
 
-node@(Syntax nodes Node traits) new
+node@(nodes Node traits) new
 [resend `setting: #{#type. #lineNumber} to: {Types Any. Nil}].
 
-node@(Syntax nodes Node traits) evaluate
+node@(nodes Node traits) evaluate
 [node evaluateIn: lobby].
 
-node@(Syntax nodes Node traits) evaluateIn: namespace
+node@(nodes Node traits) evaluateIn: namespace
 [overrideThis].
 
-node@(Syntax nodes Node traits) walk: block
+node@(nodes Node traits) walk: block
 "A depth-first do:-style iteration through Nodes; a code/tree-walker."
 [
   block applyWith: node.
 ].
 
-node@(Syntax nodes Node traits) transformBy: block
+node@(nodes Node traits) transformBy: block
 "Transforms the tree's nodes in-place by the block closure.
 Only transformChildren: needs to be overridden."
 [
   (block applyWith: node) transformChildren: block
 ].
 
-node@(Syntax nodes Node traits) transformChildren: block
+node@(nodes Node traits) transformChildren: block
 "Act on each of a node's children in-place.
 This gets overridden for the various compound node types."
 [
   node
 ].
 
-node@(Syntax nodes Node traits) deepCopy: scope
+node@(nodes Node traits) deepCopy: scope
 "Copies the entire syntax tree, with the given scope as the lexical reference.
 This gets overridden for each type that is compound or relates to the scope."
 [
   node
 ].
 
-node@(Syntax nodes Node traits) deepCopy
+node@(nodes Node traits) deepCopy
 "Copies the entire syntax tree with the (default) scope being the lobby."
 [
-  node deepCopy: Syntax Ground
+  node deepCopy: nodes Ground
 ].
 
-node@(Syntax nodes Node traits) definitionLocation
+node@(nodes Node traits) definitionLocation
 [
   (node source hasSlotNamed: #resource)
     ifTrue: [node source resource locator
@@ -59,98 +61,98 @@ node@(Syntax nodes Node traits) definitionLocation
                 ifNotNil: [node source printString ; ':' ; node lineNumber printString]]
 ].
 
-Syntax nodes define: #Annotation &parents: {Syntax nodes Node}
+nodes define: #Annotation &parents: {nodes Node}
   &slots: {#value "The annotated node."}.
 "A wrapper for other Nodes that adds an annotative object."
 
-x@(Syntax nodes Annotation traits) = y@(Syntax nodes Annotation traits)
+x@(nodes Annotation traits) = y@(nodes Annotation traits)
 [x value = y value].
 
-ann@(Syntax nodes Annotation traits) walk: block
+ann@(nodes Annotation traits) walk: block
 [
   block applyWith: ann.
   ann value walk: block
 ].
 
-ann@(Syntax nodes Annotation traits) transformChildren: block
+ann@(nodes Annotation traits) transformChildren: block
 [
   ann value: (ann value transformBy: block).
   ann
 ].
 
-ann@(Syntax nodes Annotation traits) deepCopy: scope
+ann@(nodes Annotation traits) deepCopy: scope
 [ann clone `setting: #{#value} to: {ann value deepCopy: scope}].
 
-ann@(Syntax nodes Annotation traits) evaluateIn: namespace
+ann@(nodes Annotation traits) evaluateIn: namespace
 [ann value evaluateIn: namespace].
 
-Syntax nodes define: #Comment &parents: {Syntax nodes Annotation}
+nodes define: #Comment &parents: {nodes Annotation}
 &slots: {#comment -> '' "The comment object, an empty String by default."}.
 "Comments are nodes that contain the expression that they annotate."
 
-x@(Syntax nodes Comment traits) = y@(Syntax nodes Comment traits)
+x@(nodes Comment traits) = y@(nodes Comment traits)
 [x value = y value /\ [x comment = y comment]].
 
-node@(Syntax nodes Node traits) comment: comment
+node@(nodes Node traits) comment: comment
 "Returns a new Comment with the given comment wrapping the original
 Node. Usable as a macro."
-[Syntax Comment clone `setting: #{#comment. #value} to: {comment evaluate. node}].
+[nodes Comment clone `setting: #{#comment. #value} to: {comment evaluate. node}].
 
-Syntax nodes define: #ImplicitArgument &parents: {Syntax nodes Node}.
+nodes define: #ImplicitArgument &parents: {nodes Node}.
 "Implicit arguments include anything sent to the local context, as well as
 the lobby."
 
-node1@(Syntax nodes ImplicitArgument traits) = node2@(Syntax nodes ImplicitArgument traits)
+node1@(nodes ImplicitArgument traits) = node2@(nodes ImplicitArgument traits)
 [True].
 
-node@(Syntax nodes ImplicitArgument traits) evaluateIn: namespace
+node@(nodes ImplicitArgument traits) evaluateIn: namespace
 "The default is to simply return the namespace as the result."
 [namespace].
 
-Syntax nodes define: #Message &parents: {Syntax nodes Node}
+nodes define: #Message &parents: {nodes Node}
   &slots: {#selector -> #'' . #arguments -> #{}}.
 "Represents a message send."
 
-m@(Syntax nodes Message traits) prototypeFor: selector
+m@(nodes Message traits) prototypeFor: selector
 [
   `conditions: (
-    [Syntax isUnarySelector: selector] -> [Syntax UnaryMessage].
-    [Syntax isBinarySelector: selector] -> [Syntax BinaryMessage]
-  ) otherwise: [Syntax KeywordMessage]
+    [Syntax isUnarySelector: selector] -> [nodes UnaryMessage].
+    [Syntax isBinarySelector: selector] -> [nodes BinaryMessage]
+  ) otherwise: [nodes KeywordMessage]
 ].
 
-message@(Syntax nodes Message traits) sending: selector to: arguments
+message@(nodes Message traits) sending: selector to: arguments
 [(message prototypeFor: selector) clone `setting: #{#selector. #arguments} to:
   {selector intern. arguments}].
 
-x@(Syntax nodes Message traits) as: y@(Syntax nodes Message traits)
+x@(nodes Message traits) as: y@(nodes Message traits)
 [y sending: x selector to: x arguments].
 
-node1@(Syntax nodes Message traits) = node2@(Syntax nodes Message traits)
+node1@(nodes Message traits) = node2@(nodes Message traits)
 [
   node1 selector = node2 selector
    /\ [node1 isSameAs: node2]
    /\ [node1 arguments = node2 arguments]
 ].
 
-message@(Syntax nodes Message traits) walk: block
+message@(nodes Message traits) walk: block
 [
   resend.
   message arguments do: #(_ walk: block) `er
 ].
 
-message@(Syntax nodes Message traits) transformChildren: block
+message@(nodes Message traits) transformChildren: block
 [
   message arguments infect: #(_ transformBy: block) `er.
   message
 ].
 
-message@(Syntax nodes Message traits) deepCopy: scope
+message@(nodes Message traits) deepCopy: scope
 [
   message clone `>> [arguments := message arguments collect: #(deepCopy: scope) `er. ]
 ].
 
-message@(Syntax nodes Message traits) evaluateIn: namespace &optionals: opts
+message@(nodes Message traits) evaluateIn: namespace &optionals: opts
 "Overridden to support the evaluateIn: for ImplicitArgument."
 [
   message selector sendTo:
@@ -158,11 +160,11 @@ message@(Syntax nodes Message traits) evaluateIn: namespace &optionals: opts
     &optionals: opts
 ].
 
-b@(Syntax nodes Node traits) allSelectorsSent
+b@(nodes Node traits) allSelectorsSent
 "Answer a Set of all selectors sent in the source."
 [
   [| :result |
-   b walk: [| :node | (node is: Syntax Message) ifTrue:
+   b walk: [| :node | (node is: nodes Message) ifTrue:
      [result nextPut: node selector.
       ({#sendTo:. #sendTo:through:} includes: result selector)
         /\ [node arguments first is: Symbol]
@@ -170,130 +172,130 @@ b@(Syntax nodes Node traits) allSelectorsSent
     writingAs: IdentitySet
 ].
 
-Syntax nodes define: #UnaryMessage &parents: {Syntax nodes Message}.
+nodes define: #UnaryMessage &parents: {nodes Message}.
 
-message@(Syntax nodes UnaryMessage traits) sending: selector
+message@(nodes UnaryMessage traits) sending: selector
 "Send the selector to the implicit context."
-[message sending: selector to: {Syntax ImplicitArgument}].
+[message sending: selector to: {nodes ImplicitArgument}].
 
-node@(Syntax nodes UnaryMessage traits) argument
+node@(nodes UnaryMessage traits) argument
 [node arguments first].
 
-Syntax nodes define: #BinaryMessage &parents: {Syntax nodes Message}.
-Syntax nodes define: #KeywordMessage &parents: {Syntax nodes Message}.
+nodes define: #BinaryMessage &parents: {nodes Message}.
+nodes define: #KeywordMessage &parents: {nodes Message}.
 
-Syntax nodes define: #Macro &parents: {Syntax nodes Message}.
+nodes define: #Macro &parents: {nodes Message}.
 "Macro nodes are just like regular message-sends, except being applied at
 compile-time to the Node trees for the expressions."
 
-macro@(Syntax nodes Macro traits) evaluateIn: namespace &optionals: opts
+macro@(nodes Macro traits) evaluateIn: namespace &optionals: opts
 "Evaluate the expansion. Should this be relied on? (I.e. should this throw a
 condition which is resumable via macro-expansion?)"
 [
   (macro macroExpand &optionals:
     (opts
       ifNotNil:
-        [Syntax OptionalKeywords new `>>
+        [nodes OptionalKeywords new `>>
            [message := macro.
             keywords := opts atAll: (0 below: opts size by: 2).
             arguments := opts atAll: (1 below: opts size by: 2). ]]))
     evaluateIn: namespace
 ].
 
-m@(Syntax nodes Macro traits) prototypeFor: selector
+m@(nodes Macro traits) prototypeFor: selector
 [
   `conditions: (
-    [Syntax isUnarySelector: selector] -> [Syntax UnaryMacro].
-    [Syntax isBinarySelector: selector] -> [Syntax BinaryMacro]
-  ) otherwise: [Syntax KeywordMacro]
+    [Syntax isUnarySelector: selector] -> [nodes UnaryMacro].
+    [Syntax isBinarySelector: selector] -> [nodes BinaryMacro]
+  ) otherwise: [nodes KeywordMacro]
 ].
 
-Syntax nodes define: #UnaryMacro &parents: {Syntax nodes Macro}.
-Syntax nodes define: #BinaryMacro &parents: {Syntax nodes Macro}.
-Syntax nodes define: #KeywordMacro &parents: {Syntax nodes Macro}.
+nodes define: #UnaryMacro &parents: {nodes Macro}.
+nodes define: #BinaryMacro &parents: {nodes Macro}.
+nodes define: #KeywordMacro &parents: {nodes Macro}.
 
-Syntax nodes define: #Deferred &parents: {Syntax nodes Message}.
+nodes define: #Deferred &parents: {nodes Message}.
 "Deferred nodes are just like regular message-sends, except being applied
 only when all argument promises are entirely resolved."
 
-message@(Syntax nodes Message traits) deferred
-[message as: Syntax Deferred].
+message@(nodes Message traits) deferred
+[message as: nodes Deferred].
 
-message@(Syntax nodes Deferred traits) evaluateIn: namespace &optionals: opts
+message@(nodes Deferred traits) evaluateIn: namespace &optionals: opts
 [
   (message arguments collect: #(evaluateIn: namespace) `er)
     whenFulfilled: [| *args |
       message selector sendTo: args &optionals: opts]
 ].
 
-m@(Syntax nodes Deferred traits) prototypeFor: selector
+m@(nodes Deferred traits) prototypeFor: selector
 [
   `conditions: (
-    [Syntax isUnarySelector: selector] -> [Syntax UnaryDeferred].
-    [Syntax isBinarySelector: selector] -> [Syntax BinaryDeferred]
-  ) otherwise: [Syntax KeywordDeferred]
+    [Syntax isUnarySelector: selector] -> [nodes UnaryDeferred].
+    [Syntax isBinarySelector: selector] -> [nodes BinaryDeferred]
+  ) otherwise: [nodes KeywordDeferred]
 ].
 
-Syntax nodes define: #UnaryDeferred &parents: {Syntax nodes Deferred}.
-Syntax nodes define: #BinaryDeferred &parents: {Syntax nodes Deferred}.
-Syntax nodes define: #KeywordDeferred &parents: {Syntax nodes Deferred}.
+nodes define: #UnaryDeferred &parents: {nodes Deferred}.
+nodes define: #BinaryDeferred &parents: {nodes Deferred}.
+nodes define: #KeywordDeferred &parents: {nodes Deferred}.
 
-Syntax nodes define: #MessageWrapper &parents: {Syntax nodes Node}
+nodes define: #MessageWrapper &parents: {nodes Node}
   &slots: {#message}.
 
-w@(Syntax nodes MessageWrapper traits) for: message
+w@(nodes MessageWrapper traits) for: message
 [w new `setting: #{#message} to: {message}].
 
-w@(Syntax nodes MessageWrapper traits) selector
+w@(nodes MessageWrapper traits) selector
 [w message selector].
 
-w@(Syntax nodes MessageWrapper traits) transformChildren: block
+w@(nodes MessageWrapper traits) transformChildren: block
 [
   w message := w message transformBy: block.
   w
 ].
 
-w@(Syntax nodes MessageWrapper traits) walk: block
+w@(nodes MessageWrapper traits) walk: block
 [
   block applyWith: w.
   w message walk: block.
 ].
 
-w@(Syntax nodes MessageWrapper traits) deepCopy: scope
+w@(nodes MessageWrapper traits) deepCopy: scope
 [
   w clone `>> [message := w message deepCopy: scope. ]
 ].
 
-Syntax nodes define: #OptionalKeywords &parents: {Syntax nodes MessageWrapper}
+nodes define: #OptionalKeywords &parents: {nodes MessageWrapper}
   &slots: {#keywords -> {}. #arguments -> {}}.
 "Annotates a Message with optional keywords and values given."
 
-x@(Syntax nodes OptionalKeywords traits) = y@(Syntax nodes OptionalKeywords traits)
+x@(nodes OptionalKeywords traits) = y@(nodes OptionalKeywords traits)
 [x message = y message /\ [x keywords = y keywords] /\ [x arguments = y arguments]].
 
-opts@(Syntax nodes OptionalKeywords traits) new
+opts@(nodes OptionalKeywords traits) new
 [resend clone `setting: #{#keywords. #arguments} to: #{{}. {}}].
 
-opts@(Syntax nodes OptionalKeywords traits) walk: block
+opts@(nodes OptionalKeywords traits) walk: block
 [
   resend.
   opts arguments
     do: #(walk: block) `er
 ].
 
-opts@(Syntax nodes OptionalKeywords traits) transformChildren: block
+opts@(nodes OptionalKeywords traits) transformChildren: block
 [
   resend.
   opts arguments infect: #(_ transformBy: block) `er.
   opts
 ].
 
-opts@(Syntax nodes OptionalKeywords traits) deepCopy: scope
+opts@(nodes OptionalKeywords traits) deepCopy: scope
 [
   resend `>> [arguments := opts arguments collect: #(deepCopy: scope) `er. ]
 ].
 
-opts@(Syntax nodes OptionalKeywords traits) evaluateIn: namespace
+opts@(nodes OptionalKeywords traits) evaluateIn: namespace
 [
   opts message evaluateIn: namespace &optionals:
     ([| :result |
@@ -302,104 +304,104 @@ opts@(Syntax nodes OptionalKeywords traits) evaluateIn: namespace
      ] writingAs: #{})
 ].
 
-Syntax nodes define: #RestArguments &parents: {Syntax nodes MessageWrapper}
+nodes define: #RestArguments &parents: {nodes MessageWrapper}
   &slots: {#arguments}.
 
-x@(Syntax nodes RestArguments traits) = y@(Syntax nodes RestArguments traits)
+x@(nodes RestArguments traits) = y@(nodes RestArguments traits)
 [x message = y message /\ [x arguments = y arguments]].
 
-rest@(Syntax nodes RestArguments traits) new
+rest@(nodes RestArguments traits) new
 [resend clone `setting: #{#arguments} to: #{{}}].
 
-rest@(Syntax nodes RestArguments traits) walk: block
+rest@(nodes RestArguments traits) walk: block
 [
   resend.
   rest arguments do: #(_ walk: block) `er
 ].
 
-rest@(Syntax nodes RestArguments traits) transformChildren: block
+rest@(nodes RestArguments traits) transformChildren: block
 [
   resend.
   rest arguments infect: #(_ transformBy: block) `er.
   rest
 ].
 
-rest@(Syntax nodes RestArguments traits) deepCopy: scope
+rest@(nodes RestArguments traits) deepCopy: scope
 [
   resend `>> [arguments := rest arguments collect: #(deepCopy: scope) `er. ]
 ].
 
-rest@(Syntax nodes RestArguments traits) allArguments
+rest@(nodes RestArguments traits) allArguments
 [
   rest message arguments ; rest arguments
 ].
 
-rest@(Syntax nodes RestArguments traits) evaluateIn: namespace &optionals: opts
+rest@(nodes RestArguments traits) evaluateIn: namespace &optionals: opts
 [
   rest selector sendTo:
     (rest allArguments collect: #(evaluateIn: namespace) `er)
     &optionals: opts
 ].
 
-Syntax nodes define: #Placeholder &parents: {Syntax nodes Node}.
+nodes define: #Placeholder &parents: {nodes Node}.
 
-node@(Syntax nodes Node traits) as: _@(Syntax nodes Placeholder traits)
+node@(nodes Node traits) as: _@(nodes Placeholder traits)
 [
   node
 ].
 
-node@(Syntax nodes UnaryMessage traits) as: ph@(Syntax nodes Placeholder traits)
+node@(nodes UnaryMessage traits) as: ph@(nodes Placeholder traits)
 [
-  node selector = #_ /\ [node arguments first == Syntax ImplicitArgument]
+  node selector = #_ /\ [node arguments first == nodes ImplicitArgument]
     ifTrue: [ph] ifFalse: [node]
 ].
 
-ph@(Syntax nodes Placeholder traits) evaluateIn: namespace &optionals: opts
+ph@(nodes Placeholder traits) evaluateIn: namespace &optionals: opts
 [
   ph
 ].
 
-Syntax nodes define: #Partial &parents: {Syntax nodes MessageWrapper}.
+nodes define: #Partial &parents: {nodes MessageWrapper}.
 "Partial nodes are just like regular message-sends, except having only
 some arguments filled initially at parse-time. They may be treated as
 records or curry-able message-sends."
 
-w@(Syntax nodes Partial traits) keywords
+w@(nodes Partial traits) keywords
 [w selector keywords].
 
-w@(Syntax nodes Partial traits) values
+w@(nodes Partial traits) values
 [w message arguments].
 
-Syntax nodes Partial traits define: #BlankTokens &builder:
-  [{Syntax Placeholder. Syntax ImplicitArgument}].
+nodes Partial traits define: #BlankTokens &builder:
+  [{nodes Placeholder. nodes ImplicitArgument}].
 
-w@(Syntax nodes Partial traits) isPlaceholder: node
+w@(nodes Partial traits) isPlaceholder: node
 [
   w BlankTokens includes: node
 ].
 
-w@(Syntax nodes Partial traits) arity
+w@(nodes Partial traits) arity
 [| count countedImplicit |
   count := 0.
   w walk:
     [| :node |
      `conditions: (
-        [node == Syntax Placeholder]
+        [node == nodes Placeholder]
           -> [count += 1].
-        [node == Syntax ImplicitArgument /\ [countedImplicit isNil]]
+        [node == nodes ImplicitArgument /\ [countedImplicit isNil]]
           -> [countedImplicit := node. count += 1]
     )].
   count
 ].
 
-w@(Syntax nodes Partial traits) isComplete
+w@(nodes Partial traits) isComplete
 "Answers whether it can be evaluated successfully."
 [
-  w walk: [| :node | node == Syntax Placeholder ifTrue: [^ False]].
+  w walk: [| :node | node == nodes Placeholder ifTrue: [^ False]].
   True
 ].
 
-w@(Syntax nodes Partial traits) completeWith: values
+w@(nodes Partial traits) completeWith: values
 [| valuesIn countedImplicit |
   valuesIn := values reader.
   w transformBy:
@@ -408,95 +410,95 @@ w@(Syntax nodes Partial traits) completeWith: values
        ifTrue: [node]
        ifFalse:
          [`conditions: (
-            [node == Syntax ImplicitArgument /\ [countedImplicit isNil]]
+            [node == nodes ImplicitArgument /\ [countedImplicit isNil]]
               -> [countedImplicit := node. valuesIn next].
-            [node == Syntax Placeholder]
+            [node == nodes Placeholder]
               -> [valuesIn next]
           ) otherwise: [node]]]
 ].
 
-w@(Syntax nodes Partial traits) evaluateIn: namespace &optionals: opts
+w@(nodes Partial traits) evaluateIn: namespace &optionals: opts
 [
   w isComplete
     ifTrue: [w message evaluateIn: namespace &optionals: opts]
     ifFalse: [w]
 ].
 
-Syntax nodes define: #Literal &parents: {Syntax nodes Node} &slots: {#value}.
+nodes define: #Literal &parents: {nodes Node} &slots: {#value}.
 "The syntax for a literal Slate object, i.e. something the Lexer can create
 directly."
 
-Syntax nodes Literal traits define: #ReusableValues &builder: [Dictionary new].
-Syntax nodes Literal traits define: #Nil &builder: [Syntax nodes Literal clone].
+nodes Literal traits define: #ReusableValues &builder: [Dictionary new].
+nodes Literal traits define: #Nil &builder: [nodes Literal clone].
 
-l@(Syntax nodes Literal traits) noteReusable: obj
+l@(nodes Literal traits) noteReusable: obj
 [l ReusableValues at: obj ifAbsentPut:
   [l new `setting: #{#value} to: {obj}]].
 
-[| :each | Syntax nodes Literal noteReusable: each] for:
+[| :each | nodes Literal noteReusable: each] for:
   {Array new. ByteArray new. #''. ''}.
 
-node@(Syntax nodes Literal traits) for: obj
+node@(nodes Literal traits) for: obj
 [node ReusableValues at: obj ifAbsent: [node new `setting: #{#value} to: {obj}]].
 
-node@(Syntax nodes Literal traits) for: _@Nil [node Nil].
+node@(nodes Literal traits) for: _@Nil [node Nil].
 
-x@(Syntax nodes Literal traits) = y@(Syntax nodes Literal traits)
+x@(nodes Literal traits) = y@(nodes Literal traits)
 [x value = y value].
 
-node@(Syntax nodes Literal traits) evaluateIn: namespace
+node@(nodes Literal traits) evaluateIn: namespace
 "A literal just evaluates to its expression-value."
 [node value].
 
-b@(Syntax nodes Node traits) allLiterals
+b@(nodes Node traits) allLiterals
 "Answer an Array of all literal values from the source."
 [
   [| :result |
-   b walk: [| :node | (node is: Syntax Literal) ifTrue:
+   b walk: [| :node | (node is: nodes Literal) ifTrue:
      [result nextPut: node value]]] writingAs: #{}
 ].
 
-Syntax nodes define: #CompoundStatement &parents: {Syntax nodes Node}
+nodes define: #CompoundStatement &parents: {nodes Node}
   &slots: {#statements -> #{}}.
 
-array@(Sequence traits) as: group@(Syntax nodes CompoundStatement traits)
+array@(Sequence traits) as: group@(nodes CompoundStatement traits)
 [group new `setting: #{#statements} to: {array as: group statements}].
 
-group@(Syntax nodes CompoundStatement traits) size
+group@(nodes CompoundStatement traits) size
 "The number of statements/elements in the expression."
 [group statements size].
 
-node1@(Syntax nodes CompoundStatement traits) = node2@(Syntax nodes CompoundStatement traits)
+node1@(nodes CompoundStatement traits) = node2@(nodes CompoundStatement traits)
 [(node1 isSameAs: node2) /\ [node1 statements = node2 statements]].
 
-group@(Syntax nodes CompoundStatement traits) walk: block
+group@(nodes CompoundStatement traits) walk: block
 [
   resend.
   group statements do: #(_ walk: block) `er
 ].
 
-group@(Syntax nodes CompoundStatement traits) transformChildren: block
+group@(nodes CompoundStatement traits) transformChildren: block
 [
   group statements infect: #(_ transformBy: block) `er.
   group
 ].
 
-group@(Syntax nodes CompoundStatement traits) deepCopy: scope
+group@(nodes CompoundStatement traits) deepCopy: scope
 [
   (group statements collect:
     #(_ deepCopy: scope) `er) as: group
 ].
 
-Syntax nodes define: #Array &parents: {Syntax nodes CompoundStatement}.
+nodes define: #Array &parents: {nodes CompoundStatement}.
 
-group@(Syntax nodes Array traits) evaluateIn: namespace
+group@(nodes Array traits) evaluateIn: namespace
 [
   group statements collect: #(evaluateIn: namespace) `er
 ].
 
-Syntax nodes define: #Parenthesis &parents: {Syntax nodes CompoundStatement}.
+nodes define: #Parenthesis &parents: {nodes CompoundStatement}.
 
-group@(Syntax nodes Parenthesis traits) evaluateIn: namespace
+group@(nodes Parenthesis traits) evaluateIn: namespace
 [
   group statements isEmpty
     ifTrue: [Nil]
@@ -505,53 +507,53 @@ group@(Syntax nodes Parenthesis traits) evaluateIn: namespace
        group statements last evaluateIn: namespace]
 ].
 
-group@(Syntax nodes Parenthesis traits) parenthesize
+group@(nodes Parenthesis traits) parenthesize
 [
   group
 ].
 
-node@(Syntax nodes Node traits) parenthesize
+node@(nodes Node traits) parenthesize
 [
   {node} parenthesize
 ].
 
 seq@(Sequence traits) parenthesize
 [
-  seq size = 1 ifTrue: [seq first] ifFalse: [seq as: Syntax Parenthesis]
+  seq size = 1 ifTrue: [seq first] ifFalse: [seq as: nodes Parenthesis]
 ].
 
-Syntax nodes define: #Namespace &parents: {Syntax nodes Node} &slots: {#namespace -> lobby}.
+nodes define: #Namespace &parents: {nodes Node} &slots: {#namespace -> lobby}.
 
-node@(Syntax nodes Namespace traits) for: namespace
+node@(nodes Namespace traits) for: namespace
 [node new `setting: #{#namespace} to: {namespace}].
 
-node1@(Syntax nodes Namespace traits) = node2@(Syntax nodes Namespace traits)
+node1@(nodes Namespace traits) = node2@(nodes Namespace traits)
 [node1 namespace = node2 namespace].
 
-_@(Syntax nodes Namespace traits) evaluateIn: namespace
+_@(nodes Namespace traits) evaluateIn: namespace
 [shouldNotImplement].
 
-_@(Syntax nodes Namespace traits) parentScope
+_@(nodes Namespace traits) parentScope
 [
   error: 'The top-level namespace has no parent scope.'
 ].
 
-node@(Syntax nodes Namespace traits) topLevel
+node@(nodes Namespace traits) topLevel
 [
   node
 ].
 
-_@(Syntax nodes Namespace traits) findVariable: _
+_@(nodes Namespace traits) findVariable: _
 "Present for compatibility with Block findVariable:."
 [Nil].
 
-namespace@(Syntax nodes Namespace traits) includesScope: scope
+namespace@(nodes Namespace traits) includesScope: scope
 [namespace == scope].
 
-Syntax nodes define: #Ground &builder: [Syntax nodes Namespace for: lobby].
+nodes define: #Ground &builder: [nodes Namespace for: lobby].
 
-Syntax nodes define: #Block &parents: {Syntax nodes CompoundStatement} &slots:
-{#parentScope -> Syntax nodes Ground.
+nodes define: #Block &parents: {nodes CompoundStatement} &slots:
+{#parentScope -> nodes Ground.
  #inputVariables -> #{}.
 "Holds Variable nodes representing the block's inputs in order."
  #restVariable -> Nil.
@@ -564,7 +566,7 @@ accepts one."
 "Holds Variable nodes representing the block's local slots (including
 inputs in order and optionals)."}.
 
-node1@(Syntax nodes Block traits) = node2@(Syntax nodes Block traits)
+node1@(nodes Block traits) = node2@(nodes Block traits)
 "TODO: ensure this is correct and that local variable order is ignored."
 [
   resend
@@ -573,23 +575,23 @@ node1@(Syntax nodes Block traits) = node2@(Syntax nodes Block traits)
    /\ [node1 localVariables = node2 localVariables]
 ].
 
-block@(Syntax nodes Block traits) compile
+block@(nodes Block traits) compile
 "Invoke the VM ByteCompiler."
 [
   VM SSACompiler new generate: block result: Nil
 ].
 
-block@(Syntax nodes Block traits) compileAndRun
+block@(nodes Block traits) compileAndRun
 "Compile the block using the VM ByteCompiler and then run it."
 [
   block compile do
 ].
 
-block@(Syntax nodes Block traits) evaluateIn: namespace
+block@(nodes Block traits) evaluateIn: namespace
 "Compile the block and return it."
 [block compile].
 
-b@(Syntax nodes Block traits) new
+b@(nodes Block traits) new
 [
   resend `>>
    [inputVariables := b inputVariables new.
@@ -599,19 +601,19 @@ b@(Syntax nodes Block traits) new
     restVariable := Nil. ]
 ].
 
-b@(Syntax nodes Block traits) body: body@(Syntax nodes Node traits)
+b@(nodes Block traits) body: body@(nodes Node traits)
 "Makes a given Node the body."
 [b statements := {body}].
 
-b@(Syntax nodes Block traits) body: body@(Syntax nodes Parenthesis traits)
+b@(nodes Block traits) body: body@(nodes Parenthesis traits)
 "Takes the statements as the body of the block."
 [b statements := body statements].
 
-b@(Syntax nodes Block traits) newFor: body@(Syntax nodes Node traits)
+b@(nodes Block traits) newFor: body@(nodes Node traits)
 "Creates a new Block with the given node as the body."
 [b new `>> [body := body. ]].
 
-block@(Syntax nodes Block traits) addVariable: var
+block@(nodes Block traits) addVariable: var
 "Adds the Variable node to the block's locals and sets it as the
 variable's scope (used to compile closures properly), and answers it."
 [
@@ -623,12 +625,12 @@ variable's scope (used to compile closures properly), and answers it."
   var
 ].
 
-block@(Syntax nodes Block traits) addVariableNamed: name
+block@(nodes Block traits) addVariableNamed: name
 "Creates a new Variable with the given name and adds it as a local,
 then returning it."
-[block addVariable: (Syntax Variable clone `setting: #{#name} to: {name})].
+[block addVariable: (nodes Variable clone `setting: #{#name} to: {name})].
 
-block@(Syntax Block traits) uniqueVariableName &prefix: prefix
+block@(nodes Block traits) uniqueVariableName &prefix: prefix
 [| nameIndex |
   prefix `defaultsTo: '_'.
   nameIndex := 0.
@@ -642,14 +644,14 @@ block@(Syntax Block traits) uniqueVariableName &prefix: prefix
   (prefix ; nameIndex printString) intern
 ].
 
-block@(Syntax nodes Block traits) addVariable &name: name &prefix: prefix
+block@(nodes Block traits) addVariable &name: name &prefix: prefix
 "Calls addVariable: with a name guaranteed not to clash with other such names."
 [
   name `defaultsTo: (block uniqueVariableName &prefix: prefix).
   block addVariableNamed: name
 ].
 
-block@(Syntax nodes Block traits) addInputVariableNamed: name
+block@(nodes Block traits) addInputVariableNamed: name
 "Creates a new Variable with the given name and adds it as an input,
 then returning it."
 [| var |
@@ -658,7 +660,7 @@ then returning it."
   var
 ].
 
-block@(Syntax nodes Block traits) addInputVariable &name: name &prefix: prefix
+block@(nodes Block traits) addInputVariable &name: name &prefix: prefix
 "Calls addInputVariable: with a name guaranteed not to clash with other such
 names."
 [
@@ -666,7 +668,7 @@ names."
   block addInputVariableNamed: name
 ].
 
-block@(Syntax nodes Block traits) addOptionalKeyword: key named: name
+block@(nodes Block traits) addOptionalKeyword: key named: name
 "Creates a new Variable with the given name and adds it as an optional,
 then returning it."
 [| var |
@@ -676,23 +678,23 @@ then returning it."
   var
 ].
 
-block@(Syntax nodes Block traits) topLevel
+block@(nodes Block traits) topLevel
 "Recurses up the scope to find the top-level scope."
 [
   block parentScope topLevel
 ].
 
-block@(Syntax nodes Block traits) outermostBlock
+block@(nodes Block traits) outermostBlock
 "Answers the outermost scope that is still a Block or MethodDefinition and not
 a Namespace."
 [| scope |
   scope := block.
-  [scope parentScope isSameAs: Syntax Namespace]
+  [scope parentScope isSameAs: nodes Namespace]
     whileFalse: [scope := scope parentScope].
   scope
 ].
 
-block@(Syntax nodes Block traits) findVariable: name
+block@(nodes Block traits) findVariable: name
 "Searches through the current scope, and then upward, for the entry
 corresponding to the given name, and answers what it can find, or Nil if none."
 [
@@ -701,10 +703,10 @@ corresponding to the given name, and answers what it can find, or Nil if none."
     ifNone: [block parentScope findVariable: name]
 ].
 
-block@(Syntax nodes Block traits) includesScope: scope
+block@(nodes Block traits) includesScope: scope
 [block == scope \/ [block parentScope includesScope: scope]].
 
-block@(Syntax nodes Block traits) from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
+block@(nodes Block traits) from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
 "Takes an Array of symbol names or Nil's for unnamed variables, and runs the
 code block with corresponding VariableNodes as inputs. The code block is
 expected to return the method body expression. The method then answers a new
@@ -719,7 +721,7 @@ Block with that method body and those input variables."
   result
 ].
 
-b@(Syntax nodes Block traits) deepCopy: scope &into: target
+b@(nodes Block traits) deepCopy: scope &into: target
 "Copies up to the level of the given scope, and sets the scope to that one."
 [
   (target ifNil: [b]) clone `>>
@@ -739,69 +741,69 @@ b@(Syntax nodes Block traits) deepCopy: scope &into: target
   ]
 ].
 
-block@(Syntax nodes Block traits) deepCopy &into: target
+block@(nodes Block traits) deepCopy &into: target
 "Copies the entire syntax tree with the (default) scope being the block's parent."
 [
   block deepCopy: block parentScope
 ].
 
-block@(Syntax nodes Block traits) as: target@(Syntax nodes Block traits)
+block@(nodes Block traits) as: target@(nodes Block traits)
 "This should allow Block and MethodDefinition objects to be converted (with
 loss of Signature information, of course."
 [block deepCopy &into: target].
 
-block@(Syntax nodes Block traits) arity
+block@(nodes Block traits) arity
 [block inputVariables size].
 
-dst@(Syntax nodes Block traits) addVariablesFrom: src@(Syntax nodes Block traits)
+dst@(nodes Block traits) addVariablesFrom: src@(nodes Block traits)
 "Copies over the local variable entries from the source block to the
 destination. Answers the locals found."
 [
   src localVariables do: #(dst addVariable: _) `er
 ].
 
-b@(Syntax nodes Block traits) modifiesOwnVariables
+b@(nodes Block traits) modifiesOwnVariables
 "Answers whether there are any direct variable stores."
 "TODO: Avoid re-implementing detect:!"
 [
-  b walk: [| :node | (node is: Syntax StoreVariable) ifTrue: [^ True]].
+  b walk: [| :node | (node is: nodes StoreVariable) ifTrue: [^ True]].
   False
 ].
 
-b@(Syntax nodes Block traits) modifiesInputVariables
+b@(nodes Block traits) modifiesInputVariables
 "Answers whether there are any direct variable stores to inputs."
 [
-  b walk: [| :node | (node is: Syntax StoreVariable) /\
+  b walk: [| :node | (node is: nodes StoreVariable) /\
              [b inputVariables includes: node variable] ifTrue: [^ True]].
   False
 ].
 
-b@(Syntax nodes Block traits) allSelectorsSent
+b@(nodes Block traits) allSelectorsSent
 [
   [| :result |
    b walk:
      [| :node |
-      (node isSameAs: Syntax LoadVariable) \/
-        [node isSameAs: Syntax StoreVariable]
+      (node isSameAs: nodes LoadVariable) \/
+        [node isSameAs: nodes StoreVariable]
       ifTrue: [result nextPut: node variable name]
-      ifFalse: [(node is: Syntax Message)
+      ifFalse: [(node is: nodes Message)
                 ifTrue: [result nextPut: node selector]]].
    ] writingAs: Set
 ].
 
-b@(Syntax nodes Block traits) allSelectorsSentToVar: var
+b@(nodes Block traits) allSelectorsSentToVar: var
 "Answers the Set of all selectors called in this method on the Variable object."
 [| loadExpr |
   loadExpr := var load.
   [| :result |
    b statements walk:
-     [| :expr | (expr is: Syntax Message)
+     [| :expr | (expr is: nodes Message)
         /\ [expr arguments includes: loadExpr]
         ifTrue: [result nextPut: expr selector]]
    ] writingAs: Set
 ].
 
-b@(Syntax nodes Block traits) allSelectorsSentToInputAt: argIndex
+b@(nodes Block traits) allSelectorsSentToInputAt: argIndex
 "Answers the Set of all selectors called in this method on the argument object."
 [
   (b inputVariables acceptsKey: argIndex)
@@ -809,7 +811,7 @@ b@(Syntax nodes Block traits) allSelectorsSentToInputAt: argIndex
     ifFalse: [error: 'No such input argument.']
 ].
 
-b@(Syntax nodes Block traits) allSelectorsSentToInputs
+b@(nodes Block traits) allSelectorsSentToInputs
 [
   [| :result |
    b inputVariables keysDo:
@@ -817,62 +819,62 @@ b@(Syntax nodes Block traits) allSelectorsSentToInputs
    ] writingAs: Set
 ].
 
-b@(Syntax nodes Block traits) allSelectorsSentImplicitly
+b@(nodes Block traits) allSelectorsSentImplicitly
 [
   [| :result |
    b statements walk:
-     [| :node | (node is: Syntax Message)
+     [| :node | (node is: nodes Message)
                 ifTrue: [node arguments do:
-                  [| :arg | (arg is: Syntax LoadVariable) /\
-                     [arg variable = Syntax ImplicitArgument]
+                  [| :arg | (arg is: nodes LoadVariable) /\
+                     [arg variable = nodes ImplicitArgument]
                             ifTrue: [result nextPut: node selector]]]].
    ] writingAs: Set
 ].
 
-Syntax nodes define: #MethodDefinition &parents: {Syntax nodes Block}
+nodes define: #MethodDefinition &parents: {nodes Block}
   &slots: {#selector. #roles -> #{}}.
 "The object representing the definition of a Method."
 
-method@(Syntax nodes MethodDefinition traits) new
+method@(nodes MethodDefinition traits) new
 [resend `>> [selector := Nil. roles := method roles new. ]].
 
-method@(Syntax nodes MethodDefinition traits) of: selector on: roles
+method@(nodes MethodDefinition traits) of: selector on: roles
   from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables
 [
   (method from: varNames to: codeBlock &locals: localNames &linkVariables: linkVariables) `>>
     [selector := selector. roles := roles. ]
 ].
 
-node1@(Syntax nodes MethodDefinition traits) = node2@(Syntax nodes MethodDefinition traits)
+node1@(nodes MethodDefinition traits) = node2@(nodes MethodDefinition traits)
 [resend /\ [node1 selector = node2 selector] /\ [node1 roles = node2 roles]].
 
-method@(Syntax nodes MethodDefinition traits) walk: block
+method@(nodes MethodDefinition traits) walk: block
 [
   resend.
   method roles do: [| :role | role ifNotNil: [role walk: block]]
 ].
 
-method@(Syntax nodes MethodDefinition traits) transformChildren: block
+method@(nodes MethodDefinition traits) transformChildren: block
 [
   method roles infect: [| :role | role ifNotNil: [role transformBy: block]].
   resend
 ].
 
-method@(Syntax nodes MethodDefinition traits) deepCopy: scope &into: target
+method@(nodes MethodDefinition traits) deepCopy: scope &into: target
 [
   resend `>>
     [roles := method roles
        collect: [| :role | role ifNotNil: [role deepCopy: scope]]. ]
 ].
 
-method@(Syntax nodes MethodDefinition traits) evaluateIn: namespace
+method@(nodes MethodDefinition traits) evaluateIn: namespace
 [
   resend
     asMethod: method selector
     on: (method roles collect: #(evaluateIn: namespace) `er)
 ].
 
-Syntax nodes define: #Signature &parents: {Syntax nodes Node} &slots: {
+nodes define: #Signature &parents: {nodes Node} &slots: {
   #selector.
   #roles -> #{}.
   #inputVariables -> #{}.
@@ -882,7 +884,7 @@ Syntax nodes define: #Signature &parents: {Syntax nodes Node} &slots: {
 }.
 "The object representing the definition of a Method without the body."
 
-sig@(Syntax nodes Signature traits) new
+sig@(nodes Signature traits) new
 [
   resend `>>
     [selector := Nil.
@@ -893,7 +895,7 @@ sig@(Syntax nodes Signature traits) new
      optionalVariables := sig optionalVariables new. ]
 ].
 
-method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature traits)
+method@(nodes MethodDefinition traits) as: sig@(nodes Signature traits)
 [
   sig new `>>
     [selector := method selector.
@@ -905,7 +907,7 @@ method@(Syntax nodes MethodDefinition traits) as: sig@(Syntax nodes Signature tr
      optionalVariables := method optionalVariables. ]
 ].
 
-sig@(Syntax nodes Signature traits) as: method@(Syntax nodes MethodDefinition traits)
+sig@(nodes Signature traits) as: method@(nodes MethodDefinition traits)
 [
   method new `>>
     [| :result |
@@ -919,191 +921,191 @@ sig@(Syntax nodes Signature traits) as: method@(Syntax nodes MethodDefinition tr
      optionalVariables := sig optionalVariables. ]
 ].
 
-node1@(Syntax nodes Signature traits) = node2@(Syntax nodes Signature traits)
+node1@(nodes Signature traits) = node2@(nodes Signature traits)
 [node1 selector = node2 selector /\ [node1 roles = node2 roles]].
 
-sig@(Syntax nodes Signature traits) walk: block
+sig@(nodes Signature traits) walk: block
 [
   sig roles do: [| :role | role ifNotNil: [role walk: block]]
 ].
 
-sig@(Syntax nodes Signature traits) transformChildren: block
+sig@(nodes Signature traits) transformChildren: block
 [
   sig roles infect: [| :role | role ifNotNil: [role transformBy: block]].
 ].
 
-sig@(Syntax nodes Signature traits) deepCopy: scope &into: target
+sig@(nodes Signature traits) deepCopy: scope &into: target
 [
   resend `>>
     [roles := sig roles
        collect: [| :role | role ifNotNil: [role deepCopy: scope]]. ]
 ].
 
-sig@(Syntax nodes Signature traits) evaluateIn: namespace
+sig@(nodes Signature traits) evaluateIn: namespace
 [
   sig
 ].
 
-Syntax nodes define: #Variable &parents: {Syntax nodes Node} &slots: {
+nodes define: #Variable &parents: {nodes Node} &slots: {
   #name -> #''.
-  #scope -> Syntax nodes Ground
+  #scope -> nodes Ground
 }.
 
-node1@(Syntax nodes Variable traits) = node2@(Syntax nodes Variable traits)
+node1@(nodes Variable traits) = node2@(nodes Variable traits)
 [node1 name = node2 name /\ [node1 scope = node2 scope]].
 
-var@(Syntax nodes Variable traits) deepCopy: scope
+var@(nodes Variable traits) deepCopy: scope
 [
   scope findVariable: var name
 ].
 
-Syntax nodes define: #RestVariable &parents: {Syntax nodes Variable}.
+nodes define: #RestVariable &parents: {nodes Variable}.
 
-Syntax nodes define: #VariableOperation &parents: {Syntax nodes Node} &slots: {#variable}.
+nodes define: #VariableOperation &parents: {nodes Node} &slots: {#variable}.
 
-Syntax nodes define: #LoadVariable &parents: {Syntax nodes VariableOperation} &slots: {}.
+nodes define: #LoadVariable &parents: {nodes VariableOperation} &slots: {}.
 
-load@(Syntax nodes LoadVariable traits) from: variable
+load@(nodes LoadVariable traits) from: variable
 [load new `setting: #{#variable} to: {variable}].
 
-var@(Syntax nodes Variable traits) load
-[Syntax LoadVariable from: var].
+var@(nodes Variable traits) load
+[nodes LoadVariable from: var].
 
-node1@(Syntax nodes LoadVariable traits) = node2@(Syntax nodes LoadVariable traits)
+node1@(nodes LoadVariable traits) = node2@(nodes LoadVariable traits)
 [node1 variable = node2 variable].
 
-load@(Syntax nodes LoadVariable traits) deepCopy: scope
+load@(nodes LoadVariable traits) deepCopy: scope
 [
   (scope findVariable: load variable name)
-    ifNil: [Syntax UnaryMessage
+    ifNil: [nodes UnaryMessage
               sending: load variable name
-              to: {Syntax ImplicitArgument}]
+              to: {nodes ImplicitArgument}]
     ifNotNilDo: #(load from: _) `er
 ].
 
-load@(Syntax nodes LoadVariable traits) evaluateIn: namespace &optionals: opts
+load@(nodes LoadVariable traits) evaluateIn: namespace &optionals: opts
 [
   load variable name sendTo: {namespace} &optionals: opts
 ].
 
-Syntax nodes define: #LoadRestVariable &parents: {Syntax nodes LoadVariable}.
+nodes define: #LoadRestVariable &parents: {nodes LoadVariable}.
 
-Syntax nodes define: #StoreVariable &parents: {Syntax nodes VariableOperation}
+nodes define: #StoreVariable &parents: {nodes VariableOperation}
   &slots: {#value}.
 
-store@(Syntax nodes StoreVariable traits) of: value into: variable
+store@(nodes StoreVariable traits) of: value into: variable
 [store new `setting: #{#value. #variable} to: {value. variable}].
 
-var@(Syntax nodes Variable traits) store: value
-[Syntax StoreVariable of: value into: var].
+var@(nodes Variable traits) store: value
+[nodes StoreVariable of: value into: var].
 
-load@(Syntax nodes LoadVariable traits) store: value
+load@(nodes LoadVariable traits) store: value
 [load variable store: value].
 
-store@(Syntax nodes StoreVariable traits) load
+store@(nodes StoreVariable traits) load
 [store variable load].
 
-node1@(Syntax nodes StoreVariable traits) = node2@(Syntax nodes StoreVariable traits)
+node1@(nodes StoreVariable traits) = node2@(nodes StoreVariable traits)
 [node1 variable = node2 variable /\ [node1 value = node2 value]].
 
-store@(Syntax nodes StoreVariable traits) walk: block
+store@(nodes StoreVariable traits) walk: block
 [
   resend.
   store value walk: block
 ].
 
-store@(Syntax nodes StoreVariable traits) transformChildren: block
+store@(nodes StoreVariable traits) transformChildren: block
 [
   store value := store value transformBy: block.
   store
 ].
 
-store@(Syntax nodes StoreVariable traits) deepCopy: scope
+store@(nodes StoreVariable traits) deepCopy: scope
 [
   (scope findVariable: store variable name)
     ifNil:
-      [Syntax KeywordMessage
+      [nodes KeywordMessage
         sending: store variable name name ; ':'
-        to: {Syntax ImplicitArgument. store value deepCopy: scope}]
+        to: {nodes ImplicitArgument. store value deepCopy: scope}]
     ifNotNilDo:
       [| :var | store of: (store value deepCopy: scope) into: var]
 ].
 
-store@(Syntax nodes StoreVariable traits) evaluateIn: namespace &optionals: opts
+store@(nodes StoreVariable traits) evaluateIn: namespace &optionals: opts
 [
   (store variable name name ; ':') intern
     sendTo: {namespace. store value evaluateIn: namespace}
     &optionals: opts
 ].
 
-Syntax nodes define: #Return &parents: {Syntax nodes Node} &slots: {#value}.
+nodes define: #Return &parents: {nodes Node} &slots: {#value}.
 
-ret@(Syntax nodes Return traits) of: value
+ret@(nodes Return traits) of: value
 [ret new `setting: #{#value} to: {value}].
 
-node1@(Syntax nodes Return traits) = node2@(Syntax nodes Return traits)
+node1@(nodes Return traits) = node2@(nodes Return traits)
 [node1 value = node2 value /\ [node1 isSameAs: node2]].
 
-ret@(Syntax nodes Return traits) walk: block
+ret@(nodes Return traits) walk: block
 [
   resend.
   ret value walk: block
 ].
 
-ret@(Syntax nodes Return traits) deepCopy: scope
+ret@(nodes Return traits) deepCopy: scope
 [
   ret of: (ret value deepCopy: scope)
 ].
 
-ret@(Syntax nodes Return traits) transformChildren: block
+ret@(nodes Return traits) transformChildren: block
 [
   ret value := ret value transformBy: block.
   ret
 ].
 
-Syntax nodes define: #ReturnClose &parents: {Syntax nodes Return}.
+nodes define: #ReturnClose &parents: {nodes Return}.
 
-ret@(Syntax nodes ReturnClose traits) selector [#^].
+ret@(nodes ReturnClose traits) selector [#^].
 
-Syntax nodes define: #ReturnFar &parents: {Syntax nodes Return}.
+nodes define: #ReturnFar &parents: {nodes Return}.
 
-ret@(Syntax nodes ReturnFar traits) selector [#^^].
+ret@(nodes ReturnFar traits) selector [#^^].
 
-Syntax nodes define: #ReturnLevel &parents: {Syntax nodes Return} &slots: {#level -> 1}.
+nodes define: #ReturnLevel &parents: {nodes Return} &slots: {#level -> 1}.
 
-ret@(Syntax nodes ReturnLevel traits) selector [('^' ; ret level printString) intern].
+ret@(nodes ReturnLevel traits) selector [('^' ; ret level printString) intern].
 
-ret@(Syntax nodes ReturnLevel traits) by: offset
+ret@(nodes ReturnLevel traits) by: offset
 [ret new `setting: #{#level} to: {offset}].
 
-Syntax nodes define: #Resend &parents: {Syntax nodes Node}.
+nodes define: #Resend &parents: {nodes Node}.
 
-_@(Syntax nodes Resend traits) selector [ #resend ].
+_@(nodes Resend traits) selector [ #resend ].
 
-node1@(Syntax nodes Resend traits) = node2@(Syntax nodes Resend traits)
+node1@(nodes Resend traits) = node2@(nodes Resend traits)
 [True].
 
 "Non-core utilities follow."
 
-n@(Syntax nodes Node traits) allSelectorsSent
+n@(nodes Node traits) allSelectorsSent
 "Answer a Set of selectors for the messages sent in this parse tree."
 [
   [| :calls |
-   n walk: [| :node | (node is: Syntax Message)
+   n walk: [| :node | (node is: nodes Message)
                         ifTrue: [calls nextPut: node selector]]]
     writingAs: (IdentitySet new &capacity: 100)
 ].
 
-n@(Syntax nodes Node traits) allMacroSelectorsSent
+n@(nodes Node traits) allMacroSelectorsSent
 "Answer a Set of selectors for the macro-messages sent in this parse tree."
 [
   [| :calls |
-   n walk: [| :node | (node is: Syntax Macro)
+   n walk: [| :node | (node is: nodes Macro)
                         ifTrue: [calls nextPut: node selector]]]
     writingAs: (IdentitySet new &capacity: 100)
 ].
 
-n@(Syntax nodes Node traits) nodeCount
+n@(nodes Node traits) nodeCount
 "Answer the number of nodes in this tree, analogous to the size of the tree."
 [| count |
   count := 0.
@@ -1111,9 +1113,9 @@ n@(Syntax nodes Node traits) nodeCount
   count
 ].
 
-n@(Syntax nodes Node traits) hasExplicitReturn
+n@(nodes Node traits) hasExplicitReturn
 "Answer whether there is an explicit/early return call."
 [
-  n walk: [| :node | (node is: Syntax Return) ifTrue: [^ True]].
+  n walk: [| :node | (node is: nodes Return) ifTrue: [^ True]].
   False
 ].

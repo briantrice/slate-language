@@ -1,93 +1,100 @@
-Syntax define: #Lexer &parents: {StreamProcessor}
-  &slots: {#buffer -> ExtensibleArray new.
+define: #Lexer &parents: {StreamProcessor}
+  &slots: {#inputBuffer -> ExtensibleArray new.
+           #outputBuffer -> ExtensibleArray new.
+           "A backing buffer of tokens for undo functionality."
 	   #lineNumber -> 1 "The current line number."}.
 "The lexer takes an input character Stream and divides it up into Tokens,
 using a buffer as necessary to hold the tokenized contents.
 Also, debugging information is stored for now in terms of the line number that
 the current stream position has reached."
-Syntax Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
+Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
-l@(Syntax Lexer traits) on: stream
+(Syntax import: #Lexer from: here) `bootstrapping.
+
+l@(Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
 [
-  resend reset.
-  l
+  l `>> [resend. reset. ]
 ].
 
-l@(Syntax Lexer traits) reset
+l@(Lexer traits) reset
 [
-  l buffer := l buffer new.
+  l inputBuffer := l inputBuffer new.
+  l outputBuffer := l outputBuffer new.
   l lineNumber := 1.
 ].
 
-l@(Syntax Lexer traits) showTokensFrom: src
+l@(Lexer traits) showTokensFrom: src
 [(l newOn: src reader) do: [| :x | inform: x printString]].
 
-l@(Syntax Lexer traits) isEndOfLine: char [char == $\n].
-l@(Syntax Lexer traits) isEscape: char [char == $\\].
+l@(Lexer traits) isEndOfLine: char [char == $\n].
+l@(Lexer traits) isEscape: char [char == $\\].
 
-l@(Syntax Lexer traits) isAtEnd
+l@(Lexer traits) isAtEnd
 "The lexer has reached its end when the stream is exhausted and the buffer is
 empty."
 [
-  l buffer isEmpty
-    /\ [l source isAtEnd]
-    \/ [| c |
-        [c := l nextCharacter.
-         l buffer isEmpty /\ [l source isAtEnd]
-           \/ [c isWhitespace not] \/ [l isEndOfLine: c]] whileFalse.
-        c isWhitespace /\ [(l isEndOfLine: c) not] \/ [l undoCharacter: c. False]]
+  l outputBuffer isEmpty
+    /\ [l inputBuffer isEmpty
+          /\ [l source isAtEnd]
+          \/ [| c |
+              [c := l nextCharacter.
+               l hasMoreCharacters
+                 /\ [c isWhitespace] /\ [(l isEndOfLine: c) not]] whileTrue.
+              c isWhitespace
+                /\ [(l isEndOfLine: c) not]
+                \/ [l undoCharacter: c. False]]]
 ].
 
-l@(Syntax Lexer traits) hasMoreCharacters
+l@(Lexer traits) hasMoreCharacters
 [
-  l buffer isNotEmpty \/ [l source isAtEnd not]
+  l inputBuffer isNotEmpty \/ [l source isAtEnd not]
 ].
 
-l@(Syntax Lexer traits) peekCharacter
+l@(Lexer traits) peekCharacter
 "Grab the next character, but leave it in the buffer, so the position is not
 advanced."
 [
-  l buffer isEmpty
+  l inputBuffer isEmpty
     ifTrue: [l undoCharacter: l nextCharacter]
-    ifFalse: [l buffer last]
+    ifFalse: [l inputBuffer last]
 ].
 
-l@(Syntax Lexer traits) nextCharacter
+l@(Lexer traits) nextCharacter
 "To get the next character, either pull one from the buffer or read from the
 stream of characters. Raise an error if this is used at the end, and advance
 the line number if a new-line is reached."
 [| c |
-  c := l buffer isEmpty
+  c := l inputBuffer isEmpty
     ifTrue:
       [l source isAtEnd
          ifTrue: [l error: 'Unexpected end of stream'].
        l source next]
-    ifFalse: [l buffer removeLast].
+    ifFalse: [l inputBuffer removeLast].
   (l isEndOfLine: c) ifTrue: [l lineNumber += 1].
   c
 ].
 
-l@(Syntax Lexer traits) undoCharacter: c
+l@(Lexer traits) undoCharacter: c
 "Put the character back into the buffer, and decrement the line number if it's
 a new-line."
 [
   (l isEndOfLine: c) ifTrue: [l lineNumber -= 1].
-  l buffer addLast: c
+  l inputBuffer addLast: c
 ].
 
-Syntax Lexer traits define: #Error &parents: {DescriptiveError}
+Lexer traits define: #Error &parents: {DescriptiveError}
   &slots: {#lineNumber -> 0 "The line number on which the error was detected."}.
 "An error that occurred in parsing, always requiring a description."
 
-l@(Syntax Lexer traits) error: description
+l@(Lexer traits) error: description
 [
   (l Error newDescription:
     'Line ' ; l lineNumber printString ; ': ' ; description)
     `>> [lineNumber := l lineNumber. signal]
 ].
 
-l@(Syntax Lexer traits) readInteger: radix
+l@(Lexer traits) readInteger: radix
 "The general method for building integers from the raw characters, with a
 radix (number of digits) parameter. Grab all following digits for the radix,
 multiplying the accumulator by the radix and adding the numeric equivalent
@@ -101,7 +108,7 @@ of the character."
   number
 ].
 
-l@(Syntax Lexer traits) readMantissa: radix
+l@(Lexer traits) readMantissa: radix
 "Build a floating-point number's fractional part."
 [| number place |
   number := 0.
@@ -115,7 +122,7 @@ l@(Syntax Lexer traits) readMantissa: radix
   (number as: Float) / (place as: Float)
 ].
 
-l@(Syntax Lexer traits) readExponent: radix
+l@(Lexer traits) readExponent: radix
 "Build a floating-point number's exponent as an integer."
 [| c |
   (c := l nextCharacter) == $+
@@ -127,17 +134,17 @@ l@(Syntax Lexer traits) readExponent: radix
 		   l readInteger: radix]]
 ].
 
-l@(Syntax Lexer traits) newLiteralFor: obj
-[Syntax LiteralToken for: obj].
+l@(Lexer traits) newLiteralFor: obj
+[tokens LiteralToken for: obj].
 
-"l@(Syntax Lexer traits) newLiteralFor: a@(ByteArray traits)
+"l@(Lexer traits) newLiteralFor: a@(ByteArray traits)
 [
   a isEmpty
     ifTrue: [TODO: 'intern empty array/bytearray/string']
     ifFalse: [resend]
 ]."
 
-l@(Syntax Lexer traits) readNumber
+l@(Lexer traits) readNumber
 "The overall routine for building numbers."
 [| number isNegative radix c |
   isNegative := False.
@@ -172,7 +179,7 @@ l@(Syntax Lexer traits) readNumber
   l newLiteralFor: (isNegative ifTrue: [number negated] ifFalse: [number])
 ].
 
-l@(Syntax Lexer traits) readEscapedCharacter
+l@(Lexer traits) readEscapedCharacter
 "Language support for character escapes. This should be called at the point
 after the initial escape is seen, whether as a character or part of a string."
 [| c |
@@ -196,108 +203,105 @@ after the initial escape is seen, whether as a character or part of a string."
   } otherwise: [c]
 ].
 
-l@(Syntax Lexer traits) characterFor: c
+l@(Lexer traits) characterFor: c
 [(l isEscape: c) ifTrue: [l readEscapedCharacter] ifFalse: [c]].
 
-l@(Syntax Lexer traits) readString
+l@(Lexer traits) readString
 "Build a string until the next single-quote character is encountered.
 Escaping is accounted for."
 [| c |
   l newLiteralFor: ([| :result |
     [(c := l nextCharacter) == $\']
       whileFalse:
-	[result nextPut: (l characterFor: c)]] writingAs: String)
+	[result nextPut: (l characterFor: c)]] writingAs: '')
 ].
 
-l@(Syntax Lexer traits) readComment
+l@(Lexer traits) readComment
 "Build a comment string until the next double-quote character is encountered.
 Escaping is accounted for."
 [| c |
-  Syntax tokens Comment for: ([| :result |
+  tokens Comment for: ([| :result |
     [(c := l nextCharacter) == $\"]
       whileFalse:
-	[result nextPut: (l characterFor: c)]] writingAs: String)
+	[result nextPut: (l characterFor: c)]] writingAs: '')
 ].
 
-l@(Syntax Lexer traits) nextWordCharactersInto: writeStream
+l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
 [| c |
   [l hasMoreCharacters not
      \/ [(c := l peekCharacter) isWhitespace]
      \/ [l WordTerminatingTokens includes: c]]
-    whileFalse: [writeStream nextPut: l nextCharacter]
+    whileFalse: [s nextPut: l nextCharacter]
 ].
 
-l@(Syntax Lexer traits) readSelector: type &ifEmpty: emptyToken
+l@(Lexer traits) readSelector: type &ifEmpty: emptyToken
 "Read a selector symbol into a token."
-[| result |
-  result :=
-    [| :result |
-     l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
-       [l nextWordCharactersInto: result]] writingAs: ''.
-  result isEmpty
-    ifTrue:
-      [emptyToken ifNil: [l error: 'Message selector must not be empty.']]
-    ifFalse:
-      [type for: result]
+[
+  ([| :result |
+    l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
+      [l nextWordCharactersInto: result]] writingAs: '')
+    ifEmpty: [emptyToken ifNil:
+                [l error: 'Message selector must not be empty.']]
+    ifNotEmptyDo: [| :result | type for: result]
 ].
 
-l@(Syntax Lexer traits) readLiteralPastHash
+l@(Lexer traits) readLiteralPastHash
 "This handles the literal brace array syntaxes as well as literal symbols."
 [
   l hasMoreCharacters
     /\ ['({[\'#' includes: l peekCharacter]
     ifTrue:
       [l nextCharacter caseOf: {
-         $\( -> [Syntax BeginPartial].
-         $\{ -> [Syntax BeginLiteralArray].
-         $\[ -> [Syntax BeginLiteralBlock].
+         $\( -> [tokens BeginPartial].
+         $\{ -> [tokens BeginLiteralArray].
+         $\[ -> [tokens BeginLiteralBlock].
          $\' -> [l newLiteralFor:
                    ([| :result c |
                      [(c := l nextCharacter) == $\']
                        whileFalse:
                          [result nextPut: (l characterFor: c)]]
-                      writingAs: String) intern].
+                      writingAs: '') intern].
          $#  -> [l nextCharacter = $\(
-                   ifTrue: [Syntax BeginLiteralParenthesis]
+                   ifTrue: [tokens BeginLiteralParenthesis]
                    ifFalse: [l error: 'Expected ( after ##']]
      }]
     ifFalse:
       [l newLiteralFor:
-         (#(l nextWordCharactersInto: _) `er writingAs: String) intern]
+         (#(l nextWordCharactersInto: _) `er writingAs: '') intern]
 ].
 
-l@(Syntax Lexer traits) readCharacter
+l@(Lexer traits) readCharacter
 "Read in a single character into a token or an escaped one."
 [
   l newLiteralFor: (l characterFor: l nextCharacter)
 ].
 
-l@(Syntax Lexer traits) readToken
+l@(Lexer traits) readToken
 "The overall handler for tokenization, this conditionalizes on the various
 initializing characters to build the various token objects."
 "TODO: place these dispatch tables in persistent places, much like a Lisp
 read-table."
 [| c |
-  l isAtEnd ifTrue: [^ Syntax EndStream].
+  l isAtEnd ifTrue: [^ tokens EndStream].
   (c := l nextCharacter) caseOf: {
     $\' -> [l readString].
     $\" -> [l readComment].
     $$ -> [l readCharacter].
     $# -> [l readLiteralPastHash].
-    $( -> [Syntax BeginParenthesis].
-    $) -> [Syntax EndParenthesis].
-    ${ -> [Syntax BeginArray].
-    $} -> [Syntax EndArray].
-    $[ -> [Syntax BeginBlock].
-    $] -> [Syntax EndBlock].
-    $@ -> [Syntax At].
-    $. -> [Syntax EndStatement].
-    $, -> [Syntax Comma].
-    $\| -> [Syntax BeginVariables].
-    $! -> [Syntax Type].
-    $` -> [l readSelector: Syntax MacroSelector &ifEmpty: Syntax Quote].
-    $% -> [l readSelector: Syntax DeferredSelector &ifEmpty: Syntax Eventually].
-    $\n -> [Syntax EndLine]
+    $( -> [tokens BeginParenthesis].
+    $) -> [tokens EndParenthesis].
+    ${ -> [tokens BeginArray].
+    $} -> [tokens EndArray].
+    $[ -> [tokens BeginBlock].
+    $] -> [tokens EndBlock].
+    $@ -> [tokens At].
+    $. -> [tokens EndStatement].
+    $, -> [tokens Comma].
+    $\| -> [tokens BeginVariables].
+    $! -> [tokens Type].
+    $` -> [l readSelector: tokens MacroSelector &ifEmpty: tokens Quote].
+    $% -> [l readSelector: tokens DeferredSelector &ifEmpty: tokens Eventually].
+    $\n -> [tokens EndLine]
   } otherwise:
     [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]
        ifTrue: [l undoCharacter: c. l readNumber]
@@ -305,17 +309,48 @@ read-table."
          [l undoCharacter: c.
           c isDigit
             ifTrue: [l readNumber]
-            ifFalse: [l readSelector: Syntax Selector]]]
+            ifFalse: [l readSelector: tokens Selector]]]
 ].
 
-l@(Syntax Lexer traits) next
+l@(Lexer traits) next
 [
-  l readToken
+  l outputBuffer
+    ifEmpty: [l readToken]
+    ifNotEmptyDo: #removeFirst`er
 ].
 
-t@(Syntax tokens Token traits) readFrom: s
+l@(Lexer traits) peek
+[
+  l outputBuffer isEmpty ifTrue: [l outputBuffer add: l readToken].
+  l outputBuffer first
+].
+
+l@(Lexer traits) peek: n
+[
+  [(l outputBuffer includesKey: n) not]
+    whileTrue: [l outputBuffer addLast: l readToken].
+  l outputBuffer first: n
+].
+
+l@(Lexer traits) peekForwardBy: n
+[
+  [(l outputBuffer includesKey: n) not]
+    whileTrue: [l outputBuffer addLast: l readToken].
+  l outputBuffer at: n ifAbsent: [l error: 'Could not find token forward by: ' ; n printString]
+].
+
+l@(Lexer traits) undoToken: token
+[
+  l outputBuffer addFirst: token
+].
+
+_@(Lexer traits) undoToken: t@(tokens EndStream traits)
+"Avoid placing EndStream tokens in the output buffer."
+[t].
+
+t@(tokens Token traits) readFrom: s
 [| next |
-  ((next := (Syntax Lexer newOn: s reader) next) is: t)
+  ((next := (Lexer newOn: s reader) next) is: t)
     ifFalse: [error: 'The source did not parse into ' ; t printName asAn ; '.'].
   next
 ].
