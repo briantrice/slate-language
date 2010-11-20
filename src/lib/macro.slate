@@ -493,15 +493,14 @@ collection@(Syntax Node traits) match: elements@(Syntax Node traits) with: messa
 node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement traits) otherwise: fallbackAction@(Syntax Block traits)
 [| result |
   result := fallbackAction.
-  testsToActions statements reverseDo:
-    [| :assocExpr test action |
+  (testsToActions statements copyWith: fallbackAction) reverseReduce:
+    [| :result :assocExpr test action |
      test := assocExpr arguments first.
      action := assocExpr arguments second.
-     result := (test `unquote do ifTrue: action `unquote ifFalse:
-                  (((result isSameAs: Syntax Block)
-                      ifTrue: [result]
-                      ifFalse: [Syntax Block newFor: result]) `unquote)) `quote].
-  result
+     (test `unquote do ifTrue: action `unquote ifFalse:
+        (((result isSameAs: Syntax Block)
+            ifTrue: [result]
+            ifFalse: [Syntax Block newFor: result]) `unquote)) `quote]
 ].
 
 node@(Syntax Node traits) conditions: testsToActions@(Syntax CompoundStatement traits)
