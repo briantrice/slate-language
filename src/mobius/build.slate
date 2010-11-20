@@ -188,10 +188,10 @@ i@(ImageDefinition traits) refreshPrimitives
   i primitives clear.
   [| :code :selector :roles | 
    i primitives add: code ->
-     (Syntax MethodDefinition new `>>
+     (nodes MethodDefinition new `>>
         [selector := selector.
          roles := (roles collect:
-               [| :val | val = #NoRoleObject ifFalse: [Syntax UnaryMessage sending: val]]). ])
+               [| :val | val = #NoRoleObject ifFalse: [nodes UnaryMessage sending: val]]). ])
   ] applier for: i PrimitiveDefaults.
 ].
 
@@ -231,7 +231,7 @@ def@(ImageDefinition traits) generate
             filelist ASCIIReader lines do:
               [| :line | line isEmpty ifFalse: [out nextPut: line]]].
         ] writingAs: def bootstrapFilenames)].
-  bootBlock := Syntax Block new.
+  bootBlock := nodes Block new.
   bootBlock statements := [| :out |
     (def bootstrapFilenames collect:
        [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
@@ -239,7 +239,7 @@ def@(ImageDefinition traits) generate
        inform: 'Parsing: %r', file locator.
        file mode := file Read.
        file sessionDo:
-         [| :file | (Syntax Parser newOn: file ASCIIReader) >> out]]
+         [| :file | (Parser newOn: file ASCIIReader) >> out]]
     ] writingAs: bootBlock statements.
   inform: 'Building image: %r', def filename.
   builder generateImageBooting: bootBlock withPrims: def primitives.
