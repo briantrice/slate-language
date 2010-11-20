@@ -25,7 +25,7 @@ l@(Lexer traits) reset
 ].
 
 l@(Lexer traits) showTokensFrom: src
-[(l newOn: src reader) do: [| :x | inform: x printString]].
+[(l newOn: src) do: [| :x | inform: x printString]].
 
 l@(Lexer traits) isEndOfLine: char [char == $\n].
 l@(Lexer traits) isEscape: char [char == $\\].
@@ -35,29 +35,24 @@ l@(Lexer traits) isAtEnd
 empty."
 [
   l outputBuffer isEmpty
-    /\ [l inputBuffer isEmpty
-          /\ [l source isAtEnd]
-          \/ [| c |
-              [c := l nextCharacter.
-               l hasMoreCharacters
-                 /\ [c isWhitespace] /\ [(l isEndOfLine: c) not]] whileTrue.
-              c isWhitespace
-                /\ [(l isEndOfLine: c) not]
-                \/ [l undoCharacter: c. False]]]
+    /\ [l inputBuffer isEmpty]
+    /\ [l source isAtEnd]
 ].
 
 l@(Lexer traits) hasMoreCharacters
 [
-  l inputBuffer isNotEmpty \/ [l source isAtEnd not]
+  l inputBuffer isEmpty not \/ [l source isAtEnd not]
 ].
 
-l@(Lexer traits) peekCharacter
-"Grab the next character, but leave it in the buffer, so the position is not
-advanced."
+Lexer traits define: #Error &parents: {DescriptiveError}
+  &slots: {#lineNumber -> 0 "The line number on which the error was detected."}.
+"An error that occurred in parsing, always requiring a description."
+
+l@(Lexer traits) error: description
 [
-  l inputBuffer isEmpty
-    ifTrue: [l undoCharacter: l nextCharacter]
-    ifFalse: [l inputBuffer last]
+  (l Error newDescription:
+    'Line ' ; l lineNumber printString ; ': ' ; description)
+    `>> [lineNumber := l lineNumber. signal]
 ].
 
 l@(Lexer traits) nextCharacter
@@ -83,15 +78,20 @@ a new-line."
   l inputBuffer addLast: c
 ].
 
-Lexer traits define: #Error &parents: {DescriptiveError}
-  &slots: {#lineNumber -> 0 "The line number on which the error was detected."}.
-"An error that occurred in parsing, always requiring a description."
-
-l@(Lexer traits) error: description
+l@(Lexer traits) peekCharacter
+"Grab the next character, but leave it in the buffer, so the position is not
+advanced."
 [
-  (l Error newDescription:
-    'Line ' ; l lineNumber printString ; ': ' ; description)
-    `>> [lineNumber := l lineNumber. signal]
+  l inputBuffer isEmpty
+    ifTrue: [l undoCharacter: l nextCharacter]
+    ifFalse: [l inputBuffer last]
+].
+
+l@(Lexer traits) peekCharacterForwardBy: n
+[
+  l inputBuffer isEmpty
+    ifTrue: [l undoCharacter: l nextCharacter]
+    ifFalse: [l inputBuffer last]
 ].
 
 l@(Lexer traits) readInteger: radix
@@ -228,21 +228,20 @@ Escaping is accounted for."
 
 l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
 [| c |
-  [l hasMoreCharacters not
-     \/ [(c := l peekCharacter) isWhitespace]
-     \/ [l WordTerminatingTokens includes: c]]
-    whileFalse: [s nextPut: l nextCharacter]
+  [l hasMoreCharacters
+     /\ [(c := l peekCharacter) isWhitespace not]
+     /\ [(l WordTerminatingTokens includes: c) not]]
+    whileTrue: [s nextPut: l nextCharacter]
 ].
 
-l@(Lexer traits) readSelector: type &ifEmpty: emptyToken
+l@(Lexer traits) readSelector: type
 "Read a selector symbol into a token."
-[
-  ([| :result |
-    l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
-      [l nextWordCharactersInto: result]] writingAs: '')
-    ifEmpty: [emptyToken ifNil:
-                [l error: 'Message selector must not be empty.']]
-    ifNotEmptyDo: [| :result | type for: result]
+[| result |
+  (result :=
+     [| :result |
+      l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
+        [l nextWordCharactersInto: result]] writingAs: '') isEmpty
+    ifFalse: [type for: result]
 ].
 
 l@(Lexer traits) readLiteralPastHash
@@ -276,14 +275,30 @@ l@(Lexer traits) readCharacter
   l newLiteralFor: (l characterFor: l nextCharacter)
 ].
 
+l@(Lexer traits) readWhitespace
+"A way to preserve the whitespace in the original text. Unused by default."
+[| result c |
+  result :=
+    [| :result |
+     [c := l nextCharacter.
+      l hasMoreCharacters
+        /\ [c isWhitespace] /\ [(l isEndOfLine: c) not]]
+       whileTrue: [result nextPut: c]] writingAs: ''.
+  l undoCharacter: c.
+  tokens Whitespace for: result
+].
+
 l@(Lexer traits) readToken
 "The overall handler for tokenization, this conditionalizes on the various
 initializing characters to build the various token objects."
 "TODO: place these dispatch tables in persistent places, much like a Lisp
 read-table."
 [| c |
-  l isAtEnd ifTrue: [^ tokens EndStream].
-  (c := l nextCharacter) caseOf: {
+  "Consume/discard whitespace first."
+  [l hasMoreCharacters
+     /\ [(c := l nextCharacter) isWhitespace] /\ [(l isEndOfLine: c) not]] whileTrue.
+  l isAtEnd \/ [c isNil] ifTrue: [^ tokens EndStream].
+  c caseOf: {
     $\' -> [l readString].
     $\" -> [l readComment].
     $$ -> [l readCharacter].
@@ -299,29 +314,28 @@ read-table."
     $, -> [tokens Comma].
     $\| -> [tokens BeginVariables].
     $! -> [tokens Type].
-    $` -> [l readSelector: tokens MacroSelector &ifEmpty: tokens Quote].
-    $% -> [l readSelector: tokens DeferredSelector &ifEmpty: tokens Eventually].
+    $` -> [(l readSelector: tokens MacroSelector) ifNil: [tokens Quote]].
+    $% -> [(l readSelector: tokens DeferredSelector) ifNil: [tokens Eventually]].
     $\n -> [tokens EndLine]
   } otherwise:
-    [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]
+    [c isDigit \/ [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]]
        ifTrue: [l undoCharacter: c. l readNumber]
-       ifFalse:
-         [l undoCharacter: c.
-          c isDigit
-            ifTrue: [l readNumber]
-            ifFalse: [l readSelector: tokens Selector]]]
+       ifFalse: [l undoCharacter: c.
+                 (l readSelector: tokens Selector)
+                   ifNil: [l error: 'Message selector must not be empty.']]]
 ].
 
 l@(Lexer traits) next
 [
-  l outputBuffer
-    ifEmpty: [l readToken]
-    ifNotEmptyDo: #removeFirst`er
+  l outputBuffer isEmpty
+    ifTrue: [l readToken]
+    ifFalse: [l outputBuffer removeFirst]
 ].
 
 l@(Lexer traits) peek
 [
-  l outputBuffer isEmpty ifTrue: [l outputBuffer add: l readToken].
+  l outputBuffer isEmpty
+    ifTrue: [l outputBuffer addLast: l readToken].
   l outputBuffer first
 ].
 
