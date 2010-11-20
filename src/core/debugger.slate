@@ -221,22 +221,27 @@ f@(Debugger Frame traits) describeOn: out
     ; '  code size: ' ; method code size printString ; '\n'
     ; '  source: ' ; method sourceTree printString ; '\n'.
   out ; 'Inputs:\n'.
-  0 below: method inputVariables
-    do: [| :i | out
-	   ; ' arg: ' ; i printString
-	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #name `er)
-	   ; ' -> ' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
+  0 below: method inputVariables do:
+    [| :i | out
+       ; ' arg: ' ; i printString
+       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #printString `er)
+       ; ' -> ' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\n'].
   out ; 'Locals:\n'.
-  method inputVariables below: method inputVariables + method localVariables
-    do: [| :i | out
-	   ; ' arg: ' ; i printString
-	   ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #name `er)
-	   ; ' -> ' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
+  method inputVariables below: method inputVariables + method localVariables do:
+    [| :i | out
+       ; ' arg: ' ; i printString
+       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #printString `er)
+       ; ' -> ' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\n'].
   out ; 'Registers:\n'.
-  method inputVariables + method localVariables below: method registerCount
-    do: [| :i | out ; ' arg: ' ; i printString ; '\t' ; (f saved ifTrue: ['(not a live backtrace)'] ifFalse: [(f stackAtOffset: i) printString]) ; '\n'].
+  method inputVariables + method localVariables below: method registerCount do:
+    [| :i | out
+       ; ' arg: ' ; i printString
+       ; '\t' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\n'].
   out ; 'Decompiled: ' ; '\n'.
-  method printInstructionsOn: out &condensed: True.
+  [method printInstructionsOn: out &condensed: True] on: Error do: [| :c | out ; '(instructions unavailable)'].
 ].
 
 f@(Debugger Frame traits) reset
