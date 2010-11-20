@@ -15,7 +15,7 @@ to its precedence value."
       [PositiveInfinity] "unknown elements have the highest precedence"
 ].
 
-p@(Precedence traits) transform: s@(Node traits)
+p@(Precedence traits) transform: s@(nodes Node traits)
 "Returns the transformed syntax tree. The passed-in syntax tree is destroyed!"
 [| stack |
   stack := Stack new.
@@ -127,19 +127,19 @@ Precedence traits define: #MathPrecedence ->
     {#min:. #max:}.
     {#'^'. #raisedTo:}}).
 
-s@(Node traits) math
+s@(nodes Node traits) math
 "Convert the syntax tree into a flattened array of postfix-notated nodes,
 sort the messages, and transform back into a tree."
 [Precedence MathPrecedence transform: s].
 
 "flatten/unflatten, can only be used from within macros"
-s@(Node traits) flattenInto: stack
+s@(nodes Node traits) flattenInto: stack
 [stack push: s.].
 
-s@(Annotation traits) flattenInto: stack
+s@(nodes Annotation traits) flattenInto: stack
 ["annotations are not needed"].
 
-s@(CompoundStatement traits) flattenInto: stack
+s@(nodes CompoundStatement traits) flattenInto: stack
 [| ms |
   s statements infect:
     [| :each flattened |
@@ -149,13 +149,13 @@ s@(CompoundStatement traits) flattenInto: stack
   stack push: s.
 ].
 
-s@(UnaryMessage traits) flattenInto: stack
+s@(nodes UnaryMessage traits) flattenInto: stack
 [
   s arguments first flattenInto: stack.
   stack push: s.
 ].
 
-s@(Message traits) flattenInto: stack
+s@(nodes Message traits) flattenInto: stack
 "All arguments between the first and the last one are flattened and put
 back into the arguments array."
 [
@@ -174,16 +174,16 @@ stack@(Stack traits) unflattenSyntaxNodes
   items last
 ].
 
-s@(Node traits) unflattenSyntaxNodesFrom: _
+s@(nodes Node traits) unflattenSyntaxNodesFrom: _
 [s].
 
-s@(CompoundStatement traits) unflattenSyntaxNodesFrom: _
+s@(nodes CompoundStatement traits) unflattenSyntaxNodesFrom: _
 [
   s statements infect: #unflattenSyntaxNodes `er.
   s
 ].
 
-s@(KeywordMessage traits) unflattenSyntaxNodesFrom: items
+s@(nodes KeywordMessage traits) unflattenSyntaxNodesFrom: items
 [
   "inner arguments"
   1 below: s arguments indexLast do: [| :index |
@@ -195,7 +195,7 @@ s@(KeywordMessage traits) unflattenSyntaxNodesFrom: items
   s
 ].
 
-s@(Message traits) unflattenSyntaxNodesFrom: items
+s@(nodes Message traits) unflattenSyntaxNodesFrom: items
 [
   s arguments := items removeLast: s selector arity.
   s
