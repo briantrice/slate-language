@@ -153,7 +153,7 @@ s@(Sequence traits) as: path@(RootedPath traits) &root: root
 	    root ifNil: [here]}
 ].
 
-m@(Syntax UnaryMessage traits) as: path@(Path traits) &root: root
+m@(nodes UnaryMessage traits) as: path@(Path traits) &root: root
 [| names node |
   names := ExtensibleArray new.
   node := m.
@@ -163,20 +163,20 @@ m@(Syntax UnaryMessage traits) as: path@(Path traits) &root: root
   names as: path &root: root
 ].
 
-m@(Syntax ImplicitArgument traits) as: path@(Path traits) &root: root
+m@(nodes ImplicitArgument traits) as: path@(Path traits) &root: root
 [path from: (root ifNil: [here]) to: here].
 
-m@(Syntax Parenthesis traits) as: path@(Path traits) &root: root
+m@(nodes Parenthesis traits) as: path@(Path traits) &root: root
 [m statements size = 1 ifTrue: [m statements first as: path &root: root]].
 
-path@(Path traits) as: _@(Syntax Node traits)
+path@(Path traits) as: _@(nodes Node traits)
 [
-  path expanded names inject: Syntax ImplicitArgument into:
+  path expanded names inject: nodes ImplicitArgument into:
     [| :result :each |
      (each is: Integer)
-       ifTrue: [Syntax KeywordMessage sending: #at: to:
-	 {result. Syntax Literal for: each}]
-       ifFalse: [Syntax UnaryMessage sending: each intern to: {result}]]
+       ifTrue: [nodes KeywordMessage sending: #at: to:
+	 {result. nodes Literal for: each}]
+       ifFalse: [nodes UnaryMessage sending: each intern to: {result}]]
 ].
 
 path@(RootedPath traits) unrooted [path as: Path].

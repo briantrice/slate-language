@@ -1,9 +1,4 @@
 
-n@(nodes Node traits) bootstrapping
-"Override of the bootstrapping macro so that source marked that way no longer
-has any effect when evaluated."
-[n surroundings Literal Nil].
-
 n@(nodes Node traits) disable
 "Expands a textual program element into nothing, effectively commenting it out.
 Of course it does nothing to actual run-time configuration of the thing
@@ -426,6 +421,11 @@ Types Range traits compareAndHashUsingSlots: #{#type. #start. #end}.
 Types Array traits compareAndHashUsingSlots: #{#type}.
 ).
 
+n@(nodes Node traits) bootstrapping
+"Override of the bootstrapping macro so that source marked that way no longer
+has any effect when evaluated."
+[n surroundings Literal Nil].
+
 x@(nodes Node traits) swapWith: y@(nodes Node traits) &environment: env
 [
   TODO: 'Determine how to perform a generic variable swap outside of a Method context without a global.'
@@ -498,9 +498,9 @@ node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement tra
      test := assocExpr arguments first.
      action := assocExpr arguments second.
      (test `unquote do ifTrue: action `unquote ifFalse:
-        (((result isSameAs: Syntax Block)
+        (((result isSameAs: nodes Block)
             ifTrue: [result]
-            ifFalse: [Syntax Block newFor: result]) `unquote)) `quote]
+            ifFalse: [nodes Block newFor: result]) `unquote)) `quote]
 ].
 
 node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement traits)

@@ -101,7 +101,7 @@ name@(Symbol traits) alias: selector on: args
 arguments."
 [
   name arity = selector arity
-    ifTrue: [(Syntax Literal for: selector) er evaluate asMethod: name on: args]
+    ifTrue: [(nodes Literal for: selector) er evaluate asMethod: name on: args]
     ifFalse: [error: 'The selector names do not match.']
 ].
 
@@ -114,9 +114,9 @@ name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
 "Creates a method that just sends the given selector to the attribute
 of the argument at the specified index."
 [| src |
-  src := (Syntax Literal for: name) er.
+  src := (nodes Literal for: name) er.
   src statements first arguments at: roleIndex infect:
-    [| :arg | Syntax Message sending: attribute to: {arg}].
+    [| :arg | nodes Message sending: attribute to: {arg}].
   src evaluate asMethod: name on: args
 ].
 
