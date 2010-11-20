@@ -14,13 +14,12 @@ conditions define: #Debugger &parents: {Cloneable}
            #parser -> Parser.
            #printer -> DebugConsole writer.
            #namespace -> Nil.
-           #frameList -> ExtensibleArray new.
+           #frames -> ExtensibleArray new.
            #currentFrame -> Nil.
            #baseFramePointer -> Nil.
-           #slateFrameSize -> 6.
            #maxBacktraceSize -> 40.
            #basePrompt -> '> '.
-           #saved -> False. "is the stack live or is it saved?"
+           #isSaved -> False. "is the stack live or is it saved?"
 	   #quitFlag -> False}.
 
 Debugger traits define: #Namespace &parents: {Namespace} &slots: {}.
@@ -45,16 +44,16 @@ d@(Debugger traits) on: resource
   d
 ].
 
-d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol &save: saved
+d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod: symbol &save: isSaved
 [
   interp `defaultsTo: d interpreter.
   resource `defaultsTo: d resource.
-  saved `defaultsTo: False.
+  isSaved `defaultsTo: False.
   symbol `defaultsTo: #invokeDebugger.
   d clone `>>
     [| :newD |
      on: resource.
-     saved := saved.
+     isSaved := isSaved.
      condition := c.
      restarts := d restarts new.
      namespace := d namespace clone.
@@ -116,13 +115,15 @@ Debugger traits define: #Frame &parents: {Cloneable}
 Debugger traits define: #SavedFrame &parents: {Debugger Frame}
   &slots: #{#lexicalContext. #method. #instructionPointer. #resultStackLocation}.
 
-f@(Debugger Frame traits) saved [False].
-f@(Debugger SavedFrame traits) saved [True].
+f@(Debugger Frame traits) isSaved [False].
+f@(Debugger SavedFrame traits) isSaved [True].
+
+f@(Debugger Frame traits) sizeOnStack [6].
 
 f@(Debugger Frame traits) newOn: d@(Debugger traits) at: fp from: nextFp
 [
-  fp > d slateFrameSize
-    ifTrue: [f cloneSettingSlots: #{#debugger. #framePointer. #nextFramePointer} to: {d. fp. nextFp}]
+  fp > f sizeOnStack ifTrue:
+    [f cloneSettingSlots: #{#debugger. #framePointer. #nextFramePointer} to: {d. fp. nextFp}]
 ].
 
 f@(Debugger Frame traits) newAtTopOf: d@(Debugger traits)
@@ -212,36 +213,37 @@ f@(Debugger Frame traits) describeOn: out
 [
   f method method `cacheAs: #method.
   out
-    ; 'frame: ' ; (f debugger frameList indexOf: f) printString ; '\n'
+    ; 'frame: ' ; (f debugger frames indexOf: f) printString ; '\n'
     ; '  FP: ' ; f framePointer printString  ; '\n'
     ; '  IP: ' ; f instructionPointer printString ; '\n'
     ; 'method: ' ; method printString ; ' @ ' ; method definitionLocation ; '\n'
-    ; '  call count: ' ; method callCount printString ; '\n'
-    ; '  register count: ' ; method registerCount printString ; '\n'
+    ; '  #calls: ' ; method callCount printString ; '\n'
+    ; '  #registers: ' ; method registerCount printString ; '\n'
     ; '  code size: ' ; method code size printString ; '\n'
     ; '  source: ' ; method sourceTree printString ; '\n'.
   out ; 'Inputs:\n'.
   0 below: method inputVariables do:
     [| :i | out
        ; ' arg: ' ; i printString
-       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #printString `er)
-       ; ' -> ' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :var | var name as: ''])
+       ; ' := ' ; (f isSaved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
        ; '\n'].
   out ; 'Locals:\n'.
   method inputVariables below: method inputVariables + method localVariables do:
     [| :i | out
        ; ' arg: ' ; i printString
-       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: #printString `er)
-       ; ' -> ' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\t' ; ((f localForOffset: i) ifNil: ['?'] ifNotNilDo: [| :var | var name as: ''])
+       ; ' := ' ; (f isSaved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
        ; '\n'].
   out ; 'Registers:\n'.
   method inputVariables + method localVariables below: method registerCount do:
     [| :i | out
        ; ' arg: ' ; i printString
-       ; '\t' ; (f saved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
+       ; '\t' ; (f isSaved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
        ; '\n'].
   out ; 'Decompiled: ' ; '\n'.
-  [method printInstructionsOn: out &condensed: True] on: Error do: [| :c | out ; '(instructions unavailable)'].
+  [method printInstructionsOn: out &condensed: True]
+    on: SeriousCondition do: [| :c | out ; '(instructions unavailable)'. c return: Nil].
 ].
 
 f@(Debugger Frame traits) reset
@@ -263,11 +265,12 @@ d@(Debugger traits) buildFrames
 [| frame |
   d baseFramePointer ifNil:
     [error: 'Base frame pointer is nil. Cannot build stack frames.\n'. ^ Nil].
-  d frameList := d frameList new.
-  d frameList add: (frame := d topFrame).
+  d frames := d frames new `>> [add: (frame := d topFrame). ].
   [(frame := frame nextFrame) isNotNil] whileTrue:
-    [d saved ifTrue: [d frameList add: (d saveFrame: frame)]
-             ifFalse: [d frameList add: frame]].
+    [d frames add:
+       (d isSaved
+          ifTrue: [d saveFrame: frame]
+          ifFalse: [frame])].
 ].
 
 d@(Debugger traits) prompt
@@ -279,7 +282,7 @@ d@(Debugger traits) prompt
 	       d restarts size > 1 ifTrue:
 		 [out ; '..' ; d restarts indexLast printString].
 	       out ; ']'].
-   d currentFrame ifNotNilDo: [| :frame | out ; '[frame: ' ; ((d frameList indexOf: frame) as: String) ; ']'].
+   d currentFrame ifNotNilDo: [| :frame | out ; '[frame: ' ; ((d frames indexOf: frame) as: String) ; ']'].
    out ; d basePrompt] writingAs: ''
 ].
 
@@ -296,7 +299,7 @@ d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLoca
 [
   out `defaultsTo: d printer.
   showLocation `defaultsTo: False.
-  (d frameList at: index) `cacheAs: #frame.
+  (d frames at: index) `cacheAs: #frame.
   out ; 'frame: ' ; index printString ; (d currentFrame = frame ifTrue: [' *'] ifFalse: ['']) ; '\t' ; frame method printString.
   showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation].
   out ; '\n'.
@@ -305,47 +308,47 @@ d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLoca
 d@(Debugger traits) printBacktrace &fromFrame: frameIndex &limit: limit &stream: out &showLocation: showLocation
 [ 
   limit `defaultsTo: d maxBacktraceSize.
-  frameIndex `defaultsTo: ((d frameList identityIndexOf: d currentFrame) - (limit // 2) max: 0).
+  frameIndex `defaultsTo: ((d frames identityIndexOf: d currentFrame) - (limit // 2) max: 0).
   out `defaultsTo: d printer.
   showLocation `defaultsTo: True.
   out ; 'Backtrace (method @ source): \n'.
-  frameIndex below: (d frameList length min: frameIndex + limit) do:
+  frameIndex below: (d frames length min: frameIndex + limit) do:
     [| :index | d printFrameLineAt: index &showLocation: showLocation].
 ].
 
 d@(Debugger traits) frame: index
 "Selects the frame at the given index."
 [
-  d currentFrame := d frameList at: index ifAbsent: [Nil]
+  d currentFrame := d frames at: index ifAbsent: [Nil]
 ].
 
 d@(Debugger traits) top
 [
-  d currentFrame := d frameList first
+  d currentFrame := d frames first
 ].
 
 d@(Debugger traits) bottom
 [
-  d currentFrame := d frameList last
+  d currentFrame := d frames last
 ].
 
 d@(Debugger traits) up
 [
-  (d frameList before: d currentFrame)
+  (d frames before: d currentFrame)
     ifNil: [error: 'You are at the top of the stack and cannot go up a frame']
     ifNotNilDo: [| :frame | d currentFrame := frame]
 ].
 
 d@(Debugger traits) down
 [
-  (d frameList after: d currentFrame)
+  (d frames after: d currentFrame)
     ifNil: [error: 'You are at the bottom of the stack and cannot go down a frame']
     ifNotNilDo: [| :frame | d currentFrame := frame]
 ].
 
 d@(Debugger traits) currentFrameAt: n@(Integer traits)
 [
-  d currentFrame saved ifTrue: [error: 'Cannot get value in saved frame'].
+  d currentFrame isSaved ifTrue: [error: 'Cannot get value in saved frame'].
   d currentFrame
     ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
     ifNotNilDo:
@@ -358,7 +361,7 @@ d@(Debugger traits) currentFrameAt: n@(Integer traits)
 
 d@(Debugger traits) currentFrameAt: n@(Integer traits) put: val
 [
-  d currentFrame saved ifTrue: [error: 'Cannot set value in saved frame'].
+  d currentFrame isSaved ifTrue: [error: 'Cannot set value in saved frame'].
   d currentFrame stackAtOffset: n put: val
 ].
 
@@ -464,7 +467,7 @@ d@(Debugger traits) enter
   d refreshWorkspace.
   d findRestarts.
   d top.
-  "d printer ; d frameList printString."
+  "d printer ; d frames printString."
   "d printBacktrace."
   d describeRestarts.
   d printer ; '\nEnter \'help.\' for instructions.\n'.
