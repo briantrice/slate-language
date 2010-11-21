@@ -20,7 +20,7 @@ conditions define: #Debugger &parents: {Cloneable}
            #maxBacktraceSize -> 40.
            #basePrompt -> '> '.
            #isSaved -> False. "is the stack live or is it saved?"
-	   #quitFlag -> False}.
+           #quitFlag -> False}.
 
 Debugger traits define: #Namespace &parents: {Namespace} &slots: {}.
 
@@ -60,7 +60,7 @@ d@(Debugger traits) newFor: c &interpreter: interp &console: resource &topMethod
      parser currentScope := nodes Namespace for: newD namespace.
      parser parseInteractively:
        ([repl parser parseInteractively]
-	  on: SeriousCondition do: #(return: False) `er).
+         on: SeriousCondition do: #(return: False) `er).
      baseFramePointer := d interpreter framePointerOf: symbol.
      buildFrames. ]
 ].
@@ -77,7 +77,7 @@ d@(Debugger traits) findRestarts
     reverseDo:
       [| :context |
        (context is: Restart) /\ [context appliesTo: d condition]
-	 ifTrue: [d restarts addLast: context]].
+         ifTrue: [d restarts addLast: context]].
   d restarts
 ].
 
@@ -148,8 +148,8 @@ f@(Debugger Frame traits) localForOffset: offset
     ifNotNilDo:
       [| :src |
        (offset < src inputVariables size
-	 ifTrue: [src inputVariables]
-         ifFalse: [src localVariables]) at: offset ifAbsent: [Nil]]
+          ifTrue: [src inputVariables]
+          ifFalse: [src localVariables]) at: offset ifAbsent: [Nil]]
 ].
 
 f@(Debugger Frame traits) stackOffsetForLocal: name
@@ -158,9 +158,9 @@ f@(Debugger Frame traits) stackOffsetForLocal: name
     ifNil: [error: 'No source information available for the current frame.']
     ifNotNilDo:
       [| :src |
-       (src inputVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name])
-	 ifNil:
-	   [src localVariables indexOfFirstSatisfying: [| :var | (var name as: String) = name]]]
+       (src inputVariables indexOfFirstSatisfying: [| :var | var name =~ name])
+         ifNil:
+           [src localVariables indexOfFirstSatisfying: [| :var | var name =~ name]]]
 ].
 
 f@(Debugger Frame traits) callerFrameIndex
@@ -241,9 +241,9 @@ f@(Debugger Frame traits) describeOn: out
        ; ' arg: ' ; i printString
        ; '\t' ; (f isSaved ifTrue: ['(not live)'] ifFalse: [(f stackAtOffset: i) printString])
        ; '\n'].
-  out ; 'Decompiled: ' ; '\n'.
+  out ; 'Decompiled:\n'.
   [method printInstructionsOn: out &condensed: True]
-    on: SeriousCondition do: [| :c | out ; '(instructions unavailable)'. c return: Nil].
+    on: SeriousCondition do: [| :c | out ; '(instructions unavailable)\n'. c return: Nil].
 ].
 
 f@(Debugger Frame traits) reset
@@ -279,9 +279,9 @@ d@(Debugger traits) prompt
    out ; 'slate-debug'.
    d restarts isEmpty
      ifFalse: [out ; '[0'.
-	       d restarts size > 1 ifTrue:
-		 [out ; '..' ; d restarts indexLast printString].
-	       out ; ']'].
+              d restarts size > 1 ifTrue:
+                [out ; '..' ; d restarts indexLast printString].
+              out ; ']'].
    d currentFrame ifNotNilDo: [| :frame | out ; '[frame: ' ; ((d frames indexOf: frame) as: String) ; ']'].
    out ; d basePrompt] writingAs: ''
 ].
@@ -291,7 +291,7 @@ d@(Debugger traits) signalRestartAt: index
 [
   (d restarts acceptsKey: index)
     ifTrue: [((d restarts at: index) newCondition: d condition)
-	       `>> [queryFrom: d. signal]]
+              `>> [queryFrom: d. signal]]
     ifFalse: [d resource ; index printString ; ' is not a valid restart.\n']
 ].
 
@@ -355,7 +355,7 @@ d@(Debugger traits) currentFrameAt: n@(Integer traits)
       [| :frame |
        frame method method `cacheAs: #method.
        d printer ; 'register[' ; n printString ; ']@' ; (frame stackAtOffset: n) printName
-	 ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
+        ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
        frame stackAtOffset: n]
 ].
 
@@ -456,7 +456,7 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
         ifTrue: [^ [ns arg: selector]].
       "Handle a mutator."
       selector isKeywordSelector /\ [selector arity = 2]
-	ifTrue: [^ [ns arg: selector keywords first put: message arguments second]].
+        ifTrue: [^ [ns arg: selector keywords first put: message arguments second]].
       resend]
 ].
 
