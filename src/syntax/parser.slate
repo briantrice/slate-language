@@ -125,7 +125,8 @@ p@(Parser traits) nextExpression
   lookAheadIndex := 0.
   [token := p lexer peekForwardBy: lookAheadIndex.
    (token isSameAs: tokens BeginVariables) ifTrue:
-     [p error: 'Block headers are only valid in block literals.'].
+     [p lexer outputBuffer at: lookAheadIndex put:
+        (tokens Selector for: (p nextLiteralFrom: token))].
    token == tokens At ifTrue:
      [^ (p nextMessage &after: (p recordDeclaredTypeOf: p nextSignatureOrDefinition))].
    lookAheadIndex += 1.
@@ -149,7 +150,7 @@ p@(Parser traits) next
   "Unless parsing lines greedily, statements need to be separated explicitly or be at the end of the input."
   (terminatesCorrectly := p is: (token := p nextToken) likeAnyOf: p EndStatementTokens)
     \/ p parseInteractively
-    ifFalse: [p error: 'Statement was not terminated or separated correctly.'].
+    ifFalse: [p error: 'Expression was not terminated or separated correctly.'].
   statement
     ifNil:
       [terminatesCorrectly
