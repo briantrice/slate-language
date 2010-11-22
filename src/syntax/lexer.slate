@@ -128,13 +128,10 @@ l@(Lexer traits) readMantissa: radix
 l@(Lexer traits) readExponent: radix
 "Build a floating-point number's exponent as an integer."
 [| c |
-  (c := l nextCharacter) == $+
-    ifTrue: [l readInteger: radix]
+  (c := l nextCharacter) == $-
+    ifTrue: [(l readInteger: radix) negated]
     ifFalse:
-      [c == $-
-	 ifTrue: [l readInteger: radix]
-	 ifFalse: [l undoCharacter: c.
-		   l readInteger: radix]]
+      [c == $+ ifFalse: [l undoCharacter: c]. l readInteger: radix]
 ].
 
 l@(Lexer traits) newLiteralFor: obj
