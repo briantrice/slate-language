@@ -1,5 +1,5 @@
 prototypes define: #REPL &parents: {Cloneable} &slots: {
-  #parser -> Syntax Parser clone.
+  #parser -> (Parser newOn: '').
   #printer -> String writer.
   #resource -> DebugConsole.
   #originalNamespace -> lobby.
@@ -126,9 +126,14 @@ repl@(REPL traits) newBasedOn: resource@(ExternalResource traits)
 repl@(REPL traits) on: resource
 "Re-target the REPL to the specified resource."
 [
-  repl parser := repl parser newOn: resource reader.
-  repl printer := resource writer.
   repl resource := resource.
+  repl refreshIO.
+].
+
+repl@(REPL traits) refreshIO
+[
+  repl parser := repl parser newOn: repl resource reader.
+  repl printer := repl resource writer.
 ].
 
 repl@(REPL traits) reset
@@ -137,6 +142,7 @@ repl@(REPL traits) reset
   repl lineCount := 0.
   repl inputs clear.
   repl results clear.
+  repl refreshIO.
 ].
 
 _@here interpretHook: block
