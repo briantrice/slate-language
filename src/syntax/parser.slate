@@ -345,14 +345,17 @@ p@(Parser traits) nextSpecialBinaryMessages &after: node
 p@(Parser traits) nextPartial &after: node
 [| token result |
   result := p nextSpecialBinaryMessages &after: node.
-  [(token := p nextToken &interactive: p parseInteractively) is: tokens BeginPartial]
+  [(token := p nextToken &interactive: p parseInteractively) == tokens BeginPartial
+    \/ [(token isSameAs: tokens Literal) /\ [token value isSameAs: Symbol]]]
     whileTrue:
-      [| partial |
-       (partial := p nextFrom: token) arity >= 1
-         ifTrue:
-           [partial completeWith: {result}.
-            result := partial message]
-         ifFalse: [p error: 'Partial cascaded with too many placeholders.']].
+      [token == tokens BeginPartial
+         ifTrue: [| partial |
+                  (partial := p nextFrom: token) arity >= 1
+                    ifTrue:
+                      [partial completeWith: {result}.
+                       result := partial message]
+                    ifFalse: [p error: 'Partial cascaded with too many placeholders.']]
+         ifFalse: [result := nodes Message sending: token value to: {result}]].
   p lexer undoToken: token.
   result
 ].
