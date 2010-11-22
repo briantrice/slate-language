@@ -25,7 +25,9 @@ l@(Lexer traits) reset
 ].
 
 l@(Lexer traits) showTokensFrom: src
-[(l newOn: src) do: [| :x | inform: x printString]].
+[
+  (l newOn: src) do: [| :x | inform: x printString]
+].
 
 l@(Lexer traits) isEndOfLine: char [char == $\n].
 l@(Lexer traits) isEscape: char [char == $\\].
@@ -34,13 +36,14 @@ l@(Lexer traits) isAtEnd
 "The lexer has reached its end when the stream is exhausted and the buffer is
 empty."
 [
-  l outputBuffer isEmpty
-    /\ [l inputBuffer isEmpty]
-    /\ [l source isAtEnd]
+  l outputBuffer isEmpty /\ [l hasMoreCharacters not]
 ].
 
 l@(Lexer traits) hasMoreCharacters
+"Answers whether more characters are immediately available."
 [
+  "It is important not to query the source stream, unless the input buffer is
+   actually empty."
   l inputBuffer isEmpty not \/ [l source isAtEnd not]
 ].
 
@@ -216,11 +219,11 @@ Escaping is accounted for."
 	[result nextPut: (l characterFor: c)]] writingAs: '')
 ].
 
-l@(Lexer traits) readComment
+l@(Lexer traits) read: t@(tokens Comment traits)
 "Build a comment string until the next double-quote character is encountered.
 Escaping is accounted for."
 [| c |
-  tokens Comment for: ([| :result |
+  t for: ([| :result |
     [(c := l nextCharacter) == $\"]
       whileFalse:
 	[result nextPut: (l characterFor: c)]] writingAs: '')
@@ -234,7 +237,7 @@ l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
     whileTrue: [s nextPut: l nextCharacter]
 ].
 
-l@(Lexer traits) readSelector: type
+l@(Lexer traits) read: type@(tokens Selector traits)
 "Read a selector symbol into a token."
 [| result |
   (result :=
@@ -275,17 +278,29 @@ l@(Lexer traits) readCharacter
   l newLiteralFor: (l characterFor: l nextCharacter)
 ].
 
-l@(Lexer traits) readWhitespace
+l@(Lexer traits) read: w@(tokens Whitespace traits)
 "A way to preserve the whitespace in the original text. Unused by default."
 [| result c |
   result :=
     [| :result |
      [c := l nextCharacter.
       l hasMoreCharacters
-        /\ [c isWhitespace] /\ [(l isEndOfLine: c) not]]
+        /\ [c isWhitespace]
+        /\ [(l isEndOfLine: c) not]]
        whileTrue: [result nextPut: c]] writingAs: ''.
   l undoCharacter: c.
-  tokens Whitespace for: result
+  w for: result
+].
+
+l@(Lexer traits) skipWhitespace
+[| c |
+  l hasMoreCharacters ifTrue:
+    [[c := l nextCharacter.
+      l hasMoreCharacters
+        /\ [c isWhitespace]
+        /\ [(l isEndOfLine: c) not]]
+       whileTrue.
+     l undoCharacter: c].
 ].
 
 l@(Lexer traits) readToken
@@ -295,34 +310,35 @@ initializing characters to build the various token objects."
 read-table."
 [| c |
   "Consume/discard whitespace first."
-  [l hasMoreCharacters
-     /\ [(c := l nextCharacter) isWhitespace] /\ [(l isEndOfLine: c) not]] whileTrue.
-  l isAtEnd \/ [c isNil] ifTrue: [^ tokens EndStream].
-  c caseOf: {
-    $\' -> [l readString].
-    $\" -> [l readComment].
-    $$ -> [l readCharacter].
-    $# -> [l readLiteralPastHash].
-    $( -> [tokens BeginParenthesis].
-    $) -> [tokens EndParenthesis].
-    ${ -> [tokens BeginArray].
-    $} -> [tokens EndArray].
-    $[ -> [tokens BeginBlock].
-    $] -> [tokens EndBlock].
-    $@ -> [tokens At].
-    $. -> [tokens EndStatement].
-    $, -> [tokens Comma].
-    $\| -> [tokens BeginVariables].
-    $! -> [tokens Type].
-    $` -> [(l readSelector: tokens MacroSelector) ifNil: [tokens Quote]].
-    $% -> [(l readSelector: tokens DeferredSelector) ifNil: [tokens Eventually]].
-    $\n -> [tokens EndLine]
-  } otherwise:
-    [c isDigit \/ [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]]
-       ifTrue: [l undoCharacter: c. l readNumber]
-       ifFalse: [l undoCharacter: c.
-                 (l readSelector: tokens Selector)
-                   ifNil: [l error: 'Message selector must not be empty.']]]
+  l skipWhitespace.
+  l hasMoreCharacters
+    ifTrue:
+      [(c := l nextCharacter) caseOf: {
+         $\' -> [l readString].
+         $\" -> [l read: tokens Comment].
+         $$ -> [l readCharacter].
+         $# -> [l readLiteralPastHash].
+         $( -> [tokens BeginParenthesis].
+         $) -> [tokens EndParenthesis].
+         ${ -> [tokens BeginArray].
+         $} -> [tokens EndArray].
+         $[ -> [tokens BeginBlock].
+         $] -> [tokens EndBlock].
+         $@ -> [tokens At].
+         $. -> [tokens EndStatement].
+         $, -> [tokens Comma].
+         $\| -> [tokens BeginVariables].
+         $! -> [tokens Type].
+         $` -> [(l read: tokens MacroSelector) ifNil: [tokens Quote]].
+         $% -> [(l read: tokens DeferredSelector) ifNil: [tokens Eventually]].
+         $\n -> [tokens EndLine]
+       } otherwise:
+         [c isDigit \/ [c == $+ \/ [c == $-] /\ [l peekCharacter isDigit]]
+            ifTrue: [l undoCharacter: c. l readNumber]
+            ifFalse: [l undoCharacter: c.
+                      (l read: tokens Selector)
+                        ifNil: [l error: 'Message selector must not be empty.']]]]
+    ifFalse: [tokens EndStream]
 ].
 
 l@(Lexer traits) next
