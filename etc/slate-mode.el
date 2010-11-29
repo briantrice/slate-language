@@ -1198,10 +1198,12 @@ a list. Note that the first argument must be found by searching backwards."
                       slate-name-regexp) 1)
     ("Namespaces" ,(format "^\\(.*\\) ensureNamespace: #\\(%s\\).*\."
                            slate-name-regexp) 2)
-    ("Prototypes" ,(format "^\\(.*\\) addPrototype: #\\(%s\\) derivedFrom: {.*}\."
-                           slate-name-regexp) 2)
-    ("Prototypes" ,(format "^\\(.*\\) define: #\\(%s\\) &parents: {.*}"
-                           slate-name-regexp) 2)
+    ("Definitions" ,(format "^\\(.*\\) addPrototype: #\\(%s\\) derivedFrom: {.*}\."
+                            slate-name-regexp) 2)
+    ("Definitions" ,(format "^\\(.*\s*\\)?define: #\\(%s\\)"
+                            slate-name-regexp) 2)
+    ("Definitions" ,(format "#\\(%s\\) :?:="
+                            slate-name-regexp) 2)
     ("Methods" "^\\([^\[]*@[^\[\"]*\\)$" 1) ; Matches the whole signature.
     ))
 
