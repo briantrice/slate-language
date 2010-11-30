@@ -213,7 +213,9 @@ c@(DescriptiveConditionMixin traits) signalSaying: description
 
 c@(DescriptiveConditionMixin traits) describeOn: console
 [
-  console ; c description ; '\n' 
+  (c description is: String)
+    ifTrue: [console ; c description ; '\n']
+    ifFalse: [console ; c description printString ; '\n']
 ].
 
 conditions define: #Warning &parents: {DescriptiveConditionMixin. Condition}.
