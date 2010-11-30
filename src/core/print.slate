@@ -125,10 +125,10 @@ x@(Root traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 defined name along in braces and followed by the slot names and values,
 indented."
 [| doPrintName |
-  x == NoRole
-    ifTrue: [^ (o ; 'NoRole')].
-  depth `defaultsTo: 3.
-  depth isZero ifTrue: [^ Nil].
+  x == NoRole ifTrue:
+    [^ (o ; 'NoRole')].
+  (depth `defaultsTo: 3) isZero ifTrue:
+    [^ Nil].
   doPrintName := #printName isFoundOn: {x}.
   o ; '('.
   doPrintName ifTrue:
@@ -162,8 +162,8 @@ ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "Print out only the slot names, since these tend to be really large and have
 unprintable prototypes in them."
 [| doPrintName |
-  depth `defaultsTo: 3.
-  depth isZero ifTrue: [^ Nil].
+  (depth `defaultsTo: 3) isZero ifTrue:
+    [^ Nil].
   doPrintName := #name isFoundOn: {ns}.
   o ; '('.
   doPrintName ifTrue:
@@ -192,8 +192,8 @@ s@(Symbol traits) printOn: o@(PrettyPrinterMixin traits)
 "Print the Symbol readably, so that highlighting and evaluating answers the
 original argument."
 [| name |
-  s = #''
-    ifTrue: [^ (o ; '#\'\'')].
+  s = #'' ifTrue:
+    [^ (o ; '#\'\'')].
   name := s as: String.
   o ; '#'.
   (name allSatisfy: [| :c | c isAlphanumeric \/ [':&_' includes: c]])
@@ -205,10 +205,11 @@ n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &forceSi
 "Print the Integer in any given basis between 2 and 36 (alphanumeric limit),
 with sign. This works by collecting the digits and a "
 [| digits x |
-  n == SmallInteger ifTrue: [^ (o ; n printName)].
+  n == SmallInteger ifTrue:
+    [^ (o ; n printName)].
   radix `defaultsTo: o numberRadix.
-  radix < 2 \/ [radix > 36]
-    ifTrue: [^ Nil].
+  radix < 2 \/ [radix > 36] ifTrue:
+    [^ Nil].
   n isNegative
     ifTrue:
       [o ; '-'.
@@ -217,8 +218,8 @@ with sign. This works by collecting the digits and a "
     ifFalse:
       [forceSign isNotNil /\ [forceSign]
          ifTrue: [o ; '+']].
-  n isZero
-    ifTrue: [^ (o ; '0')].
+  n isZero ifTrue:
+    [^ (o ; '0')].
   digits := '' prettyPrinter.
   x := n.
   [x isPositive]
@@ -385,8 +386,8 @@ x@(Association traits) printOn: o@(PrettyPrinterMixin traits)
 c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block &depth: depth
 "A generic iteration through the elements, with printing of each."
 [| index tally |
-  depth `defaultsTo: 3.
-  depth isZero ifTrue: [^ Nil].
+  (depth `defaultsTo: 3) isZero ifTrue:
+    [^ Nil].
   tally := c size.
   index := 0.
   c do:
@@ -402,7 +403,8 @@ c@(Collection traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 input if the argument is a literal collection, such as an Array."
 [| doPrintName |
   depth `defaultsTo: 3.
-  depth isZero ifTrue: [^ Nil].
+  depth isZero ifTrue:
+    [^ Nil].
   doPrintName := (c isSameAs: Array) not /\ [#printName isFoundOn: {c}].
   o ; '{'.
   doPrintName ifTrue: [o ; '"' ; c printName ; '"'].
@@ -427,8 +429,8 @@ input if the argument is a literal collection, such as an Array."
 c@(Sequence traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block &depth: depth
 "A basis for other printing methods."
 [
-  depth `defaultsTo: 3.
-  depth isZero ifTrue: [^ Nil].
+  (depth `defaultsTo: 3) isZero ifTrue:
+    [^ Nil].
   c do: [| :each | each printOn: o &depth: depth] separatedBy: [block do].
   o
 ].
