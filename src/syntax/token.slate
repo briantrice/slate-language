@@ -184,9 +184,9 @@ parser nextLiteralFrom: _@(tokens BeginLiteralParenthesis traits)
 
 _@(tokens BeginLiteralParenthesis traits) signifier ['##('].
 
-tokens define: #BeginPartial &parents: {tokens Control}.
+tokens define: #BeginPattern &parents: {tokens Control}.
 
-parser nextFrom: _@(tokens BeginPartial traits)
+parser nextFrom: _@(tokens BeginPattern traits)
 [| statements |
   parser nonInteractivelyDo:
     [statements :=
@@ -206,11 +206,11 @@ parser nextFrom: _@(tokens BeginPartial traits)
      statements infect:
        [| :statement |
         statement transformBy: [| :node | node as: nodes Placeholder].
-        nodes Partial for: statement]].
+        nodes Pattern for: statement]].
   statements parenthesize
 ].
 
-_@(tokens BeginPartial traits) signifier ['#('].
+_@(tokens BeginPattern traits) signifier ['#('].
 
 tokens define: #BeginLiteralBlock &parents: {tokens BeginLiteral}.
 

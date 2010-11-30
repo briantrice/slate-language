@@ -361,26 +361,26 @@ ph@(nodes Placeholder traits) evaluateIn: namespace &optionals: opts
   ph
 ].
 
-nodes define: #Partial &parents: {nodes MessageWrapper}.
-"Partial nodes are just like regular message-sends, except having only
+nodes define: #Pattern &parents: {nodes MessageWrapper}.
+"Pattern nodes are just like regular message-sends, except having only
 some arguments filled initially at parse-time. They may be treated as
 records or curry-able message-sends."
 
-w@(nodes Partial traits) keywords
+w@(nodes Pattern traits) keywords
 [w selector keywords].
 
-w@(nodes Partial traits) values
+w@(nodes Pattern traits) values
 [w message arguments].
 
-nodes Partial traits define: #BlankTokens &builder:
+nodes Pattern traits define: #BlankTokens &builder:
   [{nodes Placeholder. nodes ImplicitArgument}].
 
-w@(nodes Partial traits) isPlaceholder: node
+w@(nodes Pattern traits) isPlaceholder: node
 [
   w BlankTokens includes: node
 ].
 
-w@(nodes Partial traits) arity
+w@(nodes Pattern traits) arity
 [| count countedImplicit |
   count := 0.
   w walk:
@@ -394,14 +394,14 @@ w@(nodes Partial traits) arity
   count
 ].
 
-w@(nodes Partial traits) isComplete
+w@(nodes Pattern traits) isComplete
 "Answers whether it can be evaluated successfully."
 [
   w walk: [| :node | node == nodes Placeholder ifTrue: [^ False]].
   True
 ].
 
-w@(nodes Partial traits) completeWith: values
+w@(nodes Pattern traits) completeWith: values
 [| valuesIn countedImplicit |
   valuesIn := values reader.
   w transformBy:
@@ -417,7 +417,7 @@ w@(nodes Partial traits) completeWith: values
           ) otherwise: [node]]]
 ].
 
-w@(nodes Partial traits) evaluateIn: namespace &optionals: opts
+w@(nodes Pattern traits) evaluateIn: namespace &optionals: opts
 [
   w isComplete
     ifTrue: [w message evaluateIn: namespace &optionals: opts]

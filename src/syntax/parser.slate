@@ -208,7 +208,7 @@ p@(Parser traits) nextMessage &after: node
 [
   p parseRestArgumentsFor:
     (p parseOptionalKeywordsFor:
-      (p nextPartial &after: node))
+      (p nextPattern &after: node))
 ].
 
 p@(Parser traits) parseRestArgumentsFor: expr
@@ -342,19 +342,19 @@ p@(Parser traits) nextSpecialBinaryMessages &after: node
   result
 ].
 
-p@(Parser traits) nextPartial &after: node
+p@(Parser traits) nextPattern &after: node
 [| token result |
   result := p nextSpecialBinaryMessages &after: node.
-  [(token := p nextToken &interactive: p parseInteractively) == tokens BeginPartial
+  [(token := p nextToken &interactive: p parseInteractively) == tokens BeginPattern
     \/ [(token isSameAs: tokens LiteralToken) /\ [token value isSameAs: Symbol]]]
     whileTrue:
-      [token == tokens BeginPartial
+      [token == tokens BeginPattern
          ifTrue: [| partial |
                   (partial := p nextFrom: token) arity >= 1
                     ifTrue:
                       [partial completeWith: {result}.
                        result := partial message]
-                    ifFalse: [p error: 'Partial cascaded with too many placeholders.']]
+                    ifFalse: [p error: 'Pattern cascaded with too many placeholders.']]
          ifFalse: [result := nodes Message sending: token value to: {result}]].
   p lexer undoToken: token.
   result
