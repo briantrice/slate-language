@@ -767,7 +767,7 @@ gen@(Generator traits) generateLobby
   "Install slots/accessors in the 'prototypes' namespace,
    set up traits traits, and set up printName. Make sure all bootstrapped protos
    are listed here, otherwise these important steps are left out for them."
-  [| :slotName :objectName obj window traits |
+  [| :slotName :objectName obj printNameLiteral window traits |
     obj := gen objectNamed: objectName.
     (gen objectNamed: #PrototypesObject) makeSlotNamed: slotName valued: obj.
     gen addAccessorFor: slotName on: (gen objectNamed: #PrototypesObject).
@@ -775,10 +775,11 @@ gen@(Generator traits) generateLobby
     window bmap delegates at: 0 put: (gen objectNamed: #CloneableWindow).
     traits := window bmap delegates last"(window getSlot: #traits)".
     traits bmap delegates at: 0 put: (gen objectNamed: #CloneableWindow).
-    traits makeSlotNamed: #printName valued: (gen generateLiteral: slotName name ; ' traits').
-    gen addAccessorFor: #printName on: traits.
-    window makeSlotNamed: #printName valued: (gen generateLiteral: slotName name).
-    gen addAccessorFor: #printName on: window.
+    printNameLiteral := gen generateLiteral: slotName name.
+    traits makeSlotNamed: #printNameTraits valued: printNameLiteral.
+    gen addAccessorFor: #printNameTraits on: traits.
+    window makeSlotNamed: #printNameWindow valued: printNameLiteral.
+    gen addAccessorFor: #printNameWindow on: window.
   ] applier for: #{
     {#Root.             #RootProto}.
     {#Oddball.          #OddballProto}.
