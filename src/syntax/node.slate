@@ -366,24 +366,24 @@ nodes define: #Pattern &parents: {nodes MessageWrapper}.
 some arguments filled initially at parse-time. They may be treated as
 records or curry-able message-sends."
 
-w@(nodes Pattern traits) keywords
-[w selector keywords].
+pattern@(nodes Pattern traits) keywords
+[pattern selector keywords].
 
-w@(nodes Pattern traits) values
-[w message arguments].
+pattern@(nodes Pattern traits) values
+[pattern message arguments].
 
 nodes Pattern traits define: #BlankTokens &builder:
   [{nodes Placeholder. nodes ImplicitArgument}].
 
-w@(nodes Pattern traits) isPlaceholder: node
+pattern@(nodes Pattern traits) isPlaceholder: node
 [
-  w BlankTokens includes: node
+  pattern BlankTokens includes: node
 ].
 
-w@(nodes Pattern traits) arity
+pattern@(nodes Pattern traits) arity
 [| count countedImplicit |
   count := 0.
-  w walk:
+  pattern walk:
     [| :node |
      `conditions: (
         [node == nodes Placeholder]
@@ -394,17 +394,17 @@ w@(nodes Pattern traits) arity
   count
 ].
 
-w@(nodes Pattern traits) isComplete
+pattern@(nodes Pattern traits) isComplete
 "Answers whether it can be evaluated successfully."
 [
-  w walk: [| :node | node == nodes Placeholder ifTrue: [^ False]].
+  pattern walk: [| :node | node == nodes Placeholder ifTrue: [^ False]].
   True
 ].
 
-w@(nodes Pattern traits) completeWith: values
+pattern@(nodes Pattern traits) completeWith: values
 [| valuesIn countedImplicit |
   valuesIn := values reader.
-  w transformBy:
+  pattern transformBy:
     [| :node |
      valuesIn isAtEnd
        ifTrue: [node]
