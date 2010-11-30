@@ -129,15 +129,23 @@ transparently, and sets the traits name slot to the name for convenience."
              newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
              newProto]
     ifFalse: [x addImmutableSlot: protoName valued: newProto].
-  (x atSlotNamed: protoName) `>> [addPrintName: protoName name. ]
+  (x atSlotNamed: protoName) `>> [printName := protoName name. ]
 ].
 
-x@(Root traits) addPrintName: name
+x@(Root traits) printName: name
 "Add a printName slot on the object's traitsWindow and its traits.
 Override as necessary."
 [
-  x traitsWindow addImmutableSlot: #printName valued: name.
-  x traits addImmutableSlot: #printName valued: name ; ' traits'.
+  x traitsWindow addImmutableSlot: #printNameWindow valued: name.
+  x traits addImmutableSlot: #printNameTraits valued: name.
+].
+
+x@(Root traits) printName
+[
+  `conditions: (
+    [x hasSlotNamed: #printNameWindow] -> [x printNameWindow ; ' traitsWindow'].
+    [x hasSlotNamed: #printNameTraits] -> [x printNameTraits ; ' traits']
+  ) otherwise: [x printNameTraits]
 ].
 
 x@(Root traits) printDelegates
