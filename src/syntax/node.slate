@@ -417,11 +417,17 @@ w@(nodes Pattern traits) completeWith: values
           ) otherwise: [node]]]
 ].
 
-w@(nodes Pattern traits) evaluateIn: namespace &optionals: opts
+pattern@(nodes Pattern traits) deepCopy: scope
 [
-  w isComplete
-    ifTrue: [w message evaluateIn: namespace &optionals: opts]
-    ifFalse: [w]
+  pattern for: (pattern message deepCopy: scope)
+].
+
+pattern@(nodes Pattern traits) evaluateIn: namespace &optionals: opts
+"Patterns are auto-quasiquoting, in that their arguments get evaluated,
+but the message is not sent."
+[
+  pattern for: pattern message clone `>>
+    [arguments := pattern message arguments collect: #(evaluateIn: namespace) `er. ]
 ].
 
 nodes define: #Literal &parents: {nodes Node} &slots: {#value}.
