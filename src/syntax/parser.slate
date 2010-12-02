@@ -75,6 +75,11 @@ and don't update the position."
   token
 ].
 
+p@(Parser traits) undoToken: token
+[
+  p lexer undoToken: token
+].
+
 p@(Parser traits) isAtEnd
 [
   p lexer isAtEnd
@@ -176,7 +181,7 @@ p@(Parser traits) inScope: scope do: block
 p@(Parser traits) nextAtom
 [| token |
   (p nextFrom: (token := p nextToken))
-    ifNil: [p lexer undoToken: token. ]
+    ifNil: [p undoToken: token. ]
     ifNotNilDo: [| :node | p recordDeclaredTypeOf: (node recordPositionFrom: p)]
 ].
 
@@ -200,7 +205,7 @@ Type annotation suffixes may also be chained (for no particular reason)."
          [node type := p nextAtom
             ifNil: [p error: 'No type given after type declaration marker.']
             ifNotNilDo: [| :typeExpr | typeExpr evaluateIn: p typesNamespace]].
-     p lexer undoToken: token].
+     p undoToken: token].
   node
 ].
 
@@ -224,7 +229,7 @@ p@(Parser traits) parseRestArgumentsFor: message@(nodes Message traits)
     [| :arguments |
      [(token := p nextToken) isSameAs: tokens Comma]
        whileTrue: [arguments nextPut: p nextBinaryMessages]] writingAs: #{}.
-  p lexer undoToken: token.
+  p undoToken: token.
   arguments
     ifEmpty: [message]
     ifNotEmpty: [(nodes RestArguments for: message) `>>
@@ -249,7 +254,7 @@ p@(Parser traits) parseOptionalKeywordsFor: message@(nodes Message traits)
          [keywords nextPut: token value intern.
           arguments nextPut: p nextBinaryMessages]]
        writingAs: #{}.
-  p lexer undoToken: token.
+  p undoToken: token.
   keywords
     ifEmpty: [message]
     ifNotEmpty: [(nodes OptionalKeywords for: message) `>>
@@ -266,7 +271,7 @@ p@(Parser traits) nextUnaryMessages &after: node
       [(result := token messageType sending: token value to: {result})
          recordPositionFrom: p.
        p recordDeclaredTypeOf: result].
-  p lexer undoToken: token.
+  p undoToken: token.
   result
 ].
 
@@ -291,7 +296,7 @@ p@(Parser traits) nextBinaryMessages &after: node
                  ifNil: [{firstArg}]
                  ifNotNilDo: [| :secondArg | {firstArg. secondArg}])].
        result recordPositionFrom: p].
-  p lexer undoToken: token.
+  p undoToken: token.
   result
 ].
 
@@ -317,7 +322,7 @@ into a single selector with arguments."
                selector ; token value.
                result nextPut:
                  (p nextBinaryMessages ifNil: [p error: 'Bad keyword argument (being implicit).'])].
-          p lexer undoToken: token] writingAs: #{}.
+          p undoToken: token] writingAs: #{}.
        selector := selector contents.
        "Handle the special case of a StoreVariable:"
        arguments size = 2 /\ [arguments first isSameAs: nodes ImplicitArgument]
@@ -338,7 +343,7 @@ p@(Parser traits) nextSpecialBinaryMessages &after: node
     whileTrue:
       [result := nodes BinaryMacro sending: token value to:
          (p nextExpression ifNil: [{result}] ifNotNilDo: [| :rhs | {result. rhs}])].
-  p lexer undoToken: token.
+  p undoToken: token.
   result
 ].
 
@@ -356,7 +361,7 @@ p@(Parser traits) nextPattern &after: node
                        result := partial message]
                     ifFalse: [p error: 'Pattern cascaded with too many placeholders.']]
          ifFalse: [result := nodes Message sending: token value to: {result}]].
-  p lexer undoToken: token.
+  p undoToken: token.
   result
 ].
 
@@ -409,7 +414,7 @@ p@(Parser traits) nextBlock &updating: block
                   variable name = #_
                     \/ [block localVariables noneSatisfy: [| :var | variable name =~ var name]]
                     ifTrue: [block localVariables := block localVariables copyWith: variable]]]
-          ifFalse: [p lexer undoToken: token].
+          ifFalse: [p undoToken: token].
         block inputVariables := block inputVariables ; inputVariables contents.
         block optionalKeywords := block optionalKeywords ; optKeywords contents.
         block optionalVariables := block optionalVariables ; optVariables contents.
@@ -480,7 +485,7 @@ p@(Parser traits) nextSignatureOrDefinition
                    ifTrue:
                      [optKeywords nextPut: token value intern]]
               ifFalse:
-                [p lexer undoToken: token.
+                [p undoToken: token.
                  token == tokens BeginBlock ifFalse:
                    [^ ((result `>>
                           [selector := selector intern.
@@ -494,7 +499,7 @@ p@(Parser traits) nextSignatureOrDefinition
             (Syntax isOptionalSelector: token)
               ifTrue: [optKeywords nextPut: token value intern]
               ifFalse:
-                [p lexer undoToken: token.
+                [p undoToken: token.
                  (token isSameAs: tokens BeginBlock)
                    ifFalse:
                      [^ ((result `>>
