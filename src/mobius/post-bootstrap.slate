@@ -63,6 +63,12 @@ contents within the argument namespace or an optional override."
 	each evaluateIn: namespace]] &mode: file Read
 ].
 
+ns@(Namespace traits) use: file
+[| result |
+  ((result := ns new load: file) hasSlotNamed: #exports)
+    ifTrue: [result exports] ifFalse: [result]
+].
+
 "
 This is defined on == but we expect this to use = for comparing strings like:
 StartupArguments includes: '--image-help'
