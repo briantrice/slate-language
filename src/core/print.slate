@@ -117,7 +117,7 @@ x@(Root traits) print &radix: radix &precision: prec &forceSign: forceSign &dept
 
 x printOn: o@(PrettyPrinterMixin traits)
 [
-  o ; '("Unprintable")'
+  o ; '#("Unprintable")'
 ].
 
 x@(Root traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
@@ -129,32 +129,29 @@ indented."
     [^ (o ; 'NoRole')].
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
-  doPrintName := #printName isFoundOn: {x}.
-  o ; '('.
-  doPrintName ifTrue:
-    [o ; '"' ; x printName ; '"'].
-  x slotNames isEmpty ifTrue:
-    [^ (o ; ')')].
-  doPrintName ifTrue:
-    [o ; ' '].
-  o level >= o nestingLimit ifTrue:
-    [^ (o ; '...)')].
-  o indentedDo: [| index |
-    index := 0.
-    o preferDense
-      ifFalse: [o newLineAndIndent].
-    (x slotNames copyWithout: #traitsWindow) do:
-      [| :each |
-        o ; (each as: String)
-          ; ': '.
-        (x atSlotNamed: each) printOn: o &depth: depth - 1]
-      separatedBy:
-        [o ; '.'.
-          o newElement.
-          index += 1.
-          index >= o collectionLimit
-            ifTrue:
-              [o ; '...)'. ^ o]]].
+  o ; '#('.
+  (doPrintName := #printName isFoundOn: {x}) ifTrue:
+    [o ; x printName].
+  x slotNames isEmpty ifFalse:
+    [doPrintName ifTrue:
+       [o ; ' '].
+     o level >= o nestingLimit
+       ifTrue: [o ; '...']
+       ifFalse:
+         [o indentedDo:
+            [| index |
+             index := 0.
+             o preferDense ifFalse:
+               [o newLineAndIndent].
+             (x slotNames copyWithout: #traitsWindow) do:
+               [| :each |
+                o ; (each as: String) ; ': '.
+                (x atSlotNamed: each) printOn: o &depth: depth - 1]
+               separatedBy:
+                 [o ; '.'.
+                  o newElement.
+                  (index += 1) >= o collectionLimit ifTrue:
+                    [^ (o ; '...)')]]]]].
   o ; ')'
 ].
 
@@ -164,27 +161,25 @@ unprintable prototypes in them."
 [| doPrintName |
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
-  doPrintName := #name isFoundOn: {ns}.
-  o ; '('.
-  doPrintName ifTrue:
-    [o ; '"' ; ns name ; '"'].
-  ns slotNames isEmpty ifTrue:
-    [^ (o ; ')')].
-  doPrintName ifTrue:
-    [o ; ' '].
-  o level >= o nestingLimit ifTrue:
-    [^ (o ; '...)')].
-  o indentedDo: [| index |
-    index := 0.
-    ns slotNames
-      do: [| :each | o ; (each as: String)]
-      separatedBy:
-        [o ; '.'.
-         o newElement.
-         index += 1.
-         index >= o collectionLimit
-           ifTrue:
-             [o ; '...)'. ^ o]]].
+  o ; '#('.
+  (doPrintName := #name isFoundOn: {ns}) ifTrue:
+    [o ; ns name].
+  ns slotNames isEmpty ifFalse:
+    [doPrintName ifTrue:
+       [o ; ' '].
+     o level >= o nestingLimit
+       ifTrue: [o ; '...']
+       ifFalse:
+         [o indentedDo:
+            [| index |
+             index := 0.
+             ns slotNames
+               do: [| :each | o ; (each as: String)]
+               separatedBy:
+                 [o ; '.'.
+                  o newElement.
+                  (index += 1) >= o collectionLimit ifTrue:
+                    [^ (o ; '...)')]]]]].
   o ; ')'
 ].
 
@@ -286,7 +281,6 @@ f@(Float traits) printOn: o@(PrettyPrinterMixin traits)
        exponent := 1]
     ifFalse:
       [significand := (1 bitShift: f significandSize) bitOr: significand].
-  
   b := 2.
   (exponent := exponent - f bias - f significandSize) isNegative
     ifTrue:
@@ -402,27 +396,51 @@ c@(Collection traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "The template for all collection object printing; this is only valid Slate
 input if the argument is a literal collection, such as an Array."
 [| doPrintName |
-  depth `defaultsTo: 3.
-  depth isZero ifTrue:
+  (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
-  doPrintName := (c isSameAs: Array) not /\ [#printName isFoundOn: {c}].
+  o ; '#('.
+  (doPrintName := #printName isFoundOn: {c}) ifTrue:
+    [o ; c printName].
+  c isEmpty ifFalse:
+    [doPrintName ifTrue:
+       [o ; ' '].
+     o level >= o nestingLimit ifTrue:
+       [^ (o ; '...)')].
+     o indentedDo:
+       [| index |
+        index := 0.
+        c printContentsOn: o separatedBy:
+          [o ; '.'.
+           o newElement.
+           index += 1.
+           index >= o collectionLimit ifTrue:
+             [o ; '...)'. ^ o]] &depth: depth - 1]].
+  o ; ')'
+].
+
+c@(Array traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
+"The template for all collection object printing; this is only valid Slate
+input if the argument is a literal collection, such as an Array."
+[| doPrintName |
+  (depth `defaultsTo: 3) isZero ifTrue:
+    [^ Nil].
   o ; '{'.
-  doPrintName ifTrue: [o ; '"' ; c printName ; '"'].
-  c isEmpty ifTrue:
-    [^ (o ; '}')].
-  doPrintName ifTrue:
-    [o ; ' '].
-  o level >= o nestingLimit ifTrue:
-    [^ (o ; '...}')].
-  o indentedDo:
-    [| index |
-     index := 0.
-     c printContentsOn: o separatedBy:
-       [o ; '.'.
-        o newElement.
-        index += 1.
-        index >= o collectionLimit ifTrue:
-          [o ; '...}.'. ^ o]] &depth: depth - 1].
+  (doPrintName := (c isSameAs: Array) not) ifTrue:
+    [o ; c printName].
+  c isEmpty ifFalse:
+    [doPrintName ifTrue:
+       [o ; ' '].
+     o level >= o nestingLimit ifTrue:
+       [^ (o ; '...}')].
+     o indentedDo:
+       [| index |
+        index := 0.
+        c printContentsOn: o separatedBy:
+          [o ; '.'.
+           o newElement.
+           index += 1.
+           index >= o collectionLimit ifTrue:
+             [o ; '...}'. ^ o]] &depth: depth - 1]].
   o ; '}'
 ].
 
