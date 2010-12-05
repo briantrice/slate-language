@@ -18,21 +18,21 @@ ns@(Namespace traits) newSubSpace
 "put traitswindow last so it has more priority so ns new doesn't call someone else's new function"
 ns@(Namespace traits) parentNamespace
 [
-  (ns _delegates size > 1)
+  ns _delegates size > 1
     ifTrue: [ns _delegates first]
     ifFalse: [ns "is this right?"]
 ].
 
 ns@(Namespace traits) parentNamespace: parent
 [
-  (ns _delegates size > 1)
+  ns _delegates size > 1
     ifTrue: [ns _delegates at: 0 put: parent]
     ifFalse: [ns insertDelegate: parent. parent]
 ].
 
 ns@(Namespace traits) newSisterSpace
 [
-  (ns _delegates size <= 1)
+  ns _delegates size <= 1
     ifTrue: [ns newDelegatingTo: ns parentNamespace]
     ifFalse: [ns new]
 ].
@@ -76,7 +76,7 @@ immutable slot values, and a &delegate flag for delegated-vs-not namespace."
     ifFalse: [(delegate ifNil: [False])
 		ifTrue: [ns := Namespace clone. x insertDelegate: ns. x addImmutableSlot: name valued: ns. ns]
 		ifFalse: [x addImmutableSlot: name valued: Namespace clone]].
-  ns := (x atSlotNamed: name).
+  ns := x atSlotNamed: name.
   (slotSpecs ifNil: [#{}]) do:
     [| :each | (each is: Association)
 	       ifTrue: [ns addImmutableSlot: each key valued: each value]
