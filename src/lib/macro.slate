@@ -160,11 +160,15 @@ literal@(nodes Literal traits) bindTo: val
 
 node@(nodes LoadVariable traits) bindTo: value &environment: env
 [
+  `(load `unquote
+      ifNil: [(load store: value) `unquote]
+      ifNotNil: [error: 'Cannot rebind'])
 ].
 
 msg@(nodes UnaryMessage traits) bindTo: value &environment: env
 [
-  (nodes Literal for: msg selector) setTo: value
+  nodes KeywordMessage sending: #bind:to: to:
+    {msg arguments first. nodes Literal for: msg selector. value}
 ].
 
 message@(nodes KeywordMessage traits) bindTo: val
