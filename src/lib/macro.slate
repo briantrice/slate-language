@@ -142,8 +142,6 @@ node@(nodes Node traits) /= value
   node setTo: `(node `unquote / value `unquote)
 ].
 
-#:= alias: #setTo: on: {nodes Node traits. NoRole}.
-
 node@(nodes Node traits) bindTo: value
 [
   overrideThis
@@ -191,8 +189,6 @@ message@(nodes KeywordMessage traits) bindTo: val
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
-#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
-
 n@(nodes Literal traits) er
 "Takes a piece of Symbol/String literal syntax and expands into a block which
 can apply it to the number of arguments the Symbol can take as a selector."
@@ -204,6 +200,9 @@ can apply it to the number of arguments the Symbol can take as a selector."
     ([n surroundings LoadVariable from: block addInputVariable] reader next: selector arity)}.
   block
 ].
+
+#:= alias: #setTo: on: {nodes Node traits. NoRole}.
+#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
 
 n@(nodes Pattern traits) er &environment: env
 [| block message |
