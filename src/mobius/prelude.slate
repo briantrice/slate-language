@@ -4,55 +4,52 @@ code which is compiled in to the kernel image."
 
 here load: 'src/mobius/map.slate'.
 
-numerics import: #Mixin from: Mixins.
 #(numerics load: _) `er for: {
   'src/lib/fraction.slate'.
   'src/lib/complex.slate'.
-  'src/lib/numericMixin.slate'.
 }.
+
+numerics load: 'src/lib/numericMixin.slate' &imports: {Mixins -> #Mixins}.
+
 #(collections load: _) `er for: {
   'src/lib/linkedlist.slate'. "Collection ExtensibleSequence"
   'src/lib/cord.slate'. "Sequence"
   'src/lib/sortedSet.slate'.
-  'src/lib/traversal.slate'. "Collection Sequence IdentitySet Stack"
 }.
+
+collections load: 'src/lib/traversal.slate' &imports:
+  {streams -> #ReadStream. prototypes -> #Root}. "Collection Sequence IdentitySet Stack"
+
 prototypes load: 'src/lib/lookup.slate'.
 
 _@prototypes lobby [here].
 _@prototypes Syntax [Syntax].
-prototypes import: #ReadStream from: streams.
-prototypes import: #TraversalStream from: collections.
 prototypes import: #nodes from: here.
-prototypes load: 'src/lib/path.slate'. "lobby IdentitySet ReadStream"
-"These require TraversalStream."
+prototypes load: 'src/lib/path.slate' &imports:
+  {streams -> #ReadStream. collections -> #TraversalStream}. "lobby IdentitySet"
 prototypes load: 'src/lib/tokenizer.slate'.
 
-collections import: #WriteStream from: streams.
-collections import: #PrettyPrinterMixin from: Mixins.
-collections import: #Root from: prototypes.
+collections load: 'src/lib/subsequence.slate' &imports:
+  {streams -> #WriteStream. Mixins -> #PrettyPrinterMixin. prototypes -> #Root}.
 #(collections load: _) `er for: {
-  'src/lib/subsequence.slate'. "WriteStream PrettyPrinterMixin Root"
   'src/lib/bag.slate'. "ExtensibleCollection Dictionary Collection PrettyPrinterMixin"
   'src/lib/queue.slate'. "ArrayBacked Sequence"
-  'src/lib/repetition.slate'. "Root PrettyPrinterMixin"
-}.
-
-mappings import: #Set from: collections.
-mappings load: 'src/lib/mapping-epilogue.slate'.
+}
+collections load: 'src/lib/repetition.slate' &imports:
+  {Mixins -> #PrettyPrinterMixin. prototypes -> #Root}.
+mappings load: 'src/lib/mapping-epilogue.slate' &imports: {collections -> #Set}.
 collections load: 'src/lib/ringbuffer.slate'. "Queue"
-
-streams import: {#RingBuffer. #Sequence} from: collections.
-streams load: 'src/lib/buffer.slate'. "RingBuffer Stream BufferStream WriteStream ReadStream Sequence"
-
-collections import: #Mapping from: mappings.
-collections import: {#ReadStream. #WriteStream. #PositionableStream} from: streams.
-collections import: #Integer from: numerics.
-collections import: {#Method. #Boolean} from: prototypes.
+streams load: 'src/lib/buffer.slate' &imports:
+  {collections -> {#RingBuffer. #Sequence}}. "Stream BufferStream WriteStream ReadStream"
 _@collections Nil [Nil].
-collections load: 'src/lib/multi-dimensional.slate'. "Mapping Integer Range Method Boolean"
+collections load: 'src/lib/multi-dimensional.slate' &imports:
+  {mappings -> #Mapping.
+   streams -> {#ReadStream. #WriteStream. #PositionableStream}.
+   numerics -> #Integer.
+   prototypes -> {#Method. #Boolean}.
+}. "also Range"
 
-Syntax import: #Stack from: collections.
-Syntax load: 'src/lib/precedence.slate'. "Stack"
+Syntax load: 'src/lib/precedence.slate' &imports: {collections -> #Stack}.
 
 #(here load: _) `er for: {
 'src/lib/inspect.slate'.
@@ -71,12 +68,10 @@ Syntax load: 'src/lib/precedence.slate'. "Stack"
 'src/lib/repl.slate'.
 }.
 
-prototypes import: #C from: Types.
-prototypes load: 'src/lib/extlib.slate'.
+prototypes load: 'src/lib/extlib.slate' &imports: {Types -> #C}.
 prototypes load: 'src/lib/devsupport.slate'.
 
-prototypes import: #Image from: globals.
-prototypes load: 'src/lib/platform.slate'.
+prototypes load: 'src/lib/platform.slate' &imports: {globals -> #Image}.
 
 "Totally optional, makes for pretty source output and enables C code output."
 load: 'src/syntax/writer.slate'.

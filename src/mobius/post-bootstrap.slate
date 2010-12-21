@@ -23,24 +23,25 @@ Syntax import: #Parser from: lobby.
 
 "TODO: Simplify these load: stubs to avoid maintenance costs."
 
-ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
+ns@(Namespace traits) load: fileName &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| src retry |
   src: (File newNamed: fileName &mode: File Read).
   src exists ifTrue: [retry: Retry clone.
                       _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ;'\n' ].
-                      [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
+                      [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
                         handlingCases: {retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
 	     ifFalse: [warn: 'Called load: on something that didn\'t describe a file. Returning the input: ' ; fileName printString. fileName]
 ].
 
-ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
+ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports
 "A command to open the file, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| defaultPaths |
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
+  imports do: [| :import | namespace import: import value from: import key].
   (showLoadMessage `defaultsTo: True)
     ifTrue: [inform: 'Loading %r', file locator].
   defaultPaths: {Directory current}.
