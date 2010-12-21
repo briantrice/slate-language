@@ -39,6 +39,11 @@ literal@(nodes Literal traits) setTo: val
            [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
 ].
 
+_@(nodes Placeholder traits) setTo: val
+[
+  val
+].
+
 message@(nodes KeywordMessage traits) setTo: val
 "Expands a message by looking at its selector and picking the right setter."
 [
@@ -137,14 +142,16 @@ node@(nodes Node traits) /= value
   node setTo: `(node `unquote / value `unquote)
 ].
 
-node@(nodes Node traits) checkForBindingOrElseDo: block &environment: env
-[
-  env ifNil: [] ifNotNil: []
-].
+#:= alias: #setTo: on: {nodes Node traits. NoRole}.
 
 node@(nodes Node traits) bindTo: value
 [
-  node setTo: value
+  overrideThis
+].
+
+_@(nodes Placeholder traits) bindTo: val
+[
+  val
 ].
 
 literal@(nodes Literal traits) bindTo: val
@@ -153,7 +160,7 @@ literal@(nodes Literal traits) bindTo: val
   (lhs is: Symbol) \/ [lhs is: String]
     ifTrue:
       [literal value: lhs intern.
-       `(addSlotImmutable: literal `unquote valued: val `unquote)]
+       `(bind: literal `unquote to: val `unquote)]
     ifFalse:
       [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]
 ].
@@ -175,22 +182,16 @@ message@(nodes KeywordMessage traits) bindTo: val
 "Expands a message by looking at its selector and picking the right setter."
 [
   (message selector isKeywordSelector ifTrue:
-    [message selector caseOf:
-      {#addSlotNamed: -> [#addImmutableSlotNamed:valued:].
-       #addImmutableSlotNamed: -> [#addImmutableSlotNamed:valued:].
-       #addDelegateNamed: -> [#addImmutableDelegateNamed:valued:].
-       #addImmutableDelegateNamed: -> [#addImmutableDelegateNamed:valued:].
-       #at: -> [#at:put:].
-       #byteAt: -> [#byteAt:put:].
-       #wordAt: -> [#wordAt:put:].
-   } otherwise:
-     [| selectorWithPut |
-      (selectorWithPut: message selector name ; 'put:')
-        isInterned ifTrue: [selectorWithPut intern]]])
-    ifNil: [error: 'The selector cannot be handled via bindTo:.'. message]
+    [message selector caseOf: {
+       #addSlotNamed: -> [#bind:to:].
+       #addImmutableSlotNamed: -> [#bind:to:].
+     } otherwise: []])
+    ifNil: [error: 'Cannot rebind'. message]
     ifNotNilDo:
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
+
+#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
 
 n@(nodes Literal traits) er
 "Takes a piece of Symbol/String literal syntax and expands into a block which
@@ -203,12 +204,6 @@ can apply it to the number of arguments the Symbol can take as a selector."
     ([n surroundings LoadVariable from: block addInputVariable] reader next: selector arity)}.
   block
 ].
-
-#: alias: #setTo: on: {nodes Node traits. NoRole}.
-#:= alias: #setTo: on: {nodes Node traits. NoRole}.
-"Shorthands for the setTo: macro."
-
-#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
 
 n@(nodes Pattern traits) er &environment: env
 [| block message |
