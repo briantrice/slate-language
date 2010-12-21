@@ -220,14 +220,14 @@ s@(String traits) copy
 [s clone].
 
 s@(String traits) hash
-[| n bit |
-  n := 0.
+[| result bit |
+  result := 0.
   bit := 0.
   s do:
     [| :c |
-     n := n + (c hash bitShift: bit) bitAnd: 16rFFFFFF.
+     result := result + (c hash bitShift: bit) bitAnd: 16rFFFFFF.
      bit := bit + 1 bitAnd: 16rF].
-  n
+  result
 ].
 
 s@(String traits) capitalize
@@ -470,7 +470,6 @@ s@(String traits) sprintf*
                 input skip: -1.
                 argPosition := input position.
                 specifier := (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
-
                 [specifier isAtEnd] whileFalse:
                   [nextChar := specifier next.
                    "Check for a parameter index spec:"
@@ -484,17 +483,15 @@ s@(String traits) sprintf*
                           ifFalse:
                             [specifier skip: -1.
                              width := Integer readFrom: specifier]]
-                     ifFalse:
-                       ["Check for flags:"
-                        nextChar caseOf: {
+                     ifFalse: "Check for flags:"
+                       [nextChar caseOf: {
                           $\s -> [space := True].
                           $#  -> [alternative := True].
                           $+  -> [plus := True].
                           $-  -> [minus := True].
                           $0  -> [zero := True].
                           $*  -> [star := True].
-                          $. -> [precision := Integer readFrom: specifier]}]].
-
+                          $.  -> [precision := Integer readFrom: specifier]}]].
                 input position := argPosition.
                 "Check for type specifiers:"
                 position ifNil:
@@ -505,8 +502,7 @@ s@(String traits) sprintf*
                    position += 1.
                    argsIndex += 1].
                 arg := args at: position.
-                nextChar := input next.
-                arg := (nextChar toLowercase caseOf: {
+                arg := (nextChar := input next) toLowercase caseOf: {
                   $r -> [arg printString].
                   $@ -> [arg printString].
                   $s -> [arg as: s].
@@ -517,12 +513,11 @@ s@(String traits) sprintf*
                   $x -> [arg printString &radix: 16 &precision: precision &forceSign: plus isNotNil].
                   $f -> [arg printString &precision: precision &forceSign: plus isNotNil].
                   $e -> [arg printString &precision: precision &forceSign: plus isNotNil].
-                } otherwise: [arg as: s]).
+                } otherwise: [arg as: s].
                 nextChar isUppercase ifTrue: [arg toUppercase].
                 width ifNotNil:
                   [arg := arg truncateTo: width paddedBy: (zero ifNil: [$\s] ifNotNil: [$0]) &onRight: minus isNotNil].
-                result ; arg.
-          ]]
+                result ; arg]]
         ifFalse: [result nextPut: char]]
   ] writingAs: s
 ].
@@ -607,8 +602,7 @@ s@(ASCIIString traits) sorted
 
 ch@(ASCIIString Character traits) rot13
 [| code |
-  code := ch toLowercase code.
-  code >= #[$a code] /\ [code < #[$n code]]
+  (code := ch toLowercase code) >= #[$a code] /\ [code < #[$n code]]
     ifTrue: [code += 13]
     ifFalse: [code > #[$m code] /\ [code <= #[$z code]]
 		ifTrue: [code -= 13]].

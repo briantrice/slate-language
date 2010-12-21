@@ -133,7 +133,8 @@ c@(VM SSACompiler Context traits) newOn: method
 [
   method code := Array new.
   c clone `setting: #{#method. #codeWriter. #debugMap. #registerValues. #relocations. #labels. #currentRegister}
-   to: {method. method code writer.
+   to: {method.
+        method code writer.
 	method debugMap as: c debugMap.
         c registerValues new.
         c relocations new.
@@ -181,8 +182,7 @@ gen@(VM SSACompiler traits) currentContext
 
 gen@(VM SSACompiler traits) newRegister
 [
- gen contexts top currentRegister := gen contexts top currentRegister + 1.
- gen contexts top currentRegister
+  gen contexts top currentRegister += 1
 ].
 
 gen@(VM SSACompiler traits) registerFor: obj from: def result: result
