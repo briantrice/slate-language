@@ -74,6 +74,14 @@ opts@(nodes OptionalKeywords traits) macroExpand &environment: env
   opts message macroExpand &optionals: opts &environment: env
 ].
 
+rest@(nodes RestArguments traits) macroExpand &environment: env
+"Replace each rest argument with its macro-expanded value."
+[
+  (rest for: (rest message macroExpand &environment: env)) `>>
+    [arguments := rest arguments collect:
+       [| :arg | arg macroExpand &environment: env]. ]
+].
+
 group@(nodes CompoundStatement traits) macroExpand &environment: env
 "Replace the group's contents with their macro-expansions. This covers:
 Arrays, Blocks, and Parentheses."
