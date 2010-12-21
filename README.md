@@ -32,7 +32,10 @@ Obtaining Slate
 ---------------
 
 To get a slate repository on your computer to play with, run:
-    git://github.com/briantrice/slate-language.git
+    git clone git://github.com/briantrice/slate-language.git
+
+You must download a Slate image snapshot from Google Code:
+ <http://code.google.com/p/slate-language/downloads/>
 
 Setup
 -----
