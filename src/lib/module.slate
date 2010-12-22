@@ -236,12 +236,12 @@ x@(Root traits) license
 
 "Override the more primitive load: commands with high level Module hooks:"
 
-ns@(Namespace traits) load: fileName@(String traits)
+ns@(Namespace traits) load: fileName@(String traits) &imports: imports
 [
-  ns load: (fileName as: File Locator)
+  ns load: (fileName as: File Locator) &imports: imports
 ].
 
-ns@(Namespace traits) load: locator@(File Locator traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage
+ns@(Namespace traits) load: locator@(File Locator traits) &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports
 "A command to open a file with the name, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| src |
@@ -250,16 +250,17 @@ contents within the argument namespace or an optional override."
   src := File newNamed: locator &mode: File Read.
   src exists ifFalse: [locator fileType `defaultsTo: 'slate'].
   src exists
-    ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage]
+    ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Returning the input: ' ; locator printString. locator]
 ].
 
 ns@(Namespace traits) load: file@(File traits) &in: namespace
-  &verbose: verbose &showLoadMessage: showMessage
+  &verbose: verbose &showLoadMessage: showMessage &imports: imports
 "A command to open the file, load, and compile/evaluate the
 contents within the argument namespace or an optional override."
 [| oldLevel loader |
   namespace `defaultsTo: ns.
+  (imports `defaultsTo: #{}) do: [| :import | namespace import: import value from: import key].
   loader := Load clone `>>
     [targetNamespace := namespace. verbose ?= verbose. showMessage ?= showMessage. ].
   loader resolvePathOf: file.
