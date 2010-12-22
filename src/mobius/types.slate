@@ -1,5 +1,3 @@
-"TODO: remove all references of bitsize and per-architecture settings"
-
 define: #Type &parents: {Types Type}
   &slots: {#dispatcher -> Cloneable clone}.
 "A dispatching object for statically determining which pidgin method to invoke."
@@ -71,36 +69,52 @@ c addDependency: p@(Pointer traits) withVisited: visited
           ifTrue: [c addDependency: p targetType withVisited: visited]]
 ].
 
-n@here define: slotName bitSize: size &parents: parents
-"Automatically adds a method #cName which returns the lower-cased version of
-the given name, as well as the parent Type."
-[| type pointer printName |
-  type := n define: slotName &parents: parents. "parents copyWith: Type)."
-  printName := slotName name fromCamelCase.
-  _@(type traits) cName [printName].
-  _@(type traits) slateName [slotName].
-"C Syntax SizeOf of: (g generateCFor: args first)"
-  _@(type traits) bitSize [size]. "easy to find first digits if added or subtracted from"
-  pointer := Pointer to: type.
-  _@(type traits) pointer [pointer]
+define: #Integer &parents: {Type} &slots: {#pointerType. #cPrintName}.
+
+_@(Integer traits) baseByteSize [overrideThis].
+
+n@(Integer traits) byteSize &platform: p
+[
+  n baseByteSizeOn: (p `defaultsTo: Platform Current)
 ].
 
-"*****fix these to get a primitive saying the wordsize*****"
+n@(Integer traits) bitSize &platform: p
+[(n byteSize &platform: p) * 8].
 
-define: #Integer &parents: {Type}.
+n@(Integer traits) cName
+[n cPrintName `defaultsTo: n printName name fromCamelCase].
+
+n@(Integer traits) slateName
+[n printName].
+
+n@(Integer traits) pointer
+[n pointerType `defaultsTo: Pointer to: n].
+
 define: #Signed &parents: {Integer}.
 define: #Unsigned &parents: {Integer}.
-define: #Char bitSize: 8 &parents: {Signed}.
-define: #UnsignedChar bitSize: 8 &parents: {Unsigned}.
-define: #ShortInt bitSize: 16 &parents: {Signed}.
-define: #UnsignedShortInt bitSize: 16 &parents: {Unsigned}.
-define: #LongInt bitSize: 32 &parents: {Signed}.
-define: #UnsignedLongInt bitSize: 32 &parents: {Unsigned}.
-define: #LongLongInt bitSize: 64 &parents: {Signed}.
-define: #UnsignedLongLongInt bitSize: 64 &parents: {Unsigned}.
-define: #Float bitSize: 32 &parents: {Type}.
-define: #Double bitSize: 64 &parents: {Float}.
-define: #Void bitSize: 0 &parents: {Type}.
+
+define: #Char &parents: {Signed}.
+_@(Char traits) baseByteSizeOn: _ [1].
+define: #UnsignedChar &parents: {Unsigned}.
+_@(UnsignedChar traits) baseByteSizeOn: _ [1].
+define: #ShortInt &parents: {Signed}.
+_@(ShortInt traits) baseByteSizeOn: _ [2].
+define: #UnsignedShortInt &parents: {Unsigned}.
+_@(UnsignedShortInt traits) baseByteSizeOn: _ [2].
+define: #LongInt &parents: {Signed}.
+_@(LongInt traits) baseByteSizeOn: p [p bytesPerWord].
+define: #UnsignedLongInt &parents: {Unsigned}.
+_@(UnsignedLongInt traits) baseByteSizeOn: p [p bytesPerWord].
+define: #LongLongInt &parents: {Signed}.
+_@(LongLongInt traits) baseByteSizeOn: p [p bytesPerWord * 2].
+define: #UnsignedLongLongInt &parents: {Unsigned}.
+_@(UnsignedLongLongInt traits) baseByteSizeOn: p [p bytesPerWord * 2].
+define: #Float &parents: {Type}.
+_@(Float traits) baseByteSizeOn: p [4].
+define: #Double &parents: {Float}.
+_@(Double traits) baseByteSizeOn: p [8].
+define: #Void &parents: {Type}.
+_@(Void traits) baseByteSizeOn: _ [0].
 
 define: #Modifier &parents: {Type}
   &slots: {#baseType -> Type}.
