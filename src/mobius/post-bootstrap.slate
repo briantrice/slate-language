@@ -41,7 +41,8 @@ contents within the argument namespace or an optional override."
 [| defaultPaths |
   verbose `defaultsTo: False.
   namespace `defaultsTo: ns.
-  imports do: [| :import | namespace import: import value from: import key].
+  (imports `defaultsTo: #{})
+    do: [| :import | namespace import: import value from: import key].
   (showLoadMessage `defaultsTo: True)
     ifTrue: [inform: 'Loading %r', file locator].
   defaultPaths: {Directory current}.
