@@ -3,16 +3,16 @@ static source output which can be used as valid input. These methods make a
 general attempt at comprehensible output. All of them assume that the
 previously-called method responsibly adds a line-ending when possible."
 
-prototypes define: #Writer &parents: {StructuredPrinterMixin. Stream WrapperStream}.
+define: #IndentedPrintStream &parents: {StructuredPrinterMixin. Stream WrapperStream}.
 "A basis for formatted code-printing."
 
-Writer traits define: #indentString -> '  '.
+IndentedPrintStream traits define: #indentString -> '  '.
 
-w@(Writer traits) print: node
+w@(IndentedPrintStream traits) print: node
 "The basic printing method to specialize on the target syntax object."
 [overrideThis].
 
-w@(Writer traits) indentedDo: block surroundedBy: str1 and: str2
+w@(IndentedPrintStream traits) indentedDo: block surroundedBy: str1 and: str2
 [
   w newLine.
   w ; str1.
@@ -21,7 +21,7 @@ w@(Writer traits) indentedDo: block surroundedBy: str1 and: str2
   w ; str2.
 ].
 
-define: #SourceWriter &parents: {Writer} &slots: {
+define: #SourcePrintStream &parents: {IndentedPrintStream} &slots: {
   #printComments -> False.
   "Whether comments are added to the source. The default is not to."
   #useApplyWith -> False.
@@ -34,7 +34,7 @@ define: #SourceWriter &parents: {Writer} &slots: {
 }.
 "This visitor is a dispatch point for these methods and may be overridden."
 
-w@(SourceWriter traits) print: node@(nodes Node traits)
+w@(SourcePrintStream traits) print: node@(nodes Node traits)
 "All printable nodes need to override this method."
 [
   overrideThis
@@ -43,15 +43,15 @@ w@(SourceWriter traits) print: node@(nodes Node traits)
 x@(nodes Node traits) printOn: o
 "Specialize printOn: for syntax nodes"
 [
-  (SourceWriter newOn: o) print: x.
+  (SourcePrintStream newOn: o) print: x.
   o
 ].
 
-w@(SourceWriter traits) print: _@(nodes ImplicitArgument traits)
+w@(SourcePrintStream traits) print: _@(nodes ImplicitArgument traits)
 "The target of implicit message sends to the context. Prints nothing."
 [].
 
-w@(SourceWriter traits) print: node@(nodes Comment traits)
+w@(SourcePrintStream traits) print: node@(nodes Comment traits)
 "(Optionally) print out the comment on the following line."
 [
   w print: node value.
@@ -61,7 +61,7 @@ w@(SourceWriter traits) print: node@(nodes Comment traits)
   w
 ].
 
-"w@(SourceWriter traits) print: node inParenthesesOn: s
+"w@(SourcePrintStream traits) print: node inParenthesesOn: s
 [
   s ; '('.
   w print: node on: s.
@@ -70,19 +70,19 @@ w@(SourceWriter traits) print: node@(nodes Comment traits)
 ].
 "
 
-w@(SourceWriter traits) print: node@(nodes Literal traits)
+w@(SourcePrintStream traits) print: node@(nodes Literal traits)
 [w ; node value printString. ].
 
-w@(SourceWriter traits) printSelectorPrefixOf: _
+w@(SourcePrintStream traits) printSelectorPrefixOf: _
 [].
 
-w@(SourceWriter traits) printSelectorPrefixOf: _@(nodes Macro traits)
+w@(SourcePrintStream traits) printSelectorPrefixOf: _@(nodes Macro traits)
 [w ; '`'. ].
 
-w@(SourceWriter traits) printSelectorPrefixOf: _@(nodes Deferred traits)
+w@(SourcePrintStream traits) printSelectorPrefixOf: _@(nodes Deferred traits)
 [w ; '%'. ].
 
-w@(SourceWriter traits) withSurroundingArity: arity do: block
+w@(SourcePrintStream traits) withSurroundingArity: arity do: block
 [| previousArity |
   previousArity := w surroundingArity.
   w surroundingArity := arity.
@@ -90,7 +90,7 @@ w@(SourceWriter traits) withSurroundingArity: arity do: block
   w surroundingArity := previousArity.
 ].
 
-w@(SourceWriter traits) print: node sending: selector to: args
+w@(SourcePrintStream traits) print: node sending: selector to: args
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [| previousArity closeParen |
@@ -136,21 +136,21 @@ source on the stream."
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes StoreVariable traits)
+w@(SourcePrintStream traits) print: node@(nodes StoreVariable traits)
 [
   w print: node sending: (node variable name name ; ':') intern
 		to: {nodes ImplicitArgument. node value}
 ].
 
-w@(SourceWriter traits) print: node@(nodes LoadVariable traits)
+w@(SourcePrintStream traits) print: node@(nodes LoadVariable traits)
 [
   w print: node sending: node variable name to: {nodes ImplicitArgument}
 ].
 
-w@(SourceWriter traits) print: node@(nodes Variable traits)
+w@(SourcePrintStream traits) print: node@(nodes Variable traits)
 [shouldNotImplement].
 
-w@(SourceWriter traits) print: node@(nodes Message traits)
+w@(SourcePrintStream traits) print: node@(nodes Message traits)
 [
   w useApplyWith
     ifTrue: [w ; '(' ; node selector printString ; ' applyWith: '
@@ -159,12 +159,12 @@ w@(SourceWriter traits) print: node@(nodes Message traits)
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes MessageWrapper traits)
+w@(SourcePrintStream traits) print: node@(nodes MessageWrapper traits)
 [
   w print: node message
 ].
 
-w@(SourceWriter traits) print: node@(nodes OptionalKeywords traits)
+w@(SourcePrintStream traits) print: node@(nodes OptionalKeywords traits)
 [| closeParen |
   closeParen := False.
   w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
@@ -182,7 +182,7 @@ w@(SourceWriter traits) print: node@(nodes OptionalKeywords traits)
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes RestArguments traits)
+w@(SourcePrintStream traits) print: node@(nodes RestArguments traits)
 [| closeParen |
   closeParen := False.
   w surroundingArity >= 0 ifTrue: [w ; '('. closeParen := True].
@@ -199,27 +199,27 @@ w@(SourceWriter traits) print: node@(nodes RestArguments traits)
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes Placeholder traits)
+w@(SourcePrintStream traits) print: node@(nodes Placeholder traits)
 [
   w ; '_'
 ].
 
-w@(SourceWriter traits) print: node@(nodes Pattern traits)
+w@(SourcePrintStream traits) print: node@(nodes Pattern traits)
 [
   w ; '#('.
   resend.
   w ; ')'
 ].
 
-w@(SourceWriter traits) isDefaultLastStatement: node
+w@(SourcePrintStream traits) isDefaultLastStatement: node
 "Whether the expression would be a default value for the last statement in a
 sequence - only True for Literal Nil."
 [False].
 
-w@(SourceWriter traits) isDefaultLastStatement: node@(nodes Literal traits)
+w@(SourcePrintStream traits) isDefaultLastStatement: node@(nodes Literal traits)
 [node value isNil].
 
-w@(SourceWriter traits) printStatements: statements &separatedBy: separator
+w@(SourcePrintStream traits) printStatements: statements &separatedBy: separator
 [
   separator `defaultsTo: [w newLine].
   w withSurroundingArity: -1 do:
@@ -232,12 +232,12 @@ w@(SourceWriter traits) printStatements: statements &separatedBy: separator
   w
 ].
 
-w@(SourceWriter traits) printAsRole: node
+w@(SourcePrintStream traits) printAsRole: node
 [
   w withSurroundingArity: 0 do: [w print: node].
 ].
 
-w@(SourceWriter traits) print: node@(nodes CompoundStatement traits)
+w@(SourcePrintStream traits) print: node@(nodes CompoundStatement traits)
 [
   w indentedDo:
     [w newLine.
@@ -246,7 +246,7 @@ w@(SourceWriter traits) print: node@(nodes CompoundStatement traits)
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes Array traits)
+w@(SourcePrintStream traits) print: node@(nodes Array traits)
 [
   w ; '{'.
   resend.
@@ -254,7 +254,7 @@ w@(SourceWriter traits) print: node@(nodes Array traits)
   w
 ].
 
-w@(SourceWriter traits) print: node@(nodes Parenthesis traits)
+w@(SourcePrintStream traits) print: node@(nodes Parenthesis traits)
 [
   w ; '('.
   w printStatements: node statements.
@@ -262,7 +262,7 @@ w@(SourceWriter traits) print: node@(nodes Parenthesis traits)
   w
 ].
 
-w@(SourceWriter traits) printVariablesOf: node@(nodes Block traits) &skipInputs: skipInputs
+w@(SourcePrintStream traits) printVariablesOf: node@(nodes Block traits) &skipInputs: skipInputs
 [
   skipInputs `defaultsTo: False.
   (skipInputs not /\ [node inputVariables size > 0]) \/
@@ -284,7 +284,7 @@ w@(SourceWriter traits) printVariablesOf: node@(nodes Block traits) &skipInputs:
          w ; ' | '].
 ].
 
-w@(SourceWriter traits) print: node@(nodes Block traits)
+w@(SourcePrintStream traits) print: node@(nodes Block traits)
 [
   w ; '['.
   w printVariablesOf: node.
@@ -292,12 +292,12 @@ w@(SourceWriter traits) print: node@(nodes Block traits)
   w ; ']'.
 ].
 
-w@(SourceWriter traits) printAsStatement: node
+w@(SourcePrintStream traits) printAsStatement: node
 [
   w print: node
 ].
 
-w@(SourceWriter traits) printArg: arg withRole: role
+w@(SourcePrintStream traits) printArg: arg withRole: role
 [
   w ; (arg name as: String).
   (role is: nodes Literal) /\ [role value == NoRole] ifFalse:
@@ -305,7 +305,7 @@ w@(SourceWriter traits) printArg: arg withRole: role
      w printAsRole: role]
 ].
 
-w@(SourceWriter traits) print: node@(nodes Signature traits)
+w@(SourcePrintStream traits) print: node@(nodes Signature traits)
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [| args selector |
@@ -346,14 +346,14 @@ source on the stream."
         w ; variable name]].
 ].
 
-w@(SourceWriter traits) printSignatureOf: node@(nodes MethodDefinition traits)
+w@(SourcePrintStream traits) printSignatureOf: node@(nodes MethodDefinition traits)
 "Accepts a method name and array of arguments, and print the appropriate
 source on the stream."
 [
   w print: (node as: nodes Signature)
 ].
 
-w@(SourceWriter traits) printAsMethodBody: node@(nodes Block traits)
+w@(SourcePrintStream traits) printAsMethodBody: node@(nodes Block traits)
 [
   w newLine.
   w ; '['.
@@ -365,26 +365,26 @@ w@(SourceWriter traits) printAsMethodBody: node@(nodes Block traits)
   w ; ']'.
 ].
 
-w@(SourceWriter traits) print: node@(nodes MethodDefinition traits)
+w@(SourcePrintStream traits) print: node@(nodes MethodDefinition traits)
 [
   w newLine.
   w printSignatureOf: node.
   w printAsMethodBody: node.
 ].
 
-w@(SourceWriter traits) print: node@(nodes Return traits)
+w@(SourcePrintStream traits) print: node@(nodes Return traits)
 [
   w ; node selector ; ' '.
   w withSurroundingArity: 2 do:
     [w print: node value].
 ].
 
-w@(SourceWriter traits) print: _@(nodes Resend traits)
+w@(SourcePrintStream traits) print: _@(nodes Resend traits)
 [
   w ; 'resend'.
 ].
 
-w@(SourceWriter traits) treatAsSimpleNode: node
+w@(SourcePrintStream traits) treatAsSimpleNode: node
 [| nodeCount |
   nodeCount := 0.
   node walk: [| :each | (nodeCount += 1) > 7 ifTrue: [^ False]].
@@ -392,20 +392,20 @@ w@(SourceWriter traits) treatAsSimpleNode: node
 ].
 
 "
-w@(SourceWriter traits) treatAsSimpleNode: node@(nodes CompoundStatement traits)
+w@(SourcePrintStream traits) treatAsSimpleNode: node@(nodes CompoundStatement traits)
 [
   node statements size <= 1
 ].
 "
 
-w@(SourceWriter traits) printAsArgument: node
+w@(SourcePrintStream traits) printAsArgument: node
 "Print the node as an argument and return wether something was printed at all"
 [
   w print: node.
   True
 ].
 
-w@(SourceWriter traits) printAsArgument: def@(nodes MethodDefinition traits)
+w@(SourcePrintStream traits) printAsArgument: def@(nodes MethodDefinition traits)
 [
   w surroundingArity isNegative
     ifFalse: [w ; '('].
@@ -415,10 +415,10 @@ w@(SourceWriter traits) printAsArgument: def@(nodes MethodDefinition traits)
   True
 ].
 
-w@(SourceWriter traits) printAsArgument: _@(nodes ImplicitArgument traits)
+w@(SourcePrintStream traits) printAsArgument: _@(nodes ImplicitArgument traits)
 [False].
 
-w@(SourceWriter traits) printAsArgument: node@(nodes CompoundStatement traits)
+w@(SourcePrintStream traits) printAsArgument: node@(nodes CompoundStatement traits)
 [
   w indentedDo:
     [w newLine.
@@ -426,7 +426,7 @@ w@(SourceWriter traits) printAsArgument: node@(nodes CompoundStatement traits)
   True
 ].
 
-w@(SourceWriter traits) printAsArgument: node@(nodes Parenthesis traits)
+w@(SourcePrintStream traits) printAsArgument: node@(nodes Parenthesis traits)
 [
   w ; '('.
   w indentedDo:
@@ -435,7 +435,7 @@ w@(SourceWriter traits) printAsArgument: node@(nodes Parenthesis traits)
   True
 ].
 
-w@(SourceWriter traits) printAsArgument: node@(nodes Block traits)
+w@(SourcePrintStream traits) printAsArgument: node@(nodes Block traits)
 [
   (w treatAsSimpleNode: node)
     ifTrue:
@@ -448,7 +448,7 @@ w@(SourceWriter traits) printAsArgument: node@(nodes Block traits)
   True
 ].
 
-w@(SourceWriter traits) printAsArgument: node@(nodes Array traits)
+w@(SourcePrintStream traits) printAsArgument: node@(nodes Array traits)
 [
   (w treatAsSimpleNode: node)
     ifTrue:
