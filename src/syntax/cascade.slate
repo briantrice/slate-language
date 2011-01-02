@@ -6,7 +6,7 @@ source variable - no-transformation."
 imp@(nodes ImplicitArgument traits) cascadedTo: sourceVar
 "Implicit argument sends cascaded to a variable are treated as loads."
 [
-  nodes LoadVariable from: sourceVar
+  sourceVar load
 ].
 
 msg@(nodes Message traits) cascadedTo: sourceVar
@@ -42,7 +42,7 @@ message to a load of it."
 [
   nodes KeywordMessage
     sending: (store mutatorNameFor: store variable name)
-    to: {nodes LoadVariable from: sourceVar. store value}
+    to: {sourceVar load. store value}
 ].
 
 load@(nodes LoadVariable traits) cascadedTo: sourceVar
@@ -51,7 +51,7 @@ message to a load of it."
 [
   nodes UnaryMessage
     sending: load variable name
-    to: {nodes LoadVariable from: sourceVar}
+    to: {sourceVar load}
 ].
 
 "paren@(nodes Parenthesis traits) cascadedTo: sourceVar
@@ -85,11 +85,11 @@ necessary."
        block == cascade ifFalse:
          [(block ifNil: [env]) addVariable: sourceVar]].
   body:
-    {nodes StoreVariable of: source into: sourceVar} ;
+    {sourceVar store: source} ;
       (cascade statements
         collect: [| :statement | statement cascadedTo: sourceVar]).
   (body last isSameAs: nodes Literal) /\ [body last value isNil] ifTrue:
-    [body at: body indexLast put: (nodes LoadVariable from: sourceVar)].
+    [body at: body indexLast put: sourceVar load].
   block
     ifNil:
       [body as: nodes Parenthesis]
@@ -143,8 +143,7 @@ load@(nodes LoadVariable traits) substitutingSlotsOf: source for: vars
 [
   (vars includes: load variable)
     ifTrue:
-      [nodes UnaryMessage sending: load variable name to:
-        {nodes LoadVariable from: source}]
+      [nodes UnaryMessage sending: load variable name to: {source load}]
     ifFalse:
       [load]
 ].
@@ -155,7 +154,7 @@ store@(nodes StoreVariable traits) substitutingSlotsOf: source for: vars
     ifTrue:
       [nodes KeywordMessage
          sending: store variable name name ; ':'
-         to: {nodes LoadVariable from: source. store value}]
+         to: {source load. store value}]
     ifFalse:
       [store]
 ].
@@ -174,7 +173,7 @@ source code."
   sourceVar: (block ifNil: [env]) addVariable.
   cascade transformBy:
     [| :node | node substitutingSlotsOf: sourceVar for: cascade inputVariables].
-  body: {nodes StoreVariable of: source into: sourceVar} ; cascade statements.
+  body: {sourceVar store: source} ; cascade statements.
   block
     ifNil:
       [body as: nodes Parenthesis]

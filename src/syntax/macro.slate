@@ -185,7 +185,7 @@ b@(nodes Block traits) linkVariablesIn: msg@(nodes UnaryMessage traits)
   (msg arguments first isSameAs: nodes ImplicitArgument)
     ifTrue: [(b findVariable: msg selector)
                ifNil: [msg]
-               ifNotNilDo: [| :var | nodes LoadVariable from: var]]
+               ifNotNilDo: #load `er]
     ifFalse: [msg]
 ].
 
@@ -195,7 +195,7 @@ b@(nodes Block traits) linkVariablesIn: msg@(nodes KeywordMessage traits)
     /\ [msg arguments size = 2]
     ifTrue: [(b findVariable: msg selector name allButLast intern)
                ifNil: [msg]
-               ifNotNilDo: [| :var | nodes StoreVariable of: msg arguments second into: var]]
+               ifNotNilDo: [| :var | var store: msg arguments second]]
     ifFalse: [msg]
 ].
 
