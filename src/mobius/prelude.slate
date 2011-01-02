@@ -41,12 +41,12 @@ mappings load: 'src/lib/mapping-epilogue.slate' &imports: {collections -> #Set}.
 collections load: 'src/lib/ringbuffer.slate'. "Queue"
 streams load: 'src/lib/buffer.slate' &imports:
   {collections -> {#RingBuffer. #Sequence}}. "Stream BufferStream WriteStream ReadStream"
-_@collections Nil [Nil].
-collections load: 'src/lib/multi-dimensional.slate' &imports:
-  {mappings -> #Mapping.
-   streams -> {#ReadStream. #WriteStream. #PositionableStream}.
-   numerics -> #Integer.
-   prototypes -> {#Method. #Boolean}.
+collections load: 'src/lib/multi-dimensional.slate' &imports: {
+  mappings -> #Mapping.
+  streams -> {#ReadStream. #WriteStream. #PositionableStream}.
+  numerics -> #Integer.
+  prototypes -> {#Method. #Boolean}.
+  globals -> #Nil
 }. "also Range"
 
 Syntax load: 'src/lib/precedence.slate' &imports: {collections -> #Stack}.
@@ -54,22 +54,23 @@ Syntax load: 'src/lib/precedence.slate' &imports: {collections -> #Stack}.
 here load: 'src/lib/inspect.slate'.
 prototypes load: 'src/lib/directory.slate'.
 #(here load: _) `er for: {
-'src/lib/time.slate'.
-'src/lib/concurrency.slate'.
-'src/lib/observer.slate'.
-'src/lib/method.slate'.
-'src/mobius/role.slate'.
-'src/lib/image.slate'.
-'src/lib/method-query.slate'.
-'src/mobius/memory.slate'.
-'src/mobius/disassemble.slate'.
-'src/mobius/primitive-method.slate'.
-'src/lib/repl.slate'.
+  'src/lib/time.slate'.
+  'src/lib/concurrency.slate'.
+  'src/lib/observer.slate'.
+  'src/lib/method.slate'.
+  'src/mobius/role.slate'.
+  'src/lib/image.slate'.
+  'src/lib/method-query.slate'.
+  'src/mobius/memory.slate'.
+  'src/mobius/disassemble.slate'.
+  'src/mobius/primitive-method.slate'.
+  'src/lib/repl.slate'.
 }.
 
 lobby ensureNamespace: #C.
 (Types ensureNamespace: #C)
-  load: 'src/mobius/types.slate' &imports: {here -> #Types. prototypes -> #Cloneable}.
+  load: 'src/mobius/types.slate'
+  &imports: {here -> #Types. prototypes -> #Cloneable. globals -> #{#Nil. #False}. collections -> #ExtensibleArray}.
 prototypes load: 'src/lib/extlib.slate' &imports: {Types -> #C}.
 prototypes load: 'src/lib/devsupport.slate'.
 
