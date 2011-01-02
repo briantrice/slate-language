@@ -287,18 +287,20 @@ It creates a new local binding with the result of evaluating the expression
 when the surrounding method is run. All other uses of an equivalent (=)
 expression in the same or deeper lexical context are replaced with an access
 of that local."
-[| newVar loadExpr macroCall unaryAccess |
+[| newVar expressionsToReplace loadExpr |
   "Do nothing outside of a method."
   method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
   "Make the new local, uniquely named."
   newVar := method addVariableNamed: varName value intern.
   "Replace any equal expression (except this one) with a load of the variable."
   loadExpr := newVar load.
-  macroCall := expr `cache `quote.
-  unaryAccess := nodes UnaryMessage sending: varName value intern
-    to: {nodes ImplicitArgument}.
+  expressionsToReplace := {
+    expr.
+    expr `cache `quote.
+    nodes UnaryMessage sending: varName value intern to: {nodes ImplicitArgument}
+  }.
   method transformBy:
-    [| :node | node = expr \/ [node = macroCall] \/ [node = unaryAccess]
+    [| :node | (expressionsToReplace includes: node)
        ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
   newVar store: expr
@@ -310,17 +312,19 @@ It creates a new local binding with the result of evaluating the expression
 when the surrounding method is run. All other uses of an equivalent (=)
 expression in the same or deeper lexical context are replaced with an access
 of that local."
-[| newVar loadExpr unaryAccess |
+[| newVar expressionsToReplace loadExpr |
   "Do nothing outside of a method."
   method ifNil: [warn: 'Cannot cache outside of a method'. ^ expr].
   "Make the new local, uniquely named."
   newVar := method addVariableNamed: varName value intern.
   "Replace any equal expression (except this one) with a load of the variable."
   loadExpr := newVar load.
-  unaryAccess := nodes UnaryMessage sending: varName value intern
-    to: {nodes ImplicitArgument}.
+  expressionsToReplace := {
+    nodes UnaryMessage sending: varName value intern to: {nodes ImplicitArgument}
+  }.
   method transformBy:
-    [| :node | node = unaryAccess ifTrue: [loadExpr] ifFalse: [node]].
+    [| :node | (expressionsToReplace includes: node)
+       ifTrue: [loadExpr] ifFalse: [node]].
   "Expand into a store expression."
   newVar store: expr
 ].
