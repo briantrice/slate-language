@@ -172,8 +172,17 @@ node@(nodes LoadVariable traits) bindTo: value &environment: env
 
 msg@(nodes UnaryMessage traits) bindTo: value &environment: env
 [
-  nodes KeywordMessage sending: #bind:to: to:
-    {msg arguments first. nodes Literal for: msg selector. value}
+  env
+    ifNil:
+      [nodes KeywordMessage sending: #bind:to: to:
+         {msg arguments first. nodes Literal for: msg selector. value}]
+    ifNotNil:
+      [(env outermostScopeNotBinding: msg selector)
+         ifNil: [error: 'Cannot rebind']
+         ifNotNilDo:
+           [| :scope |
+            StoreVariable of: value into:
+              (scope addVariable: (nodes Binding named: msg selector))]]
 ].
 
 message@(nodes KeywordMessage traits) bindTo: val

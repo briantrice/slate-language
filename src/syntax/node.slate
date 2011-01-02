@@ -698,6 +698,21 @@ a Namespace."
   scope
 ].
 
+block@(nodes Block traits) hasVariableNamed: name
+[
+  block localVariables anySatisfy: [| :var | name =~ var name]
+].
+
+block@(nodes Block traits) outermostScopeNotBinding: name
+"Answers the outermost scope that does not have a given binding or slot."
+[| scope |
+  (block hasVariableNamed: name) ifFalse:
+    [scope := block.
+     [(scope hasVariableNamed: name) \/ [scope parentScope isSameAs: nodes Namespace]]
+       whileFalse: [scope := scope parentScope]].
+  scope
+].
+
 block@(nodes Block traits) findVariable: name
 "Searches through the current scope, and then upward, for the entry
 corresponding to the given name, and answers what it can find, or Nil if none."
@@ -963,6 +978,12 @@ var@(nodes Variable traits) deepCopy: scope
   scope findVariable: var name
 ].
 
+var@(nodes Variable traits) isImmutable [False].
+
+nodes define: #Binding &parents: {nodes Variable}.
+
+var@(nodes Binding traits) isImmutable [True].
+
 nodes define: #RestVariable &parents: {nodes Variable}.
 
 nodes define: #VariableOperation &parents: {nodes Node} &slots: {#variable}.
@@ -1002,6 +1023,9 @@ store@(nodes StoreVariable traits) of: value into: variable
 
 var@(nodes Variable traits) store: value
 [nodes StoreVariable of: value into: var].
+
+var@(nodes Binding traits) store: value
+[error: 'Cannot rebind'].
 
 load@(nodes LoadVariable traits) store: value
 [load variable store: value].
