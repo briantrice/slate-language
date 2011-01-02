@@ -152,18 +152,18 @@ _@(nodes Placeholder traits) bindTo: val
   val
 ].
 
-literal@(nodes Literal traits) bindTo: val
+literal@(nodes Literal traits) bindTo: val &environment: env
 [| lhs |
   lhs: literal value.
   (lhs is: Symbol) \/ [lhs is: String]
     ifTrue:
-      [literal value: lhs intern.
-       `(bind: literal `unquote to: val `unquote)]
+      [(nodes UnaryMessage sending: lhs intern to: {nodes ImplicitArgument})
+         bindTo: val &environment: env]
     ifFalse:
-      [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]
+      [error: 'Cannot bind this type of literal: ' ; lhs printString]
 ].
 
-node@(nodes LoadVariable traits) bindTo: value &environment: env
+load@(nodes LoadVariable traits) bindTo: value &environment: env
 [
   `(load `unquote
       ifNil: [(load store: value) `unquote]
@@ -172,11 +172,11 @@ node@(nodes LoadVariable traits) bindTo: value &environment: env
 
 msg@(nodes UnaryMessage traits) bindTo: value &environment: env
 [
-  env
-    ifNil:
+  env isNil \/ [(msg arguments first = nodes ImplicitArgument) not]
+    ifTrue:
       [nodes KeywordMessage sending: #bind:to: to:
          {msg arguments first. nodes Literal for: msg selector. value}]
-    ifNotNil:
+    ifFalse:
       [(env outermostScopeNotBinding: msg selector)
          ifNil: [error: 'Cannot rebind']
          ifNotNilDo:
@@ -210,8 +210,8 @@ can apply it to the number of arguments the Symbol can take as a selector."
   block
 ].
 
-#:= alias: #setTo: on: {nodes Node traits. NoRole}.
-#::= alias: #bindTo: on: {nodes Node traits. NoRole}.
+n@(nodes Node traits) := val &environment: env [n setTo: val &environment: env].
+n@(nodes Node traits) ::= val &environment: env [n bindTo: val &environment: env].
 
 n@(nodes Pattern traits) er &environment: env
 [| block message |

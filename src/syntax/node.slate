@@ -632,7 +632,7 @@ variable's scope (used to compile closures properly), and answers it."
 block@(nodes Block traits) addVariableNamed: name
 "Creates a new Variable with the given name and adds it as a local,
 then returning it."
-[block addVariable: (nodes Variable clone `setting: #{#name} to: {name})].
+[block addVariable: (nodes Variable named: name)].
 
 block@(nodes Block traits) uniqueVariableName &prefix: prefix
 [| nameIndex |
@@ -972,6 +972,11 @@ nodes define: #Variable &parents: {nodes Node} &slots: {
 
 node1@(nodes Variable traits) = node2@(nodes Variable traits)
 [node1 name = node2 name /\ [node1 scope = node2 scope]].
+
+var@(nodes Variable traits) named: name
+[
+  var clone `>> [name := name. ]
+].
 
 var@(nodes Variable traits) deepCopy: scope
 [
