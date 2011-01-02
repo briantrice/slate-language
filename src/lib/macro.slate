@@ -65,9 +65,9 @@ message@(nodes KeywordMessage traits) setTo: val
 paren@(nodes Parenthesis traits) setTo: val
 "Transforms the last statement into an assignment."
 [
-  paren statements size caseOf:
-    {0 -> [paren].
-     1 -> [paren statements last setTo: val]
+  paren statements size caseOf: {
+    0 -> [paren].
+    1 -> [paren statements last setTo: val]
   } otherwise:
     [| result |
      (result: paren copy) statements at: result statements indexLast put:
@@ -78,26 +78,26 @@ paren@(nodes Parenthesis traits) setTo: val
 array@(nodes Array traits) setTo: vals &environment: env
 "Performs a multiple-assignment."
 [
-  array statements size caseOf:
-    {0 -> [vals].
-     1 -> [array statements last setTo: `(vals `unquote first)]
-    } otherwise:
-      [| result tmpVar |
-       result: array copy.
-       env
-         ifNil:
-           [TODO: 'Can\'t handle this outside of a block context.']
-         ifNotNil:
-           [tmpVar: ((vals is: nodes LoadVariable)
-              ifTrue: [vals variable] ifFalse: [env addVariable]).
-            "result statements: array statements collectWithIndex:"
-            array statements doWithIndex:
-              [| :statement :index |
-               result statements at: index put:
-                 (statement setTo:
-                    (nodes KeywordMessage sending: #at: to:
-                       {tmpVar load. nodes Literal for: index}))].
-            {tmpVar store: vals. result} as: nodes Parenthesis]]
+  array statements size caseOf: {
+    0 -> [vals].
+    1 -> [array statements last setTo: `(vals `unquote first)]
+  } otherwise:
+    [| result tmpVar |
+     result: array copy.
+     env
+       ifNil:
+         [TODO: 'Can\'t handle this outside of a block context.']
+       ifNotNil:
+         [tmpVar: ((vals is: nodes LoadVariable)
+                     ifTrue: [vals variable] ifFalse: [env addVariable]).
+          "result statements: array statements collectWithIndex:"
+          array statements doWithIndex:
+            [| :statement :index |
+             result statements at: index put:
+               (statement setTo:
+                  (nodes KeywordMessage sending: #at: to:
+                     {tmpVar load. nodes Literal for: index}))].
+          {tmpVar store: vals. result} as: nodes Parenthesis]]
 ].
 
 load@(nodes LoadVariable traits) defaultsTo: default
