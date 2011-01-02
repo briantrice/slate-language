@@ -866,8 +866,12 @@ selector."
           (slate-backward-whitespace)
           (cond ((bobp)         ;must be first statement in block or exp
                  (if (nth 1 state)        ;within a paren exp
-                     (setq indent-amount (+ (slate-current-column)
-                                            slate-indent-increment))
+                     (save-restriction
+                       (widen)
+                       (beginning-of-line)
+                       (slate-forward-whitespace)
+                       (setq indent-amount (+ (slate-current-column)
+                                              slate-indent-increment)))
                    ;; we're top level
                    (setq indent-amount slate-indent-increment)))
                 ((equal (nth 0 state) 0)  ;at top-level
@@ -876,8 +880,6 @@ selector."
                  (setq indent-amount (slate-current-column)))
                 ((eq (preceding-char) ?.) ;at end of statement
                  (slate-find-statement-begin)
-                 (setq indent-amount (slate-current-column)))
-                ((memq (preceding-char) '(?\[ ?\())
                  (setq indent-amount (slate-current-column)))
                 ((eq (preceding-char) ?|)
                  (slate-find-statement-begin)
@@ -893,15 +895,15 @@ selector."
                                         slate-indent-increment)))))))
     (save-excursion
       (save-restriction
-      (widen)
-      (beginning-of-line)
-      (skip-chars-forward " \t")
-      (when (memq (following-char) '(?\} ?\) ?\]))
-        (setq indent-amount (max 0 (- indent-amount slate-indent-increment))))
-      (while (memq (following-char) '(?\} ?\) ?\]))
-        (setq indent-amount (max 0 (- indent-amount slate-indent-increment)))
-        (forward-char))))
-    (when (memq indent-amount '(1 3)) (setq indent-amount 2))
+        (widen)
+        (beginning-of-line)
+        (skip-chars-forward " \t")
+        (when (memq (following-char) '(?\} ?\) ?\]))
+          (setq indent-amount (max 0 (- indent-amount slate-indent-increment))))
+        (while (memq (following-char) '(?\} ?\) ?\]))
+          (setq indent-amount (max 0 (- indent-amount slate-indent-increment)))
+          (forward-char))))
+    (when (= indent-amount 1) (setq indent-amount slate-indent-increment))
     indent-amount))
 
 (defun slate-indent-line ()
@@ -916,7 +918,7 @@ new line, in which case it indents by `slate-indent-increment'."
       (when (looking-at "[A-Za-z][A-Za-z0-9]*:") ;indent for colon
         (let ((parse-sexp-ignore-comments t))
           (beginning-of-line)
-          (slate-backward-whitespace)
+          (slate-forward-whitespace)
           (unless (memq (preceding-char) '(?. ?| ?\[ ?\( ?\{))
             (setq is-keyword t)))))
       (setq indent-amount (slate-calculate-indent))
@@ -969,7 +971,7 @@ It also skips over block headers, and following whitespace on the same line."
         (goto-char paren-addr)
         (setq c (following-char))
         (when (memq c '(?\( ?\{ ?\[))
-               (setq start (if (> (point) 2) (1+ (point)) 0))))
+          (setq start (if (> (point) 2) (1+ (point)) 0))))
       (narrow-to-region start (point)))))
 
 (defun slate-at-method-begin ()
