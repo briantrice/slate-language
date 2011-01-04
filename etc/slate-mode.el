@@ -235,7 +235,7 @@
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-keyword-face))      ; assignment/match/unify specials
-    (,(concat "\\<[" slate-binop-chars "]=\\>")
+    (,(concat "\\<[-+*/\\;&?]=\\>")
      . ,(if (boundp 'font-lock-preprocessor-face)
         'font-lock-preprocessor-face
       'font-lock-keyword-face))         ; op-assignment specials
