@@ -421,12 +421,12 @@ m@(Method traits) <-* val
   [| *args | m applyTo: (args copyWith: val)]
 ].
 
-Method traits define: #Identity &builder: [[| :x | x]].
+Method traits Identity ::= [| :x | x].
 "The method Identity does nothing but return its sole argument."
 
-Method traits define: #Y &builder:
-  [[| :f | [| :x | f applyWith: (x applyWith: x)]
-	   applyWith: [| :x | f applyWith: (x applyWith: x)]]].
+Method traits Y ::=
+  [| :f | [| :x | f applyWith: (x applyWith: x)]
+     applyWith: [| :x | f applyWith: (x applyWith: x)]].
 "The Y recursion combinator - also known as the fixed-point combinator, since
 it computes the fixed point of any single-argument Method it is applied with.
 The core property is that (f applyWith: (Y applyWith: f)) = (Y applyWith: f)

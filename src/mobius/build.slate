@@ -1,13 +1,13 @@
-define: #ImageDefinition &slots:
-  {#bootstrapDirectory -> '.'. "Where the source filename paths relate to."
-   #bootstrapFilenames -> {}. "The names of the sources used to build the kernel REPL image, in necessary load-order."
-   #filename -> Nil. "The filename for the image."
-   #wordSize -> (imports Platform Current bytesPerWord * 8). "The size of a word in bits of the image"
-   #primitives -> imports ExtensibleArray new.
-   #endianness -> #LittleEndian. "Whether to have a little-endian byte-word format."
+define: #ImageDefinition &slots: {
+  #bootstrapDirectory -> '.'. "Where the source filename paths relate to."
+  #bootstrapFilenames -> {}. "The names of the sources used to build the kernel REPL image, in necessary load-order."
+  #filename -> Nil. "The filename for the image."
+  #wordSize -> (imports Platform Current bytesPerWord * 8). "The size of a word in bits of the image"
+  #primitives -> imports ExtensibleArray new.
+  #endianness -> #LittleEndian. "Whether to have a little-endian byte-word format."
 }.
 
-ImageDefinition traits define: #PrimitiveDefaults &builder: [#{
+ImageDefinition traits PrimitiveDefaults ::= #{
   {0.   #asMethod:on:. {#MethodTraits. #SymbolTraits. #ArrayTraits}}.
   {1.   #asAccessor:for:on:. {#MethodTraits. #SymbolTraits. #NoRoleObject. #ArrayTraits}}.
   {2.   #_map. {#RootTraits}}.
@@ -134,20 +134,20 @@ ImageDefinition traits define: #PrimitiveDefaults &builder: [#{
   {123. #socketCreate:protocol:. {#SmallIntegerTraits. #SmallIntegerTraits. #SmallIntegerTraits}}.
   {124. #socketListenSize:. {#SmallIntegerTraits. #SmallIntegerTraits}}.
   {125. #socketAcceptConnection. {#SmallIntegerTraits}}.
-    "{returns {retval. struct sockaddr}"
+  "{returns {retval. struct sockaddr}"
   {126. #socketBindOn:. {#SmallIntegerTraits. #ByteArrayTraits}}.
   {127. #socketConnect:. {#SmallIntegerTraits. #ByteArrayTraits}}.
   {128. #createIPAddress:port:options:. {#SmallIntegerTraits. #NoRoleObject. #NoRoleObject. #NoRoleObject}}.
-    "AF_INET createIPAddress: {127. 0. 0. 1} port: 80 options: #{}."
+  "AF_INET createIPAddress: {127. 0. 0. 1} port: 80 options: #{}."
   {129. #smallIntegerMinimum. {#BootstrapObject}}.
   {130. #smallIntegerMaximum. {#BootstrapObject}}.
   {131. #socketGetError. {#SmallIntegerTraits}}.
   "lobby getAddrInfo: ('slatelanguage.org' as: ByteArray) 
-       service: ('http' as: ByteArray)
-       family: Net Socket Domains IP4 
-       type: Net Socket Types Stream 
-       protocol: Net Socket Protocols Default 
-       flags: 0"
+    service: ('http' as: ByteArray)
+    family: Net Socket Domains IP4 
+    type: Net Socket Types Stream 
+    protocol: Net Socket Protocols Default 
+    flags: 0"
   "returns an integer to the ticket you've been assigned (since it is asynchronous)"
   {132. #getAddrInfo:service:family:type:protocol:flags:. {#BootstrapObject. #NoRoleObject. #NoRoleObject. #SmallIntegerTraits. #SmallIntegerTraits. #SmallIntegerTraits. #SmallIntegerTraits}}.
   "Gets the result of the earlier async call or Nil if it's not ready. if it's done you get an error code(int) or an array (resolved addresses)"
@@ -181,7 +181,7 @@ ImageDefinition traits define: #PrimitiveDefaults &builder: [#{
   {160. #closeProcessPipe:. {#BootstrapObject. #SmallIntegerTraits}}.
   {161. #readProcessPipe:count:into:startingAt:. {#BootstrapObject. #SmallIntegerTraits. #SmallIntegerTraits. #ByteArrayTraits. #SmallIntegerTraits}}.
   {162. #writeProcessPipe:count:into:startingAt:. {#BootstrapObject. #SmallIntegerTraits. #SmallIntegerTraits. #ByteArrayTraits. #SmallIntegerTraits}}
-}].
+}.
 
 i@(ImageDefinition traits) refreshPrimitives
 [
@@ -195,7 +195,7 @@ i@(ImageDefinition traits) refreshPrimitives
   ] applier for: i PrimitiveDefaults.
 ].
 
-ImageDefinition traits define: #cached &builder: [Dictionary new].
+ImageDefinition traits cached ::= Dictionary new.
 
 "ImageDefinition cached at: 'bare' put:
   (ImageDefinition clone `>> [bootstrapFilenames := {'src/mobius/pre-bootstrap.slate'}. ])."
