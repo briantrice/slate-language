@@ -170,7 +170,7 @@ block handleWith: r@(Restart traits)
 conditions define: #Abort &parents: {Restart}.
 "An Abort is a Restart which exits the computation, unwinding the stack."
 
-_@lobby abort
+_@(Root traits) abort
 [
   Abort signal
 ].
@@ -222,7 +222,7 @@ conditions define: #Warning &parents: {DescriptiveConditionMixin. Condition}.
 "Warnings are Conditions which should generate notifications, but do not need
 to be raised for handling, i.e. no action needs to be taken."
 
-_@lobby warn: message
+_@(Root traits) warn: message
 [
   Warning signalSaying: message
 ].
@@ -249,7 +249,7 @@ conditions define: #StyleWarning &parents: {SimpleWarning}.
 "A StyleWarning is a Warning that certain conventions set up by the library
 author have not been followed, which could lead to problems."
 
-_@lobby deprecated
+_@(Root traits) deprecated
 [
   StyleWarning signalSaying: 'This method has been deprecated.'
 ].
@@ -258,7 +258,7 @@ conditions define: #BreakPoint &parents: {Condition}.
 "A BreakPoint is a Condition raised when instrumenting code for
 debugging from a particular place in the code. It may restarted."
 
-_@lobby break
+_@(Root traits) break
 [ 
   (BreakPoint new) signal
 ].
@@ -272,15 +272,12 @@ bp@(BreakPoint traits) defaultHandler
 "Invoke the debugger after setting up a Restart for the BreakPoint."
 [
   [bp invokeDebugger]
-    on: (BreakPoint Restart newBreakPoint: bp)
+    on: (BreakPoint Restart newCondition: bp)
     do: [| :bpr | ^ Nil]
 ].
 
-BreakPoint define: #Restart &parents: {Restart} &slots: {#breakPoint}.
+BreakPoint traits define: #Restart &parents: {Restart}.
 "A BreakPoint Restart is a Restart used to restart from a BreakPoint."
-
-bpr@(BreakPoint Restart traits) newBreakPoint: bp
-[bpr clone `>> [breakPoint := bp. ]].
 
 bpr@(BreakPoint Restart traits) describeOn: console
 [
@@ -289,7 +286,7 @@ bpr@(BreakPoint Restart traits) describeOn: console
 
 bpr@(BreakPoint Restart traits) appliesTo: bp
 [
-  bpr breakPoint == bp
+  bpr condition == bp
 ].
 
 conditions define: #SeriousCondition &parents: {Condition}.
@@ -320,7 +317,7 @@ _@(DescriptiveError traits) describeOn: console
   resend
 ].
 
-_@lobby error: message
+_@(Root traits) error: message
 [
   DescriptiveError signalSaying: message
 ].
