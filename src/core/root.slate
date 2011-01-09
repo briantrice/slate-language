@@ -473,6 +473,14 @@ original object. Otherwise, the default is to raise a continuable Condition."
     ifFalse: [x conversionNotFoundTo: y]
 ].
 
+x to: y@(Root traits)
+"The default attempt-conversion method, to: calls as: but in case of error
+just returns the source object."
+[
+  [x as: y]
+    on: ConversionNotFound
+    do: [| :c | c return: c source]
+].
 
 "fix: make sure this works with non-named delegate model"
 x@(Root traits) addDynamicSlot: slotName valued: val
