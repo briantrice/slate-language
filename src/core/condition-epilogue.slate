@@ -22,6 +22,9 @@ conditions define: #SlotTypeError &parents: {SlotError} &slots: {#type}.
 "Results from attempting to assign a value to a slot that is incompatible with
 a specified type for the slot."
 
+obj@(Root traits) cannotAccept: value in: slotName
+[(SlotTypeError new `>> [object := obj. slotName := slotName. type := value. ]) signal].
+
 conditions define: #RebindError &parents: {SlotError}.
 
 cond@(RebindError traits) describeOn: out

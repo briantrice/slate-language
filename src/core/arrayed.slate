@@ -1,9 +1,5 @@
-"Array traitsWindow atSlotNamed: #traits1 put: Sequence traits.
-Array traitsWindow atSlotNamed: #traits2 put: Collection traits.
-Array traitsWindow atSlotNamed: #traits3 put: Mapping traits.
-"
 
-Array traitsWindow _delegates: {Mapping traits. Collection traits. Sequence traits. Array traits}.
+Array traitsWindow _delegates := {Mapping traits. Collection traits. Sequence traits. Array traits}.
 
 "Ensures that the primitive Array type has the behaviors and features of a
 Sequence."
@@ -24,11 +20,7 @@ a@(Array traits) hasIndexedSlots [a ~== Array traits].
 
 _@(Root traits) hasIndexedSlots [False].
 
-"ByteArray traitsWindow atSlotNamed: #traits1 put: Sequence traits.
-ByteArray traitsWindow atSlotNamed: #traits2 put: Collection traits.
-ByteArray traitsWindow atSlotNamed: #traits3 put: Mapping traits."
-
-ByteArray traitsWindow _delegates: {Mapping traits. Collection traits. Sequence traits. ByteArray traits}.
+ByteArray traitsWindow _delegates := {Mapping traits. Collection traits. Sequence traits. ByteArray traits}.
 
 "Ensures that the primitive ByteArray type has the behaviors and features of
 a Sequence."
@@ -56,7 +48,10 @@ _@(ByteArray traits) accepts: i@(SmallInteger traits)
 a@(ByteArray traits) at: i
 [a byteAt: i].
 
-a@(ByteArray traits) at: i put: byte
+a@(ByteArray traits) at: i put: obj
+[a cannotAccept: obj in: i].
+
+a@(ByteArray traits) at: i put: byte@(Integer traits)
 [a byteAt: i put: byte].
 
 a@(ByteArray traits) isLittleEndian
@@ -282,10 +277,10 @@ a@(ByteArray traits) littleEndianInt64At: offset put: word@(Integer traits)
 collections define: #BitArray &parents: {ByteArray} &slots: {#bitSize -> 0} &basedOn: ByteArray.
 "Uses byte-contents to implement an array of direct binary values (Booleans)."
 
-a@(BitArray traits) new &capacity: n
-[| bitSize byteSize |
-  bitSize := n ifNil: [0] ifNotNil: [n].
-  byteSize := (n + 7) // 8.
+a@(BitArray traits) new &capacity: bitSize
+[
+  bitSize `defaultsTo: 0.
+  byteSize ::= (n + 7) // 8.
   (a newSize: byteSize) `>> [bitSize := bitSize. ]
 ].
 
@@ -307,38 +302,36 @@ a@(BitArray traits) at: i
   ((a byteAt: i // 8) bitAnd: 1 << (i \\ 8)) isZero not
 ].
 
-a@(BitArray traits) at: i put: bool
+a@(BitArray traits) at: i put: bool@(Boolean traits)
 [| byteOffset byte bitMask |
   (a includesKey: i) ifFalse: [^ (i keyNotFoundOn: a)].
-  byteOffset: i // 8.
-  bitMask: (1 << (i \\ 8)).
-  byte: (a byteAt: byteOffset).
+  byteOffset := i // 8.
+  bitMask := 1 << (i \\ 8).
+  byte := a byteAt: byteOffset.
   a byteAt: byteOffset put:
     (bool
-      ifTrue: [byte bitOr: bitMask]
-      ifFalse: [byte bitAnd: bitMask bitNot]).
+       ifTrue: [byte bitOr: bitMask]
+       ifFalse: [byte bitAnd: bitMask bitNot]).
   bool
 ].
-"
-LexicalContext traitsWindow atSlotNamed: #traits2 put: Sequence traits.
-LexicalContext traitsWindow atSlotNamed: #traits3 put: Collection traits.
-LexicalContext traitsWindow atSlotNamed: #traits4 put: Mapping traits.
 
-Closure traitsWindow atSlotNamed: #traits3 put: Sequence traits.
-Closure traitsWindow atSlotNamed: #traits4 put: Collection traits.
-Closure traitsWindow atSlotNamed: #traits5 put: Mapping traits.
+a@(BitArray traits) at: i put: obj
+[a cannotAccept: obj in: i].
 
-SingleFloat traitsWindow atSlotNamed: #traits6 put: Sequence traits.
-SingleFloat traitsWindow atSlotNamed: #traits7 put: Collection traits.
-SingleFloat traitsWindow atSlotNamed: #traits8 put: Mapping traits.
-"
+a@(BitArray traits) at: i put: n@(Integer traits)
+[
+  n caseOf: {
+    0 -> [a at: i put: False].
+    1 -> [a at: i put: True]
+  } otherwise: [resend]
+].
 
-LexicalContext traitsWindow _delegates:
+LexicalContext traitsWindow _delegates :=
  {Cloneable. Root traits. Derivable traits. Cloneable traits. Mapping traits. Collection traits. Sequence traits. Array traits. LexicalContext traits}.
 
-Closure traitsWindow _delegates:
+Closure traitsWindow _delegates :=
  {Cloneable. Root traits. Derivable traits. Cloneable traits. Mapping traits. Collection traits. Sequence traits. Array traits. Method traits. Closure traits}.
 
 "a float is a byte array, and we need to be able to call #newWithSize: to create floats in the bootstrapper."
-SingleFloat traitsWindow _delegates:
+SingleFloat traitsWindow _delegates :=
  {ByteArray traits. Sequence traits. CoercibleNumberMixin traits. Comparable traits. Number traits. Float traits. SingleFloat traits}.
