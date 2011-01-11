@@ -48,10 +48,8 @@ block@(Method traits) do
   block applyTo: {}
 ].
 
-
 m@(Method traits) applyWith: x
 [m applyTo: {x}].
-
 
 cond@(Method traits) whileFalse: body
 [
@@ -79,7 +77,7 @@ array@(Array traits) do: block
   [i = size]
     whileFalse:
       [block applyTo: {array at: i}.
-        i: i + 1]
+       i: i + 1]
 ].
 
 array@(Array traits) reverseDo: block
@@ -88,7 +86,7 @@ array@(Array traits) reverseDo: block
   [i = 0]
     whileFalse:
       [i: i - 1.
-        block applyTo: {array at: i}]
+       block applyTo: {array at: i}]
 ].
 
 array@(Array traits) doWithIndex: block
@@ -98,7 +96,7 @@ array@(Array traits) doWithIndex: block
   [i = size]
     whileFalse:
       [block applyTo: {array at: i. i}.
-        i: i + 1]
+       i: i + 1]
 ].
 
 array@(Array traits) reversed
@@ -110,7 +108,7 @@ array@(Array traits) reversed
   [i = size]
     whileFalse:
       [newArray at: size - i - 1 put: (array at: i).
-        i: i + 1].
+       i: i + 1].
   newArray
 ].
 
@@ -118,8 +116,8 @@ array@(Array traits) anySatisfy: block
 [
   array do:
     [| :each |
-      (block applyTo: {each})
-        ifTrue: [^ True]].
+     (block applyTo: {each})
+       ifTrue: [^ True]].
   False
 ].
 
@@ -128,8 +126,8 @@ array@(Array traits) identityIncludes: obj
 [
   array do:
     [| :each |
-      each == obj
-        ifTrue: [^ True]].
+     each == obj
+       ifTrue: [^ True]].
   False
 ].
 
@@ -146,7 +144,7 @@ array@(Array traits) allButFirst: n
   [i = newA size]
     whileFalse:
       [newA at: i put: (array at: i + n).
-        i: i + 1].
+       i: i + 1].
   newA
 ].
 
@@ -157,7 +155,7 @@ array@(Array traits) first: n
   [i = n]
     whileFalse:
       [newA at: i put: (array at: i).
-        i: i + 1].
+       i: i + 1].
   newA
 ].
 
@@ -166,7 +164,7 @@ array@(Array traits) copyWith: obj
   newA: (array newSize: array size + 1).
   array doWithIndex:
     [| :each :index |
-      newA at: index put: each].
+     newA at: index put: each].
   newA at: array size put: obj.
   newA
 ].
@@ -179,7 +177,7 @@ s@(Symbol traits) name
   [i = size]
     whileFalse:    
       [name at: i put: (s at: i).
-        i: i + 1].
+       i: i + 1].
   name
 ].
 
@@ -191,7 +189,7 @@ s@(Symbol traits) newNamed: name
   [i = size]
     whileFalse:    
       [newS at: i put: (name at: i).
-        i: i + 1].
+       i: i + 1].
   newS
 ].
 
@@ -201,13 +199,13 @@ _@lobby intern: s@(ASCIIString traits)
   size: s size.
   bootstrapSymbols do: 
     [| :sym | 
-      sym size = size
-        ifTrue:
-          [i: 0.
-            [(sym at: i) = (s at: i)]
-              whileTrue:
-                [i: i + 1.
-                  i = size ifTrue: [^ sym]]]].
+     sym size = size
+       ifTrue:
+         [i: 0.
+          [(sym at: i) = (s at: i)]
+            whileTrue:
+              [i: i + 1.
+               i = size ifTrue: [^ sym]]]].
   sym: (Symbol newNamed: s).
   bootstrapSymbols: (bootstrapSymbols copyWith: sym).
   sym
@@ -229,10 +227,10 @@ obj@(Root traits) slotNames
   [tableIndex = map slotTable size]
     whileFalse:
       [(map slotTable at: tableIndex) == Nil
-        ifFalse:
-          [names at: namesIndex put: (map slotTable at: tableIndex).
-           namesIndex: namesIndex + 1].
-        tableIndex: tableIndex + 2].
+         ifFalse:
+           [names at: namesIndex put: (map slotTable at: tableIndex).
+            namesIndex: namesIndex + 1].
+       tableIndex: tableIndex + 2].
   names
 ].
 
