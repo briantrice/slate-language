@@ -779,7 +779,7 @@ gen@(Generator traits) generateLobby
     traits makeSlotNamed: #printNameTraits valued: printNameLiteral.
     gen addAccessorFor: #printNameTraits on: traits.
     window makeSlotNamed: #printNameWindow valued: printNameLiteral.
-    gen addAccessorFor: #printNameWindow on: window.
+    gen addAccessorFor: #printNameWindow on: window
   ] applier for: #{
     {#Root.             #RootProto}.
     {#Oddball.          #OddballProto}.
@@ -811,21 +811,22 @@ gen@(Generator traits) generateLobby
   (gen objectNamed: #BootstrapObject) addDelegateValued: (gen objectNamed: #GlobalsObject).
   (gen objectNamed: #BootstrapObject) makeSlotNamed: #globals valued: (gen objectNamed: #GlobalsObject).
   gen addAccessorFor: #globals on: (gen objectNamed: #BootstrapObject).
-  [| :assoc |
-   (gen objectNamed: #GlobalsObject) makeSlotNamed: assoc key valued: assoc value.
-   gen addAccessorFor: assoc key on: (gen objectNamed: #GlobalsObject)] for: {
-    #Console -> (gen objectNamed: #ConsoleObject).
-    #NoRole -> (gen objectNamed: #NoRoleObject).
-    #Nil -> (gen objectNamed: #NilObject).
-    #True -> (gen objectNamed: #TrueObject).
-    #False -> (gen objectNamed: #FalseObject).
-    #lobby -> (gen objectNamed: #BootstrapObject).
-    #bootstrapCharacters -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: gen characters).
-    #bootstrapSymbols -> (gen objectNamed: #ArrayProto).
-    #bootstrapInterpreter -> (gen objectNamed: #InterpreterObject).
-    #ensureMarker -> (gen objectNamed: #EnsureMarkerObject).
-    #specialOops -> (gen objectNamed: #ArrayProto).
-    #features -> (gen objectNamed: #ArrayProto).
+  [| :key :value |
+   (gen objectNamed: #GlobalsObject) makeSlotNamed: key valued: value.
+   gen addAccessorFor: key on: (gen objectNamed: #GlobalsObject)] applier for: {
+     #Console.              gen objectNamed: #ConsoleObject.
+     #NoRole.               gen objectNamed: #NoRoleObject.
+     #Nil.                  gen objectNamed: #NilObject.
+     #True.                 gen objectNamed: #TrueObject.
+     #False.                gen objectNamed: #FalseObject.
+     #lobby.                gen objectNamed: #BootstrapObject.
+     #bootstrapCharacters.  gen cloneOf: (gen objectNamed: #ArrayProto) elements: gen characters.
+     #bootstrapSymbols.     gen objectNamed: #ArrayProto.
+     #Symbols.              gen objectNamed: #NilObject.
+     #bootstrapInterpreter. gen objectNamed: #InterpreterObject.
+     #ensureMarker.         gen objectNamed: #EnsureMarkerObject.
+     #specialOops.          gen objectNamed: #ArrayProto.
+     #features.             gen objectNamed: #ArrayProto.
   }.
   gen addMutatorFor: #bootstrapSymbols on: (gen objectNamed: #GlobalsObject).
   gen addMutatorFor: #features on: (gen objectNamed: #GlobalsObject)
