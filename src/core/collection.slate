@@ -224,13 +224,12 @@ c@(Collection traits) gather: binBlock &initial: init
 - running a block on both it and each remaining element in turn.
 The result of the block becomes the next value, and then the result when done.
 e.g. {1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
-[
+[| result |
   c isEmpty
     ifTrue: [init]
     ifFalse:
-      [| reader result |
-       reader := c reader.
-       result := (init ifNil: [reader next]).
+      [reader ::= c reader.
+       result := init ifNil: [reader next].
        reader do: [| :each | result := binBlock apply*, result, each].
        result]
 ].
@@ -239,14 +238,13 @@ c@(Collection traits) reduce: binBlock ifEmpty: emptyBlock
 "Reduce works like inject except that the first element of the collection is
 used as the injected element for the rest of the collection.
 e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
-[| reader result |
+[| result |
   c isEmpty  
-    ifTrue: [^ emptyBlock do].
-  reader := c reader.
-  result := reader next.
-  reader do:
-    [| :each | result := binBlock apply*, result, each].
-  result
+   ifTrue: [emptyBlock do]
+   ifFalse:
+     [result := (reader ::= c reader) next.
+      reader do: [| :each | result := binBlock apply*, result, each].
+      result]
 ].
 
 c@(Collection traits) reduce: binBlock
@@ -259,12 +257,12 @@ case."
 c@(Collection traits) trace: binBlock
 "Like reduce: but returns a Collection of intermediate values."
 [
-  [| :result elem src |
-   src := c reader.
+  [| :result elem |
+   src ::= c reader.
    elem := src next.
    result nextPut: elem.
    src do:
-     [| :each | result nextPut: (each := binBlock apply*, elem, each)]]
+     [| :each | elem := result nextPut: (each := binBlock apply*, elem, each)]]
     writingInto: c newSameSize
 ].
 
@@ -404,7 +402,7 @@ c@(Collection traits) occurrencesOf: obj
 "Return how many times the input object occurs in the collection."
 [| tally |
   tally := 0.
-  c do: [| :each |
-    obj = each ifTrue: [tally += 1]].
+  c do:
+    [| :each | obj = each ifTrue: [tally += 1]].
   tally
 ].
