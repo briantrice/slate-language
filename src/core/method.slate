@@ -116,7 +116,7 @@ of the argument at the specified index."
 [| src |
   src := (nodes Literal for: name) er.
   src statements first arguments at: roleIndex infect:
-    [| :arg | nodes Message sending: attribute to: {arg}].
+    [| :arg | nodes UnaryMessage sending: attribute to: {arg}].
   src evaluate asMethod: name on: args
 ].
 
@@ -366,10 +366,10 @@ possible to construct blocks that don't always return the same
 value for same input, so should there be another converge without this
 test?"
 [| current last |
-  current := (block applyWith: i).
+  current := block applyWith: i.
   [{i. last} includes: current]
     whileFalse: [last := current.
-		 current := (block applyWith: current)].
+		 current := block applyWith: current].
   current
 ].
 

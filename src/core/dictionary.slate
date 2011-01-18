@@ -21,15 +21,15 @@ d@(Dictionary traits) new &capacity: n
 ].
 
 d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
-[| result |
-  result := d new &capacity: (keys size min: values size).
+[
+  result ::= d new &capacity: (keys size min: values size).
   keys with: values do: #(result at: _ put: _) `er.
   result
 ].
 
-collections addSlot: #IdentityDictionary valued: (Dictionary copy `>>
-	    [hashBlock := #identityHash`er.
-	     equalsBlock := #==`er. ]).
+collections IdentityDictionary ::= Dictionary copy `>>
+  [hashBlock := #identityHash`er.
+   equalsBlock := #==`er. ].
 "IdentityDictionary is an alternate prototype Dictionary using ==-based
 comparison and hashing."
 
@@ -105,8 +105,8 @@ and move its association to d."
 ].
 
 d@(Dictionary traits) associationAt: key ifAbsent: block
-[| index |
-  (d contents at: (index := d scanFor: key))
+[
+  (d contents at: (index ::= d scanFor: key))
     ifNil: [block do]
     ifNotNil: [(d contents at: index) -> (d values at: index)]
 ].
@@ -117,8 +117,8 @@ d@(Dictionary traits) associationAt: key
 ].
 
 d@(Dictionary traits) at: key ifAbsent: block
-[| index |
-  (d contents at: (index := d scanFor: key))
+[
+  (d contents at: (index ::= d scanFor: key))
     ifNil: [block do]
     ifNotNil: [d values at: index]
 ].
@@ -132,8 +132,8 @@ For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
 ].
 
 d@(Dictionary traits) at: key put: obj
-[| index |
-  (d contents at: (index := d scanFor: key)) ifNil:
+[
+  (d contents at: (index ::= d scanFor: key)) ifNil:
     [d contents at: index put: key.
      d tally += 1].
   d values at: index put: obj.
@@ -166,8 +166,8 @@ d@(Dictionary traits) keyAtIdentityValue: obj
 ].
 
 d@(Dictionary traits) keySet
-[| result |
-  result := Set newSizeOf: d.
+[
+  result ::= Set newSizeOf: d.
   result equalsBlock := d equalsBlock.
   d keysDo: #(result add: _) `er.
   result
@@ -176,8 +176,8 @@ d@(Dictionary traits) keySet
 d@(Dictionary traits) keys [d keySet].
 
 d@(Dictionary traits) valueSet
-[| result |
-  result := Set newSizeOf: d.
+[
+  result ::= Set newSizeOf: d.
   result equalsBlock := d equalsBlock.
   d valuesDo: #(result add: _) `er.
   result
@@ -209,8 +209,8 @@ d@(Dictionary traits) valuesDo: block
 
 d@(Dictionary traits) keysAndValuesRemove: block
 "Removes key-value pairs that satisfy the two-argument block."
-[| removals |
-  removals := ExtensibleArray new.
+[
+  removals ::= ExtensibleArray new.
   d keysAndValuesDo: [| :key :value | (block apply*, key, value)
       ifTrue: [removals add: key]].
   removals do: #(d removeKey: _) `er.
@@ -218,9 +218,10 @@ d@(Dictionary traits) keysAndValuesRemove: block
 ].
 
 d@(Dictionary traits) removeKey: key ifAbsent: block
-[| index value |
-  (index := d scanFor: key)
+[
+  (index ::= d scanFor: key)
     ifNil: [^ block do].
+  value ::= d contents at: index.
   d contents at: index put: Nil.
   d values at: index put: Nil.
   d tally -= 1.
@@ -269,8 +270,8 @@ d select: block into: result@(Dictionary traits)
   
 d@(Dictionary traits) collect: block
 "Generate a new collection based on applying the block to each value."
-[| result |
-  result := ExtensibleArray new.
+[
+  result ::= ExtensibleArray new.
   d do: [| :each | result add: (block apply*, each)].
   result
 ].
@@ -283,8 +284,8 @@ d@(Dictionary traits) swap: index1 with: index2
 ].
 
 d@(Dictionary traits) noCheckAt: key put: value
-[| index |
-  index := d scanFor: key.
+[
+  index ::= d scanFor: key.
   d contents at: index put: key.
   d values at: index put: value.
   d tally += 1.
@@ -296,8 +297,8 @@ d@(Dictionary traits) noCheckAdd: assoc
 ].
 
 d@(Dictionary traits) growBy: growthAmount
-[| tempDict |
-  tempDict := d new &capacity: d contents size + growthAmount.
+[
+  tempDict ::= d new &capacity: d contents size + growthAmount.
   d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
   d contents := tempDict contents.
   d values := tempDict values.
@@ -305,8 +306,8 @@ d@(Dictionary traits) growBy: growthAmount
 ].
 
 d@(Dictionary traits) rehash
-[| tempDict |
-  tempDict := d newSameSize.
+[
+  tempDict ::= d newSameSize.
   d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
   d contents := tempDict contents.
   d values := tempDict values.
@@ -317,13 +318,14 @@ d@(Dictionary traits) scanFor: obj
 "Scans the key array for the first empty slot or an element matching the
 object. Returns the index at which the object is used as a key, or Nil if
 it's not found and the Dictionary is full."
-[| key start end block |
-  end := d contents size.
-  start := ((d hashBlock apply*, obj) \\ end) + 1.
-  block := [| :index |
-    (key := d contents at: index) isNil \/
-      [d equalsBlock apply*, obj, key]
-      ifTrue: [^ index]].
+[| key |
+  end ::= d contents size.
+  start ::= ((d hashBlock apply*, obj) \\ end) + 1.
+  block ::=
+    [| :index |
+     (key := d contents at: index) isNil \/
+       [d equalsBlock apply*, obj, key]
+       ifTrue: [^ index]].
   start below: end do: block.
   0 below: start do: block.
   Nil
@@ -331,8 +333,8 @@ it's not found and the Dictionary is full."
 
 x@(Root traits) slotNamesAndValues
 "Answers a Dictionary of the slot names and values from the argument."
-[| result |
-  result := Dictionary new.
+[
+  result ::= Dictionary new.
   x slotNamesAndValuesDo: #(result at: _ put: _) `er.
   result
 ].
