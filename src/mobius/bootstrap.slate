@@ -1,9 +1,11 @@
-"fixme: this is overwritten everytime you make a new generator"
+"FIXME: this is overwritten everytime you make a new generator"
 define: #BytesPerWord -> 4.
 "The size of a word in bytes on the target platform."
 "TODO: Make this an attribute of an accessible target description."
 
-define: #Chunk &slots: {#oop}.
+define: #Chunk &slots: {
+  #oop
+}.
 
 _@(Chunk traits) wordSize [overrideThis].
 
@@ -12,25 +14,33 @@ define: #SlotEntry &slots: {#name. #offset}.
 se@(SlotEntry traits) newNamed: name offset: offset
 [se clone `>> [name := name. offset := offset. ]].
 
-define: #RoleEntry &slots:
-  {#name. #rolePositions -> 0. #methodDefinition}.
+define: #RoleEntry &slots: {
+  #name.
+  #rolePositions -> 0.
+  #methodDefinition
+}.
 
 re@(RoleEntry traits) newNamed: name rolePositions: positions methodDefinition: method
 [re clone `>>
    [name := name. rolePositions := positions. methodDefinition := method. ]].
 
-define: #MethodDefinition &slots:
-  {#dispatchPositions -> 0. #method. #slotAccessor}.
+define: #MethodDefinition &slots: {
+  #dispatchPositions -> 0.
+  #method.
+  #slotAccessor
+}.
 
 md@(MethodDefinition traits) newDispatchPositions: positions method: method
 [md clone `>> [dispatchPositions := positions. method := method. ]].
 
-define: #Map &slots:
-  {#flags -> 0. #representative -> Nil.
-   #delegates -> {}.
-   #slotCount -> 0.
-   #slotTable -> {}.
-   #roleTable -> {}}.
+define: #Map &slots: {
+  #flags -> 0.
+  #representative -> Nil.
+  #delegates -> {}.
+  #slotCount -> 0.
+  #slotTable -> {}.
+  #roleTable -> {}
+}.
 
 map@(Map traits) addSlotNamed: name at: offset
 [
@@ -41,17 +51,16 @@ map@(Map traits) addSlotNamed: name at: offset
 
 map@(Map traits) addRoleNamed: name at: position dispatching: def
 [
-  map roleTable
-    doWithIndex:
-      [| :role :index |
-       role methodDefinition == def
-         ifTrue:
-           [(map roleTable := map roleTable copy) at: index :=
-              (map surroundings RoleEntry
-                 newNamed: name
-                 rolePositions: (role rolePositions bitOr: (1 bitShift: position))
-                 methodDefinition: def).
-            ^ False]].
+  map roleTable doWithIndex:
+    [| :role :index |
+     role methodDefinition == def
+       ifTrue:
+         [(map roleTable := map roleTable copy) at: index :=
+            (map surroundings RoleEntry
+               newNamed: name
+               rolePositions: (role rolePositions bitOr: (1 bitShift: position))
+               methodDefinition: def).
+          ^ False]].
   map roleTable :=
     map roleTable copyWith:
       (map surroundings RoleEntry
@@ -61,8 +70,11 @@ map@(Map traits) addRoleNamed: name at: position dispatching: def
   True
 ].
 
-define: #Object &parents: {Chunk} &slots:
-  {#idHash. #bmap -> Map. #slotValues -> {}}.
+define: #Object &parents: {Chunk} &slots: {
+  #idHash.
+  #bmap -> Map.
+  #slotValues -> {}
+}.
 
 _@(Object traits) headerWords
 [4].
@@ -85,23 +97,20 @@ obj@(Object traits) makeSlotNamed: name valued: value
 
 obj@(Object traits) setSlot: name to: val
 [
-  obj bmap slotTable
-    do: [| :slot | slot name = name ifTrue:
-      [^ (obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords put: val)]].
-  error: 'Slot missing: ' ; name
-].
-
-obj@(Object traits) setSlots: namesAndValues
-[
-  namesAndValues do: [| :assoc | obj setSlot: assoc key to: assoc value]
+  (obj bmap slotTable
+     detect: [| :slot | slot name = name]
+     ifNone: [obj error: 'Slot missing: ' ; name])
+    ifNotNilDo:
+      [| :slot | obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords put: val]
 ].
 
 obj@(Object traits) getSlot: name
 [
-  obj bmap slotTable
-    do: [| :slot | slot name = name ifTrue:
-      [^ (obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords)]].
-  error: 'Slot missing: ' ; name
+  (obj bmap slotTable
+     detect: [| :slot | slot name = name]
+     ifNone: [obj error: 'Slot missing: ' ; name])
+    ifNotNilDo:
+      [| :slot | obj slotValues at: slot offset / obj surroundings BytesPerWord - obj headerWords]
 ].
 
 obj@(Object traits) addDelegateValued: value
@@ -121,23 +130,25 @@ method@(Object traits) addMethodNamed: name on: roles
   def := method surroundings MethodDefinition newDispatchPositions: 0 method: method.
   roles doWithIndex:
     [| :role :index |
-      role ifNotNil:
-        [def dispatchPositions := def dispatchPositions bitOr: (1 bitShift: index).
-         role addRoleNamed: name at: index dispatching: def]].
+     role ifNotNil:
+       [def dispatchPositions := def dispatchPositions bitOr: (1 bitShift: index).
+        role addRoleNamed: name at: index dispatching: def]].
   "inform: 'Adding method %r roles: %r pos: %r', name, roles, def dispatchPositions."
   def
 ].
 
 define: #Array &parents: {Object}.
 
-define: #OopArray &parents: {Array}
-  &slots: {#elements -> {}}.
+define: #OopArray &parents: {Array} &slots: {
+  #elements -> {}
+}.
 
 arr@(OopArray traits) wordSize
 [arr wordSizeSansPayload + arr elements size].
 
-define: #ByteArray &parents: {Array}
-  &slots: {#elements -> imports ByteArray new}.
+define: #ByteArray &parents: {Array} &slots: {
+  #elements -> imports ByteArray new
+}.
 
 arr@(ByteArray traits) byteSize
 [
@@ -168,15 +179,14 @@ gen@(Generator traits) new &littleEndian: littleEndian &wordSize: wordSize
   littleEndian `defaultsTo: gen littleEndian.
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
   define: #BytesPerWord -> (wordSize // 8).
-  gen clone `setting:
-    #{#objects. #translations. #chunks. #characters. #symbols. #bytesPerWord. #littleEndian}
-    to: {gen objects new.
-	 gen translations new.
-	 gen chunks new.
-	 gen characters copy.
-	 gen symbols new.
-         wordSize // 8.
-	 littleEndian}
+  gen clone `>>
+    [objects := gen objects new.
+     translations := gen translations new.
+     chunks := gen chunks new.
+     characters := gen characters copy.
+     symbols := gen symbols new.
+     bytesPerWord := wordSize // 8.
+     littleEndian := littleEndian. ]
 ].
 
 gen@(Generator traits) generateImageBooting: method withPrims: prims
@@ -278,10 +288,9 @@ gen@(Generator traits) generateMethodDef: def
       [| obj sym |
        (sym := def method getSlot: #selector)
          setSlot: #cacheMask to: ((sym getSlot: #cacheMask) bitOr: def dispatchPositions).
-       (obj := gen cloneOf: (gen objectNamed: #MethodDefinitionProto)) setSlots: {
-         #method -> def method.
-         #slotAccessor -> (gen generateLiteral: def slotAccessor)
-       }.
+       (obj := gen cloneOf: (gen objectNamed: #MethodDefinitionProto)) `>>
+         [setSlot: #method to: def method.
+          setSlot: #slotAccessor to: (gen generateLiteral: def slotAccessor). ].
        gen longAt: 1 * gen bytesPerWord in: obj put: def dispatchPositions.
        obj]
 ].
@@ -291,12 +300,12 @@ gen@(Generator traits) generateMap: map
   gen translations at: map
     ifAbsentPut:
       [(gen cloneOf: (gen objectNamed: #MapProto)) `>>
-         [setSlots: {#flags -> map flags.
-                     #representative -> (map representative ifNil: [gen objectNamed: #NilObject]).
-                     #delegates -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: map delegates).
-                     #slotCount -> map slotCount.
-                     #slotTable -> (gen generateSlotTableFor: map).
-                     #roleTable -> (gen generateRoleTableFor: map)}. ]]
+         [setSlot: #flags to: map flags.
+          setSlot: #representative to: (map representative ifNil: [gen objectNamed: #NilObject]).
+          setSlot: #delegates to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: map delegates).
+          setSlot: #slotCount to: map slotCount.
+          setSlot: #slotTable to: (gen generateSlotTableFor: map).
+          setSlot: #roleTable to: (gen generateRoleTableFor: map). ]]
 ].
 
 gen@(Generator traits) generateMaps
@@ -342,16 +351,16 @@ gen@(Generator traits) emitOopOf: _@Nil on: stream
 gen@(Generator traits) emitOopOf: i@(imports SmallInteger traits) on: stream
 [gen emitLong: (i << 1 bitOr: 1) on: stream].
 
-gen@(Generator traits) emitObjectHashed: hash sized: size payload: payload format: format on: stream
-[
-  "fix: check big endian"
+gen@(Generator traits) emitHeaderOf: obj sized: size payload: payload format: format on: stream
+[| hash |
+  hash := obj idHash.
   "header"
   gen littleEndian ifFalse:
     [gen emitInteger: 0 on: stream byteSize: gen bytesPerWord - 4].
   stream nextPutAll:
     ((gen littleEndian
       ifTrue:
-        [{2r1 bitOr: (hash bitAnd: 16r7F) << 1.
+        [{2r00000001 bitOr: (hash bitAnd: 16r7F) << 1.
           (hash >> 7) intoByte.
           (hash >> 15) intoByte.
           format << 6}]
@@ -367,41 +376,44 @@ gen@(Generator traits) emitObjectHashed: hash sized: size payload: payload forma
   gen emitLong: size on: stream.
   "size in bytes of payload (oop array or byte array)"
   gen emitLong: payload on: stream.  
-
-  stream
 ].
 
 gen@(Generator traits) emit: obj@(Object traits) on: stream
 [
-  gen emitObjectHashed: obj idHash sized: obj wordSize payload: 0 format: 2r00 on: stream.
+  gen emitHeaderOf: obj
+    sized: obj wordSize
+    payload: 0
+    format: 2r00
+    on: stream.
   gen emitLong: (gen translations at: obj bmap) oop on: stream.
-  obj slotValues
-    do: [| :slotVal | gen emitOopOf: slotVal on: stream].
+  obj slotValues do:
+    [| :slotVal | gen emitOopOf: slotVal on: stream].
   obj
 ].
 
 gen@(Generator traits) emit: obj@(OopArray traits) on: stream
 [
-  gen emitObjectHashed: obj idHash
+  gen emitHeaderOf: obj
     sized: obj wordSizeSansPayload
     payload: obj elements size * gen bytesPerWord
     format: 2r01
     on: stream.
   gen emitLong: (gen translations at: obj bmap) oop on: stream.
-  (obj slotValues ;; obj elements)
-    do: [| :slotVal | gen emitOopOf: slotVal on: stream].
+  obj slotValues ;; obj elements do:
+    [| :slotVal | gen emitOopOf: slotVal on: stream].
   obj
 ].
 
 gen@(Generator traits) emit: obj@(ByteArray traits) on: stream
 [
-  gen emitObjectHashed: obj idHash
+  gen emitHeaderOf: obj
     sized: obj wordSizeSansPayload
     payload: obj elements size
     format: 2r10
     on: stream.
   gen emitLong: (gen translations at: obj bmap) oop on: stream.
-  obj slotValues do: [| :slotVal | gen emitOopOf: slotVal on: stream].
+  obj slotValues do:
+    [| :slotVal | gen emitOopOf: slotVal on: stream].
   stream nextPutAll: obj elements.
   stream next: (gen bytesPerWord - obj elements size) \\ gen bytesPerWord put: 0.
   obj
@@ -483,24 +495,22 @@ gen@(Generator traits) cloneOf: proto elements: elements
 gen@(Generator traits) addAccessorFor: slotName on: obj
 [| accessor selector |
   selector := obj accessorNameFor: slotName.
-  accessor := gen cloneOf: (gen objectNamed: #CompiledMethodProto).
-  accessor setSlots: {
-    #method -> accessor.
-    #selector -> (gen generateLiteral: selector).
-    #inputVariables -> 1.
-    #localVariables -> 1.
-    #registerCount -> 3.
-    #literals -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: slotName}).
-    #selectors -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:}).
-    #code ->
-    (gen cloneOf: (gen objectNamed: #ArrayProto)
-      elements: {
-        VM SSACode loadVariable. 0.
-        VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
-        VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
-        VM SSACode returnRegister. 0
-      })
-  }.
+  (accessor := gen cloneOf: (gen objectNamed: #CompiledMethodProto)) `>>
+    [setSlot: #method to: accessor.
+     setSlot: #selector to: (gen generateLiteral: selector).
+     setSlot: #inputVariables to: 1.
+     setSlot: #localVariables to: 1.
+     setSlot: #registerCount to: 3.
+     setSlot: #literals to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: slotName}).
+     setSlot: #selectors to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:}).
+     setSlot: #code to:
+       (gen cloneOf: (gen objectNamed: #ArrayProto)
+          elements: {
+            VM SSACode loadVariable. 0.
+            VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
+            VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
+            VM SSACode returnRegister. 0
+        }). ].
   (accessor addMethodNamed: selector on: {obj}) slotAccessor: slotName.
   accessor
 ].
@@ -509,25 +519,23 @@ gen@(Generator traits) addMutatorFor: slotName on: obj
 [| mutator selector |
   mutator := gen cloneOf: (gen objectNamed: #CompiledMethodProto).
   selector := obj mutatorNameFor: slotName.
-  mutator setSlots: {
-    #method -> mutator.
-    #selector -> (gen generateLiteral: selector).
-    #inputVariables -> 2.
-    #localVariables -> 1.
-    #registerCount -> 4.
-    #literals -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: slotName}).
-    #selectors -> (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:put:}).
-    #code ->
-    (gen cloneOf: (gen objectNamed: #ArrayProto)
-      elements:
-        {
-          VM SSACode loadVariable. 0.
-          VM SSACode loadVariable. 1.
-          VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
-          VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
-          VM SSACode returnRegister. 0
-        })
-  }.
+  mutator `>>
+    [setSlot: #method to: mutator.
+     setSlot: #selector to: (gen generateLiteral: selector).
+     setSlot: #inputVariables to: 2.
+     setSlot: #localVariables to: 1.
+     setSlot: #registerCount to: 4.
+     setSlot: #literals to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: slotName}).
+     setSlot: #selectors to: (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:put:}).
+     setSlot: #code to:
+       (gen cloneOf: (gen objectNamed: #ArrayProto) elements: {
+         VM SSACode loadVariable. 0.
+         VM SSACode loadVariable. 1.
+         VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
+         VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
+         VM SSACode returnRegister. 0
+     }).
+  ].
   (mutator addMethodNamed: selector on: {obj. Nil}) slotAccessor: slotName.
   mutator
 ].
@@ -596,8 +604,8 @@ gen@(Generator traits) generateKernel
 
   gen generatePrototype: 'SmallInteger' &parents: {gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #OddballTraits. gen objectNamed: #RootTraits}.
   (gen generatePrototype: 'Float' &layout: gen surroundings ByteArray
-    &parents: {gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #ByteArrayTraits. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #CloneableTraits. gen objectNamed: #DerivableTraits. gen objectNamed: #RootTraits}) `>>
-    [elements: (ByteArray newSize: gen bytesPerWord)].
+    &parents: {gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #ByteArrayTraits. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #CloneableTraits. gen objectNamed: #DerivableTraits. gen objectNamed: #RootTraits})
+    `>> [elements := ByteArray newSize: gen bytesPerWord].
 
   gen generatePrototype: 'ASCIIString' &layout: gen surroundings ByteArray
     &parents: {gen objectNamed: #NilObject. gen objectNamed: #ByteArrayTraits. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #NilObject. gen objectNamed: #CloneableTraits. gen objectNamed: #DerivableTraits. gen objectNamed: #RootTraits}.
@@ -613,7 +621,7 @@ gen@(Generator traits) generateKernel
   gen characters at: 0 put: (gen objectNamed: #ASCIICharacterProto).
   1 below: gen characters size
     do: [| :index c |
-      c: (gen cloneOf: (gen objectNamed: #ASCIICharacterProto)).
+      c := gen cloneOf: (gen objectNamed: #ASCIICharacterProto).
       c setSlot: #code to: index.
       gen characters at: index put: c].
   (gen objectNamed: #ASCIIStringTraits) makeSlotNamed: #Character valued: (gen objectNamed: #ASCIICharacterProto).
@@ -683,9 +691,9 @@ gen@(Generator traits) generateKernel
 
   (gen addObjectNamed: #EnsureMarkerObject valued: (gen cloneOf: (gen objectNamed: #CompiledMethodProto))) `>>
     [| :marker |
-      setSlot: #method to: marker.
-      setSlot: #code to:
-        (gen cloneOf: (gen objectNamed: #ArrayProto)
+     setSlot: #method to: marker.
+     setSlot: #code to:
+       (gen cloneOf: (gen objectNamed: #ArrayProto)
           elements: {VM SSACode resume})].
 ].
 
@@ -694,12 +702,11 @@ gen@(Generator traits) generateInterpreterBooting: method
   compiler := VM SSACompiler new.
   _@compiler branchTableHash: key
   [| literal |
-    literal := gen generateLiteral: key.
-    (literal isSameAs: SmallInteger)
-      ifTrue: [literal]
-      ifFalse: [literal idHash]
+   ((literal := gen generateLiteral: key) isSameAs: SmallInteger)
+     ifTrue: [literal]
+     ifFalse: [literal idHash]
   ].
-  inform: 'Compiling the syntax tree of bootstrap code and libraries into SSA code.'.
+  inform: 'Compiling bootstrap source into VM instructions.'.
   
   method := (compiler generate: method result: Nil &topLevel: True) `>> [heapAllocate := False. ].
 
@@ -721,11 +728,10 @@ gen@(Generator traits) generateInterpreterBooting: method
   codeSize := method code size.
 
   gen addObjectNamed: #InterpreterObject valued: (gen cloneOf: (gen objectNamed: #InterpreterProto)).
-  (gen objectNamed: #InterpreterObject) setSlots: {
-    #stack -> stackObj.
-    #method -> methodObj.
-    #closure -> methodObj
-  }.
+  (gen objectNamed: #InterpreterObject) `>>
+    [setSlot: #stack to: stackObj.
+     setSlot: #method to: methodObj.
+     setSlot: #closure to: methodObj. ].
   gen longAt: 0 * gen bytesPerWord in: (gen objectNamed: #InterpreterObject) put: 6. " frame pointer (framesize=6)"
   "long at 1 is code pointer -- I guess this gets filled later or is zero"
   gen longAt: 2 * gen bytesPerWord in: (gen objectNamed: #InterpreterObject) put: codeSize.
@@ -883,18 +889,15 @@ this defines a PrimitiveMethod stub that will invoke the given primitive
 index. Must be called after generateImageBooting:."
 [
   (gen cloneOf: (gen objectNamed: #PrimitiveMethodProto)) `>>
-   [setSlots: {
-      #selector -> (gen generateLiteral: prim selector).
-      #inputVariables -> prim roles size.
-      #index -> index
-    }.
-    addMethodNamed: prim selector on:
-      (prim roles collect:
-	 [| :role |
-          (role isSameAs: nodes UnaryMessage)
-            ifTrue:
-              [inform: ' Adding primitive %s to %s', index, role selector.
-               gen objectNamed: role selector]]) ]
+    [setSlot: #selector to: (gen generateLiteral: prim selector).
+     setSlot: #inputVariables to: prim roles size.
+     setSlot: #index to: index.
+     addMethodNamed: prim selector on:
+       (prim roles collect:
+	  [| :role |
+           (role isSameAs: nodes UnaryMessage) ifTrue:
+             [inform: ' Adding primitive %s to %s', index, role selector.
+              gen objectNamed: role selector]]) ]
 ].
 
 gen@(Generator traits) generateLiteral: literal
@@ -934,11 +937,9 @@ gen@(Generator traits) generateLiteral: s@(imports ASCIIString traits)
 
 gen@(Generator traits) generateLiteral: s@(imports Symbol traits)
 [
-  gen symbols
-    at: s
-    ifAbsentPut:
-      [gen cloneOf: (gen objectNamed: #SymbolProto) elements:
-         (s name collect: #code`er into: (ByteArray newSizeOf: s name))]
+  gen symbols at: s ifAbsentPut:
+    [gen cloneOf: (gen objectNamed: #SymbolProto) elements:
+       (s name collect: #code`er into: (ByteArray newSizeOf: s name))]
 ].
 
 gen@(Generator traits) generateLiteral: f@(imports SingleFloat traits)
@@ -972,16 +973,16 @@ gen@(Generator traits) generateLiteral: c@(imports ASCIIString Character traits)
 gen@(Generator traits) generateLiteral: block@(imports CompiledMethod traits)
 [| obj |
   obj := (gen cloneOf: (gen objectNamed: #CompiledMethodProto)) `>>
-   [setSlots: {
-      #inputVariables -> block inputVariables.
-      #localVariables -> block localVariables.
-      #restVariable -> (gen generateLiteral: block restVariable).
-      #heapAllocate -> (gen generateLiteral: block heapAllocate).
-      #literals -> (gen generateLiteral: block literals).
-      #registerCount -> (gen generateLiteral: block registerCount).
-      #selectors -> (gen generateLiteral: block selectors).
-      #code -> (gen generateLiteral: block code)}. ].
-  obj setSlot: #method to: obj.
+   [| :obj |
+    setSlot: #inputVariables to: block inputVariables.
+    setSlot: #localVariables to: block localVariables.
+    setSlot: #restVariable to: (gen generateLiteral: block restVariable).
+    setSlot: #heapAllocate to: (gen generateLiteral: block heapAllocate).
+    setSlot: #literals to: (gen generateLiteral: block literals).
+    setSlot: #registerCount to: (gen generateLiteral: block registerCount).
+    setSlot: #selectors to: (gen generateLiteral: block selectors).
+    setSlot: #code to: (gen generateLiteral: block code).
+    setSlot: #method to: obj. ].
   block optionalKeywords isEmpty ifFalse:
     [obj setSlot: #optionalKeywords to: (gen generateLiteral: block optionalKeywords)].
   obj
