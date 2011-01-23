@@ -1,50 +1,50 @@
-LLVM define: #IRBuilder &parents: {LLVM Pointer}.
-LLVM IRBuilder traits atSlotNamed: #printName put: 'LLVM IRBuilder'.
+define: #IRBuilder &parents: {Pointer}.
+IRBuilder traits atSlotNamed: #printName put: 'IRBuilder'.
 
 "--------------------------------Instruction builders------------------------------"
 
 "LLVMBuilderRef LLVMCreateBuilder(void);"
-irb@(LLVM IRBuilder traits) new [
-	irb newWithHandle: (
-		LLVM Lib primitives LLVMCreateBuilder do
-	)
+irb@(IRBuilder traits) new [
+  irb newWithHandle: (
+    Lib primitives LLVMCreateBuilder do
+  )
 ].
 
 "void LLVMDisposeBuilder(LLVMBuilderRef Builder);"
-irb@(LLVM IRBuilder traits) dispose [
-	LLVM Lib primitives LLVMDisposeBuilder applyTo: {irb handle}.
-	irb
+irb@(IRBuilder traits) dispose [
+  Lib primitives LLVMDisposeBuilder applyTo: {irb handle}.
+  irb
 ].
 
 "void LLVMPositionBuilderAtEnd(LLVMBuilderRef Builder, LLVMBasicBlockRef Block);"
-irb@(LLVM IRBuilder traits) insertPoint: block@(LLVM Value BasicBlock traits) [
-	LLVM Lib primitives LLVMPositionBuilderAtEnd applyTo: {irb handle. block handle}.
-	irb
+irb@(IRBuilder traits) insertPoint: block@(Value BasicBlock traits) [
+  Lib primitives LLVMPositionBuilderAtEnd applyTo: {irb handle. block handle}.
+  irb
 ].
 
 "--------------------------------Terminators------------------------------"
 
 "LLVMValueRef LLVMBuildRetVoid(LLVMBuilderRef);"
 "LLVMValueRef LLVMBuildRet(LLVMBuilderRef, LLVMValueRef V);"
-irb@(LLVM IRBuilder traits) ret &value: value [
-	value
-		ifNil: [
-			LLVM Lib primitives LLVMBuildRetVoid applyTo: {irb handle}
-		]
-		ifNotNil: [
-			LLVM Lib primitives LLVMBuildRet applyTo: {irb handle. value handle}
-		]
+irb@(IRBuilder traits) ret &value: value [
+  value
+    ifNil: [
+      Lib primitives LLVMBuildRetVoid applyTo: {irb handle}
+    ]
+    ifNotNil: [
+      Lib primitives LLVMBuildRet applyTo: {irb handle. value handle}
+    ]
 ].
 
 "--------------------------------Arithmetic------------------------------"
 
 "LLVMValueRef LLVMBuildAdd(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,
                           const char *Name);"
-irb@(LLVM IRBuilder traits) add: values@(Tuple traits) &name: name [
-	name `defaultsTo: 'addtmp'.
-	LLVM Value newWithHandle: (
-		LLVM Lib primitives LLVMBuildAdd applyTo: {irb handle. values first handle. values second handle. name }
-	)
+irb@(IRBuilder traits) add: values@(Tuple traits) &name: name [
+  name `defaultsTo: 'addtmp'.
+  Value newWithHandle: (
+    Lib primitives LLVMBuildAdd applyTo: {irb handle. values first handle. values second handle. name }
+  )
 ].
 
 "--------------------------------Miscellaneous instructions------------------------------"
@@ -52,41 +52,40 @@ irb@(LLVM IRBuilder traits) add: values@(Tuple traits) &name: name [
 "LLVMValueRef LLVMBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
                            LLVMValueRef *Args, unsigned NumArgs,
                            const char *Name)"
-irb@(LLVM IRBuilder traits) call: function@(LLVM Value traits) arguments: arguments@(Sequence traits) &name: name [
-	| args |
-	name `defaultsTo: ''.
-	args: (arguments collect: [ | :each |
-		(each is: LLVM Value) ifFalse: [ error: 'argument is not a LLVM Value' ].
-		each handle
-	]).
-	args: (args reduce: #; `er).
-	LLVM Value newWithHandle: (
-		LLVM Lib primitives LLVMBuildCall applyTo: { irb handle. function handle. args. arguments size. name }
-	)
+irb@(IRBuilder traits) call: function@(Value traits) arguments: arguments@(Sequence traits) &name: name [
+  | args |
+  name `defaultsTo: ''.
+  args: (arguments collect: [ | :each |
+    (each is: Value) ifFalse: [ error: 'argument is not a Value' ].
+    each handle
+  ]).
+  args: (args reduce: #; `er).
+  Value newWithHandle: (
+    Lib primitives LLVMBuildCall applyTo: { irb handle. function handle. args. arguments size. name }
+  )
 ].
 
 "--------------------------------Memory instructions------------------------------"
 
 "LLVMValueRef LLVMBuildAlloca(LLVMBuilderRef, LLVMTypeRef Ty, const char *Name);"
-irb@(LLVM IRBuilder traits) allocA: type@(LLVM Type traits) name: name [
-	LLVM Value newWithHandle: (
-		LLVM Lib primitives LLVMBuildAlloca applyTo: { irb handle. type handle. name }
-	)
+irb@(IRBuilder traits) allocA: type@(Type traits) name: name [
+  Value newWithHandle: (
+    Lib primitives LLVMBuildAlloca applyTo: { irb handle. type handle. name }
+  )
 ].
 
 "LLVMValueRef LLVMBuildStore(LLVMBuilderRef, LLVMValueRef Val, LLVMValueRef Ptr);"
-irb@(LLVM IRBuilder traits) store: value@(LLVM Value traits) at: pointer@(LLVM Value traits) [
-	LLVM Value newWithHandle: (
-		LLVM Lib primitives LLVMBuildStore applyTo: { irb handle. value handle. pointer handle }
-	)
+irb@(IRBuilder traits) store: value@(Value traits) at: pointer@(Value traits) [
+  Value newWithHandle: (
+    Lib primitives LLVMBuildStore applyTo: { irb handle. value handle. pointer handle }
+  )
 ].
 
 "LLVMValueRef LLVMBuildLoad(LLVMBuilderRef, LLVMValueRef PointerVal,
                            const char *Name);"
-irb@(LLVM IRBuilder traits) load: pointer@(LLVM Value traits) &name: name [
-	name `defaultsTo: 'load'.
-	LLVM Value newWithHandle: (
-		LLVM Lib primitives LLVMBuildLoad applyTo: { irb handle. pointer handle. name }
-	)
+irb@(IRBuilder traits) load: pointer@(Value traits) &name: name [
+  name `defaultsTo: 'load'.
+  Value newWithHandle: (
+    Lib primitives LLVMBuildLoad applyTo: { irb handle. pointer handle. name }
+  )
 ].
-                       

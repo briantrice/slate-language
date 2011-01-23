@@ -1,23 +1,23 @@
 Symbol traits define: #binarySelectorLLVMNames &builder: [IdentityDictionary new &capacity: 17].
 
 {
-	#= -> 'isEqualTo'.
-	#+ -> 'plus'.
-	#- -> 'minus'.
-	#* -> 'times'.
-	#/ -> 'divideBy'.
-	#\\ -> 'remainderWith'.
-	#>> -> 'rightArithmeticShiftBy'.
-	#>> -> 'rightShiftBy'.
-	#<< -> 'leftShiftBy'.
-	#/\ -> 'and'.
-	#\/ -> 'or'.
-	#< -> 'isLessThan'.
-	#> -> 'isGreaterThan'.
-	#<= -> 'isLessOrEqualThan'.
-	#>= -> 'isGreaterOrEqualThan'
+  #= -> 'isEqualTo'.
+  #+ -> 'plus'.
+  #- -> 'minus'.
+  #* -> 'times'.
+  #/ -> 'divideBy'.
+  #\\ -> 'remainderWith'.
+  #>> -> 'rightArithmeticShiftBy'.
+  #>> -> 'rightShiftBy'.
+  #<< -> 'leftShiftBy'.
+  #/\ -> 'and'.
+  #\/ -> 'or'.
+  #< -> 'isLessThan'.
+  #> -> 'isGreaterThan'.
+  #<= -> 'isLessOrEqualThan'.
+  #>= -> 'isGreaterOrEqualThan'
 } do: [ | :each | 
-	Symbol traits binarySelectorLLVMNames add: each
+  Symbol traits binarySelectorLLVMNames add: each
 ].
 
 obj@(Root traits) asLLVMName [
@@ -25,40 +25,40 @@ obj@(Root traits) asLLVMName [
   obj == NoRole
     ifTrue: ['']
     ifFalse: [ 
-    	| str |
-    	str: obj printName asAn.
- 	 	(str includesAnyOf: ' ')
-    		ifTrue: [ str: ((str splitWith: $\s) reduce: [| :x :y | x ; y capitalize]) ].
-    	str
-	]
+      | str |
+      str: obj printName asAn.
+      (str includesAnyOf: ' ')
+        ifTrue: [ str: ((str splitWith: $\s) reduce: [| :x :y | x ; y capitalize]) ].
+      str
+  ]
 ].
     
 sel@(Symbol traits) asLLVMNameOn: roleObjects [
 "Generates a String function name for the method, using selector and arguments
 or argument types."
-	| selReader result |
-	selReader: sel name reader.
-	result: (String newSizeOf: selReader collection) writer.
-	sel isUnarySelector ifTrue: [
-		sel name first = $_
-			ifTrue: [result ; sel name]
-			ifFalse: [result ; roleObjects first asLLVMName ; '_' ; sel name]
-	].
-	sel isBinarySelector ifTrue: [
-		result ; roleObjects first asLLVMName 
-		; '_' ; (sel binarySelectorLLVMNames at: sel)
-		; '_' ; roleObjects second asLLVMName
-	].
-	"Now handle the keyword case."
-	sel isKeywordSelector ifTrue: [
-		result ; roleObjects first asLLVMName  ; '_'.
-		roleObjects allButFirst: 1 do: [
-			| :arg selPart |
-			selPart: (selReader upTo: $:).
-			(selPart beginsWith: '&') ifTrue: [ selPart: selPart contents allButFirst ].
-			result ; selPart ; '_' ; arg asLLVMName.
- 			selReader isAtEnd ifFalse: [ result ; '_' ].
-		]
-	].
-	result contents intern
+  | selReader result |
+  selReader: sel name reader.
+  result: (String newSizeOf: selReader collection) writer.
+  sel isUnarySelector ifTrue: [
+    sel name first = $_
+      ifTrue: [result ; sel name]
+      ifFalse: [result ; roleObjects first asLLVMName ; '_' ; sel name]
+  ].
+  sel isBinarySelector ifTrue: [
+    result ; roleObjects first asLLVMName 
+    ; '_' ; (sel binarySelectorLLVMNames at: sel)
+    ; '_' ; roleObjects second asLLVMName
+  ].
+  "Now handle the keyword case."
+  sel isKeywordSelector ifTrue: [
+    result ; roleObjects first asLLVMName  ; '_'.
+    roleObjects allButFirst: 1 do: [
+      | :arg selPart |
+      selPart: (selReader upTo: $:).
+      (selPart beginsWith: '&') ifTrue: [ selPart: selPart contents allButFirst ].
+      result ; selPart ; '_' ; arg asLLVMName.
+       selReader isAtEnd ifFalse: [ result ; '_' ].
+    ]
+  ].
+  result contents intern
 ].

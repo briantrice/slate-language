@@ -1,248 +1,241 @@
-LLVM define: #Type &parents: {LLVM Pointer}.
-LLVM Type traits atSlotNamed: #printName put: 'LLVM Type'. 
+define: #Type &parents: {Pointer}.
+Type traits atSlotNamed: #printName put: 'LLVM Type'.
 
-t@(LLVM Type traits) new [
-	t shouldNotImplement
+t@(Type traits) new [
+  t shouldNotImplement
 ].
 
-t@(LLVM Type traits) newWithHandle: handle@(ByteArray traits) [
-	LLVM Type allSlotsDo: [ | :each |
-		(each is: LLVM Type) ifTrue: [
-			(each handle = handle) ifTrue: [
-				^ each
-			]
-		]
-	].
-	resend
+t@(Type traits) newWithHandle: handle@(ByteArray traits) [
+  Type allSlotsDo:
+    [| :each | (each is: Type) /\ [each handle = handle] ifTrue: [^ each]].
+  resend
 ].
 
 "-------------------------------Operations on integer types------------------------------------"
 
-LLVM Type traits define: #Integer &parents: {LLVM Type}.
-LLVM Type Integer traits atSlotNamed: #printName put: 'LLVM Type Integer'.
+Type traits define: #Integer &parents: {Type}.
+Type Integer traits atSlotNamed: #printName put: 'LLVM Type Integer'.
 
 "LLVMTypeRef LLVMIntType(unsigned NumBits);"
-i@(LLVM Type Integer traits) newWithBits: numBits@(Integer traits) [
-	i newWithHandle: (
-		LLVM Lib primitives LLVMIntType applyTo: { numBits }
-	)
+i@(Type Integer traits) newWithBits: numBits@(Integer traits) [
+  i newWithHandle: (
+    Lib primitives LLVMIntType applyTo: { numBits }
+  )
 ].
 
-LLVM Type traits define: #Integer1 &parents: {Oddball. LLVM Type Integer}.
-LLVM Type Integer1 traits atSlotNamed: #printName put: 'LLVM Type Integer1'.
+Type traits define: #Integer1 &parents: {Oddball. Type Integer}.
+Type Integer1 traits atSlotNamed: #printName put: 'LLVM Type Integer1'.
 
 "LLVMTypeRef LLVMInt1Type(void);"
-i1@(LLVM Type Integer1 traits) initialize [
-	i1 handle: (
-		LLVM Lib primitives LLVMInt1Type do
-	)
+i1@(Type Integer1 traits) initialize [
+  i1 handle: (
+    Lib primitives LLVMInt1Type do
+  )
 ].
 
-LLVM Type Integer1 initialize.
+Type Integer1 initialize.
 
-LLVM Type traits define: #Integer8 &parents: {Oddball. LLVM Type Integer}.
-LLVM Type Integer8 traits atSlotNamed: #printName put: 'LLVM Type Integer8'.
+Type traits define: #Integer8 &parents: {Oddball. Type Integer}.
+Type Integer8 traits atSlotNamed: #printName put: 'LLVM Type Integer8'.
 
 "LLVMTypeRef LLVMInt8Type(void);"
-i8@(LLVM Type Integer8 traits) initialize [
-	i8 handle: (
-		LLVM Lib primitives LLVMInt8Type do
-	)
+i8@(Type Integer8 traits) initialize [
+  i8 handle: (
+    Lib primitives LLVMInt8Type do
+  )
 ].
 
-LLVM Type Integer8 initialize.
+Type Integer8 initialize.
 
-LLVM Type traits define: #Integer16 &parents: {Oddball. LLVM Type Integer}.
-LLVM Type Integer16 traits atSlotNamed: #printName put: 'LLVM Type Integer16'.
+Type traits define: #Integer16 &parents: {Oddball. Type Integer}.
+Type Integer16 traits atSlotNamed: #printName put: 'LLVM Type Integer16'.
 
 "LLVMTypeRef LLVMInt16Type(void);"
-i16@(LLVM Type Integer16 traits) initialize [
-	i16 handle: (
-		LLVM Lib primitives LLVMInt16Type do
-	)
+i16@(Type Integer16 traits) initialize [
+  i16 handle: (
+    Lib primitives LLVMInt16Type do
+  )
 ].
 
-LLVM Type Integer16 initialize.
+Type Integer16 initialize.
 
-LLVM Type traits define: #Integer32 &parents: {Oddball. LLVM Type Integer}.
-LLVM Type Integer32 traits atSlotNamed: #printName put: 'LLVM Type Integer32'.
+Type traits define: #Integer32 &parents: {Oddball. Type Integer}.
+Type Integer32 traits atSlotNamed: #printName put: 'LLVM Type Integer32'.
 
 "LLVMTypeRef LLVMInt32Type(void);"
-i32@(LLVM Type Integer32 traits) initialize [
-	i32 handle: (
-		LLVM Lib primitives LLVMInt32Type do
-	)
+i32@(Type Integer32 traits) initialize [
+  i32 handle: (
+    Lib primitives LLVMInt32Type do
+  )
 ].
 
-LLVM Type Integer32 initialize.
+Type Integer32 initialize.
 
-LLVM Type traits define: #Integer64 &parents: {Oddball. LLVM Type Integer}.
-LLVM Type Integer64 traits atSlotNamed: #printName put: 'LLVM Type Integer64'.
+Type traits define: #Integer64 &parents: {Oddball. Type Integer}.
+Type Integer64 traits atSlotNamed: #printName put: 'LLVM Type Integer64'.
 
 "LLVMTypeRef LLVMInt64Type(void);"
-i64@(LLVM Type Integer64 traits) initialize [
-	i64 handle: (
-		LLVM Lib primitives LLVMInt64Type do
-	)
+i64@(Type Integer64 traits) initialize [
+  i64 handle: (
+    Lib primitives LLVMInt64Type do
+  )
 ].
 
-LLVM Type Integer64 initialize.
+Type Integer64 initialize.
 
 "-------------------------------Operations on function types------------------------------------"
 
-LLVM Type traits define: #Function &parents: {LLVM Type}.
-LLVM Type Function traits atSlotNamed: #printName put: 'LLVM Type Function'. 
+Type traits define: #Function &parents: {Type}.
+Type Function traits atSlotNamed: #printName put: 'LLVM Type Function'. 
 
 "LLVMTypeRef LLVMFunctionType(LLVMTypeRef ReturnType,
                              LLVMTypeRef *ParamTypes, unsigned ParamCount,
                              int IsVarArg);"
-f@(LLVM Type Function traits) new &returnType: returnType &paramaterTypes: parameterTypes &isVarArg: isVarArg [
-	| parameters |
-	returnType `defaultsTo: LLVM Type Void.
-	parameterTypes `defaultsTo: {}.
-	isVarArg `defaultsTo: False.
-	parameters: (parameterTypes collect: [ | :each | each handle ]).
-	parameters: (parameters reduce: #; `er).
-	f newWithHandle: (
-		LLVM Lib primitives LLVMFunctionType applyTo: { returnType handle. parameters. parameterTypes size. isVarArg }
-	)
+f@(Type Function traits) new &returnType: returnType &paramaterTypes: parameterTypes &isVarArg: isVarArg
+[| parameters |
+  returnType `defaultsTo: Type Void.
+  parameterTypes `defaultsTo: {}.
+  isVarArg `defaultsTo: False.
+  parameters := (parameterTypes collect: #handle `er) reduce: #; `er.
+  f newWithHandle: (
+    Lib primitives LLVMFunctionType applyTo: { returnType handle. parameters. parameterTypes size. isVarArg }
+  )
 ].
 
 "LLVMTypeRef LLVMGetReturnType(LLVMTypeRef FunctionTy);"
-f@(LLVM Type Function traits) returnType [
-	LLVM Type newWithHandle: (
-		LLVM Lib primitives LLVMGetReturnType applyTo: { f handle }
-	)
+f@(Type Function traits) returnType [
+  Type newWithHandle: (
+    Lib primitives LLVMGetReturnType applyTo: { f handle }
+  )
 ].
 
 "-------------------------------Operations on struct types------------------------------------"
 
-LLVM Type traits define: #Struct &parents: {LLVM Type}.
-LLVM Type Struct traits atSlotNamed: #printName put: 'LLVM Type Struct'. 
+Type traits define: #Struct &parents: {Type}.
+Type Struct traits atSlotNamed: #printName put: 'LLVM Type Struct'. 
 
 "LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes, unsigned ElementCount,
                            int Packed);"
-s@(LLVM Type Struct traits) new &elementTypes: elementTypes &isPacked: isPacked [
-	| elements |
-	elementTypes `defaultsTo: {}.
-	isPacked `defaultsTo: False.
-	elements: (elementTypes collect: [ | :each | each handle ]).
-	elements: (elements reduce: #; `er).
-	s newWithHandle: (
-		LLVM Lib primitives LLVMStructType applyTo: { elements. elementTypes size. isPacked }
-	)
+s@(Type Struct traits) new &elementTypes: elementTypes &isPacked: isPacked
+[| elements |
+  elementTypes `defaultsTo: {}.
+  isPacked `defaultsTo: False.
+  elements := (elementTypes collect: #handle `er) reduce: #; `er.
+  s newWithHandle: (
+    Lib primitives LLVMStructType applyTo: { elements. elementTypes size. isPacked }
+  )
 ].
 
 "------------Operations on array, pointer, and vector types (sequence types)-------------------------"
 
-LLVM Type traits define: #Pointer &parents: {LLVM Type}.
-LLVM Type Pointer traits atSlotNamed: #printName put: 'LLVM Type Pointer'.
+Type traits define: #Pointer &parents: {Type}.
+Type Pointer traits atSlotNamed: #printName put: 'LLVM Type Pointer'.
 
 "LLVMTypeRef LLVMPointerType(LLVMTypeRef ElementType, unsigned AddressSpace);"
-p@(LLVM Type Pointer traits) newFor: type@(LLVM Type traits) &addressSpace: addressSpace [
-	addressSpace `defaultsTo: 0.
-	p newWithHandle: (
-		LLVM Lib primitives LLVMPointerType applyTo: { type handle. addressSpace }
-	)
+p@(Type Pointer traits) newFor: type@(Type traits) &addressSpace: addressSpace [
+  addressSpace `defaultsTo: 0.
+  p newWithHandle: (
+    Lib primitives LLVMPointerType applyTo: { type handle. addressSpace }
+  )
 ].
 
-LLVM Type traits define: #Array &parents: {LLVM Type}.
-LLVM Type Array traits atSlotNamed: #printName put: 'LLVM Type Array'.
+Type traits define: #Array &parents: {Type}.
+Type Array traits atSlotNamed: #printName put: 'LLVM Type Array'.
 
 "LLVMTypeRef LLVMArrayType(LLVMTypeRef ElementType, unsigned ElementCount);"
-a@(LLVM Type Array traits) newWith: type@(LLVM Type traits) &elementCount: elementCount [
-	elementCount `defaultsTo: 0.
-	a newWithHandle: (
-		LLVM Lib primitives LLVMArrayType applyTo: { type handle. elementCount }
-	)
+a@(Type Array traits) newWith: type@(Type traits) &elementCount: elementCount [
+  elementCount `defaultsTo: 0.
+  a newWithHandle: (
+    Lib primitives LLVMArrayType applyTo: { type handle. elementCount }
+  )
 ].
 
-LLVM Type traits define: #Vector &parents: {LLVM Type}.
-LLVM Type Vector traits atSlotNamed: #printName put: 'LLVM Type Vector'.
+Type traits define: #Vector &parents: {Type}.
+Type Vector traits atSlotNamed: #printName put: 'LLVM Type Vector'.
 
 "LLVMTypeRef LLVMVectorType(LLVMTypeRef ElementType, unsigned ElementCount);"
-v@(LLVM Type Vector traits) newWith: type@(LLVM Type traits) &elementCount: elementCount [
-	elementCount `defaultsTo: 0.
-	v newWithHandle: (
-		LLVM Lib primitives LLVMVectorType applyTo: { type handle. elementCount }
-	)
+v@(Type Vector traits) newWith: type@(Type traits) &elementCount: elementCount [
+  elementCount `defaultsTo: 0.
+  v newWithHandle: (
+    Lib primitives LLVMVectorType applyTo: { type handle. elementCount }
+  )
 ].
 
 "-------------------------------Operations on other types------------------------------------"
 
-LLVM Type traits define: #Void &parents: {Oddball. LLVM Type}.
-LLVM Type Void traits atSlotNamed: #printName put: 'LLVM Type Void'.
+Type traits define: #Void &parents: {Oddball. Type}.
+Type Void traits atSlotNamed: #printName put: 'LLVM Type Void'.
 
 "LLVMTypeRef LLVMVoidType(void);"
-v@(LLVM Type Void traits) initialize [
-	v handle: (
-		LLVM Lib primitives LLVMVoidType do
-	)
+v@(Type Void traits) initialize [
+  v handle: (
+    Lib primitives LLVMVoidType do
+  )
 ].
 
-LLVM Type Void initialize.
+Type Void initialize.
 
-LLVM Type traits define: #Label &parents: {Oddball. LLVM Type}.
-LLVM Type Label traits atSlotNamed: #printName put: 'LLVM Type Label'.
+Type traits define: #Label &parents: {Oddball. Type}.
+Type Label traits atSlotNamed: #printName put: 'LLVM Type Label'.
 
 "LLVMTypeRef LLVMLabelType(void);"
-l@(LLVM Type Label traits) initialize [
-	l handle: (
-		LLVM Lib primitives LLVMLabelType do
-	)
+l@(Type Label traits) initialize [
+  l handle: (
+    Lib primitives LLVMLabelType do
+  )
 ].
 
-LLVM Type Label initialize.
+Type Label initialize.
 
-LLVM Type traits define: #Opaque &parents: {LLVM Type}.
-LLVM Type Opaque traits atSlotNamed: #printName put: 'LLVM Type Opaque'.
+Type traits define: #Opaque &parents: {Type}.
+Type Opaque traits atSlotNamed: #printName put: 'LLVM Type Opaque'.
 
 "LLVMTypeRef LLVMOpaqueType(void);"
-o@(LLVM Type Opaque traits) new [
-	o newWithHandle: (
-		LLVM Lib primitives LLVMOpaqueType do
-	)
+o@(Type Opaque traits) new [
+  o newWithHandle: (
+    Lib primitives LLVMOpaqueType do
+  )
 ].
 
 "-------------------------------Operations on type handles------------------------------------"
 
-LLVM Type traits define: #Holder &parents: {LLVM Type}.
-LLVM Type Holder traits atSlotNamed: #printName put: 'LLVM Type Holder'.
+Type traits define: #Holder &parents: {Type}.
+Type Holder traits atSlotNamed: #printName put: 'LLVM Type Holder'.
 
 "LLVMTypeHandleRef LLVMCreateTypeHandle(LLVMTypeRef PotentiallyAbstractTy);"
-t@(LLVM Type traits) holder [
-	LLVM Type Holder newWithHandle: (
-		LLVM Lib primitives LLVMCreateTypeHandle applyTo: { t handle }
-	)
+t@(Type traits) holder [
+  Type Holder newWithHandle: (
+    Lib primitives LLVMCreateTypeHandle applyTo: { t handle }
+  )
 ].
 
 "void LLVMDisposeTypeHandle(LLVMTypeHandleRef TypeHandle);"
-h@(LLVM Type Holder traits) dispose [
-	LLVM Lib primitives LLVMDisposeTypeHandle applyTo: { h handle }.
-	h
+h@(Type Holder traits) dispose [
+  Lib primitives LLVMDisposeTypeHandle applyTo: { h handle }.
+  h
 ].
 
 "LLVMTypeRef LLVMResolveTypeHandle(LLVMTypeHandleRef TypeHandle);"
-h@(LLVM Type Holder traits) resolve [
-	LLVM Type newWithHandle: (
-		LLVM Lib primitives LLVMResolveTypeHandle applyTo: { h handle }
-	)	
+h@(Type Holder traits) resolve [
+  Type newWithHandle: (
+    Lib primitives LLVMResolveTypeHandle applyTo: { h handle }
+  )  
 ].
 
 "void LLVMRefineType(LLVMTypeRef AbstractTy, LLVMTypeRef ConcreteTy);"
-o@(LLVM Type traits) refineTo: type@(LLVM Type traits) [
-	LLVM Lib primitives LLVMRefineType applyTo: { o handle. type handle }.
-	o
+o@(Type traits) refineTo: type@(Type traits) [
+  Lib primitives LLVMRefineType applyTo: { o handle. type handle }.
+  o
 ].
 
 "-------------------------------Operations on scalar constants------------------------------------"
 
 "LLVMValueRef LLVMConstInt(LLVMTypeRef IntTy, unsigned long long N,
                           int SignExtend);"
-t@(LLVM Type Integer traits) value: value@(Integer traits) signed: signed@(Boolean traits) [
-	LLVM Value ConstantInt newWithHandle: (
-		LLVM Lib primitives LLVMConstInt applyTo: { t handle. value. signed }
-	)
+t@(Type Integer traits) value: value@(Integer traits) signed: signed@(Boolean traits) [
+  Value ConstantInt newWithHandle: (
+    Lib primitives LLVMConstInt applyTo: { t handle. value. signed }
+  )
 ].
 
 

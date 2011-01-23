@@ -1,12 +1,14 @@
-LLVM define: #Pointer &parents: {Cloneable} &slots: {#handle}. 
+define: #Pointer &parents: {Cloneable} &slots: {
+  #handle -> (ByteArray new &capacity: bytesPerWord)
+}.
 
-LLVM Pointer compareAndHashUsingSlots: #{#handle}.
+Pointer compareAndHashUsingSlots: #{#handle}.
 
-p@(LLVM Pointer traits) newNull [
-	p newWithHandle: (ByteArray new &capacity: bytesPerWord)
+p@(Pointer traits) newNull [
+  p newWithHandle: (p handle new &capacity: bytesPerWord)
 ].
 
-p@(LLVM Pointer traits) newWithHandle: h [
-	p cloneSettingSlots: #{#handle} to: {h}
+p@(Pointer traits) newWithHandle: h [
+  p cloneSettingSlots: #{#handle} to: {h}
 ].
  
