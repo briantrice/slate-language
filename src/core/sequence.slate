@@ -328,16 +328,17 @@ O(n) time in worst cases (most of them, when the element isn't found."
 c@(Sequence traits) indexOfSubSeq: subSeq startingAt: start ifAbsent: block
 [
   `conditions: (
-    [subSeq isEmpty] -> [block do].
+    [subSeq isEmpty] -> [start].
     [subSeq size = 1] -> [c indexOf: subSeq first startingAt: start ifAbsent: block]
   ) otherwise:
-    [| first index |
-     first := subSeq first.
-     start upTo: c size - subSeq size do: [| :startIndex |
-       (c at: startIndex) = first ifTrue:
-         [index := 1.
-          [(c at: startIndex + index) = (subSeq at: index)]
-            whileTrue: [(index += 1) = subSeq size ifTrue: [^ startIndex]]]].
+    [| index |
+     first ::= subSeq first.
+     start upTo: c size - subSeq size do:
+       [| :startIndex |
+        (c at: startIndex) = first ifTrue:
+          [index := 1.
+           [(c at: startIndex + index) = (subSeq at: index)]
+             whileTrue: [(index += 1) = subSeq size ifTrue: [^ startIndex]]]].
      block do]
 ].
 
