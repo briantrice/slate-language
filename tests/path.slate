@@ -29,7 +29,7 @@ t@(UnitTests Path traits) testPathBase
 [
   { {}. {#a}. {#a. #b} } do:
     [| :s p |
-      p: (s as: Path).
+      p := s as: Path.
       t assert: (p isSameAs: Path)
         description: '(x as: Path) did not produce Path'.
       t assert: (s as: p) names = p names
@@ -62,8 +62,8 @@ t@(UnitTests Path traits) testPathComparisonMethod
 
 t@(UnitTests Path traits) testPathFromToMethod
 "Tests functionality of the heart of Path library, Path from:to: method."
-[| testLobby |
-  testLobby: t testLobby.
+[
+  testLobby := t testLobby.
   {
     { testLobby. testLobby. Nil }.
     { testLobby. testLobby prototypes. {#prototypes} }.
@@ -90,8 +90,8 @@ t@(UnitTests Path traits) testPathFromToMethod
 ].
 
 t@(UnitTests Path traits) testTargetFromMethod
-[| testLobby |
-  testLobby: t testLobby.
+[
+  testLobby := t testLobby.
   {
     { testLobby. {}.  testLobby }.
     { testLobby. {#prototypes}. testLobby prototypes }.
@@ -109,9 +109,9 @@ t@(UnitTests Path traits) testTargetFromMethod
 ].
 
 t@(UnitTests Path traits) testRootedPathBase
-[| testLobby p |
-  testLobby: t testLobby.
-  p: (RootedPath from: testLobby to: testLobby c2).
+[
+  testLobby := t testLobby.
+  p ::= RootedPath from: testLobby to: testLobby c2.
   t assert: ((p as: Path) isSameAs: Path)
     description: 'RootedPath as: Path is broken.'.
   t assert: (p unrooted isSameAs: Path)
@@ -130,8 +130,8 @@ t@(UnitTests Path traits) testRootedPathBase
 ].
 
 t@(UnitTests Path traits) testRootedPathReduction
-[| testLobby p |
-  testLobby: t testLobby.
+[
+  testLobby := t testLobby.
   {
     { testLobby. testLobby c2. {#c2} }.
     { testLobby. testLobby VM ByteCode sendMessage. 
@@ -140,19 +140,19 @@ t@(UnitTests Path traits) testRootedPathReduction
     { testLobby. testLobby. {} }
   } do:
     [| :case p |
-      p: (RootedPath from: case first to: case second) reduced.
-      t assert: (p isSameAs: RootedPath)
-        description: 'RootedPath reduced returns wrong type'.
-      t assert: p = (case third as: Path)
-        description: 'RootedPath reduced failed; from "' ; case first printString ;
-                '" to "' ; case second printString ; '" got "' ; p printString ;
-                '" but expected "' ; case third printString ; '".'
+     p := (RootedPath from: case first to: case second) reduced.
+     t assert: (p isSameAs: RootedPath)
+       description: 'RootedPath reduced returns wrong type'.
+     t assert: p = (case third as: Path)
+       description: 'RootedPath reduced failed; from "' ; case first printString ;
+       '" to "' ; case second printString ; '" got "' ; p printString ;
+       '" but expected "' ; case third printString ; '".'
     ]
 ].
 
 t@(UnitTests Path traits) testRootedPathExpansion
-[| testLobby p |
-  testLobby: t testLobby.
+[
+  testLobby := t testLobby.
   {
     { testLobby. {}. {} }.
     { testLobby. {#prototypes}. {#prototypes} }.
@@ -161,11 +161,11 @@ t@(UnitTests Path traits) testRootedPathExpansion
     { testLobby. {#VM. #ByteCode}. {#VM. #ByteCode} }
   } do:
     [| :case p |
-      p: (case second as: RootedPath &root: case first) expanded.
-      t assert: (p names = case third) /\ [p root = case first]
-        description: 'RootedPath expanded failed; from "' ; case second printString ;
-                '" expanded to "' ; p names printString ; '" but expected "' ;
-                case third printString ; '".'
+     p := (case second as: RootedPath &root: case first) expanded.
+     t assert: (p names = case third) /\ [p root = case first]
+       description: 'RootedPath expanded failed; from "' ; case second printString ;
+       '" expanded to "' ; p names printString ; '" but expected "' ;
+       case third printString ; '".'
     ].
 ].
 

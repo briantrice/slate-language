@@ -1,53 +1,41 @@
-UnitTests addPrototype: #Dictionary derivedFrom: {TestCase}.
+UnitTests define: #Dictionary &parents: {TestCase}.
 "TODO only tests base functionality, add SingleValueMap, EmptyMap, etc."
 
-UnitTests Dictionary addSlot: #months1 valued:
-  [| result |
-     result: (Dictionary newSize: 12).
+UnitTests Dictionary months1 ::=
+  (Dictionary newSize: 12) `>>
+    [add: 'January' -> 31.
+     at: 'February' put: 29.
+     at: 'March' put: 31.
+     add: 'April' -> 30.
+     at: 'May' put: 31.
+     at: 'June' put: 30.
+     add: (Association cloneSettingSlots: #{#key. #value} to: {'July'. 31}).
+     at: 'August' put: 31.
+     at: 'September' put: 30.
+     at: 'October' put: 31.
+     at: 'November' put: 30.
+     add: 'December' -> 31. ].
 
-     result add: 'January' -> 31.
-     result at: 'February' put: 29.
-     result at: 'March' put: 31.
-     result add: 'April' -> 30.
-     result at: 'May' put: 31.
-     result at: 'June' put: 30.
-     result add: (Association cloneSettingSlots: #{#key. #value} to: {'July'. 31}).
-     result at: 'August' put: 31.
-     result at: 'September' put: 30.
-     result at: 'October' put: 31.
-     result at: 'November' put: 30.
-     result add: 'December' -> 31.
+UnitTests Dictionary months2 ::=
+  Dictionary new `>>
+    [at: 'January' put: 31.
+     add: 'February' -> 29.
+     at: 'March' put: 31.
+     at: 'April' put: 30.
+     add: (Association cloneSettingSlots: #{#key. #value} to: {'May'. 31}).
+     at: 'June' put: 30.
+     at: 'July' put: 31.
+     at: 'August' put: 31.
+     at: 'September' put: 30.
+     add: 'October' -> 31.
+     at: 'November' put: 30.
+     add: (Association cloneSettingSlots: #{#key. #value} to: {'December'. 31}). ].
 
-     result
-  ] do.
-
-UnitTests Dictionary addSlot: #months2 valued:
-  [| result |
-     result: Dictionary new.
-
-     result at: 'January' put: 31.
-     result add: 'February' -> 29.
-     result at: 'March' put: 31.
-     result at: 'April' put: 30.
-     result add: (Association cloneSettingSlots: #{#key. #value} to: {'May'. 31}).
-     result at: 'June' put: 30.
-     result at: 'July' put: 31.
-     result at: 'August' put: 31.
-     result at: 'September' put: 30.
-     result add: 'October' -> 31.
-     result at: 'November' put: 30.
-     result add: (Association cloneSettingSlots: #{#key. #value} to: {'December'. 31}).
-
-     result
-  ] do.
-
-UnitTests Dictionary addSlot: #empty valued: Dictionary new.
-
-
+UnitTests Dictionary empty ::= Dictionary new.
 
 t@(UnitTests Dictionary traits) testSignals
-[| d1 |
-  d1: t months1.
+[
+  d1 ::= t months1.
 
   t should: [d1 at: 'invalidKey'] raise: Mapping KeyNotFound
     description: 'KeyNotFound is not signaled from at:'.
@@ -57,9 +45,9 @@ t@(UnitTests Dictionary traits) testSignals
 ].
 
 t@(UnitTests Dictionary traits) testAccess
-[| d1 d2 |
-  d1: t months1.
-  d2: t months2.
+[
+  d1 ::= t months1.
+  d2 ::= t months2.
 
   t assert: (d1 at: 'January') = (d2 at: 'January') description: 'Value at January differs'.
   t assert: (d1 at: 'December') = (d2 at: 'December') description: 'Value at December differs'.
@@ -81,7 +69,7 @@ t@(UnitTests Dictionary traits) testIteration
 [
   t months1 keysDo:
     [| :key |
-       t assert: (t months2 at: key) = (t months1 at: key) description: 'An element differs while iterating on keys'].
+     t assert: (t months2 at: key) = (t months1 at: key) description: 'An element differs while iterating on keys'].
 
   "Unless we can ensure ordering, the following test doesn't make sense. But, if order can be ensured, this test might be useful."
   "t months1 valuesDo:
@@ -90,7 +78,7 @@ t@(UnitTests Dictionary traits) testIteration
 
   t months1 keysAndValuesDo:
     [| :key :value |
-       t assert: (t months2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
+     t assert: (t months2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
 ].
 
 t@(UnitTests Dictionary traits) testSize
@@ -105,9 +93,9 @@ t@(UnitTests Dictionary traits) testEquality
 ].
 
 t@(UnitTests Dictionary traits) testMutation
-[| d1 d2 |
-  d1: t months1 copy.
-  d2: t months2 copy.
+[
+  d1 ::= t months1 copy.
+  d2 ::= t months2 copy.
 
   d1 at: 'January' put: 0.
   t assert: (d1 occurrencesOf: 31) = 6 description: '(d1 occurrencesOf: 31) ~= 6 after January set to 0'.
@@ -126,7 +114,6 @@ t@(UnitTests Dictionary traits) testMutation
   t assert: d1 size = d2 size description: 'd1 size ~= d2 size after removing February from d2, too'.
 ].
 
-
 t@(UnitTests Dictionary traits) suite
 [t suiteForSelectors: {
   #testAccess.
@@ -137,37 +124,25 @@ t@(UnitTests Dictionary traits) suite
   #testIteration.
 }].
 
+UnitTests define: #IdentityDictionary &parents: {TestCase}.
 
-UnitTests addPrototype: #IdentityDictionary derivedFrom: {TestCase}.
+UnitTests IdentityDictionary list1 ::=
+  (IdentityDictionary newSize: 4) `>>
+    [add: Boolean -> 10.
+     at: True put: 20.
+     add: (Association cloneSettingSlots: #{#key. #value} to: {False. 30}). ].
 
-UnitTests IdentityDictionary addSlot: #list1 valued:
-  [| result |
-     result: (IdentityDictionary newSize: 4).
+UnitTests IdentityDictionary list2 ::=
+  (IdentityDictionary newSize: 4) `>>
+    [at: Boolean put: 10.
+     add: (Association cloneSettingSlots: #{#key. #value} to: {True. 20}).
+     add: False -> 30. ].
 
-     result add: Boolean -> 10.
-     result at: True put: 20.
-     result add: (Association cloneSettingSlots: #{#key. #value} to: {False. 30}).
-
-     result
-  ] do.
-
-UnitTests IdentityDictionary addSlot: #list2 valued:
-  [| result |
-     result: (IdentityDictionary newSize: 4).
-
-     result at: Boolean put: 10.
-     result add: (Association cloneSettingSlots: #{#key. #value} to: {True. 20}).
-     result add: False -> 30.
-
-     result
-  ] do.
-
-UnitTests IdentityDictionary addSlot: #empty valued: IdentityDictionary new.
-
+UnitTests IdentityDictionary empty ::= IdentityDictionary new.
 
 t@(UnitTests IdentityDictionary traits) testSignals
-[| d1 |
-  d1: t list1.
+[
+  d1 ::= t list1.
 
   t should: [d1 at: 'invalidKey'] raise: Mapping KeyNotFound
     description: 'KeyNotFound is not signaled from at:'.
@@ -177,9 +152,9 @@ t@(UnitTests IdentityDictionary traits) testSignals
 ].
 
 t@(UnitTests IdentityDictionary traits) testAccess
-[| d1 d2 |
-  d1: t list1.
-  d2: t list2.
+[
+  d1 ::= t list1.
+  d2 ::= t list2.
 
   t assert: (d1 at: Boolean) = (d2 at: Boolean) description: 'Value at Boolean differs'.
   t assert: (d1 at: True) = (d2 at: True) description: 'Value at True differs'.
@@ -201,15 +176,15 @@ t@(UnitTests IdentityDictionary traits) testIteration
 [
   t list1 keysDo:
     [| :key |
-       t assert: (t list2 at: key) = (t list1 at: key) description: 'An element differs while iterating on keys'].
+     t assert: (t list2 at: key) = (t list1 at: key) description: 'An element differs while iterating on keys'].
 
   t list1 valuesDo:
     [| :value |
-      t assert: (t list2 keyAtValue: value) = ( t list1 keyAtValue: value) description: 'An element differs while iterating on values'].
+     t assert: (t list2 keyAtValue: value) = ( t list1 keyAtValue: value) description: 'An element differs while iterating on values'].
 
   t list1 keysAndValuesDo:
     [| :key :value |
-       t assert: (t list2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
+     t assert: (t list2 at: key) = value description: 'An element differs while iterating on keysAndValues'].
 ].
 
 t@(UnitTests IdentityDictionary traits) testSize
@@ -224,9 +199,9 @@ t@(UnitTests IdentityDictionary traits) testEquality
 ].
 
 t@(UnitTests IdentityDictionary traits) testMutation
-[| d1 d2 |
-  d1: t list1 copy.
-  d2: t list2 copy.
+[
+  d1 ::= t list1 copy.
+  d2 ::= t list2 copy.
 
   d1 at: False put: 0.
   t assert: (d1 occurrencesOf: 30) = 0 description: '(d1 occurrencesOf: 30) ~= 0 after False (which was set to 30) was set to 0'.

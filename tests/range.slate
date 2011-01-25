@@ -1,30 +1,30 @@
-UnitTests addPrototype: #Range derivedFrom: {TestCase}.
+UnitTests define: #Range &parents: {TestCase}.
 
 tc@(UnitTests Range traits) testInclusion1
 "Verify that all elements of an Range are found in that Range."
-[| range |
-  range: (25 to: 50 by: 1).
+[
+  range ::= 25 to: 50 by: 1.
   tc assert: (range allSatisfy: [| :item | range includes: item]).
 ].
 
 tc@(UnitTests Range traits) testInclusion2
 "Same as testInclusion1, but for a downward Range."
-[| range |
-  range:  (-1 to: -33 by: -1).
+[
+  range ::= -1 to: -33 by: -1.
   tc assert: (range allSatisfy: [| :item | range includes: item]).
 ].
 
 tc@(UnitTests Range traits) testInclusion3
 "Verify that elements that are in range2, but not in range, are detected as missing in
 range."
-[| range range2 found notFound |
-  range: (25 to: 50 by: 1).
-  range2: (0 to: 100).
-  found: (notFound: 0).
+[| found notFound |
+  range ::= 25 to: 50 by: 1.
+  range2 ::= 0 to: 100.
+  found := notFound := 0.
   range2 do:
     [| :idx | (range includes: idx)
-         ifTrue: [found: found + 1]
-         ifFalse: [notFound: notFound + 1]].
+       ifTrue: [found += 1]
+       ifFalse: [notFound += 1]].
   tc assert: found = range size.
   tc assert: range2 size - range size = notFound.
 ].
@@ -32,53 +32,53 @@ range."
 tc@(UnitTests Range traits) testInclusion4
 "This test additionally verifies that elements that are in range2, but not in range,
 are detected as missing in range."
-[| range range2 found notFound |
-  range: (-25 to: -50 by: -1).
-  range2: (0 to: -100 by: -1).
-  found: (notFound: 0).
+[| found notFound |
+  range ::= -25 to: -50 by: -1.
+  range2 ::= 0 to: -100 by: -1.
+  found := notFound := 0.
   range2 do:
     [| :idx | (range includes: idx)
-         ifTrue: [found: found + 1]
-         ifFalse: [notFound: notFound + 1]].
+       ifTrue: [found += 1]
+       ifFalse: [notFound += 1]].
   tc assert: found = range size.
   tc assert: range2 size - range size = notFound.
 ].
 
 tc@(UnitTests Range traits) testIndex1
-[| range array |
-  range: (25 to: 50 by: 1).
+[
+  range ::= 25 to: 50 by: 1.
   tc assert: (range allSatisfy: [| :item | (range at: (range indexOf: item)) = item]).
   "Now we do it a second time (to avoid the use of Range at:) "
-  array: (range as: {}).
+  array ::= range as: {}.
   tc assert: (range allSatisfy: [| :item | (array at: (range indexOf: item)) = item]).
 ].
 
 tc@(UnitTests Range traits) testIndex2
-[| range array |
-  range: (-25 to: -50 by: -1).
+[
+  range ::= -25 to: -50 by: -1.
   tc assert: (range allSatisfy: [| :item | (range at: (range indexOf: item)) = item]).
   "Now we do it a second time (to avoid the use of Range at:) "
-  array: (range as: {}).
+  array ::= range as: {}.
   tc assert: (range allSatisfy: [| :item | (array at: (range indexOf: item)) = item]).
 ].
 
 tc@(UnitTests Range traits) testIndex3
  "For suitably chosen displacements, a shifted range is disjunct from the unshifted one."
-[| range |
-  range: (-25 to: -50 by: -5).
+[
+  range ::= -25 to: -50 by: -5.
   1 to: 4 do:
-   [| :shift | tc assert: (range + shift allSatisfy: [| :item | (range indexOf: item) = Nil])].
+    [| :shift | tc assert: (range + shift allSatisfy: [| :item | (range indexOf: item) = Nil])].
 ].
 
 tc@(UnitTests Range traits) testInclusionFloat
 [| start stop step candidate factor range1 range2 |
-  start: 1.
-  stop: 5.
-  step: 1.
-  factor: 100000000000000.
-  candidate: 2.5.
-  range1: (start to: stop by: 1).
-  range2: (start * factor to: stop * factor by: step * factor).
+  start ::= 1.
+  stop ::= 5.
+  step ::= 1.
+  factor ::= 100000000000000.
+  candidate ::= 2.5.
+  range1 ::= start to: stop by: 1.
+  range2 ::= start * factor to: stop * factor by: step * factor.
   tc assert: (range1 includes: candidate) not.
   tc assert: (range2 includes: candidate * factor) not.
 ].
@@ -86,14 +86,14 @@ tc@(UnitTests Range traits) testInclusionFloat
 tc@(UnitTests Range traits) testIndexFloat
 "Complements testInclusionFloat."
 [| start stop step candidate missingCandidate factor range1 range2 |
-  start: 1.
-  stop: 5.
-  step: 1.
-  factor: 100000000000000.
-  candidate: 2.
-  missingCandidate: 2.5.
-  range1: (start to: stop by: step).
-  range2: (start * factor to: stop * factor by: step * factor).
+  start ::= 1.
+  stop ::= 5.
+  step ::= 1.
+  factor ::= 100000000000000.
+  candidate ::= 2.
+  missingCandidate ::= 2.5.
+  range1 ::= start to: stop by: step.
+  range2 ::= start * factor to: stop * factor by: step * factor.
   tc assert: (range1 indexOf: candidate) = 1.
   tc assert: (range2 indexOf: candidate * factor) = 1.
   tc assert: (range1 indexOf: missingCandidate) = Nil.
@@ -103,14 +103,14 @@ tc@(UnitTests Range traits) testIndexFloat
 tc@(UnitTests Range traits) testInclusionNonFloat
 "The example is similar to testInclusionFloat, but it avoids the use of a Float.
 The elements of the Ranges are now Integers and Fractions."
-[| start stop step candidate factor range1 range2 |
-  start: 1.
-  stop: 5.
-  step: 1.
-  factor: 100000000000000.
-  candidate: 5 / 2.
-  range1: (start to: stop by: 1).
-  range2: (start * factor to: stop * factor by: step * factor).
+[
+  start ::= 1.
+  stop ::= 5.
+  step ::= 1.
+  factor ::= 100000000000000.
+  candidate ::= 5 / 2.
+  range1 ::= start to: stop by: 1.
+  range2 ::= start * factor to: stop * factor by: step * factor.
   tc assert: (range1 includes: candidate) not.
   tc assert: (range2 includes: candidate * factor) not.
 ].
