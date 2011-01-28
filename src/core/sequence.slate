@@ -467,7 +467,6 @@ c@(Sequence traits) concatenateAll: seq &separator: delim
 all of those in the second, interspersed with elements of the specified
 delimiter Sequence (or nothing when not given)."
 [| targetIndex |
-  seq ifNil: [^ c].
   delim `defaultsTo: #{}.
   result ::= c new &capacity:
     (seq inject: c size into:
@@ -476,7 +475,7 @@ delimiter Sequence (or nothing when not given)."
   targetIndex := 0.
   c isEmpty ifFalse:
     [result replaceFrom: targetIndex below: c size with: c.
-     targetIndex: c size.
+     targetIndex := c size.
      result replaceFrom: targetIndex below: targetIndex + delim size with: delim.
      targetIndex += delim size].
   seq do:
