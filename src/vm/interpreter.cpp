@@ -1,6 +1,5 @@
 #include "slate.hpp"
 
-
 void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i, word_t minimum) {
 
   struct OopArray * newStack;
@@ -13,7 +12,6 @@ void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i, word_
   copy_words_into((word_t*) i->stack->elements, i->stackPointer, (word_t*) newStack->elements);
   
   i -> stack = newStack;
-
 }
 
 void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, word_t n) {
@@ -25,9 +23,8 @@ void interpreter_stack_allocate(struct object_heap* oh, struct Interpreter* i, w
   i->stackPointer += n;
 
 #ifdef PRINT_DEBUG_STACK_PUSH
-  fprintf(stderr, "stack allocate, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
+  fprintf(stderr, "stack allocate, new SP: %" PRIdPTR "\n", i->stackPointer);
 #endif
-
 }
 
 void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struct Object* value) {
@@ -47,36 +44,28 @@ void interpreter_stack_push(struct object_heap* oh, struct Interpreter* i, struc
 }
 
 struct Object* interpreter_stack_pop(struct object_heap* oh, struct Interpreter* i) {
-
   if (i -> stackPointer == 0) {
     /*error("Attempted to pop empty interpreter stack.");*/
     assert(0);
   }
-
-  i->stackPointer = i->stackPointer - 1;
-
+  i->stackPointer -= 1;
   {
     struct Object* o = i->stack->elements[i->stackPointer];
 #ifdef PRINT_DEBUG_STACK_POINTER
-    fprintf(stderr, "popping from stack, new stack pointer: %" PRIdPTR "\n", i->stackPointer);
+    fprintf(stderr, "popping from stack, new SP: %" PRIdPTR "\n", i->stackPointer);
     /*print_detail(oh, o);*/
 #endif
     return o;
   }
-
 }
 
 void interpreter_stack_pop_amount(struct object_heap* oh, struct Interpreter* i, word_t amount) {
-
   if (i -> stackPointer - amount < 0) {
     /*error("Attempted to pop empty interpreter stack.");*/
     assert(0);
   }
-
-  i->stackPointer = i->stackPointer - amount;
-
+  i->stackPointer -= amount;
 }
-
 
 void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n, struct Object* args[]) {
   word_t i;
@@ -90,12 +79,9 @@ void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n,
   print_backtrace(oh);
   assert(0);
   exit(1);
-
 }
 
-
 void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
-  
   struct Closure* method;
   struct Symbol* selector = (struct Symbol*)signal;
   struct MethodDefinition* def = method_dispatch_on(oh, selector, args, n, NULL);
@@ -110,12 +96,10 @@ void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Ob
 }
 
 void interpreter_signal_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
-
   struct Object* args[1];
   args[0] = arg;
   interpreter_signal(oh, i, signal, args, 1, opts, optCount, resultStackPointer);
 }
-
 
 void interpreter_signal_with_with(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* arg, struct Object* arg2, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
   struct Object* args[2];
@@ -133,11 +117,8 @@ void interpreter_signal_with_with_with(struct object_heap* oh, struct Interprete
 }
 
 bool_t interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Interpreter * i, struct Object* key, struct Object* value) {
-
   struct OopArray* optKeys = i->method->optionalKeywords;
-
   word_t optKey, size = array_size(optKeys);
-
   for (optKey = 0; optKey < size; optKey++) {
     if (optKeys->elements[optKey] == key) {
       if (i->method->heapAllocate == oh->cached.true_object) {
@@ -150,31 +131,24 @@ bool_t interpreter_dispatch_optional_keyword(struct object_heap* oh, struct Inte
       return TRUE;
     }
   }
-
   /*fix*/
   return FALSE;
 }
 
 void interpreter_dispatch_optionals(struct object_heap* oh, struct Interpreter * i, struct Object* opts[], word_t optCount) {
-
   word_t index;
   for (index = 0; index < optCount; index += 2) {
     interpreter_dispatch_optional_keyword(oh, i, opts[index], opts[index+1]);
   }
-
 }
-
 
 void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct Interpreter * i, struct Closure * closure,
                                                struct Object* args[], word_t n, struct Object* opts[], word_t optCount,
                                                word_t resultStackPointer) {
-
-
   word_t inputs, framePointer, j, beforeCallStackPointer;
   struct Object** vars;
   Pinned<struct LexicalContext> lexicalContext(oh);
   Pinned<struct CompiledMethod> method(oh);
-  
 
 #ifdef PRINT_DEBUG
   fprintf(stderr, "apply to arity %" PRIdPTR "\n", n);
@@ -187,10 +161,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   }
   method = closure->method;
   inputs = object_to_smallint(method->inputVariables);
-
   method->callCount = smallint_to_object(object_to_smallint(method->callCount) + 1);
-
-
   assert(n <= MAX_ARITY);
 
 #ifndef SLATE_DISABLE_METHOD_OPTIMIZATION
@@ -204,7 +175,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
       (word_t)method->nextInlineAtCallCount < (word_t)method->callCount) {
     method_optimize(oh, method);
     method->nextInlineAtCallCount = smallint_to_object(object_to_smallint(method->callCount) * 2);
-
   }
 #endif
   
@@ -215,7 +185,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_WRONG_INPUTS_TO), (struct Object*) argsArray, (struct Object*)method, NULL, 0, resultStackPointer);
     return;
   }
-
 
   framePointer = i->stackPointer + FUNCTION_FRAME_SIZE;
   /* we save this so each function call doesn't leak the stack */
@@ -229,7 +198,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     for (j = 0; j < inputs; j++) {
       heap_store_into(oh, (struct Object*)lexicalContext, args[j]);
     }
-
   } else {
     lexicalContext = (struct LexicalContext*) oh->cached.nil;
     interpreter_stack_allocate(oh, i, FUNCTION_FRAME_SIZE /*frame size in words*/ + object_to_smallint(method->localVariables) + object_to_smallint(method->registerCount));
@@ -240,7 +208,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   }
   //std::vector<Pinned<struct Object> > pinnedVars(n, Pinned<struct Object>(oh));
   //for (word_t k = 0; k < n; k++) pinnedVars[k] = vars[k];
-
 
   copy_words_into(args, inputs, vars);
   i->stack->elements[framePointer - FRAME_OFFSET_BEFORE_CALL_STACK_POINTER] = smallint_to_object(beforeCallStackPointer);
@@ -286,7 +253,6 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
   }
 }
 
-
 void send_to_through_arity_with_optionals(struct object_heap* oh,
                                           struct Symbol* selector, struct Object* args[],
                                           struct Object* dispatchers[], word_t arity, struct Object* opts[], word_t optCount,
@@ -297,10 +263,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   Pinned<struct MethodDefinition> def(oh);
   Pinned<struct CompiledMethod> callerMethod(oh);
   callerMethod = oh->cached.interpreter->method;
-
   /*make sure they are pinned*/
   assert(arity <= MAX_ARITY);
-
   def = NULL;
 
 #ifndef SLATE_DISABLE_PIC_LOOKUP
@@ -314,13 +278,11 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
       addToPic = TRUE;
     } else {
       def = method_pic_find_callee(oh, callerMethod, selector, arity, dispatchers);
-
       if ((struct Object*)def==NULL) {
         addToPic = TRUE;
 #ifdef PRINT_DEBUG_PIC_HITS
         fprintf(stderr, "PIC miss\n");
 #endif
-
       }
       else {
 #ifdef PRINT_DEBUG_PIC_HITS
@@ -328,10 +290,8 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 #endif
       }
     }
-    
   }
 #endif
-
   if ((struct Object*)def == NULL) {
     def = method_dispatch_on(oh, selector, dispatchers, arity, NULL);
   } else {
@@ -343,22 +303,18 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
     // Export the arguments into the image and pin it:
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
-
     Pinned<struct OopArray> nestedOptsArray(oh);
     struct Object* newOpts[2];
     word_t newOptCount = 0;
     if (optCount > 0) {
       nestedOptsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), optCount);
       copy_words_into(opts, optCount, nestedOptsArray->elements);
-
       newOpts[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
       newOpts[1] = (struct Object*)nestedOptsArray;
       newOptCount = 2;
     }
-
     // Signal notFoundOn:
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON), (struct Object*)selector, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
-
     return;
   }
 
@@ -369,15 +325,12 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
 
   method = (struct Closure*)def->method;
   traitsWindow = method->base.map->delegates->elements[0]; /*fix should this location be hardcoded as the first element?*/
-
   struct OopArray* oldStack = oh->cached.interpreter->stack; // save in case it's changed... see end of this function
-
   if (traitsWindow == oh->cached.primitive_method_window) {
 #ifdef PRINT_DEBUG
     fprintf(stderr, "calling primitive: %" PRIdPTR "\n", object_to_smallint(((struct PrimitiveMethod*)method)->index));
 #endif
     //sometimes primitives call sent_to or apply_to which can screw up the call stack. i won't measure them for now
-    
     Pinned<struct OopArray> pinnedStack(oh);
     pinnedStack = oh->cached.interpreter->stack;
     primitives[object_to_smallint(((struct PrimitiveMethod*)method)->index)](oh, args, arity, opts, optCount, resultStackPointer);
@@ -386,32 +339,25 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
   } else {
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
     copy_words_into((word_t*)dispatchers, arity, (word_t*)&argsArray->elements[0]);
-
     Pinned<struct OopArray> nestedOptsArray(oh);
     struct Object* newOpts[2];
     word_t newOptCount = 0;
     if (optCount > 0) {
       nestedOptsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), optCount);
       copy_words_into(opts, optCount, nestedOptsArray->elements);
-
       newOpts[0] = get_special(oh, SPECIAL_OOP_OPTIONALS);
       newOpts[1] = (struct Object*)nestedOptsArray;
       newOptCount = 2;
     }
-
     interpreter_signal_with_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_APPLY_TO), def->method, (struct Object*)argsArray, newOpts, newOptCount, resultStackPointer);
   }
-
   // be sure the stack didn't change if we're going to check for the result on the stack
   // for example, prim_initializeThreadOn will replace the stack and this would
   // deref NULL if we didn't check
   if (oldStack == oh->cached.interpreter->stack) {
     heap_store_into_stack(oh, resultStackPointer);
   }
-
-
 }
-
 
 bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, word_t context_depth, struct Object* result, word_t prevCodePointer) {
   /* Implements a non-local return with a value, specifying the block
@@ -426,11 +372,10 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
 #ifdef PRINT_DEBUG_FUNCALL
       fprintf(stderr, "interpreter_return_result BEFORE\n");
-      fprintf(stderr, "stack pointer: %" PRIdPTR "\n", i->stackPointer);
-      fprintf(stderr, "frame pointer: %" PRIdPTR "\n", i->framePointer);
+      fprintf(stderr, "SP: %" PRIdPTR "\n", i->stackPointer);
+      fprintf(stderr, "FP: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, MAX_ARITY);
 #endif
-
 
   if (context_depth == 0) {
     framePointer = i->framePointer;
@@ -444,20 +389,16 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
       return 1;
     }
   }
-
   resultStackPointer = (word_t)i->stack->elements[framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]>>1;
-
   /*store the result before we get interrupted for a possible finalizer... fixme i'm not sure
    if this is right*/
   if (result != NULL) {
 #ifdef PRINT_DEBUG_STACK
     fprintf(stderr, "setting stack[%" PRIdPTR "] = ", resultStackPointer); print_object(result);
 #endif
-
     i->stack->elements[resultStackPointer] = result;
     heap_store_into(oh, (struct Object*)i->stack, (struct Object*)result);
   }
-
   ensureHandlers = object_to_smallint(i->ensureHandlers);
   if (framePointer <= ensureHandlers) {
     Pinned<struct Object> ensureHandler(oh);
@@ -488,7 +429,6 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
       profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD], 1);
     }
 
-
     /*assert(0); fixme not sure if this is totally the right way to set up the stack yet*/
     {
       interpreter_apply_to_arity_with_optionals(oh, i, (struct Closure*) ensureHandler, NULL, 0, NULL, 0, resultStackPointer);
@@ -507,7 +447,6 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
     profiler_enter_method(oh, (struct Object*)i->closure, (struct Object*)i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD], 0);
   }
 
-
   i->codePointer = object_to_smallint(i->stack->elements[framePointer - FRAME_OFFSET_CODE_POINTER]);
   i->lexicalContext = (struct LexicalContext*) i->stack->elements[i->framePointer - FRAME_OFFSET_LEXICAL_CONTEXT];
   i->closure = (struct Closure*) i->stack->elements[i->framePointer - FRAME_OFFSET_METHOD];
@@ -520,19 +459,13 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
 
 #ifdef PRINT_DEBUG_FUNCALL
       fprintf(stderr, "interpreter_return_result AFTER\n");
-      fprintf(stderr, "stack pointer: %" PRIdPTR "\n", i->stackPointer);
-      fprintf(stderr, "frame pointer: %" PRIdPTR "\n", i->framePointer);
+      fprintf(stderr, "SP: %" PRIdPTR "\n", i->stackPointer);
+      fprintf(stderr, "FP: %" PRIdPTR "\n", i->framePointer);
       print_stack_types(oh, MAX_ARITY);
 #endif
 
-
   return 1;
-
 }
-
-
-
-
 
 void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, word_t n, word_t resultStackPointer) {
 
@@ -560,7 +493,6 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
   resender = ((struct Closure*) barrier)->method;
   args = (resender->heapAllocate == oh->cached.true_object)? lexicalContext->variables : &i->stack->elements[framePointer];
 
-
   selector = resender->selector;
   n = object_to_smallint(resender->inputVariables);
   assert(n <= MAX_ARITY);
@@ -575,7 +507,6 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
     interpreter_signal_with_with_with(oh, i, get_special(oh, SPECIAL_OOP_NOT_FOUND_ON),
                                       (struct Object*)selector, (struct Object*)argsArray, (struct Object*) resender, NULL, 0, resultStackPointer);
     return;
-
   }
 
   method = (struct Closure*)def->method;
@@ -602,21 +533,14 @@ void interpreter_resend_message(struct object_heap* oh, struct Interpreter* i, w
         }
       }
     }
-
   } else {
-
     argsArray = (struct OopArray*) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
     copy_words_into((word_t*) args, n, (word_t*) argsArray->elements);
     //fixme: maybe lose optionals? not sure how to handle this
     interpreter_signal_with_with(oh, i, get_special(oh, SPECIAL_OOP_APPLY_TO),
                                  def->method, (struct Object*) argsArray, &args[n], array_size(resender->optionalKeywords), resultStackPointer);
-    
   }
-
-
 }
-
-
 
 void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, struct OopArray* table, struct Object* oop) {
 
@@ -637,7 +561,7 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
   {
     struct Object* offset;
     struct Object* key;
-    
+
     key = table->elements[index];
     offset = table->elements[index + 1];
     if (offset == oh->cached.nil)
@@ -647,7 +571,6 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
     if (oop == key)
     {
       i->codePointer = i->codePointer + object_to_smallint(offset); /*fix check that offset is the right type*/
-      
       return;
     }
     index = index + 2;
@@ -657,7 +580,7 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
   {
     struct Object* offset;
     struct Object* key;
-    
+
     key = table->elements[index];
     offset = table->elements[index + 1];
     if (offset == oh->cached.nil)
@@ -667,15 +590,11 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
     if (oop == key)
     {
       i->codePointer = i->codePointer + object_to_smallint(offset);
-      
       return;
     }
     index = index + 2;
   }
-
-
 }
-
 
 void interpret(struct object_heap* oh) {
 
@@ -703,8 +622,8 @@ void interpret(struct object_heap* oh) {
 #ifdef PRINT_DEBUG
   fprintf(stderr, "Interpreter stack: "); print_object((struct Object*)oh->cached.interpreter);
   fprintf(stderr, "Interpreter stack size: %" PRIdPTR "\n", oh->cached.interpreter->stackSize);
-  fprintf(stderr, "Interpreter stack pointer: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
-  fprintf(stderr, "Interpreter frame pointer: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
+  fprintf(stderr, "Interpreter SP: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
+  fprintf(stderr, "Interpreter FP: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
 #endif 
   /*fixme this should only be called in the initial bootstrap because
     the stack doesn't have enough room for the registers */
@@ -762,10 +681,13 @@ void interpret(struct object_heap* oh) {
           selector = SSA_NEXT_PARAM_OBJECT;
           arity = SSA_NEXT_PARAM_SMALLINT;
 
-
 #ifdef PRINT_DEBUG_OPCODES
-          fprintf(stderr, "send message fp: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
+          fprintf(stderr, "send message FP: %" PRIdPTR ", result: %" PRIdPTR ", arity: %" PRIdPTR ", message: ", i->framePointer, result, arity);
           print_type(oh, selector);
+#endif
+#ifdef PRINT_DEBUG_SENDS
+          print_symbol(selector);
+          fprintf(stderr, "\n");
 #endif
           assert(arity <= MAX_ARITY);
 
@@ -791,7 +713,7 @@ void interpret(struct object_heap* oh) {
           optsArray = (struct OopArray*)SSA_REGISTER(optsArrayReg);
           optCount = array_size(optsArray);
 #ifdef PRINT_DEBUG_OPCODES
-          fprintf(stderr, "send message with opts fp: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
+          fprintf(stderr, "send message with opts FP: %" PRIdPTR ", result: %" PRIdPTR " arity: %" PRIdPTR ", opts: %" PRIdPTR ", message: ", i->framePointer, result, arity, optsArrayReg);
           print_type(oh, selector);
 #endif
           assert(arity <= MAX_ARITY && optCount <= MAX_OPTS);
@@ -1284,7 +1206,6 @@ void interpret(struct object_heap* oh) {
           assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
-
           
           word_t success = 0;
           if (arity == object_array_size(mapArray)) {
@@ -1302,7 +1223,6 @@ void interpret(struct object_heap* oh) {
           }
           
           HEAP_UNPIN_ARGS(k, pinnedArgs);
-
           
           break;
         }
@@ -1327,17 +1247,11 @@ void interpret(struct object_heap* oh) {
           
           break;
         }
-
       default:
         fprintf(stderr, "error bad opcode... %" PRIdPTR "\n", op>>1);
         assert(0);
         break;
       }
-      
-
     }
   }/* while (interpreter_return_result(oh, oh->cached.interpreter, 0, NULL, prevPointer));*/
-
-
-
 }
