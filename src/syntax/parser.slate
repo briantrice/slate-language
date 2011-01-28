@@ -251,8 +251,11 @@ p@(Parser traits) parseOptionalKeywordsFor: message@(nodes Message traits)
     [| :keywords |
      [Syntax isOptionalSelector: (token := p nextToken)]
        whileTrue:
-         [keywords nextPut: token value intern.
-          arguments nextPut: p nextBinaryMessages]]
+         [(Syntax isKeywordSelector: token)
+            ifTrue: [keywords nextPut: token value intern.
+                     arguments nextPut: p nextBinaryMessages]
+            ifFalse: [keywords nextPut: (token value ; ':') intern.
+                      arguments nextPut: (nodes Literal for: True)]]]
        writingAs: #{}.
   p undoToken: token.
   keywords
