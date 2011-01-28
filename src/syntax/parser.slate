@@ -9,8 +9,6 @@ define: #Parser &parents: {ReadStream} &slots: {
 }.
 "Reads tokens from a Lexer and builds a Syntax Node tree for it."
 
-(Syntax import: #Parser from: here) `bootstrapping.
-
 Parser traits define: #EndStatementTokens &builder: [{tokens EndStatement. tokens EndStream}].
 Parser traits define: #EndBlockStatementTokens &builder: [{tokens EndStatement. tokens EndBlock}].
 Parser traits define: #EndParenthesisStatementTokens &builder: [{tokens EndStatement. tokens EndParenthesis}].
@@ -59,7 +57,8 @@ p@(Parser traits) nextToken &interactive: interactive
 "Takes the next token from either the buffer or the lexer transparently."
 [| exclude token |
   exclude := p excludedTokens &interactive: interactive.
-  [p is: (token := p lexer next) likeAnyOf: exclude] whileTrue.
+  [p is: (token := p lexer next)
+     likeAnyOf: exclude] whileTrue.
   token
 ].
 
@@ -154,14 +153,13 @@ p@(Parser traits) next
   statement := p nextExpression.
   "Unless parsing lines greedily, statements need to be separated explicitly or be at the end of the input."
   (terminatesCorrectly := p is: (token := p nextToken) likeAnyOf: p EndStatementTokens)
-    \/ p parseInteractively
+    \/ [p parseInteractively]
     ifFalse: [p error: 'Expression was not terminated or separated correctly.'].
-  statement
-    ifNil:
-      [terminatesCorrectly
-         ifTrue: [nodes Literal Nil]
-         ifFalse: [p expected: p EndStatementTokens
-                     butFound: (p nextToken &interactive: p parseInteractively)]]
+  statement ifNil:
+    [terminatesCorrectly
+       ifTrue: [nodes Literal Nil]
+       ifFalse: [p expected: p EndStatementTokens
+                   butFound: (p nextToken &interactive: p parseInteractively)]]
 ].
 
 p@(Parser traits) nonInteractivelyDo: block

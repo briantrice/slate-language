@@ -378,6 +378,6 @@ _@(Lexer traits) undoToken: t@(tokens EndStream traits)
 t@(tokens Token traits) readFrom: s
 [| next |
   ((next := (Lexer newOn: s reader) next) is: t)
-    ifFalse: [error: 'The source did not parse into ' ; t printName asAn ; '.'].
-  next
+    ifTrue: [next]
+    ifFalse: [error: 'The source did not parse into ' ; t printName asAn ; '.']
 ].

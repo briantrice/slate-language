@@ -625,7 +625,7 @@ variable's scope (used to compile closures properly), and answers it."
     ifTrue:
       [var name := block uniqueVariableName].
   var scope := block.
-  block localVariables := block localVariables ; { var }.
+  block localVariables := block localVariables copyWith: var.
   var
 ].
 
@@ -660,7 +660,7 @@ block@(nodes Block traits) addInputVariableNamed: name
 then returning it."
 [| var |
   var := block addVariableNamed: name.
-  block inputVariables := block inputVariables ; { var }.
+  block inputVariables := block inputVariables copyWith: var.
   var
 ].
 
@@ -677,8 +677,8 @@ block@(nodes Block traits) addOptionalKeyword: key named: name
 then returning it."
 [| var |
   var := block addVariableNamed: name.
-  block optionalKeywords := block optionalKeywords ; { key intern }.
-  block optionalVariables := block optionalVariables ; { var }.
+  block optionalKeywords := block optionalKeywords copyWith: key intern.
+  block optionalVariables := block optionalVariables copyWith: var.
   var
 ].
 
