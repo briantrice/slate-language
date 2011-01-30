@@ -113,22 +113,16 @@ p@(Parser traits) check: found is: expected@(Sequence traits)
   [p expected: expected butFound: found]].
 
 p@(Parser traits) expected: expected@(Sequence traits) butFound: found
-[| expectNames |
-  (expectNames := expected collect: #signifier `er select: #isNotNil `er)
-    size > 1 ifTrue:
-      [expectNames
-         at: expectNames indexLast
-         put: 'or ' ; expectNames last].
-  expectNames := expectNames join &separator:
-    (expectNames size = 2 ifTrue: [' '] ifFalse: [', ']).
-  p error: 'Expected ' ; expectNames ; ' but found ' ; found signifier
+[
+  expectNames ::= expected collect: #signifier `er select: #isNotNil `er.
+  p error: 'Expected ' ; expectNames printString ; ' but found ' ; found signifier
 ].
 
 p@(Parser traits) nextExpression
 [| token lookAheadIndex |
   lookAheadIndex := 0.
   [token := p lexer peekForwardBy: lookAheadIndex.
-   (token isSameAs: tokens BeginVariables) ifTrue:
+   token == tokens BeginVariables \/ [token == tokens Eventually] ifTrue:
      [p lexer outputBuffer at: lookAheadIndex put:
         (tokens Selector for: (p nextLiteralFrom: token))].
    token == tokens At ifTrue:
