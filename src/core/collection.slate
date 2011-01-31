@@ -224,11 +224,11 @@ c@(Collection traits) gather: binBlock &initial: init
 - running a block on both it and each remaining element in turn.
 The result of the block becomes the next value, and then the result when done.
 e.g. {1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
-[| result |
+[| result reader |
   c isEmpty
     ifTrue: [init]
     ifFalse:
-      [reader ::= c reader.
+      [reader := c reader.
        result := init ifNil: [reader next].
        reader do: [| :each | result := binBlock apply*, result, each].
        result]
@@ -238,11 +238,11 @@ c@(Collection traits) reduce: binBlock ifEmpty: emptyBlock
 "Reduce works like inject except that the first element of the collection is
 used as the injected element for the rest of the collection.
 e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
-[| result |
+[| result reader |
   c isEmpty  
    ifTrue: [emptyBlock do]
    ifFalse:
-     [result := (reader ::= c reader) next.
+     [result := (reader := c reader) next.
       reader do: [| :each | result := binBlock apply*, result, each].
       result]
 ].
@@ -256,9 +256,9 @@ case."
 
 c@(Collection traits) trace: binBlock
 "Like reduce: but returns a Collection of intermediate values."
-[
-  [| :result elem |
-   src ::= c reader.
+[| elem src |
+  [| :result |
+   src := c reader.
    elem := src next.
    result nextPut: elem.
    src do:
