@@ -4,34 +4,34 @@ define: #Priority &parents: {Order}.
 "A Stream Priority order specifies the order in which siblings are visited
 relative to each other."
 
-Forward ::= Priority clone.
+define: #Forward &builder: [Priority clone].
 "Standard left-to-right, increasing index traversal of siblings."
 
-Reverse ::= Priority clone.
+define: #Reverse &builder: [Priority clone].
 "Right-to-left, decreasing index reverse traversal of siblings."
 
-LeastToGreatest ::= Priority clone.
-GreatestToLeast ::= Priority clone.
+define: #LeastToGreatest &builder: [Priority clone].
+define: #GreatestToLeast &builder: [Priority clone].
 
 define: #Traversal &parents: {Order}.
 "A Stream Traversal order specifies when the parent-child boundary is crossed,
 e.g. before other siblings or after all siblings."
 
-DepthFirst ::= Traversal clone.
+define: #DepthFirst &builder: [Traversal clone].
 "Recurse through the next element encountered before proceeding on to
 following siblings of it."
 
-BreadthFirst ::= Traversal clone.
+define: #BreadthFirst &builder: [Traversal clone].
 "Recurse across all siblings at the current level before recursing through
 each sibling's children in the same way."
 
-Topological ::= Traversal clone.
+define: #Topological &builder: [Traversal clone].
 
 define: #Direction &parents: {Order}.
 ""
 
-PreOrder ::= Direction clone.
-PostOrder ::= Direction clone.
+define: #PreOrder &builder: [Direction clone].
+define: #PostOrder &builder: [Direction clone].
 
 c@(Collection traits) readerTest &priority: priority &direction: direction &traversal: traversal
 [
@@ -112,8 +112,8 @@ specified by a block that acts on the object."
 s@(TraversalStream traits) next
 "Pop the todo list, mark it visited, and use the childrenBlock to push onto
 the todo list unseen elements from it."
-[
-  result ::= s todo pop.
+[| result |
+  result := s todo pop.
   s visit: result.
   ((s childrenOf: result) reader
     reject: [| :c | (s alreadyVisited: c) \/ [s cannotVisit: c]])

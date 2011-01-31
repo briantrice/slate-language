@@ -48,8 +48,8 @@ c@(Converter traits) >> out
 ].
 
 c1@(Converter traits) >> c2@(Converter traits)
-[
-  buf ::= ExtensibleArray new.
+[| buf |
+  buf := ExtensibleArray new.
   c1 >> buf.
   c2 newFrom: buf
 ].
@@ -63,33 +63,36 @@ converters define: #Base64Decoder &parents: {Decoder}.
 ASCII Characters. Based on RFC 1421, 2045."
 "TODO: RFC 2152 extensions for Unicode?"
 
-Base64Encoder traits table ::=
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/' as: Array.
-Base64Decoder traits table ::=
-  [result ::= Array newSize: 256.
+Base64Encoder traits define: #table &builder:
+  ['ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/' as: Array].
+Base64Decoder traits define: #table &builder:
+  [| result | result := (Array newSize: 256).
    Base64Encoder table doWithIndex:
      [| :each :index | result at: (each as: Integer) put: index].
-   result] do.
+   result].
 
 c@(Base64Encoder traits) convert
 [| triple |
-  triple := 0. "one triple consists of three chars"
+  triple := 0. "one triple consists one three chars"
   [c in isAtEnd] whileFalse:
-    [triple = 18 ifTrue: [c out ; '\r\n'. triple := 0].
-     byte1 ::= c in next as: Integer.
+    [| byte1 |
+     triple = 18 ifTrue: [c out ; '\r\n'. triple := 0].
+     byte1 := (c in next as: Integer).
      c out nextPut: (c table at: byte1 >> 2).
      c in isAtEnd
        ifTrue:
 	 [c out nextPut: (c table at: (byte1 bitAnd: 2r11) << 4).
 	  c out ; '==']
        ifFalse:
-	 [byte2 ::= c in next as: Integer.
+	 [| byte2 |
+	  byte2 := (c in next as: Integer).
 	  c out nextPut: (c table at:
 	    ((byte1 bitAnd: 2r11) << 4 bitOr: byte2 >> 4)).
 	  c in isAtEnd
 	    ifTrue: [c out nextPut: (c table at: (byte2 bitAnd: 2r1111) << 2).
 		     c out nextPut: $=]
-	    ifFalse: [byte3 ::= c in next as: Integer.
+	    ifFalse: [| byte3 |
+		      byte3 := (c in next as: Integer).
 		      c out nextPut: (c table at:
 			((byte2 bitAnd: 2r1111) << 2 bitOr: byte3 >> 6)).
 		      c out nextPut: (c table at: (byte3 bitAnd: 2r111111)).
@@ -100,15 +103,16 @@ c@(Base64Encoder traits) convert
 c@(Base64Decoder traits) convert
 [
   [c in isAtEnd] whileFalse:
-    ["TODO: raise an exception on failure?"
-     (byte1 ::= c nextValue) ifNil: [^ Nil].
-     (byte2 ::= c nextValue) ifNil: [^ Nil].
+    [| byte1 byte2 byte3 byte4 |
+     "TODO: raise an exception on failure?"
+     (byte1 := c nextValue) ifNil: [^ Nil].
+     (byte2 := c nextValue) ifNil: [^ Nil].
      c out nextPut: ((byte1 << 2 bitOr: byte2 >> 4) as: ASCIIString Character).
-     (byte3 ::= c nextValue) ifNil: [^ Nil].
+     (byte3 := c nextValue) ifNil: [^ Nil].
      c out nextPut: (byte2 << 4 bitAnd: 16rFF)
        #(bitOr: byte3 >> 2)
        #(as: ASCIIString Character).
-     (byte4 ::= c nextValue) ifNil: [^ Nil].
+     (byte4 := c nextValue) ifNil: [^ Nil].
      c out nextPut: (byte3 << 6 bitAnd: 16rFF)
        #(bitOr: byte4)
        #(as: ASCIIString Character)].

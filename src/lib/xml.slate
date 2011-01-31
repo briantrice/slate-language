@@ -224,23 +224,19 @@ sn@(XML StringNode traits) printXMLOn: writer
   writer pcData: sn string
 ].
 
-(XML Translation ::= Dictionary new &capacity: 30) addAll: {
-  $\r -> '&#13;'.
+(XML define: #Translation &builder: [Dictionary new &capacity: 30])
+ addAll:
+ {$\r -> '&#13;'.
   $\n -> '&#10;'.
   $\t -> '&#9;'.
   $& -> '&amp;'.
   $< -> '&lt;'.
   $> -> '&gt;'.
   $\' -> '&apos;'.
-  $\" -> '&quot;'
-}.
+  $\" -> '&quot;'}.
 
-XML define: #PrintStream &parents: {Cloneable} &slots: {
-  #stack -> Stack new.
-  #stream.
-  #scanner.
-  #canonical -> False
-}.
+XML define: #PrintStream &parents: {Cloneable}
+  &slots: {#stack -> Stack new. #stream. #scanner. #canonical -> False}.
 
 w@(XML PrintStream traits) newOn: stream
 [w clone `setting: #{#stack. #stream} to: {w stack new. stream}].

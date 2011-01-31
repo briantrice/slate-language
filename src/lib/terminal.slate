@@ -85,10 +85,10 @@ t@(Terminal traits) beep
 
 t@(Terminal traits) page
 "Display a simple header and page-down; exit if Q is pressed."
-[
+[| chord |
   t writer ; '--More--'.
   t flush.
-  chord ::= t nextChord.
+  chord := t nextChord.
   t newLine.
   (chord = $q \/ [chord = $Q]) not
 ].
@@ -120,9 +120,10 @@ t@(SmartTerminal traits) echoes
 [False].
 
 t@(SmartTerminal traits) newLine
-[
-  (console ::= t console) isCursorAtLastRow ifTrue:
-    [console scroll].
+[| console |
+  console := t console.
+  console isCursorAtLastRow
+    ifTrue: [console scroll].
   console moveCursorToBONL.
   t
 ].
@@ -134,18 +135,17 @@ t@(SmartTerminal traits) rows
 [t console rows].
 
 t@(SmartTerminal traits) display: cmd cursorAt: cursorPos &incremental: incremental
-[
-  console ::= t console.
+[| console scroll |
+  console := t console.
   (incremental `defaultsTo: False) ifFalse:
     [console moveCursorTo: t basePosition.
      "TODO more then a page long lines (baseline < 0)"
      t nextPutAll: cmd].
   "Ideally basePosition update should be done with scroll callbacks. It does not handle
   newlines in the command this way, and the console already keeps track of its state."
-  (scroll ::= t basePosition second
-     + ((t basePosition first + cmd size) // console width)
-     - console rowLast) isPositive ifTrue:
-       [t basePosition at: 1 put: t basePosition second - scroll].
+  scroll := t basePosition second + ((t basePosition first + cmd size) // console width) - console rowLast.
+  scroll isPositive ifTrue:
+    [t basePosition at: 1 put: t basePosition second - scroll].
   incremental ifFalse:
     [console clearToEOS].
   t moveCursorTo: cursorPos inCommand: cmd.
@@ -153,14 +153,14 @@ t@(SmartTerminal traits) display: cmd cursorAt: cursorPos &incremental: incremen
 
 "TODO take control chars like \n's in cmd into account? generalize into SmartConsole"
 t@(SmartTerminal traits) moveCursorTo: pos inCommand: cmd
-[
-  cols ::= t columns.
+[| cols |
+  cols := t columns.
   pos += t basePosition first.
   t console moveCursorTo: (Tuple new*, (pos rem: cols), t basePosition second + (pos // cols)).
 ].
 
-terminals define: #ConsoleLineEditor &parents: {Cloneable} &slots: {
-  #terminal.
+terminals define: #ConsoleLineEditor &parents: {Cloneable} &slots:
+ {#terminal.
   #position -> 0. "Cursor position"
   #currentHistoryIndex -> 0.
   #killRing -> LinkedList new.
@@ -171,15 +171,16 @@ terminals define: #ConsoleLineEditor &parents: {Cloneable} &slots: {
   #prompt -> Nil.
   #currentWord -> Nil.
   #currentCompletions -> {}.
-  #history -> ({ExtensibleArray new} as: ExtensibleArray new)
-}.
+  #history -> ({ExtensibleArray new} as: ExtensibleArray new)}.
 "A line editor, used to manage some terminal interactions, and having editing
 state and behavior."
 ConsoleLineEditor addLazySlot: #reader initializer: [| :e | e ReadStream newOn: e].
-ConsoleLineEditor traits keymap ::= Dictionary new.
-ConsoleLineEditor traits controlKeymap ::= Dictionary new.
-ConsoleLineEditor traits modifierKeymap ::= Dictionary new.
-ConsoleLineEditor traits maxHistorySize ::= 50.
+ConsoleLineEditor traits `>> [
+  define: #keymap &builder: [Dictionary new].
+  define: #controlKeymap &builder: [Dictionary new].
+  define: #modifierKeymap &builder: [Dictionary new].
+  define: #maxHistorySize -> 50.
+].
 
 e@(ConsoleLineEditor traits) newOn: terminal
 [
@@ -209,12 +210,11 @@ e@(ConsoleLineEditor traits) prepareToEditLine
 to edit a copy rather then the item in the history."
 [| current |
   e currentHistoryIndex isPositive ifTrue:
-    [current := e history at: e currentHistoryIndex.
-     e history first isEmpty ifTrue:
-       [e history removeFirst].
+    [current := (e history at: e currentHistoryIndex).
+     e history first isEmpty ifTrue: [e history removeFirst].
      e history addFirst: (ExtensibleArray newWithAll: current).
-    [e history size > e maxHistorySize] whileTrue:
-      [e history removeLast].
+    [e history size > e maxHistorySize]
+      whileTrue: [e history removeLast].
     e currentHistoryIndex := 0].
 ].
 
@@ -252,9 +252,9 @@ e@(ConsoleLineEditor traits) hasInput
 ].
 
 e@(ConsoleLineEditor traits) continue &echoNewLine: echoNewLine
-[
+[| terminal |
   echoNewLine `defaultsTo: False.
-  (terminal ::= e terminal) events do:
+  (terminal := e terminal) events do:
     [| :event |
      [(event is: SmartConsole KeyDownEvent) ifTrue:
         [event keyName = #Enter ifTrue:
@@ -279,7 +279,7 @@ e@(ConsoleLineEditor traits) processEvent: event@(SmartConsole ResizeEvent trait
 
 e@(ConsoleLineEditor traits) processEvent: event
 "Process the event and return True if redraw is needed"
-[| skipRedraw value |
+[| skipRedraw keymap value |
   skipRedraw := False.
 
   "Choose value between keyName and char"
@@ -288,7 +288,7 @@ e@(ConsoleLineEditor traits) processEvent: event
     ifNotNil: [value := event keyName].
 
   "Select keymap based on modifier keys"
-  keymap ::= event controlState
+  keymap := event controlState
     ifTrue: [e controlKeymap]
     ifFalse:
       [event altState
@@ -329,8 +329,8 @@ e@(ConsoleLineEditor traits) wordStart &dynamic: dynamic
 "Answer the position of the start of the nearest word (right under the cursor).
 Dynamic means that if the cursor is already on the start of a word then it leaves that
 word and goes one word back."
-[| pos |
-  line ::= e lineString.
+[| line pos |
+  line := e lineString.
   pos := e position.
   dynamic `defaultsTo: False.
 
@@ -352,10 +352,10 @@ e@(ConsoleLineEditor traits) wordEnd &dynamic: dynamic
 "Answer the position of the end of the nearest word (right under the cursor).
 Dynamic means that if the cursor is already on the end of a word then it leaves that
 word and goes one word forward."
-[| pos |
-  line ::= e lineString.
-  size ::= line size.
+[| line size pos |
+  line := e lineString.
   pos := e position.
+  size := line size.
   dynamic `defaultsTo: False.
 
   pos > line indexLast
@@ -433,9 +433,10 @@ e@(ConsoleLineEditor traits) yank
 e@(ConsoleLineEditor traits) replaceWordWith: word
 "Replace the word under the cursor with the given word.
 Move cursor to end of the new word."
-[
-  (start ::= e wordStart) <= (end ::= e wordEnd)
-    ifTrue: [e lineString at: start remove: end - start].
+[| start end |
+  start := e wordStart.
+  end := e wordEnd.
+  end >= start ifTrue: [e lineString at: start remove: end - start].
   e lineString at: start insertAll: word.
   e position := start.
   e position := e wordEnd.
@@ -443,8 +444,8 @@ Move cursor to end of the new word."
 
 e@(ConsoleLineEditor traits) isCursorInQuotedString
 "A simple test to see if the cursor is between quotes."
-[
-  (start ::= e wordStart) isNotNil
+[| start |
+  (start := e wordStart) isNotNil
     /\ [start isPositive]
     /\ [(e lineString at: start - 1) isQuote]
 ].
@@ -461,8 +462,8 @@ e@(ConsoleLineEditor traits) handle: _@(ConsoleLineEditor Command traits)
 e@(ConsoleLineEditor traits) addCommand: name
 "Defines and returns a new attribute-named command object, with no slots.
 If one already exists, this re-uses it and ensures the slot properties."
-[
-  command ::= (e traits hasSlotNamed: name)
+[| command |
+  command := (e traits hasSlotNamed: name)
    ifTrue: [e traits atSlotNamed: name]
    ifFalse: [e Command clone].
   e traits addImmutableSlot: name valued: command.
@@ -474,23 +475,23 @@ e@(ConsoleLineEditor traits) addEditingCommand: name
   (e addCommand: name) `>> [edits := True. ]
 ].
 
-ConsoleLineEditor define: #AddCharacter &parents: {ConsoleLineEditor Command} &slots: {
-  #char -> $\0.
-  #edits -> True
-}.
+ConsoleLineEditor define: #AddCharacter
+		  &parents: {ConsoleLineEditor Command} &slots:
+  {#char -> $\0. #edits -> True}.
 
 c@(ConsoleLineEditor AddCharacter traits) newFor: char
 [c clone `setting: #{#char} to: {char}].
 
 e@(ConsoleLineEditor traits) handle: c@(ConsoleLineEditor AddCharacter traits)
-[
+[| result |
   e insertMode 
     ifTrue: [e lineString at: e position insert: c char]
     ifFalse: [
       e position = e lineString size
         ifTrue: [e lineString addLast: c char]
         ifFalse: [e lineString at: e position put: c char]].
-  (e position += 1) = e lineString size /\ [e terminal console autoScrollsAtBottom]
+  e position := e position + 1.
+  e position = e lineString size /\ [e terminal console autoScrollsAtBottom]
     ifTrue: [e terminal nextPut: c char.
              e redrawLine &incremental: True. ^ True].
 ].
@@ -527,8 +528,8 @@ e@(ConsoleLineEditor traits)
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #DeleteWordBackwards)
 [| start |
-  (start := e wordStart) > 0 ifTrue:
-    [start -= 1].
+  start := e wordStart.
+  start > 0 ifTrue: [start -= 1].
   e lineString at: start remove: e position - start.
   e position := start.
 ].
@@ -536,15 +537,15 @@ e@(ConsoleLineEditor traits)
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #DeleteWordForwards)
 [| end |
-  (end := e wordEnd) < e lineString size ifTrue:
-    [end += 1].
+  end := e wordEnd.
+  end < e lineString size ifTrue: [end += 1].
   e lineString at: e position remove: end - e position.
 ].
 
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #UpcaseWord)
-[
-  end ::= e wordEnd.
+[| end |
+  end := e wordEnd.
   (e lineString sliceFrom: e position below: end)
     infect: #toUppercase `er.
   e position := end.
@@ -552,8 +553,8 @@ e@(ConsoleLineEditor traits)
 
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #DowncaseWord)
-[
-  end ::= e wordEnd.
+[| end |
+  end := e wordEnd.
   (e lineString sliceFrom: e position below: end)
     infect: #toLowercase `er.
   e position := end.
@@ -652,10 +653,10 @@ e@(ConsoleLineEditor traits) handle: _@(ConsoleLineEditor addCommand: #Yank)
 
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #CopyRegion)
-[
-  e mark ifNotNil: [^ e position].
-  start ::= e mark min: e position.
-  end ::= e mark max: e position.
+[| start end |
+  e mark ifNil: [^ e position].
+  start := e mark min: e position.
+  end := e mark max: e position.
   e killRing addLast: (e lineString copyFrom: start to: end).
   e mark := Nil.
   e position
@@ -663,10 +664,10 @@ e@(ConsoleLineEditor traits)
 
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #CutRegion)
-[
+[| start end |
   e mark ifNil: [^ e position].
-  start ::= e mark min: e position.
-  end ::= e mark max: e position.
+  start := e mark min: e position.
+  end := e mark max: e position.
   e killRing addLast: (e lineString copyFrom: start to: end).
   e mark := Nil.
   e lineString := (e lineString copyFrom: 0 to: start)
@@ -685,76 +686,72 @@ e@(ConsoleLineEditor traits) handle: _@(ConsoleLineEditor addCommand: #Help)
 
 e@(ConsoleLineEditor traits)
   handle: _@(ConsoleLineEditor addEditingCommand: #Complete)
-[
-  (completions ::= e complete) size caseOf: {
-    0 -> [e terminal beep. ].
-    1 -> [e replaceWordWith: completions first]
-  } otherwise:
-    [e printInColumns: completions.
-     e terminal newLine.
-     e prompt ifNotNil: [e terminal ; e prompt].
-     e markCursorAsBasePosition.
-     e redrawLine. ]
+[| completions |
+  completions := e complete.
+  completions isEmpty ifTrue: [e terminal beep. ^ Nil].
+  completions size = 1 ifTrue: [^ (e replaceWordWith: completions first)].
+  e printInColumns: completions.
+  e terminal newLine.
+  e prompt ifNotNil: [e terminal ; e prompt].
+  e markCursorAsBasePosition.
+  e redrawLine.
 ].
 
 e@(ConsoleLineEditor traits) printInColumns: col
 "TODO: Oly prints one column for now.
 Could reuse some UI layouting algorithm"
-[
-  (term ::= e terminal) newLine.
+[| term |
+  term := e terminal.
+  term newLine.
   col
     do: [| :each | term ; '  ' ; each]
     separatedBy: [e terminal newLine].
 ].
 
-[| :assoc | ConsoleLineEditor controlKeymap add: assoc] for: {
-  $a -> ConsoleLineEditor CursorToBOL.
-  $b -> ConsoleLineEditor CursorCharBackwards.
-  $d -> ConsoleLineEditor EOF.
-  $e -> ConsoleLineEditor CursorToEOL.
-  $f -> ConsoleLineEditor CursorCharForwards.
-  $k -> ConsoleLineEditor KillToEOL.
-  $n -> ConsoleLineEditor HistoryNext.
-  $p -> ConsoleLineEditor HistoryPrevious.
-  $u -> ConsoleLineEditor CutRegion.
-  $y -> ConsoleLineEditor Yank.
-  $c -> ConsoleLineEditor KeyboardInterrupt.
-  $- -> ConsoleLineEditor Undo.
-  #Backspace -> ConsoleLineEditor DeleteWordBackwards.
-  #Delete -> ConsoleLineEditor DeleteWordForwards.
-  "Ctrl+Space can't be detected with ncurses (or with unix terminals in general?)"
-  #Space     -> ConsoleLineEditor SetMark.
-}.
+{
+ $a -> ConsoleLineEditor CursorToBOL.
+ $b -> ConsoleLineEditor CursorCharBackwards.
+ $d -> ConsoleLineEditor EOF.
+ $e -> ConsoleLineEditor CursorToEOL.
+ $f -> ConsoleLineEditor CursorCharForwards.
+ $k -> ConsoleLineEditor KillToEOL.
+ $n -> ConsoleLineEditor HistoryNext.
+ $p -> ConsoleLineEditor HistoryPrevious.
+ $u -> ConsoleLineEditor CutRegion.
+ $y -> ConsoleLineEditor Yank.
+ $c -> ConsoleLineEditor KeyboardInterrupt.
+ $- -> ConsoleLineEditor Undo.
+ #Backspace -> ConsoleLineEditor DeleteWordBackwards.
+ #Delete -> ConsoleLineEditor DeleteWordForwards.
+ "Ctrl+Space can't be detected with ncurses (or with unix terminals in general?)"
+ #Space     -> ConsoleLineEditor SetMark.
+} do: [| :assoc | ConsoleLineEditor controlKeymap add: assoc].
 
-[| :assoc | ConsoleLineEditor modifierKeymap add: assoc] for: {
-  $b -> ConsoleLineEditor CursorWordBackwards.
-  $f -> ConsoleLineEditor CursorWordForwards.
-  $l -> ConsoleLineEditor DowncaseWord.
-  $u -> ConsoleLineEditor UpcaseWord.
-  $w -> ConsoleLineEditor CopyRegion.
-}.
+{
+ $b -> ConsoleLineEditor CursorWordBackwards.
+ $f -> ConsoleLineEditor CursorWordForwards.
+ $l -> ConsoleLineEditor DowncaseWord.
+ $u -> ConsoleLineEditor UpcaseWord.
+ $w -> ConsoleLineEditor CopyRegion.
+} do: [| :assoc | ConsoleLineEditor modifierKeymap add: assoc].
 
-[| :assoc | ConsoleLineEditor keymap add: assoc] for: {
-  #Tab         -> ConsoleLineEditor Complete.
-  #Backspace   -> ConsoleLineEditor DeleteCharBackwards.
-  "It must be special-cased because we can't easily return from a non-toplevel method"
-  "#Return      -> ConsoleLineEditor FinishInput."
-  #UpArrow     -> ConsoleLineEditor HistoryPrevious.
-  #DownArrow   -> ConsoleLineEditor HistoryNext.
-  #RightArrow  -> ConsoleLineEditor CursorCharForwards.
-  #LeftArrow   -> ConsoleLineEditor CursorCharBackwards.
-  #Insert      -> ConsoleLineEditor ToggleInsert.
-  #Delete      -> ConsoleLineEditor DeleteCharForwards.
-  #Home        -> ConsoleLineEditor CursorToBOL.
-  #End         -> ConsoleLineEditor CursorToEOL
-}.
+{
+ #Tab         -> ConsoleLineEditor Complete.
+ #Backspace   -> ConsoleLineEditor DeleteCharBackwards.
+"It must be special-cased because we can't easily return from a non-toplevel method"
+"#Return      -> ConsoleLineEditor FinishInput."
+ #UpArrow     -> ConsoleLineEditor HistoryPrevious.
+ #DownArrow   -> ConsoleLineEditor HistoryNext.
+ #RightArrow  -> ConsoleLineEditor CursorCharForwards.
+ #LeftArrow   -> ConsoleLineEditor CursorCharBackwards.
+ #Insert      -> ConsoleLineEditor ToggleInsert.
+ #Delete      -> ConsoleLineEditor DeleteCharForwards.
+ #Home        -> ConsoleLineEditor CursorToBOL.
+ #End         -> ConsoleLineEditor CursorToEOL
+} do: [| :assoc | ConsoleLineEditor keymap add: assoc].
 
-ConsoleLineEditor traits define: #ReadStream &parents: {ReadStream} &slots: {
-  #editor.
-  #line.
-  #position.
-  #closed -> False
-}.
+ConsoleLineEditor traits define: #ReadStream &parents: {ReadStream}
+  &slots: {#editor. #line. #position. #closed -> False}.
 
 s@(ConsoleLineEditor ReadStream traits) on: editor
 [
@@ -767,20 +764,23 @@ s@(ConsoleLineEditor ReadStream traits) elementType [s terminal elementType].
 s@(ConsoleLineEditor ReadStream traits) collectionType [s terminal collectionType].
 
 s@(ConsoleLineEditor ReadStream traits) next
-[
-  [s line isNil \/ [s line isEmpty]] whileTrue:
-    [(s line := s editor readLine &echoNewLine: True) ifNil:
-       [s closed := True.
+[| result |
+  [s line isNil \/ [s line isEmpty]]
+    whileTrue: [
+      s line := (s editor readLine &echoNewLine: True).
+      s line ifNil: [
+        s closed := True.
         s exhausted.
         ^ Nil].
-     s line := s line ; '\n'.
-     s position := 0].
-  result ::= s line at: s position.
-  (s position += 1) = s line size ifTrue:
+      s line := (s line ; '\n').
+      s position := 0].
+  result := s line at: s position.
+  s position := s position + 1.
+  s position = s line size ifTrue:
     [s line := Nil].
   result
 ].
 
 "This is the default LineEditor that can be overridden by
 adding a slot to terminal instances."
-SmartTerminal traits LineEditor ::= ConsoleLineEditor.
+SmartTerminal traits define: #LineEditor -> ConsoleLineEditor.
