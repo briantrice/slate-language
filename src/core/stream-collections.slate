@@ -119,13 +119,10 @@ argument collection cannot contain non-collections."
 cols@(Sequence traits) allDo: block
 "Apply a coordinated do: over all of the collections in the given one,
 using iterators."
-[
-  iterators ::= cols iterators.
-  args ::= Array newSizeOf: iterators.
+[| iterators |
+  iterators := cols iterators.
   [iterators anySatisfy: #isAtEnd `er]
-    whileFalse:
-      [iterators collect: #next `er into: args.
-       block applyTo: args].
+     whileFalse: [block applyTo: (iterators collect: #next `er)].
 ].
 
 x@(Collection traits) with: y@(Collection traits) do: block
@@ -145,8 +142,8 @@ cols@(Sequence traits) allCollect: block
 cols@(Sequence traits) streamAllCollect: block
 [
   [(cols iterators collect: #next`er)
-     reader collect: [| *rest | block applyTo: rest]]
-    breakOn: Exhaustion
+   reader collect: [| *rest | block applyTo: rest]]
+     breakOn: Exhaustion
 ].
 
 x@(Collection traits) with: y@(Collection traits) collect: block
@@ -163,8 +160,8 @@ cols@(Sequence traits) unzip
 elements across them, using a collection of streams and running with:do:
 across the collection-result mapping. In other words, unzip means to turn a
 list of pairs into a pair of lists (for general values of 'pair')."
-[
-  results ::= cols first collect: [| :_ | cols newSameSize writer].
+[| results |
+  results := cols first collect: [| :_ | cols newSameSize writer].
   cols do:
     [| :col | col with: results do: [| :val :result | result nextPut: val]].
   results collect: #contents `er
@@ -192,25 +189,27 @@ source@(Root traits) streamFrom: target
 cols@(Sequence traits) combinationsDo: block
 "This performs a basic increment-with-carry across the iterators until
 they are exhausted. The block is applied to all intermediate results."
-[| position it |
-  ((iterators ::= cols iterators) anySatisfy: #isAtEnd `er)
-   ifTrue: [^ Nil].
-  values ::= iterators collect: #next `er .
+[| iterators values |
+  iterators := cols iterators.
+  (iterators anySatisfy: #isAtEnd `er )
+    ifTrue: [^ Nil].
+  values := iterators collect: #next `er .
   block applyTo: values.
-  [position := iterators indexLast.
-   eachIterator := iterators at: position.
-   [eachIterator isAtEnd /\ [position > 0]]
-     whileTrue:
-       [eachIterator reset.
-        values at: position put: eachIterator next.
-        position -= 1.
-        eachIterator := iterators at: position].
-   eachIterator isAtEnd /\ [position isZero]
-     ifTrue:
-       [^ Nil]
-     ifFalse:
-       [values at: position put: eachIterator next].
-   block applyTo: values] loop
+  [| position it |
+    position := iterators indexLast.
+    it := iterators at: position.
+    [it isAtEnd /\ [position > 0]]
+      whileTrue:
+        [it reset.
+          values at: position put: it next.
+          position -= 1.
+          it := iterators at: position].
+    it isAtEnd /\ [position isZero]
+      ifTrue:
+        [^ Nil]
+      ifFalse:
+        [values at: position put: it next].
+    block applyTo: values] loop
 ].
 
 cols@(Sequence traits) combinationsCollect: block into: result

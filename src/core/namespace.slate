@@ -5,10 +5,10 @@ ns@(Namespace traits) new
 [Namespace clone].
 
 ns@(Namespace traits) newDelegatingTo: parentObj
-[
-  result ::= ns new.
-  result _delegates := {parentObj. result traitsWindow}.
-  result
+[| newNS |
+  newNS := ns new.
+  newNS _delegates := {parentObj. newNS traitsWindow}.
+  newNS
 ].
 
 ns@(Namespace traits) newSubSpace
@@ -40,12 +40,12 @@ ns@(Namespace traits) newSisterSpace
 ns@(Namespace traits) flattened
 "Creates a new single Namespace object with all the slot-values and inherited
 slot values of the original Namespace structure."
-[
-  result ::= Namespace clone.
-  result addSlotsFrom: ns.
+[| newNS |
+  newNS := Namespace clone.
+  newNS addSlotsFrom: ns.
   ns allDelegatesDo:
-    [| :each | (each isSameAs: ns) ifTrue: [result addSlotsFrom: each]].
-  result
+    [| :each | (each isSameAs: ns) ifTrue: [newNS addSlotsFrom: each]].
+  newNS
 ].
 
 ns@(Namespace traits) here
@@ -69,17 +69,17 @@ or if there is a non-Namespace object there. This also takes specs for
 immutable slot values, and a &delegate flag for delegated-vs-not namespace."
 [| ns old |
   (x hasSlotNamed: name)
-   ifTrue:
-     [((old := x atSlotNamed: name) is: Namespace)
-        ifTrue: [old]
-        ifFalse: [x atSlotNamed: name put: Namespace clone]]
-   ifFalse: [(delegate ifNil: [False])
-               ifTrue: [ns := Namespace clone. x insertDelegate: ns. x addImmutableSlot: name valued: ns. ns]
-               ifFalse: [x addImmutableSlot: name valued: Namespace clone]].
+    ifTrue:
+      [((old := x atSlotNamed: name) is: Namespace)
+	 ifTrue: [old]
+	 ifFalse: [x atSlotNamed: name put: Namespace clone]]
+    ifFalse: [(delegate ifNil: [False])
+		ifTrue: [ns := Namespace clone. x insertDelegate: ns. x addImmutableSlot: name valued: ns. ns]
+		ifFalse: [x addImmutableSlot: name valued: Namespace clone]].
   ns := x atSlotNamed: name.
   (slotSpecs ifNil: [#{}]) do:
     [| :each | (each is: Association)
-       ifTrue: [ns addImmutableSlot: each key valued: each value]
-       ifFalse: [ns addImmutableSlot: each]].
+	       ifTrue: [ns addImmutableSlot: each key valued: each value]
+	       ifFalse: [ns addImmutableSlot: each]].
   ns
 ].

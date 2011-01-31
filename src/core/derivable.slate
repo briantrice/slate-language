@@ -31,7 +31,7 @@ d@(Derivable traits) orderTraits &mixins: mixins
   "TODO: Bootstrap-replace these two lines with the third (commented):"
   tally := d traitsTally.
   mixins do: [| :mixin | tally += mixin traitsTally].
-  "tally := mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally."
+  "tally := (mixins gather: [| :mixin :tally | tally + mixin traitsTally] &initial: d traitsTally)."
   order := mixins newSize: tally.
 
   index := mixins size + 1.
@@ -109,15 +109,15 @@ transparently, and sets the traits name slot to the name for convenience."
   basedOn `defaultsTo: Cloneable.
   parents `defaultsTo: {Cloneable}.
   parents size = 0 ifTrue: [error: 'Parent objects must be supplied.'].
-  "newProto := (parents at: 0) derive &mixins: (parents allButFirst: 1)."
-  newProto := basedOn derive &mixins: parents.
+  "newProto := ((parents at: 0) derive &mixins: (parents allButFirst: 1))."
+  newProto := (basedOn derive &mixins: parents).
   immutable ifTrue: [newProto := newProto immutably].
   "ensureSlot:is: may return the old value if =, but always returns what
   is installed after the method is done."
   (x hasSlotNamed: protoName)
     ifTrue: [| oldProto |
              oldProto := x atSlotNamed: protoName.
-             newProto := x ensureSlot: protoName is: newProto
+             newProto := (x ensureSlot: protoName is: newProto
                unlessSatisfies:
                  [| :old oldParents newParents |
                   "Modified equality using == over each delegate pair."
@@ -125,7 +125,7 @@ transparently, and sets the traits name slot to the name for convenience."
                   newParents := newProto traitsWindow _delegates.
                   oldParents size = newParents size
                     /\ [oldParents keySet allSatisfy:
-                          [| :index | (oldParents at: index) == (newParents at: index)]]].
+                      [| :index | (oldParents at: index) == (newParents at: index)]]]).
              newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
              newProto]
     ifFalse: [x addImmutableSlot: protoName valued: newProto].

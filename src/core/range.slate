@@ -26,14 +26,14 @@ r@(Range traits) newFrom: start to: end
 ].
 
 s@(Sequence traits) as: r@(Range traits)
-[| newR |
-  s size `cache caseOf: {
-    0 -> [r newFrom: 0 to: 0 by: 0].
-    1 -> [r newFrom: s first to: s last]
-  } otherwise:
-    [(newR := r newFrom: s first to: s last by: s last - s first // (s size - 1)) = s
-       ifTrue: [newR]
-       ifFalse: [error: 'The Sequence is not an arithmetic progression.']]
+[| newR size |
+  size := s size.
+  size = 0 ifTrue: [^ (r newFrom: 0 to: 0 by: 0)].
+  size = 1 ifTrue: [^ (r newFrom: s first to: s last)].
+  (newR := (r newFrom: s first to: s last by: s last - s first // (size - 1)))
+    = s
+    ifTrue: [newR]
+    ifFalse: [error: 'The Sequence is not an arithmetic progression.']
 ].
 
 start@(Number traits) to: end
@@ -192,8 +192,8 @@ elements at all."
 
 r@(Range traits) collect: block
 "Ensure that an Array is produced of the right size."
-[| each |
-  result ::= r arrayType newSizeOf: r.
+[| each result |
+  result := (r arrayType newSizeOf: r).
   each := r start.
   0 below: r size do:
     [| :i |
@@ -277,8 +277,8 @@ LogicRange step := [| :x | x + 1].
 
 r@(LogicRange traits) newFrom: start to: end by: step
 "Coerces any numerical parameters into blocks where necessary."
-[
-  goesUp ::= (step is: Number)
+[| goesUp |
+  goesUp := (step is: Number)
     ifTrue: [step isPositive]
     ifFalse: [(step applyWith: start) > start].
   r cloneSettingSlots: #{#start. #end. #step}
@@ -332,8 +332,8 @@ r@(LogicRange traits) at: n
   result := r start.
   0 below: n do:
     [| :each |
-     result := r step applyWith: result.
-     (r end applyWith: result) ifTrue: [error: 'Subscript out of bounds.']].
+       result := (r step applyWith: result).
+       (r end applyWith: result) ifTrue: [error: 'Subscript out of bounds.']].
   result
 ].
 
@@ -343,7 +343,7 @@ r@(LogicRange traits) do: block
   each := r start.
   [r end applyWith: each]
     whileFalse: [block applyWith: each.
-		 each := r step applyWith: each].
+		 each := (r step applyWith: each)].
   r
 ].
 

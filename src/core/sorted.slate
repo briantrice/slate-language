@@ -93,10 +93,10 @@ sc@(SortedArray traits) = sc2@(SortedArray traits)
 sc@(SortedArray traits) copy
 "Make a new SortedArray with the same sortBlock. Since we know the order
 will not change, use the minimally-checking addLast: method vice addAll:."
-[
-  result ::= sc newSameSize.
-  sc do: #(result addLast: _) `er.
-  result
+[| newC |
+  newC := sc newSameSize.
+  sc do: #(newC addLast: _) `er.
+  newC
 ].
 
 sc@(SortedArray traits) copyWith: obj
@@ -107,13 +107,13 @@ sc@(SortedArray traits) copyWith: obj
 
 sc@(SortedArray traits) copyFrom: start to: end
 "Copy the range into a new SortedArray which keeps the same sortBlock."
-[| result |
+[| newC |
   end < start \/ [sc isEmpty]
-    ifTrue: [result := sc new]
+    ifTrue: [newC := sc new]
     ifFalse:
-      [result := sc new &capacity: end - start + 1.
-       start to: end do: [| :index | result addLast: (sc at: index)]].
-  result
+      [newC := sc new &capacity: end - start + 1.
+       start to: end do: [| :index | newC addLast: (sc at: index)]].
+  newC
 ].
 
 sc@(SortedArray traits) reversed
@@ -121,10 +121,10 @@ sc@(SortedArray traits) reversed
 
 sc@(SortedArray traits) collect: block
 "Override in order to return an ExtensibleArray instead of a SortedArray."
-[
-  result ::= ExtensibleArray newSizeOf: sc.
-  sc do: [| :each | result addLast: (block applyWith: each)].
-  result
+[| newC |
+  newC := ExtensibleArray newSizeOf: sc.
+  sc do: [| :each | newC addLast: (block applyWith: each)].
+  newC
 ].
 
 sc@(SortedArray traits) indexOf: obj startingAt: start ifAbsent: block
@@ -169,8 +169,8 @@ does not exist (i.e., it is off the end of the collection), add it to the
 end, otherwise replace the element at that point with obj. This returns the
 destination index in any normal case. This operation does preserve the
 sort order."
-[
-  (index ::= sc indexForInserting: obj) > sc indexLast
+[| index |
+  (index := sc indexForInserting: obj) > sc indexLast
     ifTrue: [sc addLast: obj. sc indexLast]
     ifFalse: [(sc at: index) = obj ifFalse:
       [sc contents at: index + sc firstIndex put: obj. index]]
