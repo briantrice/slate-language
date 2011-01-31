@@ -203,20 +203,21 @@ ImageDefinition traits define: #cached &builder: [Dictionary new].
 like adding 3 + 4, say."
 "TODO: refactor ImageDefinition so that we can just supply a block here."
 
-def@(ImageDefinition traits) newNamed: filename endianness: endianness wordSize: wordSize
+def@(ImageDefinition traits) newNamed: filename endianness: endianness wordSize: wordSize &useTimestamp: useTimestamp
 [
   (def clone `setting: #{#endianness. #wordSize} to: {endianness. wordSize})
-   `>> [| :newDef | filename := newDef defaultFilename &base: filename. ]
+   `>> [| :newDef | filename := newDef defaultFilename &base: filename &useTimestamp: useTimestamp. ]
 ].
 
-def@(ImageDefinition traits) defaultFilename &base: base
+def@(ImageDefinition traits) defaultFilename &base: base &useTimestamp: useTimestamp
 "Generates a unique and descriptive image filename based on the definition."
 [
+  useTimestamp `defaultsTo: True.
   '%s.%s.%d.%d.image' sprintf*,
     (base ifNil: ['kernel']),
     (def endianness caseOf: {#LittleEndian -> ['little']. #BigEndian -> ['big']}),
     def wordSize,
-    lobby ticksSinceEpoch
+    (useTimestamp ifTrue: [lobby ticksSinceEpoch] ifFalse: ['latest'])
 ].
 
 def@(ImageDefinition traits) generate
