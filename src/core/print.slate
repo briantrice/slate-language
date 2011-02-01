@@ -186,14 +186,12 @@ unprintable prototypes in them."
 s@(Symbol traits) printOn: o@(PrettyPrinterMixin traits)
 "Print the Symbol readably, so that highlighting and evaluating answers the
 original argument."
-[| name |
-  s = #'' ifTrue:
-    [^ (o ; '#\'\'')].
-  name := s as: String.
+[
   o ; '#'.
-  (name allSatisfy: [| :c | c isAlphanumeric \/ [':&_' includes: c]])
-    ifTrue: [o ; name]
-    ifFalse: [name printOn: o]
+  `conditions: (
+    [s isEmpty] -> [o ; '\'\''].
+    [s allSatisfy: [| :c | c isAlphanumeric \/ [':&_' includes: c]]] -> [o ; s name]
+  ) otherwise: [s name printOn: o]
 ].
 
 n@(Integer traits) printOn: o@(PrettyPrinterMixin traits) &radix: radix &forceSign: forceSign &groupSeparator: groupSeparator &groupSize: groupSize
