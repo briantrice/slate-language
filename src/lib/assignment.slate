@@ -1,0 +1,136 @@
+
+n@(nodes Node traits) setTo: val
+"A macro to expand the node and value into an appropriate assignment for the
+location that the message appears to use."
+"TODO: Use type inference on arguments to detect if there should be a concrete
+slot attribute or other type of accessor to verify or distinguish."
+[overrideThis].
+
+load@(nodes LoadVariable traits) setTo: val
+"Expands a local variable reference into a store to it."
+[load store: val].
+
+message@(nodes UnaryMessage traits) setTo: val &environment: env
+"Makes a substitution of the unary message with a keyword message that is the
+mutator form of that selector (appends a colon)."
+[| var |
+  env isNil \/ [(msg arguments first = nodes ImplicitArgument) not]
+    ifTrue: [nodes KeywordMessage
+               sending: (message argument mutatorNameFor: message selector)
+               to: {message argument. val}]
+    ifFalse:
+      [var: (env addVariableNamed: message selector).
+       var store: val]
+].
+
+literal@(nodes Literal traits) setTo: val
+[| lhs |
+  lhs: literal value.
+  (lhs is: Symbol) \/ [lhs is: String]
+    ifTrue:
+      [literal value: lhs intern.
+       `(addSlot: literal `unquote valued: val `unquote)]
+    ifFalse:
+      [(lhs is: Integer)
+         ifTrue: [`(at: literal `unquote put: val `unquote)]
+         ifFalse:
+           [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
+].
+
+_@(nodes Placeholder traits) setTo: val
+[
+  val
+].
+
+message@(nodes KeywordMessage traits) setTo: val
+"Expands a message by looking at its selector and picking the right setter."
+[
+  (message selector isKeywordSelector ifTrue:
+    [message selector caseOf:
+      {#atSlotNamed: -> [#atSlotNamed:put:].
+       #at: -> [#at:put:].
+       #byteAt: -> [#byteAt:put:].
+       #wordAt: -> [#wordAt:put:].
+     } otherwise:
+       [| selectorWithPut |
+        (selectorWithPut: message selector name ; 'put:')
+          isInterned ifTrue: [selectorWithPut intern]]])
+    ifNil: [error: 'The selector cannot be handled via setTo:.'. message]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+].
+
+paren@(nodes Parenthesis traits) setTo: val
+"Performs a multiple-assignment by transforming each statement."
+[| result |
+  result: paren copy.
+  result statements infect: [| :statement | statement setTo: val].
+  result
+].
+
+array@(nodes Array traits) setTo: vals &environment: env
+"Performs a multiple-assignment."
+[
+  array statements size caseOf: {
+    0 -> [vals].
+    1 -> [array statements last setTo: `(vals `unquote first)]
+  } otherwise:
+    [| result tmpVar |
+     result: array copy.
+     env
+       ifNil:
+         [TODO: 'Can\'t handle this outside of a block context.']
+       ifNotNil:
+         [tmpVar: ((vals is: nodes LoadVariable)
+                     ifTrue: [vals variable] ifFalse: [env addVariable]).
+          "result statements: array statements collectWithIndex:"
+          array statements doWithIndex:
+            [| :statement :index |
+             result statements at: index put:
+               (statement setTo:
+                  (nodes KeywordMessage sending: #at: to:
+                     {tmpVar load. nodes Literal for: index}))].
+          {tmpVar store: vals. result} as: nodes Parenthesis]]
+].
+
+load@(nodes LoadVariable traits) defaultsTo: default
+"A macro that expands to an expression that sets a variable in the scope to
+the expression in the default."
+[`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
+
+node@(nodes Node traits) defaultsTo: default
+"Conditional assignment on the value being Nil or absent.
+This generalizes on Load defaultsTo:."
+[`(node `unquote ifNil: [(node setTo: default) `unquote])].
+
+node@(nodes Node traits) setToIfNotNil: value &environment: env
+"Conditional assignment on the value being Nil or absent.
+This generalizes on Load defaultsTo:."
+[
+  `(value `unquote ifNotNil: [(node setTo: value) `unquote])
+].
+
+node@(nodes Node traits) ?= value
+[
+  node setToIfNotNil: value
+].
+
+node@(nodes Node traits) += value
+[
+  node setTo: (nodes BinaryMessage sending: #+ to: {node. value})
+].
+
+node@(nodes Node traits) -= value
+[
+  node setTo: (nodes BinaryMessage sending: #- to: {node. value})
+].
+
+node@(nodes Node traits) *= value
+[
+  node setTo: (nodes BinaryMessage sending: #* to: {node. value})
+].
+
+node@(nodes Node traits) /= value
+[
+  node setTo: `(node `unquote / value `unquote)
+].

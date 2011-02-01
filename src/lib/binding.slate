@@ -1,0 +1,56 @@
+
+node@(nodes Node traits) bindTo: value
+[
+  overrideThis
+].
+
+_@(nodes Placeholder traits) bindTo: val
+[
+  val
+].
+
+literal@(nodes Literal traits) bindTo: val &environment: env
+[| lhs |
+  lhs: literal value.
+  (lhs is: Symbol) \/ [lhs is: String]
+    ifTrue:
+      [(nodes UnaryMessage sending: lhs intern to: {nodes ImplicitArgument})
+         bindTo: val &environment: env]
+    ifFalse:
+      [error: 'Cannot bind this type of literal: ' ; lhs printString]
+].
+
+load@(nodes LoadVariable traits) bindTo: value &environment: env
+[
+  `(load `unquote
+      ifNil: [(load store: value) `unquote]
+      ifNotNil: [error: 'Cannot rebind'])
+].
+
+msg@(nodes UnaryMessage traits) bindTo: value &environment: env
+[
+  env isNil \/ [(msg arguments first = nodes ImplicitArgument) not]
+    ifTrue:
+      [nodes KeywordMessage sending: #bind:to: to:
+         {msg arguments first. nodes Literal for: msg selector. value}]
+    ifFalse:
+      [(env outermostScopeNotBinding: msg selector)
+         ifNil: [error: 'Cannot rebind']
+         ifNotNilDo:
+           [| :scope |
+            StoreVariable of: value into:
+              (scope addVariable: (nodes Binding named: msg selector))]]
+].
+
+message@(nodes KeywordMessage traits) bindTo: val
+"Expands a message by looking at its selector and picking the right setter."
+[
+  (message selector isKeywordSelector ifTrue:
+    [message selector caseOf: {
+       #addSlotNamed: -> [#bind:to:].
+       #addImmutableSlotNamed: -> [#bind:to:].
+     } otherwise: []])
+    ifNil: [error: 'Cannot rebind'. message]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
+].

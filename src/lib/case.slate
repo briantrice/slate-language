@@ -1,0 +1,44 @@
+
+node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement traits) otherwise: fallbackAction@(nodes Block traits)
+[| result |
+  result := fallbackAction.
+  (testsToActions statements copyWith: fallbackAction) reverseReduce:
+    [| :result :assocExpr test action |
+     test := assocExpr arguments first.
+     action := assocExpr arguments second.
+     (test `unquote do ifTrue: action `unquote ifFalse:
+        (((result isSameAs: nodes Block)
+            ifTrue: [result]
+            ifFalse: [nodes Block newFor: result]) `unquote)) `quote]
+].
+
+node@(nodes Node traits) conditions: testsToActions@(nodes CompoundStatement traits)
+[node conditions: testsToActions otherwise: `[Nil]].
+
+x@(Root traits) isCaseOf: y@(Root traits)
+[x = y].
+
+x isCaseOf: y@(Collection traits)
+[y includes: x].
+
+x isCaseOf: y@(Method traits)
+[y apply*, x].
+
+node@(nodes Node traits) handleFirstCaseOf: casesToActions@(nodes CompoundStatement traits) otherwise: fallbackAction@(nodes Block traits) &environment: env
+[| tmpVar result |
+  env ifNil: [error: 'Cannot handle cases outside of a method'].
+  tmpVar := env addVariable.
+  result := fallbackAction.
+  {tmpVar store: node.
+   (casesToActions statements copyWith: fallbackAction) reverseReduce:
+     [| :result :assocExpr case action |
+      case := assocExpr arguments first.
+      action := assocExpr arguments second.
+      (tmpVar load `unquote isCaseOf: case `unquote ifTrue: action `unquote ifFalse:
+         (((result isSameAs: nodes Block)
+             ifTrue: [result]
+             ifFalse: [nodes Block newFor: result]) `unquote)) `quote]} parenthesize
+].
+
+node@(nodes Node traits) handleFirstCaseOf: casesToActions@(nodes CompoundStatement traits) &environment: env
+[node handleFirstCaseOf: casesToActions otherwise: `[Nil] &environment: env].
