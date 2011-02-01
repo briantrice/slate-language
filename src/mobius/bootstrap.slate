@@ -829,14 +829,12 @@ gen@(Generator traits) generateBootstrapNamespace
      {#False.                gen objectsAt: #FalseObject}.
      {#lobby.                gen objectsAt: #BootstrapObject}.
      {#bootstrapCharacters.  gen cloneOf: (gen objectsAt: #ArrayProto) elements: gen characters}.
-     {#bootstrapSymbols.     gen objectsAt: #ArrayProto}.
-     {#Symbols.              gen objectsAt: #NilObject}.
+     {#Symbols.              gen objectsAt: #ArrayProto}.
      {#bootstrapInterpreter. gen objectsAt: #InterpreterObject}.
      {#ensureMarker.         gen objectsAt: #EnsureMarkerObject}.
      {#specialOops.          gen objectsAt: #ArrayProto}.
      {#features.             gen objectsAt: #ArrayProto}.
   }.
-  gen addMutatorFor: #bootstrapSymbols on: (gen objectsAt: #GlobalsObject).
   gen addMutatorFor: #features on: (gen objectsAt: #GlobalsObject)
 ].
 
@@ -881,7 +879,7 @@ gen@(Generator traits) generateLinkage
            #applyTo:.
            #&optionals:.
            #badTypeError} collect: #(gen generateLiteral: _) `er)).
-  (gen objectsAt: #GlobalsObject) setSlot: #bootstrapSymbols to:
+  (gen objectsAt: #GlobalsObject) setSlot: #Symbols to:
     (gen cloneOf: (gen objectsAt: #ArrayProto) elements: gen symbols valueSet).
 ].
 

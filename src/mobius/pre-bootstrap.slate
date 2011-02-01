@@ -197,7 +197,7 @@ s@(Symbol traits) newNamed: name
 _@lobby intern: s@(ASCIIString traits) 
 [| i size sym |
   size: s size.
-  bootstrapSymbols do: 
+  Symbols do:
     [| :sym | 
      sym size = size
        ifTrue:
@@ -207,7 +207,7 @@ _@lobby intern: s@(ASCIIString traits)
               [i: i + 1.
                i = size ifTrue: [^ sym]]]].
   sym: (Symbol newNamed: s).
-  bootstrapSymbols: (bootstrapSymbols copyWith: sym).
+  globals atSlotNamed: #Symbols put: (Symbols copyWith: sym).
   sym
 ].
 
