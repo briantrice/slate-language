@@ -238,9 +238,9 @@ def@(ImageDefinition traits) generate
        [| :each | File newNamed: def bootstrapDirectory ; '/' ; each]) do:
       [| :file |
        inform: 'Parsing: %r', file locator.
-       file mode := file Read.
        file sessionDo:
-         [| :file | (Parser newOn: file ASCIIReader) >> out]]]
+         [| :file | (Parser newOn: file ASCIIReader) do: [| :node | out nextPut: node macroExpand]]
+         &mode: file Read]]
     writingAs: bootBlock statements.
   inform: 'Building image: %r', def filename.
   builder generateImageBooting: bootBlock withPrims: def primitives.
