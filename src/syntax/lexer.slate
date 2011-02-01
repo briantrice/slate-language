@@ -9,8 +9,6 @@ Also, debugging information is stored for now in terms of the line number that
 the current stream position has reached."
 Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
-(Syntax import: #Lexer from: here) `bootstrapping.
-
 l@(Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
 [
@@ -26,7 +24,7 @@ l@(Lexer traits) reset
 
 l@(Lexer traits) showTokensFrom: src
 [
-  (l newOn: src) do: [| :x | inform: x printString]
+  (l newOn: src) do: [| :x | inform: x printString].
 ].
 
 l@(Lexer traits) isEndOfLine: char [char == $\n].
@@ -241,7 +239,8 @@ l@(Lexer traits) read: type@(tokens Selector traits)
      [| :result |
       l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
         [l nextWordCharactersInto: result]] writingAs: '') isEmpty
-    ifFalse: [type for: result]
+   ifTrue: []
+   ifFalse: [type for: result]
 ].
 
 l@(Lexer traits) readLiteralPastHash
