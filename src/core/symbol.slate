@@ -42,17 +42,17 @@ s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
 "Set up the table for interned strings, or Symbols in general."
 (lobby globals Symbols is: Sequence) ifTrue:
   [| newTable |
-   newTable := Dictionary new &capacity: Symbols size * 2.
-   Symbols do: [| :each | newTable at: each name put: each].
+   newTable := Dictionary new &capacity: lobby globals Symbols size * 2.
+   lobby globals Symbols do: [| :each | newTable at: each name put: each].
    lobby globals atSlotNamed: #Symbols put: newTable.
    "Remove the bootstrap kluge."
    #intern: removeMethodFrom: {lobby. ASCIIString traits}].
 
-x@lobby intern: s@(String traits)
+_@lobby intern: s@(String traits)
 "Answer a Symbol object with the string as its name. This will identify any
 existing Symbol with the same name and use that, or create a new one if not."
 [
-  x globals Symbols at: s ifAbsentPut: [Symbol newNamed: s]
+  globals Symbols at: s ifAbsentPut: [Symbol newNamed: s]
 ].
 
 s@(Symbol traits) named: name
@@ -60,12 +60,12 @@ s@(Symbol traits) named: name
   globals Symbols at: name
 ].
 
-x intern: s@(Symbol traits)
+x@lobby intern: s@(Symbol traits)
 [x intern: s name].
 
 s@(Root traits) intern
 "A quick way to create a new Symbol, and allow for genericity later, perhaps."
-[s intern: s].
+[lobby intern: s].
 
 globals removeSlot: #bootstrapSymbols.
 
