@@ -1,6 +1,6 @@
 prototypes ensureNamespace: #conditions &delegate: True.
 
-conditions addSlot: #conditionStack valued: Stack new.
+conditions conditionStack ::= Stack new.
 "The current active condition stack. This assumes that no concurrency is
 present."
 
@@ -42,8 +42,8 @@ _@(Condition traits) describeOn: console
 
 block@(Method traits) on: c@(Condition traits) do: handler
 "Establishes a handler to be executed when the Condition is signaled within the block."
-[| context |
-  context := c clone `>>
+[
+  context ::= c clone `>>
     [handlers := {handler}.
      exitContinuation := [| :result | ^ result]. ].
   conditionStack push: context.
@@ -65,8 +65,8 @@ block@(Method traits) on: col@(Collection traits) do: handler
 block@(Method traits) handlingCases: handlers
 "Establishes handlers to be executed when their associated Conditions are
 signaled within the block."
-[| context pos |
-  pos := conditionStack position.
+[| context |
+  savedPosition ::= conditionStack position.
   handlers
     reverseDo:
       [| :handler |
@@ -74,24 +74,23 @@ signaled within the block."
          [handlers := {handler value}.
           exitContinuation := [| :result | ^ result]. ].
        conditionStack push: context].
-  block ensure: [conditionStack position := pos]
+  block ensure: [conditionStack position := savedPosition]
 ].
 
 c@(Condition traits) tryHandlers
-[| delegates |
-   c returnContinuation := [| :result | ^ result].
-   delegates := c allDelegates.
-   conditionStack
-     reverseDoWithIndex:
-       [| :context :index |
-        (delegates includes: context traits)
-	  ifTrue:
-            [[(index -= 1) >= 0
-                /\ [(conditionStack at: index) exitContinuation == context exitContinuation]]
-               whileTrue.
-             c exitContinuation := context exitContinuation.
-             context handlers do: #(applyWith: c) `er]].
-   c defaultHandler 
+[
+  c returnContinuation := [| :result | ^ result].
+  delegates ::= c allDelegates.
+  conditionStack reverseDoWithIndex:
+    [| :context :index |
+     (delegates includes: context traits)
+       ifTrue:
+         [[(index -= 1) >= 0
+             /\ [(conditionStack at: index) exitContinuation == context exitContinuation]]
+            whileTrue.
+          c exitContinuation := context exitContinuation.
+          context handlers do: #(applyWith: c) `er]].
+  c defaultHandler
 ].
 
 "
@@ -105,7 +104,7 @@ c@(Condition traits) tryHandlers
 	  ifTrue:
             [c exitContinuation := context exitContinuation.
              context handlers do: #(applyWith: c) `er]].
-   c defaultHandler 
+   c defaultHandler
 ].
 "
 
@@ -199,6 +198,26 @@ _@(Quit traits) describeOn: console
 _@(Quit traits) defaultHandler
 "Cause Slate to exit with an error code to the underlying system."
 [lobby exit: 1].
+
+conditions define: #ReturnInput &parents: {Restart} &slots: {
+  #newValue -> 0. "The value to return from the operation."
+}.
+
+r@(ReturnInput traits) queryFrom: d
+[
+  d console ; 'Select a value to return: '.
+  r newValue := d evaluate: d parser next.
+].
+
+_@(ReturnInput traits) describeOn: out
+[
+  out ; 'Select a new value to return\n'
+].
+
+r@(ReturnInput traits) defaultHandler
+[
+  r condition return: r newValue
+].
 
 conditions define: #DescriptiveConditionMixin &parents: {Cloneable} &slots: {#description -> 'Undescribed condition'}.
 "Conditions which bear a description."

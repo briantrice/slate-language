@@ -179,30 +179,11 @@ c@(ConversionNotFound traits) describeOn: out
 numerics define: #OperationError &parents: {Error}.
 "A numeric operation error. This offers the ability to continue with some
 value."
-numerics OperationError define: #ReturnInput &parents: {Restart} &slots: {#newValue -> 0. "The value to return from the operation."}.
-
-r@(OperationError ReturnInput traits) queryFrom: d
-[
-  d console ; 'Select a value to return: '.
-  r newValue := d evaluate: d parser next.
-].
-
-_@(OperationError ReturnInput traits) describeOn: out
-[
-  out ; 'Select a new value to return\n'
-].
-
-r@(OperationError ReturnInput traits) defaultHandler
-[
-  r condition return: r newValue
-].
 
 _@(OperationError traits) describeOn: out
 [
   out ; 'Numeric operation error.\n'
 ].
-
-"[| :restart | restart condition return: restart newValue]"
 
 numerics define: #DivideByZero &parents: {numerics OperationError} &slots: {#dividend -> 0. "The number which division was taken on."}.
 "A division by zero error."
