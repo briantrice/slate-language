@@ -221,7 +221,8 @@ l@(Load traits) run
      l verbose ifTrue:
        [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
 	inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
-     each evaluateIn: l targetNamespace].
+     [each evaluateIn: l targetNamespace]
+       on: RebindError do: [| :c | c return]].
 ].
 
 _@(Root traits) copyright

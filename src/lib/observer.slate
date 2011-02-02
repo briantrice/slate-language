@@ -1,4 +1,4 @@
-globals define: #Observers &builder: [IdentityDictionary new].
+globals Observers ::= IdentityDictionary new.
 "Maps observed objects to {Observer. SlotName} pairs."
 
 obj@(Root traits) whenSlot: slotName changesNotify: observer &mutatorName: mutatorName
@@ -25,8 +25,8 @@ give slot name, and then overwrite the mutator for the slot."
 obj@(Root traits) removeObserver: observer
 "Remove any notification pairs with the observer object specified. Then delete
 the object's entry if there are no remaining Observers for the object."
-[| observerEntries |
-  observerEntries := Set new.
+[
+  observerEntries ::= Set new.
   "Remove all observation entries for that observer, and remember them."
   (Observers at: obj ifPresent:
     [| :entries |

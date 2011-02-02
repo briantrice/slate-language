@@ -148,9 +148,9 @@ x@(Root traits) addImmutableSlot: slotName valued: slotValue
 x@(Root traits) bind: slotName to: slotValue
 [
   (x hasSlotNamed: slotName)
-    ifTrue: [x error: 'Cannot rebind']
+    ifTrue: [x rebindOf: slotName]
     ifFalse: [x rawAddSlot: slotName valued: slotValue.
-              (slotName isFoundOn: {x}) ifFalse: [x addAccessorFor: slotName].
+              (slotName findOn: {x}) ifNil: [x addAccessorFor: slotName].
               slotValue]
 ].
 

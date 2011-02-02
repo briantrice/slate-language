@@ -1,5 +1,4 @@
-collections define: #NoDuplicatesCollection
-	    &parents: {ExtensibleCollection}.
+collections define: #NoDuplicatesCollection &parents: {ExtensibleCollection}.
 "The collection type which holds at most one of any object as an element."
 "TODO: find out if some collections need to be non-extensible AND optimized
 for no-duplicates. (My guess is that the answer is 'no'.)"
@@ -44,21 +43,22 @@ a duplicate is determined by a binary comparison and associated hash
 function on each object."
 
 collections define: #Set &parents: {NoDuplicatesCollection} &slots: {
-#tally -> 0. 
-#contents -> (Array newSize: 10).
-#containsNil -> False.
-#hashBlock -> (#hash `er) .
-#equalsBlock -> (#= `er) .
+  #tally -> 0.
+  #contents -> (Array newSize: 10).
+  #containsNil -> False.
+  #hashBlock -> (#hash `er) .
+  #equalsBlock -> (#= `er) .
 }.
 
-collections define: #IdentitySet &builder:
-  [Set cloneSettingSlots: #{#hashBlock. #equalsBlock}
-       to: {#identityHash`er. #==`er}].
+collections IdentitySet ::=
+  Set cloneSettingSlots: #{#hashBlock. #equalsBlock} to: {#identityHash`er. #==`er}.
 "IdentitySets specialize their behavior to compare solely by object identity."
 
 c@(Set traits) new &capacity: n
-[c cloneSettingSlots: #{#contents. #tally}
-   to: {c contents new &capacity: ((n ifNil: [0]) max: 1). 0}].
+[
+  c clone `>>
+    [contents := c contents new &capacity: ((n ifNil: [0]) max: 1). tally := 0. ]
+].
 
 c@(Set traits) = d@(Set traits)
 "Comparison is by iteration over each element in the Sets. This is avoided
@@ -67,11 +67,11 @@ when possible by making very cheap comparisons first."
   c == d
     \/ [c size = d size
 	  /\ [c containsNil eqv: d containsNil]
-	  /\ [c allSatisfy: [| :each | (d includes: each)]]]
+	  /\ [c allSatisfy: [| :each | d includes: each]]]
 ].
 
 c@(Set traits) copy
-[c cloneSettingSlots: #{#contents} to: {c contents copy}].
+[c clone `>> [contents := c contents copy. ]].
 
 c@(Set traits) size
 "The number of elements, the conceptual size of the Set."
@@ -94,29 +94,27 @@ c@(Set traits) clear
 
 c@(Set traits) atRandomBy: random
 "Collaborate with a RandomStream to provide one of the elements at random."
-[| index |
+[
   c emptyCheck.
-  index := random next \\ c contents size.
-  index below: c contents size
-	do: [| :i | (c contents at: i) ifNotNilDo: [| :obj | ^ obj]].
-  0 below: index
-    do: [| :i | (c contents at: i) ifNotNilDo: [| :obj | ^ obj]].
+  (randomIndex ::= random next \\ c contents size) below: c contents size do:
+    [| :i | (c contents at: i) ifNotNilDo: [| :obj | ^ obj]].
+  0 below: randomIndex do:
+    [| :i | (c contents at: i) ifNotNilDo: [| :obj | ^ obj]].
 ].
 
 c@(Set traits) include: obj
 "Ensure that the object is a member of the Set by adding it if not found."
-[| index |
-  index := c scanFor: obj.
-  (c contents at: index) ifNil: [c atNewIndex: index put: obj].
+[
+  (c contents at: (index ::= c scanFor: obj))
+   ifNil: [c atNewIndex: index put: obj].
   obj
 ].
 
 c@(Set traits) include: _@Nil [c containsNil := True. ].
 
 c@(Set traits) remove: obj ifAbsent: block
-[| index |
-  index := c scanFor: obj.
-  (c contents at: index)
+[
+  (c contents at: (index ::= c scanFor: obj))
     ifNil: [block do]
     ifNotNil:
       [c contents at: index put: Nil.
@@ -133,10 +131,10 @@ c@(Set traits) remove: _@Nil ifAbsent: block
 ].
 
 c@(Set traits) collect: block
-[| newSet |
-  newSet := c newSameSize.
-  c do: [| :each | newSet include: (block apply*, each)].
-  newSet
+[
+  result ::= c newSameSize.
+  c do: [| :each | result include: (block apply*, each)].
+  result
 ].
 
 c@(Set traits) do: block
@@ -181,8 +179,8 @@ placed below due to collisions with this one."
 
 c@(Set traits) fullCheck
 "Keep the array at least 1/4 free for decent hash behavior."
-[| size |
-  (size := c contents size) - c tally < (size // 4 max: 1)
+[
+  c contents size - c tally < (c contents size // 4 max: 1)
     ifTrue: [c grow].
 ].
 
@@ -195,8 +193,8 @@ c@(Set traits) growSize
 c@(Set traits) growBy: growthAmount
 "Replace the array with a new one larger by growthAmount, and copy over the
 elements with the non-checking method."
-[| oldElems |
-  oldElems := c contents.
+[
+  oldElems ::= c contents.
   c contents := c contents new &capacity: c contents size + growthAmount.
   c tally := 0.
   oldElems do: [| :each |
@@ -238,8 +236,8 @@ c@(Set traits) noCheckAdd: _@Nil
 c@(Set traits) rehash
 "Use a cloned Set to re-calculate and place the objects in the array, and
 then simply re-use that Set's array."
-[| tempSet |
-  tempSet := c newSameSize.
+[
+  tempSet ::= c newSameSize.
   c do: #(tempSet noCheckAdd: _) `er.
   c contents := tempSet contents.
 ].
@@ -248,10 +246,10 @@ c@(Set traits) scanFor: obj
 "Scan the array for the first slot containing either a Nil or an element
 matching the object. Answer the index of that slot or 0 if no slot is
 found. Override this to provide different matching criteria."
-[| element start end block |
-  end := c contents size.
-  start := (c hashBlock apply*, obj) \\ end.
-  block :=
+[| element |
+  end ::= c contents size.
+  start ::= (c hashBlock apply*, obj) \\ end.
+  block ::=
     [| :index |
      (element := c contents at: index) isNil
        \/ [c equalsBlock apply*, element, obj]
@@ -273,7 +271,7 @@ Nil if none such is found."
 c@(Set traits) includes: obj
 "Check the index determined by the hash, and return true whether the array
 slot isn't empty."
-[ 
+[
   (c scanFor: obj)
     ifNil: [False]
     ifNotNilDo: [| :index | (c contents at: index) isNotNil]
@@ -284,8 +282,8 @@ c@(Set traits) includes: _@Nil [c containsNil].
 c@(Collection traits) copyWithoutDuplicates &comparison: equalsBlock
 "Iterate through the Collection, creating a new one where only the first
 element (encountered by do:) distinct according to the comparison is included."
-[| seen |
-  seen := Set new.
+[
+  seen ::= Set new.
   equalsBlock ifNotNil: [seen equalsBlock := equalsBlock].
   [| :result |
    c do: [| :each | (seen includes: each)

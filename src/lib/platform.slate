@@ -1,11 +1,12 @@
-define: #Platform
-  &slots: {#name -> ''.
-	   #nodeName -> ''.
-	   #systemRelease -> ''.
-	   #systemVersion -> ''.
-	   #machine -> ''.
-	   #endianness -> #LittleEndian.
-	   #bytesPerWord -> 4}.
+define: #Platform &slots: {
+  #name -> ''.
+  #nodeName -> ''.
+  #systemRelease -> ''.
+  #systemVersion -> ''.
+  #machine -> ''.
+  #endianness -> #LittleEndian.
+  #bytesPerWord -> 4
+}.
 
 p@(Platform traits) update
 [
@@ -22,11 +23,11 @@ p@(Platform traits) update
 p@(Platform traits) current
 [p clone update].
 
-Platform traits define: #Current &builder: [Platform current].
+Platform traits Current ::= Platform current.
 
-Platform traits define: #PosixNames -> #{#Linux. #Darwin. #Cygwin. #FreeBSD. #NetBSD. #OpenBSD. #SunOS. #BeOS. #Haiku}.
+Platform traits PosixNames ::= #{#Linux. #Darwin. #Cygwin. #FreeBSD. #NetBSD. #OpenBSD. #SunOS. #BeOS. #Haiku}.
 
-Platform traits define: #WindowsNames -> #{#Win32. #Win64}.
+Platform traits WindowsNames ::= #{#Win32. #Win64}.
 
 p@(Platform traits) isPosix
 "Whether the underlying platform implements (enough of?) the POSIX API."
@@ -59,8 +60,9 @@ Image startupActions at: #Platform put:
   Platform Current update
 ].
 
-define: #Environment &parents: {Mapping. ExtensibleCollection}
-&slots: {#variables -> Dictionary new}.
+define: #Environment &parents: {Mapping. ExtensibleCollection} &slots: {
+  #variables -> Dictionary new
+}.
 
 p@(Platform traits) environment [Environment].
 
@@ -68,16 +70,16 @@ Image startupActions at: #Environment put:
 [Environment update].
 
 e@(Environment traits) update
-[| variables |
-  variables := lobby environmentVariables.
+[
+  variables ::= lobby environmentVariables.
   e variables := e variables newSizeOf: variables.
   variables do:
-    [| :each eachString equalsIndex key value |
-     eachString := each as: String.
-     equalsIndex := eachString indexOf: $= ifAbsent: [eachString length].
-     key := eachString first: equalsIndex.
-     value := eachString allButFirst: equalsIndex + 1.
-     e variables at: key put: value].
+    [| :each |
+     eachString ::= each as: String.
+     equalsIndex ::= eachString indexOf: $= ifAbsent: [eachString length].
+     key ::= eachString first: equalsIndex.
+     value ::= eachString allButFirst: equalsIndex + 1.
+     e variables at: key := value].
 ].
 
 e@(Environment traits) size
@@ -172,8 +174,8 @@ p@(Platform traits) edit: m@(Method traits) &editor: editor &reload: reload
          ifNil:
            [warn: 'File-based source information unavailable.'. False]
          ifNotNilDo:
-           [| :fileName result |
-            result := p run: editor
+           [| :fileName |
+            result ::= p run: editor
               ; (src lineNumber ifNil: [''] ifNotNilDo: [| :n | ' +' ; n printString])
               ; ' ' ; (fileName as: String).
             result /\ reload ifTrue: [m reload].
@@ -200,7 +202,7 @@ p@(Platform traits) browse: url &browser: browser
   p run: browser ; ' ' ; (s as: String)
 ].
 
-define: #shell &builder: [lobby newSubSpace].
+shell ::= lobby newSubSpace.
 
 _@shell didNotUnderstand: message at: position
 "Form a command string and execute it."
@@ -216,16 +218,14 @@ _@shell didNotUnderstand: message at: position
                 [| :key :value |
                  command ; ' -' ; (key as: String) allButFirst allButLast ; ' ' ; (value as: String)]].
          message selector isKeywordSelector ifTrue:
-           [| keywords args |
-            keywords := message selector keywords.
+           [keywords ::= message selector keywords.
             command ; keywords first.
             keywords size = 1 ifTrue: "Read a string or array of arguments."
-              [args := message arguments second.
+              [args ::= message arguments second.
                `conditions: (
                  [args is: String] -> [command ; ' ' ; args].
                  [args is: Collection] -> [args do: [| :arg | command ; ' ' ; arg]]
-               )
-           ]].
+           )]].
          message arguments allButFirst: message selector arity do:
            [| :arg | command ; ' ' ; (arg as: String)]] writingAs: String)
          ifNil: [resend] ifNotNilDo: [| :cmd | [Platform run: cmd]]]

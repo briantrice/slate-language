@@ -29,12 +29,12 @@ ns@(Namespace traits) print: obj &target: target
 ns@(Namespace traits) query: message &target: target
 "A simple way to ask input of the user on an ExternalResource (by default
 the Console) and return a Slate String response."
-[| response |
+[
   target `defaultsTo: REPL resource.
   target writer ; message.
   target writer flush.
   "Grabs the next line when it's available."
-  [(response := target interactor upTo: $\n) isEmpty] whileTrue.
+  [(response ::= target interactor upTo: $\n) isEmpty] whileTrue.
   target writer flush.
   response
 ].
@@ -42,18 +42,18 @@ the Console) and return a Slate String response."
 ns@(Namespace traits) confirm: message &target: target
 "A simple way to ask a Boolean question of the user on an ExternalResource
 (by default the Console) and return a Slate Boolean answer."
-[| response |
-  response := (ns query: message ; ' (y/n) ') toLowercase.
+[
+  response ::= (ns query: message ; ' (y/n) ') toLowercase.
   {'y'. 'yes'} anySatisfy: [| :option | option = response]
 ].
 
 ns@(Namespace traits) doubleConfirm: message &target: target
-[| response |
-  (response := ns confirm: message &target: target)
+[
+  (response ::= ns confirm: message &target: target)
     /\ [ns confirm: 'Are you sure?' &target: target]
 ].
 
-REPL traits define: #NamespaceMethods &builder: [Dictionary new].
+REPL traits NamespaceMethods ::= Dictionary new.
 [| :assoc | REPL NamespaceMethods at: assoc key put: assoc value] for: {
   #pasteMode       -> [| :ns | ns repl parser parseInteractively := False].
   #interactiveMode -> [| :ns | ns repl parser parseInteractively := True].
@@ -162,15 +162,15 @@ This does not normally exit unless there is a serious error."
 [
   [repl refreshWorkspace.
    [repl on: repl resource.
-    repl lineCount := repl lineCount + 1.
+    repl lineCount += 1.
     repl printer ; repl prompt.
     repl printer flush.
     repl namespace interpretHook:
-      [| expr result |
+      [| expr |
        [expr := repl parser next] on: Stream Exhaustion
          do: [| :c | c stream == repl resource reader ifTrue: [^ Nil]].
        repl inputs addFirst: expr.
-       result := [expr evaluateIn: repl namespace] on: SeriousCondition do:
+       result ::= [expr evaluateIn: repl namespace] on: SeriousCondition do:
          [| :c |
           repl noviceMode ifTrue:
             [c describeOn: repl printer.
