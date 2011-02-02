@@ -55,7 +55,7 @@ p@(Parser traits) excludedTokens &interactive: interactive
 
 p@(Parser traits) nextToken &interactive: interactive
 "Takes the next token from either the buffer or the lexer transparently."
-[| token exclude |
+[| exclude token |
   exclude := p excludedTokens &interactive: interactive.
   [p is: (token := p lexer next)
      likeAnyOf: exclude] whileTrue.
@@ -65,7 +65,7 @@ p@(Parser traits) nextToken &interactive: interactive
 p@(Parser traits) peekToken &interactive: interactive
 "Return the next non-stop token from the Lexer, but leave it in the buffer
 and don't update the position."
-[| token lookAheadIndex exclude |
+[| exclude token lookAheadIndex |
   exclude := p excludedTokens &interactive: interactive.
   "Return the next non-stop token."
   lookAheadIndex := -1.
@@ -113,8 +113,8 @@ p@(Parser traits) check: found is: expected@(Sequence traits)
   [p expected: expected butFound: found]].
 
 p@(Parser traits) expected: expected@(Sequence traits) butFound: found
-[| expectNames |
-  expectNames := expected collect: #signifier `er select: #isNotNil `er.
+[
+  expectNames ::= expected collect: #signifier `er select: #isNotNil `er.
   p error: 'Expected ' ; expectNames printString ; ' but found ' ; found signifier
 ].
 
@@ -143,7 +143,7 @@ p@(Parser traits) nextAsStatement
 
 p@(Parser traits) next
 "The top-level Stream processing to return the next syntax node."
-[| token terminatesCorrectly statement |
+[| statement token terminatesCorrectly |
   statement := p nextExpression.
   "Unless parsing lines greedily, statements need to be separated explicitly or be at the end of the input."
   (terminatesCorrectly := p is: (token := p nextToken) likeAnyOf: p EndStatementTokens)
