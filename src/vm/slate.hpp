@@ -46,7 +46,6 @@ typedef SOCKADDR sockaddr_un;
 
 #include <dirent.h>  // on Windows, download from http://www.softagalleria.net/dirent.php
 
-
 // stl libraries
 #include <set>
 #include <stack>
@@ -329,8 +328,6 @@ struct slate_addrinfo_request {
   struct addrinfo* addrResult; /*this needs to be freed with freeaddrinfo*/
 };
 
-
-
 struct object_heap
 {
   byte_t mark_color;
@@ -432,9 +429,6 @@ struct object_heap
   } cached;
 };
 
-
-
-
 #define SMALLINT_MASK 0x1
 #define PINNED_MASK 0x3F
 #define PINNED_OFFSET 24
@@ -443,16 +437,12 @@ struct object_heap
 #define ID_HASH_FREE 0x7FFFFF
 #define ID_HASH_MAX ID_HASH_FREE
 
-
 #define FLOAT_SIGNIFICAND 0x7FFFFF
 #define FLOAT_EXPONENT_OFFSET 23
-
-
 
 /*obj map flags is a smallint oop, so we start after the smallint flag*/
 #define MAP_FLAG_RESTRICT_DELEGATION 2
 #define MAP_FLAG_IMMUTABLE 4
-
 
 #define WORD_BYTES_MINUS_ONE (sizeof(word_t)-1)
 #define ROLE_ENTRY_WORD_SIZE ((sizeof(struct RoleEntry) + WORD_BYTES_MINUS_ONE) / sizeof(word_t))
@@ -466,7 +456,6 @@ struct object_heap
 #define FRAME_OFFSET_LEXICAL_CONTEXT 2
 #define FRAME_OFFSET_PREVIOUS_FRAME_POINTER 1
 #define FRAME_OFFSET_FIRST_REGISTER 0
-
 
 #define TRUE 1
 #define FALSE 0
@@ -530,7 +519,6 @@ struct object_heap
 #define SF_CREATE			1 << 2
 #define SF_CLEAR			1 << 3
 
-
 #define SLATE_DOMAIN_LOCAL  1
 #define SLATE_DOMAIN_IPV4   2
 #define SLATE_DOMAIN_IPV6   3
@@ -539,8 +527,6 @@ struct object_heap
 
 #define SLATE_PROTOCOL_DEFAULT 0
 
-
-
 #ifdef PRINT_DEBUG_OPCODES
 #define PRINTOP(X) printf(X)
 #else
@@ -548,7 +534,6 @@ struct object_heap
 #endif
 
 byte_t* inc_ptr(struct Object* obj, word_t amt);
-
 
 #define OP_SEND                         ((0 << 1) | SMALLINT_MASK)
 /*#define OP_INDIRECT_SEND                ((1 << 1) | SMALLINT_MASK)*/ /*unused now*/
@@ -583,14 +568,11 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
 #define OP_SEND_WITH_OPTIONALS_INLINE   ((30 << 1) | SMALLINT_MASK)
 #define OP_                             ((31 << 1) | SMALLINT_MASK)
 
-
 // these are used by the optimizer to mark things but should not be left in code
 #define OP_INTERNAL_SEND                ((100 << 1) | SMALLINT_MASK)
 #define OP_INTERNAL_                    ((101 << 1) | SMALLINT_MASK)
 
 #define OP_SEND_PARAMETER_0 4
-
-
 
 #define SSA_REGISTER(X)                 (i->stack->elements[i->framePointer + (X)])
 #define REG_STACK_POINTER(X)            (i->framePointer + (X))
@@ -610,9 +592,6 @@ byte_t* inc_ptr(struct Object* obj, word_t amt);
           } 
 
 #define HEAP_UNPIN_ARGS(COUNTER, PINNEDARGS)   for (--COUNTER; COUNTER >= 0; COUNTER--) heap_unpin_object(oh, PINNEDARGS[COUNTER])
-
-
-
 
 #define SOCKET_RETURN(x) (smallint_to_object(socket_return((x < 0)? -errno : x)))
 
@@ -637,17 +616,10 @@ extern void (*primitives[]) (struct object_heap* oh, struct Object* args[], word
     return; \
   }
 
-
-
-
-
-
-
 /* for any assignment where an old gen object points to a new gen
 object.  call it before the next GC happens. !Before any stack pushes! */
 
 void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest);
-
 
 void heap_gc(struct object_heap* oh);
 void heap_full_gc(struct object_heap* oh);
@@ -664,8 +636,6 @@ void send_to_through_arity_with_optionals(struct object_heap* oh,
                                           struct Symbol* selector, struct Object* args[],
                                           struct Object* dispatchers[], word_t arity, struct Object* opts[], word_t optCount,
                                           word_t resultStackPointer/*where to put the return value in the stack*/);
-
-
 
 word_t object_to_smallint(struct Object* xxx);
 struct Object* smallint_to_object(word_t xxx);
@@ -686,7 +656,6 @@ void object_increment_pin_count(struct Object* xxx);
 void object_decrement_pin_count(struct Object* xxx);
 void object_zero_pin_count(struct Object* xxx);
 void heap_zero_pin_counts_from(struct object_heap* oh, byte_t* memory, word_t memorySize);
-
 
 void copy_bytes_into(byte_t * src, word_t n, byte_t * dst);
 void copy_words_into(void * src, word_t n, void * dst);
@@ -974,7 +943,6 @@ byte_t byte_array_set_element(struct ByteArray* o, word_t i, byte_t val);
 int fork2();
 word_t calculateMethodCallDepth(struct object_heap* oh);
 
-
 void file_module_init(struct object_heap* oh);
 bool_t file_handle_isvalid(struct object_heap* oh, word_t file);
 word_t file_allocate(struct object_heap* oh);
@@ -990,14 +958,10 @@ bool_t file_delete(struct object_heap* oh, char* filename);
 struct Object* file_information(struct object_heap* oh, char* filename);
 bool_t file_rename_to(struct object_heap* oh, char* src, char* dest);
 
-
-
 word_t pipe_open(struct object_heap* oh, struct ByteArray * name, struct Object* args, word_t pipes[2]);
 word_t pipe_write(struct object_heap* oh, word_t file, word_t n, char * bytes);
 word_t pipe_read(struct object_heap* oh, word_t file, word_t n, char * bytes);
 void pipe_close(struct object_heap* oh, word_t pipe);
-
-
 
 void dir_module_init(struct object_heap* oh);
 int dir_open(struct object_heap* oh, struct ByteArray *dirName);
@@ -1008,8 +972,6 @@ int dir_setcwd(struct ByteArray *newWd);
 bool_t dir_make(struct object_heap* oh, char* dir);
 bool_t dir_delete(struct object_heap* oh, char* dir);
 bool_t dir_rename_to(struct object_heap* oh, char* src, char* dest);
-
-
 
 void memarea_module_init (struct object_heap* oh);
 int memarea_handle_isvalid (struct object_heap* oh, int memory);
@@ -1050,7 +1012,6 @@ void copy_used_objects(struct object_heap* oh, struct Object** writeObject,  byt
 void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, word_t memorySize,
                                      struct ForwardPointerEntry* table, word_t forwardPointerEntryCount);
 
-
 struct ForwardPointerEntry* forward_pointer_hash_add(struct ForwardPointerEntry* table,
                                                     word_t forwardPointerEntryCount,
                                                      struct Object* fromObj, struct Object* toObj);
@@ -1059,11 +1020,9 @@ struct ForwardPointerEntry* forward_pointer_hash_get(struct ForwardPointerEntry*
                                                     word_t forwardPointerEntryCount,
                                                      struct Object* fromObj);
 
-
 int socket_set_nonblocking(int fd);
 
 word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSize);
-
 
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                                 struct Symbol* selector, word_t arity, struct Object* args[]);
@@ -1071,18 +1030,13 @@ struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct C
 void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* callerMethod, struct MethodDefinition* def,
                            word_t arity, struct Object* args[]);
 
-
 /*when a function is redefined, we need to know what PICs to flush. Here each method will
 keep a list of all the pics that it is in */
 void method_pic_add_callee_backreference(struct object_heap* oh,
                                          struct CompiledMethod* caller, struct CompiledMethod* callee);
 
-
-
-
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
 void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method);
-
 
 /*optimizer*/
 
@@ -1098,7 +1052,6 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
 bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMethod* method);
 bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMethod* method);
 void print_code(struct object_heap* oh, std::vector<struct Object*> code);
-
 
 /*pinned objects for GC*/
 void heap_pin_object(struct object_heap* oh, struct Object* x);
@@ -1122,7 +1075,6 @@ public:
         heap_pin_object(oh, (struct Object*)value);
     }
   }
-
 
   T* operator ->() {
 #ifdef GC_BUG_CHECK
@@ -1173,4 +1125,3 @@ public:
 
 // comment out to disable
 //#define SLATE_DISABLE_PIC_LOOKUP ok
-

@@ -1,13 +1,10 @@
 #include "slate.hpp"
 
-
 word_t method_pic_hash(struct object_heap* oh, struct CompiledMethod* callerMethod, word_t arity, struct Object* args[]) {
   word_t arraySize = array_size(callerMethod->calleeCount);
   word_t entryStart = (hash_selector(oh, NULL, args, arity) % (arraySize/CALLER_PIC_ENTRY_SIZE)) * CALLER_PIC_ENTRY_SIZE;
   return entryStart;
 }
-
-
 
 void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, struct Symbol* name, struct Object* arguments[], word_t n) {
   struct MethodCacheEntry* cacheEntry;
@@ -21,7 +18,6 @@ void method_save_cache(struct object_heap* oh, struct MethodDefinition* md, stru
     cacheEntry->maps[i] = object_get_map(oh, arguments[i]);
   }
 }
-
 
 struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbol* selector, struct Object* arguments[], word_t n) {
   struct MethodCacheEntry* cacheEntry;
@@ -52,10 +48,7 @@ struct MethodDefinition* method_check_cache(struct object_heap* oh, struct Symbo
   }
   oh->method_cache_hit++;
   return cacheEntry->method;
-
 }
-
-
 
 /*
  * This is the main dispatch function
@@ -67,7 +60,6 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
   struct MethodDefinition *dispatch, *bestDef;
   struct Object* slotLocation;
   word_t bestRank, depth, delegationCount, resendRank, restricted, i;
-
 
 #ifdef PRINT_DEBUG_DISPATCH
   fprintf(stderr, "dispatch to: '");
@@ -101,7 +93,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
     delegationCount = 0;
     depth = 0;
     restricted = WORDT_MAX; /*pointer in delegate_stack (with sp of delegateCount) to where we don't trace further*/
-    
+
     do {
       /* Set up obj to be a pointer to the object, or SmallInteger if it's
          a direct SmallInt. */
@@ -176,7 +168,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
                   } else {
                     rescan = &map->roleTable->roles[object_to_smallint(rescan->nextRole)];
                   }
-                  
+
                 }
 
               } else /*not a resend*/ {
@@ -196,7 +188,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
                 bestDef = NULL;
               }
             }
-            
+
           }
           role = ((role->nextRole == oh->cached.nil) ? NULL : &map->roleTable->roles[object_to_smallint(role->nextRole)]);
         } /*while role != NULL*/
@@ -216,9 +208,8 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
           if (resendMethod == 0 && arity <= METHOD_CACHE_ARITY) method_save_cache(oh, dispatch, name, arguments, arity);
           return dispatch;
         }
-        
-        depth++;
 
+        depth++;
 
         /* We add the delegates to the list when we didn't just finish checking a restricted object*/
         if (delegationCount <= restricted && array_size(map->delegates) > 0) {
@@ -232,10 +223,7 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
             }
           }
         }
-        
       } /*end haven't been here before*/
-
-      
 
       delegationCount--;
       if (delegationCount < restricted) restricted = WORDT_MAX; /*everything is unrestricted now*/
@@ -244,11 +232,8 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
       arg = oh->delegation_stack[delegationCount];
 
-
     } while (1);
-
   }
-
 
   if (dispatch != NULL && dispatch->slotAccessor != oh->cached.nil) {
     /*check heap store into?*/
@@ -257,7 +242,6 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
             fprintf(stderr, "arguments[0] changed to slot location: \n");
             print_detail(oh, arguments[0]);
 #endif
-
   }
 
 #ifndef SLATE_DISABLE_METHOD_CACHE
@@ -268,7 +252,6 @@ struct MethodDefinition* method_dispatch_on(struct object_heap* oh, struct Symbo
 
   return dispatch;
 }
-
 
 bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method) {
 
@@ -286,7 +269,6 @@ bool method_on_call_stack(struct object_heap* oh, struct CompiledMethod* method)
   return false;
 }
 
-
 void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_UNOPTIMIZER
   fprintf(stderr, "Unoptimizing '"); print_symbol(method->selector); fprintf(stderr, "'\n");
@@ -303,9 +285,7 @@ void method_unoptimize(struct object_heap* oh, struct CompiledMethod* method) {
   method->calleeCount = (struct OopArray*)oh->cached.nil;
   method->callCount = smallint_to_object(0);
   oh->optimizedMethods.erase(method);
-
 }
-
 
 void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symbol) {
   if (oh->optimizedMethods.empty()) return;
@@ -323,17 +303,13 @@ void method_remove_optimized_sending(struct object_heap* oh, struct Symbol* symb
       }
     }
   }
-
 }
-
-
 
 void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 
   /* only optimize old objects because they don't move in memory and
    * we don't want to have to update our method cache every gc */
   if (object_is_young(oh, (struct Object*)method)) return;
-
 
   // make sure we don't optimize something already on the stack
   // since a return will put us possibly at a different op code
@@ -352,7 +328,6 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
 #ifdef PRINT_DEBUG_OPTIMIZER
   fprintf(stderr, "Optimizing '"); print_symbol(method->selector); fprintf(stderr, "'\n");
 #endif
-
 
 #ifdef PRINT_DEBUG_OPTIMIZER2
   method_print_debug_info(oh, method);
@@ -381,14 +356,12 @@ void method_optimize(struct object_heap* oh, struct CompiledMethod* method) {
   fprintf(stderr, "after:\n");
   print_code_disassembled(oh, method->code);
 #endif
-  
+
 }
 
 void method_pic_setup(struct object_heap* oh, struct CompiledMethod* caller) {
-
   caller->calleeCount = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), CALLER_PIC_SIZE*CALLER_PIC_ENTRY_SIZE);
   heap_store_into(oh, (struct Object*) caller, (struct Object*) caller->calleeCount);
-
 }
 
 struct MethodDefinition* method_pic_match_selector(struct object_heap* oh, struct Object* picEntry[],
@@ -403,7 +376,7 @@ struct MethodDefinition* method_pic_match_selector(struct object_heap* oh, struc
     methodSelector = closure->method->selector;
   }
 
-  if (methodSelector == selector 
+  if (methodSelector == selector
       && object_to_smallint(picEntry[PIC_CALLEE_ARITY]) == arity) {
     /*callee method and arity work out, check the maps*/
     word_t j, success = 1;
@@ -423,8 +396,7 @@ struct MethodDefinition* method_pic_match_selector(struct object_heap* oh, struc
   return NULL;
 }
 
-
-void method_pic_insert(struct object_heap* oh, struct OopArray* calleeCount, 
+void method_pic_insert(struct object_heap* oh, struct OopArray* calleeCount,
                        struct Object* picEntry[], struct MethodDefinition* def,
                          word_t arity, struct Object* args[]) {
 
@@ -432,17 +404,16 @@ void method_pic_insert(struct object_heap* oh, struct OopArray* calleeCount,
   picEntry[PIC_CALLEE] = (struct Object*)def;
   picEntry[PIC_CALLEE_ARITY] = smallint_to_object(arity);
   picEntry[PIC_CALLEE_COUNT] = smallint_to_object(1);
-  picEntry[PIC_CALLEE_MAPS] = 
+  picEntry[PIC_CALLEE_MAPS] =
     (struct Object*)heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), arity);
 
   heap_store_into(oh, (struct Object*) calleeCount, picEntry[PIC_CALLEE]);
   heap_store_into(oh, (struct Object*) calleeCount, picEntry[PIC_CALLEE_MAPS]);
-  
+
   for (j = 0; j < arity; j++) {
     ((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j] = (struct Object*)object_get_map(oh, args[j]);
     heap_store_into(oh, picEntry[PIC_CALLEE_MAPS], ((struct OopArray*)picEntry[PIC_CALLEE_MAPS])->elements[j]);
   }
-
 }
 
 void method_pic_flush_caller_pics(struct object_heap* oh, struct CompiledMethod* callee) {
@@ -455,8 +426,6 @@ void method_pic_flush_caller_pics(struct object_heap* oh, struct CompiledMethod*
     /*this should reset the pic*/
     method_pic_setup(oh, (struct CompiledMethod*)callee->cachedInCallers->elements[i]);
   }
-
-
 }
 
 /*when a function is redefined, we need to know what PICs to flush. Here each method will
@@ -532,8 +501,6 @@ void method_pic_add_callee(struct object_heap* oh, struct CompiledMethod* caller
 #endif
 }
 
-
-
 struct MethodDefinition* method_pic_find_callee(struct object_heap* oh, struct CompiledMethod* callerMethod,
                                               struct Symbol* selector, word_t arity, struct Object* args[]) {
 
@@ -585,14 +552,10 @@ struct MethodDefinition* method_is_on_arity(struct object_heap* oh, struct Objec
         positions |= 1<<i;
         def = roleDef;
       }
-
     }
   }
-
   return ((def != NULL && positions == def->dispatchPositions)? def : NULL);
-
 }
-
 
 struct MethodDefinition* method_define(struct object_heap* oh, struct Object* method, struct Symbol* selector, struct Object* args[], word_t n) {
 
@@ -628,7 +591,6 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
   heap_store_into(oh, (struct Object*) def, (struct Object*) method);
   def->dispatchPositions = positions;
 
-
   for (i = 0; i < n; i++) {
     if (!object_is_smallint(args[i]) && (struct Object*)args[i] != get_special(oh, SPECIAL_OOP_NO_ROLE)) {
       if (oldDef != (struct Object*)NULL) {
@@ -638,6 +600,4 @@ struct MethodDefinition* method_define(struct object_heap* oh, struct Object* me
     }
   }
   return def;
-    
 }
-

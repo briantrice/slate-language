@@ -31,12 +31,7 @@ void assert_good_object(struct object_heap* oh, struct Object* obj) {
   assert(object_is_young(oh, (struct Object*)obj->map) || object_is_old(oh, (struct Object*)obj->map));
   assert(!object_is_free(obj));
   assert(!object_is_free((struct Object*)obj->map));
-
-
-
 }
-
-
 
 void heap_integrity_check(struct object_heap* oh, byte_t* memory, word_t memorySize) {
   struct Object* o = (struct Object*)memory;

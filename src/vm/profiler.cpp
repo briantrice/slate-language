@@ -15,19 +15,15 @@ void profiler_start(struct object_heap* oh) {
   oh->profilerCallStack.clear();
   oh->profilerCallStackTimes.clear();
 
-
 }
-
 
 void profiler_stop(struct object_heap* oh) {
   oh->currentlyProfiling = 0;
 }
 
-
 /*push is true if we're calling a method and false if we're returing to something higher on the stack*/
 void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, struct Object* toMethod, bool_t push) {
   if (!oh->currentlyProfiling) return;
-
 
   //fprintf(stderr, "%p -> %p (%d) (%d)\n", fromMethod, toMethod, (int)push, (int) oh->profilerCallStack.size());
 
@@ -47,14 +43,14 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
   } else {
     /* returned from fromMethod to toMethod */
     struct Object* parent;
-    word_t callStartTime; 
+    word_t callStartTime;
     struct Object* callMethod;
     do {
       callStartTime = oh->profilerCallStackTimes.back();
       callMethod = oh->profilerCallStack.back();
       oh->profilerCallStackTimes.pop_back();
       oh->profilerCallStack.pop_back();
-      
+
       parent = oh->profilerCallStack.back(); // should be == toMethod on first loop
 
       // tell the parent that this child was called for X time
@@ -71,14 +67,10 @@ void profiler_enter_method(struct object_heap* oh, struct Object* fromMethod, st
         oh->profilerChildCallCount[parent][callMethod] += 1;
       }
 
-
     } while(callMethod != fromMethod && !oh->profilerCallStack.empty());
 
     assert(callMethod == fromMethod || !oh->profilerCallStack.empty());
-
-
   }
-
   oh->profilerLastTime = oh->profilerTime;
 }
 
@@ -94,7 +86,6 @@ void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* fro
   oh->profilerCallCounts[to] = oh->profilerCallCounts[from];
   oh->profilerCallCounts.erase(from);
 
- 
   for (std::map<struct Object*, std::map<struct Object*,word_t> >::iterator i = oh->profilerChildCallCount.begin();
        i != oh->profilerChildCallCount.end(); i++) {
     std::map<struct Object*,word_t>& childSet = (*i).second;
@@ -115,8 +106,6 @@ void profiler_notice_forwarded_object(struct object_heap* oh, struct Object* fro
   for (size_t i = 0; i < oh->profilerCallStack.size(); i++) {
     if (oh->profilerCallStack[i] == from) oh->profilerCallStack[i] = to;
   }
-
-
 }
 
 /*this will be called when the GC deletes the object*/
@@ -139,7 +128,4 @@ void profiler_delete_method(struct object_heap* oh, struct Object* method) {
   for (size_t i = 0; i < oh->profilerCallStack.size(); i++) {
     if (oh->profilerCallStack[i] == method) oh->profilerCallStack[i] = oh->cached.nil;
   }
-
 }
-
-
