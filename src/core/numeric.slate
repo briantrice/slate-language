@@ -123,9 +123,9 @@ SmallInteger traitsWindow _delegates:
 
 
 
-SmallInteger traits addImmutableSlot: #minimumValue valued: lobby smallIntegerMinimum.
-SmallInteger traits addImmutableSlot: #maximumValue valued: lobby smallIntegerMaximum.
-SmallInteger traits addImmutableSlot: #level valued: 0.
+SmallInteger traits minimumValue ::= lobby smallIntegerMinimum.
+SmallInteger traits maximumValue ::= lobby smallIntegerMaximum.
+SmallInteger traits level ::= 0.
 "Level of the number type for coercion purposes."
 
 i@(SmallInteger traits) bitAt: n
@@ -195,10 +195,10 @@ SingleFloat traitsWindow atSlotNamed: #traits4 put: CoercibleNumberMixin traits.
 SingleFloat traitsWindow _delegates: 
   {ByteArray traits. CoercibleNumberMixin traits. Comparable traits. Number traits. Float traits. SingleFloat traits}.
 
-SingleFloat traits addImmutableSlot: #level valued: 3.
+SingleFloat traits level ::= 3.
 "Level of the number type for coercion purposes."
 
-SingleFloat traits addImmutableSlot: #tolerance valued: 0.0001.
+SingleFloat traits tolerance ::= 0.0001.
 
 _@(Number traits) tolerance [0].
 
@@ -291,8 +291,8 @@ i@(Integer traits) as: _@(Float traits)
 ].
 
 "Constants"
-numerics addImmutableSlot: #Pi valued: 3.141592654.
-numerics addImmutableSlot: #E valued: 2.718281828.
+numerics Pi ::= 3.141592654.
+numerics E ::= 2.718281828.
 
 n@(Number traits) squared
 "The square of the number."
@@ -660,7 +660,7 @@ x@(Number traits) raisedTo: y@(Integer traits)
 
 numerics define: #UniqueNumber &parents: {Number}.
 
-numerics addSlot: #LargeUnbounded valued: UniqueNumber clone.
+numerics LargeUnbounded ::= UniqueNumber clone.
 "A quantity which is unbounded but still a Number: as-large-as-you-like. It's
 definitely not an infinity."
 
@@ -696,7 +696,7 @@ inf@(Infinity traits) - _@(Number traits)
 _@(Number traits) - inf@(Infinity traits)
 [inf negated].
 
-numerics addSlot: #PositiveInfinity valued: Infinity clone.
+numerics PositiveInfinity ::= Infinity clone.
 
 _@PositiveInfinity isInfinite [True].
 
@@ -713,7 +713,7 @@ _@PositiveInfinity printOn: s
   s ; 'positive infinity'
 ].
 
-numerics addSlot: #NegativeInfinity valued: Infinity clone.
+numerics NegativeInfinity ::= Infinity clone.
 
 ni@NegativeInfinity < x@(Comparable traits)
 [
@@ -784,7 +784,7 @@ x@(Number traits) - _@(Epsilon traits)
 _@(Epsilon traits) - x@(Number traits) 
 [x negated].
 
-numerics addSlot: #PositiveEpsilon valued: Epsilon clone.
+numerics PositiveEpsilon ::= Epsilon clone.
 "The reciprocal of PositiveInfinity."
 
 _@PositiveEpsilon isPositive
@@ -809,7 +809,7 @@ _@PositiveEpsilon < x@(Number traits)
   x isPositive
 ].
 
-numerics addSlot: #NegativeEpsilon valued: Epsilon clone.
+numerics NegativeEpsilon ::= Epsilon clone.
 "The reciprocal of NegativeInfinity."
 
 x@(Number traits) < _@NegativeEpsilon
