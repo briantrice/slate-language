@@ -30,8 +30,8 @@ f@(File traits) isAtEnd
 [f isOpen ifTrue: [f atEndOf: f handle] ifFalse: [True]].
 
 f@(File traits) restoringPositionDo: block
-[| origPos |
-  origPos := f position.
+[
+  origPos ::= f position.
   [block applyWith: f] ensure: [f position := origPos]
 ].
 
@@ -56,8 +56,8 @@ f@(File traits) named: filename &mode: mode
 "Accesses or creates the File object associated with the specified Locator.
 Notably, a File created this way needs to be #unregister`ed manually if it
 is never enabled or disabled before being garbage-collected."
-[| locator |
-  locator := filename as: f Locator.
+[
+  locator ::= filename as: f Locator.
   f ByLocation at: locator ifAbsentPut: [f newNamed: locator &mode: mode]
 ].
 
@@ -65,9 +65,9 @@ f@(File traits) newNamed: filename &mode: mode
 "Forces the creation of a new instance of a File for the given Locator. If none
 is registered, this File gets registered, otherwise it does not interfere with
 registration."
-[| locator |
+[
   mode `defaultsTo: f mode.
-  locator := filename as: f Locator.
+  locator ::= filename as: f Locator.
   f ByLocation at: locator ifPresent: [| :file | ].
   f cloneSettingSlots: #{#handle. #locator. #mode} to: {Nil. locator. mode}
 ].
@@ -79,8 +79,8 @@ s@(String traits) file
 
 f@(File traits) enable
 "Open the file in its associated mode."
-[| filename |
-  filename := f locator as: String.
+[
+  filename ::= f locator as: String.
   (f handle :=
     f mode caseOf:
       {f Read -> [f handleForInput: filename].
@@ -103,14 +103,13 @@ f@(File traits) sessionDo: block &mode: mode
 [
   mode
     ifNil: [resend]
-    ifNotNil: [| oldMode |
-	       oldMode := f mode. f mode := mode. resend. f mode := oldMode]
+    ifNotNil: [oldMode ::= f mode. f mode := mode. resend. f mode := oldMode]
 ].
 
 f@(File traits) touch
 "Opens the file, creating it if necessary, and updating access time."
-[| oldmode |
-  oldmode := f mode.
+[
+  oldmode ::= f mode.
   [f mode := f CreateWrite.
    f sessionDo: [| :_ | ]]
      ensure: [f mode := oldmode]
@@ -169,8 +168,8 @@ f@(File traits) checkExists
 already exist.
 If it's already open, it exists; otherwise try to open it and then close it
 if the result is successful."
-[| oldMode |
-  oldMode := f mode.
+[
+  oldMode ::= f mode.
   f isOpen \/
     [[[f mode := f Read. f open] on: f ConnectionFailed do: [| :c | f notFound]]
        ensure: [f isOpen ifTrue: [f close]. f mode := oldMode]]
@@ -194,8 +193,8 @@ file1@(File traits) copyContentsTo: file2@(File traits)
 
 file@(File traits) copyContentsTo: s@(Sequence traits)
 "TODO: rename this method to something more appropriate to what it does."
-[| result |
-  result := s new &capacity: file size.
+[
+  result ::= s new &capacity: file size.
   file sessionDo: [| :f | f reader next: file size putInto: result].
   result
 ].
@@ -241,8 +240,8 @@ r@(File NotFound SpecifyAnotherLocation traits) queryFrom: d
 ].
 
 r@(File NotFound SpecifyAnotherLocation traits) defaultHandler
-[| oldLocator |
-  oldLocator := r condition resource `cache locator.
+[
+  oldLocator ::= r condition resource `cache locator.
   r condition resource locator := r newLocator.
   [r condition resource open]
     on: File NotFound do:
@@ -337,18 +336,18 @@ File traits define: #AbsoluteLocator &parents: {File Locator}.
 s@(String traits) as: l@(File AbsoluteLocator traits)
 "Parses the String representation of a path into an actual File Locator object;
 this will assume the current platform's naming scheme."
-[| segments endHostPart |
-  endHostPart := s indexOf: l hostSeparator ifAbsent: [-1].
+[
+  endHostPart ::= s indexOf: l hostSeparator ifAbsent: [-1].
   l new `>>
     [| :newL |
      host := s copyFrom: 0 to: endHostPart.
      path := (s sliceFrom: endHostPart + 1) splitWith: l pathSeparator.
      (s last = l pathSeparator) ifFalse: [newL path removeLast].
-     name := (s last = l pathSeparator
-		ifTrue: ['']
-		ifFalse: [s copyFrom:
-			    (s lastIndexOf: l pathSeparator ifAbsent: [-1]) + 1
-			    to: s indexLast]). ]
+     name := s last = l pathSeparator
+       ifTrue: ['']
+       ifFalse: [s copyFrom:
+		   (s lastIndexOf: l pathSeparator ifAbsent: [-1]) + 1
+		   to: s indexLast]. ]
 ].
 
 l@(File Locator traits) as: _@(File Locator traits) [l].
@@ -371,16 +370,16 @@ f1@(File RelativeLocator traits) = f2@(File RelativeLocator traits)
    /\ [f1 fileType = f2 fileType] /\ [f1 version = f2 version]].
 
 s@(String traits) as: l@(File RelativeLocator traits) &base: base
-[resend `>> [basePath := (base ifNil: [Directory Current]). ]].
+[resend `>> [basePath := base ifNil: [Directory Current]. ]].
 
 l@(File RelativeLocator traits) newFrom: base
 [l cloneSettingSlots: #{#basePath} to: {base}].
 
 l@(File Locator traits) readFrom: src &pathSeparator: pathSeparator
-[| firstPart |
+[
   src := src reader. "Should be a PositionableStream."
   pathSeparator `defaultsTo: l pathSeparator.
-  firstPart := src upToAnyOf: ':\\/'.
+  firstPart ::= src upToAnyOf: ':\\/'.
   src retract. "Position just before the first one found."
   src isAtEnd not /\ [src peek = l hostSeparator]
     ifTrue:
@@ -410,9 +409,9 @@ l@(File Locator traits) readFrom: src &pathSeparator: pathSeparator
 ].
 
 l@(File Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
-[| pathElements |
+[
   pathSeparator `defaultsTo: l pathSeparator.
-  pathElements := s upToEnd splitWith: pathSeparator.
+  pathElements ::= s upToEnd splitWith: pathSeparator.
   l path := pathElements allButLast.
   pathElements isEmpty ifFalse: [l readFilenameFrom: pathElements last].
 ].
@@ -435,8 +434,8 @@ l@(File Locator traits) reduce
 "Eliminate uses of . and .. in the path Sequence."
 [| curIndex |
   "First, remove all . entries."
-  [curIndex := (l path indexOf: l hereString).
-   curIndex isNotNil] whileTrue: [l path removeAt: curIndex].
+  [(curIndex := l path indexOf: l hereString) isNotNil] whileTrue:
+    [l path removeAt: curIndex].
   "Now, remove all non-initial .. entries and those that precede them."
   "Find the first non-.. entry."
   (curIndex := l path indexOfFirstSatisfying: #(~= l parentString) `er)
@@ -593,12 +592,11 @@ fs@(File Stream traits) isAtEnd
 fs@(File Stream traits) peekForwardBy: offset
 "Saves the original position and moves forward by the given offset and then
 restores before answering the element found."
-[| origPos elem |
-  origPos := fs position.
-  (origPos + offset between: 0 and: fs resource size)
+[
+  ((origPos ::= fs position) + offset between: 0 and: fs resource size)
     ifFalse: [error: 'Beyond the end of the file.'].
   fs position := origPos + offset - 1.
-  elem := fs next.
+  elem ::= fs next.
   fs position := origPos.
   elem
 ].
@@ -606,10 +604,10 @@ restores before answering the element found."
 fs@(File Stream traits) contents
 "Get everything from the file at once, preserving the current position in the
 file."
-[| s pos |
-  pos := fs position.
+[
+  pos ::= fs position.
   fs position := 0.
-  s := (fs next: fs resource size).
+  s ::= fs next: fs resource size.
   fs position := pos.
   s
 ].
@@ -618,7 +616,7 @@ f@(File traits) contents
 [
   f sessionDo: [| :in size result |
     size := f size.
-    result := (String newSize: size).
+    result := String newSize: size.
     (in read: size into: result).
     result
   ]

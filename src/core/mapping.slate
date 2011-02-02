@@ -5,8 +5,8 @@ mappings define: #Mapping &parents: {Cloneable}.
 keyed storage, e.g. #at: and #at:put:."
 
 m@(Mapping traits) new*
-[| *rest result |
-  result := (m new &capacity: rest size * 2).
+[| *rest |
+  result ::= m new &capacity: rest size * 2.
   rest do: [| :elem | (elem is: Association) ifTrue:
     [result at: elem key put: elem value]].
   result
@@ -215,16 +215,16 @@ block to each value and replacing the value in place with the
 new value until none of the values change.
 
 Idea envisioned by Travis Griggs."
-[| perfected newValue |
-  perfected := (m copy infect: [| :_ | False]).
+[| newValue |
+  perfected ::= m copy infect: [| :_ | False].
   "Perfected records whether each element has reached a fixed point."
-  [ m keysAndValuesDo:
-      [| :key :value |
-	(perfected at: key)
-	  ifFalse: [ newValue := (block applyWith: (m at: key)).
-		      m at: key put: newValue.
-		      perfected at: key put: value = newValue]].
-    perfected allSatisfy: [| :each | each]] whileFalse.
+  [m keysAndValuesDo:
+     [| :key :value |
+      (perfected at: key) ifFalse:
+        [newValue := block applyWith: (m at: key).
+         m at: key put: newValue.
+         perfected at: key put: value = newValue]].
+   perfected allSatisfy: [| :each | each]] whileFalse.
   m
 ].
 
@@ -283,7 +283,7 @@ values@(Collection traits) partition: valueBlock into: map
 for each key returned by the block, with the set of values stored there."
 [
   values do:
-    [| :value key | key: (valueBlock applyWith: value).
+    [| :value key | key := valueBlock applyWith: value.
      map at: key ifPresent: #(add: value) `er
                  ifAbsent: [map at: key put: (Set new*, value)]].
   map
