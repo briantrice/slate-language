@@ -12,13 +12,13 @@ benchmark define: #RandomNumber &slots: {
 
 r@(benchmark RandomNumber traits) next
 [
-  r seed: (r seed) * (r multiplier) + (r increment) \\ (r modulus).
-  (((r seed) * (r scale)) as: Float) / (r fmodulus)
+  r seed := r seed * r multiplier + r increment \\ r modulus.
+  (r seed * r scale as: Float) / r fmodulus
 ].
 
 r@(benchmark RandomNumber traits) to: i@(Integer traits) repeat: n@(Integer traits)
 [
-  r `>> [seed: 42. scale: i].
+  r `>> [seed := 42. scale := i].
   n - 1 timesRepeat: [r next].
   r next
 ].

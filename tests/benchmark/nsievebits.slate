@@ -1,20 +1,18 @@
 
 m@(Integer traits) nsievebits
-[| count isPrime |
-  count: 0.
-  isPrime: (BitArray new &capacity: (m + 1)).
-  isPrime atAllPut: True.
-  2 to: m do: [| :i |
-    (isPrime at: i) ifTrue: [
-      ((i + i) to: m by: i) do: [| :k | isPrime at: k put: False].
-      count: count + 1.
-    ].
-  ].
+[| count |
+  count := 0.
+  (isPrime ::= BitArray new &capacity: m + 1) atAllPut: True.
+  2 to: m do:
+    [| :i |
+     (isPrime at: i) ifTrue:
+       [(i + i to: m by: i) do: [| :k | isPrime at: k put: False].
+        count += 1]].
   count
 ].
 
 n@(Integer traits) bitprimes
-[| m |
-  m: (2 raisedTo: n) * 10000.
+[
+  m ::= (2 raisedTo: n) * 10000.
   m nsievebits
 ].

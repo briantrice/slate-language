@@ -1,11 +1,10 @@
 
 name@(String traits) sumfile
 [| sum |
-  sum: 0.
+  sum := 0.
   (File newNamed: name &mode: File Read)
     sessionDo: [| :file stream |
-      stream: file reader.
-      [stream isAtEnd] whileFalse: [sum: (sum + (stream nextLine as: Integer))].
-    ].
+      stream := file reader.
+      [stream isAtEnd] whileFalse: [sum += stream nextLine as: Integer]].
   sum
 ].

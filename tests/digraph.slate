@@ -1,4 +1,3 @@
-
 testing UnitTests define: #Digraph &parents: {TestCase}.
 
 tc@(UnitTests Digraph traits) newNode: obj
@@ -9,7 +8,7 @@ tc@(UnitTests Digraph traits) newNode: obj
 tc@(UnitTests Digraph traits) generatingBlockBetween: lower and: upper
 [
   [| :node obj | 
-    obj: node object.
+    obj := node object.
     obj > lower /\ [obj < upper]
       ifTrue: [{obj - 1. obj + 1}]
       ifFalse: [
@@ -18,33 +17,32 @@ tc@(UnitTests Digraph traits) generatingBlockBetween: lower and: upper
 ].
 
 tc@(UnitTests Digraph traits) testCreationByNonGeneratingBlock
-[| node graph |
-  node: (tc newNode: 5).
-  graph: (Digraph newFrom: node walking: [| :n | {}]).
+[
+  node ::= tc newNode: 5.
+  graph ::= Digraph newFrom: node walking: [| :n | #{}].
   tc assert: graph allNodes = (Set newWith: node)
     description: 'Method #newFrom:walking: failed for non-generative block.'.
 ].
 
 tc@(UnitTests Digraph traits) testCreationByWalkingWithABlock
-[| nodes graph |
-  nodes: ({1. 2. 3. 4. 5. 6. 7. 8. 9} as: Set).
-  graph: (Digraph newFrom: (tc newNode: 5) 
-      	      	  walking: (tc generatingBlockBetween: 1 and: 9)).
+[
+  nodes ::= {1. 2. 3. 4. 5. 6. 7. 8. 9} as: Set.
+  graph ::= Digraph newFrom: (tc newNode: 5)
+    walking: (tc generatingBlockBetween: 1 and: 9).
   tc assert: nodes = (graph allNodes collect: [| :e | e object])
     description: 'Method #newFrom:walking: failed (symmetric generation).'.
 ].
 
 tc@(UnitTests Digraph traits) testAsymmetricCreationByWalkingWithABlock
-[| nodes graph block |
-  nodes: ({1. 2. 3. 4. 5. 6} as: Set).
-  block: (tc generatingBlockBetween: 1 and: 6).
-  graph: (Digraph newFrom: (tc newNode: 1)  walking: block).
+[| graph |
+  nodes ::= {1. 2. 3. 4. 5. 6} as: Set.
+  block ::= tc generatingBlockBetween: 1 and: 6.
+  graph := Digraph newFrom: (tc newNode: 1) walking: block.
   tc assert: nodes = (graph allNodes collect: [| :e | e object])
     description: 'Method #newFrom:walking: failed (asymmetric generation 1).'.
-  graph: (Digraph newFrom: (tc newNode: 6)  walking: block).
+  graph := Digraph newFrom: (tc newNode: 6) walking: block.
   tc assert: nodes = (graph allNodes collect: [| :e | e object])
     description: 'Method #newFrom:walking: failed (asymmetric generation 2).'.
-
 ].
 
 tc@(UnitTests Digraph traits) suite
@@ -64,24 +62,24 @@ tc@(UnitTests KeyedDigraph traits) newNode: obj
 ].
 
 tc@(UnitTests KeyedDigraph traits) keysBetween: lower and: upper 
-[| answer |
-  answer: SortedSet new.
+[
+  answer ::= SortedSet new.
   lower upTo: upper do: [| :i | answer add: i].
   answer
 ].
 
 tc@(UnitTests KeyedDigraph traits) testNodeTransitionMatching
-[| node1 node2 targets upperBound |
-  node1: (tc newNode: 1).
-  node2: (tc newNode: 2).
-  targets: {tc newNode: 3. tc newNode: 4. tc newNode: 5}.
-"  tc assert: (node1 transitionsMatch: node2) = False
+[| upperBound |
+  node1 ::= tc newNode: 1.
+  node2 ::= tc newNode: 2.
+  targets ::= {tc newNode: 3. tc newNode: 4. tc newNode: 5}.
+  "tc assert: (node1 transitionsMatch: node2) = False
     description: 'Unrelated nodes should not match.'."
-  upperBound: 2.
+  upperBound := 2.
   targets do: [| :targetNode |
-    node1 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
-    node2 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
-    upperBound: upperBound + 1].
+               node1 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
+               node2 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
+               upperBound += 1].
   tc assert: (node1 transitionsMatch: node2) = True
     description: 'Nodes with same targets and transitions should match'.
   node1 transitions do: [| :edge | edge keys add: 4].
@@ -95,15 +93,15 @@ tc@(UnitTests KeyedDigraph traits) testNodeTransitionMatching
 ].
 
 tc@(UnitTests KeyedDigraph traits) testCommutativityOFNodeTransitionMatching
-[| node1 node2 targets upperBound |
-  node1: (tc newNode: 1).
-  node2: (tc newNode: 2).
-  targets: {tc newNode: 3. tc newNode: 4. tc newNode: 5}.
-  upperBound: 2.
+[| upperBound |
+  node1 ::= tc newNode: 1.
+  node2 ::= tc newNode: 2.
+  targets ::= {tc newNode: 3. tc newNode: 4. tc newNode: 5}.
+  upperBound := 2.
   targets do: [| :targetNode |
-    node1 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
-    node2 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
-    upperBound: upperBound + 1].
+               node1 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
+               node2 addEdgeTo: targetNode keys: (tc keysBetween: 1 and: upperBound).
+               upperBound += 1].
   tc assert: (node1 transitionsMatch: node2) = (node2 transitionsMatch: node1)
     description: 'Node transition matching should be commutative (both True).'.
   node1 transitions do: [| :edge | edge keys add: 4].
@@ -117,27 +115,27 @@ tc@(UnitTests KeyedDigraph traits) testCommutativityOFNodeTransitionMatching
 ].
 
 tc@(UnitTests KeyedDigraph traits) testEdgeMerging
-[| startNode endNode mergedKeys |
-  startNode: (tc newNode: 'start').
-  endNode: (tc newNode: 'end').
+[
+  startNode ::= tc newNode: 'start'.
+  endNode ::= tc newNode: 'end'.
   startNode addEdgeTo: endNode keys: (tc keysBetween: 1 and: 3).
   startNode addEdgeTo: endNode keys: (tc keysBetween: 4 and: 7).
-  mergedKeys: (tc keysBetween: 1 and: 7).
+  mergedKeys ::= tc keysBetween: 1 and: 7.
   startNode mergeTransitions.
   tc assert: startNode transitions size = 1
-      	      /\ [(startNode transitions detect: [| :edge | edge keys = mergedKeys])
-		    ifNil: [False]
-		    ifNotNil: [True]]
+    /\ [(startNode transitions detect: [| :edge | edge keys = mergedKeys])
+	  ifNil: [False]
+	  ifNotNil: [True]]
     description: 'Edges should have been merged.'.
 ].
 
 tc@(UnitTests KeyedDigraph traits) testDuplicateDeletion
-[| startNode intermediate dupl1 dupl2 endNode mergedKeys |
-  startNode: (tc newNode: 'start').
-  intermediate: (tc newNode: 'intermediate').
-  dupl1: (tc newNode: 'first').
-  dupl2: (tc newNode: 'second').
-  endNode: (tc newNode: 'end').
+[
+  startNode ::= tc newNode: 'start'.
+  intermediate ::= tc newNode: 'intermediate'.
+  dupl1 ::= tc newNode: 'first'.
+  dupl2 ::= tc newNode: 'second'.
+  endNode ::= tc newNode: 'end'.
   startNode addEdgeTo: intermediate keys: (tc keysBetween: 1 and: 3).
   startNode addEdgeTo: intermediate keys: (tc keysBetween: 4 and: 7).
   intermediate addEdgeTo: dupl1 keys: (tc keysBetween: 8 and: 9).

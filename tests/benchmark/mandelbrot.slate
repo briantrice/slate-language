@@ -2,50 +2,51 @@
 w@(Integer traits) mandelbrot
 [
   (File newNamed: 'tests/benchmark/mandelbrot.pbm' &mode: File CreateWrite)
-    sessionDo: [| :f | w mandelbrotOn: (f writer)]
+    sessionDo: [| :f | w mandelbrotOn: f writer]
 ].
 
 width@(Integer traits) mandelbrotOn: s@(Stream traits)
-[| height limit2 isOverLimit m bits bitnum |
-  height: width.
-  limit2: 4.0.
-  isOverLimit: False.
-  m: 50.
-  bits: 0.
-  bitnum: 0.
-  s ; 'P4\n' ; (width as: String) ; ' ' ; (height as: String) ; '\n'.
+[| isOverLimit bits bitnum |
+  height ::= width.
+  limit2 ::= 4.0.
+  m ::= 50.
+  isOverLimit := False.
+  bits := 0.
+  bitnum := 0.
+  s ; ('P4\n%s %s\n' sprintf*, width, height).
 
-  0 below: height do: [| :y |
-    0 below: width do: [| :x zr zi cr ci i |
-      zr: 0.0.
-      zi: 0.0.
-      cr: (2.0 * (x as: Float) / (width as: Float) - 1.5).
-      ci: (2.0 * (y as: Float) / (height as: Float) - 1.0).
-      i: 0.
+  0 below: height do:
+    [| :y |
+     0 below: width do:
+       [| :x zr zi cr ci i |
+        zr := 0.0.
+        zi := 0.0.
+        cr := 2.0 * (x as: Float) / (width as: Float) - 1.5.
+        ci := 2.0 * (y as: Float) / (height as: Float) - 1.0.
+        i := 0.
 
-      [| tr ti |
-         tr: (zr * zr) - (zi * zi) + cr.
-         ti: 2.0 * zr * zi + ci.
-         zr: tr.
-         zi: ti.
-         isOverLimit: (zr * zr) + (zi * zi) > limit2.
-         (isOverLimit not) /\ [(i: i + 1) < m]
-      ] whileTrue.
+        [| tr ti |
+         tr := (zr * zr) - (zi * zi) + cr.
+         ti := 2.0 * zr * zi + ci.
+         zr := tr.
+         zi := ti.
+         (isOverLimit := (zr * zr) + (zi * zi) > limit2) not
+           /\ [(i += 1) < m]] whileTrue.
 
-      bits: (bits bitShift: 1).
-      isOverLimit not ifTrue: [bits: (bits + 1)].
-      bitnum: bitnum + 1.
+        bits := bits bitShift: 1.
+        isOverLimit ifFalse: [bits += 1].
+        bitnum += 1.
 
-      x = (width - 1) ifTrue: [
-        bits: (bits bitShift: (8 - bitnum)).
-        bitnum: 8.
-      ].
+        x = (width - 1) ifTrue: [
+          bits := bits bitShift: 8 - bitnum.
+          bitnum := 8
+        ].
 
-      bitnum = 8 ifTrue: [
-         s nextPut: bits.
-         bits: 0.
-         bitnum: 0.
-      ].
-    ].
-  ].
+        bitnum = 8 ifTrue: [
+          s nextPut: bits.
+          bits := 0.
+          bitnum := 0
+        ]
+      ]
+   ].
 ].
