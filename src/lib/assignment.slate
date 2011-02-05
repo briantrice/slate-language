@@ -1,12 +1,12 @@
 
-n@(nodes Node traits) setTo: val
+n@(nodes Node traits) setTo: val &environment: env
 "A macro to expand the node and value into an appropriate assignment for the
 location that the message appears to use."
 "TODO: Use type inference on arguments to detect if there should be a concrete
 slot attribute or other type of accessor to verify or distinguish."
 [overrideThis].
 
-load@(nodes LoadVariable traits) setTo: val
+load@(nodes LoadVariable traits) setTo: val &environment: env
 "Expands a local variable reference into a store to it."
 [load store: val].
 
@@ -23,7 +23,7 @@ mutator form of that selector (appends a colon)."
        var store: val]
 ].
 
-literal@(nodes Literal traits) setTo: val
+literal@(nodes Literal traits) setTo: val &environment: env
 [| lhs |
   lhs: literal value.
   (lhs is: Symbol) \/ [lhs is: String]
@@ -37,12 +37,12 @@ literal@(nodes Literal traits) setTo: val
            [error: 'Assignment not implemented to this type of literal: ' ; lhs printString]]
 ].
 
-_@(nodes Placeholder traits) setTo: val
+_@(nodes Placeholder traits) setTo: val &environment: env
 [
   val
 ].
 
-message@(nodes KeywordMessage traits) setTo: val
+message@(nodes KeywordMessage traits) setTo: val &environment: env
 "Expands a message by looking at its selector and picking the right setter."
 [
   (message selector isKeywordSelector ifTrue:
@@ -60,11 +60,11 @@ message@(nodes KeywordMessage traits) setTo: val
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
 
-paren@(nodes Parenthesis traits) setTo: val
+paren@(nodes Parenthesis traits) setTo: val &environment: env
 "Performs a multiple-assignment by transforming each statement."
 [| result |
   result: paren copy.
-  result statements infect: [| :statement | statement setTo: val].
+  result statements infect: [| :statement | statement setTo: val &environment: env].
   result
 ].
 
@@ -73,7 +73,7 @@ array@(nodes Array traits) setTo: vals &environment: env
 [
   array statements size caseOf: {
     0 -> [vals].
-    1 -> [array statements last setTo: `(vals `unquote first)]
+    1 -> [array statements last setTo: `(vals `unquote first) &environment: env]
   } otherwise:
     [| result tmpVar |
      result: array copy.
@@ -89,48 +89,52 @@ array@(nodes Array traits) setTo: vals &environment: env
              result statements at: index put:
                (statement setTo:
                   (nodes KeywordMessage sending: #at: to:
-                     {tmpVar load. nodes Literal for: index}))].
+                     {tmpVar load. nodes Literal for: index}) &environment: env)].
           {tmpVar store: vals. result} as: nodes Parenthesis]]
 ].
 
-load@(nodes LoadVariable traits) defaultsTo: default
+load@(nodes LoadVariable traits) defaultsTo: default &environment: env
 "A macro that expands to an expression that sets a variable in the scope to
 the expression in the default."
 [`(load `unquote ifNil: [(load store: default parenthesize) `unquote])].
 
-node@(nodes Node traits) defaultsTo: default
+node@(nodes Node traits) defaultsTo: default &environment: env
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
-[`(node `unquote ifNil: [(node setTo: default) `unquote])].
+[`(node `unquote ifNil: [(node setTo: default &environment: env) `unquote])].
 
 node@(nodes Node traits) setToIfNotNil: value &environment: env
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
 [
-  `(value `unquote ifNotNil: [(node setTo: value) `unquote])
+  `(value `unquote ifNotNil: [(node setTo: value &environment: env) `unquote])
 ].
 
-node@(nodes Node traits) ?= value
+"This is the tricky moment at which we activate the special macro.
+Above here, it is unavailable, and after here, the definitions is not sound."
+n@(nodes Node traits) := val &environment: env [n setTo: val &environment: env].
+
+node@(nodes Node traits) ?= value &environment: env
 [
-  node setToIfNotNil: value
+  node setToIfNotNil: value &environment: env
 ].
 
-node@(nodes Node traits) += value
+node@(nodes Node traits) += value &environment: env
 [
-  node setTo: (nodes BinaryMessage sending: #+ to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #+ to: {node. value}) &environment: env
 ].
 
-node@(nodes Node traits) -= value
+node@(nodes Node traits) -= value &environment: env
 [
-  node setTo: (nodes BinaryMessage sending: #- to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #- to: {node. value}) &environment: env
 ].
 
-node@(nodes Node traits) *= value
+node@(nodes Node traits) *= value &environment: env
 [
-  node setTo: (nodes BinaryMessage sending: #* to: {node. value})
+  node setTo: (nodes BinaryMessage sending: #* to: {node. value}) &environment: env
 ].
 
-node@(nodes Node traits) /= value
+node@(nodes Node traits) /= value &environment: env
 [
-  node setTo: `(node `unquote / value `unquote)
+  node setTo: `(node `unquote / value `unquote) &environment: env
 ].

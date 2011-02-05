@@ -1,10 +1,10 @@
 
-node@(nodes Node traits) bindTo: value
+node@(nodes Node traits) bindTo: value &environment: env
 [
   overrideThis
 ].
 
-_@(nodes Placeholder traits) bindTo: val
+_@(nodes Placeholder traits) bindTo: val &environment: env
 [
   val
 ].
@@ -42,7 +42,7 @@ msg@(nodes UnaryMessage traits) bindTo: value &environment: env
               (scope addVariable: (nodes Binding named: msg selector))]]
 ].
 
-message@(nodes KeywordMessage traits) bindTo: val
+message@(nodes KeywordMessage traits) bindTo: val &environment: env
 "Expands a message by looking at its selector and picking the right setter."
 [
   (message selector isKeywordSelector ifTrue:
@@ -54,3 +54,7 @@ message@(nodes KeywordMessage traits) bindTo: val
     ifNotNilDo:
       [| :newSel | message sending: newSel to: (message arguments copyWith: val)]
 ].
+
+"This is the tricky moment at which we activate the special macro.
+Above here, it is unavailable, and after here, the definitions is not sound."
+n@(nodes Node traits) ::= val &environment: env [n bindTo: val &environment: env].
