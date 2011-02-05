@@ -84,16 +84,16 @@ with overridable selector."
 [| m regCount slotNameReg primNumReg resultReg |
 "  x addAccessor: #(atSlotNamed: slotName) `er
     for: slotName &accessorName: accessorName"
-
   "bypass method lookup by calling the primitive directly.
    because this is only defined on Root traits, we don't have to worry about the separate smallint primitive.
    now we just need to inline this into the caller to drop the interpreter_apply_to cost"
-  m := [| :obj | ] clone. "this should not be a closure"
+  m := [| :obj | ] clone.
+  m environment := Nil. "this should not be a closure"
   regCount := m registerCount.
-  m registerCount := regCount + 3.
   slotNameReg := regCount.
   primNumReg := regCount + 1.
   resultReg := regCount + 2.
+  m registerCount += 3.
   m code := {#[VM SSACode loadLiteral]. slotNameReg. slotName.
              #[VM SSACode loadLiteral]. primNumReg. 13.
              #[VM SSACode primitiveDo]. primNumReg. 2. resultReg. 0. slotNameReg.  "primNum, arg count, result reg, args..."
@@ -113,15 +113,15 @@ x@(Root traits) addMutatorFor: slotName &mutatorName: mutatorName
 "Adds and answers a new Method for changing the slot's value,
 with overridable selector."
 [| m regCount slotNameReg primNumReg resultReg |
-
   "bypass method lookup by calling the primitive directly.
    now we just need to inline this into the caller to drop the interpreter_apply_to cost"
-  m := [| :obj :val | ] clone. "this should not be a closure"
+  m := [| :obj :val | ] clone.
+  m environment := Nil. "this should not be a closure"
   regCount := m registerCount.
-  m registerCount := regCount + 3.
   slotNameReg := regCount.
   primNumReg := regCount + 1.
   resultReg := regCount + 2.
+  m registerCount += 3.
   m code := {#[VM SSACode loadLiteral]. slotNameReg. slotName.
              #[VM SSACode loadLiteral]. primNumReg. 15.
              #[VM SSACode primitiveDo]. primNumReg. 3. resultReg. 0. slotNameReg. 1.  "primNum, arg count, result reg, args..."
