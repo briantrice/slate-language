@@ -4,12 +4,18 @@ m@(CompiledMethod traits) new
 [
   m clone `>>
     [| :newM |
-      method := newM.
-      literals := m literals new.
-      selectors := m selectors new.
-      optionalKeywords := m optionalKeywords new.
-      code := m code new.
-      debugMap := m debugMap new. ]
+     method := newM.
+     inputVariables := 0.
+     optionalKeywords := m optionalKeywords new.
+     restVariable := False.
+     registerCount := 0.
+     environment := Nil.
+     selector := Nil.
+     literals := m literals new.
+     selectors := m selectors new.
+     code := m code new.
+     debugMap := m debugMap new.
+     sourceTree := Nil. ]
 ].
 
 m@(CompiledMethod traits) sourceTreeOf: index
@@ -129,7 +135,6 @@ VM SSACompiler traits define: #Context &parents: {Cloneable} &slots: {
 }.
 
 c@(VM SSACompiler Context traits) newOn: method
-"FIXME change method code to array instead of bytearray."
 [
   method code := Array new.
   c clone `setting: #{#method. #codeWriter. #debugMap. #registerValues. #relocations. #labels. #currentRegister}
