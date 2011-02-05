@@ -44,10 +44,10 @@ i@Image die
 "Dictionaries holding actions (blocks taking no argument)
 to be performed under various scenarios. Identified by
 a descriptive Symbol."
-Image startupActions := Dictionary new.
-Image argumentActions := Dictionary new.
-Image shutdownActions := Dictionary new.
-Image saveActions := Dictionary new.
+Image define: #startupActions &builder: [Dictionary new].
+Image define: #argumentActions &builder: [Dictionary new].
+Image define: #shutdownActions &builder: [Dictionary new].
+Image define: #saveActions &builder: [Dictionary new].
 
 "these directory functions need image to be defined"
 dir@(LogicalDirectory traits) registerStartupHandler
@@ -56,9 +56,9 @@ dir@(LogicalDirectory traits) registerStartupHandler
     on: Error do: [| :c | c return: Nil]
 ].
 
-Directory traits Current := LogicalDirectory newResolving: [Directory current].
+Directory traits define: #Current &builder: [LogicalDirectory newResolving: [Directory current]].
 
-Directory traits Home := LogicalDirectory newResolving: [Directory home].
+Directory traits define: #Home &builder: [LogicalDirectory newResolving: [Directory home]].
 
 i@Image handleStartup
 "Perform each action/block in the startupActions attribute."
@@ -112,8 +112,8 @@ Image startupActions at: #StartupArguments :=
 Image argumentActions at: #StartupArguments :=
   [Image handleStandardCommandOptions].
 
-Image StartupArgumentHandlers := Dictionary new.
-Image StartupArgumentDocs := Dictionary new.
+Image define: #StartupArgumentHandlers &builder: [Dictionary new].
+Image define: #StartupArgumentDocs &builder: [Dictionary new].
 
 i@Image handleArgument: optionString with: handler
 [i StartupArgumentHandlers at: optionString := handler].
