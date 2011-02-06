@@ -19,8 +19,8 @@ es@(ExtensibleSequence traits) copyWith: obj
 [es copy `>> [addLast: obj. ]].
 
 es@(ExtensibleSequence traits) reversed
-[| result |
-  result := es newSameSize.
+[
+  result ::= es newSameSize.
   es reverseDo: [| :obj |
     result addLast: obj].
   result
@@ -88,8 +88,8 @@ es@(ExtensibleSequence traits) appendAll: seq
 
 es@(ExtensibleSequence traits) collect: block
 "Override to use addLast: vice at:put:."
-[| result |
-  result := es newSameSize.
+[
+  result ::= es newSameSize.
   es do: [| :each | result addLast: (block applyWith: each)].
   result
 ].
@@ -107,8 +107,8 @@ es@(ExtensibleSequence traits) collect: block from: start to: end
 ].
 
 es@(ExtensibleSequence traits) with: seq collect: binBlock
-[| result |
-  result := es new &capacity: (es size min: seq size).
+[
+  result ::= es new &capacity: (es size min: seq size).
   0 below: result capacity do: [| :index |
     result addLast: (binBlock applyWith: (es at: index) with: (seq at: index))].
   result
@@ -128,17 +128,17 @@ with add:->addLast:."
 [es removeFirst].
 
 es@(ExtensibleSequence traits) removeFirst: n
-[| result |
+[
   n > es size ifTrue: [n := es size].
-  result := es new &capacity: n.
+  result ::= es new &capacity: n.
   n timesRepeat: [result addLast: n removeFirst].
   result
 ].
 
 es@(ExtensibleSequence traits) removeLast: n
-[| result |
+[
   n > es size ifTrue: [n := es size].
-  result := es new &capacity: n.
+  result ::= es new &capacity: n.
   n timesRepeat: [result addFirst: es removeLast].
   result
 ].
@@ -170,8 +170,8 @@ es@(ArrayBacked traits) capacity
 [es contents size].
 
 es@(ArrayBacked traits) growTo: n
-[| result |
-  result := es contents new &capacity: n.
+[
+  result ::= es contents new &capacity: n.
   result replaceFrom: 0 to: es size - 1 with: es contents.
   es contents := result.
   es
@@ -228,10 +228,10 @@ size method and addLast:."
 es@(ExtensibleArray traits) copyReplaceFrom: start to: end with: c
 "Performs an insert or append as necessary if the replacing collection doesn't
 fit in the bounds. eg start < 0 prepends, start > size appends."
-[| result delta startIndex endIndex ess cs |
+[| delta startIndex endIndex |
   delta := 0.
-  ess := es size.
-  cs := c size.
+  ess ::= es size.
+  cs ::= c size.
   start < 0
     ifTrue: [startIndex := endIndex := 0]
     ifFalse:
@@ -241,7 +241,7 @@ fit in the bounds. eg start < 0 prepends, start > size appends."
          ifFalse: [endIndex < (startIndex - 1) \/ [endIndex > (ess - 1)]
                      ifTrue: [^ Nil].
                    delta := endIndex - startIndex + 1]].
-  result := es new &capacity: ess + cs - delta.
+  result ::= es new &capacity: ess + cs - delta.
   0 below: startIndex do: [| :index | result add: (es at: index)].
   0 below: cs do: [| :index | result add: (c at: index)].
   endIndex + 1 below: ess do: [| :index | result add: (es at: index)].
@@ -251,15 +251,15 @@ fit in the bounds. eg start < 0 prepends, start > size appends."
 es@(ExtensibleArray traits) growFirst &by: growBy
 "Provide a larger array and map the contents in to yield more growth area at
 the beginning. The growth factor is 2."
-[| newContents offset defaultGrowBy |
-  defaultGrowBy := es growSize - es capacity.
+[
+  defaultGrowBy ::= es growSize - es capacity.
   growBy := (growBy
     ifNil: [defaultGrowBy]
     ifNotNil: [growBy max: defaultGrowBy]).
-  newContents := (es lastIndex + growBy >= (es capacity - 1)
+  newContents ::= es lastIndex + growBy >= (es capacity - 1)
     ifTrue: [es contents new &capacity: es capacity + growBy]
-    ifFalse: [es contents]).
-  offset := newContents size - es lastIndex - 1.
+    ifFalse: [es contents].
+  offset ::= newContents size - es lastIndex - 1.
   es lastIndex downTo: es firstIndex do:
     [| :index | newContents at: index + offset put: (es contents at: index)].
   es firstIndex := es firstIndex + offset.
@@ -274,28 +274,28 @@ es@(ExtensibleArray traits) grow
 es@(ExtensibleArray traits) growLast &by: growBy
 "Provide a larger array and map the contents in to yield more growth area at
 the end. The growth factor is 2."
-[| newContents defaultGrowBy |
-  defaultGrowBy := es growSize - es capacity.
+[
+  defaultGrowBy ::= es growSize - es capacity.
   growBy := (growBy
     ifNil: [defaultGrowBy]
     ifNotNil: [growBy max: defaultGrowBy]).
-  newContents := (es firstIndex - growBy <= 0
+  newContents ::= es firstIndex - growBy <= 0
     ifTrue: [es contents new &capacity: es capacity + growBy]
-    ifFalse: [es contents]).
+    ifFalse: [es contents].
   es firstIndex upTo: es lastIndex do:
     [| :index |
      newContents
        at: index - es firstIndex
        put: (es contents at: index)].
-  es lastIndex := es lastIndex - es firstIndex.
+  es lastIndex -= es firstIndex.
   es firstIndex := 0.
   es contents := newContents
 ].
 
 es@(ExtensibleArray traits) addFirst: obj
-[| firstIndex |
-  (firstIndex := es firstIndex) = 0 ifTrue: [es growFirst].
-  es firstIndex := es firstIndex - 1.
+[
+  (firstIndex ::= es firstIndex) = 0 ifTrue: [es growFirst].
+  es firstIndex -= 1.
   es contents at: es firstIndex put: obj.
   obj
 ].
@@ -303,7 +303,7 @@ es@(ExtensibleArray traits) addFirst: obj
 es@(ExtensibleArray traits) addLast: obj
 [
   es lastIndex + 1 < es capacity ifFalse: [es growLast].
-  es lastIndex := es lastIndex + 1.
+  es lastIndex += 1.
   es contents at: es lastIndex put: obj.
   obj
 ].
@@ -338,7 +338,7 @@ es@(ExtensibleArray traits) remove: obj ifAbsent: block
       ifTrue: [es contents replaceFrom: index to: es lastIndex - 1
           with: es contents startingAt: index + 1.
           es contents at: es lastIndex put: es contents defaultElement.
-          es lastIndex := es lastIndex - 1.
+          es lastIndex -= 1.
           ^ obj]
       ifFalse: [index += 1]].
   block do
@@ -362,61 +362,61 @@ The method in ExtensibleCollection is O(N^2); this is O(N)."
 es@(ExtensibleArray traits) at: index remove: n
 "Remove the next N objects currently starting from the given index, sliding
 items from the right over to fill in the places."
-[| localStart |
-  localStart := index + es firstIndex.
+[
+  localStart ::= index + es firstIndex.
   es contents replaceFrom: localStart to: es lastIndex - n
       with: es contents startingAt: localStart + n.
-  es lastIndex := es lastIndex - n.
+  es lastIndex -= n.
   es
 ].
 
 es@(ExtensibleArray traits) removeAt: index
 "Remove the object currently at the given index, sliding items from the right
 over to fill in the place."
-[| removed localIndex |
-  removed := es at: index.
-  localIndex := index + es firstIndex.
+[
+  removed ::= es at: index.
+  localIndex ::= index + es firstIndex.
   es contents replaceFrom: localIndex to: es lastIndex - 1
       with: es contents startingAt: localIndex + 1.
   es contents at: es lastIndex put: es contents defaultElement.
-  es lastIndex := es lastIndex - 1.
+  es lastIndex -= 1.
   removed
 ].
 
 es@(ExtensibleArray traits) removeFirst
-[| firstObj |
+[
   es emptyCheck.
-  firstObj := es contents at: es firstIndex.
+  firstObj ::= es contents at: es firstIndex.
   es contents at: es firstIndex put: es contents defaultElement.
-  es firstIndex := es firstIndex + 1.
+  es firstIndex += 1.
   firstObj
 ].
 
 es@(ExtensibleArray traits) removeLast
-[| lastObj |
+[
   es emptyCheck.
-  lastObj := es contents at: es lastIndex.
+  lastObj ::= es contents at: es lastIndex.
   es contents at: es lastIndex put: es contents defaultElement.
-  es lastIndex := es lastIndex - 1.
+  es lastIndex -= 1.
   lastObj
 ].
 
 es@(ExtensibleArray traits) removeFirst: n
-[| result i |
+[
   n > es size ifTrue: [n := es size].
-  result := es contents new &capacity: n.
+  result ::= es contents new &capacity: n.
   es firstIndex below: es firstIndex + n do:
     [| :i | result at: i put: (es contents at: i).
      es contents at: i put: es contents defaultElement].
-  es firstIndex := es firstIndex + n.
+  es firstIndex += n.
   result
 ].
 
 es@(ExtensibleArray traits) removeLast: n
-[| result |
+[
   n > es size ifTrue: [n := es size].
-  result := es contents new &capacity: n.
-  es lastIndex above: (es lastIndex := es lastIndex - n)
+  result ::= es contents new &capacity: n.
+  es lastIndex above: (es lastIndex -= n)
     do: [| :i | result at: (n -= 1) put: (es contents at: i).
 	 es contents at: i put: es contents defaultElement].
   result
@@ -442,9 +442,9 @@ es@(ExtensibleArray traits) collect: block from: start to: end
 ].
 
 es@(ExtensibleArray traits) do: block
-[| index limit |
+[| index |
   index := es firstIndex.
-  limit := es lastIndex.
+  limit ::= es lastIndex.
   [index <= limit] whileTrue:
     [block applyWith: (es contents at: index).
      index += 1].
@@ -454,7 +454,8 @@ es@(ExtensibleArray traits) do: block
 es@(ExtensibleArray traits) reverseDo: block
 [| index |
   index := es lastIndex.
-  [index >= es firstIndex] whileTrue:
+  limit ::= es firstIndex.
+  [index >= limit] whileTrue:
     [block applyWith: (es contents at: index).
      index -= 1].
   es
@@ -477,7 +478,8 @@ c@(Sequence traits) collectWithIndex: binBlock into: es@(ExtensibleArray traits)
 es@(ExtensibleArray traits) find: obj
 [| index |
   index := es firstIndex.
-  [index <= es lastIndex] whileTrue:
+  limit ::= es lastIndex.
+  [index <= limit] whileTrue:
     [(es contents at: index) = obj ifTrue: [^ index].
      index += 1].
   Nil
@@ -497,27 +499,26 @@ the created gap in the contents array."
       -> [es firstIndex - size < 0 ifTrue: [es growFirst &by: size].
           es firstIndex := es firstIndex - size]
   ) otherwise:
-    [| contentsIndex |
-     es lastIndex + size >= es capacity ifTrue: [es growLast &by: size].
-     contentsIndex := es firstIndex + index.
+    [es lastIndex + size >= es capacity ifTrue: [es growLast &by: size].
+     contentsIndex ::= es firstIndex + index.
      index = es size ifFalse:
        [es contents
           replaceFrom: contentsIndex + size
           to: es lastIndex + size
           with: es contents
           startingAt: contentsIndex].
-     es lastIndex := es lastIndex + size.
+     es lastIndex += size.
      contentsIndex]
 ].
 
 es@(ExtensibleArray traits) at: index insert: obj
-[| contentsIndex |
-  es contents at: (contentsIndex := es makeGapAt: index) put: obj
+[
+  es contents at: (es makeGapAt: index) put: obj
 ].
 
 es@(ExtensibleArray traits) at: index insertAll: col
-[| startOffset |
-  startOffset := es makeGapAt: index &size: col size.
+[
+  startOffset ::= es makeGapAt: index &size: col size.
   col doWithIndex: [| :each :index | es contents at: startOffset + index put: each].
   es
 ].
@@ -525,10 +526,10 @@ es@(ExtensibleArray traits) at: index insertAll: col
 es@(ExtensibleArray traits) move: obj to: index
 "Re-position the object so that it has the given index, and slide up/down other
 objects as needed."
-[| src tgt |
-  (src := es find: obj)
+[
+  (src ::= es find: obj)
     ifNil: [obj elementNotFoundOn: es].
-  (tgt := index + es startIndex) = src ifFalse:
+  (tgt ::= index + es startIndex) = src ifFalse:
     [src > tgt
        ifTrue:
          [es contents
@@ -553,16 +554,16 @@ ExtensibleByteArray contents := ByteArray new.
 es@(ExtensibleByteArray traits) elementType [SmallInteger].
 
 es@(ExtensibleByteArray traits) as: s@(String traits)
-[| result |
-  result := s newSizeOf: es.
+[
+  result ::= s newSizeOf: es.
   es doWithIndex:
     [| :each :index | result at: index put: (each as: s elementType)].
   result
 ].
 
 s@(ASCIIString traits) as: a@(ExtensibleByteArray traits)
-[| result |
-  result := a new &capacity: s size.
+[
+  result ::= a new &capacity: s size.
   s do: [| :each | result add: (each as: a elementType)].
   result
 ].

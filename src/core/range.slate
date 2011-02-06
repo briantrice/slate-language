@@ -26,13 +26,13 @@ r@(Range traits) newFrom: start to: end
 ].
 
 s@(Sequence traits) as: r@(Range traits)
-[| newR |
+[
   s size `cache caseOf: {
     0 -> [r newFrom: 0 to: 0 by: 0].
     1 -> [r newFrom: s first to: s last]
   } otherwise:
-    [(newR := r newFrom: s first to: s last by: s last - s first // (s size - 1)) = s
-       ifTrue: [newR]
+    [(result ::= r newFrom: s first to: s last by: s last - s first // (s size - 1)) = s
+       ifTrue: [result]
        ifFalse: [error: 'The Sequence is not an arithmetic progression.']]
 ].
 

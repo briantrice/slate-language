@@ -15,27 +15,26 @@ ExternalResource traits openResources ::= IdentitySet new.
 
 r@(ExternalResource traits) schedule
 "Topologically schedule the resources according to their designated parent resource."
-[| schedule children workList |
-  children := IdentityDictionary new.
-  workList := Stack new.
+[
+  children ::= IdentityDictionary new.
+  workList ::= Stack new.
   r openResources do:
     [| :resource |
-      resource parentResource
-        ifNil:
-          [workList push: resource]
-        ifNotNilDo:
-          [| :parent |
-            (children at: parent ifAbsentPut: [IdentitySet new])
-              include: resource]].
-  schedule := ExtensibleArray new.
+     resource parentResource
+       ifNil:
+         [workList push: resource]
+       ifNotNilDo:
+         [| :parent |
+          (children at: parent ifAbsentPut: [IdentitySet new])
+            include: resource]].
+  schedule ::= ExtensibleArray new.
   [workList isEmpty]
     whileFalse:
       [| resource |
-        resource := workList pop.
-        schedule addLast: resource.
-        children at: resource
-          ifPresent:
-            [| :children | children do: #(workList push: _) `er]].
+       resource := workList pop.
+       schedule addLast: resource.
+       children at: resource ifPresent:
+         [| :children | children do: #(workList push: _) `er]].
   schedule
 ].
 
@@ -120,8 +119,8 @@ r@(ExternalResource traits) sessionDo: block
 transparently in an error-tolerant way. Nesting is handled by detecting
 if the resource was open beforehand and not cycling it if so.
 The return value of the block is answered if it completes without error."
-[| wasOpen |
-  wasOpen := r isOpen.
+[
+  wasOpen ::= r isOpen.
   [wasOpen ifFalse: [r open].
    block applyWith: r]
      ensure: [r isOpen ifTrue:
@@ -271,8 +270,8 @@ s@(ExternalResource Stream traits) sessionDo: block
 transparently in an error-tolerant way. Nesting is handled by detecting
 if the resource was open beforehand and not cycling it if so.
 The return value of the block is answered if it completes without error."
-[| wasOpen |
-  wasOpen := s isOpen.
+[
+  wasOpen ::= s isOpen.
   [wasOpen ifFalse: [s open].
    block applyWith: s]
      ensure: [s isOpen ifTrue:

@@ -67,17 +67,17 @@ x@(Root traits) ensureNamespace: name &slots: slotSpecs &delegate: delegate
 "Create and link to a Namespace object by the slot name if it doesn't exist
 or if there is a non-Namespace object there. This also takes specs for
 immutable slot values, and a &delegate flag for delegated-vs-not namespace."
-[| ns old |
+[| ns |
   (x hasSlotNamed: name)
    ifTrue:
-     [((old := x atSlotNamed: name) is: Namespace)
+     [((old ::= x atSlotNamed: name) is: Namespace)
         ifTrue: [old]
         ifFalse: [x atSlotNamed: name put: Namespace clone]]
-   ifFalse: [(delegate ifNil: [False])
+   ifFalse: [(delegate `defaultsTo: False)
                ifTrue: [ns := Namespace clone. x insertDelegate: ns. x addImmutableSlot: name valued: ns. ns]
                ifFalse: [x addImmutableSlot: name valued: Namespace clone]].
   ns := x atSlotNamed: name.
-  (slotSpecs ifNil: [#{}]) do:
+  (slotSpecs `defaultsTo: #{}) do:
     [| :each | (each is: Association)
        ifTrue: [ns addImmutableSlot: each key valued: each value]
        ifFalse: [ns addImmutableSlot: each]].

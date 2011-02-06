@@ -87,8 +87,8 @@ conditions define: #MethodNotFound &parents: {ProtocolError} &slots: {#message -
 
 selector@(Symbol traits) notFoundOn: arguments &optionals: optionals
 "Query the arguments for an abnormal handler before signalling MethodNotFound."
-[| message |
-  message := Message sending: selector to: arguments &optionals: optionals.
+[
+  message ::= Message sending: selector to: arguments &optionals: optionals.
   arguments doWithIndex:
     [| :arg :index | (arg didNotUnderstand: message at: index) ifNotNilDo:
       [| :result | ^ result do]].
@@ -102,8 +102,8 @@ By default, do nothing and answer Nil, signalling that it was not handled."
 [].
 
 mnf@(MethodNotFound traits) describeOn: out
-[| message |
-  message := mnf message.
+[
+  message ::= mnf message.
   out ; 'The method ' ; message selector printString
    ; ' was not found for the following arguments:\n' ; message arguments printString.
   message optionals isEmpty ifFalse:

@@ -475,8 +475,8 @@ x@(Number traits) exp
 
 x@(Number traits) ceiling
 "The smallest greater Integer value."
-[| trunc |
-  trunc := x truncated.
+[
+  trunc ::= x truncated.
   x = trunc \/ [x isNegative]
     ifTrue: [trunc]
     ifFalse: [trunc + 1]
@@ -484,8 +484,8 @@ x@(Number traits) ceiling
 
 x@(Number traits) floor
 "The largest lesser Integer value."
-[| trunc |
-  trunc := x truncated.
+[
+  trunc ::= x truncated.
   x = trunc \/ [x isPositive]
     ifTrue: [trunc]
     ifFalse: [trunc - 1]
@@ -590,12 +590,14 @@ x@(Integer traits) bitShift: y@(Integer traits)
 
 x@(Integer traits) // y@(Integer traits)
 "Integer division."
-[| q |
-  y isZero ifTrue: [^ x divideByZero].
-  q := x quo: y.
-  (x isNegative xor: y isNegative) /\ [q * y ~= x]
-    ifTrue: [q - 1]
-    ifFalse: [q]
+[
+  y isZero
+    ifTrue: [x divideByZero]
+    ifFalse:
+      [q ::= x quo: y.
+       (x isNegative xor: y isNegative) /\ [q * y ~= x]
+         ifTrue: [q - 1]
+         ifFalse: [q]]
 ].
 
 x@(Integer traits) / y@(Integer traits)
@@ -631,9 +633,9 @@ It's zero outside of Pascal's triangle."
 
 n@(Integer traits) hashMultiply
 "A copying of Squeak's hash-multiplier. TODO: To Be Replaced."
-[| low28 low14 |
-  low28 := n bitAnd: 268435455.
-  low14 := low28 bitAnd: 16383.
+[
+  low28 ::= n bitAnd: 268435455.
+  low14 ::= low28 bitAnd: 16383.
   9741 * low14 + ((9741 * (low28 bitShift: -14) + (101 * low14)
                      bitAnd: 16383) * 16384) bitAnd: 268435455
 ].
@@ -855,18 +857,16 @@ n@(Number traits) readFrom: s
 An error is raised if the return type does not match the requested one.
 Use as: if there is already a String whose full contents are exactly the
 digits."
-[| next |
-  next := (Syntax Lexer newOn: s reader) readNumber value.
-  (next is: n)
+[
+  ((next ::= (Syntax Lexer newOn: s reader) readNumber value) is: n)
     ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
   next
 ].
 
 n@(Integer traits) readFrom: s &radix: radix
-[| next |
+[
   radix `defaultsTo: 10.
-  next := (Syntax Lexer newOn: s reader) readInteger: radix.
-  (next is: n)
+  ((next ::= (Syntax Lexer newOn: s reader) readInteger: radix) is: n)
     ifFalse: [error: 'The source did not parse into ' ; n printName asAn ; '.'].
   next
 ].

@@ -82,8 +82,8 @@ d@(Debugger traits) findRestarts
 ].
 
 d@(Debugger traits) describeRestartAt: index
-[| restart |
-  restart := d restarts at: index.
+[
+  restart ::= d restarts at: index.
   d printer `cache ; 'restart: ' ; index printString ; '\t'.
   restart describeOn: d printer.
 ].
@@ -449,8 +449,7 @@ ns@(Debugger Namespace traits) didNotUnderstand: message at: position
   position > 0
    ifTrue: [resend]
    ifFalse:
-     [| selector |
-      selector := message selector.
+     [selector ::= message selector.
       "Handle an accessor."
       selector isUnarySelector
         ifTrue: [^ [ns arg: selector]].

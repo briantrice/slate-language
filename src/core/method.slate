@@ -113,8 +113,8 @@ of the first argument."
 name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
 "Creates a method that just sends the given selector to the attribute
 of the argument at the specified index."
-[| src |
-  src := (nodes Literal for: name) er.
+[
+  src ::= (nodes Literal for: name) er.
   src statements first arguments at: roleIndex infect:
     [| :arg | nodes UnaryMessage sending: attribute to: {arg}].
   src evaluate asMethod: name on: args
@@ -311,9 +311,9 @@ m@(Method traits) ifCompletes: successBlock ifFails: errorBlock
 "Executes the first method, and then executes either the successBlock or the
 errorBlock depending on whether there is a non-local exit that prevents the
 first from completing normally."
-[| exitedNormally result |
+[| exitedNormally |
   exitedNormally := False.
-  [result := m do. exitedNormally := True. result]
+  [result ::= m do. exitedNormally := True. result]
     ensure: [exitedNormally ifTrue: [successBlock do] ifFalse: [errorBlock do]]
 ].
 
@@ -367,9 +367,9 @@ value for same input, so should there be another converge without this
 test?"
 [| current last |
   current := block applyWith: i.
-  [{i. last} includes: current]
-    whileFalse: [last := current.
-		 current := block applyWith: current].
+  [{i. last} includes: current] whileFalse:
+    [last := current.
+     current := block applyWith: current].
   current
 ].
 

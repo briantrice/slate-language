@@ -13,8 +13,8 @@ s@(Collection Stream traits) contents
 s@(Collection Stream traits) close
 "Closes the link between the Stream and the Collection and resets it,
 returning the Collection."
-[| result |
-  result := s collection.
+[
+  result ::= s collection.
   s collection := Nil.
   s reset.
   result
@@ -30,8 +30,8 @@ s@(Collection Stream traits) collectionType
 streamBlock@(Method traits) writingInto: c@(Collection traits)
 "Create a new WriteStream for the given collection and apply the block to it,
 answering the contents once done."
-[| stream |
-  stream := c writer.
+[
+  stream ::= c writer.
   streamBlock applyWith: stream.
   stream contents
 ].
@@ -81,8 +81,8 @@ ws@(ExtensibleCollection WriteStream traits) next: n putAll: seq startingAt: sta
 
 ws@(ExtensibleCollection WriteStream traits) close
 "Closes the link between the Stream and the Collection and resets it."
-[| result |
-  result := ws collection.
+[
+  result ::= ws collection.
   ws collection := Nil.
   result
 ].
@@ -258,15 +258,16 @@ This is poor for sparse Sets."
 ].
 
 i@(Set ReadStream traits) next: n putInto: seq startingAt: start
-[| numRead contents nextIndex |
+[| numRead nextIndex |
   numRead := 0.
-  contents := i collection contents.
+  contents ::= i collection contents.
   nextIndex := i index.
   seqIndex := start.
   [(nextIndex := contents indexOfFirstSatisfying: #isNotNil `er startingAt: i index) isNil] whileFalse:
     [i index := nextIndex + 1.
-     i position := i position + 1.
+     i position += 1.
      seq at: seqIndex put: (contents at: nextIndex).
+     numRead += 1.
      seqIndex += 1].
   numRead
 ].
@@ -312,8 +313,8 @@ all cases."
 [obj ReadStream newOn: obj].
 
 rs@(Sequence ReadStream traits) next
-[| pos |
-  (pos := rs position) < rs readLimit
+[
+  (pos ::= rs position) < rs readLimit
     ifTrue:
       [rs position := pos + 1.
        rs collection at: pos]
@@ -322,18 +323,18 @@ rs@(Sequence ReadStream traits) next
 
 rs@(Sequence ReadStream traits) next: n
 "Overridden for efficiency."
-[| newC end |
-  end := rs position + n min: rs readLimit.
-  newC := rs collection copyFrom: rs position below: end.
+[
+  end ::= rs position + n min: rs readLimit.
+  result ::= rs collection copyFrom: rs position below: end.
   rs position := end.
-  newC
+  result
 ].
 
 rs@(Sequence ReadStream traits) next: n putInto: c startingAt: start
-[| max |
-  max := rs readLimit - rs position min: n.
+[
+  max ::= rs readLimit - rs position min: n.
   c replaceFrom: start to: start + max - 1 with: rs collection startingAt: rs position.
-  rs position := rs position + max.
+  rs position += max.
   max
 ].
 
@@ -362,18 +363,18 @@ rs@(Sequence ReadStream traits) size
 
 rs@(Sequence ReadStream traits) upTo: obj
 "Answer all the elements until the given object is reached."
-[| start end |
-  start := rs position.
-  end := rs collection indexOf: obj startingAt: start
-    ifAbsent: [rs position := rs collection size. ^ (rs collection copyFrom: start)].
+[
+  start ::= rs position.
+  end ::= rs collection indexOf: obj startingAt: start ifAbsent:
+    [rs position := rs collection size. ^ (rs collection copyFrom: start)].
   rs position := end + 1.
   rs collection copyFrom: start below: end
 ].
 
 rs@(Sequence ReadStream traits) upToEnd
 "Answer all the elements up to the limit by a copy."
-[| start |
-  start := rs position.
+[
+  start ::= rs position.
   rs position := rs collection size.
   rs collection copyFrom: start below: rs position
 ].
@@ -416,9 +417,9 @@ ws@(Sequence WriteStream traits) next
 [Nil].
 
 ws@(Sequence WriteStream traits) growCollectionAtEnd &byAtLeast: minGrowth
-[| c newSize |
-  c := ws collection.
-  newSize := c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
+[
+  c ::= ws collection.
+  newSize ::= c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
   ws collection := c newSize: newSize.
   ws collection replaceFrom: 0 to: c size - 1 with: c.
   ws writeLimit := newSize.
@@ -433,16 +434,16 @@ ws@(Sequence WriteStream traits) pastEndPut: obj
 ].
 
 ws@(Sequence WriteStream traits) nextPut: obj
-[| pos |
-  (pos := ws position) >= ws writeLimit
+[
+  (pos ::= ws position) >= ws writeLimit
     ifTrue: [ws pastEndPut: obj]
     ifFalse: [ws position := pos + 1.
               ws collection at: pos put: obj]
 ].
 
 ws@(Sequence WriteStream traits) next: n putAll: c startingAt: start
-[| newEnd |
-  (newEnd := ws position + n - 1) >= ws writeLimit ifTrue:
+[
+  (newEnd ::= ws position + n - 1) >= ws writeLimit ifTrue:
     [ws growCollectionAtEnd &byAtLeast: newEnd - ws writeLimit + 4].
   ws collection replaceFrom: ws position to: newEnd with: c startingAt: start.
   ws position := newEnd + 1.
@@ -536,20 +537,20 @@ rws@(Sequence ReadWriteStream traits) contents
 ].
 
 rws@(Sequence ReadWriteStream traits) next
-[| pos |
-  (pos := rws position) >= rws readLimit
+[
+  (pos ::= rws position) >= rws readLimit
     ifTrue: [rws exhausted]
     ifFalse: [rws position := pos + 1.
-      rws collection at: pos]
+              rws collection at: pos]
 ].
 
 rws@(Sequence ReadWriteStream traits) next: n
-[| newC end |
+[
   rws readLimit := rws readLimit max: rws position.
-  end := rws position + n min: rws readLimit.
-  newC := rws collection copyFrom: rws position below: end.
+  end ::= rws position + n min: rws readLimit.
+  result ::= rws collection copyFrom: rws position below: end.
   rws position := end.
-  newC
+  result
 ].
 
 rws@(Sequence ReadWriteStream traits) = rws2@(Sequence ReadWriteStream traits)
@@ -568,18 +569,18 @@ ExtensibleSequence traits define: #WriteStream
 "A Stream used to write to a new or existing ExtensibleSequence."
 
 ws@(ExtensibleSequence WriteStream traits) pastEndPut: obj
-[| c |
-  c := ws collection.
+[
+  c ::= ws collection.
   c addLast: obj.
   ws writeLimit := c size.
-  ws position := ws position + 1.
+  ws position += 1.
   obj
 ].
 
 ws@(ExtensibleSequence WriteStream traits) next: n putAll: c startingAt: start
 [
   ws collection at: ws position insertAll: (c copyFrom: start below: start + n).
-  ws position := ws position + n.
+  ws position += n.
   n
 ].
 

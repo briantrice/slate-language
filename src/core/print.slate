@@ -45,8 +45,8 @@ o@(StructuredPrinterMixin traits) indentedDo: block
 
 o@(StructuredPrinterMixin traits) print: str paddingUntil: length
 "Print the given string and make sure the cursor is at least at the given column."
-[| padding |
-  padding := length - str size max: 0.
+[
+  padding ::= length - str size max: 0.
   o nextPutAll: str.
   o next: padding put: $\s.
   o
@@ -94,8 +94,8 @@ x@(Root traits) prettyPrinted &depth: depth
 
 x@(Root traits) printString &radix: radix &precision: prec &forceSign: forceSign &depth: depth
 "Utility for pretty-printing to a String."
-[| printer |
-  [printer := '' prettyPrinter.
+[
+  [printer ::= '' prettyPrinter.
    x printOn: printer &radix: radix &precision: prec &forceSign: forceSign &depth: depth.
    printer contents] on: Error do: [| :c | ^ '<Printing failed>']
 ].
@@ -124,13 +124,13 @@ x@(Root traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "Handle the (non-dispatchable) NoRole case, then print whatever suitable
 defined name along in braces and followed by the slot names and values,
 indented."
-[| doPrintName |
+[
   x == NoRole ifTrue:
     [^ (o ; 'NoRole')].
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
   o ; '#('.
-  (doPrintName := #printName isFoundOn: {x}) ifTrue:
+  (doPrintName ::= #printName isFoundOn: {x}) ifTrue:
     [o ; x printName].
   x slotNames isEmpty ifFalse:
     [doPrintName ifTrue:
@@ -158,11 +158,11 @@ indented."
 ns@(Namespace traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "Print out only the slot names, since these tend to be really large and have
 unprintable prototypes in them."
-[| doPrintName |
+[
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
   o ; '#('.
-  (doPrintName := #name isFoundOn: {ns}) ifTrue:
+  (doPrintName ::= #name isFoundOn: {ns}) ifTrue:
     [o ; ns name].
   ns slotNames isEmpty ifFalse:
     [doPrintName ifTrue:
@@ -393,11 +393,11 @@ c@(Collection traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy
 c@(Collection traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "The template for all collection object printing; this is only valid Slate
 input if the argument is a literal collection, such as an Array."
-[| doPrintName |
+[
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
   o ; '#('.
-  (doPrintName := #printName isFoundOn: {c}) ifTrue:
+  (doPrintName ::= #printName isFoundOn: {c}) ifTrue:
     [o ; c printName].
   c isEmpty ifFalse:
     [doPrintName ifTrue:
@@ -419,11 +419,11 @@ input if the argument is a literal collection, such as an Array."
 c@(Array traits) printOn: o@(PrettyPrinterMixin traits) &depth: depth
 "The template for all collection object printing; this is only valid Slate
 input if the argument is a literal collection, such as an Array."
-[| doPrintName |
+[
   (depth `defaultsTo: 3) isZero ifTrue:
     [^ Nil].
   o ; '{'.
-  (doPrintName := (c isSameAs: Array) not) ifTrue:
+  (doPrintName ::= (c isSameAs: Array) not) ifTrue:
     [o ; c printName].
   c isEmpty ifFalse:
     [doPrintName ifTrue:
