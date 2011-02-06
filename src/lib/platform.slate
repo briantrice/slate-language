@@ -216,7 +216,8 @@ _@shell didNotUnderstand: message at: position
              [command ; message selector.
               message optionals pairsDo:
                 [| :key :value |
-                 command ; ' -' ; (key as: String) allButFirst allButLast ; ' ' ; (value as: String)]].
+                 command ; ' -' ; (key as: String) allButFirst allButLast ; ' '.
+                 value = True ifFalse: [command ; (value as: String)]]].
          message selector isKeywordSelector ifTrue:
            [keywords ::= message selector keywords.
             command ; keywords first.
