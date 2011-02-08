@@ -2,10 +2,12 @@
 ** DONE Bootstrap in :=.                                          :macro:global:
 ** DONE Allow | as a binary selector character.
 ** DONE Implement "&foo" in message sends as "&foo: True".
-** STARTED Bootstrap in ::= binding.                              :macro:global:
+** DONE Core use of ::= binding.                                  :macro:global:
+** BOOTSTRAP Implement creation of local variables for assignments.
+** STARTED Implement "%" as a binary selector lexeme unless used as Eventually prefix.
 ** TODO Implement mutator selector pattern of "foo:=" and sunset "foo:". :global:
 ** TODO Externalize `setTo: rules into data structures.
-** TODO Implement Ruby === for includes:/select:/case-statement usage. :vm:support:
+** STARTED Implement Ruby === for includes:/select:/case-statement usage. :vm:support:
    With different assymetrical selector, e.g. isCaseOf:.
    Root -> \=. Collection -> includes:, Block -> applyWith:. Regex -> matches:.
 ** TODO Implement \=:= as pattern-matching binding.                      :macro:
@@ -13,6 +15,8 @@
    Requires destructuring of Patterns/Partials
 ** TODO Implement method definition as "signature := body".
    Requires method header rewrite at macro-expansion time.
+** TODO Implement initial setting of a local to a literal as a static initialization.
+   Requires some VM support to instantiate the context with the values.
 ** TODO Implement generalized word-quoting. foo{any text...} http://atomo-lang.org/docs/macros.html#section_macro-quotes :lexer:
 *** TODO Implement math{3 + 4 * 5} to apply the precedence library's `math to it.
 *** TODO Implement bytes{1 2 3 4} to create literal ByteArrays.
@@ -22,11 +26,13 @@
 *** TODO Implement glob{foo?.*.c} to create Glob objects.
 *** TODO Implement q{} to create ##() literal/read-time arrays.
 *** TODO Implement comment{} or why{} or doc{} for comments and reclaim double-quotes.
+** TODO Implement | as a special binary macro for chaining expressions and shell pipelines.
 ** TODO Change block header syntax to [|( ... ) body ]. :lexer:global:incompatible:
 ** TODO Swap {} with []                              :lexer:global:incompatible:
 * Libraries
 ** TODO Finish XTreams refactoring of base libraries.
 ** TODO Mini-language for unit testing.
+** TODO Add DoubleFloat support to FFI.
 * System Structure
 ** TODO Implement file loading as parse-compile-then-execute and use/install the result object.
 ** TODO Re-implement the bootstrap assembly in terms of these compiled file-methods.
@@ -42,3 +48,5 @@
 * Quality
 ** Unit tests
 ** Fix bugs on http://code.google.com/p/slate-language/issues/list
+** NOTE ExtensibleSequence's removeFirst/removeFirst:/removeLast/removeLast: are just open-coded versions of first/first:/last/last: where the firstIndex or lastIndex are updated.
+** TODO Fix File's size method (...).
