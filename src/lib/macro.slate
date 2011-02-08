@@ -73,6 +73,10 @@ expr@(nodes Node traits) suspend
 "Expands into a suspension-creating expression for a Block."
 [`((nodes Block newFor: expr) `unquote suspend)].
 
+"These exist to define returns as special binary macros."
+[| :context :value | nodes ReturnClose of: value] asMethod: #^ on: {NoRole. nodes Node traits}.
+[| :context :value | nodes ReturnFar of: value]  asMethod: #^^ on: {NoRole. nodes Node traits}.
+
 expr@(nodes Node traits) cache &environment: method
 "An environment-altering macro that performs no transformation on the argument:
 It creates a new local binding with the result of evaluating the expression
