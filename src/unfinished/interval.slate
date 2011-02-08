@@ -45,17 +45,18 @@ i@(Interval traits) includes: n
 
 i@(Interval traits) readFrom: src
 "Reads the mathematical notation of brackets for intervals from the stream."
-[| result input |
-  input := src reader.
-  result := i clone.
+[
+  input ::= src reader.
+  result ::= i clone.
   "Look for an open (square or curved) bracket."
   input next
     caseOf: {$( -> [result lowerInclusive := False].
              $[ -> [result lowerInclusive := True]}
     otherwise: [error: 'Unexpected character; bad interval start notation.'].
-  i lowerBound := (Number readFrom: input).
-  input next = $, ifFalse: [error: 'Expected comma character not found; bad interval separator notation.'].
-  i upperBound := (Number readFrom: input).
+  i lowerBound := Number readFrom: input.
+  input next = $, ifFalse:
+    [error: 'Expected comma character not found; bad interval separator notation.'].
+  i upperBound := Number readFrom: input.
   "Look for a closing (square or curved) bracket."
   input next
     caseOf: {$) -> [result upperInclusive := False].
@@ -160,20 +161,24 @@ i1@(Interval traits) - i2@(Interval traits)
 
 i1@(Interval traits) * i2@(Interval traits)
 [
-  {i1 lowerBound * i2 lowerBound.
-   i1 lowerBound * i2 upperBound.
-   i1 upperBound * i2 lowerBound.
-   i1 upperBound * i2 upperBound} `cacheAs: #products.
+  products ::= {
+    i1 lowerBound * i2 lowerBound.
+    i1 lowerBound * i2 upperBound.
+    i1 upperBound * i2 lowerBound.
+    i1 upperBound * i2 upperBound
+  }.
   i1 cloneSettingSlots: #{#upperBound. #lowerBound}
      to: {products reduce: #min:`er. products reduce: #max:`er}
 ].
 
 i1@(Interval traits) / i2@(Interval traits)
 [
-  {i1 lowerBound / i2 lowerBound.
-   i1 lowerBound / i2 upperBound.
-   i1 upperBound / i2 lowerBound.
-   i1 upperBound / i2 upperBound} `cacheAs: #quotients.
+  quotients ::= {
+    i1 lowerBound / i2 lowerBound.
+    i1 lowerBound / i2 upperBound.
+    i1 upperBound / i2 lowerBound.
+    i1 upperBound / i2 upperBound
+  }.
   i1 cloneSettingSlots: #{#upperBound. #lowerBound}
      to: {quotients reduce: #min:`er. quotients reduce: #max:`er}
 ].

@@ -31,10 +31,10 @@ bt@(BinaryTree traits) isEmpty
 ].
 
 bt@(BinaryTree traits) rotateLeft
-[| parent child grandChild |
-  parent := bt treeParent.
-  child := bt rightChild.
-  grandChild := child leftChild.
+[
+  parent ::= bt treeParent.
+  child ::= bt rightChild.
+  grandChild ::= child leftChild.
   child leftChild := bt.
   bt rightChild := grandChild.
   parent leftChild == bt
@@ -47,10 +47,10 @@ bt@(BinaryTree traits) rotateLeft
 ].
 
 bt@(BinaryTree traits) rotateRight
-[| parent child grandChild |
-  parent := bt treeParent.
-  child := bt leftChild.
-  grandChild := child rightChild.
+[
+  parent ::= bt treeParent.
+  child ::= bt leftChild.
+  grandChild ::= child rightChild.
   child rightChild := bt.
   bt leftChild := grandChild.
   parent leftChild == bt
@@ -74,17 +74,18 @@ bt@(BinaryTree traits) size
 bt@(BinaryTree traits) isBalanced
 "Whether one subtree differs by more than 1 in size from the other's size."
 [
-  bt leftChild ifNil: [^ (bt rightChild
-    ifNil: [True]
-    ifNotNil: [bt rightChild size <= 1])].
-  bt rightChild ifNil: [^ (bt leftChild size <= 1)].
+  bt leftChild ifNil:
+    [^ (bt rightChild
+          ifNil: [True]
+          ifNotNil: [bt rightChild size <= 1])].
+  bt rightChild ifNil:
+    [^ (bt leftChild size <= 1)].
   (bt leftChild size - bt rightChild size) abs <= 1
 ].
 
 bt@(BinaryTree traits) at: key ifAbsent: block
-[| child |
-  child := (bt scanFor: key)
-  child key = key
+[
+  (child ::= bt scanFor: key) key = key
     ifTrue: [child value]
     ifFalse: [block do]
 ].
@@ -97,14 +98,11 @@ bt@(BinaryTree traits) at: key ifPresent: block
 bt@(BinaryTree traits) at: key put: value
 [
   bt isEmpty ifTrue: [bt key := key. bt value := value. ^ bt].
-  (bt scanFor: key) `cacheAs: #child.
-  child key = key
+  (child ::= bt scanFor: key) key = key
     ifTrue: [child value := value]
     ifFalse:
-      [| newChild |
-       newChild :=
-	 (child clone `setting: #{#key. #treeParent. #leftChild. #rightChild. #value}
-	        to: {key. bt. Nil. Nil. value}).
+      [newChild ::= child clone `setting: #{#key. #treeParent. #leftChild. #rightChild. #value}
+	 to: {key. bt. Nil. Nil. value}.
        key < child key
          ifTrue: [child leftChild := newChild]
          ifFalse: [child rightChild := newChild].

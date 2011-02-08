@@ -11,10 +11,10 @@ is@(InsertionSequence traits) insertionPoint: n
 "This handles movement of the insertion point, and automatically shuffles
 around the contents to handle it, so should only be used when necessary.
 If the gap is empty, don't do anything but shift around the start and end."
-[| numToMove |
+[
   is isFull ifTrue: [
     ^ (is gapStart := is gapEnd := n)].
-  (numToMove := is gapStart - n) positive
+  (numToMove ::= is gapStart - n) positive
     ifTrue: ["Shift the elements to the right, moving the gap to the left."
       n below: is gapEnd do: [| :index |
         is contents at: index + numToMove put: (is contents at: index)]]
@@ -36,9 +36,9 @@ is@(InsertionSequence traits) isFull
 ].
 
 is@(InsertionSequence traits) growTo: capacity
-[| newC shift |
-  newC := (is contents new &capacity: capacity).
-  shift := capacity - is contents size.
+[
+  newC ::= is contents new &capacity: capacity.
+  shift ::= capacity - is contents size.
   0 below: is gapStart do:
     [| :index | newC at: index put: (is contents at: index)].
   is gapEnd below: is contents size do:
@@ -77,14 +77,14 @@ is@(InsertionSequence traits) insert: obj
 
 is@(InsertionSequence traits) insertAll: c
 [
-  c size `cacheAs: #cs.
-  is gapSize > cs
+  is gapSize > (cs ::= c size)
     ifTrue: [| growSize |
-      growSize := cs - is gapSize.
-      ]
-    ifFalse: [c doWithIndex: [| :each :index |
-      is contents at: index + is gapStart put: each].
-      is gapStart := is gapStart + cs].
+             growSize := cs - is gapSize.
+         ]
+    ifFalse: [c doWithIndex:
+                [| :each :index |
+                 is contents at: index + is gapStart put: each].
+              is gapStart := is gapStart + cs].
   c
 ].
 

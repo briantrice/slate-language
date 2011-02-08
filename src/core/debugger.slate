@@ -211,7 +211,7 @@ d@(Debugger traits) saveFrame: f@(Debugger Frame traits)
 
 f@(Debugger Frame traits) describeOn: out
 [
-  f method method `cacheAs: #method.
+  method ::= f method method.
   out
     ; 'frame: ' ; (f debugger frames indexOf: f) printString ; '\n'
     ; '  FP: ' ; f framePointer printString  ; '\n'
@@ -299,7 +299,7 @@ d@(Debugger traits) printFrameLineAt: index &stream: out &showLocation: showLoca
 [
   out `defaultsTo: d printer.
   showLocation `defaultsTo: False.
-  (d frames at: index) `cacheAs: #frame.
+  frame ::= d frames at: index.
   out ; 'frame: ' ; index printString ; (d currentFrame = frame ifTrue: [' *'] ifFalse: ['']) ; '\t' ; frame method printString.
   showLocation ifTrue: [out ; ' @ ' ; frame method method definitionLocation].
   out ; '\n'.
@@ -353,7 +353,7 @@ d@(Debugger traits) currentFrameAt: n@(Integer traits)
     ifNil: [^ (d printer ; 'No frame currently selected. Use "frame: N"')]
     ifNotNilDo:
       [| :frame |
-       frame method method `cacheAs: #method.
+       method ::= frame method method.
        d printer ; 'register[' ; n printString ; ']@' ; (frame stackAtOffset: n) printName
         ; '\t' ; (frame stackAtOffset: n) printString ; '\n'.
        frame stackAtOffset: n]

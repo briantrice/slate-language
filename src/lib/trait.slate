@@ -71,9 +71,9 @@ dispatch at least in some way on the Trait(?)."
 ].
 
 t@(Trait traits) hasValidServices
-[
+[| check |
   t hasValidSignatures /\
-    [| check | check := True.
+    [check := True.
      t services keysAndValuesDo:
        [| :sig :m | check := check /\ [sig arity = m arity]].
      check]
@@ -92,9 +92,9 @@ t@(Trait traits) providedSelectors
 t@(Trait traits) requiredSelectors
 "Answer all the selectors sent which should be defined on users of the Trait,
 but is not in the services selector set."
-[| requirements |
-  requirements := Set new.
-  t providedSelectors `cacheAs: #provisions.
+[
+  requirements ::= Set new.
+  provisions ::= t providedSelectors.
   t services valuesDo:
     [| :m |
      (0 below: m arity) do:
@@ -109,8 +109,8 @@ t@(Trait traits) isAbstract [t isConcrete not].
 t1@(Trait traits) conflictsWith: t2@(Trait traits)
 "Detects those Signatures which are bound to different Method objects in
 the two Trait objects."
-[| allServices |
-  allServices := Dictionary new.
+[
+  allServices ::= Dictionary new.
   {t1. t2} do:
     [| :base | base services keysAndValuesDo:
       [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].
@@ -155,12 +155,12 @@ def@(Syntax MethodDefinition traits) asServiceOf: tr
 object that the second argument should evaluate to (or be, if not a piece
 of syntax). It expands into a literal of the method object that became a
 service of the Trait."
-[| roles service |
+[
   (tr is: Syntax Node) ifTrue: [tr := tr evaluate].
   (tr is: Trait) ifFalse: [error: 'The target for installation was not a Trait.'].
-  roles := (def roles collect: #evaluate `er).
+  roles ::= def roles collect: #evaluate `er.
   (roles includes: tr) ifFalse: [error: 'The Trait is not dispatched upon.'].
-  service := (tr services at: (Method Signature newNamed: def selector over: roles)
+  service ::= (tr services at: (Method Signature newNamed: def selector over: roles)
 		        put: (def deepCopy as: Syntax Block) compile) unquoted.
   tr notifyUsersOfChange.
   service
@@ -215,8 +215,8 @@ t@(Trait traits) + ts@(TraitSum traits)
 ts@(TraitSum traits) conflicts
 "Detects those Signatures which are bound to different Method objects in
 different bases."
-[| allServices |
-  allServices := Dictionary new.
+[
+  allServices ::= Dictionary new.
   ts bases do:
     [| :base | base services keysAndValuesDo:
       [| :sig :m | (allServices at: sig ifAbsentPut: [Set new]) include: m]].

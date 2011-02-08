@@ -28,9 +28,9 @@ x@(Fraction traits) truncated
 ].
 
 x@(Fraction traits) * y@(Fraction traits)
-[| xn xd yn yd d1 d2 |
-  d1 := (xn := x numerator) gcd: (yd := y denominator).
-  d2 := (xd := x denominator) gcd: (yn := y numerator).
+[
+  d1 ::= (xn ::= x numerator) gcd: (yd ::= y denominator).
+  d2 ::= (xd ::= x denominator) gcd: (yn ::= y numerator).
   d2 = xd /\ [d1 = yd]
      ifTrue: [xn // d1 * yn // d2]
      ifFalse: [x newFor: xn // d1 * (yn // d2)
@@ -51,11 +51,11 @@ x@(Fraction traits) - y@(Fraction traits)
 [x + y negated].
 
 x@(Fraction traits) reduced
-[| gcd numer denom |
+[
   x numerator isZero ifTrue: [^ 0].
-  gcd := x numerator abs gcd: x denominator.
-  numer := x numerator // gcd.
-  denom := x denominator // gcd.
+  gcd ::= x numerator abs gcd: x denominator.
+  numer ::= x numerator // gcd.
+  denom ::= x denominator // gcd.
   denom = 1 ifTrue: [^ numer].
   x newFor: numer over: denom
 ].
@@ -67,9 +67,8 @@ x@(Fraction traits) negated
 
 x@(Fraction traits) reciprocal
 [
-  x numerator `cacheAs: #n.
-  x denominator `cacheAs: #d.
-  n caseOf:
+  d ::= x denominator.
+  (n ::= x numerator) caseOf:
     {0 -> [d divideByZero].
      1 -> [d].
      -1 -> [d negated]}

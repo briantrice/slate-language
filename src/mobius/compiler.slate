@@ -191,7 +191,7 @@ gen@(VM SSACompiler traits) newRegister
 ].
 
 gen@(VM SSACompiler traits) registerFor: obj from: def result: result
-[| saveRegister |
+[
    "the whole problem with this function is that we could cache a literal that
  is only loaded in a loop which may not always be executed. remove this code
 until we have it figured out."
@@ -205,8 +205,8 @@ until we have it figured out."
                                   ^ result]]].
  "
   "we don't want result to be a local variable and have it overwritten later"
-  "saveRegister := result isNil."
-  saveRegister := False.
+  "saveRegister ::= result isNil."
+  saveRegister ::= False.
   result `defaultsTo: gen newRegister.
   gen emitInstruction: gen loadLiteral withParameters: {result. obj} from: def.
   saveRegister ifTrue: [gen setRegister: result to: obj].
@@ -258,8 +258,7 @@ gen@(VM SSACompiler traits) emitBranchTo: label from: msg
 gen@(VM SSACompiler traits) mapTo: sourceTree
 [
   index ::= gen codeWriter position.
-  gen currentContext debugMap `cacheAs: #debugMap.
-  debugMap isEmpty not /\ [debugMap last == sourceTree]
+  (debugMap ::= gen currentContext debugMap) isEmpty not /\ [debugMap last == sourceTree]
     ifTrue: [debugMap at: debugMap indexLast - 1 infect: [| :value | index max: value].
              debugMap at: debugMap indexLast - 2 infect: [| :value | index min: value]]
     ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
@@ -327,10 +326,11 @@ and push it onto the stack."
   statements ::= block statements collect:
     [| :statement | statement macroExpand &environment: gen currentMethod sourceTree].
   gen currentContext currentRegister := block localVariables size. "input variables might not be needed"
-  statements allButLastDo: [| :node | gen generate: node result: Nil].
   statements isEmpty
     ifTrue: [gen emitInstruction: gen returnValue withParameters: {Nil} from: block]
-    ifFalse: [gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} from: block].
+    ifFalse:
+      [statements allButLastDo: [| :node | gen generate: node result: Nil].
+       gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} from: block].
 
   "Set the variable information after generation, just in case it was modified."
   newBlock `>>
@@ -464,7 +464,7 @@ gen@(VM SSACompiler traits) generate: _@(nodes Namespace traits) result: result
 
 gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: result
 [
-  load variable scope `cacheAs: #scope.
+  scope ::= load variable scope.
   varIndex ::= scope localVariables indexOf: load variable.
   lexOffset ::= gen contexts indexLast -
     ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
@@ -486,7 +486,7 @@ gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: r
 
 gen@(VM SSACompiler traits) generate: store@(nodes StoreVariable traits) result: result
 [
-  store variable scope `cacheAs: #scope.
+  scope ::= store variable scope.
   varIndex ::= scope localVariables indexOf: store variable.
   lexOffset ::= gen contexts indexLast -
     ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree == scope])
@@ -530,7 +530,7 @@ the push for the selector, and then the appropriate message send bytecode."
 
 gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals: opts
 [
-  gen generate: msg selector on: msg arguments from: (opts ifNil: [msg]) result: result
+  gen generate: msg selector on: msg arguments from: (opts `defaultsTo: msg) result: result
 ].
 
 gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals: opts
@@ -651,8 +651,7 @@ gen@(VM SSACompiler traits) generate: _@#do on: args from: msg result: result
 "If the block is a literal with no variables, then inline it.
 Otherwise, fall back to evaluating it via 'do'."
 [
-  args first `cacheAs: #block.
-  (block isSameAs: nodes Block)
+  ((block ::= args first) isSameAs: nodes Block)
     /\ [block localVariables isEmpty]
     ifTrue:
       [result `defaultsTo: gen newRegister.

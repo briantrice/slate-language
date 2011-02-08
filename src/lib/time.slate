@@ -15,9 +15,9 @@ _@time ticksSinceEpoch [lobby timeSinceEpoch as: Integer].
 
 m@(Method traits) timeToRun &count: count
 "Returns the number of seconds to execute the method once."
-[| start end |
-  start := time `cache ticksSinceEpoch.
-  count isNotNil `cacheAs: #countWasGiven.
+[| end |
+  start ::= time `cache ticksSinceEpoch.
+  countWasGiven ::= count isNotNil.
   count `defaultsTo: 1.
   lobby collectGarbage. "Minimize the dynamic effect of the heap state."
   countWasGiven ifTrue: [[count timesRepeat: m] ensure: [end := time ticksSinceEpoch]]
@@ -244,8 +244,8 @@ i@(Instant traits) dayOfWeek
 "Answer an Integer between 1 and 7, inclusive, representing the day of the
 week in the local time of the receiver, which includes the receiver. Sunday
 is 1, Monday 2, and so on."
-[| dayIndex |
-  (dayIndex := i localDate weekdayIndex + 1) > 7
+[
+  (dayIndex ::= i localDate weekdayIndex + 1) > 7
     ifTrue: [1] ifFalse: [dayIndex]
 ].
 
@@ -283,8 +283,8 @@ i@(Instant traits) hour24
 i@(Instant traits) hour12
 "Answer an Integer between 1 and 12, inclusive, representing the hour of the
 day in the 12-hour clock of the local time of the receiver."
-[| tempHour |
-  (tempHour := (self hour + 1) abs) > 12
+[
+  (tempHour ::= (i hour + 1) abs) > 12
     ifTrue: [tempHour - 12]
     ifFalse: [tempHour]
 ].

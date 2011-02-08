@@ -20,8 +20,8 @@ _@(Language traits) SmallWords
 [overrideThis].
 
 l@(Language traits) titleCaseOf: s@(String traits)
-[| words |
-  (words := s split) doWithIndex:
+[
+  (words ::= s split) doWithIndex:
     [| :word :index |
      (word includes: $&)
        ifTrue: [word toUppercase]
@@ -86,13 +86,13 @@ requires a full lexicon (for English) - only use this for technical purposes."
       -> [(s at: s indexLast - 1) isVowel
 	    ifTrue: [s ; 's']
 	    ifFalse: [s allButLast ; 'ies']].
-    [(s last: 2) = 'us']
+    [s endsWith: 'us']
       -> [(s allButLast: 2) ; 'i'].
-    [(s last: 3) = 'sis']
+    [s endsWith: 'sis']
       -> [(s allButLast: 2) ; 'es'].
-    [(s last: 2) = 'on']
+    [(s endsWith: 'on') /\ [(s endsWith: 'ion') not]]
       -> [(s allButLast: 2) ; 'a'].
-    [#{'ex'. 'ix'} includes: (s last: 2)]
+    [(s endsWith: 'ex') \/ [s endsWith: 'ix']]
       -> [(s allButLast: 2) ; 'ices'].
     [#{'ss'. 'sh'. 'ch'. 'dge'} includes: (s last: 2)]
       -> [s ; 'es']
@@ -128,8 +128,10 @@ English traits define: #TensWords -> {Nil. Nil. 'twenty'. 'thirty'. 'forty'. 'fi
 
 l@(English traits) ordinateOf: n@(Integer traits)
 [
-  ((n as: String) inGroupsOf: l numeralGroupSize) `cacheAs: #groups.
-  (groups collect: [| :g | l ordinateOfGroup: g]) join &separator: ' '
+  n (as: String)
+    (inGroupsOf: l numeralGroupSize)
+    (collect: [| :g | l ordinateOfGroup: g])
+    (join &separator: ' ')
 ].
 
 l@(English traits) ordinateOfGroup: numerals@(String traits)

@@ -40,8 +40,7 @@ s@(ConcatenatedReadStream traits) isAtEnd
 s@(ConcatenatedReadStream traits) next
 [
   s currentSource isAtEnd ifTrue:
-    [| nextSrcIdx |
-     (nextSrcIdx := (s sources indexOf: s currentSource) + 1)
+    [(nextSrcIdx ::= (s sources indexOf: s currentSource) + 1)
        = s sources size ifTrue: [^ s exhaustion].
      s currentSource := s sources at: nextSrcIdx].
   s currentSource next
@@ -69,13 +68,13 @@ s@(FlattenedReadStream traits) isAtEnd
 [s sources size = 1 /\ [s sources top isAtEnd]].
 
 s@(FlattenedReadStream traits) next
-[| obj |
+[
   [s sources top isAtEnd]
     whileTrue:
      [s sources size <= 1
        ifTrue: [s exhausted]
        ifFalse: [s sources pop]].
-  (obj := s sources top next) isSource
+  (obj ::= s sources top next) isSource
     ifTrue: [s sources push: obj reader.
              s next]
     ifFalse: [obj]
@@ -190,16 +189,15 @@ l@(ReadStream LineStream traits) collectionType [Array].
 l@(ReadStream LineStream traits) nextLine
 [
   [| :line |
-    l source `cacheAs: #underlying.
-    [underlying isAtEnd
-        ifTrue: [line collection isEmpty ifTrue: [^ Nil]. False]
-        ifFalse: [| char |
-          (char := underlying next) caseOf: {
-            $\r -> [l trailingNL := True. False].
-            $\n -> [| nl | nl := l trailingNL. l trailingNL := False. nl].
-          } otherwise: [line nextPut: char. True]]
-    ] whileTrue.
-  ] writingAs: String
+   underlying ::= l source.
+   [underlying isAtEnd
+      ifTrue: [line collection isEmpty ifTrue: [^ Nil]. False]
+      ifFalse:
+        [| char |
+         (char := underlying next) caseOf: {
+           $\r -> [l trailingNL := True. False].
+           $\n -> [| nl | nl := l trailingNL. l trailingNL := False. nl]
+         } otherwise: [line nextPut: char. True]]] whileTrue] writingAs: String
 ].
 
 l@(ReadStream LineStream traits) next: n putInto: seq startingAt: start
@@ -207,7 +205,8 @@ l@(ReadStream LineStream traits) next: n putInto: seq startingAt: start
   0 below: n do:
     [| :index |
      l nextLine
-       ifNil: [^ index] ifNotNilDo: [| :line | seq at: index + start put: line]].
+       ifNil: [^ index]
+       ifNotNilDo: [| :line | seq at: index + start put: line]].
   n
 ].
 

@@ -7,21 +7,21 @@ They can be Morphs or Presentations or both, but those aspects are optional
 mixins. All of them have bounding extents and definite positions, as well as
 a growable sequence of sub-elements / children."
 
-SceneElement addImmutableSlot: #position valued: (0, 0).
+SceneElement define: #position -> (0, 0).
 "The position on the parent coordinate system of the reference point for
 locating the SceneElement."
 
-SceneElement addImmutableSlot: #boundingRect valued: (Rectangle origin: 0 <> 0 extent: 0 <> 0). 
+SceneElement define: #boundingRect -> (Rectangle origin: 0 <> 0 extent: 0 <> 0). 
 "The smallest Rectangle bounding the SceneElement."
 
-SceneElement addImmutableSlot: #inputHandler valued: Nil.
+SceneElement define: #inputHandler -> Nil.
 "inputHandler receives all input directed toward this SceneElement"
 
-SceneElement addImmutableSlot: #spaceRequirement valued: SpaceRequirement zero.
+SceneElement define: #spaceRequirement -> SpaceRequirement zero.
 
-SceneElement addImmutableSlot: #needToComposeSpaceRequirement valued: False.
+SceneElement define: #needToComposeSpaceRequirement -> False.
 
-SceneElement addImmutableSlot: #needToAllocateSpace valued: False.
+SceneElement define: #needToAllocateSpace -> False.
 
 SceneElement useTheme: BaseTheme.
 
@@ -65,8 +65,8 @@ se@(SceneElement traits) position: p
 ].
 
 se@(SceneElement traits) parents: parents
-[| newObj |
-  newObj := (se derive &mixins: parents) `>>
+[
+  newObj ::= (se derive &mixins: parents) `>>
     [printName := se printName ; ' instance'. ].
   se _delegates := {newObj traitsWindow}.
   se addSlotsFrom: newObj.
@@ -150,15 +150,15 @@ se@(SceneElement traits) startAdjusting: aspect position: p
 "Call this in response to a LeftMouseButtonPressEvent to start adjusting
 an aspect of this se as a drag operation. 
 ex: (se startAdjusting: BottomRight position: event position)."
-[| handle | "handle is invisible and transient"
-  handle := Handle newTarget: se aspect: aspect.
-  handle updatePosition.
-  handle startDrag: p.
+[ "handle is invisible and transient"
+  (Handle newTarget: se aspect: aspect) `>>
+    [updatePosition.
+     startDrag: p].
 ].
 
 se@(SceneElement traits) adjust: _@(Position traits) by: offset
 [
-  se position: se position + offset.
+  se position += offset.
   se
 ].
 
@@ -284,11 +284,9 @@ se@(SceneElement traits) updateExtentFor: p@(Point traits)
 bounding Rectangles as needed. Answers the highest se updated."
 [
   (se boundingRect contains: p)
-  ifTrue: [se]
-  ifFalse: [| br |
-    br := se boundingRect encompass: p.
-    se boundingRect: br.
-    se treeParent updateExtentFor: br]
+    ifTrue: [se]
+    ifFalse: [se boundingRect := br ::= se boundingRect encompass: p.
+              se treeParent updateExtentFor: br]
 ].
 
 se@(SceneElement traits) updateExtentFor: r@(Rectangle traits)
@@ -297,11 +295,9 @@ a point, by performing a merge as necessary, and then propagating up the
 update if the merge was necessary."
 [
   (se boundingRect contains: r)
-  ifTrue: [se]
-  ifFalse: [| br |
-    br := se boundingRect merge: r.
-    se boundingRect: br.
-    se treeParent updateExtentFor: br]
+    ifTrue: [se]
+    ifFalse: [se boundingRect := br ::= se boundingRect merge: r.
+              se treeParent updateExtentFor: br]
 ].
 
 se@(SceneElement traits) updateExtentFor: ch@(SceneElement traits)
@@ -328,7 +324,7 @@ say, hysteresis effects."
 se@(SceneElement traits) occludingSiblings
 "Return all siblings that occlude at least part of the node's region."
 [
-  (se treeParent children `cacheAs: #c) copyFrom: (c find: se) + 1
+  (c ::= se treeParent children) copyFrom: (c find: se) + 1
 ].
 
 se@(SceneElement traits) contains: p@(Point traits)
@@ -399,21 +395,21 @@ se@(SceneElement traits) clear
 se@(SceneElement traits) onChildrenContaining: p@(Point traits) collect: block
 "The CLIM spec claims that reverseDo: is needed here, apparently since this
 deals with pointer queries."
-[| newC |
+[
   "se children
   select: [| :each | each contains: p]
   collect: [| :each | block applyWith: each]"
-  newC := se new.
-  se children reverseDo: [| :each | (each contains: p)
-    ifTrue: [newC add: (block applyWith: each)]]
+  newC ::= se new.
+  se children reverseDo:
+    [| :each | (each contains: p)
+       ifTrue: [newC add: (block applyWith: each)]]
 ].
 
-se@(SceneElement traits) onChildrenContaining: r@(Rectangle traits)
-  collect: block
+se@(SceneElement traits) onChildrenContaining: r@(Rectangle traits) collect: block
 [
   se children
-  select: [| :each | each contains: r]
-  collect: [| :each | block applyWith: each]
+    select: [| :each | each contains: r]
+    collect: [| :each | block applyWith: each]
 ].
 
 se@(SceneElement traits) drawOn: c &medium: m
@@ -535,11 +531,12 @@ Graphics define: #PassPointerToChildren &parents: {SceneElement}.
 se@(PassPointerToChildren traits) handle: event@(PointerEvent traits)
 [
   ((se is: PassPointerToChildren) not) \/ [(event is: PointerEvent) not] ifTrue: [break].
-  se inputHandler ifNil: [| newEvent |
-    newEvent := event copyOffset: (0 <> 0) - se boundingRect origin.
-    se children do: [| :each |
-      (each contains: newEvent position) ifTrue: [
-        ^ (each handle: newEvent)]]].
+  se inputHandler ifNil:
+    [newEvent ::= event copyOffset: (0 <> 0) - se boundingRect origin.
+     se children do:
+       [| :each |
+        (each contains: newEvent position) ifTrue:
+          [^ (each handle: newEvent)]]].
   resend
 ].
 
@@ -688,7 +685,7 @@ h@(Handle traits) handle: event@(PaintEvent traits)
 
 Graphics define: #Handles &parents: {SceneElement}.
 
-Handles addImmutableSlot: #handles valued: {}.
+Handles define: #handles -> {}.
 
 se@(Handles traits) cleanup
 [
@@ -747,7 +744,6 @@ se@(PaintHandles traits) handle: event@(PaintEvent traits)
 
 Graphics define: #PaintSolidBackground &parents: {SceneElement}.
 
-
 se@(PaintSolidBackground traits) handle: event@(PaintEvent traits)
 [
   ((se is: PaintSolidBackground) not) \/ [(event is: PaintEvent) not] ifTrue: [break].
@@ -761,9 +757,7 @@ se@(PaintSolidBackground traits) handle: event@(PaintEvent traits)
   resend
 ].
 
-
 Graphics define: #PaintBorder &parents: {SceneElement}.
-
 
 se@(PaintBorder traits) handle: event@(PaintEvent traits)
 [
@@ -795,14 +789,15 @@ se@(PassPointerToHandles traits) handle: event@(PointerEvent traits)
 Graphics define: #Text &parents: {SceneElement}.
 
 
-Text addImmutableSlot: #text valued: ''.
-Text addImmutableSlot: #textOffset valued: 0 <> 0.
+Text define: #text -> ''.
+Text define: #textOffset -> (0 <> 0).
 
-{#text. #textOffset} do: [| :slotName |
+[| :slotName |
   [| :se :v |
-    se atSlotNamed: slotName put: v.
-    se repaintSoon.
-    se] asMethod: (mutatorNameFor: slotName) on: {Text traits. NoRole}].
+   se atSlotNamed: slotName put: v.
+   se repaintSoon.
+   se] asMethod: (mutatorNameFor: slotName) on: {Text traits. NoRole}]
+   for: {#text. #textOffset}.
 
 se@(Text traits) cleanup
 [

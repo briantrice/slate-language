@@ -17,7 +17,7 @@ Parser traits define: #InteractiveExcludeTokens &builder: [{tokens Comment}].
 Parser traits define: #ExcludeTokens &builder: [{tokens Comment. tokens EndLine}].
 
 Parser traits define: #SpecialBinarySelectors &builder:
-  [#{#:=. #::=. #=:=. #?=. #+=. #-=. #*=. #/=}].
+  [#{#:=. #::=. #=:=. #?=. #+=. #-=. #*=. #/=. #^. #^^}].
 
 obj@(Root traits) recordPositionFrom: p@(Parser traits)
 [(nodes Literal for: obj) recordPositionFrom: p].
@@ -55,8 +55,8 @@ p@(Parser traits) excludedTokens &interactive: interactive
 
 p@(Parser traits) nextToken &interactive: interactive
 "Takes the next token from either the buffer or the lexer transparently."
-[| exclude token |
-  exclude := p excludedTokens &interactive: interactive.
+[| token |
+  exclude ::= p excludedTokens &interactive: interactive.
   [p is: (token := p lexer next)
      likeAnyOf: exclude] whileTrue.
   token
@@ -65,8 +65,8 @@ p@(Parser traits) nextToken &interactive: interactive
 p@(Parser traits) peekToken &interactive: interactive
 "Return the next non-stop token from the Lexer, but leave it in the buffer
 and don't update the position."
-[| exclude token lookAheadIndex |
-  exclude := p excludedTokens &interactive: interactive.
+[| token lookAheadIndex |
+  exclude ::= p excludedTokens &interactive: interactive.
   "Return the next non-stop token."
   lookAheadIndex := -1.
   [p is: (token := p lexer peekForwardBy: (lookAheadIndex += 1))
@@ -143,8 +143,8 @@ p@(Parser traits) nextAsStatement
 
 p@(Parser traits) next
 "The top-level Stream processing to return the next syntax node."
-[| statement token terminatesCorrectly |
-  statement := p nextExpression.
+[| token terminatesCorrectly |
+  statement ::= p nextExpression.
   "Unless parsing lines greedily, statements need to be separated explicitly or be at the end of the input."
   (terminatesCorrectly := p is: (token := p nextToken) likeAnyOf: p EndStatementTokens)
     \/ [p parseInteractively]
@@ -157,22 +157,22 @@ p@(Parser traits) next
 ].
 
 p@(Parser traits) nonInteractivelyDo: block
-[| interactive |
-  interactive := p parseInteractively.
+[
+  interactive ::= p parseInteractively.
   p parseInteractively := False.
   [block do] ensure: [p parseInteractively: interactive]
 ].
 
 p@(Parser traits) inScope: scope do: block
-[| oldScope |
-  oldScope := p currentScope.
+[
+  oldScope ::= p currentScope.
   p currentScope := scope.
   [block do] ensure: [p currentScope := oldScope]
 ].
 
 p@(Parser traits) nextAtom
-[| token |
-  (p nextFrom: (token := p nextToken))
+[
+  (p nextFrom: (token ::= p nextToken))
     ifNil: [p undoToken: token. ]
     ifNotNilDo: [| :node | p recordDeclaredTypeOf: (node recordPositionFrom: p)]
 ].
@@ -209,8 +209,8 @@ p@(Parser traits) nextMessage &after: node
 ].
 
 p@(Parser traits) parseRestArgumentsFor: expr
-[| token |
-  ((token := p peekToken) isSameAs: tokens Comma)
+[
+  ((token ::= p peekToken) isSameAs: tokens Comma)
     ifTrue: [p unexpectedlyFound: token after: expr]
     ifFalse: [expr]
 ].
@@ -230,8 +230,8 @@ p@(Parser traits) parseRestArgumentsFor: message@(nodes Message traits)
 ].
 
 p@(Parser traits) parseOptionalKeywordsFor: expr
-[| token |
-  (Syntax isOptionalSelector: (token := p peekToken))
+[
+  (Syntax isOptionalSelector: (token ::= p peekToken))
     ifTrue: [p unexpectedlyFound: token after: expr]
     ifFalse: [expr]
 ].
