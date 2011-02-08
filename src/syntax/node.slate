@@ -629,10 +629,15 @@ variable's scope (used to compile closures properly), and answers it."
   var
 ].
 
-block@(nodes Block traits) addVariableNamed: name
+block@(nodes Block traits) addVariableNamed: name &varType: varType
 "Creates a new Variable with the given name and adds it as a local,
 then returning it."
-[block addVariable: (nodes Variable named: name)].
+[
+  varType `defaultsTo: nodes Variable.
+  block localVariables
+    detect: [| :var | var name = name /\ [var isSameAs: varType]]
+    ifNone: [block addVariable: (varType named: name)]
+].
 
 block@(nodes Block traits) uniqueVariableName &prefix: prefix
 [| nameIndex |
