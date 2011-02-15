@@ -1,0 +1,52 @@
+
+collections define: #BitArray &parents: {ByteArray} &slots: {#bitSize -> 0} &basedOn: ByteArray.
+"Uses byte-contents to implement an array of direct binary values (Booleans)."
+
+a@(BitArray traits) new &capacity: bitSize
+[
+  bitSize `defaultsTo: 0.
+  byteSize ::= (n + 7) // 8.
+  (a newSize: byteSize) `>> [bitSize := bitSize. ]
+].
+
+a@(BitArray traits) size [a bitSize].
+a@(BitArray traits) arrayType [a].
+_@(BitArray traits) elementType [Boolean].
+_@(BitArray traits) defaultElement [False].
+_@(BitArray traits) accepts: _ [False].
+_@(BitArray traits) accepts: _@(Boolean traits) [True].
+
+a@(BitArray traits) includesKey: i
+[
+  i < a bitSize
+].
+
+a@(BitArray traits) at: i
+[
+  (a includesKey: i) ifFalse: [^ (i keyNotFoundOn: a)].
+  ((a byteAt: i // 8) bitAnd: 1 << (i \\ 8)) isZero not
+].
+
+a@(BitArray traits) at: i put: bool@(Boolean traits)
+[
+  (a includesKey: i) ifFalse: [^ (i keyNotFoundOn: a)].
+  byteOffset ::= i // 8.
+  bitMask ::= 1 << (i \\ 8).
+  byte ::= a byteAt: byteOffset.
+  a byteAt: byteOffset put:
+    (bool
+       ifTrue: [byte bitOr: bitMask]
+       ifFalse: [byte bitAnd: bitMask bitNot]).
+  bool
+].
+
+a@(BitArray traits) at: i put: obj
+[a cannotAccept: obj in: i].
+
+a@(BitArray traits) at: i put: n@(Integer traits)
+[
+  n caseOf: {
+    0 -> [a at: i put: False].
+    1 -> [a at: i put: True]
+  } otherwise: [resend]
+].

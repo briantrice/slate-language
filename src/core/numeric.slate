@@ -1,51 +1,5 @@
 prototypes ensureNamespace: #numerics &delegate: True.
 
-numerics define: #Comparable &parents: {Cloneable}.
-"A Comparable is any object that compares linearly (<, =, >) with other like
-objects."
-
-"BUG: This conflicts with CoercibleNumberMixin < CoercibleNumberMixin.
-Some comparisons depend on the coercions to happen to see the relevant < definition.
-x@(Comparable traits) < y@(Comparable traits)  [overrideThis].
-"
-x@(Comparable traits) <= y@(Comparable traits) [(y < x) not].
-x@(Comparable traits) >= y@(Comparable traits) [(x < y) not].
-x@(Comparable traits) > y@(Comparable traits)  [y < x].
-
-x@(Comparable traits) <=> y@(Comparable traits)
-"Answer the sign of the difference between the two arguments."
-[
-  x < y ifTrue: [-1]
-    ifFalse: [x = y ifTrue: [0] ifFalse: [1]]
-].
-
-x@(Comparable traits) sign
-"Answer the sign of the argument by comparing it with its zero element."
-[x <=> x zero].
-
-x@(Comparable traits) between: min@(Comparable traits) and: max@(Comparable traits)
-"Return whether the first argument is between the other two."
-[
-  x >= min /\ [x <= max]
-].
-
-x@(Comparable traits) min: y@(Comparable traits)
-"Return the lesser argument."
-[
-  x < y ifTrue: [x] ifFalse: [y]
-].
-
-x@(Comparable traits) max: y@(Comparable traits)
-"Return the greater argument."
-[
-  x > y ifTrue: [x] ifFalse: [y]
-].
-
-x@(Comparable traits) min: y@(Comparable traits) max: z@(Comparable traits)
-[
-  (x min: y) max: z
-].
-
 numerics define: #Number &parents: {Comparable}.
 "A Number is a Comparable value upon which arithmetic operations may be performed."
 

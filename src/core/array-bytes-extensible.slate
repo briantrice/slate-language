@@ -1,0 +1,21 @@
+
+"this will call the correct #as function when converting to strings"
+collections define: #ExtensibleByteArray &parents: {ExtensibleArray}.
+ExtensibleByteArray contents := ByteArray new.
+
+es@(ExtensibleByteArray traits) elementType [SmallInteger].
+
+es@(ExtensibleByteArray traits) as: s@(String traits)
+[
+  result ::= s newSizeOf: es.
+  es doWithIndex:
+    [| :each :index | result at: index put: (each as: s elementType)].
+  result
+].
+
+s@(ASCIIString traits) as: a@(ExtensibleByteArray traits)
+[
+  result ::= a new &capacity: s size.
+  s do: [| :each | result add: (each as: a elementType)].
+  result
+].
