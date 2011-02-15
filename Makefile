@@ -18,6 +18,11 @@ $(DEFAULT_IMAGE): vm
 
 release_image: vm $(DEFAULT_IMAGE)
 
+latest_release_image:
+	$(SILENT) $(ECHO) $(WGET) $(LATEST_SLATE_IMAGE_URL)
+	-bunzip2 -q -k $(LATEST_SLATE_IMAGE_RELEASE_NAME).bz2
+	$(INSTALL) $(LATEST_SLATE_IMAGE_RELEASE_NAME) $(DEFAULT_IMAGE)
+
 installdirs:
 	$(SILENT) $(INSTALL) -d $(exec_prefix) $(lispdir) $(includedir) $(datadir) $(man1dir)
 
