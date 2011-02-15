@@ -104,7 +104,7 @@ WORD_SIZE_ := $(shell $(RM) $(WORD_SIZE_FN).* $(WORD_SIZE_FN) 1>&2)
 
 PLATFORM    := unix
 CCVERSION   := $(shell $(CC) -dumpversion)
-#WORD_SIZE   := 32
+WORD_SIZE   := 32
 LDFLAGS     := # -avoid-version
 LIBS        := #-lm -ldl
 #PLUGINS     := platform.so posix.so pipe.so
