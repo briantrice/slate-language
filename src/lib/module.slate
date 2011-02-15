@@ -155,7 +155,20 @@ Load traits addSlot: #Level valued: 0.
 Load traits define: #DefaultSourceDir &builder: [Directory current].
 "Records the concrete directory where the sources are available and where
 the bootstrap occurred."
-Load traits define: #defaultPaths &builder: [{Load DefaultSourceDir} as: ExtensibleArray].
+Load traits define: #defaultPaths &builder: [ExtensibleArray new].
+
+Load defaultPaths include: Load DefaultSourceDir.
+Load defaultPaths include: Load DefaultSourceDir / 'src'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/demo'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/core'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/mobius'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/lib'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/i18n'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/net'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/ui'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/unfinished'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/web'.
+Load defaultPaths include: Load DefaultSourceDir / 'src/syntax'.
 
 l@(Load traits) of: file@(File traits)
 [| oldLevel |
@@ -169,12 +182,23 @@ l@(Load traits) of: file@(File traits)
 
 l@(Load traits) resolvePathOf: file@(File traits)
 [
-  (file locator isSameAs: file RelativeLocator)
-    ifTrue:
-      [[file exists] whileFalse:
-	[(l defaultPaths before: file locator basePath)
-	  ifNil: [error: 'Could not find the file relative to any of the default directories.'. ^ Nil]
-	  ifNotNilDo: [| :newL | file locator basePath: newL]]]
+  file locator := l resolve: file locator
+].
+
+l@(Load traits) resolve: relative@(File RelativeLocator traits)
+[
+  relative fileType `defaultsTo: 'slate'.
+  l defaultPaths reverseDo:
+    [| :dir |
+     relative basePath := dir locator.
+     relative exists ifTrue: [^ relative]].
+  error: 'Could not find the file relative to any of the default directories.'.
+  relative
+].
+
+l@(Load traits) resolve: filename@(File AbsoluteLocator traits)
+[
+  l resolve: (File RelativeLocator new `>> [name := filename name. ])
 ].
 
 l@(Load traits) retry
@@ -250,6 +274,7 @@ contents within the argument namespace or an optional override."
     [error: 'Image filename specified where Slate source expected. Make sure you run slate with the -i flag to specify an image.'].
   src := File newNamed: locator &mode: File Read.
   src exists ifFalse: [locator fileType `defaultsTo: 'slate'].
+  src exists ifFalse: [src locator := Load resolve: src locator].
   src exists
     ifTrue: [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
     ifFalse: [warn: 'You tried to call load: on something that didn\'t describe a file. Returning the input: ' ; locator printString. locator]
@@ -269,6 +294,12 @@ contents within the argument namespace or an optional override."
   loader Level := loader Level + 1.
   [file ASCIIReader sessionDo: #(loader process: _) `er &mode: file Read]
     ensure: [loader Level := oldLevel].
+].
+
+ns@(Namespace traits) reload: file &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports
+[
+  [ns load: file &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
+    on: RebindError do: [| :x | x return: Nil]
 ].
 
 prototypes define: #FileModule &parents: {Module} &slots: {#source -> File}.
