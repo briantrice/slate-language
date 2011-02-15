@@ -63,10 +63,10 @@ subdir@(Directory traits) isChildOf: dir@(Directory traits)
 
 dir@(Directory traits) enable
 "Reset the directory."
-[| dirname result |
+[
   [dir close] on: dir Closed do: #return `er.
-  dirname := dir locator as: String.
-  (result := dir primitiveOpen: dirname) isNegative
+  dirname ::= dir locator as: String.
+  (result ::= dir primitiveOpen: dirname) isNegative
     ifTrue: [error: result negated printString]
     ifFalse: [dir handle: result].
 ].
@@ -117,11 +117,10 @@ dir@(Directory traits) renameTo: newName
 dir@(Directory traits) nextDirEntry
 "Answers the next file entry name. This is stateful and should only be used
 by Directory Streams."
-[| buffer len |
+[
   dir handle ifNil: [error: 'Directory not open'].
-  buffer := String new &capacity: 256.
-  len := dir primitiveRead: dir handle into: buffer.
-  len isNegative
+  buffer ::= String new &capacity: 256.
+  (len ::= dir primitiveRead: dir handle into: buffer) isNegative
     ifTrue: [error: len negated printString. Nil]
     ifFalse: [len isZero ifTrue: [Nil] "End-marker."
 			 ifFalse: [buffer copyFrom: 0 to: len - 1]]
@@ -169,18 +168,18 @@ loc@(File Locator traits) openDirectory
 dir@(Directory traits) current
 "Get the current Directory used by Slate. This uses a ByteArray to pass the String
 name and the return value tells how long the actual contents are."
-[| buffer dirLength |
-  buffer := ByteArray newSize: 256.
-  dirLength := dir primitiveGetCurrentDirectory: buffer.
+[
+  buffer ::= ByteArray newSize: 256.
+  dirLength ::= dir primitiveGetCurrentDirectory: buffer.
   dir newNamed: ((buffer first: dirLength) as: String)
 ].
 
 dir@(Directory traits) enter
 "Sets the Directory to be the current Slate directory."
-[| returnCode |
+[
   dir exists ifFalse: [error: 'You cannot enter a directory that does not exist.'].
-  returnCode := dir primitiveSetCurrentDirectory: ((dir locator as: String) as: ByteArray).
-  returnCode isZero ifFalse: [error: 'Couldn\'t set the directory']
+  (returnCode ::= dir primitiveSetCurrentDirectory: ((dir locator as: String) as: ByteArray))
+    isZero ifFalse: [error: 'Couldn\'t set the directory']
 ].
 
 dir@(Directory traits) current: someDirName
@@ -225,9 +224,9 @@ dir@(Directory traits) home
 
 dir@(Directory traits) walk: block
 "Calls the block on each pathname below the current Directory, recursively."
-[
+[| eachDir |
   dir sessionDo:
-    [| :each eachDir |
+    [| :each |
      (eachDir := dir newNamed: each) exists
        ifTrue: [eachDir walk: block]
        ifFalse: [block sendWith: eachDir locator]].
@@ -236,9 +235,9 @@ dir@(Directory traits) walk: block
 dir@(Directory traits) / path
 "Answers a new Directory or File that is specified by the relative location
 given as argument."
-[| newPath newType |
-  newPath := path as: File RelativeLocator &base: dir locator.
-  newType := newPath fileInfo
+[
+  newPath ::= dir locator / path.
+  newType ::= newPath fileInfo
     ifNil: [File]
     ifNotNilDo:
       [| :info | info isFile ifTrue: [File] ifFalse: [info isDirectory ifTrue: [Directory]]].
@@ -280,8 +279,8 @@ ds@(Directory Stream traits) isAtEnd
 ].
 
 ds@(Directory Stream traits) next
-[| result |
-  result := ds peek.
+[
+  result ::= ds peek.
   ds cache: Nil.
   result
 ].
@@ -289,11 +288,10 @@ ds@(Directory Stream traits) next
 ds@(Directory Stream traits) peek
 "Fills the cache slot with the next entry. The stream itself as used as the
 end-marker when reached (Nil marks an empty cache, a separate condition)."
-[
-  ds cache ifNil: [| buffer |
-    buffer := String new &capacity: 256.
-    ds cache := ds resource nextDirEntry ifNil: [ds]].
-  ds cache
+[| buffer |
+  ds cache ifNil:
+    [buffer := String new &capacity: 256.
+     ds cache := ds resource nextDirEntry ifNil: [ds]]
 ].
 
 ds@(Directory Stream traits) reset

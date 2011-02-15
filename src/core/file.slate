@@ -282,12 +282,12 @@ l@(File Locator traits) copy
 
 l@(File Locator traits) / name@(String traits)
 [
-  l copy `>> [path := path copyWith: name. ]
+  l copy `>> [path := l path copyWith: name. ]
 ].
 
 l@(File Locator traits) / names@(Sequence traits)
 [
-  l copy `>> [path := path ; names. ]
+  l copy `>> [path := l path ; names. ]
 ].
 
 f1@(File Locator traits) = f2@(File Locator traits)
@@ -380,7 +380,10 @@ f1@(File RelativeLocator traits) = f2@(File RelativeLocator traits)
    /\ [f1 fileType = f2 fileType] /\ [f1 version = f2 version]].
 
 s@(String traits) as: l@(File RelativeLocator traits) &base: base
-[resend `>> [basePath := base ifNil: [Directory Current]. ]].
+[
+  base `defaultsTo: Directory Current.
+  resend `>> [basePath := base. ]
+].
 
 l@(File RelativeLocator traits) newFrom: base
 [l cloneSettingSlots: #{#basePath} to: {base}].
