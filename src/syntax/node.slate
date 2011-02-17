@@ -838,8 +838,18 @@ b@(nodes Block traits) allSelectorsSentToInputs
 [
   [| :result |
    b inputVariables keysDo:
-     [| :index | result ; (b allSelectorsSentToInputAt: index)].
-   ] writingAs: Set
+     [| :index | result ; (b allSelectorsSentToInputAt: index)]
+  ] writingAs: Set
+].
+
+b@(nodes Block traits) bodyIncludesImplicitSends
+[
+  b statements do:
+    [| :statement | statement walk:
+       [| :node | (node is: nodes Message) /\
+          [node arguments includes: nodes ImplicitArgument]
+          ifTrue: [^ True]]].
+  False
 ].
 
 b@(nodes Block traits) allSelectorsSentImplicitly
@@ -847,11 +857,13 @@ b@(nodes Block traits) allSelectorsSentImplicitly
   [| :result |
    b statements do:
      [| :statement | statement walk:
-        [| :node | (node is: nodes Message)
-           ifTrue: [node arguments do:
-                      [| :arg | (arg is: nodes LoadVariable) /\
-                         [arg variable = nodes ImplicitArgument]
-                         ifTrue: [result nextPut: node selector]]]]]] writingAs: Set
+        [| :node | (node is: nodes Message) ifTrue:
+           [node arguments do:
+              [| :arg |
+               arg = nodes ImplicitArgument
+                 \/ [(arg is: nodes LoadVariable)
+                       /\ [arg variable = nodes ImplicitArgument]]
+                 ifTrue: [result nextPut: node selector]]]]]] writingAs: Set
 ].
 
 nodes define: #MethodDefinition &parents: {nodes Block}

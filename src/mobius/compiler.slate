@@ -317,7 +317,7 @@ and push it onto the stack."
 [
   topLevel `defaultsTo: False.
   newBlock ::= CompiledMethod new `>>
-    [environment := block allSelectorsSentImplicitly isEmpty ifFalse:
+    [environment := block bodyIncludesImplicitSends ifTrue:
        [gen contexts isEmpty
           ifTrue: [block parentScope topLevel namespace]
           ifFalse: [gen currentMethod environment]].
