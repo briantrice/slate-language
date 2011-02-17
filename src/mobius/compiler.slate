@@ -317,10 +317,9 @@ and push it onto the stack."
 [
   topLevel `defaultsTo: False.
   newBlock ::= CompiledMethod new `>>
-    [environment := block bodyIncludesImplicitSends ifTrue:
-       [gen contexts isEmpty
-          ifTrue: [block topLevel namespace]
-          ifFalse: [gen currentMethod environment]].
+    [environment := gen contexts isEmpty
+       ifTrue: [block topLevel namespace]
+       ifFalse: [gen currentMethod environment].
      sourceTree := block. ].
   gen contexts push: (gen Context newOn: newBlock).
   "we macroexpand everything before we set the current register because macroexpansion can add localvariables etc"
