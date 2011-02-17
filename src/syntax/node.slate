@@ -820,11 +820,10 @@ b@(nodes Block traits) allSelectorsSentToVar: var
 [| loadExpr |
   loadExpr := var load.
   [| :result |
-   b statements walk:
-     [| :expr | (expr is: nodes Message)
-        /\ [expr arguments includes: loadExpr]
-        ifTrue: [result nextPut: expr selector]]
-   ] writingAs: Set
+   b statements do:
+     [| :statement | statement walk:
+        [| :expr | (expr is: nodes Message) /\ [expr arguments includes: loadExpr]
+           ifTrue: [result nextPut: expr selector]]]] writingAs: Set
 ].
 
 b@(nodes Block traits) allSelectorsSentToInputAt: argIndex
@@ -846,13 +845,13 @@ b@(nodes Block traits) allSelectorsSentToInputs
 b@(nodes Block traits) allSelectorsSentImplicitly
 [
   [| :result |
-   b statements walk:
-     [| :node | (node is: nodes Message)
-                ifTrue: [node arguments do:
-                  [| :arg | (arg is: nodes LoadVariable) /\
-                     [arg variable = nodes ImplicitArgument]
-                            ifTrue: [result nextPut: node selector]]]].
-   ] writingAs: Set
+   b statements do:
+     [| :statement | statement walk:
+        [| :node | (node is: nodes Message)
+           ifTrue: [node arguments do:
+                      [| :arg | (arg is: nodes LoadVariable) /\
+                         [arg variable = nodes ImplicitArgument]
+                         ifTrue: [result nextPut: node selector]]]]]] writingAs: Set
 ].
 
 nodes define: #MethodDefinition &parents: {nodes Block}
