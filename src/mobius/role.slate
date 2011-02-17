@@ -50,7 +50,7 @@ that as starting index, or Nil if there is none."
           nextRoleIndex := m roleTable at: index + 3. ]]
 ].
 
-Map traits define: #RoleReadStream &parents: {PeekableStream}
+Map traits define: #RoleReadStream &parents: {PeekableStream. ReadStream}
   &slots: {#map. #index -> 0 "The raw index into the role table."}.
 "An in-order traversal stream over the role-table in a Map, returning
 EmbeddedRoleEntry objects."
@@ -63,34 +63,36 @@ obj@(Root traits) roleReader [obj _map roleReadStream].
 
 m@(Map RoleReadStream traits) reset [m index := 0. m].
 
+m@(Map RoleReadStream traits) reader [m].
+
 m@(Map RoleReadStream traits) elementType [Map RoleEntry].
 "
 m@(Map RoleReadStream traits) isAtEnd
 [m index > m map roleTable indexLast].
 "
 
-"there isn't an easy way with the way this is designed to see if we are at the end.
-so we take the current location and go through the list manually and see if there is
-another entry later on before we get to the end of the array."
 m@(Map RoleReadStream traits) peek
-[| result index |
+"Search from the current location forward to see if there is
+another entry later on before we get to the end."
+[| index |
   index := m index.
-  [index > m map roleTable indexLast] whileFalse:
-    [(m map hasRoleInTableAt: index) ifTrue: [^ (m map roleInTableAt: index)].
+  map ::= m map.
+  [index > map roleTable indexLast] whileFalse:
+    [(map roleInTableAt: index) ifNotNilDo: [| :role | ^ role].
      index += 4].
   Nil
 ].
 
 m@(Map RoleReadStream traits) isAtEnd
 [
-  m peek isNotNil
+  m peek isNil
 ].
 
 m@(Map RoleReadStream traits) next
 [| result |
   [m isAtEnd] whileFalse:
     [result := m map roleInTableAt: m index.
-     m index := m index + 4.
+     m index += 4.
      result ifNotNil: [^ result]].
   m exhausted
 ].
@@ -108,7 +110,8 @@ x@(Root traits) roleIndices
 
 x@(Root traits) rolesSatisfying: testBlock &into: collection
 [
-  ((x roleReader select: testBlock) >> (collection ifNil: [#{}]) writer) contents
+  collection `defaultsTo: #{}.
+  ((x roleReader select: testBlock) >> collection writer) contents
 ].
 
 x@(Root traits) roles
@@ -146,8 +149,9 @@ x@(Root traits) methods
 
 x@(Root traits) methodsSatisfying: testBlock &into: collection
 [
+  collection `defaultsTo: #{}.
   (((x roleReader select: testBlock) collect: [| :r | r methodDefinition method])
-     >> (collection ifNil: [#{}]) writer) contents
+     >> collection writer) contents
 ].
 
 x@(Root traits) accessorMethods
@@ -205,11 +209,13 @@ x@(Root traits) methodsSendingMacro: selector
 [
   [| :result |
    x roleReader do:
-     [| :r m | m := r ifNotNil: [r methodDefinition method].
-      (m isSameAs: CompiledMethod) ifTrue:
-	[m sourceTree ifNotNilDo:
-	  [| :src |
-	   (src allMacroSelectorsSent includes: selector)
-	     ifTrue: [result nextPut: m]]]]]
+     [| :r m |
+      r ifNotNil:
+        [m := r methodDefinition method.
+         (m isSameAs: CompiledMethod) ifTrue:
+	   [m sourceTree ifNotNilDo:
+	      [| :src |
+	       (src allMacroSelectorsSent includes: selector)
+	         ifTrue: [result nextPut: m]]]]]]
     writingAs: IdentitySet
 ].
