@@ -667,10 +667,12 @@ s@(Stream traits) reject: block
 s@(FilterStream traits) next: n putInto: seq startingAt: start
 [| numWritten |
   numWritten := 0.
+  result ::= seq writer.
+  result position := start.
   [s source isAtEnd \/ [numWritten >= seq size]] whileFalse:
     [s source skipUntil: [| :elem | s block applyWith: elem].
-     [s source isAtEnd not /\ [numWritten < seq size /\ [s block applyWith: s peek]]]
-       whileTrue: [result nextPut: s next. numWritten += 1]].
+     [s source isAtEnd not /\ [numWritten < seq size /\ [s block applyWith: s source peek]]]
+       whileTrue: [result nextPut: s source next. numWritten += 1]].
   numWritten
 ].
 
