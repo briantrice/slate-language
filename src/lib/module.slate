@@ -152,7 +152,7 @@ prototypes define: #Load &parents: {Cloneable} &slots: {
 Load traits addSlot: #Level valued: 0.
 "How many levels of recursion has load: been invoked on."
 "TODO: This should be a dynamic, not a global."
-Load traits define: #DefaultSourceDir &builder: [Directory current].
+Load traits addSlot: #DefaultSourceDir valued: Directory current.
 "Records the concrete directory where the sources are available and where
 the bootstrap occurred."
 Load traits define: #defaultPaths &builder: [ExtensibleArray new].
@@ -174,7 +174,7 @@ l@(Load traits) of: file@(File traits)
 [| oldLevel |
   l resolvePathOf: file.
   oldLevel := l Level.
-  l Level := l Level + 1.
+  l Level += 1.
   [file sessionDo:
      [| :input | l process: input reader] &mode: file Read]
     ensure: [l Level := oldLevel]
@@ -192,7 +192,7 @@ l@(Load traits) resolve: relative@(File RelativeLocator traits)
     [| :dir |
      relative basePath := dir locator.
      relative exists ifTrue: [^ relative]].
-  error: 'Could not find the file relative to any of the default directories.'.
+  error: 'Could not find the file relative to any of the default directories: %s', relative.
   relative
 ].
 
