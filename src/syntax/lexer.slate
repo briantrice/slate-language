@@ -11,7 +11,11 @@ Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
 Lexer traits define: #QuoteMacros -> Dictionary new.
 
-Lexer QuoteMacros at: #words put: [| :contents | contents split].
+Lexer QuoteMacros at: 'words' put: #split `er.
+Lexer QuoteMacros at: 'bytes' put:
+  [| :contents | (contents split collect: [| :x | Integer readFrom: x]) as: ByteArray].
+Lexer QuoteMacros at: 'p' put:
+  [| :contents | File Locator readFrom: contents].
 
 l@(Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
