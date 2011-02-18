@@ -233,7 +233,7 @@ Escaping is accounted for."
 l@(Lexer traits) nextQuoteMacroNamed: sel until: terminator
 [| contents |
   contents := l nextSegmentUntil: terminator.
-  tokens QuoteMacro for: ((l QuoteMacros at: sel value) applyWith: contents)
+  tokens QuoteMacro for: ((l QuoteMacros at: sel value ifAbsent: [^ sel]) applyWith: contents)
 ].
 
 l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
