@@ -54,7 +54,7 @@ uninstall:
 
 edit:
 	$(info Launching Slate in Emacs)
-	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el
+	$(SILENT) $(EMACS) -Q -l $(slateroot)/etc/slate-startup.el $(src)
 
 slate-completions:
 	$(info Creating completion file for evaluation)
