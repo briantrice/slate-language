@@ -9,6 +9,10 @@ Also, debugging information is stored for now in terms of the line number that
 the current stream position has reached."
 Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
+Lexer traits define: #QuoteMacros -> Dictionary new.
+
+Lexer QuoteMacros at: #words put: [| :contents | contents split].
+
 l@(Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
 [
@@ -226,6 +230,12 @@ Escaping is accounted for."
   t for: (l nextSegmentUntil: $\")
 ].
 
+l@(Lexer traits) nextQuoteMacroNamed: sel until: terminator
+[| contents |
+  contents := l nextSegmentUntil: terminator.
+  tokens QuoteMacro for: ((l QuoteMacros at: sel value) applyWith: contents)
+].
+
 l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
 [| c |
   [l hasMoreCharacters
@@ -241,7 +251,6 @@ l@(Lexer traits) read: type@(tokens Selector traits)
      [| :result |
       l hasMoreCharacters /\ [l peekCharacter isDigit] ifFalse:
         [l nextWordCharactersInto: result]] writingAs: '') isEmpty
-   ifTrue: []
    ifFalse: [type for: result]
 ].
 
@@ -335,7 +344,16 @@ read-table."
             ifTrue: [l undoCharacter: c. l readNumber]
             ifFalse: [l undoCharacter: c.
                       (l read: tokens Selector)
-                        ifNil: [l error: 'Message selector must not be empty.']]]]
+                        ifNil: [l error: 'Message selector must not be empty.']
+                        ifNotNilDo:
+                          [| :sel |
+                           (c := l nextCharacter) caseOf: {
+                             $\' -> [l nextQuoteMacroNamed: sel until: $\'].
+                             $\" -> [l nextQuoteMacroNamed: sel until: $\"].
+                             $\{ -> [l nextQuoteMacroNamed: sel until: $\}].
+                             $\( -> [l nextQuoteMacroNamed: sel until: $\)].
+                             $/  -> [l nextQuoteMacroNamed: sel until: $/ ]
+                           } otherwise: [l undoCharacter: c. sel]]]]]
     ifFalse: [tokens EndStream]
 ].
 
