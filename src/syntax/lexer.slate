@@ -16,6 +16,12 @@ Lexer QuoteMacros at: 'bytes' put:
   [| :contents | (contents split collect: [| :x | Integer readFrom: x]) as: ByteArray].
 Lexer QuoteMacros at: 'p' put:
   [| :contents | File Locator readFrom: contents].
+Lexer QuoteMacros at: 'f' put:
+  [| :contents | [| *args | #sprintf* applyTo: {contents} ; args]].
+Lexer QuoteMacros at: 'r' put:
+  [| :contents | contents regex].
+Lexer QuoteMacros at: 'm' put:
+  [| :contents | contents regex].
 
 l@(Lexer traits) on: stream
 "Target the lexer to the particular stream and initialize it."
