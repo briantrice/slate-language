@@ -204,24 +204,26 @@ after the initial escape is seen, whether as a character or part of a string."
 l@(Lexer traits) characterFor: c
 [(l isEscape: c) ifTrue: [l readEscapedCharacter] ifFalse: [c]].
 
+l@(Lexer traits) nextSegmentUntil: terminator
+[| c |
+  [| :result |
+   [(c := l nextCharacter) == terminator]
+     whileFalse:
+       [result nextPut: (l characterFor: c)]] writingAs: ''
+].
+
 l@(Lexer traits) readString
 "Build a string until the next single-quote character is encountered.
 Escaping is accounted for."
-[| c |
-  l newLiteralFor: ([| :result |
-    [(c := l nextCharacter) == $\']
-      whileFalse:
-	[result nextPut: (l characterFor: c)]] writingAs: '')
+[
+  l newLiteralFor: (l nextSegmentUntil: $\')
 ].
 
 l@(Lexer traits) read: t@(tokens Comment traits)
 "Build a comment string until the next double-quote character is encountered.
 Escaping is accounted for."
-[| c |
-  t for: ([| :result |
-    [(c := l nextCharacter) == $\"]
-      whileFalse:
-	[result nextPut: (l characterFor: c)]] writingAs: '')
+[
+  t for: (l nextSegmentUntil: $\")
 ].
 
 l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)
