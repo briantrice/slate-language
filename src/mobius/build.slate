@@ -213,8 +213,9 @@ def@(ImageDefinition traits) defaultFilename &base: base &useTimestamp: useTimes
 "Generates a unique and descriptive image filename based on the definition."
 [
   useTimestamp `defaultsTo: True.
-  '%s.%s.%d.%d.image' formatter,
-    (base ifNil: ['kernel']),
+  base `defaultsTo: 'kernel'.
+  '%s.%s.%d.%d.image' formatting,
+    base,
     (def endianness caseOf: {#LittleEndian -> ['little']. #BigEndian -> ['big']}),
     def wordSize,
     (useTimestamp ifTrue: [lobby ticksSinceEpoch] ifFalse: ['latest'])
