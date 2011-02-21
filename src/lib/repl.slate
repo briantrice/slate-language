@@ -14,7 +14,7 @@ prototypes define: #REPL &parents: {Cloneable} &slots: {
 ns@(Namespace traits) inform: message &target: target
 [| *rest |
   target `defaultsTo: REPL resource.
-  target writer ; (rest isEmpty ifTrue: [message] ifFalse: [#sprintf* sendTo: {message} ; rest]) ; '\n'.
+  target writer ; (rest isEmpty ifTrue: [message] ifFalse: [#formatting sendTo: {message} ; rest]) ; '\n'.
   target writer flush.
 ].
 
@@ -116,7 +116,7 @@ repl@(REPL traits) refreshWorkspace
 
 repl@(REPL traits) prompt
 [
-  'slate[%@]%s' sprintf*, repl lineCount, repl basePrompt
+  'slate[%@]%s' formatting, repl lineCount, repl basePrompt
 ].
 
 repl@(REPL traits) newBasedOn: resource@(ExternalResource traits)

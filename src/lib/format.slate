@@ -2,7 +2,7 @@
 s@(String traits) interpolate
 "Interpolates arguments formatted as '{N}' with corresponding elements from
 an array argument. Curly open-brackets may be escaped by doubling them."
-"Test: ('{{ } \\ foo {0} bar {1}' format*, 12, 'string') = '{ } \ foo 12 bar string'"
+"Test: ('{{ } \\ foo {0} bar {1}' interpolate, 12, 'string') = '{ } \ foo 12 bar string'"
 [| *args index |
   input ::= s reader.
   [| :result |
@@ -13,7 +13,7 @@ an array argument. Curly open-brackets may be escaped by doubling them."
 	  [input peek == $\{
 	     ifTrue: [result nextPut: input next]
 	     ifFalse: [index := Integer readFrom: (input upTo: $\}).
-		       result ; ((args at: index ifAbsent: ['[subscript out of bounds: {0}]' format*, index]) as: s)]]
+		       result ; ((args at: index ifAbsent: ['[subscript out of bounds: {0}]' interpolate, index]) as: s)]]
 	ifFalse: [result nextPut: char]].
    ] writingAs: s
 ].
