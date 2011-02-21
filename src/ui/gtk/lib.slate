@@ -11,7 +11,7 @@ Gtk define: #LibNames &builder: [{'Win32' -> ({'gtk-wrapper' -> 'gtk-wrapper'.
 
 
 Gtk define: #LibWrapper -> (
-  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk-wrapper') primitives: ##(
+  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk-wrapper') primitives: q{
     (Pointer wrapper_gtk_dialog_get_vbox(Pointer))
 
     (Void wrapper_gtk_lib_init())
@@ -26,7 +26,7 @@ Gtk define: #LibWrapper -> (
 
     (Pointer wrapper_gtk_tree_iter_new())
 
-  )
+  }
 ).
 
 Gtk LibWrapper enable.
@@ -36,7 +36,7 @@ l@(Gtk LibWrapper) init [
 ].
 
 Gtk define: #Lib -> (
-  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk') primitives: ##(
+  ExternalInterface newForLibrary: ((Gtk LibNames at: Platform current name) at: 'gtk') primitives: q{
 
     (Pointer gtk_accel_group_new())
     (Void gtk_accel_group_connect(Pointer Int Int Int Pointer))
@@ -224,7 +224,7 @@ Gtk define: #Lib -> (
     (Void gtk_window_set_default_size(Pointer Int Int))
     (Void gtk_window_set_modal(Pointer Boolean))
     (Void gtk_window_add_accel_group(Pointer Pointer))
-       )
+  }
 ).
 
 Gtk Lib enable.

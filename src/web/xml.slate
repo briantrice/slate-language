@@ -208,7 +208,7 @@ p@(Xml SimpleParser traits) assertEndTagFor: element
 ].
 
 "read until </element name>"
-"#content -> ##( (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *))."
+"#content -> q{ (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *)}."
 p@(Xml SimpleParser traits) readElementContentFor: element
 [| seq cdata |
   seq := ExtensibleArray new.
@@ -277,87 +277,87 @@ p@(Xml Element traits) definesNamespace
 ". cannot be negated so [^<&]* is like (~ '<' '&' . *)"
 
 "Xml Parser setRules:" {
-#Document -> ##(prolog element (Misc *)).
-#Char -> ##(| (16r1 16rD7FF) (16rE000 16rFFFD) (16r10000 16r10FFFF)).
-#RestrictedChar -> ##(| (16r1 16r8) (16rB 16rC) (16rE 16r1F) (16r7F 16r84) (16r86 16r9F)).
-#S -> ##(| 16r20 16r9 16rD 16rA +).
-#NameStartChar -> ##(| 16r3A":" (16r41 16r5A "A-Z") 16r5F "_" (16r61 16r7A"a-z") (16rC0 16rD6) (16rD8 16rF6) (16rF8 16r2FF) (16r370 16r37D) (16r37F 16r1FFF) (16r200C 16r200D) (16r2070 16r218F) (16r2C00 16r2FEF) (16r3001 16rD7FF) (16rF900 16rFDCF) (16rFDF0 16rFFFD) (16r10000 16rEFFFF)).
-#NameNonStartChar -> ##(| 16r2D"-" 16r2E"." (16r30 16r39)"(0-9)" 16rB7 (16r0300-16r036F) (16r203F-16r2040)).
-#NameChar -> ##(| NameStartChar NameNonStartChar).
-#Name -> ##(NameStartChar (NameChar *)).
-#Names -> ##(Name (16r20 Name *)).
-#Nmtoken -> ##((NameChar +)).
-#Nmtokens -> ##(Nmtoken (16r20 Nmtoken *)).
-#EntityValue -> ##(| ('"'  (| (~ '%' '&' '"') PEReference Reference . *) '"') ('\'' (| (~ '%' '&' '\'') PEReference Reference . *) '\'')).
-#AttValue -> ##(| ('"'  (| (~ '<' '&' '"') Reference . *) '"')  ('\'' (| (~ '<' '&' '\'') Reference . *) '\'')).
-#SystemLiteral -> ##(| ('"' (~ '"' . *) '"') ('\'' (~ '\'' . *) '\'')).
-#PubidLiteral -> ##(| ('"' (PubidChar *) '"') ('\'' ((~ '\'') PubidChar *) '\'')).
-#PubidChar -> ##(| 16r20 16rD 16rA (16r61 16r7A) (16r41 16r5A) (16r30 16r39) 45 39 40 41 43 44 46 47 58 61 63 59 33 42 35 64 36 95 37).
-#CharData -> ##((~ (| '<' '&' ']]>')) . *).
-#Comment -> ##('<!--' ((~ '--' ) Char *) '-->').
-#PI -> ##('<?' PITarget (S ((~ '?>') Char *) ?) '?>').
-#PITarget -> ##((~ (| 'X' 'x') (| 'M' 'm') (| 'L' 'l')) Name).
-#CDSect -> ##( CDStart  CData  CDEnd).
-#CDStart -> ##('<![CDATA[').
-#CData -> ##((~ ']]>') Char *).
-#CDEnd -> ##(']]>').
-#prolog -> ##( XMLDecl  (Misc *) (doctypedecl  (Misc *) ?)).
-#XMLDecl -> ##('<?xml' VersionInfo (EncodingDecl ?) (SDDecl ?) (S ?) '?>').
-#VersionInfo -> ##(S 'version' Eq (| ('\'' VersionNum '\'') ('"' VersionNum '"'))).
-#Eq -> ##((S ?) '=' (S ?)).
-#VersionNum -> ##('1.1').
-#Misc -> ##(| (Comment PI S)).
-#doctypedecl -> ##('<!DOCTYPE' S  Name (S  ExternalID ?) (S ?) ('[' intSubset ']' (S ?) ?) '>').
-#DeclSep -> ##(| PEReference S).
-#intSubset -> ##(| markupdecl DeclSep *).
-#markupdecl -> ##(| elementdecl AttlistDecl EntityDecl NotationDecl PI Comment).
-#extSubset -> ##( (TextDecl ?) extSubsetDecl).
-#extSubsetDecl -> ##((| markupdecl conditionalSect DeclSep *)).
-#SDDecl -> ##(  S   'standalone' Eq (| ('\'' (| 'yes' 'no') '\'') ('"' (| 'yes' 'no') '"'))).
-#element -> ##(| (EmptyElemTag) (STag content ETag) ).
-#STag -> ##('<' Name (S  Attribute *) (S ?) '>').
-#Attribute -> ##( Name  Eq  AttValue  ).
-#ETag -> ##('</' Name  (S ?) '>').
-#content -> ##( (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *)).
-#EmptyElemTag -> ##('<' Name (S  Attribute *) (S ?) '/>').
-#elementdecl -> ##('<!ELEMENT' S  Name  S  contentspec  (S ?) '>').
-#contentspec -> ##(| ('EMPTY' 'ANY' Mixed children)  ).
-#children -> ##((| choice seq) (| '?'  '*' '+' ?)).
-#cp -> ##((| Name choice seq) (| '?' '*' '+' ?)).
-#choice -> ##('(' (S ?) cp ( (S ?) '|' (S ?) cp +) (S ?) ')').
-#seq -> ##('(' (S ?) cp ( (S ?) ',' (S ?) cp *) (S ?) ')').
-#Mixed -> ##(| ('(' (S ?) '#PCDATA' ((S ?) '|' (S ?) (Name *)) (S ?) ')*') ('(' (S ?) '#PCDATA' (S ?) ')') ).
-#AttlistDecl -> ##('<!ATTLIST' S  Name  (AttDef *) (S ?) '>').
-#AttDef -> ##(S Name S AttType S DefaultDecl ).
-#AttType -> ##(| StringType TokenizedType EnumeratedType).
-#StringType -> ##('CDATA').
-#TokenizedType -> ##(| 'ID' 'IDREF' 'IDREFS' 'ENTITY' 'ENTITIES' 'NMTOKEN' 'NMTOKENS').
-#EnumeratedType -> ##(| NotationType  Enumeration  ).
-#NotationType -> ##('NOTATION' S '(' (S ?) Name ((S ?) '|' (S ?) Name *) (S ?) ')').
-#Enumeration -> ##('(' (S ?) Nmtoken ((S ?) '|' (S ?) Nmtoken *) (S ?) ')').
-#DefaultDecl -> ##(| '#REQUIRED' '#IMPLIED' (('#FIXED' S ?) AttValue)).
-#conditionalSect -> ##(| includeSect ignoreSect).
-#includeSect -> ##('<![' (S ?) 'INCLUDE' (S ?) '[' extSubsetDecl ']]>' ).
-#ignoreSect -> ##('<![' (S ?) 'IGNORE' (S ?) '[' (ignoreSectContents *) ']]>').
-#ignoreSectContents -> ##( Ignore ('<![' ignoreSectContents ']]>' Ignore *)).
-#Ignore -> ##((~ (| '<![' ']]>')) Char *).
-#CharRef -> ##(| ('&#' ((16r30 16r39) +) ';') ('&#x' ((16r30 16r39) (16r61 16r66) (16r41 16r46) +) ';')).
-#Reference -> ##(| EntityRef CharRef).
-#EntityRef -> ##('&' Name ';').
-#PEReference -> ##('%' Name ';').
-#EntityDecl -> ##(| GEDecl  PEDecl).
-#GEDecl -> ##('<!ENTITY' S Name S EntityDef (S ?) '>').
-#PEDecl -> ##('<!ENTITY' S '%' S Name S PEDef (S ?) '>').
-#EntityDef -> ##(| EntityValue (ExternalID (NDataDecl ?))).
-#PEDef -> ##(| EntityValue ExternalID ).
-#ExternalID -> ##(| ('SYSTEM' S  SystemLiteral) ('PUBLIC' S PubidLiteral S SystemLiteral)).
-#NDataDecl -> ##(S 'NDATA' S Name ).
-#TextDecl -> ##('<?xml' (VersionInfo ?) EncodingDecl  (S ?) '?>').
-#extParsedEnt -> ##(  (  (TextDecl ?) content   ) "-  (  Char* RestrictedChar  Char*  )"  ).
-#EncodingDecl -> ##( S 'encoding' Eq (| ('"' EncName '"') ('\'' EncName '\'' ))).
-#EncName -> ##((| (16r41 16r5A) (16r61 16r7A)) (| ((16r41 16r5A) (16r61 16r7A) (16r30 16r39) '.' '_' '-') *)).
-#NotationDecl -> ##('<!NOTATION' S  Name  S (| ExternalID PublicID) (S ?) '>').
-#PublicID -> ##('PUBLIC' S PubidLiteral ).
+#Document -> q{prolog element (Misc *)}.
+#Char -> q{| (16r1 16rD7FF) (16rE000 16rFFFD) (16r10000 16r10FFFF)}.
+#RestrictedChar -> q{| (16r1 16r8) (16rB 16rC) (16rE 16r1F) (16r7F 16r84) (16r86 16r9F)}.
+#S -> q{| 16r20 16r9 16rD 16rA +}.
+#NameStartChar -> q{| 16r3A":" (16r41 16r5A "A-Z") 16r5F "_" (16r61 16r7A"a-z") (16rC0 16rD6) (16rD8 16rF6) (16rF8 16r2FF) (16r370 16r37D) (16r37F 16r1FFF) (16r200C 16r200D) (16r2070 16r218F) (16r2C00 16r2FEF) (16r3001 16rD7FF) (16rF900 16rFDCF) (16rFDF0 16rFFFD) (16r10000 16rEFFFF)}.
+#NameNonStartChar -> q{| 16r2D"-" 16r2E"." (16r30 16r39)"(0-9)" 16rB7 (16r0300-16r036F) (16r203F-16r2040)}.
+#NameChar -> q{| NameStartChar NameNonStartChar}.
+#Name -> q{NameStartChar (NameChar *)}.
+#Names -> q{Name (16r20 Name *)}.
+#Nmtoken -> q{(NameChar +)}.
+#Nmtokens -> q{Nmtoken (16r20 Nmtoken *)}.
+#EntityValue -> q{| ('"'  (| (~ '%' '&' '"') PEReference Reference . *) '"') ('\'' (| (~ '%' '&' '\'') PEReference Reference . *) '\'')}.
+#AttValue -> q{| ('"'  (| (~ '<' '&' '"') Reference . *) '"')  ('\'' (| (~ '<' '&' '\'') Reference . *) '\'')}.
+#SystemLiteral -> q{| ('"' (~ '"' . *) '"') ('\'' (~ '\'' . *) '\'')}.
+#PubidLiteral -> q{| ('"' (PubidChar *) '"') ('\'' ((~ '\'') PubidChar *) '\'')}.
+#PubidChar -> q{| 16r20 16rD 16rA (16r61 16r7A) (16r41 16r5A) (16r30 16r39) 45 39 40 41 43 44 46 47 58 61 63 59 33 42 35 64 36 95 37}.
+#CharData -> q{(~ (| '<' '&' ']]>')) . *}.
+#Comment -> q{'<!--' ((~ '--' ) Char *) '-->'}.
+#PI -> q{'<?' PITarget (S ((~ '?>') Char *) ?) '?>'}.
+#PITarget -> q{(~ (| 'X' 'x') (| 'M' 'm') (| 'L' 'l')) Name}.
+#CDSect -> q{ CDStart  CData  CDEnd}.
+#CDStart -> q{'<![CDATA['}.
+#CData -> q{(~ ']]>') Char *}.
+#CDEnd -> q{']]>'}.
+#prolog -> q{ XMLDecl  (Misc *) (doctypedecl  (Misc *) ?)}.
+#XMLDecl -> q{'<?xml' VersionInfo (EncodingDecl ?) (SDDecl ?) (S ?) '?>'}.
+#VersionInfo -> q{S 'version' Eq (| ('\'' VersionNum '\'') ('"' VersionNum '"'))}.
+#Eq -> q{(S ?) '=' (S ?)}.
+#VersionNum -> q{'1.1'}.
+#Misc -> q{| (Comment PI S)}.
+#doctypedecl -> q{'<!DOCTYPE' S  Name (S  ExternalID ?) (S ?) ('[' intSubset ']' (S ?) ?) '>'}.
+#DeclSep -> q{| PEReference S}.
+#intSubset -> q{| markupdecl DeclSep *}.
+#markupdecl -> q{| elementdecl AttlistDecl EntityDecl NotationDecl PI Comment}.
+#extSubset -> q{ (TextDecl ?) extSubsetDecl}.
+#extSubsetDecl -> q{(| markupdecl conditionalSect DeclSep *)}.
+#SDDecl -> q{  S   'standalone' Eq (| ('\'' (| 'yes' 'no') '\'') ('"' (| 'yes' 'no') '"'))}.
+#element -> q{| (EmptyElemTag) (STag content ETag) }.
+#STag -> q{'<' Name (S  Attribute *) (S ?) '>'}.
+#Attribute -> q{ Name  Eq  AttValue  }.
+#ETag -> q{'</' Name  (S ?) '>'}.
+#content -> q{ (CharData ?) ((| element Reference CDSect PI Comment) (CharData ?) *)}.
+#EmptyElemTag -> q{'<' Name (S  Attribute *) (S ?) '/>'}.
+#elementdecl -> q{'<!ELEMENT' S  Name  S  contentspec  (S ?) '>'}.
+#contentspec -> q{| ('EMPTY' 'ANY' Mixed children)  }.
+#children -> q{(| choice seq) (| '?'  '*' '+' ?)}.
+#cp -> q{(| Name choice seq) (| '?' '*' '+' ?)}.
+#choice -> q{'(' (S ?) cp ( (S ?) '|' (S ?) cp +) (S ?) ')'}.
+#seq -> q{'(' (S ?) cp ( (S ?) ',' (S ?) cp *) (S ?) ')'}.
+#Mixed -> q{| ('(' (S ?) '#PCDATA' ((S ?) '|' (S ?) (Name *)) (S ?) ')*') ('(' (S ?) '#PCDATA' (S ?) ')') }.
+#AttlistDecl -> q{'<!ATTLIST' S  Name  (AttDef *) (S ?) '>'}.
+#AttDef -> q{S Name S AttType S DefaultDecl }.
+#AttType -> q{| StringType TokenizedType EnumeratedType}.
+#StringType -> q{'CDATA'}.
+#TokenizedType -> q{| 'ID' 'IDREF' 'IDREFS' 'ENTITY' 'ENTITIES' 'NMTOKEN' 'NMTOKENS'}.
+#EnumeratedType -> q{| NotationType  Enumeration  }.
+#NotationType -> q{'NOTATION' S '(' (S ?) Name ((S ?) '|' (S ?) Name *) (S ?) ')'}.
+#Enumeration -> q{'(' (S ?) Nmtoken ((S ?) '|' (S ?) Nmtoken *) (S ?) ')'}.
+#DefaultDecl -> q{| '#REQUIRED' '#IMPLIED' (('#FIXED' S ?) AttValue)}.
+#conditionalSect -> q{| includeSect ignoreSect}.
+#includeSect -> q{'<![' (S ?) 'INCLUDE' (S ?) '[' extSubsetDecl ']]>' }.
+#ignoreSect -> q{'<![' (S ?) 'IGNORE' (S ?) '[' (ignoreSectContents *) ']]>'}.
+#ignoreSectContents -> q{ Ignore ('<![' ignoreSectContents ']]>' Ignore *)}.
+#Ignore -> q{(~ (| '<![' ']]>')) Char *}.
+#CharRef -> q{| ('&#' ((16r30 16r39) +) ';') ('&#x' ((16r30 16r39) (16r61 16r66) (16r41 16r46) +) ';')}.
+#Reference -> q{| EntityRef CharRef}.
+#EntityRef -> q{'&' Name ';'}.
+#PEReference -> q{'%' Name ';'}.
+#EntityDecl -> q{| GEDecl  PEDecl}.
+#GEDecl -> q{'<!ENTITY' S Name S EntityDef (S ?) '>'}.
+#PEDecl -> q{'<!ENTITY' S '%' S Name S PEDef (S ?) '>'}.
+#EntityDef -> q{| EntityValue (ExternalID (NDataDecl ?))}.
+#PEDef -> q{| EntityValue ExternalID }.
+#ExternalID -> q{| ('SYSTEM' S  SystemLiteral) ('PUBLIC' S PubidLiteral S SystemLiteral)}.
+#NDataDecl -> q{S 'NDATA' S Name }.
+#TextDecl -> q{'<?xml' (VersionInfo ?) EncodingDecl  (S ?) '?>'}.
+#extParsedEnt -> q{  (  (TextDecl ?) content   ) "-  (  Char* RestrictedChar  Char*  )"  }.
+#EncodingDecl -> q{ S 'encoding' Eq (| ('"' EncName '"') ('\'' EncName '\'' ))}.
+#EncName -> q{(| (16r41 16r5A) (16r61 16r7A)) (| ((16r41 16r5A) (16r61 16r7A) (16r30 16r39) '.' '_' '-') *)}.
+#NotationDecl -> q{'<!NOTATION' S  Name  S (| ExternalID PublicID) (S ?) '>'}.
+#PublicID -> q{'PUBLIC' S PubidLiteral }.
 }.
 
 p@(Xml Parser traits) parseDocument

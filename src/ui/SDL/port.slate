@@ -1,15 +1,15 @@
 ports ensureNamespace: #SDL.
 
 CObject parseDefinitionsFrom:
-##(('SDLPortEvent'
+q{('SDLPortEvent'
       (Structure
          ('type' UnsignedChar)
          ('param1' LongInt)
          ('param2' LongInt)))
-) into: SDL.
+} into: SDL.
 
 SDL define: #Lib &builder:
-  [ExternalInterface newForLibrary: 'sdl-ui' primitives: ##(
+  [ExternalInterface newForLibrary: 'sdl-ui' primitives: q{
     (LongInt 'Restart' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt))
     (Void 'Destroy' ())
     (UnsignedLongInt 'PollEvent' (#[SDL _SDLPortEvent pointer]))
@@ -27,7 +27,7 @@ SDL define: #Lib &builder:
     (Void 'DrawEllipse' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
     (Void 'DrawFilledEllipse' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
     (Void 'DrawFilledTriangle' (UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedLongInt UnsignedChar UnsignedChar UnsignedChar))
-) &leader: 'SDLPort'].
+} &leader: 'SDLPort'].
 
 SDL define: #Port 
   &parents: {Port. ReadStream}

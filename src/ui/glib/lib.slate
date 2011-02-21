@@ -8,7 +8,7 @@ GLib define: #LibNames &builder: [{'Win32' -> ({'glib-wrapper' -> 'glib-wrapper'
  } as: Dictionary].
 
 GLib define: #LibWrapper -> (
-  ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib-wrapper') primitives: ##(
+  ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib-wrapper') primitives: q{
     "(Void wrapper_g_object_connect_to_block_id(Pointer CString Int))"
 
     (Void wrapper_g_callback_queue_init())
@@ -30,7 +30,7 @@ GLib define: #LibWrapper -> (
     (CString wraper_g_pointer_as_string(Pointer))
 
     (Pointer wrapper_g_cclosure_new(Int))
-  )
+  }
 ).
 
 "GLib"
@@ -38,7 +38,7 @@ GLib define: #LibWrapper -> (
 GLib LibWrapper enable.
 
 GLib define: #Lib -> (
-       ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib') primitives: ##(
+       ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'glib') primitives: q{
 
 
 
@@ -48,13 +48,13 @@ GLib define: #Lib -> (
 
     (Void g_free(Pointer))
 
-      )
+  }
 ).
 
 GLib Lib enable.
 
 GLib define: #GObjectLib -> (
-  ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'gobject') primitives: ##(
+  ExternalInterface newForLibrary: ((GLib LibNames at: Platform current name) at: 'gobject') primitives: q{
 
     (CString g_type_name(Int))
     (Void g_type_init())
@@ -80,7 +80,7 @@ GLib define: #GObjectLib -> (
     (Void g_value_set_object(Pointer Pointer))
 
     (Int g_signal_connect_closure(Pointer CString Pointer Boolean))
-  )
+  }
 ).
 
 GLib GObjectLib enable.

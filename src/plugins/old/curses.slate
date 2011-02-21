@@ -3,7 +3,7 @@ terminals define: #CursesConsole &parents: {StructuredConsole}.
 CursesConsole traits `>> [
   define: #Lib &builder:
     [ExternalInterface newForLibrary: 'ncurses-console' primitives:
-     ##((Boolean isAvailable          ())
+     q{(Boolean isAvailable          ())
 	(Boolean enterStructuredMode  ())
 	(Boolean leaveStructuredMode  ())
 	(CString keySequenceOf        (CString))
@@ -28,7 +28,7 @@ CursesConsole traits `>> [
 	(Void    setAttributes        (Int Int))
 	(Int     maxColorPairs        ())
 	(Boolean initColorPair        (Int Int Int))
-       ) &leader: 'sc_'].
+       } &leader: 'sc_'].
   addSlot: #maxColorPairs.
   addSlot: #currentColorPair.
   addSlot: #colorToPairs valued: Dictionary new.
@@ -96,7 +96,7 @@ c@(CursesConsole traits) initKeyMappings
   c keyCodeToKeyName clear.
   c sequenceToKeyName clear.
 
-  ##((UpArrow    'kcuu1')
+  q{(UpArrow    'kcuu1')
     (DownArrow  'kcud1')
     (RightArrow 'kcuf1')
     (LeftArrow  'kcub1')
@@ -110,7 +110,7 @@ c@(CursesConsole traits) initKeyMappings
     (Enter      'kind' $\n)
     (Backspace  'kbs')
     (Tab        'ktab' $\t)
-  ) do: [| :entry keyName cursesName |
+  } do: [| :entry keyName cursesName |
     keyName := entry first.
     cursesName := entry second.
 

@@ -9,21 +9,21 @@ CObject parseDefinitionsFrom:
   'Nil' -> 0.
   'nil' -> 0.
   'objc_ivar' ->
-    ##(Structure
-         ('ivar_name' CString)
-         ('ivar_type' CString)
-         ('ivar_offset' Int)).
+    q{Structure
+        ('ivar_name' CString)
+        ('ivar_type' CString)
+        ('ivar_offset' Int)}.
   'Ivar' -> ObjC objc_ivar pointer
 } into: ObjC.
 
 CObject parseDefinitionsFrom:
 {
   'objc_ivar_list' ->
-    ##(Structure
+    q{Structure
         ('ivar_count' Int)
-        ('ivar_list' Array 'ivar_count')).
+        ('ivar_list' Array 'ivar_count')}.
   'objc_class' ->
-    ##(Structure
+    q{Structure
          ('isa' Pointer)
          ('super_class' Pointer)
          ('name' CString)
@@ -33,23 +33,23 @@ CObject parseDefinitionsFrom:
          ('ivars' objc_ivar_list)
          ('methodLists' objc_method_lists)
          ('objc_cache' cache)
-         ('protocols' objc_protocol_list))
+         ('protocols' objc_protocol_list)}
 } into: ObjC.
 
 CObject parseDefinitionsFrom:
 {
-  'objc_object' -> ##(Structure ('isa' objc_class)
-			 "Variable-length array of instance variables.").
+  'objc_object' -> q{Structure ('isa' objc_class)
+			 "Variable-length array of instance variables."}.
   'id' -> objc_object pointer.
-  'objc_super' -> ##(Structure ('receiver' id) ('class' objc_class)).
+  'objc_super' -> q{Structure ('receiver' id) ('class' objc_class)}.
   'SEL' -> #objc_selector.
-  'IMP' -> ##(Function id (id SEL)).
-  'objc_method' -> ##(Structure ('method_name' SEL) ('method_types' CString) ('method_imp' IMP)).
+  'IMP' -> q{Function id (id SEL)}.
+  'objc_method' -> q{Structure ('method_name' SEL) ('method_types' CString) ('method_imp' IMP)}.
   'marg_list' -> #Pointer
 } into: ObjC.
 
 ObjC define: #Lib &builder:
-  [ExternalInterface newForLibrary: 'libobjc' primitives: ##(
+  [ExternalInterface newForLibrary: 'libobjc' primitives: q{
        (id objc_msgSend (id SEL ...))
        (id objc_msgSendSuper (objc_super SEL ...))
        (void objc_msgSendSuper_stret (Pointer objc_super SEL ...))
@@ -70,7 +70,7 @@ ObjC define: #Lib &builder:
        (SEL sel_getUid (CString))
        (Boolean sel_isMapped (SEL))
        (SEL sel_registerName (CString))
-  )].
+  }].
 
 ObjC define: #Object &parents: {ExternalResource}.
 

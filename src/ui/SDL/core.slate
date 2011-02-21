@@ -5,7 +5,7 @@ SDL ensureNamespace: #Lib.
 SDL Lib define: #EM -> ExternalMethod.
 SDL Lib define: #EM_AF -> SDL Lib EM ArgumentFormat.
 
-CObject parseDefinitionsFrom: ##(
+CObject parseDefinitionsFrom: q{
   ('INT'        LongInt)
   ('UINT8'      UnsignedChar)
   ('UINT16'     UnsignedShortInt)
@@ -84,7 +84,7 @@ CObject parseDefinitionsFrom: ##(
         ('code'       INT)
         ('data1'      VoidPtr)
         ('data2'      #VoidPtr)))").
-) into: SDL Lib.
+} into: SDL Lib.
 
 CObject parseDefinitionsFrom:
 {
@@ -93,7 +93,7 @@ CObject parseDefinitionsFrom:
 
 _@(SDL Lib) initPrimitives
 [
-  (ExternalLibrary newNamed: 'libSDL') installMethodsForDefs: ##(
+  (ExternalLibrary newNamed: 'libSDL') installMethodsForDefs: q{
       (Int     'SDL_Init'                (Int))
       (Void    'SDL_Quit'                ())
       (Pointer 'SDL_GetVideoSurface'     ())
@@ -110,7 +110,7 @@ _@(SDL Lib) initPrimitives
       (Int     'SDL_WaitEvent'           (PSDL_INPUT))
       (Int     'SDL_PushEvent'           (PSDL_INPUT))
       (Int     'SDL_EventState'          (Int Int))
-    ) on: SDL Lib &nameTransformer: [| :name | name allButFirst: 4].
+    } on: SDL Lib &nameTransformer: [| :name | name allButFirst: 4].
 ].
 
 SDL Lib initPrimitives.

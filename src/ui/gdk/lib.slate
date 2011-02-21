@@ -9,10 +9,10 @@ Gdk define: #LibNames &builder:
                    , 'gdk' -> 'libgdk-x11-2.0')].
 
 Gdk define: #LibWrapper -> (
-  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk-wrapper') primitives: ##(    
+  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk-wrapper') primitives: q{    
     (Void wrapper_gdk_lib_init())
     
-  )
+  }
 ).
 
 Gdk LibWrapper enable.
@@ -22,14 +22,14 @@ l@(Gdk LibWrapper traits) init [
 ].
 
 Gdk define: #Lib -> (
-  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk') primitives: ##(
+  ExternalInterface newForLibrary: ((Gdk LibNames at: Platform current name) at: 'gdk') primitives: q{
 
     (Void gdk_threads_enter())
     (Void gdk_threads_leave())
     (Void gdk_flush())
 
     (Pointer gdk_atom_intern(CString Boolean))
-  )
+  }
 ).
 
 Gdk Lib enable.
