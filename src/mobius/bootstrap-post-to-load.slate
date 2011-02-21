@@ -44,7 +44,7 @@ contents within the argument namespace or an optional override."
   (imports `defaultsTo: #{})
     do: [| :import | namespace import: import value from: import key].
   (showLoadMessage `defaultsTo: True)
-    ifTrue: [inform: 'Loading %r', file locator].
+    ifTrue: [inform: 'Loading ' ; file locator printString].
   defaultPaths: {Directory current}.
   (file locator isSameAs: file RelativeLocator)
     ifTrue:
@@ -59,7 +59,7 @@ contents within the argument namespace or an optional override."
      (aParser: (Syntax Parser newOn: input)) do:
        [| :each |
 	verbose ifTrue:
-	  [inform: 'Parsed to line %s', aParser lexer lineNumber].
+	  [inform: 'Parsed to line ' ; aParser lexer lineNumber printString].
 	each evaluateIn: namespace]] &mode: file Read
 ].
 
@@ -85,6 +85,7 @@ load: 'src/syntax/quote.slate'.
 load: 'src/syntax/cascade.slate'.
 load: 'src/syntax/assignment.slate'.
 load: 'src/syntax/binding.slate'.
+load: 'src/lib/format.slate'.
 load: 'src/lib/macro.slate'.
 load: 'src/syntax/case.slate'.
 
