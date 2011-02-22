@@ -780,8 +780,9 @@ combination should only increment the line number by 1."
 s@(LineNumberedReadStreamMixin traits) on: r@(ReadStream traits)
 [
   resend.
-  s `>> [eolPositions: ({r position} as: ExtensibleArray).
-	 lastPosition: r position. previousWasCR: False. ]
+  s `>> [eolPositions := ExtensibleArray new*, r position.
+	 lastPosition := r position.
+         previousWasCR := False. ]
 ].
 
 s@(LineNumberedReadStreamMixin traits) newOn: s2@(LineNumberedReadStreamMixin traits)
@@ -830,13 +831,14 @@ s@(LineNumberedReadStreamMixin traits) next
 [
   char := resend.
   s position - 1 == s lastPosition
-    ifTrue: [s lastPosition: s lastPosition + 1.
-	     char = String Character cr
-	       ifTrue: [s eolPositions add: s position.
-			s previousWasCR: True]
-	       ifFalse: [s previousWasCR not /\ [char = String Character lf]
-			   ifTrue: [s eolPositions add: s position].
-			 s previousWasCR: False]]
+    ifTrue:
+      [s lastPosition += 1.
+       char = String Character cr
+	 ifTrue: [s eolPositions add: s position.
+		  s previousWasCR := True]
+	 ifFalse: [s previousWasCR not /\ [char = String Character lf]
+		     ifTrue: [s eolPositions add: s position].
+		   s previousWasCR := False]]
     ifFalse: [error: 'Got out of sync!'].
   char
 ].
@@ -852,16 +854,15 @@ s@(LineNumberedReadStreamMixin traits) nextLine
 ].
 
 s@(LineNumberedReadStreamMixin traits) position: n
-[
+[| newPosition |
   n > s lastPosition
     ifTrue: 
-      [| newPosition |
-        newPosition: n.
-        n: s lastPosition.
-        resend.
-        [s position < newPosition /\ [s isAtEnd not]]
-          whileTrue: [s next]]
-    ifFalse: [resend].
+      [newPosition := n.
+       n := s lastPosition.
+       resend.
+       [s position < newPosition /\ [s isAtEnd not]]
+         whileTrue: [s next]]
+   ifFalse: [resend].
   s
 ].
 
@@ -875,13 +876,13 @@ s@(LineNumberedWriteStreamMixin traits) updateFrom: char
 "Detect \n's and update internal state"
 [
   char = $\n
-    ifTrue: [
-      s currentLine: s currentLine + 1.
-      s currentColumn: 0]
-    ifFalse: [
-      char = $\t
-        ifTrue: [s currentColumn: s currentColumn + 8]
-        ifFalse: [s currentColumn: s currentColumn + 1]].
+    ifTrue:
+      [s currentLine += 1.
+       s currentColumn := 0]
+    ifFalse:
+      [char = $\t
+         ifTrue: [s currentColumn += 8]
+         ifFalse: [s currentColumn += 1]].
 ].
 
 s@(LineNumberedWriteStreamMixin traits) padUntilColumn: col with: obj
