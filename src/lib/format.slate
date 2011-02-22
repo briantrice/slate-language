@@ -18,8 +18,70 @@ an array argument. Curly open-brackets may be escaped by doubling them."
    ] writingAs: s
 ].
 
+String traits define: #FormattingEscapeChar -> $%.
+String traits define: #FormattingChars -> 'diueEfFgGxXoscpn@'.
+String traits define: #FormattingOptions &slots: {
+  #precision.
+  #alternative -> False.
+  #radix -> 10.
+  #padChar -> $\s.
+  #plus -> False.
+  #minus -> False.
+  #star -> False.
+  #width.
+  #align -> #right.
+  #position.
+}.
+
+opts@(String FormattingOptions traits) readFrom: specifier
+[| nextChar |
+  [specifier isAtEnd] whileFalse:
+    [nextChar := specifier next.
+     "Check for a parameter index spec:"
+     ('123456789' includes: nextChar)
+       ifTrue:
+         [(specifier peek: 1) == $$
+            ifTrue:
+              [specifier skip: -1.
+               opts position := Integer readFrom: specifier.
+               specifier next]
+            ifFalse:
+              [specifier skip: -1.
+               opts width := Integer readFrom: specifier]]
+       ifFalse: "Check for flags:"
+         [nextChar caseOf: {
+           $\s -> [opts padChar := nextChar].
+           $#  -> [opts alternative := True].
+           $+  -> [opts plus := True].
+           $-  -> [opts minus := True].
+           $0  -> [opts padChar := $0].
+           $*  -> [opts star := True].
+           $<  -> [opts align := #left].
+           $>  -> [opts align := #right].
+           $=  -> [opts align := #center].
+           $.  -> [opts precision := Integer readFrom: specifier]
+         } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. opts"]]].
+  opts
+].
+
+obj printStringBy: opts@(String FormattingOptions traits)
+[
+  obj printString &radix: opts radix &precision: opts precision &forceSign: opts plus
+].
+
+segment@(String traits) padBy: opts@(String FormattingOptions traits)
+[
+  opts width ifNil: [segment] ifNotNil:
+    [opts align caseOf: {
+      #left -> [segment truncateTo: opts width paddedBy: opts padChar &onRight: True].
+      #right -> [segment truncateTo: opts width paddedBy: opts padChar &onRight: False].
+      #center -> [(segment truncateTo: opts width + segment size // 2 paddedBy: opts padChar &onRight: False)
+                    truncateTo: opts width paddedBy: opts padChar &onRight: True]
+    } otherwise: [segment truncateTo: opts width paddedBy: opts padChar &onRight: False]]
+].
+
 s@(String traits) formatting
-[| *args input argsIndex nextChar |
+[| *args input argsIndex arg specifier nextChar opts |
   input := s reader.
   argsIndex := args indexFirst.
   [| :result |
@@ -30,72 +92,37 @@ s@(String traits) formatting
           [(nextChar := input next) == $%
              ifTrue: [result nextPut: nextChar]
              ifFalse:
-               [| arg argPosition specifier width precision position alternative plus minus star align padChar |
-                argPosition := input position.
+               [input restoringPositionDo:
+                  [specifier := (input upToAnyOf: s FormattingChars) reader.
+                   opts := s FormattingOptions new readFrom: specifier].
                 input skip: -1.
-                padChar := $\s.
-                specifier := (input upToAnyOf: 'diueEfFgGxXoscpn') reader.
-                [specifier isAtEnd] whileFalse:
-                  [nextChar := specifier next.
-                   "Check for a parameter index spec:"
-                   ('123456789' includes: nextChar)
-                     ifTrue:
-                       [(specifier peek: 1) == $$
-                          ifTrue:
-                            [specifier skip: -1.
-                             position := Integer readFrom: specifier.
-                             specifier next]
-                          ifFalse:
-                            [specifier skip: -1.
-                             width := Integer readFrom: specifier]]
-                     ifFalse: "Check for flags:"
-                       [nextChar caseOf: {
-                          $\s -> [padChar := nextChar].
-                          $#  -> [alternative := True].
-                          $+  -> [plus := True].
-                          $-  -> [minus := True].
-                          $0  -> [padChar := $0].
-                          $*  -> [star := True].
-                          $<  -> [align := #left].
-                          $>  -> [align := #right].
-                          $=  -> [align := #center].
-                          $.  -> [precision := Integer readFrom: specifier]
-                        } otherwise: [inform: nextChar printString]]].
-                input position := argPosition.
-                input upToAnyOf: 'diueEfFgGxXoscpn'. input skip: -1.
+                input upToAnyOf: s FormattingChars.
+                input skip: -1.
                 "Check for type specifiers:"
-                position ifNil:
-                  [position := argsIndex.
+                opts position ifNil:
+                  [opts position := argsIndex.
                    argsIndex += 1].
-                width isNil /\ [star isNotNil] ifTrue:
-                  [width := args at: position.
-                   position += 1.
+                opts width isNil /\ [opts star] ifTrue:
+                  [opts width := args at: opts position.
+                   opts position += 1.
                    argsIndex += 1].
-                arg := args at: position.
+                arg := args at: opts position.
                 arg := (nextChar := input next) toLowercase caseOf: {
-                  $r -> [arg printString].
-                  $@ -> [arg printString].
+                  $r -> [arg printStringBy: opts].
+                  $@ -> [arg printStringBy: opts].
                   $s -> [arg as: s].
                   $c -> [arg as: s]. "Character"
-                  $d -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
-                  $i -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
-                  $u -> [arg printString &radix: 10 &precision: precision &forceSign: plus isNotNil].
-                  $b -> [arg printString &radix: 2  &precision: precision &forceSign: plus isNotNil].
-                  $o -> [arg printString &radix: 8  &precision: precision &forceSign: plus isNotNil].
-                  $x -> [arg printString &radix: 16 &precision: precision &forceSign: plus isNotNil].
-                  $f -> [arg printString &precision: precision &forceSign: plus isNotNil].
-                  $e -> [arg printString &precision: precision &forceSign: plus isNotNil].
-                } otherwise: [arg as: s].
+                  $d -> [arg printStringBy: opts].
+                  $i -> [arg printStringBy: opts].
+                  $u -> [arg printStringBy: opts].
+                  $b -> [opts radix := 2.  arg printStringBy: opts].
+                  $o -> [opts radix := 8.  arg printStringBy: opts].
+                  $x -> [opts radix := 16. arg printStringBy: opts].
+                  $f -> [arg printStringBy: opts].
+                  $e -> [arg printStringBy: opts].
+                } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. arg as: s"].
                 nextChar isUppercase ifTrue: [arg toUppercase].
-                width ifNotNil:
-                  [minus isNotNil /\ [align isNil] ifTrue: [align := #right].
-                   arg := align caseOf: {
-                     #left -> [arg truncateTo: width paddedBy: padChar &onRight: False].
-                     #right -> [arg truncateTo: width paddedBy: padChar &onRight: True].
-                     #center -> [(arg truncateTo: width + arg size // 2 paddedBy: padChar &onRight: False)
-                                   truncateTo: width paddedBy: padChar &onRight: True]
-                   } otherwise: [arg truncateTo: width paddedBy: padChar &onRight: False]].
-                result ; arg]]
+                result ; (arg padBy: opts)]]
         ifFalse: [result nextPut: char]]
   ] writingAs: s
 ].
