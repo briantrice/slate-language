@@ -7,7 +7,7 @@ Directory traits define: #Locator &parents: {File Locator}.
 Directory traits define: #RelativeLocator &parents: {File RelativeLocator}.
 Directory traits define: #AbsoluteLocator &parents: {File AbsoluteLocator}.
 
-Directory locator: Directory Locator.
+Directory locator := Directory Locator.
 
 l@(Directory Locator traits) type
 "So a Locator knows it's for a Directory and not a File."
@@ -15,8 +15,8 @@ l@(Directory Locator traits) type
 
 l@(Directory Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
 [
-  pathSeparator ifNil: [pathSeparator: l pathSeparator].
-  l path: ((s upToEnd splitWith: pathSeparator) as: l path).
+  pathSeparator `defaultsTo: l pathSeparator.
+  l path := ((s upToEnd splitWith: pathSeparator) as: l path).
   l
 ].
 
@@ -28,17 +28,17 @@ l@(Directory Locator traits) readFrom: s &pathSeparator: pathSeparator
     name ifNotNilDo:
       [| :name |
        newL path addLast: name.
-       newL name: Nil].
+       newL name := Nil].
     version ifNotNilDo:
       [| :version |
        newL path at: newL path indexLast put:
 	 newL path last ; '.' ; version.
-       newL version: Nil].
+       newL version := Nil].
     fileType ifNotNilDo:
       [| :type |
        newL path at: newL path indexLast put:
 	 newL path last ; '.' ; type.
-       newL fileType: Nil]. ]
+       newL fileType := Nil]. ]
 ].
 
 dir1@(Directory traits) = dir2@(Directory traits)
@@ -68,7 +68,7 @@ dir@(Directory traits) enable
   dirname ::= dir locator as: String.
   (result ::= dir primitiveOpen: dirname) isNegative
     ifTrue: [error: result negated printString]
-    ifFalse: [dir handle: result].
+    ifFalse: [dir handle := result].
 ].
 
 dir@(Directory traits) disable
@@ -110,7 +110,7 @@ dir@(Directory traits) renameTo: newName
 [
   dir ensureClosed.
   (dir renameDirectoryNamed: (dir locator as: String) to: (newName as: String))
-    ifTrue: [dir locator: (newName as: dir locator)]
+    ifTrue: [dir locator := newName as: dir locator]
     ifFalse: [error: 'Unable to delete directory.']
 ].
 
@@ -135,7 +135,7 @@ dir@(Directory traits) root
 [
   dir isRoot
     ifTrue: [dir]
-    ifFalse: [dir newNamed: dir locator copy `>> [path: dir locator path new. ]]
+    ifFalse: [dir newNamed: dir locator copy `>> [path := dir locator path new. ]]
 ].
 
 dir@(Directory traits) parent
@@ -148,7 +148,7 @@ dir@(Directory traits) parent
 
 f@(File traits) parent
 "Answer the Directory containing the file (as given by the path)."
-[Directory newNamed: f locator copy `>> [name: Nil. ]].
+[Directory newNamed: f locator copy `>> [name := Nil. ]].
 
 f@(File traits) directory
 [f parent].
@@ -281,7 +281,7 @@ ds@(Directory Stream traits) isAtEnd
 ds@(Directory Stream traits) next
 [
   result ::= ds peek.
-  ds cache: Nil.
+  ds cache := Nil.
   result
 ].
 
