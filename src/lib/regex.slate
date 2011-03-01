@@ -1,31 +1,30 @@
-lobby ensureNamespace: #Regex.
-Regex ensureNamespace: #Syntax.
-Regex ensureNamespace: #Token.
-Regex ensureNamespace: #Match.
+define: #Regex &parents: {Cloneable} &slots: {}.
+Regex traits ensureNamespace: #Syntax.
+Regex traits define: #Match.
 
 "counter is incremented and stored inside expressions"
-Regex define: #Parser &parents: {Cloneable} &slots: {
+Regex define: #Parser &parents: {Regex} &slots: {
   #source.
   #position -> 0.
   #counter -> 0
 }.
 
-"regex is a regex syntax node"
-Regex define: #Regex &parents: {Cloneable} &slots: {
+"regex slot is a regex syntax node"
+Regex define: #Expression &parents: {Regex} &slots: {
   #regex.
   #parser -> Regex Parser
 }.
 
-"regex is a regex regex. subexpressions are the () portions that match. see the counter property.
+"regex slot is a regex expression. subexpressions are the () portions that match. see the counter property.
 the matchee is what we are trying to match"
-Regex define: #Matcher &parents: {Cloneable} &slots: {
+Regex define: #Matcher &parents: {Regex} &slots: {
   #regex.
   #subexpressions -> Dictionary new.
   #matchee
 }.
 
 "nodes are output by the parser"
-Regex Syntax define: #Node &parents: {Cloneable}.
+Regex Syntax define: #Node &parents: {Regex}.
 
 "the top element with expressions surrounded by branches 'exp|exp'"
 Regex Syntax define: #Branch &parents: {Regex Syntax Node} &slots: {
@@ -50,6 +49,13 @@ Regex Syntax define: #CharacterGroup &parents: {Regex Syntax Node} &slots: {
   #negated -> False.
   #elements -> ExtensibleArray new
 }.
+
+group@(Regex Syntax CharacterGroup traits) newForAll: elements &negated: negated
+[
+  negated `defaultsTo: group negated.
+  group new `>> [elements := elements as: group elements. negated := negated. ]
+].
+
 "'a'"
 Regex Syntax define: #Character &parents: {Regex Syntax Node} &slots: {
   #character -> $\0
@@ -60,7 +66,7 @@ Regex Syntax define: #CharacterRange &parents: {Regex Syntax Node} &slots: {
   #end
 }.
 
-"Regex Match define: #Terminator &parents: {Cloneable}."
+"Regex Match define: #Terminator &parents: {Regex}."
 
 r@(Regex Syntax Character traits) newOn: c
 [
@@ -85,23 +91,22 @@ Regex Parser traits define: #BackslashSpecials -> (Dictionary new*,
   $r -> (Regex Syntax Character newOn: $\r),
   $f -> (Regex Syntax Character newOn: $\f),
   $t -> (Regex Syntax Character newOn: $\t),
-  $w -> (Regex Syntax CharacterGroup new `>> [elements := {Regex Syntax UppercaseLetters.
-                                                         Regex Syntax LowercaseLetters.
-                                                         Regex Syntax DecimalDigits.
-                                                         Regex Syntax Character newOn: $_. }. ]),
-  $W -> (Regex Syntax CharacterGroup new `>> [elements := {Regex Syntax UppercaseLetters.
-                                                         Regex Syntax LowercaseLetters.
-                                                         Regex Syntax DecimalDigits.
-                                                         Regex Syntax Character newOn: $_. }.
-                                              negated := True. ]),
-  $s -> (Regex Syntax CharacterGroup new `>> [elements := Regex Syntax WhitespaceElements. ]),
-  $S -> (Regex Syntax CharacterGroup new `>> [elements := Regex Syntax WhitespaceElements.
-                                              negated := True. ]),
-  $d -> (Regex Syntax CharacterGroup new `>> [elements := {Regex Syntax DecimalDigits}. ]),
-  $D -> (Regex Syntax CharacterGroup new `>> [elements := {Regex Syntax DecimalDigits}.
-                                              negated := True. ])).
+  $w -> (Regex Syntax CharacterGroup newForAll:
+           {Regex Syntax UppercaseLetters.
+            Regex Syntax LowercaseLetters.
+            Regex Syntax DecimalDigits.
+            Regex Syntax Character newOn: $_. }),
+  $W -> (Regex Syntax CharacterGroup newForAll:
+           {Regex Syntax UppercaseLetters.
+            Regex Syntax LowercaseLetters.
+            Regex Syntax DecimalDigits.
+            Regex Syntax Character newOn: $_} &negated: True),
+  $s -> (Regex Syntax CharacterGroup newForAll: Regex Syntax WhitespaceElements),
+  $S -> (Regex Syntax CharacterGroup newForAll: Regex Syntax WhitespaceElements &negated: True),
+  $d -> (Regex Syntax CharacterGroup newForAll: {Regex Syntax DecimalDigits}),
+  $D -> (Regex Syntax CharacterGroup newForAll: {Regex Syntax DecimalDigits} &negated: True)).
 
-r@(Regex Regex traits) newOn: s@(String traits)
+r@(Regex Expression traits) newOn: s@(String traits)
 [
   r new `>>
     [| :result |
@@ -109,9 +114,9 @@ r@(Regex Regex traits) newOn: s@(String traits)
      regex := result parser parse. ]
 ].
 
-rp@(Regex Parser traits) newOn: s@(String traits)
+p@(Regex Parser traits) newOn: s@(String traits)
 [
-  rp new `>> [
+  p new `>> [
     source := s.
     position := 0.
     counter := 0. ]
@@ -158,7 +163,7 @@ p@(Regex Parser traits) nextAssertIs: item
 
 p@(Regex Parser traits) backspaceCharacterFor: c
 [
-  Regex Parser BackslashSpecials at: c ifAbsent: [Regex Syntax Character newOn: c]
+  p BackslashSpecials at: c ifAbsent: [p Syntax Character newOn: c]
 ].
 
 "branch ::= expression* 
@@ -166,7 +171,7 @@ p@(Regex Parser traits) backspaceCharacterFor: c
 
 p@(Regex Parser traits) parseBranch
 [| branch oldBranch obj next firstBranch |
-  branch := Regex Syntax Branch new `>> [| :b | nextBranch := Nil. expressions := b expressions new. ].
+  branch := p Syntax Branch new `>> [| :b | nextBranch := Nil. expressions := b expressions new. ].
   firstBranch := branch.
   [
     obj := p parseExpression.
@@ -177,7 +182,7 @@ p@(Regex Parser traits) parseBranch
       $\) -> [p previous.
               ^ (branch expressions size <= 1 /\ [oldBranch isNil] ifTrue: [obj] ifFalse: [firstBranch])].
       $| -> [oldBranch := branch.
-             branch := Regex Syntax Branch new `>> [| :b | nextBranch := Nil. expressions := b expressions new. ].
+             branch := p Syntax Branch new `>> [| :b | nextBranch := Nil. expressions := b expressions new. ].
              oldBranch nextBranch := branch].
     } otherwise: [p previous]
   ] loop.
@@ -193,12 +198,11 @@ p@(Regex Parser traits) parseRepeatCount
 p@(Regex Parser traits) parseExpression
 [| obj next |
   obj := p parseTerm.
-  next := p next.
-  next caseOf: {
-    $? -> [obj := obj as: Regex Syntax Expression. obj repeatCount := 0 to: 1 by: 1].
-    $+ -> [obj := obj as: Regex Syntax Expression. obj repeatCount := 1 to: PositiveInfinity by: 1].
-    $* -> [obj := obj as: Regex Syntax Expression. obj repeatCount := 0 to: PositiveInfinity by: 1].
-    $\{ -> [obj := obj as: Regex Syntax Expression. obj repeatCount := p parseRepeatCount. p nextAssertIs: $\}]
+  (next := p next) caseOf: {
+    $? -> [obj := obj as: p Syntax Expression. obj repeatCount := 0 to: 1 by: 1].
+    $+ -> [obj := obj as: p Syntax Expression. obj repeatCount := 1 to: PositiveInfinity by: 1].
+    $* -> [obj := obj as: p Syntax Expression. obj repeatCount := 0 to: PositiveInfinity by: 1].
+    $\{ -> [obj := obj as: p Syntax Expression. obj repeatCount := p parseRepeatCount. p nextAssertIs: $\}]
   } otherwise: [p previous].
   obj
 ].
@@ -209,7 +213,7 @@ p@(Regex Parser traits) parseTerm
   p next caseOf: {
     $\( -> [count := p counter. 
             p counter += 1.
-            obj ::= p parseBranch as: Regex Syntax Expression. "need the counter slot"
+            obj ::= p parseBranch as: p Syntax Expression. "need the counter slot"
             obj counter := count.
             p nextAssertIs: $\). 
             obj]
@@ -220,7 +224,7 @@ p@(Regex Parser traits) parseTerm
 p@(Regex Parser traits) parseGroup
 [| next |
   (next := p next) caseOf: {
-    $\[ -> [obj ::= Regex Syntax CharacterGroup new `>> [elements := ExtensibleArray new. ].
+    $\[ -> [obj ::= p Syntax CharacterGroup new `>> [elements := ExtensibleArray new. ].
             (next := p next) = $^ ifTrue: [obj negated := True] ifFalse: [p previous].
             [(next := p next) ifNil: [p expected: $\] butFound: Nil].
              next = $\]] whileFalse:
@@ -235,7 +239,7 @@ p@(Regex Parser traits) parseRange
   start ::= p parseSymbol.
   p next caseOf: {
     $\] -> [p previous. start].
-    $- -> [Regex Syntax CharacterRange new `>> [start := start. end := p parseSymbol. ]]
+    $- -> [p Syntax CharacterRange new `>> [start := start. end := p parseSymbol. ]]
   } otherwise: [p previous. start]
 ].
 
@@ -243,11 +247,11 @@ p@(Regex Parser traits) parseRange
 p@(Regex Parser traits) parseSymbol
 [
   p next caseOf: {
-    $^ -> [Regex Syntax BeginningMarker new].
-    $$ -> [Regex Syntax EndMarker new].
-    $. -> [Regex Syntax CharacterRange new `>> [start: $\x00. end: $\xFF. ]]. "fixme ascii"
+    $^ -> [p Syntax BeginningMarker new].
+    $$ -> [p Syntax EndMarker new].
+    $. -> [p Syntax CharacterRange new `>> [start: $\x00. end: $\xFF. ]]. "fixme ascii"
     $\\ -> [p backspaceCharacterFor: p next]
-  } otherwise: [Regex Syntax Character new `>> [character := next. ]]
+  } otherwise: [p Syntax Character new `>> [character := next. ]]
 ].
 
 
@@ -261,22 +265,22 @@ Regex Matcher define: #Fail -> -1.
 
 m@(Regex Matcher traits) newOn: s@(String traits)
 [
-  m newOn: (Regex Regex newOn: s)
+  m newOn: (m Expression newOn: s)
 ].
 
-m@(Regex Matcher traits) newOn: r@(Regex Regex traits)
+m@(Regex Matcher traits) newOn: r@(Regex Expression traits)
 [
   m new `>> [regex := r. ]
 ].
 
 s@(String traits) regex
 [
-  Regex Regex newOn: s
+  Regex Expression newOn: s
 ].
 
-r@(Regex Regex traits) matcher
+r@(Regex Expression traits) matcher
 [
-  Regex Matcher newOn: r
+  r Matcher newOn: r
 ].
 
 m@(Regex Matcher traits) subexpressionAt: x
@@ -303,7 +307,7 @@ m@(Regex Matcher traits) subexpressionMatchesArray
 
 m@(Regex Matcher traits) matches: node
 [
-  (m match: node) ~= Regex Matcher Fail
+  (m match: node) ~= m Fail
 ].
 
 m@(Regex Matcher traits) match: node@(Regex Syntax Expression traits) from: pos to: endPos
@@ -327,9 +331,9 @@ string@(String traits) =~ regex@(String traits)
   string =~ (Regex Matcher newOn: regex)
 ].
 
-string@(String traits) =~ regex@(Regex Regex traits)
+string@(String traits) =~ regex@(Regex Expression traits)
 [
-  string =~ (Regex Matcher newOn: regex)
+  string =~ (regex Matcher newOn: regex)
 ].
 
 m@(Regex Matcher traits) match: s@(String traits) from: fromStart
