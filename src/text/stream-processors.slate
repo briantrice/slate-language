@@ -1,33 +1,32 @@
-
-
-streams define: #LimitedProcessor &parents: {DelegatingProcessor} &slots: {#count -> 0}.
+streams define: #LimitedProcessor &parents: {DelegatingProcessor} &slots: {
+  #count -> 0
+}.
 
 s@(LimitedProcessor traits) for: n
 [
-  s clone `>> [count: n. ]
+  s clone `>> [count := n. ]
 ].
-
 
 s@(LimitedProcessor traits) isAtEnd
 [
   s count <= s count zero \/ [resend]
 ].
 
-
 s@(LimitedProcessor traits) next: n putInto: seq startingAt: start
 [
   s count >= n
-    ifTrue: [s count: s count - n. resend]
-    ifFalse: [n: s count. s count: 0. resend]
+    ifTrue: [s count -= n. resend]
+    ifFalse: [n := s count. s count := 0. resend]
 ].
 
-
-streams define: #InOutProcessor &parents: {StreamProcessor} &slots: {#inBuffer. #outBuffer. }.
-
+streams define: #InOutProcessor &parents: {StreamProcessor} &slots: {
+  #inBuffer.
+  #outBuffer
+}.
 
 p@(InOutProcessor traits) on: s
 [
-  resend `>> [inBuffer: s source collectionType new. outBuffer: s collectionType new. ]
+  resend `>> [inBuffer := s source collectionType new. outBuffer := s collectionType new. ]
 ].
 
 s@(InOutProcessor traits) canProcessMore
@@ -36,12 +35,12 @@ s@(InOutProcessor traits) canProcessMore
 ].
 
 s@(InOutProcessor traits) next: n putInto: seq startingAt: start
-[ | buf amt |
+[| buf amt |
   [s outBuffer size < n /\ [s canProcessMore]]
     whileTrue: [s fillInBuffer: s requiredInSize. s process].
-  amt: (n min: s outBuffer size).
+  amt := n min: s outBuffer size.
   seq replaceFrom: start to: start + amt - 1 with: s outBuffer.
-  s outBuffer: (s outBuffer allButFirst: amt).
+  s outBuffer := s outBuffer allButFirst: amt.
   amt
 ].
 
@@ -59,12 +58,12 @@ if you're looking for a search string of a specified size. Override in child cla
 
 "doesn't/can't guarantee that it's filled!"
 s@(InOutProcessor traits) fillInBuffer: neededSize
-[ | nextBuffer amt needed |
+[| nextBuffer amt needed |
   s inBuffer size >= neededSize ifTrue: [^ Nil].
-  needed: neededSize - s inBuffer size.
-  nextBuffer: (s source collectionType new &capacity: needed).
-  amt: (s source next: needed putInto: nextBuffer).
-  s inBuffer: s inBuffer ; (nextBuffer first: amt).
+  needed := neededSize - s inBuffer size.
+  nextBuffer := s source collectionType new &capacity: needed.
+  amt := s source next: needed putInto: nextBuffer.
+  s inBuffer := s inBuffer ; (nextBuffer first: amt).
 ].
 
 s@(InOutProcessor traits) process
@@ -75,17 +74,17 @@ s@(InOutProcessor traits) process
 s@(InOutProcessor traits) passInThrough
 [
   s write: s inBuffer.
-  s inBuffer: s source collectionType new.
+  s inBuffer := s source collectionType new.
 ].
 
 s@(InOutProcessor traits) write: seq
 [
-  s outBuffer: s outBuffer ; seq
+  s outBuffer := s outBuffer ; seq
 ].
 
 s@(InOutProcessor traits) skip: amt
 [
-  s inBuffer: (s inBuffer allButFirst: amt)
+  s inBuffer := s inBuffer allButFirst: amt
 ].
 
 
@@ -94,18 +93,15 @@ s@(InOutProcessor traits) guaranteedReadable
   s outBuffer size
 ].
 
-
-
-
-
-
-streams define: #SimpleReplacementStream &parents: {InOutProcessor} &slots: {#search. #replace}.
+streams define: #SimpleReplacementStream &parents: {InOutProcessor} &slots: {
+  #search.
+  #replace
+}.
 
 s@(SimpleReplacementStream traits) find: x replaceWith: y
 [
   s new `>> [search: x. replace: y. ]
 ].
-
 
 s@(SimpleReplacementStream traits) requiredInSize
 [
@@ -126,14 +122,12 @@ s@(SimpleReplacementStream traits) process
   s source isAtEnd ifTrue: [s passInThrough]
 ].
 
-
 s@(Sequence traits) find: find@(Sequence traits) replaceWith: replace@(Sequence traits)
-[ | out |
-  out: s new writer.
-  s reader >> (SimpleReplacementStream find: find replaceWith: replace) >> out.
-  out contents
+[
+  [| :out |
+   s reader >> (SimpleReplacementStream find: find replaceWith: replace) >> out
+  ] writingAs: s
 ].
-
 
 streams define: #MultiProcessor &parents: {DelegatingProcessor} &slots: {#children}.
 
@@ -155,60 +149,60 @@ mp@(MultiProcessor traits) on: s
 ].
 
 d@(Dictionary traits) keysAndValuesCollect: block
-[ | result | 
+[
   d isEmpty ifTrue: [^ #{}].
-  result: ExtensibleArray new.
+  result ::= ExtensibleArray new.
   d keysAndValuesDo: [| :key :val | result add: (block applyWith: key with: val)].
   result
 ].
 
 s@(Sequence traits) sequentialFindAndReplace: dict@(Dictionary traits)
-[ | out |
-  out: s new writer.
-  s reader
-    >> (MultiProcessor using: 
-          (dict keysAndValuesCollect: [|:key :val| SimpleReplacementStream find: key replaceWith: val]))
-    >> out.
-  out contents
+[
+  [| :out |
+   s reader
+     >> (MultiProcessor using: 
+           (dict keysAndValuesCollect: [| :key :val | SimpleReplacementStream find: key replaceWith: val]))
+     >> out] writingAs: s
 ].
 
-
-
-
-streams define: #MultiReplacementStream &parents: {InOutProcessor} &slots: {#dict. #cachedSize}.
+streams define: #MultiReplacementStream &parents: {InOutProcessor} &slots: {
+  #dict -> Dictionary new.
+  #cachedSize
+}.
 
 s@(MultiReplacementStream traits) from: d@(Dictionary traits)
 [
-  s new `>> [dict: d. ]
+  s new `>> [dict := d. ]
 ].
-
 
 s@(MultiReplacementStream traits) requiredInSize
 [
-  s cachedSize ifNil: [s cachedSize: (s dict keys collect: #size `er) max].
-  s cachedSize
+  s cachedSize `defaultsTo: (s dict keys collect: #size `er) max
 ].
 
-"fixme don't cons as much"
 s@(MultiReplacementStream traits) process
-[ | match |
+[| hasMatched |
   s requiredInSize < 1 ifTrue: [^ s passInThrough].
   [s inBuffer size >= 1]
     whileTrue: 
-      [match: False.
+      [hasMatched := False.
        s dict keysAndValuesDo:
-         [|:key :val| (s inBuffer first: key size) = key
-                        ifTrue: [s write: val. s skip: key size. match: True]].
-       match ifFalse: [s write: (s inBuffer first: 1). s skip: 1 ]].
-
+         [| :key :val |
+          (s inBuffer beginsWith: key)
+            ifTrue:
+              [s write: val.
+               s skip: key size.
+               hasMatched := True]].
+       hasMatched ifFalse:
+         [s write: s inBuffer first.
+          s skip: 1]].
 ].
 
-
 s@(Sequence traits) findAndReplace: dict@(Dictionary traits)
-[ | out |
-  out: s new writer.
-  s reader >> (MultiReplacementStream from: dict) >> out.
-  out contents
+[
+  [| :out |
+   s reader >> (MultiReplacementStream from: dict) >> out
+  ] writingAs: s
 ].
 
 "todo: look at using extensible arrays"
@@ -217,26 +211,29 @@ streams define: #LineProcessor &parents: {InOutProcessor} &slots: {#currentLine}
 s@(LineProcessor traits) collectionType [Array].
 
 s@(LineProcessor traits) process
-[ | pos lastChar |
-  s currentLine ifNil: [s currentLine: (s inBuffer newSize: 0)].
-  pos: (s inBuffer indexOfFirstSatisfying: [|:char| lastChar: char. char = $\n \/ [char = $\r]]).
-  pos ifNil: [s currentLine: s currentLine ; s inBuffer. s inBuffer: (s inBuffer newSize: 0). ^ Nil].
-  s currentLine: s currentLine ; (inBuffer first: pos).
-  s currentLine isEmpty ifFalse: [s currentLine last = $\r ifTrue: [s currentLine: s currentLine allButLast]].
+[| pos lastChar |
+  s currentLine `defaultsTo: (s inBuffer newSize: 0).
+  (pos := s inBuffer indexOfFirstSatisfying: [| :char | lastChar := char. char = $\n \/ [char = $\r]])
+    ifNil:
+      [s currentLine := s currentLine ; s inBuffer.
+       s inBuffer := s inBuffer new.
+       ^ Nil].
+  (s currentLine := s currentLine ; (inBuffer first: pos))
+    isEmpty ifFalse: [s currentLine last = $\r ifTrue: [s currentLine := s currentLine allButLast]].
   s write: s currentLine.
-  s inBuffer: (inBuffer allButFirst: pos).
+  s inBuffer := inBuffer allButFirst: pos.
   s fillInBuffer: 1.
-  s inBuffer isEmpty ifFalse: [s inBuffer first = $\n /\ [lastChar = $\r] ifTrue: [s inBuffer: s inBuffer allButFirst]].
+  s inBuffer isEmpty not /\ [s inBuffer first = $\n] /\ [lastChar = $\r]
+    ifTrue: [s inBuffer := s inBuffer allButFirst].
 ].
 
-
 s@(LineProcessor traits) next: n putInto: seq startingAt: start
-[ | buf amt |
-  [s outBuffer size < n /\ [s canProcessMore]]
-    whileTrue: [s fillInBuffer: s requiredInSize. s process].
-  amt: (n min: s outBuffer size).
+[| buf amt |
+  [s outBuffer size < n /\ [s canProcessMore]] whileTrue:
+    [s fillInBuffer: s requiredInSize. s process].
+  amt := n min: s outBuffer size.
   seq replaceFrom: start to: start + amt - 1 with: s outBuffer.
-  s outBuffer: (s outBuffer allButFirst: amt).
+  s outBuffer := s outBuffer allButFirst: amt.
   amt
 ].
 

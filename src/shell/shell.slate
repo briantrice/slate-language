@@ -62,10 +62,9 @@ d@(Directory traits) /* mask
 [d locator collectMasked: mask].
 
 d@(Directory traits) maskedEntries: mask do: block
-[ 
-  d reader reset
-    do: [| :each | (mask matches: each) ifTrue:
-                     [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]].
+[
+  d reader reset select: [| :each | mask matches: each]
+    (do: [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]).
 ].
 
 a@(Shell FileCollection traits) format: formatString@(String traits)
