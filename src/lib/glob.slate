@@ -1,6 +1,8 @@
 define: #Glob &parents: {Cloneable} &slots: {}.
 
-Glob traits define: #Pattern &parents: {Glob} &slots: {#components}.
+Glob traits define: #Pattern &parents: {Glob} &slots: {
+  #components -> ExtensibleArray new
+}.
 Glob traits define: #PatternMatcher &parents: {Glob} &slots: {#reader. #maskPattern}.
 
 Glob traits define: #PatternFailure.
@@ -19,7 +21,7 @@ glob@(Glob traits) newOn: s
 
 glob@(Glob Pattern traits) newOn: s@(String traits)
 [
-  glob components := ExtensibleArray new.
+  glob components := glob components new.
   glob readFrom: s reader.
   glob
 ].
@@ -107,4 +109,61 @@ glob@(Glob PatternRange traits) matches: c@(String Character traits)
   glob ranges detect:
     [| :range | ((range isSameAs: c) /\ [range = c]) \/
                   [c code between: range key code and: c code]]
+].
+
+d@(File Locator traits) maskedEntries: mask@(String traits) do: block
+[
+  d maskedEntries: (Glob newOn: mask) do: block
+].
+
+l maskedEntries: mask@(Regex Regex traits) do: block
+[ 
+  l maskedEntries: (Regex Matcher newOn: mask) do: block
+].
+
+l@(File Locator traits) maskedEntries: mask do: block
+[ 
+  (Directory new `>> [locator := l. ]) maskedEntries: mask do: block
+].
+
+l@(File Locator traits) collectMasked: mask
+[
+  [| :result | l maskedEntries: mask do: #(result nextPut: _) `er]
+    writingAs: #{}
+].
+
+d@(File Locator traits) /* mask
+[d collectMasked: mask].
+
+d@(Directory traits) /* mask
+[d locator collectMasked: mask].
+
+d@(Directory traits) maskedEntries: mask do: block
+[
+  d sessionDo:
+    [| :d |
+     (d reader do:
+        [| :each | (mask matches: each) ifTrue:
+           [block applyWith: (File Locator new `>> [readFilenameFrom: each. ])]])].
+].
+
+d@(Directory traits) find: block &maxDepth: maxDepth
+[
+  maxDepth `defaultsTo: PositiveInfinity.
+  result ::= Set new writer.
+  d select: block into: result depth: maxDepth.
+  result contents
+].
+
+d@(Directory traits) select: block into: result depth: maxDepth
+[
+  maxDepth isZero ifFalse:
+    [entries ::= d entries collect:
+       [| :each | (File RelativeLocator newFrom: d) `>> [readPathElementsFrom: each reader. ]].
+     ((reader ::= entries reader) select: block) >> result.
+     entries do:
+       [| :each info |
+        (info := each fileInfo) isNotNil /\ [info isDirectory] /\ [info isLink not]
+          /\ [each name ~= '..'] /\ [each name ~= '.']
+          ifTrue: [(d childNamed: each name) select: block into: result depth: maxDepth - 1]]]
 ].
