@@ -246,7 +246,7 @@ p@(Regex Parser traits) parseRange
 "symbol ::= . | char | escape char"
 p@(Regex Parser traits) parseSymbol
 [
-  p next caseOf: {
+  (next ::= p next) caseOf: {
     $^ -> [p Syntax BeginningMarker new].
     $$ -> [p Syntax EndMarker new].
     $. -> [p Syntax CharacterRange new `>> [start: $\x00. end: $\xFF. ]]. "fixme ascii"
@@ -280,7 +280,7 @@ s@(String traits) regex
 
 r@(Regex Expression traits) matcher
 [
-  r Matcher newOn: r
+  Regex Matcher newOn: r
 ].
 
 m@(Regex Matcher traits) subexpressionAt: x
@@ -299,7 +299,8 @@ m@(Regex Matcher traits) subexpressionMatches
 
 m@(Regex Matcher traits) subexpressionMatchesArray
 [
-  matches ::= Array new &capacity: m subexpressions keys max + 1.
+  capacity ::= m subexpressions keys reduce: #max:`er ifEmpty: [0].
+  matches ::= Array new &capacity: capacity + 1.
   m subexpressions keysDo:
     [| :key | matches at: key put: (m subexpressionAt: key)].
   matches
