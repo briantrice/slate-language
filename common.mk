@@ -57,7 +57,7 @@ CPP         := g++
 CP          := cp -f
 LIBTOOL     ?= libtool
 ECHO        := echo
-WGET        := wget -q --cache=off
+WGET        := wget -q -c --cache=off
 SECHO       := @$(ECHO)
 INSTALL     := install
 TAR         := tar
