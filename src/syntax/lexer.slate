@@ -21,13 +21,15 @@ Lexer QuoteMacros at: 'f' put:
 Lexer QuoteMacros at: 'r' put:
   [| :contents | contents regex].
 Lexer QuoteMacros at: 'm' put:
-  [| :contents | contents regex].
+  [| :contents | contents regex matcher].
 Lexer QuoteMacros at: 'q' put:
   [| :contents parser |
    parser := Parser newOn: contents.
    [| :result |
     [parser lexer isAtEnd] whileFalse:
       [result nextPut: parser nextLiteral]] writingAs: #{}].
+Lexer QuoteMacros at: 'glob' put:
+  [| :contents | Glob newOn: contents].
 
 Lexer traits define: #QuoteMacroChars &builder: [Dictionary new].
 Lexer QuoteMacroChars at: $\' put: $\'.

@@ -100,8 +100,11 @@ glob@(Glob PatternRange traits) match: str@(String traits) from: pos
 
 glob@(Glob PatternLiteral traits) match: str@(String traits) from: pos
 [
-  pos + glob string size > str size ifTrue: [^ glob PatternFailure].
-  (str copyFrom: pos to: pos + glob string size - 1) = glob string ifTrue: [pos + glob string size] ifFalse: [glob PatternFailure]
+  pos + glob string size > str size
+    ifTrue: [glob PatternFailure]
+    ifFalse: [(str copyFrom: pos to: pos + glob string size - 1) = glob string
+                ifTrue: [pos + glob string size]
+                ifFalse: [glob PatternFailure]]
 ].
 
 glob@(Glob PatternRange traits) matches: c@(String Character traits)
@@ -114,11 +117,6 @@ glob@(Glob PatternRange traits) matches: c@(String Character traits)
 d@(File Locator traits) maskedEntries: mask@(String traits) do: block
 [
   d maskedEntries: (Glob newOn: mask) do: block
-].
-
-l maskedEntries: mask@(Regex Expression traits) do: block
-[ 
-  l maskedEntries: (mask Matcher newOn: mask) do: block
 ].
 
 l@(File Locator traits) maskedEntries: mask do: block
