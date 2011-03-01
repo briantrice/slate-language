@@ -20,33 +20,33 @@ s@(LimitedProcessor traits) next: n putInto: seq startingAt: start
 ].
 
 streams define: #InOutProcessor &parents: {StreamProcessor} &slots: {
-  #inBuffer.
-  #outBuffer
+  #inputBuffer.
+  #outputBuffer
 }.
 
 p@(InOutProcessor traits) on: s
 [
-  resend `>> [inBuffer := s source collectionType new. outBuffer := s collectionType new. ]
+  resend `>> [inputBuffer := s source collectionType new. outputBuffer := s collectionType new. ]
 ].
 
 s@(InOutProcessor traits) canProcessMore
 [
-  s inBuffer isNotEmpty \/ [s source isAtEnd not]
+  s inputBuffer isNotEmpty \/ [s source isAtEnd not]
 ].
 
 s@(InOutProcessor traits) next: n putInto: seq startingAt: start
 [| buf amt |
-  [s outBuffer size < n /\ [s canProcessMore]]
-    whileTrue: [s fillInBuffer: s requiredInSize. s process].
-  amt := n min: s outBuffer size.
-  seq replaceFrom: start to: start + amt - 1 with: s outBuffer.
-  s outBuffer := s outBuffer allButFirst: amt.
+  [s outputBuffer size < n /\ [s canProcessMore]]
+    whileTrue: [s bufferInputTo: s requiredInSize. s process].
+  amt := n min: s outputBuffer size.
+  seq replaceFrom: start to: start + amt - 1 with: s outputBuffer.
+  s outputBuffer := s outputBuffer allButFirst: amt.
   amt
 ].
 
 s@(InOutProcessor traits) isAtEnd
 [
-  s outBuffer isEmpty /\ s inBuffer isEmpty /\ [resend]
+  s outputBuffer isEmpty /\ [s inputBuffer isEmpty] /\ [resend]
 ].
 
 s@(InOutProcessor traits) requiredInSize
@@ -57,13 +57,13 @@ if you're looking for a search string of a specified size. Override in child cla
 ].
 
 "doesn't/can't guarantee that it's filled!"
-s@(InOutProcessor traits) fillInBuffer: neededSize
+s@(InOutProcessor traits) bufferInputTo: neededSize
 [| nextBuffer amt needed |
-  s inBuffer size >= neededSize ifTrue: [^ Nil].
-  needed := neededSize - s inBuffer size.
-  nextBuffer := s source collectionType new &capacity: needed.
-  amt := s source next: needed putInto: nextBuffer.
-  s inBuffer := s inBuffer ; (nextBuffer first: amt).
+  s inputBuffer size >= neededSize ifFalse:
+    [needed := neededSize - s inputBuffer size.
+     nextBuffer := s source collectionType new &capacity: needed.
+     amt := s source next: needed putInto: nextBuffer.
+     s inputBuffer := s inputBuffer ; (nextBuffer first: amt)].
 ].
 
 s@(InOutProcessor traits) process
@@ -73,24 +73,24 @@ s@(InOutProcessor traits) process
 
 s@(InOutProcessor traits) passInThrough
 [
-  s write: s inBuffer.
-  s inBuffer := s source collectionType new.
+  s write: s inputBuffer.
+  s inputBuffer := s source collectionType new.
 ].
 
 s@(InOutProcessor traits) write: seq
 [
-  s outBuffer := s outBuffer ; seq
+  s outputBuffer := s outputBuffer ; seq
 ].
 
 s@(InOutProcessor traits) skip: amt
 [
-  s inBuffer := s inBuffer allButFirst: amt
+  s inputBuffer := s inputBuffer allButFirst: amt
 ].
 
 
 s@(InOutProcessor traits) guaranteedReadable
 [
-  s outBuffer size
+  s outputBuffer size
 ].
 
 streams define: #SimpleReplacementStream &parents: {InOutProcessor} &slots: {
@@ -113,11 +113,11 @@ s@(SimpleReplacementStream traits) process
 [
   s search size < 1 ifTrue: [^ s passInThrough].
 
-  [s inBuffer size >= s requiredInSize]
+  [s inputBuffer size >= s requiredInSize]
     whileTrue: 
-      [(s inBuffer first: s search size) = s search 
+      [(s inputBuffer first: s search size) = s search 
          ifTrue: [s write: s replace. s skip: s search size]
-         ifFalse: [s write: (s inBuffer first: 1). s skip: 1 ]].
+         ifFalse: [s write: (s inputBuffer first: 1). s skip: 1 ]].
 
   s source isAtEnd ifTrue: [s passInThrough]
 ].
@@ -183,18 +183,18 @@ s@(MultiReplacementStream traits) requiredInSize
 s@(MultiReplacementStream traits) process
 [| hasMatched |
   s requiredInSize < 1 ifTrue: [^ s passInThrough].
-  [s inBuffer size >= 1]
+  [s inputBuffer size >= 1]
     whileTrue: 
       [hasMatched := False.
        s dict keysAndValuesDo:
          [| :key :val |
-          (s inBuffer beginsWith: key)
+          (s inputBuffer beginsWith: key)
             ifTrue:
               [s write: val.
                s skip: key size.
                hasMatched := True]].
        hasMatched ifFalse:
-         [s write: s inBuffer first.
+         [s write: s inputBuffer first.
           s skip: 1]].
 ].
 
@@ -212,28 +212,28 @@ s@(LineProcessor traits) collectionType [Array].
 
 s@(LineProcessor traits) process
 [| pos lastChar |
-  s currentLine `defaultsTo: (s inBuffer newSize: 0).
-  (pos := s inBuffer indexOfFirstSatisfying: [| :char | lastChar := char. char = $\n \/ [char = $\r]])
+  s currentLine `defaultsTo: (s inputBuffer newSize: 0).
+  (pos := s inputBuffer indexOfFirstSatisfying: [| :char | lastChar := char. char = $\n \/ [char = $\r]])
     ifNil:
-      [s currentLine := s currentLine ; s inBuffer.
-       s inBuffer := s inBuffer new.
+      [s currentLine := s currentLine ; s inputBuffer.
+       s inputBuffer := s inputBuffer new.
        ^ Nil].
-  (s currentLine := s currentLine ; (inBuffer first: pos))
+  (s currentLine := s currentLine ; (inputBuffer first: pos))
     isEmpty ifFalse: [s currentLine last = $\r ifTrue: [s currentLine := s currentLine allButLast]].
   s write: s currentLine.
-  s inBuffer := inBuffer allButFirst: pos.
-  s fillInBuffer: 1.
-  s inBuffer isEmpty not /\ [s inBuffer first = $\n] /\ [lastChar = $\r]
-    ifTrue: [s inBuffer := s inBuffer allButFirst].
+  s inputBuffer := inputBuffer allButFirst: pos.
+  s bufferInputTo: 1.
+  s inputBuffer isEmpty not /\ [s inputBuffer first = $\n] /\ [lastChar = $\r]
+    ifTrue: [s inputBuffer := s inputBuffer allButFirst].
 ].
 
 s@(LineProcessor traits) next: n putInto: seq startingAt: start
 [| buf amt |
-  [s outBuffer size < n /\ [s canProcessMore]] whileTrue:
-    [s fillInBuffer: s requiredInSize. s process].
-  amt := n min: s outBuffer size.
-  seq replaceFrom: start to: start + amt - 1 with: s outBuffer.
-  s outBuffer := s outBuffer allButFirst: amt.
+  [s outputBuffer size < n /\ [s canProcessMore]] whileTrue:
+    [s bufferInputTo: s requiredInSize. s process].
+  amt := n min: s outputBuffer size.
+  seq replaceFrom: start to: start + amt - 1 with: s outputBuffer.
+  s outputBuffer := s outputBuffer allButFirst: amt.
   amt
 ].
 
