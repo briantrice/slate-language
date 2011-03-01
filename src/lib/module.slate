@@ -157,18 +157,18 @@ Load traits addSlot: #DefaultSourceDir valued: Directory current.
 the bootstrap occurred."
 Load traits define: #defaultPaths &builder: [ExtensibleArray new].
 
-Load defaultPaths include: Load DefaultSourceDir.
-Load defaultPaths include: Load DefaultSourceDir / 'src'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/demo'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/core'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/mobius'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/lib'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/i18n'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/net'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/ui'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/unfinished'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/web'.
-Load defaultPaths include: Load DefaultSourceDir / 'src/syntax'.
+Load defaultPaths include: '.'.
+Load defaultPaths include: 'src'.
+Load defaultPaths include: 'src/demo'.
+Load defaultPaths include: 'src/core'.
+Load defaultPaths include: 'src/mobius'.
+Load defaultPaths include: 'src/lib'.
+Load defaultPaths include: 'src/i18n'.
+Load defaultPaths include: 'src/net'.
+Load defaultPaths include: 'src/ui'.
+Load defaultPaths include: 'src/unfinished'.
+Load defaultPaths include: 'src/web'.
+Load defaultPaths include: 'src/syntax'.
 
 l@(Load traits) of: file@(File traits)
 [| oldLevel |
@@ -186,12 +186,15 @@ l@(Load traits) resolvePathOf: file@(File traits)
 ].
 
 l@(Load traits) resolve: relative@(File RelativeLocator traits)
-[
+[| partPath fullPath |
   relative fileType `defaultsTo: 'slate'.
-  l defaultPaths reverseDo:
+  {l DefaultSourceDir. Directory current} do:
     [| :dir |
-     relative basePath := dir locator.
-     relative exists ifTrue: [^ relative]].
+     l defaultPaths reverseDo:
+       [| :path |
+        partPath := dir / path.
+        fullPath := relative newFrom: partPath.
+        fullPath exists ifTrue: [^ fullPath]]].
   error: 'Could not find the file relative to any of the default directories: %s', relative.
   relative
 ].
