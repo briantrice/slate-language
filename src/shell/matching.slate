@@ -1,106 +1,110 @@
-lobby ensureNamespace: #Shell.
- 
-Shell define: #MaskPattern &parents: {Cloneable} &slots: {#components}.
-Shell define: #MaskPatternMatcher &parents: {Cloneable} &slots: {#reader. #maskPattern}.
+define: #Glob &parents: {Cloneable} &slots: {}.
 
-Shell define: #MaskPatternFailure.
+Glob traits define: #Pattern &parents: {Glob} &slots: {#components}.
+Glob traits define: #PatternMatcher &parents: {Glob} &slots: {#reader. #maskPattern}.
 
-Shell define: #MaskPatternComponent &parents: {Cloneable}.
-Shell define: #MaskPatternLiteral &parents: {Shell MaskPatternComponent} &slots: {#string}.
-Shell define: #MaskPatternRange &parents: {Shell MaskPatternComponent} &slots: {#ranges. #negate}.
-Shell define: #MaskPatternAny &parents: {Shell MaskPatternComponent}.
-Shell define: #MaskPatternAnyOne &parents: {Shell MaskPatternComponent}.
+Glob traits define: #PatternFailure.
 
-mp@(Shell MaskPattern traits) newOn: s@(String traits)
+Glob traits define: #PatternComponent &parents: {Glob}.
+Glob traits define: #PatternLiteral &parents: {Glob PatternComponent} &slots: {#string -> ''}.
+Glob traits define: #PatternRange &parents: {Glob PatternComponent} &slots: {
+  #ranges -> ExtensibleArray new.
+  #negate -> False
+}.
+Glob traits define: #PatternAny &parents: {Glob PatternComponent}.
+Glob traits define: #PatternAnyOne &parents: {Glob PatternComponent}.
+
+glob@(Glob traits) newOn: s
+[glob Pattern newOn: s].
+
+glob@(Glob Pattern traits) newOn: s@(String traits)
 [
-  mp components := ExtensibleArray new.
-  mp readFrom: s reader.
-  mp
+  glob components := ExtensibleArray new.
+  glob readFrom: s reader.
+  glob
 ].
 
-mp@(Shell MaskPattern traits) readFrom: s@(ReadStream traits)
-[| prev matcher |
+glob@(Glob Pattern traits) readFrom: s@(ReadStream traits)
+[| prev |
   prev := '' writer.
-  matcher := mp components writer.
-  s do: 
-    [| :token | ({$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
-                ifTrue: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string := prev contents. ]).
-                         prev := '' writer].
-                token caseOf: {
-                  $*  -> [matcher nextPut: Shell MaskPatternAny].
-                  $?  -> [matcher nextPut: Shell MaskPatternAnyOne].
-                  $\[ -> [matcher nextPut: (mp readRange := (s upTo: $\]))].
-                } otherwise: [prev nextPut: token]].
-
-  prev contents isEmpty ifFalse: [matcher nextPut: (Shell MaskPatternLiteral new `>> [string := prev contents. ])].
-  mp components := matcher contents.
+  glob components :=
+    [| :matcher |
+     s do:
+       [| :token |
+        (#{$*. $?. $\[. } includes: token) /\ [prev contents isEmpty not]
+          ifTrue: [matcher nextPut: (glob PatternLiteral new `>> [string := prev contents. ]).
+                   prev := '' writer].
+        token caseOf: {
+          $*  -> [matcher nextPut: glob PatternAny].
+          $?  -> [matcher nextPut: glob PatternAnyOne].
+          $\[ -> [matcher nextPut: (glob readRange := s upTo: $\])]
+        } otherwise: [prev nextPut: token]].
+     prev contents isEmpty ifFalse: [matcher nextPut: (glob PatternLiteral new `>> [string := prev contents. ])]] writingAs: glob components.
 ].
 
-mp@(Shell MaskPattern traits) readRange: str@(String traits)
+glob@(Glob Pattern traits) readRange: str@(String traits)
 [| p char2 s |
   s := str reader.
-  p := Shell MaskPatternRange new.
-  p ranges := ExtensibleArray new.
-
-  p negate := '^!' includes: (char2 := s peek).
-
+  p := glob PatternRange new `>>
+    [| :p |
+     ranges := p ranges new.
+     negate := '^!' includes: (char2 := s peek). ].
   s do:
     [| :char |
-     (char2 := s peek) = $- 
+     (char2 := s peek) = $-
        ifTrue: [s next. p ranges addLast: char -> s next]
        ifFalse: [p ranges addLast: char]].
   p
 ].
 
-mp@(Shell MaskPattern traits) match: str@(String traits) from: pos
+glob@(Glob Pattern traits) match: str@(String traits) from: pos
 [
-  (Shell MaskPatternMatcher new `>> [maskPattern := mp. reader := mp components reader. ]) match: str from: pos
+  (glob PatternMatcher new `>> [maskPattern := glob. reader := glob components reader. ]) match: str from: pos
 ].
 
-mp@(Shell MaskPatternMatcher traits) match: str@(String traits) from: pos
+glob@(Glob PatternMatcher traits) match: str@(String traits) from: pos
 [
-  "inform: 'match reader: ' ; mp reader printString ;  ' pos: ' ; pos printString."
-  mp reader do:
+  "inform: 'match reader: ' ; glob reader printString ;  ' pos: ' ; pos printString."
+  glob reader do:
     [| :token |
-     (token isSameAs: Shell MaskPatternAny)
+     (token isSameAs: glob PatternAny)
        ifTrue: [str size downTo: pos do:
-                  [|:start | ((mp new `>> [reader := mp reader clone. ]) match: str from: start) = str size 
+                  [| :start | ((glob new `>> [reader := glob reader clone. ]) match: str from: start) = str size
                                ifTrue: [^ str size]]]
        ifFalse: [(pos := (token match: str from: pos))
-                   == Shell MaskPatternFailure ifTrue: [^ pos]]].
+                   == glob PatternFailure ifTrue: [^ pos]]].
   pos
 ].
 
-mp@(Shell MaskPattern traits) matches: str@(String traits)
-[ | match |
-  match := mp match: str from: 0.
-  match ~== Shell MaskPatternFailure /\ [match = str size]
+glob@(Glob Pattern traits) matches: str@(String traits)
+[
+  (match ::= glob match: str from: 0) ~== glob PatternFailure /\ [match = str size]
 ].
 
-p@(Shell MaskPatternAny traits) match: str@(String traits) from: pos
+glob@(Glob PatternAny traits) match: str@(String traits) from: pos
 [
   (pos to: str size - pos)
 ].
 
-p@(Shell MaskPatternAnyOne traits) match: str@(String traits) from: pos
+glob@(Glob PatternAnyOne traits) match: str@(String traits) from: pos
 [
-  pos >= str size ifTrue: [Shell MaskPatternFailure] ifFalse: [pos + 1]
+  pos >= str size ifTrue: [glob PatternFailure] ifFalse: [pos + 1]
 ].
 
-p@(Shell MaskPatternRange traits) match: str@(String traits) from: pos
+glob@(Glob PatternRange traits) match: str@(String traits) from: pos
 [
-  pos >= str size \/ [p matches: (str at: pos)] ifTrue: [Shell MaskPatternFailure] ifFalse: [pos + 1]
+  pos >= str size \/ [glob matches: (str at: pos)] ifTrue: [glob PatternFailure] ifFalse: [pos + 1]
 ].
 
-p@(Shell MaskPatternLiteral traits) match: str@(String traits) from: pos
-[ 
-  pos + p string size > str size ifTrue: [^ Shell MaskPatternFailure].
-  (str copyFrom: pos to: pos + p string size - 1) = p string ifTrue: [pos + p string size] ifFalse: [Shell MaskPatternFailure]
+glob@(Glob PatternLiteral traits) match: str@(String traits) from: pos
+[
+  pos + glob string size > str size ifTrue: [^ glob PatternFailure].
+  (str copyFrom: pos to: pos + glob string size - 1) = glob string ifTrue: [pos + glob string size] ifFalse: [glob PatternFailure]
 ].
 
-p@(Shell MaskPatternRange traits) matches: c@(String Character traits)
+glob@(Glob PatternRange traits) matches: c@(String Character traits)
 [
-  p ranges detect:
+  glob ranges detect:
     [| :range | ((range isSameAs: c) /\ [range = c]) \/
                   [c code between: range key code and: c code]]
 ].
