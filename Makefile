@@ -9,11 +9,11 @@ vm:
 	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./slate
 
 slate.%.image: kernel.new.%.image
-	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
+	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory current. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
 	$(SILENT) touch $@
 
 $(DEFAULT_IMAGE): vm
-	$(SILENT) $(ECHO) "repl resetOnStartup. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
+	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory current. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
 	$(SILENT) touch $(DEFAULT_IMAGE)
 
 release_image: vm $(DEFAULT_IMAGE)
