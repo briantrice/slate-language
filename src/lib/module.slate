@@ -187,21 +187,25 @@ l@(Load traits) resolvePathOf: file@(File traits)
 
 l@(Load traits) resolve: relative@(File RelativeLocator traits)
 [| partPath fullPath |
-  relative fileType `defaultsTo: 'slate'.
   {l DefaultSourceDir. Directory current} do:
     [| :dir |
      l defaultPaths reverseDo:
        [| :path |
         partPath := dir / path.
         fullPath := relative newFrom: partPath.
-        fullPath exists ifTrue: [^ fullPath]]].
+        fullPath exists ifTrue: [^ fullPath].
+        fullPath fileType ifNil:
+          [fullPath fileType := 'slate'.
+           fullPath exists ifTrue: [^ fullPath]]]].
   error: 'Could not find the file relative to any of the default directories: ' ; relative printString.
   relative
 ].
 
 l@(Load traits) resolve: filename@(File AbsoluteLocator traits)
 [
-  l resolve: (File RelativeLocator new `>> [name := filename name. ])
+  filename exists
+    ifTrue: [filename]
+    ifFalse: [l resolve: (File RelativeLocator new `>> [name := filename name. ])]
 ].
 
 l@(Load traits) retry
