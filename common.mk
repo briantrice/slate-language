@@ -5,12 +5,15 @@
 ## Directory definitions
 
 libdir       = $(slateroot)/lib
-mobiusdir    = $(slateroot)/src/mobius
-pluginsdir   = $(slateroot)/src/plugins
+srcdir       = $(slateroot)/src
+mobiusdir    = $(srcdir)/mobius
+pluginsdir   = $(srcdir)/plugins
 testdir      = $(slateroot)/tests
 
 prefix      = /usr/local
 datadir     = $(prefix)/share/slate
+slatesrcdir = $(datadir)/src
+slate_dirs  := core lib syntax mobius
 exec_prefix = $(prefix)/bin
 execname    = slate
 includedir  = $(prefix)/include
@@ -117,7 +120,7 @@ CPU_TYPE    := `uname -m`
 VM_LIBRARIES = -lm -ldl -lpthread
 
 VMNAME      := vm
-VMDIR       := $(slateroot)/src/vm
+VMDIR       := $(srcdir)/vm
 VM          := $(VMDIR)/$(VMNAME)
 SOURCES     ?= $(VMDIR)/*.cpp
 HEADERS     ?= $(VMDIR)/*.hpp

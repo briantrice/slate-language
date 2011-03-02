@@ -9,11 +9,11 @@ vm:
 	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./slate
 
 slate.%.image: kernel.new.%.image
-	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory current. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
+	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory newNamed: '$(slatesrcdir)'. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
 	$(SILENT) touch $@
 
 $(DEFAULT_IMAGE): vm
-	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory current. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
+	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory newNamed: '$(slatesrcdir)'. Image saveNamed: '$(DEFAULT_IMAGE)'." | $(VM) $(QUIETNESS) -i $(DEFAULT_KERNEL_IMAGE)
 	$(SILENT) touch $(DEFAULT_IMAGE)
 
 release_image: vm $(DEFAULT_IMAGE)
@@ -25,6 +25,7 @@ latest_release_image:
 
 installdirs:
 	$(SILENT) $(INSTALL) -d $(exec_prefix) $(lispdir) $(includedir) $(datadir) $(man1dir)
+	$(SILENT) $(INSTALL) -d $(slatesrcdir) $(slatesrcdir)/core $(slatesrcdir)/lib $(slatesrcdir)/syntax $(slatesrcdir)/mobius $(slatesrcdir)/demo
 
 install: vm installdirs
 	$(info Installing) # TODO: Plugins and documentation missing
@@ -36,6 +37,11 @@ install: vm installdirs
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.vim $(vimdir)/
 	$(SILENT) cat $(slateroot)/etc/slate.1 | sed -e 's/$${prefix}/$(subst /,\/,$(prefix))/g' | $(GZIP) -c > $(slateroot)/etc/slate.1.gz
 	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/etc/slate.1.gz $(man1dir)
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/src/core/*.slate $(slatesrcdir)/core
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/src/lib/*.slate $(slatesrcdir)/lib
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/src/syntax/*.slate $(slatesrcdir)/syntax
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/src/mobius/*.slate $(slatesrcdir)/mobius
+	$(SILENT) $(INSTALL) $(INSTALL_MODE) $(slateroot)/src/demo/*.slate $(slatesrcdir)/demo
 
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
