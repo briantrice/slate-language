@@ -432,82 +432,75 @@ p@(Parser traits) nextBlock &updating: block
   block
 ].
 
-p@(Parser traits) nextSignatureOrDefinition
-"Parses and returns a method definition, which has the highest precedence."
-[| selector roles inputVariables optKeywords optVariables token result |
-  selector := Nil.
-  roles := #{} writer.
-  inputVariables := #{} writer.
-  optKeywords := #{} writer.
+p@(Parser traits) parseRoleAnnotationFor: sig@(nodes Signature traits)
+[| token |
+  (token := p nextToken) == tokens At
+   ifTrue: [sig roles := sig roles copyWith: p nextAtom]
+   ifFalse: [p undoToken: token. sig roles := sig roles copyWith: ((nodes Literal for: NoRole) recordPositionFrom: p)].
+  sig
+].
+
+p@(Parser traits) parseInputVariableFor: sig@(nodes Signature traits)
+[| token |
+  (Syntax isUnarySelector: (token := p nextToken))
+   ifTrue: [sig inputVariables := sig inputVariables copyWith: (p newVariableNamed: token value in: sig).
+            p parseRoleAnnotationFor: sig]
+   ifFalse: [p undoToken: token]. "TODO conditionally throw an error? or check for / handle a pattern"
+  sig
+].
+
+p@(Parser traits) parseOptionalKeywordsFor: sig@(nodes Signature traits)
+[| token optKeywords optVariables |
   optVariables := #{} writer.
-  result := nodes MethodDefinition new recordPositionFrom: p.
-  [(token := p nextToken) isSameAs: tokens BeginBlock]
-    whileFalse:
-      [| variable |
-       (Syntax isUnarySelector: token)
-         ifFalse: [p error: 'Bad input variable name in method signature: ' ; token printString].
-       variable := p newVariableNamed: token value in: result.
-       token := p nextToken.
-       optKeywords size isZero
-         ifTrue:
-           [inputVariables nextPut: variable.
-            token == tokens At
-              ifTrue: [roles nextPut: p nextAtom. token := p nextToken]
-              ifFalse: [roles nextPut: ((nodes Literal for: NoRole) recordPositionFrom: p)].
-            (token isSameAs: tokens Selector)
-              ifTrue:
-                [selector isNotNil
-                   /\ [(Syntax isOptionalSelector: token) not]
-                   /\ [(Syntax isKeywordSelector: selector) not
-                         \/ [(Syntax isKeywordSelector: token) not]]
-                   ifTrue:
-                     [p error: 'Bad selector name in method signature: ' ; selector].
-                 (Syntax isUnarySelector: token)
-                   ifTrue:
-                     [selector := token value.
-                      (Syntax isOptionalSelector: p peekToken)
-                        ifTrue: [token := p nextToken]].
-                 (Syntax isBinarySelector: token)
-                   ifTrue:
-                     [selector := token value].
-                 (Syntax isKeywordSelector: token)
-                   ifTrue:
-                     [selector := selector
-                        ifNil: [token value]
-                        ifNotNil: [selector ; token value]].
-                 (Syntax isOptionalSelector: token)
-                   ifTrue:
-                     [optKeywords nextPut: token value intern]]
-              ifFalse:
-                [p undoToken: token.
-                 token == tokens BeginBlock ifFalse:
-                   [^ ((result `>>
-                          [selector := selector intern.
-                           roles := roles contents.
-                           inputVariables := inputVariables contents.
-                           optionalKeywords := optKeywords contents.
-                           optionalVariables := optVariables contents. ]
-                         as: nodes Signature) recordPositionFrom: p)]]]
-         ifFalse:
-           [optVariables nextPut: variable.
-            (Syntax isOptionalSelector: token)
-              ifTrue: [optKeywords nextPut: token value intern]
-              ifFalse:
-                [p undoToken: token.
-                 (token isSameAs: tokens BeginBlock)
-                   ifFalse:
-                     [^ ((result `>>
-                            [selector := selector intern.
-                             roles := roles contents.
-                             inputVariables := inputVariables contents.
-                             optionalKeywords := optKeywords contents.
-                             optionalVariables := optVariables contents. ]
-                            as: nodes Signature) recordPositionFrom: p)]]]].
-  selector ifNil: [p error: 'No selector name specified in method definition'].
+  optKeywords :=
+    [| :optKeywords |
+     [Syntax isOptionalSelector: (token := p nextToken)]
+       whileTrue:
+         [token value last = $:
+            ifTrue: [optKeywords nextPut: token value intern.
+                     (Syntax isUnarySelector: (token := p nextToken))
+                       ifTrue: [optVariables nextPut: (p newVariableNamed: token value in: sig)]
+                       ifFalse: [p undoToken: token]]
+            ifFalse: [optKeywords nextPut: (token value ; ':') intern.
+                      optVariables nextPut: (p newVariableNamed: token value in: sig)]].
+     p undoToken: token]
+    writingAs: #{}.
+  optKeywords ifNotEmpty:
+    [sig optionalKeywords := optKeywords.
+     sig optionalVariables := optVariables contents].
+  sig
+].
+
+p@(Parser traits) nextSignature
+[| selector token result |
+  selector := Nil.
+  result := nodes Signature new recordPositionFrom: p.
+
+  p parseInputVariableFor: result.
+  token := p nextToken.
+  `conditions: {
+    [Syntax isUnarySelector: token] -> [selector := token value].
+    [Syntax isBinarySelector: token] -> [selector := token value. p parseInputVariableFor: result].
+    [Syntax isKeywordSelector: token] ->
+      [selector := ''.
+       [selector := selector ; token value.
+        p parseInputVariableFor: result.
+        Syntax isKeywordSelector: (token := p nextToken)] whileTrue. p undoToken: token]
+  } otherwise: [p error: 'Signature unexpectedly contains: ' ; token signifier].
+
+  selector ifNil: [p error: 'No selector name specified in signature'].
   result selector := selector intern.
-  result roles := roles contents.
-  result inputVariables := inputVariables contents.
-  result optionalKeywords := optKeywords contents.
-  result optionalVariables := optVariables contents.
-  p nextBlock &updating: result
+  p parseOptionalKeywordsFor: result
+].
+
+p@(Parser traits) parseMethodDefinitionFor: sig@(nodes Signature traits)
+[| token |
+  ((token := p nextToken) isSameAs: tokens BeginBlock)
+    ifTrue: [p nextBlock &updating: (sig as: nodes MethodDefinition)]
+    ifFalse: [p undoToken: token. sig]
+].
+
+p@(Parser traits) nextSignatureOrDefinition
+[
+  p parseMethodDefinitionFor: p nextSignature
 ].

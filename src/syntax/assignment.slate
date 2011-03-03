@@ -93,6 +93,12 @@ array@(nodes Array traits) setTo: vals &environment: env
           {tmpVar store: vals. result} as: nodes Parenthesis]]
 ].
 
+sig@(nodes Signature traits) setTo: body@(nodes Block traits) &environment: env
+[| result |
+  result: (body as: (sig as: nodes MethodDefinition)).
+  result
+].
+
 load@(nodes LoadVariable traits) defaultsTo: default &environment: env
 "A macro that expands to an expression that sets a variable in the scope to
 the expression in the default."

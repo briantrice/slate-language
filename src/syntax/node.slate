@@ -774,7 +774,7 @@ block@(nodes Block traits) deepCopy &into: target
 block@(nodes Block traits) as: target@(nodes Block traits)
 "This should allow Block and MethodDefinition objects to be converted (with
 loss of Signature information, of course."
-[block deepCopy &into: target].
+[block deepCopy &into: target new].
 
 block@(nodes Block traits) arity
 [block inputVariables size].
@@ -936,7 +936,7 @@ method@(nodes MethodDefinition traits) as: sig@(nodes Signature traits)
     [selector := method selector.
      roles := method roles.
      inputVariables := method inputVariables.
-     inputVariables do: [| :var | var scope := Nil].
+     inputVariables do: [| :var | var scope := sig].
      restVariable := method restVariable.
      optionalKeywords := method optionalKeywords.
      optionalVariables := method optionalVariables. ]
@@ -953,7 +953,8 @@ sig@(nodes Signature traits) as: method@(nodes MethodDefinition traits)
      localVariables := result inputVariables copy.
      restVariable := sig restVariable.
      optionalKeywords := sig optionalKeywords.
-     optionalVariables := sig optionalVariables. ]
+     optionalVariables := sig optionalVariables.
+     optionalVariables do: [| :var | var scope := result]. ]
 ].
 
 node1@(nodes Signature traits) = node2@(nodes Signature traits)
