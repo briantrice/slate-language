@@ -84,9 +84,9 @@ s@(String traits) formatting
 [| *args input argsIndex arg specifier nextChar opts |
   argsIndex := args indexFirst.
   [| :out |
-   (input := s reader) do:
-     [| :char |
-      char == $%
+   input := s reader.
+   [input isAtEnd] whileFalse:
+     [(nextChar := input next) == $%
         ifTrue: "Placeholder"
           [(nextChar := input next) == $%
              ifTrue: [out nextPut: nextChar]
@@ -122,16 +122,16 @@ s@(String traits) formatting
                 } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. arg as: s"].
                 nextChar isUppercase ifTrue: [arg toUppercase].
                 out ; (arg padBy: opts)]]
-        ifFalse: [out nextPut: char]]
+        ifFalse: [out nextPut: nextChar]]
   ] writingAs: s
 ].
 
 s@(String traits) formattingOn: out
 [| *args input argsIndex arg specifier nextChar opts |
   argsIndex := args indexFirst.
-  (input := s reader) do:
-    [| :char |
-     char == $%
+  input := s reader.
+  [input isAtEnd] whileFalse:
+    [(nextChar := input next) == $%
        ifTrue: "Placeholder"
          [(nextChar := input next) == $%
             ifTrue: [out nextPut: nextChar]
@@ -167,5 +167,5 @@ s@(String traits) formattingOn: out
                } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. arg as: s"].
                nextChar isUppercase ifTrue: [arg toUppercase].
                out ; (arg padBy: opts)]]
-        ifFalse: [out nextPut: char]].
+        ifFalse: [out nextPut: nextChar]].
 ].
