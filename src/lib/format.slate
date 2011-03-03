@@ -82,15 +82,14 @@ segment@(String traits) padBy: opts@(String FormattingOptions traits)
 
 s@(String traits) formatting
 [| *args input argsIndex arg specifier nextChar opts |
-  input := s reader.
   argsIndex := args indexFirst.
-  [| :result |
-   input do:
+  [| :out |
+   (input := s reader) do:
      [| :char |
       char == $%
         ifTrue: "Placeholder"
           [(nextChar := input next) == $%
-             ifTrue: [result nextPut: nextChar]
+             ifTrue: [out nextPut: nextChar]
              ifFalse:
                [input restoringPositionDo:
                   [specifier := (input upToAnyOf: s FormattingChars) reader.
@@ -122,7 +121,51 @@ s@(String traits) formatting
                   $e -> [arg printStringBy: opts].
                 } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. arg as: s"].
                 nextChar isUppercase ifTrue: [arg toUppercase].
-                result ; (arg padBy: opts)]]
-        ifFalse: [result nextPut: char]]
+                out ; (arg padBy: opts)]]
+        ifFalse: [out nextPut: char]]
   ] writingAs: s
+].
+
+s@(String traits) formattingOn: out
+[| *args input argsIndex arg specifier nextChar opts |
+  argsIndex := args indexFirst.
+  (input := s reader) do:
+    [| :char |
+     char == $%
+       ifTrue: "Placeholder"
+         [(nextChar := input next) == $%
+            ifTrue: [out nextPut: nextChar]
+            ifFalse:
+              [input restoringPositionDo:
+                 [specifier := (input upToAnyOf: s FormattingChars) reader.
+                  opts := s FormattingOptions new readFrom: specifier].
+               input skip: -1.
+               input upToAnyOf: s FormattingChars.
+               input skip: -1.
+               "Check for type specifiers:"
+               opts position ifNil:
+                 [opts position := argsIndex.
+                  argsIndex += 1].
+               opts width isNil /\ [opts star] ifTrue:
+                 [opts width := args at: opts position.
+                  opts position += 1.
+                  argsIndex += 1].
+               arg := args at: opts position.
+               arg := (nextChar := input next) toLowercase caseOf: {
+                 $r -> [arg printStringBy: opts].
+                 $@ -> [arg printStringBy: opts].
+                 $s -> [arg as: s].
+                 $c -> [arg as: s]. "Character"
+                 $d -> [arg printStringBy: opts].
+                 $i -> [arg printStringBy: opts].
+                 $u -> [arg printStringBy: opts].
+                 $b -> [opts radix := 2.  arg printStringBy: opts].
+                 $o -> [opts radix := 8.  arg printStringBy: opts].
+                 $x -> [opts radix := 16. arg printStringBy: opts].
+                 $f -> [arg printStringBy: opts].
+                 $e -> [arg printStringBy: opts]
+               } otherwise: ["warn: 'Invalid format control character: ' ; nextChar printString. arg as: s"].
+               nextChar isUppercase ifTrue: [arg toUppercase].
+               out ; (arg padBy: opts)]]
+        ifFalse: [out nextPut: char]].
 ].
