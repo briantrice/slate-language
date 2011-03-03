@@ -491,7 +491,6 @@ l@(File Locator traits) as: s@(String traits) &pathSeparator: pathSeparator &rel
 [
   l device ifNotNil: [pathSeparator := $\\].
   pathSeparator `defaultsTo: l pathSeparator.
-  basePath `defaultsTo: Directory Current.
   [| :s |
    l writeDeviceOrHostOn: s.
    l path do: [| :each | s ; each. s nextPut: pathSeparator].
@@ -502,11 +501,13 @@ l@(File RelativeLocator traits) as: s@(String traits) &pathSeparator: pathSepara
 [
   l device ifNotNil: [pathSeparator := $\\].
   pathSeparator `defaultsTo: l pathSeparator.
-  basePath `defaultsTo: Directory Current.
+  basePath `defaultsTo: Directory current.
   [| :s |
    l writeDeviceOrHostOn: s.
-   l basePath ifNotNil: [l basePath locator = basePath locator ifFalse:
-     [s ; (l basePath locator as: String &pathSeparator: pathSeparator &relativeTo: basePath)]].
+   l basePath ifNotNilDo:
+     [| :base | base locator ifNotNilDo:
+        [| :locator | locator = Directory current locator ifFalse:
+           [s ; (locator as: String &pathSeparator: pathSeparator &relativeTo: basePath)]]].
    l path do: [| :each | s ; each. s nextPut: pathSeparator].
    l writeNameVersionTypeOn: s] writingAs: s
 ].

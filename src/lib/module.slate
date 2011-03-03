@@ -155,20 +155,28 @@ Load traits addSlot: #Level valued: 0.
 Load traits addSlot: #DefaultSourceDir valued: Directory current.
 "Records the concrete directory where the sources are available and where
 the bootstrap occurred."
+Load traits addSlot: #HomeSourcePath valued: '.slate'.
 Load traits define: #defaultPaths &builder: [ExtensibleArray new].
 
-Load defaultPaths include: '.'.
-Load defaultPaths include: 'src'.
-Load defaultPaths include: 'src/demo'.
-Load defaultPaths include: 'src/core'.
-Load defaultPaths include: 'src/mobius'.
-Load defaultPaths include: 'src/lib'.
-Load defaultPaths include: 'src/i18n'.
-Load defaultPaths include: 'src/net'.
-Load defaultPaths include: 'src/ui'.
-Load defaultPaths include: 'src/unfinished'.
-Load defaultPaths include: 'src/web'.
-Load defaultPaths include: 'src/syntax'.
+[| :path | Load defaultPaths include: path] for: #{
+  '.'.
+  'src'.
+  'src/core'.
+  'src/lib'.
+  'src/demo'.
+  'src/mobius'.
+  'src/syntax'.
+  'src/i18n'.
+  'src/net'.
+  'src/ui'.
+  'src/unfinished'.
+  'src/web'
+}.
+
+l@(Load traits) defaultRootPaths
+[
+  {Directory current locator. Directory home locator / l HomeSourcePath. l DefaultSourceDir locator}
+].
 
 l@(Load traits) of: file@(File traits)
 [| oldLevel |
@@ -187,7 +195,7 @@ l@(Load traits) resolvePathOf: file@(File traits)
 
 l@(Load traits) resolve: relative@(File RelativeLocator traits)
 [| partPath fullPath |
-  {l DefaultSourceDir. Directory current} do:
+  l defaultRootPaths do:
     [| :dir |
      l defaultPaths reverseDo:
        [| :path |
@@ -220,10 +228,10 @@ l@(Load traits) process: source
   ns := Namespace new. 
   retry := ns define: #Retry &parents: {Restart}.
   _@retry describeOn: out
-  [out ; 'Retry loading ' ; l source resource locator printString ;'\n'].
+  ['Retry loading %s\n' formattingOn: out, l source resource locator].
   skip := ns define: #Skip &parents: {Restart}.
   _@skip describeOn: out
-  [out ; 'Skip loading ' ; l source resource locator printString ; '\n' ].
+  ['Skip loading %s\n' formattingOn: out, l source resource locator].
   l source := source.
   [l run] handlingCases: {retry -> [| :_ | ^ (l retry)].
                           skip -> [| :_ | ^ Nil]}.
