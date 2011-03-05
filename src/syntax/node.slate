@@ -158,18 +158,6 @@ message@(nodes Message traits) evaluateIn: namespace &optionals: opts
     &optionals: opts
 ].
 
-b@(nodes Node traits) allSelectorsSent
-"Answer a Set of all selectors sent in the source."
-[
-  [| :result |
-   b walk: [| :node | (node is: nodes Message) ifTrue:
-     [result nextPut: node selector.
-      ({#sendTo:. #sendTo:through:} includes: result selector)
-        /\ [node arguments first is: Symbol]
-        ifTrue: [result nextPut: node arguments first]]]]
-    writingAs: IdentitySet
-].
-
 nodes define: #UnaryMessage &parents: {nodes Message}.
 
 message@(nodes UnaryMessage traits) sending: selector
@@ -1137,13 +1125,16 @@ node1@(nodes Resend traits) = node2@(nodes Resend traits)
 
 "Non-core utilities follow."
 
-n@(nodes Node traits) allSelectorsSent
-"Answer a Set of selectors for the messages sent in this parse tree."
+b@(nodes Node traits) allSelectorsSent
+"Answer a Set of all selectors sent in the source."
 [
-  [| :calls |
-   n walk: [| :node | (node is: nodes Message)
-                        ifTrue: [calls nextPut: node selector]]]
-    writingAs: (IdentitySet new &capacity: 100)
+  [| :result |
+   b walk: [| :node | (node is: nodes Message) ifTrue:
+     [result nextPut: node selector.
+      ({#sendTo:. #sendTo:through:} includes: result selector)
+        /\ [node arguments first is: Symbol]
+        ifTrue: [result nextPut: node arguments first]]]]
+    writingAs: IdentitySet
 ].
 
 n@(nodes Node traits) allMacroSelectorsSent
@@ -1152,7 +1143,7 @@ n@(nodes Node traits) allMacroSelectorsSent
   [| :calls |
    n walk: [| :node | (node is: nodes Macro)
                         ifTrue: [calls nextPut: node selector]]]
-    writingAs: (IdentitySet new &capacity: 100)
+    writingAs: IdentitySet
 ].
 
 n@(nodes Node traits) nodeCount
