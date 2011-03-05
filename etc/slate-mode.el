@@ -162,7 +162,7 @@
   (concat "\\([-" slate-name-chars "_]+[-" slate-name-chars "_:]*:\\| :[^A-Za-z]+\\)")
   "A regular expression that matches a Slate keyword")
 
-(defconst slate-opt-keyword-regexp (concat "&" slate-keyword-regexp)
+(defconst slate-opt-keyword-regexp (concat "[&]\\(" slate-keyword-regexp "\\|" slate-name-regexp "\\)")
   "A regular expression that matches a Slate optional-keyword")
 
 (defconst slate-whitespace-chars " \t\n\f")
