@@ -340,6 +340,8 @@
 (define-key slate-restart-keymap [return] 'slate-run-overlay-at-point)
 (define-key slate-restart-keymap [mouse-1] 'slate-run-overlay-at-point)
 
+(defvar mode-status)
+
 (defconst slate-inf-font-lock-keywords
   `((,slate-prompt-regexp . 'comint-highlight-prompt)    ; normal prompt
     (,slate-debug-prompt-regexp . 'comint-highlight-prompt) ; debug prompt
@@ -417,20 +419,20 @@ if that value is non-nil.  Likewise with the value of `shell-mode-hook'.
   "Follows a file reference of the form filename:linenumber at/after the point."
   (interactive)
   (push-mark)
-  (setq filename
-    (save-excursion
-      (skip-chars-forward "^:")
-      (setq end (point))
-      (skip-chars-backward "^ ")
-      (buffer-substring-no-properties (point) end)))
-  (setq line-number
-    (save-excursion
-      (skip-chars-forward "^:")
-      (forward-char)
-      (string-to-number (buffer-substring-no-properties (point) (progn (forward-word 1) (point))))))
-  ;(find-file-at-point)
-  (find-file filename)
-  (goto-line line-number))
+  (let ((end))
+    (let ((filename
+           (save-excursion
+             (skip-chars-forward "^:")
+             (setq end (point))
+             (skip-chars-backward "^ ")
+             (buffer-substring-no-properties (point) end)))
+          (line-number
+           (save-excursion
+             (skip-chars-forward "^:")
+             (forward-char)
+             (string-to-number (buffer-substring-no-properties (point) (progn (forward-word 1) (point)))))))
+      (find-file filename)
+      (goto-line line-number))))
 
 (defun inf-slate (cmd &rest args)
   "Run an inferior Slate process `*slate-process*'.
