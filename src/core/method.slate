@@ -333,6 +333,12 @@ lexical return which is default) by passing as the argument a block which
 will return from this wrapper when invoked."
 [m applyWith: [^ Nil]].
 
+m@(Method traits) doIn: env
+[| prevEnv |
+  prevEnv := m environment.
+  [m do] ensure: [m environment := prevEnv]
+].
+
 m@(Method traits) ** n@(Method traits)
 "Answers a new Method whose effect is that of calling the first method
 on the results of the second method applied to whatever arguments are passed.
