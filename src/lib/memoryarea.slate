@@ -20,11 +20,10 @@ m@(MemoryArea traits) newSize: n
     {m Locator clone `setting: #{#byteSize} to: {n}}
 ].
 
-m@(MemoryArea traits) new &capacity: n &fixed: fixed
+m@(MemoryArea traits) new &capacity: n &fixed
 [
   (fixed `defaultsTo: False)
-    ifTrue: [| result |
-	     result := (m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}).
+    ifTrue: [result ::= m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}.
 	     n ifNotNil: [result locator byteSize := n].
 	     result]
     ifFalse: [ByteArray new &capacity: n]

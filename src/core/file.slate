@@ -52,7 +52,7 @@ f@(File traits) unregister
     [| :reg | reg == f ifTrue: [f ByLocation removeKey: f locator]]
 ].
 
-f@(File traits) named: filename &mode: mode
+f@(File traits) named: filename &mode
 "Accesses or creates the File object associated with the specified Locator.
 Notably, a File created this way needs to be #unregister`ed manually if it
 is never enabled or disabled before being garbage-collected."
@@ -61,7 +61,7 @@ is never enabled or disabled before being garbage-collected."
   f ByLocation at: locator ifAbsentPut: [f newNamed: locator &mode: mode]
 ].
 
-f@(File traits) newNamed: filename &mode: mode
+f@(File traits) newNamed: filename &mode
 "Forces the creation of a new instance of a File for the given Locator. If none
 is registered, this File gets registered, otherwise it does not interfere with
 registration."
@@ -98,7 +98,7 @@ file@(File traits) disable
 dictionary, to minimize the potential for leaks."
 [file close: file handle. file unregister].
 
-f@(File traits) sessionDo: block &mode: mode
+f@(File traits) sessionDo: block &mode
 "Extends the basic sessionDo: with a way to temporarily set the mode."
 [
   mode
@@ -135,7 +135,7 @@ f@(File traits) renameTo: newName
     ifFalse: [error: 'Unable to rename this file.']
 ].
 
-f1@(File traits) with: f2@(File traits) sessionDo: block &mode1: mode1 &mode2: mode2 &mode: mode
+f1@(File traits) with: f2@(File traits) sessionDo: block &mode1 &mode2 &mode
 "Same as sessionDo, but works with two files.
 If &mode is defined then this mode will be used for both files."
 [
@@ -149,7 +149,7 @@ If &mode is defined then this mode will be used for both files."
     ] &mode: mode1
 ].
 
-f@(File traits) withOpenNamed: filename do: block &mode: mode
+f@(File traits) withOpenNamed: filename do: block &mode
 "Calls sessionDo: on a File made for the given filename and mode."
 [
   (f newNamed: filename) sessionDo: block &mode: mode
@@ -308,12 +308,12 @@ of the path or the filename itself if not empty/Nil."
     ifTrue: [l name] ifFalse: [l path last]
 ].
 
-l@(File Locator traits) openFile &mode: mode
+l@(File Locator traits) openFile &mode
 [
   (File newNamed: l &mode: mode) open
 ].
 
-l@(File Locator traits) sessionDo: block &mode: mode
+l@(File Locator traits) sessionDo: block &mode
 "Calls the block with the File object as input, opening and closing it
 transparently in an error-tolerant way. The return value of the block is
 answered if it completes without error."
@@ -326,7 +326,7 @@ occurs before it can be assigned to the #file slot."
        [file ifNotNil: [file close]]
 ].
 
-l1@(File Locator traits) with: l2@(File Locator traits) sessionDo: block &mode1: mode1 &mode2: mode2 &mode: mode
+l1@(File Locator traits) with: l2@(File Locator traits) sessionDo: block &mode1 &mode2 &mode
 "Same as sessionDo, but works with two files.
 If &mode is defined then this mode will be used for both files."
 [
@@ -379,7 +379,7 @@ f1@(File RelativeLocator traits) = f2@(File RelativeLocator traits)
 [f1 name = f2 name /\ [f1 basePath = f2 basePath] /\ [f1 path = f2 path] 
    /\ [f1 fileType = f2 fileType] /\ [f1 version = f2 version]].
 
-s@(String traits) as: l@(File RelativeLocator traits) &base: base
+s@(String traits) as: l@(File RelativeLocator traits) &base
 [
   base `defaultsTo: Directory Current.
   resend `>> [basePath := base. ]
@@ -388,7 +388,7 @@ s@(String traits) as: l@(File RelativeLocator traits) &base: base
 l@(File RelativeLocator traits) newFrom: base
 [l cloneSettingSlots: #{#basePath} to: {base}].
 
-l@(File Locator traits) readFrom: src &pathSeparator: pathSeparator
+l@(File Locator traits) readFrom: src &pathSeparator
 [
   src := src reader. "Should be a PositionableStream."
   pathSeparator `defaultsTo: l pathSeparator.
@@ -421,7 +421,7 @@ l@(File Locator traits) readFrom: src &pathSeparator: pathSeparator
 	 `>> [readPathElementsFrom: src &pathSeparator: pathSeparator. ]]
 ].
 
-l@(File Locator traits) readPathElementsFrom: s &pathSeparator: pathSeparator
+l@(File Locator traits) readPathElementsFrom: s &pathSeparator
 [
   pathSeparator `defaultsTo: l pathSeparator.
   pathElements ::= s upToEnd splitWith: pathSeparator.
@@ -487,7 +487,7 @@ l@(File Locator traits) writeNameVersionTypeOn: s
   l fileType ifNotNil: [s ; l hereString ; l fileType].
 ].
 
-l@(File Locator traits) as: s@(String traits) &pathSeparator: pathSeparator &relativeTo: basePath
+l@(File Locator traits) as: s@(String traits) &pathSeparator &relativeTo: basePath
 [
   l device ifNotNil: [pathSeparator := $\\].
   pathSeparator `defaultsTo: l pathSeparator.
@@ -497,7 +497,7 @@ l@(File Locator traits) as: s@(String traits) &pathSeparator: pathSeparator &rel
    l writeNameVersionTypeOn: s] writingAs: s
 ].
 
-l@(File RelativeLocator traits) as: s@(String traits) &pathSeparator: pathSeparator &relativeTo: basePath
+l@(File RelativeLocator traits) as: s@(String traits) &pathSeparator &relativeTo: basePath
 [
   l device ifNotNil: [pathSeparator := $\\].
   pathSeparator `defaultsTo: l pathSeparator.
@@ -512,7 +512,7 @@ l@(File RelativeLocator traits) as: s@(String traits) &pathSeparator: pathSepara
    l writeNameVersionTypeOn: s] writingAs: s
 ].
 
-l@(File AbsoluteLocator traits) as: s@(String traits) &pathSeparator: pathSeparator &relativeTo: basePath
+l@(File AbsoluteLocator traits) as: s@(String traits) &pathSeparator &relativeTo: basePath
 [
   l device ifNotNil: [pathSeparator := $\\].
   pathSeparator `defaultsTo: l pathSeparator.

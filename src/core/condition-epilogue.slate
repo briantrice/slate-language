@@ -66,7 +66,7 @@ conditions define: #Message &parents: {Cloneable} &slots: {#selector. #arguments
 "A Message describes a message-send at runtime, and usually only exists for
 debugging packaging."
 
-m@(Message traits) sending: selector to: args &optionals: optionals
+m@(Message traits) sending: selector to: args &optionals
 [
   optionals `defaultsTo: #{}.
   m cloneSettingSlots: #{#selector. #arguments. #optionals}
@@ -85,7 +85,7 @@ conditions define: #MethodNotFound &parents: {ProtocolError} &slots: {#message -
 
 "A MethodNotFound is a ProtocolError signaled when dispatch fails."
 
-selector@(Symbol traits) notFoundOn: arguments &optionals: optionals
+selector@(Symbol traits) notFoundOn: arguments &optionals
 "Query the arguments for an abnormal handler before signalling MethodNotFound."
 [| *rest |
   message ::= Message sending: selector to: arguments &optionals: optionals.
@@ -114,7 +114,7 @@ mnf@(MethodNotFound traits) describeOn: out
 conditions define: #MethodResentNotFound &parents: {MethodNotFound} &slots: {#method -> []}.
 "A MethodNotFound when a resend is performed."
 
-selector@(Symbol traits) notFoundOn: arguments after: method &optionals: optionals
+selector@(Symbol traits) notFoundOn: arguments after: method &optionals
 [
   (MethodResentNotFound new `>>
     [message := Message sending: selector to: arguments &optionals: optionals.

@@ -24,7 +24,7 @@ d@(Derivable traits) traitsDo: block
        block apply*, (d traitsWindow _delegates at: index)]
 ].
 
-d@(Derivable traits) orderTraits &mixins: mixins
+d@(Derivable traits) orderTraits &mixins
 "Answers an array of the traits objects in order..."
 [| tally order index fixedOrder |
   mixins `defaultsTo: #{}.
@@ -80,7 +80,7 @@ d@(Derivable traits) orderTraits: mixins
 
 ].
 
-d@(Derivable traits) derive &mixins: mixins &rejects: rejectSlots
+d@(Derivable traits) derive &mixins &rejects: rejectSlots
 "Constructs and returns a new prototype based on the argument with a new
 Traits object that delegates to the old one. If mixins are specified,
 the Traits object inherits from each extra object's Traits in right-to-left
@@ -101,7 +101,7 @@ except for those named rejects."
   newObj
 ].
 
-x@(Root traits) addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn
+x@(Root traits) addPrototype: protoName &parents &immutable &basedOn
 "Creates a new prototype with the given name, handles derive calls
 transparently, and sets the traits name slot to the name for convenience."
 [| newProto |
@@ -153,7 +153,7 @@ x@(Root traits) printDelegates
   x traitsWindow _delegates do: [| :d | inform: d printName].
 ].
 
-x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn: basedOn
+x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn
 "Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
 [x addPrototype: protoName &parents: parents &basedOn: basedOn].
 
@@ -181,9 +181,7 @@ x@(Root traits) define: slotName using: builder
   result
 ].
 
-x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
-  &builder: builder &namespace: ns &owner: obj &immutable: immutable
-  &basedOn: basedOn
+x@(Root traits) define: protoName &parents &slots: slotSpecs &builder &namespace &owner &immutable &basedOn
 "Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
 [
   immutable `defaultsTo: False.
@@ -197,16 +195,16 @@ x@(Root traits) define: protoName &parents: parents &slots: slotSpecs
          ifTrue: [(immutable ifTrue: [#addImmutableSlot:valued:] ifFalse: [#addSlot:valued:]) sendTo: {proto. each key. each value}]
          ifFalse: [(immutable ifTrue: [#addImmutableSlot:] ifFalse: [#addSlot:]) sendTo: {proto. each}]]].
   builder ifNil:
-    [ns
+    [namespace
       ifNil: [(x isSameAs: Namespace) /\
                 [(#surroundings findOn: {x}) ifNil: [True] ifNotNilDo: [| :m | (m apply*, proto) == x]]
                 ifTrue: [[| :_ | x] asMethod: #surroundings on: {proto traits}]]
-      ifNotNil: [[| :_ | ns] asMethod: #surroundings on: {proto traits}].
-     obj ifNotNil: [[| :_ | obj] asMethod: #owner on: {proto traits}]].
+      ifNotNil: [[| :_ | namespace] asMethod: #surroundings on: {proto traits}].
+     owner ifNotNil: [[| :_ | owner] asMethod: #owner on: {proto traits}]].
   proto
 ].
 
-x@(Root traits) defineOddball: name &parents: parents
+x@(Root traits) defineOddball: name &parents
 "Makes a new Oddball."
 "TODO: handle the &parents: option."
 [x define: name &builder: [Oddball clone]].

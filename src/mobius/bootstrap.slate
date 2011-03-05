@@ -173,7 +173,7 @@ define: #Generator &slots: {
   #objects -> Dictionary new.
 }.
 
-gen@(Generator traits) new &littleEndian: littleEndian &wordSize: wordSize
+gen@(Generator traits) new &littleEndian &wordSize
 [
   littleEndian `defaultsTo: gen littleEndian.
   wordSize `defaultsTo: Platform Current bytesPerWord * 8.
@@ -451,7 +451,7 @@ gen@(Generator traits) newMap
   gen surroundings Map clone
 ].
 
-gen@(Generator traits) newObject &layout: layout &map: map
+gen@(Generator traits) newObject &layout &map
 [| obj |
   layout `defaultsTo: gen surroundings Object.
   map `defaultsTo: gen newMap.
@@ -535,7 +535,7 @@ gen@(Generator traits) generateKernelAccessors
      obj bmap slotTable do: [| :slot | gen addAccessorsFor: slot name on: obj]]
 ].
 
-gen@(Generator traits) generatePrototype: name &suffix: suffix &layout: layout &parents: parents &slots: slotSpecs &elements: elements
+gen@(Generator traits) generatePrototype: name &suffix &layout &parents &slots: slotSpecs &elements
 [| traits window result |
   suffix `defaultsTo: 'Proto'.
   traits := (gen objectsAt: (name ; 'Traits') intern := gen newObject)

@@ -203,13 +203,13 @@ ImageDefinition traits cached ::= Dictionary new.
 like adding 3 + 4, say."
 "TODO: refactor ImageDefinition so that we can just supply a block here."
 
-def@(ImageDefinition traits) newNamed: filename endianness: endianness wordSize: wordSize &useTimestamp: useTimestamp
+def@(ImageDefinition traits) newNamed: filename endianness: endianness wordSize: wordSize &useTimestamp
 [
   (def clone `setting: #{#endianness. #wordSize} to: {endianness. wordSize})
    `>> [| :newDef | filename := newDef defaultFilename &base: filename &useTimestamp: useTimestamp. ]
 ].
 
-def@(ImageDefinition traits) defaultFilename &base: base &useTimestamp: useTimestamp
+def@(ImageDefinition traits) defaultFilename &base &useTimestamp
 "Generates a unique and descriptive image filename based on the definition."
 [
   useTimestamp `defaultsTo: True.
@@ -260,7 +260,7 @@ i@(ImageDefinition traits) generateAmd64
   (i newNamed: 'amd64' endianness: #LittleEndian wordSize: 64) generate.
 ].
 
-i@(ImageDefinition traits) bootstrap &bootstrapDirectory: dir &endianness: endianness &wordSize: wordSize
+i@(ImageDefinition traits) bootstrap &bootstrapDirectory: dir &endianness &wordSize
 "Only to be called during or after fullCleanBootstrap to build new images
 based on the new VM ImageDefinition."
 [| def |

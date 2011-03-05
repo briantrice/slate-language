@@ -54,7 +54,7 @@ opts@(String FormattingOptions traits) readFrom: specifier
            $#  -> [opts alternative := True].
            $+  -> [opts plus := True].
            $-  -> [opts minus := True].
-           $0  -> [opts padChar := $0].
+           $0  -> [opts padChar := nextChar].
            $*  -> [opts star := True].
            $<  -> [opts align := #left].
            $>  -> [opts align := #right].
@@ -71,13 +71,16 @@ obj printStringBy: opts@(String FormattingOptions traits)
 
 segment@(String traits) padBy: opts@(String FormattingOptions traits)
 [
-  opts width ifNil: [segment] ifNotNil:
-    [opts align caseOf: {
-      #left -> [segment truncateTo: opts width paddedBy: opts padChar &onRight: True].
-      #right -> [segment truncateTo: opts width paddedBy: opts padChar &onRight: False].
-      #center -> [(segment truncateTo: opts width + segment size // 2 paddedBy: opts padChar &onRight: False)
-                    truncateTo: opts width paddedBy: opts padChar &onRight: True]
-    } otherwise: [segment truncateTo: opts width paddedBy: opts padChar &onRight: False]]
+  opts width
+    ifNil: [segment]
+    ifNotNilDo:
+      [| :width |
+       opts align caseOf: {
+         #left -> [segment truncateTo: width paddedBy: opts padChar &onRight: True].
+         #right -> [segment truncateTo: width paddedBy: opts padChar &onRight: False].
+         #center -> [(segment truncateTo: width + segment size // 2 paddedBy: opts padChar &onRight: False)
+                       truncateTo: width paddedBy: opts padChar &onRight: True]
+       } otherwise: [segment truncateTo: width paddedBy: opts padChar &onRight: False]]
 ].
 
 s@(String traits) formatting

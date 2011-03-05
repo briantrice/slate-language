@@ -249,7 +249,7 @@ record -> should this be recorded in the undo history?"
 
 "fixme use forward on same line and stuff"
 
-le@(LineEditor traits) insert: str@(ASCIIString traits) at: point@(Cursor traits) &record: record
+le@(LineEditor traits) insert: str@(ASCIIString traits) at: point@(Cursor traits) &record
 [ |s| "fixme this is slow"
   s := (str copyReplaceAll: le lineDelimeter with: '\r').
   le do: [s do: [|:c| le insert: c at: point &record: False]]
@@ -257,7 +257,7 @@ le@(LineEditor traits) insert: str@(ASCIIString traits) at: point@(Cursor traits
      record: record.
 ].
 
-le@(LineEditor traits) insert: c@(ASCIICharacter traits) at: point@(Cursor traits) &record: record
+le@(LineEditor traits) insert: c@(ASCIICharacter traits) at: point@(Cursor traits) &record
 [ | p |
   p := point copy. "make a copy so the undo history doesn't get one with side effects"
   c = $\r ifTrue: [
@@ -275,7 +275,7 @@ le@(LineEditor traits) insert: c@(ASCIICharacter traits) at: point@(Cursor trait
 ].
 
 
-le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record: record
+le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record
 [ | deletedCharacter p prevLineSize|
   p := point copy. "make a copy so the undo history doesn't get one with side effects"
   p column < 1 ifTrue: [p line = 0 ifTrue: [inform: 'Cannot delete beginning of buffer'. ^ Nil].
@@ -296,7 +296,7 @@ le@(LineEditor traits) deleteBackwardAt: point@(Cursor traits) &record: record
 ].
 
 "fixme: deleteFrom name might be confused with this"
-le@(LineEditor traits) deleteAt: point@(Cursor traits) &record: record
+le@(LineEditor traits) deleteAt: point@(Cursor traits) &record
 [ | deletedCharacter p lineSize|
   p := point copy. "make a copy so the undo history doesn't get one with side effects"
   p column >= (le lineAt: p line) size
@@ -329,7 +329,7 @@ le@(LineEditor traits) textFrom: start@(Cursor traits) to: end@(Cursor traits)
 
 ].
 
-le@(LineEditor traits) wipeFrom: start@(Cursor traits) to: end@(Cursor traits) &record: record
+le@(LineEditor traits) wipeFrom: start@(Cursor traits) to: end@(Cursor traits) &record
 [ | text startSaved |
   text := (le textFrom: start to: end).
   inform: 'text: ' ; text.
@@ -343,19 +343,19 @@ le@(LineEditor traits) wipeFrom: start@(Cursor traits) to: end@(Cursor traits) &
 ].
 
 
-le@(LineEditor traits) setMark &record: record
+le@(LineEditor traits) setMark &record
 [ 
   le do: [le cursors push: le cursor copy] undo: [le cursors pop] record: record
 ].
 
-le@(LineEditor traits) deleteMark &record: record
+le@(LineEditor traits) deleteMark &record
 [ |mark| 
   le cursors size > 1 ifFalse: [inform: 'Cannot delete last mark'. ^ Nil].
   mark := le cursor.
   le do: [le cursors pop] undo: [le cursors push: mark copy] record: record
 ].
 
-le@(LineEditor traits) cutTo: window &record: record
+le@(LineEditor traits) cutTo: window &record
 [ |minPoint maxPoint text|
   le cursors size < 2 ifTrue: [inform: 'cannot cut... no marked region'. ^ Nil].
   minPoint := (le cursors top min: (le cursors fromTop: 1)).
@@ -366,7 +366,7 @@ le@(LineEditor traits) cutTo: window &record: record
   le cursors pop.
 ].
 
-le@(LineEditor traits) copyTo: window &record: record
+le@(LineEditor traits) copyTo: window &record
 [ |text maxPoint minPoint|
   le cursors size < 2 ifTrue: [inform: 'cannot copy... no marked region'. ^ Nil].
   minPoint := (le cursors top min: (le cursors fromTop: 1)).
@@ -377,7 +377,7 @@ le@(LineEditor traits) copyTo: window &record: record
   le cursors pop.
 ].
 
-le@(LineEditor traits) pasteFrom: window &record: record
+le@(LineEditor traits) pasteFrom: window &record
 [ |str|
   str := (window clipboardPasteAs: String).
   le insert: (str before: $\0 ifAbsent: [str]) at: le cursor.

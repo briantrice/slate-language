@@ -26,7 +26,7 @@ irb@(IRBuilder traits) insertPoint: block@(Value BasicBlock traits) [
 
 "LLVMValueRef LLVMBuildRetVoid(LLVMBuilderRef);"
 "LLVMValueRef LLVMBuildRet(LLVMBuilderRef, LLVMValueRef V);"
-irb@(IRBuilder traits) ret &value: value [
+irb@(IRBuilder traits) ret &value [
   value
     ifNil: [
       Lib primitives LLVMBuildRetVoid applyTo: {irb handle}
@@ -40,7 +40,7 @@ irb@(IRBuilder traits) ret &value: value [
 
 "LLVMValueRef LLVMBuildAdd(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,
                           const char *Name);"
-irb@(IRBuilder traits) add: values@(Tuple traits) &name: name [
+irb@(IRBuilder traits) add: values@(Tuple traits) &name [
   name `defaultsTo: 'addtmp'.
   Value newWithHandle: (
     Lib primitives LLVMBuildAdd applyTo: {irb handle. values first handle. values second handle. name }
@@ -52,7 +52,7 @@ irb@(IRBuilder traits) add: values@(Tuple traits) &name: name [
 "LLVMValueRef LLVMBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
                            LLVMValueRef *Args, unsigned NumArgs,
                            const char *Name)"
-irb@(IRBuilder traits) call: function@(Value traits) arguments: arguments@(Sequence traits) &name: name [
+irb@(IRBuilder traits) call: function@(Value traits) arguments: arguments@(Sequence traits) &name [
   | args |
   name `defaultsTo: ''.
   args: (arguments collect: [ | :each |
@@ -83,7 +83,7 @@ irb@(IRBuilder traits) store: value@(Value traits) at: pointer@(Value traits) [
 
 "LLVMValueRef LLVMBuildLoad(LLVMBuilderRef, LLVMValueRef PointerVal,
                            const char *Name);"
-irb@(IRBuilder traits) load: pointer@(Value traits) &name: name [
+irb@(IRBuilder traits) load: pointer@(Value traits) &name [
   name `defaultsTo: 'load'.
   Value newWithHandle: (
     Lib primitives LLVMBuildLoad applyTo: { irb handle. pointer handle. name }

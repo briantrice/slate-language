@@ -36,14 +36,14 @@ answering the contents once done."
   stream contents
 ].
 
-streamBlock@(Method traits) writingAs: c@(Collection traits) &capacity: capacity
+streamBlock@(Method traits) writingAs: c@(Collection traits) &capacity
 "Create a new WriteStream for a new collection like the given one and apply the
 block to it, answering the contents once done."
 [
   streamBlock writingInto: (c new &capacity: capacity)
 ].
 
-streamBlock@(Method traits) writingAs: s@(ReadStream traits) &capacity: capacity
+streamBlock@(Method traits) writingAs: s@(ReadStream traits) &capacity
 [
   (streamBlock writingAs: s contents new &capacity: capacity) reader
 ].
@@ -387,19 +387,19 @@ Sequence traits define: #WriteStream
 		&parents: {Sequence Stream. WriteStream}
                 &slots: {#writeLimit}.
 
-s@(Stream traits) newTo: obj@(Sequence traits) &position: position
+s@(Stream traits) newTo: obj@(Sequence traits) &position
 [obj WriteStream newOn: obj &position: position].
 
-seq@(Sequence traits) writer &position: position
+seq@(Sequence traits) writer &position
 [seq WriteStream newOn: seq &position: position].
 
 seq@(Sequence traits) appender
 [seq WriteStream newOn: seq &position: seq size].
 
-ws@(Sequence WriteStream traits) newOn: c &position: position
+ws@(Sequence WriteStream traits) newOn: c &position
 [ws clone on: c &position: position].
 
-ws@(Sequence WriteStream traits) on: c &position: position
+ws@(Sequence WriteStream traits) on: c &position
 [
   resend.
   ws writeLimit := c size.

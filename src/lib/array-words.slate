@@ -6,7 +6,7 @@ WordArray LittleEndian traitsWindow atSlotNamed: #printName put: 'WordArray Litt
 WordArray traits define: #BigEndian &parents: {WordArray}.
 WordArray BigEndian traitsWindow atSlotNamed: #printName put: 'WordArray BigEndian'.
 
-w@(WordArray traits) new &capacity: size &wordSize: wordSize
+w@(WordArray traits) new &capacity: size &wordSize
 "If called on WordArray, create a bigendian WordArray"
 "TODO: Change this to use the image startup code to create a platform endian WordArray. Maybe. Would need to be careful about passing them to external code after an image restart (we may be on a different endian platform)"
 [
@@ -17,7 +17,7 @@ w@(WordArray traits) new &capacity: size &wordSize: wordSize
     ifFalse: [w clone newSized: size wordSize: wordSize]
 ].
 
-w@(WordArray traits) newFrom: a &wordSize: wordSize
+w@(WordArray traits) newFrom: a &wordSize
 [ wordSize `defaultsTo: bytesPerWord.
   w clone `setting: #{#bytes. #wordSize} to: {a. wordSize}].
 

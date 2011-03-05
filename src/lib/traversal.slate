@@ -33,7 +33,7 @@ define: #Direction &parents: {Order}.
 PreOrder ::= Direction clone.
 PostOrder ::= Direction clone.
 
-c@(Collection traits) readerTest &priority: priority &direction: direction &traversal: traversal
+c@(Collection traits) readerTest &priority &direction &traversal
 [
   c readerWithDirection: direction priority: priority traversal: traversal
 ].
@@ -53,7 +53,7 @@ define: #TraversalStream &parents: {ReadStream} &slots:
  #childrenBlock -> #reader `er
    "Answers a Stream or Collection of the children of each element."}.
 
-s@(TraversalStream traits) on: x &traversal: traversal &childrenVia: childrenBlock
+s@(TraversalStream traits) on: x &traversal &childrenVia: childrenBlock
 "Target the object by making it the contents of the todo Collection.
 Set up the traversal order parameters as needed."
 [
@@ -71,10 +71,10 @@ Set up the traversal order parameters as needed."
 s@(TraversalStream traits) reset
 [s seen := s seen new. s todo := s todo new. ].
 
-s@(TraversalStream traits) newOn: x &traversal: traversal &childrenVia: childrenBlock
+s@(TraversalStream traits) newOn: x &traversal &childrenVia: childrenBlock
 [s clone `>> [reset. on: x &traversal: traversal &childrenVia: childrenBlock. ]].
 
-x@(Root traits) walker &traversal: traversal &childrenVia: childrenBlock
+x@(Root traits) walker &traversal &childrenVia: childrenBlock
 "Answers a new TraversalStream targetted to the argument with the given
 order and recursion method."
 [TraversalStream newOn: x &traversal: traversal &childrenVia: childrenBlock].

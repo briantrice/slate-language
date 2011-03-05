@@ -11,14 +11,14 @@ prototypes define: #REPL &parents: {Cloneable} &slots: {
   #results -> (RingBuffer new &capacity: 10).
 }.
 
-ns@(Namespace traits) inform: message &target: target
+ns@(Namespace traits) inform: message &target
 [| *rest |
   target `defaultsTo: REPL resource.
   target writer ; (rest isEmpty ifTrue: [message] ifFalse: [#formatting sendTo: {message} ; rest]) ; '\n'.
   target writer flush.
 ].
 
-ns@(Namespace traits) print: obj &target: target
+ns@(Namespace traits) print: obj &target
 [
   target `defaultsTo: REPL resource.
   obj printOn: target writer.
@@ -26,7 +26,7 @@ ns@(Namespace traits) print: obj &target: target
   target writer flush.
 ].
 
-ns@(Namespace traits) query: message &target: target
+ns@(Namespace traits) query: message &target
 "A simple way to ask input of the user on an ExternalResource (by default
 the Console) and return a Slate String response."
 [
@@ -39,7 +39,7 @@ the Console) and return a Slate String response."
   response
 ].
 
-ns@(Namespace traits) confirm: message &target: target
+ns@(Namespace traits) confirm: message &target
 "A simple way to ask a Boolean question of the user on an ExternalResource
 (by default the Console) and return a Slate Boolean answer."
 [
@@ -47,7 +47,7 @@ ns@(Namespace traits) confirm: message &target: target
   {'y'. 'yes'} anySatisfy: [| :option | option = response]
 ].
 
-ns@(Namespace traits) doubleConfirm: message &target: target
+ns@(Namespace traits) doubleConfirm: message &target
 [
   (response ::= ns confirm: message &target: target)
     /\ [ns confirm: 'Are you sure?' &target: target]

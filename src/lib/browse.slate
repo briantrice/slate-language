@@ -12,14 +12,14 @@ browsing define: #MetaNode &parents: {Cloneable}
 	   #displaySelector -> #name "The message used to retrieve the display name."}.
 "A hypothetical BrowseNode in the browser's domain graph."
 
-n@(MetaNode traits) new &name: name
+n@(MetaNode traits) new &name
 [| newN |
   newN := (n clone `setting: #{#edges. #actors} to: {n edges new. n actors new}).
   name ifNotNil: [newN name := name].
   newN
 ].
 
-n@(MetaNode traits) childAt: selector put: metaNode &label: label
+n@(MetaNode traits) childAt: selector put: metaNode &label
 [n edges add: (MetaEdge newNamed: label selector: selector metaNode: metaNode)].
 
 n@(MetaNode traits) children [n edges collect: #metaNode`er].
@@ -327,7 +327,7 @@ n@(Method BrowseNode traits) implementations &in: namespace
     [| :sel | (sel implementations &in: namespace) collect: #browseNode `er]
 ].
 
-n@(Method BrowseNode traits) inheritance &limit: limit
+n@(Method BrowseNode traits) inheritance &limit
 [
 ].
 

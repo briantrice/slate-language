@@ -133,7 +133,7 @@ t@(SmartTerminal traits) columns
 t@(SmartTerminal traits) rows
 [t console rows].
 
-t@(SmartTerminal traits) display: cmd cursorAt: cursorPos &incremental: incremental
+t@(SmartTerminal traits) display: cmd cursorAt: cursorPos &incremental
 [
   console ::= t console.
   (incremental `defaultsTo: False) ifFalse:
@@ -223,7 +223,7 @@ e@(ConsoleLineEditor traits) markCursorAsBasePosition
   e terminal basePosition := e terminal console cursorPosition
 ].
 
-e@(ConsoleLineEditor traits) readLine &echoNewLine: echoNewLine &showPrompt: prompt
+e@(ConsoleLineEditor traits) readLine &echoNewLine &showPrompt: prompt
 [
   prompt `defaultsTo: True.
   e history first isEmpty ifFalse:
@@ -236,7 +236,7 @@ e@(ConsoleLineEditor traits) readLine &echoNewLine: echoNewLine &showPrompt: pro
   prompt /\ [e prompt isNotNil] ifTrue: [e terminal ; e prompt].
   e markCursorAsBasePosition.
   e redrawLine.
-  e continue &echoNewLine: echoNewLine
+  e continue &echoNewLine
 ].
 
 e@(ConsoleLineEditor traits) moveCursorTo: pos
@@ -251,7 +251,7 @@ e@(ConsoleLineEditor traits) hasInput
   e terminal events hasNext
 ].
 
-e@(ConsoleLineEditor traits) continue &echoNewLine: echoNewLine
+e@(ConsoleLineEditor traits) continue &echoNewLine
 [
   echoNewLine `defaultsTo: False.
   (terminal ::= e terminal) events do:
@@ -308,7 +308,7 @@ e@(ConsoleLineEditor traits) processEvent: event
   skipRedraw isNil \/ [skipRedraw not]
 ].
 
-e@(ConsoleLineEditor traits) redrawLine &incremental: incremental
+e@(ConsoleLineEditor traits) redrawLine &incremental
 "Re-run the display sequence for the current line."
 [
   e terminal display: e lineString cursorAt: e position &incremental: incremental
@@ -325,7 +325,7 @@ e@(ConsoleLineEditor traits) toggleInsert
   e insertMode := e insertMode not
 ].
 
-e@(ConsoleLineEditor traits) wordStart &dynamic: dynamic
+e@(ConsoleLineEditor traits) wordStart &dynamic
 "Answer the position of the start of the nearest word (right under the cursor).
 Dynamic means that if the cursor is already on the start of a word then it leaves that
 word and goes one word back."
@@ -348,7 +348,7 @@ word and goes one word back."
     ifFalse: [pos]
 ].
 
-e@(ConsoleLineEditor traits) wordEnd &dynamic: dynamic
+e@(ConsoleLineEditor traits) wordEnd &dynamic
 "Answer the position of the end of the nearest word (right under the cursor).
 Dynamic means that if the cursor is already on the end of a word then it leaves that
 word and goes one word forward."

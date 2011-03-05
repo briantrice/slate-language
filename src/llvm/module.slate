@@ -2,7 +2,7 @@ define: #Module &parents: {Pointer} &slots: { #name }.
 Module traits atSlotNamed: #printName put: 'Module'. 
 
 "LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);"
-m@(Module traits) new &name: name [
+m@(Module traits) new &name [
   name `defaultsTo: 'default'.
   newModule ::= m newWithHandle: (
     Lib primitives LLVMModuleCreateWithName applyTo: {name}
@@ -18,7 +18,7 @@ m@(Module traits) dispose [
 
 "int LLVMVerifyModule(LLVMModuleRef M, LLVMVerifierFailureAction Action,
                      char **OutMessage);"
-m@(Module traits) verify &failureAction: failureAction [
+m@(Module traits) verify &failureAction [
   failureAction `defaultsTo: VerifierFailureAction ReturnStatus.
   message := ByteArray new &capacity: bytesPerWord.
   returnValue := Lib primitives LLVMVerifyModule applyTo: { m handle. failureAction. message }.
@@ -34,7 +34,7 @@ m@(Module traits) dump [
 ].
 
 "int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);"
-m@(Module traits) save &fileName: fileName [
+m@(Module traits) save &fileName [
   fileName `defaultsTo: (m name ; '.bc').
   Lib primitives LLVMWriteBitcodeToFile applyTo: {m handle. fileName}
 ].
@@ -108,7 +108,7 @@ define: #SlateModule &parents: {Module} &slots: {
 }.
 SlateModule traits atSlotNamed: #printName put: 'SlateModule'. 
 
-m@(SlateModule traits) new &name: name [
+m@(SlateModule traits) new &name [
   resend `>> [ declareStructures. declareGlobalVariables. declareFunctions. ]
 ].
 

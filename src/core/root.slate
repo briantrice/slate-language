@@ -71,14 +71,14 @@ x@(Root traits) defaultSlotValue
 "The default value for new slots for this object."
 [Nil].
 
-x@(Root traits) addAccessor: method for: slotName &accessorName: accessorName
+x@(Root traits) addAccessor: method for: slotName &accessorName
 [
   method
     asAccessor: (accessorName ifNil: [x accessorNameFor: slotName])
     for: slotName on: {x}
 ].
 
-x@(Root traits) addAccessorFor: slotName &accessorName: accessorName
+x@(Root traits) addAccessorFor: slotName &accessorName
 "Adds and answers a new Method for accessing the slot's value,
 with overridable selector."
 [| m regCount slotNameReg primNumReg resultReg |
@@ -102,14 +102,14 @@ with overridable selector."
     for: slotName &accessorName: accessorName
 ].
 
-x@(Root traits) addMutator: method for: slotName &mutatorName: mutatorName
+x@(Root traits) addMutator: method for: slotName &mutatorName
 [
   method
     asAccessor: (mutatorName ifNil: [x mutatorNameFor: slotName])
     for: slotName on: {x. NoRole}
 ].
 
-x@(Root traits) addMutatorFor: slotName &mutatorName: mutatorName
+x@(Root traits) addMutatorFor: slotName &mutatorName
 "Adds and answers a new Method for changing the slot's value,
 with overridable selector."
 [| m regCount slotNameReg primNumReg resultReg |
@@ -261,7 +261,7 @@ x@(Root traits) addSlotsFrom: another
   x
 ].
 
-x@(Root traits) addSlotsFromRecursively: another &seen: seen
+x@(Root traits) addSlotsFromRecursively: another &seen
 "Copies the subtree of all slots from the second argument to the first,
 using a seen-Set to avoid multiple visits."
 [
@@ -380,7 +380,7 @@ x@(Root traits) delegatesDo: block
   x _delegates do: #(block applyWith: _) `er
 ].
 
-x@(Root traits) allDelegates &seen: seen
+x@(Root traits) allDelegates &seen
 "Answer all delegates recursively through the delegation chains, avoiding
 duplicates."
 [
@@ -393,7 +393,7 @@ duplicates."
   seen
 ].
 
-x@(Root traits) allSlotsDo: block &seen: seen
+x@(Root traits) allSlotsDo: block &seen
 "Apply the block to all slot values recursively through the slot chains,
 avoiding circularity and duplicates."
 [
@@ -406,7 +406,7 @@ avoiding circularity and duplicates."
 		  obj allSlotsDo: block &seen: seen]].
 ].
 
-x@(Root traits) allDelegatesDo: block &seen: seen
+x@(Root traits) allDelegatesDo: block &seen
 "Recurse through the delegation chains, applying the block to each,
 avoiding circularity and duplicates."
 [
@@ -419,7 +419,7 @@ avoiding circularity and duplicates."
 	 each allDelegatesDo: block &seen: seen]].
 ].
 
-x@(Root traits) allSlotsAndDelegatesDo: block &seen: seen
+x@(Root traits) allSlotsAndDelegatesDo: block &seen
 [
   seen `defaultsTo: IdentitySet new.
   x slotValues ; x _delegates do:

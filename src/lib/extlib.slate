@@ -192,7 +192,7 @@ as symbols (can be empty).
 ].
 
 e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
-  &nameTransformer: nameTransformer &argumentFormats: af
+  &nameTransformer &argumentFormats: af
 [
   sigs
     do: [| :sig functionName |
@@ -202,7 +202,7 @@ e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
 ].
 
 e@(ExternalLibrary traits) installMethodsForDefs: defs on: target
-  &typesIn: ns &callFormat: cf &nameTransformer: nameTransformer &argumentFormats: af
+  &typesIn: ns &callFormat: cf &nameTransformer &argumentFormats: af
 "Installs all signatures specified as blocks in slots on the target;
 defs must be an array of size-3 sequences. See signaturesForDefs: for format details.
  - &callFormat: is the extlib call format to use
@@ -437,7 +437,7 @@ that represents the external library.  And then adding methods to it
 that do any work to marshall the arguments and then call the external
 functions with them."
 
-h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader: leader
+h@(ExternalInterface traits) newForLibrary: libName primitives: primSpecs &leader
 [| newH |
   newH := h clone `setting: #{#library. #primitives. #specs} to:
     {h library newNamed: libName.

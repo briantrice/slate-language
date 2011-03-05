@@ -11,7 +11,7 @@ path@(Path traits) hash
 [path names hash bitXor: path traits identityHash].
 
 path@(Path traits) from: root into: names foundBlock: foundBlock
-		   &filterBlock: filterBlock
+		   &filterBlock
 "Core of the path-searching functionality, contains the algorithm for
 breadth-first search of path between objects through slots. 
 
@@ -116,7 +116,7 @@ path@(Path traits) target
 "Assume that the the current namespace is the root of the path."
 [path targetFrom: here].
 
-path@(Path traits) printOn: s &root: root
+path@(Path traits) printOn: s &root
 [
   s ; '("' ; path printName ; '" '.
   path names
@@ -144,7 +144,7 @@ path@(RootedPath traits) from: root to: target
   resend ifNotNilDo: [| :newP | newP names as: path &root: root]
 ].
 
-s@(Sequence traits) as: path@(RootedPath traits) &root: root
+s@(Sequence traits) as: path@(RootedPath traits) &root
 [
   path clone `setting: #{#names. #root}
        to: {(s collect: [| :each | (each is: Integer)
@@ -153,7 +153,7 @@ s@(Sequence traits) as: path@(RootedPath traits) &root: root
 	    root ifNil: [here]}
 ].
 
-m@(nodes UnaryMessage traits) as: path@(Path traits) &root: root
+m@(nodes UnaryMessage traits) as: path@(Path traits) &root
 [| names node |
   names := ExtensibleArray new.
   node := m.
@@ -163,10 +163,10 @@ m@(nodes UnaryMessage traits) as: path@(Path traits) &root: root
   names as: path &root: root
 ].
 
-m@(nodes ImplicitArgument traits) as: path@(Path traits) &root: root
+m@(nodes ImplicitArgument traits) as: path@(Path traits) &root
 [path from: (root ifNil: [here]) to: here].
 
-m@(nodes Parenthesis traits) as: path@(Path traits) &root: root
+m@(nodes Parenthesis traits) as: path@(Path traits) &root
 [m statements size = 1 ifTrue: [m statements first as: path &root: root]].
 
 path@(Path traits) as: _@(nodes Node traits)
@@ -237,7 +237,7 @@ data unfiltered)."
   names contents as: path &root: path root
 ].
 
-path@(RootedPath traits) printOn: s &root: root
+path@(RootedPath traits) printOn: s &root
 [
   root `defaultsTo: path root.
   resend
@@ -261,7 +261,7 @@ define: #PathFinder &parents: {ReadStream} &slots:
 pf@(PathFinder traits) on: obj
 [pf source := pf source newOn: obj].
 
-pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock: filterBlock
+pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock
 [| newPF |
   newPF := pf newOn: root.
   foundBlock ifNotNil: [newPF foundBlock := foundBlock].
