@@ -774,26 +774,26 @@ destination. Answers the locals found."
   src localVariables do: #(dst addVariable: _) `er
 ].
 
-b@(nodes Block traits) modifiesOwnVariables
+block@(nodes Block traits) modifiesOwnVariables
 "Answers whether there are any direct variable stores."
 "TODO: Avoid re-implementing detect:!"
 [
-  b walk: [| :node | (node is: nodes StoreVariable) ifTrue: [^ True]].
+  block walk: [| :node | (node is: nodes StoreVariable) ifTrue: [^ True]].
   False
 ].
 
-b@(nodes Block traits) modifiesInputVariables
+block@(nodes Block traits) modifiesInputVariables
 "Answers whether there are any direct variable stores to inputs."
 [
-  b walk: [| :node | (node is: nodes StoreVariable) /\
-             [b inputVariables includes: node variable] ifTrue: [^ True]].
+  block walk: [| :node | (node is: nodes StoreVariable) /\
+             [block inputVariables includes: node variable] ifTrue: [^ True]].
   False
 ].
 
-b@(nodes Block traits) allSelectorsSent
+block@(nodes Block traits) allSelectorsSent
 [
   [| :result |
-   b walk:
+   block walk:
      [| :node |
       (node isSameAs: nodes LoadVariable) \/
         [node isSameAs: nodes StoreVariable]
@@ -803,36 +803,36 @@ b@(nodes Block traits) allSelectorsSent
    ] writingAs: Set
 ].
 
-b@(nodes Block traits) allSelectorsSentTo: var
+block@(nodes Block traits) allSelectorsSentTo: var
 "Answers the Set of all selectors called in this method on the Variable object."
 [| loadExpr |
   loadExpr := var load.
   [| :result |
-   b statements do:
+   block statements do:
      [| :statement | statement walk:
         [| :expr | (expr is: nodes Message) /\ [expr arguments includes: loadExpr]
            ifTrue: [result nextPut: expr selector]]]] writingAs: Set
 ].
 
-b@(nodes Block traits) allSelectorsSentToInputAt: argIndex
+block@(nodes Block traits) allSelectorsSentToInputAt: argIndex
 "Answers the Set of all selectors called in this method on the argument object."
 [
-  (b inputVariables acceptsKey: argIndex)
-    ifTrue: [b allSelectorsSentTo: (b inputVariables at: argIndex)]
+  (block inputVariables acceptsKey: argIndex)
+    ifTrue: [block allSelectorsSentTo: (block inputVariables at: argIndex)]
     ifFalse: [error: 'No such input argument.']
 ].
 
-b@(nodes Block traits) allSelectorsSentToInputs
+block@(nodes Block traits) allSelectorsSentToInputs
 [
   [| :result |
-   b inputVariables keysDo:
-     [| :index | result ; (b allSelectorsSentToInputAt: index)]
+   block inputVariables keysDo:
+     [| :index | result ; (block allSelectorsSentToInputAt: index)]
   ] writingAs: Set
 ].
 
-b@(nodes Block traits) bodyIncludesImplicitSends
+block@(nodes Block traits) bodyIncludesImplicitSends
 [
-  b statements do:
+  block statements do:
     [| :statement | statement walk:
        [| :node | (node is: nodes Message) /\
           [node arguments includes: nodes ImplicitArgument]
@@ -840,10 +840,10 @@ b@(nodes Block traits) bodyIncludesImplicitSends
   False
 ].
 
-b@(nodes Block traits) allSelectorsSentImplicitly
+block@(nodes Block traits) allSelectorsSentImplicitly
 [
   [| :result |
-   b statements do:
+   block statements do:
      [| :statement | statement walk:
         [| :node | (node is: nodes Message) ifTrue:
            [node arguments do:
