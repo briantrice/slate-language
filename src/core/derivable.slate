@@ -80,15 +80,15 @@ d@(Derivable traits) orderTraits: mixins
 
 ].
 
-d@(Derivable traits) derive &mixins &rejects: rejectSlots
+d@(Derivable traits) derive &mixins &rejects
 "Constructs and returns a new prototype based on the argument with a new
 Traits object that delegates to the old one. If mixins are specified,
 the Traits object inherits from each extra object's Traits in right-to-left
 order. Also, the new prototype gains slots from the other objects involved,
 except for those named rejects."
 [
-  mixins `defaultsTo: #{Cloneable}.
-  rejectSlots `defaultsTo: #{}.
+  mixins `defaultsTo: #{}.
+  rejects `defaultsTo: #{}.
   newWindow ::= Cloneable clone.
   newWindow restrictDelegation.
   "newWindow _delegates: (d orderTraits &mixins: mixins)."
@@ -97,39 +97,38 @@ except for those named rejects."
   newObj ::= d clone.
   newObj _delegates: {newWindow}.
   mixins do: #(newObj addSlotsFrom: _) `er.
-  rejectSlots do: #(newObj removeSlot: _) `er.
+  rejects do: #(newObj removeSlot: _) `er.
   newObj
 ].
 
-x@(Root traits) addPrototype: protoName &parents &immutable &basedOn
+x@(Root traits) definePrototype: protoName &basis &mixins &immutable &doing
 "Creates a new prototype with the given name, handles derive calls
 transparently, and sets the traits name slot to the name for convenience."
-[| newProto |
+[| result oldProto |
   immutable `defaultsTo: False.
-  basedOn `defaultsTo: Cloneable.
-  parents `defaultsTo: {Cloneable}.
-  parents size = 0 ifTrue: [error: 'Parent objects must be supplied.'].
-  "newProto := (parents at: 0) derive &mixins: (parents allButFirst: 1)."
-  newProto := basedOn derive &mixins: parents.
-  immutable ifTrue: [newProto := newProto immutably].
+  basis `defaultsTo: (mixins isNil \/ [mixins size = 0] ifTrue: [Cloneable] ifFalse: [mixins at: 0]).
+  mixins `defaultsTo: {basis}.
+  basis isNil /\ [mixins size = 0] ifTrue: [error: 'Basis or mixin objects must be supplied.'].
+  result := basis derive &mixins: mixins.
+  immutable ifTrue: [result := result immutably].
   "ensureSlot:is: may return the old value if =, but always returns what
   is installed after the method is done."
   (x hasSlotNamed: protoName)
-    ifTrue: [| oldProto |
-             oldProto := x atSlotNamed: protoName.
-             newProto := x ensureSlot: protoName is: newProto
-               unlessSatisfies:
-                 [| :old oldParents newParents |
-                  "Modified equality using == over each delegate pair."
-                  oldParents := old traitsWindow _delegates.
-                  newParents := newProto traitsWindow _delegates.
-                  oldParents size = newParents size
-                    /\ [oldParents keySet allSatisfy:
-                          [| :index | (oldParents at: index) == (newParents at: index)]]].
-             newProto traitsWindow _delegates at: newProto traitsWindow _delegates size - 1 put: oldProto traits.
-             newProto]
-    ifFalse: [x addImmutableSlot: protoName valued: newProto].
-  (x atSlotNamed: protoName) `>> [printName := protoName name. ]
+    ifTrue:
+      [oldProto := x atSlotNamed: protoName.
+       result := x ensureSlot: protoName is: result unlessSatisfies:
+         [| :old oldDelegates newDelegates |
+          "Modified equality using == over each delegate pair."
+          oldDelegates := old traitsWindow _delegates.
+          newDelegates := result traitsWindow _delegates.
+          oldDelegates size = newDelegates size
+            /\ [oldDelegates keySet allSatisfy:
+                  [| :index | (oldDelegates at: index) == (newDelegates at: index)]]].
+       result traitsWindow _delegates at: result traitsWindow _delegates size - 1 put: oldProto traits]
+    ifFalse: [x addImmutableSlot: protoName valued: result].
+  result printName := protoName name.
+  doing ifNotNil: [doing doIn: result].
+  result
 ].
 
 x@(Root traits) printName: name
@@ -153,10 +152,6 @@ x@(Root traits) printDelegates
   x traitsWindow _delegates do: [| :d | inform: d printName].
 ].
 
-x@(Root traits) addPrototype: protoName derivedFrom: parents &basedOn
-"Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
-[x addPrototype: protoName &parents: parents &basedOn: basedOn].
-
 x@(Root traits) define: slotName recursivelyFrom: builder
 "Creates a conservative new immutable slot holding the results of the block.
 If such a slot already exists, recursively add slots from the built object
@@ -176,20 +171,18 @@ existing object. This is essentially a conservative object-slot tree builder."
 x@(Root traits) define: slotName using: builder
 "Defines a new slot based on the result of running a block of code."
 [
-  result ::= builder do.
-  x addImmutableSlot: slotName valued: result.
-  result
+  x addImmutableSlot: slotName valued: builder do
 ].
 
-x@(Root traits) define: protoName &parents &slots: slotSpecs &builder &namespace &owner &immutable &basedOn
-"Answer addPrototype:derivedFrom: with a default single parent of Cloneable."
+x@(Root traits) define: protoName &parents &slots &builder &namespace &owner &immutable &basedOn
+"Answer definePrototype: with a default single parent of Cloneable."
 [
   immutable `defaultsTo: False.
-  slotSpecs `defaultsTo: #{}.
+  slots `defaultsTo: #{}.
   proto ::= builder
-    ifNil: [x addPrototype: protoName &parents: parents &immutable: immutable &basedOn: basedOn]
+    ifNil: [x definePrototype: protoName &basis: basedOn &mixins: parents &immutable: immutable]
     ifNotNil: [x define: protoName using: builder].
-  slotSpecs do:
+  slots do:
     [| :each |
      each ifNotNil: [(each is: Association)
          ifTrue: [(immutable ifTrue: [#addImmutableSlot:valued:] ifFalse: [#addSlot:valued:]) sendTo: {proto. each key. each value}]

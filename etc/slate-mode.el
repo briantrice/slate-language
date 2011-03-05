@@ -1203,9 +1203,7 @@ a list. Note that the first argument must be found by searching backwards."
                       slate-name-regexp) 1)
     ("Namespaces" ,(format "^\\(.*\\) ensureNamespace: #\\(%s\\).*\."
                            slate-name-regexp) 2)
-    ("Definitions" ,(format "^\\(.*\\) addPrototype: #\\(%s\\) derivedFrom: {.*}\."
-                            slate-name-regexp) 2)
-    ("Definitions" ,(format "^\\(.*\s*\\)?define: #\\(%s\\)"
+    ("Definitions" ,(format "^\\(.*\s*\\)?define\\(Prototype\\)?: #\\(%s\\)"
                             slate-name-regexp) 2)
     ("Definitions" ,(format "#\\(%s\\) :?:="
                             slate-name-regexp) 2)
