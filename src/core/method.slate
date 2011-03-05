@@ -334,10 +334,17 @@ will return from this wrapper when invoked."
 [m applyWith: [^ Nil]].
 
 m@(Method traits) doIn: env
+"Executes the method without arguments, but having the environment set
+to the given one. This is non-reentrant, though, because the environment
+slot is per-method-object, not per-activation."
 [| prevEnv |
   prevEnv := m environment.
   [m do] ensure: [m environment := prevEnv]
 ].
+
+_@(Root traits) in: env do: m@(Method traits)
+"Aliases doIn: for convenient expression."
+[m doIn: env].
 
 m@(Method traits) ** n@(Method traits)
 "Answers a new Method whose effect is that of calling the first method
