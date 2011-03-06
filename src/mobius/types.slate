@@ -1,5 +1,4 @@
-define: #Type &parents: {Types Type}
-  &slots: {#dispatcher -> Cloneable clone}.
+define: #Type &basedOn: Types Type &slots: {#dispatcher -> Cloneable clone}.
 "A dispatching object for statically determining which pidgin method to invoke."
 
 t@(Type traits) clone
@@ -31,9 +30,9 @@ t@(Type traits) wordSize
   (t bitSize + LongInt bitSize - 1) // LongInt bitSize
 ].
 
-define: #NamedType &parents: {Type} &slots: {#cName}.
+define: #NamedType &basedOn: Type &slots: {#cName}.
 
-define: #Pointer &parents: {Type} &slots: {#targetType}.
+define: #Pointer &basedOn: Type &slots: {#targetType}.
 
 p@(Pointer traits) to: targetType
 "Creates a new Pointer Type for the targetType."
@@ -69,7 +68,7 @@ c addDependency: p@(Pointer traits) withVisited: visited
           ifTrue: [c addDependency: p targetType withVisited: visited]]
 ].
 
-define: #Integer &parents: {Type} &slots: {#pointerType. #cPrintName}.
+define: #Integer &basedOn: Type &slots: {#pointerType. #cPrintName}.
 
 _@(Integer traits) baseByteSize [overrideThis].
 
@@ -90,66 +89,68 @@ n@(Integer traits) slateName
 n@(Integer traits) pointer
 [n pointerType `defaultsTo: (Pointer to: n)].
 
-define: #Signed &parents: {Integer}.
-define: #Unsigned &parents: {Integer}.
+define: #Signed &basedOn: Integer.
+define: #Unsigned &basedOn: Integer.
 
-define: #Char &parents: {Signed}.
+define: #Char &basedOn: Signed.
 _@(Char traits) baseByteSizeOn: _ [1].
-define: #UnsignedChar &parents: {Unsigned}.
+define: #UnsignedChar &basedOn: Unsigned.
 _@(UnsignedChar traits) baseByteSizeOn: _ [1].
-define: #ShortInt &parents: {Signed}.
+define: #ShortInt &basedOn: Signed.
 _@(ShortInt traits) baseByteSizeOn: _ [2].
-define: #UnsignedShortInt &parents: {Unsigned}.
+define: #UnsignedShortInt &basedOn: Unsigned.
 _@(UnsignedShortInt traits) baseByteSizeOn: _ [2].
-define: #LongInt &parents: {Signed}.
+define: #LongInt &basedOn: Signed.
 _@(LongInt traits) baseByteSizeOn: p [p bytesPerWord].
-define: #UnsignedLongInt &parents: {Unsigned}.
+define: #UnsignedLongInt &basedOn: Unsigned.
 _@(UnsignedLongInt traits) baseByteSizeOn: p [p bytesPerWord].
-define: #LongLongInt &parents: {Signed}.
+define: #LongLongInt &basedOn: Signed.
 _@(LongLongInt traits) baseByteSizeOn: p [p bytesPerWord * 2].
-define: #UnsignedLongLongInt &parents: {Unsigned}.
+define: #UnsignedLongLongInt &basedOn: Unsigned.
 _@(UnsignedLongLongInt traits) baseByteSizeOn: p [p bytesPerWord * 2].
-define: #Float &parents: {Type}.
+define: #Float &basedOn: Type.
 _@(Float traits) baseByteSizeOn: p [4].
-define: #Double &parents: {Float}.
+define: #Double &basedOn: Float.
 _@(Double traits) baseByteSizeOn: p [8].
-define: #Void &parents: {Type}.
+define: #Void &basedOn: Type.
 _@(Void traits) baseByteSizeOn: _ [0].
 
-define: #FixedInteger &parents: {Integer}.
+define: #FixedInteger &basedOn: Integer.
 
-define: #FixedSigned &parents: {FixedInteger}.
-define: #FixedUnsigned &parents: {FixedInteger}.
+define: #FixedSigned &basedOn: FixedInteger.
+define: #FixedUnsigned &basedOn: FixedInteger.
 
-define: #Modifier &parents: {Type}
-  &slots: {#baseType -> Type}.
-
-t@(Modifier traits) derive
-[| newT lowerName |
-  newT := resend.
-  lowerName := newT printName copy toLowercase intern.
-  _@(newT traits) modifierName [lowerName].
-  [| :t | newT for: t] asMethod: lowerName on: {Type traits}.
-  newT
-].
+define: #Modifier &basedOn: Type &slots: {#baseType -> Type}.
 
 t@(Modifier traits) cName [t modifierName ; ' ' ; t baseType cName].
 
 m@(Modifier traits) for: b
 [m clone `>> [baseType := b. ]].
 
-define: #Mutability &parents: {Modifier}.
-define: #Const &parents: {Mutability}.
-define: #Volatile &parents: {Mutability}.
+define: #Mutability &basedOn: Modifier.
+define: #Const &basedOn: Mutability.
+_@Const modifierName [#const].
+t@(Type traits) const [Const for: t].
+define: #Volatile &basedOn: Mutability.
+_@Volatile modifierName [#volatile].
+t@(Type traits) volatile [Volatile for: t].
 
-define: #Storage &parents: {Modifier}.
+define: #Storage &basedOn: Modifier.
 Storage traits None     ::= Storage clone.
 Storage traits Auto     ::= Storage clone.
+_@(Storage Auto traits) modifierName [#auto].
+t@(Type traits) auto [Storage Auto for: t].
 Storage traits Static   ::= Storage clone.
+_@(Storage Static traits) modifierName [#static].
+t@(Type traits) static [Storage Static for: t].
 Storage traits Extern   ::= Storage clone.
+_@(Storage Extern traits) modifierName [#extern].
+t@(Type traits) extern [Storage Extern for: t].
 Storage traits Register ::= Storage clone.
+_@(Storage Register traits) modifierName [#register].
+t@(Type traits) register [Storage Register for: t].
 
-define: #Array &parents: {Type} &slots:
+define: #Array &basedOn: Type &slots:
   {#elementType -> UnsignedLongInt.
    #size -> Nil}.
 
@@ -174,7 +175,7 @@ t@(Array traits) bitSize
   t elementType bitSize * t size
 ].
 
-define: #Synonym &parents: {NamedType}
+define: #Synonym &basedOn: NamedType
   &slots: {#targetType. #pointer -> Pointer. #isExported -> False}.
 
 t@(Synonym traits) newNamed: name type: type
@@ -205,7 +206,7 @@ t@(Synonym traits) bitSize
   t targetType bitSize
 ].
 
-define: #Structure &parents: {NamedType}
+define: #Structure &basedOn: NamedType
   &slots: {#basis. #pointer -> Pointer. #isExported -> False.
 	   #elementSpecs -> ExtensibleArray new}.
 
@@ -311,7 +312,7 @@ t@(Structure traits) bitSize
 ].
 
 
-define: #Union &parents: {Structure}.
+define: #Union &basedOn: Structure.
 
 t@(Union traits) doElements: block
 [
@@ -328,7 +329,7 @@ t@(Union traits) unpaddedSize
   maxSize
 ].
 
-define: #StructureElement &parents: {NamedType}
+define: #StructureElement &basedOn: NamedType
   &slots: {#type -> UnsignedLongInt}.
 
 se@(StructureElement traits) newNamed: name type: type
@@ -363,7 +364,7 @@ _@(StructureElement traits) packed
   False
 ].
 
-define: #PackedStructureElement &parents: {StructureElement}
+define: #PackedStructureElement &basedOn: StructureElement
   &slots: {#bitSize -> 0}.
 
 se@(PackedStructureElement traits) newNamed: name size: size
@@ -379,7 +380,7 @@ t@(Structure traits) addPackedElementNamed: name size: size
 _@(PackedStructureElement traits) packed
 [True].
 
-define: #Function &parents: {Type}
+define: #Function &basedOn: Type
   &slots: {#argumentTypes -> {}. #resultType -> Void}.
 
 fun@(Function traits) from: argumentTypes to: resultType
@@ -389,7 +390,7 @@ fun@(Function traits) from: argumentTypes to: resultType
     resultType := resultType. ]
 ].
 
-define: #FunctionPointer &parents: {Pointer}.
+define: #FunctionPointer &basedOn: Pointer.
 
 fun@(Function traits) pointer
 [
@@ -401,5 +402,5 @@ _@(FunctionPointer traits) from: argumentTypes to: resultType
   (Function from: argumentTypes to: resultType) pointer
 ].
 
-define: #Module &parents: {Type}.
+define: #Module &basedOn: Type.
 
