@@ -1,12 +1,13 @@
-streams addPrototype: #RandomStream derivedFrom: {PositionableReadStream}.
+streams define: #RandomStream &basis: PositionableReadStream &doing: [
+  #state := (Array newSize: 624).
+"This array is used for the calculations and works as a kind of history buffer.
+The particular size of the array corresponds to / is determined by the
+desired range of the outputs. See the website for particulars when porting."
+].
 "Answers a series of pseudo-random positive SmallIntegers across the entire
 value range. It is very fast and has an extremely long period (2^19937-1).
 Based off the Mersenne Twister code in C at:
  http://www.math.keio.ac.jp/~matumoto/emt.html"
-RandomStream addSlot: #state valued: (Array newSize: 624).
-"This array is used for the calculations and works as a kind of history buffer.
-The particular size of the array corresponds to / is determined by the
-desired range of the outputs. See the website for particulars when porting."
 
 rs@(RandomStream traits) collectionType
 [

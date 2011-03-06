@@ -1,4 +1,4 @@
-RegressionTests addPrototype: #WordCount derivedFrom: {TestCase}.
+RegressionTests definePrototype: #WordCount &basis: TestCase.
 "A regression test playing with the LICENSE file"
 
 t@(RegressionTests WordCount traits) testFileName
@@ -7,8 +7,8 @@ t@(RegressionTests WordCount traits) testFileName
 ].
 
 t@(RegressionTests WordCount traits) testWordCount
-[| words |
-  words: Bag new.
+[
+  words ::= Bag new.
   (File newNamed: t testFileName &mode: File Read) sessionDo:
     [| :file |
       file reader split >> words writer.
@@ -20,11 +20,11 @@ t@(RegressionTests WordCount traits) testWordCount
 t@(RegressionTests WordCount traits) testLineCount
 "Note that empty lines will be ignored by #splitWith: "
 [| lineCount |
-  lineCount: 0.
+  lineCount := 0.
   (File newNamed: t testFileName &mode: File Read) sessionDo:
     [| :file |
       (file reader splitWith: { $\n }) do:
-        [| :line | lineCount: lineCount succ].
+        [| :line | lineCount += 1].
     ].
   "Console ; 'Number of lines ' ; (lineCount as: String) ; '\n'."
   t assert: lineCount = 16 description: 'The number of lines found in the LICENSE file is not as expected.'.

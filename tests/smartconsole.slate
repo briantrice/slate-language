@@ -8,57 +8,58 @@ CursesConsole traits lib: Nil.
 Image save.
 "
 
-UnitTests addPrototype: #SmartConsole derivedFrom: {Cloneable}.
+UnitTests definePrototype: #SmartConsole.
 "Not a real unit test, it's an object to dispatch on for a few
 methods that test SmartConsole/Terminal functionality with human
 interaction."
 
 _@(UnitTests SmartConsole traits) streamedCommandProcessor
 [
-  SmartConsole new sessionDo: [| :console terminal editor reader |
-    terminal: (Terminal newBasedOn: console).
-    editor: terminal commandEditor.
-    editor prompt: 'Prompt> '.
-    reader: editor reader.
+  SmartConsole new sessionDo:
+  [| :console terminal editor reader |
+   terminal := Terminal newBasedOn: console.
+   editor := terminal commandEditor.
+   editor prompt := 'Prompt> '.
+   reader := editor reader.
 
-    terminal ; 'This test should echo all lines committed by enters, and exit if a \'q\' character is encountered'.
+   terminal ; 'This test should echo all lines committed by enters, and exit if a \'q\' character is encountered'.
 
-    [| char |
-      char: reader next.
-      terminal nextPut: char.
-      "char printOn: terminal &radix: 16."
-      terminal flush.
-      char = $q
-    ] whileFalse.
+   [| char |
+    char := reader next.
+    terminal nextPut: char.
+    "char printOn: terminal &radix: 16."
+    terminal flush.
+    char = $q] whileFalse
   ].
 ].
 
 _@(UnitTests SmartConsole traits) commandProcessor
 [
-  SmartConsole new sessionDo: [| :console terminal editor |
-    terminal: (Terminal newBasedOn: console).
-    editor: terminal commandEditor.
-    editor prompt: 'Prompt> '.
-    
-    terminal ; 'This test should echo lines ending with a dot and committed with enters; quit with the \'quit.\' command'.
-    terminal newLine.
-    console writer ; 'Also demonstrates editing at any column: '.
+  SmartConsole new sessionDo:
+    [| :console terminal editor |
+     terminal := (Terminal newBasedOn: console).
+     editor := terminal commandEditor.
+     editor prompt := 'Prompt> '.
 
-    [| line |
-      [ line: editor readLine.
-        ["console writeCursorPositionAt: (console width // 2) , (console height // 2)."
+     terminal ; 'This test should echo lines ending with a dot and committed with enters; quit with the \'quit.\' command'.
+     terminal newLine.
+     console writer ; 'Also demonstrates editing at any column: '.
+
+     [| line |
+      [line := editor readLine.
+       ["console writeCursorPositionAt: (console width // 2) , (console height // 2)."
          line size = 0 \/ [(line at: line indexLast) ~= $. ]]
-          whileTrue: [line: (editor continue)].
+         whileTrue: [line := editor continue].
 
-        terminal newLine.
-        terminal ; '\'' ; line ; '\''.
-        terminal newLine.
-        terminal flush]
-      on: Stream Exhaustion do: [| :_ |
-        terminal ; '\nStream closed\n'].
+       terminal newLine.
+       terminal ; '\'' ; line ; '\''.
+       terminal newLine.
+       terminal flush]
+        on: Stream Exhaustion do: [| :_ |
+                                   terminal ; '\nStream closed\n'].
 
-     line ~= Nil /\ [line = 'quit.']
-   ] whileFalse.
+      line ~= Nil /\ [line = 'quit.']
+    ] whileFalse.
   ].
 ].
 
@@ -105,7 +106,7 @@ _@(UnitTests SmartConsole traits) draw
 
 _@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole ResizeEvent traits) on: terminal
 [| console |
-  console: terminal console.
+  console := terminal console.
   terminal ; 'Console resized to: ' ; (console width as: String) ; 'x' ; (console height as: String).
   console clearToEOL.
   terminal newLine.
@@ -114,7 +115,7 @@ _@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole ResizeEvent tra
 
 _@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole KeyEvent traits) on: terminal
 [| console |
-  console: terminal console.
+  console := terminal console.
   terminal ; 'Key code: ' ; (event keyCode as: String) ; ' - 16r' ;
     (event keyCode printString &radix: 16).
   console clearToEOL.
@@ -146,7 +147,7 @@ _@(UnitTests SmartConsole traits) echoEvent: event@(SmartConsole KeyEvent traits
 t@(UnitTests SmartConsole traits) echoEvents
 [
   SmartConsole new sessionDo: [| :console terminal |
-   terminal: (Terminal newBasedOn: console).
+   terminal := (Terminal newBasedOn: console).
    terminal ; 'Press keys and their event will be printed, quit with Esc\n'.
 
     [
@@ -159,42 +160,39 @@ t@(UnitTests SmartConsole traits) echoEvents
 _@(UnitTests SmartConsole traits) echoRawCursesEvents
 [
   CursesConsole new sessionDo: [| :console terminal |
-   terminal: (Terminal newBasedOn: console).
+   terminal := (Terminal newBasedOn: console).
    terminal ; 'Press keys and raw key codes will be printed, quit with Enter\n'.
 
-    [| keyCode |
-      keyCode: (console primitives nextEvent applyTo: {-1}).
-      terminal ; (keyCode as: String) ; ' - 16r' ;
-        (keyCode printString &radix: 16).
-      console clearToEOL.
-      terminal newLine.
-      keyCode = 10 \/ [keyCode = 13]
-    ] whileFalse
+   [| keyCode |
+    keyCode := console primitives nextEvent apply*, -1.
+    terminal ; (keyCode as: String) ; ' - 16r' ; (keyCode printString &radix: 16).
+    console clearToEOL.
+    terminal newLine.
+    keyCode = 10 \/ [keyCode = 13]
+  ] whileFalse
   ]
 ].
 
 _@(UnitTests SmartConsole traits) echoRawWindowsEvents &unicode: unicode
 [| available |
-  available: False.
-  [WindowsConsole isAvailable ifTrue: [available: True]]
-    breakOn: Error.
+  available := False.
+  [WindowsConsole isAvailable ifTrue: [available := True]] breakOn: Error.
   available ifFalse: [error: 'Windows console plugin not loaded or otherwise not available'. ^ Nil].
-  unicode ifNil: [unicode: False].
+  unicode `defaultsTo: False.
 
   WindowsConsole clone sessionDo: [| :c record dword |
     c ; 'Printing out raw console events coming from Windows, quit with Esc\n'.
     c ; 'Codepage returned by GetConsoleCP: ' ; Windows Kernel GetConsoleCP do printString ; '\n'.
 
-    record: Windows INPUT_RECORD clone.
-    dword: (ByteArray new &capacity: #[Windows DWORD byteSize]).
+    record := Windows INPUT_RECORD clone.
+    dword := ByteArray new &capacity: #[Windows DWORD byteSize].
     [
       [| method |
-        unicode
-          ifTrue: [method: Windows Kernel ReadConsoleInputW]
-          ifFalse: [method: Windows Kernel ReadConsoleInputA].
-        method applyTo: {c consoleIn. record. 1. dword}.
-        record EventType = #[Windows KEY_EVENT]
-      ] whileFalse.
+       method := unicode
+         ifTrue: [Windows Kernel ReadConsoleInputW]
+         ifFalse: [Windows Kernel ReadConsoleInputA].
+       method apply*, c consoleIn, record, 1, dword.
+       record EventType = #[Windows KEY_EVENT]] whileFalse.
       
       "record printOn: c writer.
       c newLine."
