@@ -9,28 +9,6 @@ Also, debugging information is stored for now in terms of the line number that
 the current stream position has reached."
 Lexer traits define: #WordTerminatingTokens -> '()[]{}@,.|!#$`"\'%'.
 
-Lexer traits define: #QuoteMacros -> Dictionary new.
-
-Lexer QuoteMacros at: 'words' put: #split `er.
-Lexer QuoteMacros at: 'bytes' put:
-  [| :contents | (contents split collect: [| :x | Integer readFrom: x]) as: ByteArray].
-Lexer QuoteMacros at: 'p' put:
-  [| :contents | File Locator readFrom: contents].
-Lexer QuoteMacros at: 'f' put:
-  [| :contents | [| *args | #formatting sendTo: {contents} ; args]].
-Lexer QuoteMacros at: 'r' put:
-  [| :contents | contents regex].
-Lexer QuoteMacros at: 'm' put:
-  [| :contents | contents regex matcher].
-Lexer QuoteMacros at: 'q' put:
-  [| :contents parser |
-   parser := Parser newOn: contents.
-   [| :result |
-    [parser lexer isAtEnd] whileFalse:
-      [result nextPut: parser nextLiteral]] writingAs: #{}].
-Lexer QuoteMacros at: 'glob' put:
-  [| :contents | Glob newOn: contents].
-
 Lexer traits define: #QuoteMacroChars &builder: [Dictionary new].
 Lexer QuoteMacroChars at: $\' put: $\'.
 Lexer QuoteMacroChars at: $\" put: $\".
@@ -259,7 +237,9 @@ l@(Lexer traits) nextQuoteMacroNamed: sel &terminator: terminator
 [| contents |
   terminator `defaultsTo: (l QuoteMacroChars at: l nextCharacter).
   contents := l nextSegmentUntil: terminator.
-  tokens QuoteMacro for: ((l QuoteMacros at: sel value ifAbsent: [^ sel]) applyWith: contents)
+  (tokens QuoteMacro for: contents) `>>
+    [prefix := sel value intern.
+     flags := [| :flags | l nextWordCharactersInto: flags] writingAs: ''. ]
 ].
 
 l@(Lexer traits) nextWordCharactersInto: s@(WriteStream traits)

@@ -37,7 +37,47 @@ _@(tokens Whitespace traits) signifier [' '].
 
 tokens define: #Selector &parents: {tokens TokenWithValue}.
 
-tokens define: #QuoteMacro &parents: {tokens LiteralToken}.
+tokens define: #QuoteMacro &parents: {tokens LiteralToken} &slots: {#prefix. #flags}.
+
+qm@(tokens QuoteMacro traits) handle: prefix
+[overrideThis].
+
+qm@(tokens QuoteMacro traits) handle: _@#words
+[qm value split].
+
+qm@(tokens QuoteMacro traits) handle: _@#bytes
+[(qm value split collect: [| :x | Integer readFrom: x]) as: ByteArray].
+
+qm@(tokens QuoteMacro traits) handle: _@#p
+[File Locator readFrom: qm value].
+
+qm@(tokens QuoteMacro traits) handle: _@#f
+[[| *args | #formatting sendTo: {qm value} ; args]].
+
+qm@(tokens QuoteMacro traits) handle: _@#r
+[qm value regex].
+
+qm@(tokens QuoteMacro traits) handle: _@#m
+[qm value regex matcher].
+
+qm@(tokens QuoteMacro traits) handle: _@#q
+[| parser |
+  parser := Parser newOn: qm value.
+  [| :result |
+   [parser lexer isAtEnd] whileFalse:
+     [result nextPut: parser nextLiteral]] writingAs: #{}
+].
+
+qm@(tokens QuoteMacro traits) handle: _@#glob
+[Glob newOn: qm value].
+
+parser nextLiteralFrom: token@(QuoteMacro traits)
+[
+  nodes Literal for: (token handle: token prefix)
+].
+
+parser nextFrom: token@(tokens QuoteMacro traits)
+[parser nextLiteralFrom: token].
 
 "Parser optimization"
 _@(tokens Selector traits) is: _@(tokens Selector traits) [True].
