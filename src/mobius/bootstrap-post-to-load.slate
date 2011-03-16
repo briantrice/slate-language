@@ -29,7 +29,7 @@ contents within the argument namespace or an optional override."
 [| src retry |
   src: (File newNamed: fileName &mode: File Read).
   src exists ifTrue: [retry: Retry clone.
-                      _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ;'\n' ].
+                      _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ; '\n' ].
                       [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
                         handlingCases: {retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
 	     ifFalse: [warn: 'Called load: on something that didn\'t describe a file. Returning the input: ' ; fileName printString. fileName]
