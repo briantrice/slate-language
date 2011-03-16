@@ -1,0 +1,115 @@
+collections define: #Trie
+  &parents: {OrderedTree. NoDuplicatesCollection. Mapping}
+  &slots: {#element}.
+"A trie is a Set of Sequences encoded as a left-to-right element search tree.
+At nodes whose path represents a Sequence that is an element, the node is
+tagged with the element. To use a Trie as a Set, the element should be the
+Sequence itself, handled by the add:/remove: protocol; otherwise it can be
+used as a Dictionary."
+"element: Records the element that the trie node encodes, if it does at all. The
+element should consist of the sequence of all the keys used in order to access
+the given node. As a result, trie nodes must be root-aware."
+Trie children := IdentityDictionary new.
+"Uses a Mapping of Sequence elements to the next Node."
+
+t@(Trie traits) new &capacity: n
+"Tries are generally 'narrow' Trees."
+[n ifNil: [n := 3]. resend].
+
+t@(Trie traits) acceptsKey: _
+[False].
+
+t@(Trie traits) acceptsKey: _@(Sequence traits)
+"This is not quite true, since any key will work that responds to at:
+appropriately when given 0..n of integers and has a size."
+[True].
+
+t@(Trie traits) includes: s@(Sequence traits)
+"Treat the trie as a set of its keys. Searching for values is more expensive."
+[
+  (t at: s) isNotNil
+].
+
+t@(Trie traits) size
+[
+  t children
+    inject: t children size
+    into: [| :sum :each | sum + each size]
+].
+
+t@(Trie traits) nodeFor: seq
+"Returns the Trie node for the given Sequence."
+[| node |
+  node := t.
+  seq do: [| :each | node := node children at: each ifAbsent: []].
+  node
+].
+
+t@(Trie traits) at: s@(Sequence traits)
+"Search from here each of the elements of the sequence in turn."
+[
+  (t nodeFor: s) ifNotNilDo: #element `er
+].
+
+t@(Trie traits) nearestNodeFor: seq
+"Returns the Trie node that completes the greatest part of the Sequence."
+[| node next cursor |
+  node := t.
+  next := t.
+  cursor := 0.
+  [next isNil] whileFalse:
+    [(next := node children at: (seq at: cursor) ifAbsent: [])
+       ifNotNil: [node := next. cursor += 1]].
+  node
+].
+
+t@(Trie traits) at: s@(Sequence traits) put: obj
+"Traverse down the Trie, adding nodes once an element isn't found.
+Annotate the final node with the given element."
+[| node next cursor |
+  node := t.
+  next := t.
+  cursor := 0.
+  [next isNil \/ [cursor = s size]] whileFalse:
+    [(next := node children at: (s at: cursor) ifAbsent: [])
+       ifNotNil: [node := next. cursor += 1]].
+  "node is now at the last existing relevant Trie node.
+  cursor is the index within the Sequence of the next element to add."
+  cursor below: s size do:
+    [| :index |
+      next := t new.
+      node children at: (s at: index) put: next.
+      next treeParent := node.
+      node := next].
+  node element := obj.
+  obj
+].
+
+t@(Trie traits) add: s@(Sequence traits)
+"Treat the trie as a Set."
+[
+  t at: s put: s
+].
+
+t@(Trie traits) remove: s@(Sequence traits)
+"Search the trie for the sequence, stop at the last found, then recursively
+  delete nodes with no element but the argument and move back up the tree.
+  This returns the keyed value if there is one."
+[| next node lastPoint temp |
+  node := t.
+  next := t.
+  lastPoint := 0.
+  [next isNil] whileFalse:
+    [s doWithIndex:
+       [| :each :index |
+        next := node children at: each ifAbsent: [].
+        next ifNotNil: [lastPoint := index. node := next]]].
+  node element := Nil.
+  [node element isNil /\ [node children size <= 1]] whileTrue:
+    [temp := node.
+     (node := node treeParent) ifNil: [^ s] ifNotNil:
+       [node children keysAndValuesRemove:
+	  [| :key :value | value == temp].
+	temp treeParent := Nil]].
+  s
+].
