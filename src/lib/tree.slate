@@ -157,10 +157,10 @@ t@(Trie traits) size
 
 t@(Trie traits) nodeFor: seq
 "Returns the Trie node for the given Sequence."
-[| here |
-  here := t.
-  seq do: [| :each | here := here children at: each ifAbsent: []].
-  here
+[| node |
+  node := t.
+  seq do: [| :each | node := node children at: each ifAbsent: []].
+  node
 ].
 
 t@(Trie traits) at: s@(Sequence traits)
@@ -171,35 +171,35 @@ t@(Trie traits) at: s@(Sequence traits)
 
 t@(Trie traits) nearestNodeFor: seq
 "Returns the Trie node that completes the greatest part of the Sequence."
-[| here next cursor |
-  here := t.
+[| node next cursor |
+  node := t.
   next := t.
   cursor := 0.
   [next isNil] whileFalse:
-    [next := (here children at: (seq at: cursor) ifAbsent: []).
-     next ifNotNil: [here := next. cursor += 1]].
-  here
+    [(next := node children at: (seq at: cursor) ifAbsent: [])
+       ifNotNil: [node := next. cursor += 1]].
+  node
 ].
 
 t@(Trie traits) at: s@(Sequence traits) put: obj
 "Traverse down the Trie, adding nodes once an element isn't found.
 Annotate the final node with the given element."
-[| here next cursor |
-  here := t.
+[| node next cursor |
+  node := t.
   next := t.
   cursor := 0.
   [next isNil \/ [cursor = s size]] whileFalse:
-    [next := (here children at: (s at: cursor) ifAbsent: []).
-     next ifNotNil: [here := next. cursor += 1]].
-  "here is now at the last existing relevant Trie node.
+    [(next := node children at: (s at: cursor) ifAbsent: [])
+       ifNotNil: [node := next. cursor += 1]].
+  "node is now at the last existing relevant Trie node.
   cursor is the index within the Sequence of the next element to add."
   cursor below: s size do:
     [| :index |
       next := t new.
-      here children at: (s at: index) put: next.
-      next treeParent := here.
-      here := next].
-  here element := obj.
+      node children at: (s at: index) put: next.
+      next treeParent := node.
+      node := next].
+  node element := obj.
   obj
 ].
 
@@ -211,24 +211,23 @@ t@(Trie traits) add: s@(Sequence traits)
 
 t@(Trie traits) remove: s@(Sequence traits)
 "Search the trie for the sequence, stop at the last found, then recursively
-delete nodes with no element but the argument and move back up the tree.
-This returns the keyed value if there is one."
-[| next here lastPoint |
-  here := t.
+  delete nodes with no element but the argument and move back up the tree.
+  This returns the keyed value if there is one."
+[| next node lastPoint temp |
+  node := t.
   next := t.
   lastPoint := 0.
   [next isNil] whileFalse:
-    [s doWithIndex: [| :each :index |
-     next := (here children at: each ifAbsent: []).
-     next ifNotNil: [lastPoint := index. here := next]]].
-  here element := Nil.
-  [here element isNil /\ [here children size <= 1]] whileTrue:
-    [| temp |
-     temp := here.
-     here := here treeParent.
-     here ifNil: [^ s]
-	  ifNotNil: [here children keysAndValuesRemove:
-	      [| :key :value | value == temp].
-	    temp treeParent := Nil]].
+    [s doWithIndex:
+       [| :each :index |
+        next := node children at: each ifAbsent: [].
+        next ifNotNil: [lastPoint := index. node := next]]].
+  node element := Nil.
+  [node element isNil /\ [node children size <= 1]] whileTrue:
+    [temp := node.
+     (node := node treeParent) ifNil: [^ s] ifNotNil:
+       [node children keysAndValuesRemove:
+	  [| :key :value | value == temp].
+	temp treeParent := Nil]].
   s
 ].
