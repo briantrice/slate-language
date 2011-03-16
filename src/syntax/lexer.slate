@@ -270,12 +270,7 @@ l@(Lexer traits) readLiteralPastHash
          $\( -> [tokens BeginPattern].
          $\{ -> [tokens BeginLiteralArray].
          $\[ -> [tokens BeginLiteralBlock].
-         $\' -> [l newLiteralFor:
-                   ([| :result c |
-                     [(c := l nextCharacter) == $\']
-                       whileFalse:
-                         [result nextPut: (l characterFor: c)]]
-                      writingAs: '') intern].
+         $\' -> [l newLiteralFor: (l nextSegmentUntil: $\') intern].
          $#  -> [l nextCharacter = $\(
                    ifTrue: [tokens BeginLiteralParenthesis]
                    ifFalse: [l error: 'Expected ( after ##']]
