@@ -38,9 +38,10 @@ u1@(Unit traits) * u2@(Unit traits)
     do: [| :unit |
       scratch := unitDict at: unit.
       scratch isZero ifFalse: [units add: unit. expons add: scratch]].
-  units size = 1 /\ [expons first = 1]
-    ifTrue: [^ units first].
-  ComplexUnit units: units exponents: expons
+  `conditions: {
+    [units size = 0] -> [CompoundUnit Nil].
+    [units size = 1 /\ [expons first = 1]] -> [units first]
+  } otherwise: [ComplexUnit units: units exponents: expons]
 ].
 
 u1@(Unit traits) / u2@(Unit traits)
@@ -105,7 +106,7 @@ u@(ObjectUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: p
 numerics define: #UnitValue &parents: {Number} &slots: {#unit. #value}.
 
 uv@(UnitValue traits) unit: unit value: value
-[uv clone `setting: #{#unit. #value} to: {unit. value}].
+[uv clone `>> [unit := unit. value := value. ]].
 
 uv@(UnitValue traits) dimension [uv unit dimension].
 
@@ -121,7 +122,7 @@ uv@(UnitValue traits) printOn: s@(PrettyPrinterMixin traits) &full
 
 x@(Number traits) as: uv@(UnitValue traits)
 [
-  UnitValue unit: CompoundUnit null value: x
+  UnitValue unit: CompoundUnit Nil value: x
 ].
 
 uv@(UnitValue traits) as: x@(Number traits)
@@ -309,6 +310,13 @@ numerics define: #CompoundUnit &parents: {Unit} &slots: {#units. #exponents}.
 
 CompoundUnit traits compareAndHashUsingSlots: #{#units. #exponents}.
 
+cu@(CompoundUnit traits) units: units exponents: expons
+[
+  cu clone `>> [units := units. exponents := expons. ]
+].
+
+CompoundUnit traits define: #Nil using: [CompoundUnit units: {} exponents: {}].
+
 cu@(CompoundUnit traits) reciprocal
 [
   cu units: cu units
@@ -403,20 +411,18 @@ cu@(CompoundUnit traits) dimension
 numerics define: #ComplexUnit &parents: {CompoundUnit}
   &slots: {#conversionFactor. #cachedBases}.
 
-cu@(ComplexUnit traits) units: units exponents: expons
-[| newCU |
-  newCU := cu clone `setting: #{#units. #exponents. #conversionFactor}
-    to: {units. expons. 1}.
-  newCU units with: newCU exponents do: [| :unit :expon |
-    newCU conversionFactor: newCU conversionFactor
-      * (unit conversionFactor raisedTo: expon)].
-  newCU
+cu@(ComplexUnit traits) units: units exponents: exponents
+[| result |
+  result := cu clone `>> [units := units. exponents := exponents. conversionFactor := 1. ].
+  result units with: result exponents do: [| :unit :expon |
+    result conversionFactor *= unit conversionFactor raisedTo: expon].
+  result
 ].
 
 cu@(ComplexUnit traits) bases
 "Calculating bases is expensive, so the values are cached."
 [
-  cu cachedBases ifNil: [cu cachedBases := cu calculateBases]
+  cu cachedBases `defaultsTo: cu calculateBases
 ].
 
 cu@(ComplexUnit traits) calculateBases
@@ -449,7 +455,7 @@ not having the same modification, good for domain-specific use.
 e.g. 1.6 moles -> 1.6 moles of sulfuric acid. (Strings not required)"
 
 mu@(ModifiedUnit traits) base: u modification: mod
-[mu clone `setting: #{#base. #modification} to: {u. mod}].
+[mu clone `>> [base := u. modification := mod. ]].
 
 ModifiedUnit traits compareAndHashUsingSlots: #{#base. #modification}.
 
@@ -505,11 +511,11 @@ numerics define: #PrefixedUnit &parents: {Unit} &slots: {#base. #prefix}.
 "A Unit with an SI Prefix attached."
 
 pu@(PrefixedUnit traits) prefix: prefix base: unit
-[pu clone `setting: #{#prefix. #base} to: {prefix. unit}].
+[pu clone `>> [prefix := prefix. base := unit. ]].
 
 pu@(PrefixedUnit traits) prefixedBy: prefix
 "Combine the prefixes."
-[pu clone `setting: #{#prefix} to: {newPU prefix * prefix}].
+[pu clone `>> [prefix *= prefix. ]].
 
 pu@(PrefixedUnit traits) dimension [pu base dimension].
 
@@ -557,12 +563,11 @@ units Prefixes ensureNamespace: #ByName &delegate: True.
 units Prefixes ensureNamespace: #ByAbbrev &delegate: True.
 
 sip@(SIPrefix traits) name: name abbrev: abbrev scalingFactor: n
-[| newSIP |
-  newSIP := sip clone `setting: #{#abbrev. #prefixName. #scalingFactor}
-    to: {abbrev. name. n}.
-  units Prefixes ByName addImmutableSlot: name intern valued: newSIP.
-  units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: newSIP.
-  newSIP
+[| result |
+  result := sip clone `>> [abbrev := abbrev. prefixName := name. scalingFactor := n. ].
+  units Prefixes ByName addImmutableSlot: name intern valued: result.
+  units Prefixes ByAbbrev addImmutableSlot: abbrev intern valued: result.
+  result
 ].
 
 sip@(SIPrefix traits) named: name
@@ -581,7 +586,7 @@ u@(Unit traits) prefixedBy: prefix@(SIPrefix traits)
 ].
 
 p1@(SIPrefix traits) * p2@(SIPrefix traits)
-[| scalingFactor newSIP |
+[| scalingFactor |
   scalingFactor := p1 scalingFactor * p2 scalingFactor.
   units SIPrefixesByName keysAndValuesDo: [| :key :value |
     value scalingFactor = scalingFactor ifTrue: [^ value]].
@@ -612,9 +617,11 @@ SIPrefix name: 'yocto' abbrev: 'y' scalingFactor: (10 raisedTo: -24).
 numerics define: #NamedUnit &parents: {Unit}
   &slots: {#abbrev. #unitName. #pluralName}.
 
-nu@(NamedUnit traits) name: n1 abbrev: ab &plural: np
-[nu clone `setting: #{#abbrev. #unitName. #pluralName}
-    to: {ab. n1. np ifNil: [n1 plural]}].
+nu@(NamedUnit traits) name: unitName abbrev: abbrev &plural: pluralName
+[
+  pluralName `defaultsTo: unitName plural.
+  nu clone `>> [abbrev := abbrev. unitName := unitName. pluralName := pluralName. ]
+].
 
 nu@(NamedUnit traits) printOn: s@(PrettyPrinterMixin traits)
 [
@@ -671,16 +678,16 @@ units SI ensureNamespace: #ByName &delegate: True.
 units SI ensureNamespace: #ByAbbrev &delegate: True.
 units SI ensureNamespace: #ByPluralName &delegate: True.
 
-bu@(BaseUnit traits) name: n1 abbrev: ab dimension: dimension &plural: np
-[| newBU n1s nps abs |
-  np `defaultsTo: n1 plural.
-  newBU := bu name: n1 abbrev: ab &plural: np.
-  [| :n | n of: newBU] asMethod: n1 intern on: {Number traits}.
-  [| :n | n of: newBU] asMethod: ab intern on: {Number traits}.
+bu@(BaseUnit traits) name: unitName abbrev: abbrev dimension: dimension &plural: pluralName
+[| newBU |
+  pluralName `defaultsTo: unitName plural.
+  newBU := bu name: unitName abbrev: abbrev &plural: pluralName.
+  [| :n | n of: newBU] asMethod: unitName intern on: {Number traits}.
+  [| :n | n of: newBU] asMethod: abbrev intern on: {Number traits}.
   newBU traits addImmutableSlot: #dimension valued: dimension.
-  units SI ByName addImmutableSlot: n1 intern valued: newBU.
-  units SI ByAbbrev addImmutableSlot: ab intern valued: newBU.
-  units SI ByPluralName addImmutableSlot: np intern valued: newBU.
+  units SI ByName addImmutableSlot: unitName intern valued: newBU.
+  units SI ByAbbrev addImmutableSlot: abbrev intern valued: newBU.
+  units SI ByPluralName addImmutableSlot: pluralName intern valued: newBU.
   newBU
 ].
 
@@ -719,16 +726,16 @@ units ensureNamespace: #ByName &delegate: True.
 units ensureNamespace: #ByAbbrev &delegate: True.
 units ensureNamespace: #ByPluralName &delegate: True.
 
-du@(DerivedUnit traits) name: n1 abbrev: ab value: val &plural: np
+du@(DerivedUnit traits) name: unitName abbrev: abbrev value: val &plural: pluralName
 [| newU |
-  np `defaultsTo: n1 plural.
-  newU := du name: n1 abbrev: ab &plural: np.
+  pluralName `defaultsTo: unitName plural.
+  newU := du name: unitName abbrev: abbrev &plural: pluralName.
   newU unitValue := val.
-  [| :n | n of: newU] asMethod: n1 intern on: {Number traits}.
-  [| :n | n of: newU] asMethod: ab intern on: {Number traits}.
-  units ByName addImmutableSlot: n1 intern valued: newU.
-  units ByAbbrev addImmutableSlot: ab intern valued: newU.
-  units ByPluralName addImmutableSlot: np intern valued: newU.
+  [| :n | n of: newU] asMethod: unitName intern on: {Number traits}.
+  [| :n | n of: newU] asMethod: abbrev intern on: {Number traits}.
+  units ByName addImmutableSlot: unitName intern valued: newU.
+  units ByAbbrev addImmutableSlot: abbrev intern valued: newU.
+  units ByPluralName addImmutableSlot: pluralName intern valued: newU.
   newU
 ].
 
@@ -838,9 +845,9 @@ DerivedUnit
 numerics define: #TemperatureUnit &parents: {DerivedUnit}
   &slots: {#additiveFactor}.
 
-tu@(TemperatureUnit traits) name: n1 abbrev: ab value: val additiveFactor: af &plural: np
+tu@(TemperatureUnit traits) name: unitName abbrev: abbrev value: val additiveFactor: af &plural: pluralName
 [
-  (tu name: n1 abbrev: ab value: val &plural: np) `>> [additiveFactor := af. ]
+  (tu name: unitName abbrev: abbrev value: val &plural: pluralName) `>> [additiveFactor := af. ]
 ].
 
 TemperatureUnit
