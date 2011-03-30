@@ -22,22 +22,21 @@ numerics define: #Unit.
 u1@(Unit traits) isConsistentWith: u2@(Unit traits) [u1 dimension isConsistentWith: u2 dimension].
 
 u1@(Unit traits) * u2@(Unit traits)
-[| unitDict units expons scratch |
-  unitDict := Dictionary new.
-  u1 unitsAndExponentsDo: [| :unit :expon | (unitDict includesKey: unit)
-    ifTrue: [unitDict at: unit := (unitDict at: unit) + expon]
-    ifFalse: [unitDict at: unit := expon]].
-  u2 unitsAndExponentsDo: [| :unit :expon | (unitDict includesKey: unit)
-    ifTrue: [unitDict at: unit := (unitDict at: unit) + expon]
-    ifFalse: [unitDict at: unit := expon]].
+[| exponentsByUnit units expons scratch |
+  exponentsByUnit := Dictionary new.
+  u1 unitsAndExponentsDo: [| :unit :expon | (exponentsByUnit includesKey: unit)
+    ifTrue: [exponentsByUnit at: unit += expon]
+    ifFalse: [exponentsByUnit at: unit := expon]].
+  u2 unitsAndExponentsDo: [| :unit :expon | (exponentsByUnit includesKey: unit)
+    ifTrue: [exponentsByUnit at: unit += expon]
+    ifFalse: [exponentsByUnit at: unit := expon]].
   units := ExtensibleArray new.
   expons := ExtensibleArray new.
-  (unitDict keySet sortBy:
+  (exponentsByUnit keySet sortBy:
     [| :left :right |
-      (left abbrev lexicographicallyCompare: right abbrev) < 0])
-    do: [| :unit |
-      scratch := unitDict at: unit.
-      scratch isZero ifFalse: [units add: unit. expons add: scratch]].
+      (left abbrev lexicographicallyCompare: right abbrev) < 0]) do:
+        [| :unit | (scratch := exponentsByUnit at: unit) isZero ifFalse:
+           [units add: unit. expons add: scratch]].
   `conditions: {
     [units size = 0] -> [CompoundUnit Nil].
     [units size = 1 /\ [expons first = 1]] -> [units first]
@@ -307,6 +306,7 @@ uv@(UnitValue traits) rounded
 ].
 
 numerics define: #CompoundUnit &parents: {Unit} &slots: {#units. #exponents}.
+"Represents units which are a direct combination of BaseUnit objects, vs. DerivedUnit/PrefixedUnit/etc. objects."
 
 CompoundUnit traits compareAndHashUsingSlots: #{#units. #exponents}.
 
@@ -315,7 +315,7 @@ cu@(CompoundUnit traits) units: units exponents: expons
   cu clone `>> [units := units. exponents := expons. ]
 ].
 
-CompoundUnit traits define: #Nil using: [CompoundUnit units: {} exponents: {}].
+CompoundUnit traits Nil ::= CompoundUnit units: {} exponents: {}.
 
 cu@(CompoundUnit traits) reciprocal
 [
@@ -410,6 +410,7 @@ cu@(CompoundUnit traits) dimension
 
 numerics define: #ComplexUnit &parents: {CompoundUnit}
   &slots: {#conversionFactor. #cachedBases}.
+"Represents units which are a combination of some non-BaseUnit objects."
 
 cu@(ComplexUnit traits) units: units exponents: exponents
 [| result |
@@ -426,21 +427,22 @@ cu@(ComplexUnit traits) bases
 ].
 
 cu@(ComplexUnit traits) calculateBases
-[| bases unitDict newUs newExpons scratch |
-  cu unitsAndExponentsDo: [| :unit :expon |
-    bases := unit bases.
-    bases unitsAndExponentsDo: [| :subunit :subexpon |
-      scratch := subexpon * expon.
-      (unitDict includesKey: subunit)
-        ifTrue: [unitDict at: subunit := (unitDict at: subunit) + scratch]
-        ifFalse: [unitDict at: subunit := scratch]]].
-  newUs := ExtensibleArray new.
+[| bases exponentsByUnit newUnits newExpons scratch |
+  cu unitsAndExponentsDo:
+    [| :unit :expon |
+     (bases := unit bases) unitsAndExponentsDo:
+       [| :subunit :subexpon |
+        scratch := subexpon * expon.
+        (exponentsByUnit includesKey: subunit)
+          ifTrue: [exponentsByUnit at: subunit += scratch]
+          ifFalse: [exponentsByUnit at: subunit := scratch]]].
+  newUnits := ExtensibleArray new.
   newExpons := ExtensibleArray new.
-  (unitDict keySet sortedBy: [| :l :r | l abbrev < r abbrev])
-    do: [| :unit |
-      scratch := unitDict at: unit.
-      scratch isZero ifFalse: [newUs add: unit. newExpons add: scratch]].
-  CompoundUnit units: newUs exponents: newExpons
+  (exponentsByUnit keySet sortedBy: [| :l :r | l abbrev < r abbrev]) do:
+    [| :unit |
+     (scratch := exponentsByUnit at: unit) isZero ifFalse:
+       [newUnits add: unit. newExpons add: scratch]].
+  CompoundUnit units: newUnits exponents: newExpons
 ].
 
 cu1@(ComplexUnit traits) isConsistentWith: cu2@(ComplexUnit traits)
