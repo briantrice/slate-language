@@ -382,8 +382,8 @@ requires a full lexicon (for English) - only use this for technical purposes."
     [s endsWith: 'us'] -> [(s allButLast: 2) ; 'i'].
     [s endsWith: 'sis'] -> [(s allButLast: 2) ; 'es'].
     [s endsWith: 'on'] -> [(s allButLast: 2) ; 'a'].
-    [#{'ex'. 'ix'} anySatisfy: #(s endsWith: _)] -> [(s allButLast: 2) ; 'ices'].
-    [#{'ss'. 'sh'. 'ch'. 'dge'} anySatisfy: #(s endsWith: _)] -> [s ; 'es']
+    [#{'ex'. 'ix'} anySatisfy: [| :suffix | s endsWith: suffix]] -> [(s allButLast: 2) ; 'ices'].
+    [#{'ss'. 'sh'. 'ch'. 'dge'} anySatisfy: [| :suffix | s endsWith: suffix]] -> [s ; 'es']
   ) otherwise: [s ; 's']
 ].
 
