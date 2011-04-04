@@ -15,17 +15,16 @@ d@(OrderedDictionary traits) copy
 d@(OrderedDictionary traits) new &capacity: n
 [
   n `defaultsTo: 0.
-  resend `>>
+  d clone `>>
     [keys := d keys new &capacity: n.
      values := d values new &capacity: n. ]
 ].
 
 d@(OrderedDictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
 [
-  result ::= d new.
-  result keys := keys as: result keys.
-  result values := values as: result values.
-  result
+  d new `>>
+    [keys := keys as: d keys.
+     values := values as: d values. ]
 ].
 
 d@(OrderedDictionary traits) acceptsKey: key
@@ -215,4 +214,17 @@ d@(OrderedDictionary traits) rehash
 d@(OrderedDictionary traits) scanFor: key
 [
   d keys indexOf: key
+].
+
+d@(OrderedDictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"Print out the keys and values as Association constructors."
+[
+  d keys
+    doWithIndex:
+      [| :key :index |
+       key printOn: o.
+       o ; ' -> '.
+       (d values at: index) printOn: o]
+    separatedBy: [block do].
+  o
 ].
