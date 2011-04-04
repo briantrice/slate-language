@@ -93,6 +93,12 @@ numerics define: #ObjectUnit &parents: {Unit}
 u@(ObjectUnit traits) isConsistentWith: v@(ObjectUnit traits)
 [u comparisonBlock apply*, u object, v object].
 
+u@(ObjectUnit traits) isConsistentWith: v@(Unit traits)
+[False].
+
+u@(Unit traits) isConsistentWith: v@(ObjectUnit traits)
+[False].
+
 u@(ObjectUnit traits) printOn: s@(PrettyPrinterMixin traits)
 [s ; 'of: ' ; (RootedPath from: here to: u object) printString].
 
@@ -101,6 +107,9 @@ u@(ObjectUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: p
   p ifTrue: [s ; u object printName plural]
     ifFalse: [s ; u object printName]
 ].
+
+u@(ObjectUnit traits) dimension
+[u object].
 
 numerics define: #UnitValue &parents: {Number} &slots: {#unit. #value}.
 
