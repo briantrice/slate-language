@@ -1,0 +1,57 @@
+mappings define: #ExtensibleMapping &parents: {Mapping}.
+
+m@(ExtensibleMapping traits) add: assoc@(Association traits)
+"Adds a new key value pair to the ExtensibleMapping from an assocation.
+For example: ExtensibleMapping new `>> [ add: 'first' -> 'Joe Henry'. ]."
+[
+  m at: assoc key put: assoc value.
+  assoc
+].
+
+m@(ExtensibleMapping traits) addAll: map@(Mapping traits)
+"Adds all of the key-value pairs to the ExtensibleMapping. Notice that this works
+for any Mapping, but that other collections will not do."
+[
+  m == map ifFalse:
+    [map keysAndValuesDo: #(m at: _ put: _) `er].
+  map
+].
+
+m@(ExtensibleMapping traits) addAll: seq@(Sequence traits)
+[
+  seq doWithIndex: [| :assoc :index |
+    (assoc isSameAs: Association)
+      ifTrue: [m add: assoc]
+      ifFalse: [m at: index put: assoc]].
+  seq
+].
+
+m@(ExtensibleMapping traits) declare: key from: e@(Mapping traits)
+"Add key to m, unless the key already exists. Remove key from e
+and move its association to m."
+[
+  (m includesKey: key) ifFalse:
+    [(e includesKey: key)
+       ifTrue: [m add: (e associationAt: key).
+                e removeKey: key]
+       ifFalse: [m add: key -> Nil]].
+  m
+].
+
+m@(ExtensibleMapping traits) removeKey: key ifAbsent: block
+[overrideThis].
+
+m@(ExtensibleMapping traits) removeKey: key
+[
+  m removeKey: key ifAbsent: [key keyNotFoundOn: m]
+].
+
+m@(ExtensibleMapping traits) remove: key
+[
+  m removeKey: key
+].
+
+m@(ExtensibleMapping traits) remove: key ifAbsent: block
+[
+  m removeKey: key ifAbsent: block
+].
