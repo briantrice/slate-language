@@ -107,6 +107,16 @@ For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
   assoc
 ].
 
+m@(Mapping traits) associationAt: key ifAbsent: block
+[
+  key -> (m at: key ifAbsent: block)
+].
+
+m@(Mapping traits) associationAt: key
+[
+  m associationAt: key ifAbsent: [key keyNotFoundOn: m]
+].
+
 m@(Mapping traits) removeKey: key ifAbsent: block
 "Remove the definition of the key and its value from the Mapping, and answer
 the object that was stored there, or answer the result of the block if there

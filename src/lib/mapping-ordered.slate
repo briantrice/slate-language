@@ -1,68 +1,76 @@
-collections define: #Dictionary &parents: {Set. Mapping} &slots: {#values -> (Array newSize: 10)}.
+define: #OrderedDictionary &parents: {ExtensibleSequence. Mapping} &slots: {
+  #keys -> (ExtensibleArray newSize: 10).
+  #values -> (ExtensibleArray newSize: 10)
+}.
 
-Set identityHash.
-Mapping identityHash.
-Dictionary identityHash.
+d@(OrderedDictionary traits) size
+[d keys size].
 
-"Dictionary uses two separate arrays to store its keys and values; it behaves
-as a Set of key-value pairs (but doesn't store Associations as in Smalltalk)."
-"Stores the associated values for the array's objects which are the keys.
-The correspondence is per-index, and there can obviously be only one value
-per key."
+d@(OrderedDictionary traits) capacity
+[d keys capacity].
 
-d@(Dictionary traits) copy
-[resend `>> [values := d values copy. ]].
+d@(OrderedDictionary traits) copy
+[resend `>> [keys := d keys copy. values := d values copy. ]].
 
-d@(Dictionary traits) new &capacity: n
+d@(OrderedDictionary traits) new &capacity: n
 [
+  n `defaultsTo: 0.
   resend `>>
-    [| :newD |
-     values := d values new &capacity: ((n ifNil: [0]) max: newD contents size). ]
+    [keys := d keys new &capacity: n.
+     values := d values new &capacity: n. ]
 ].
 
-d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
+d@(OrderedDictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
 [
-  result ::= d new &capacity: (keys size min: values size).
-  keys with: values do: #(result at: _ put: _) `er.
+  result ::= d new.
+  result keys := keys as: result keys.
+  result values := values as: result values.
   result
 ].
 
-collections IdentityDictionary ::= Dictionary copy `>>
-  [hashBlock := #identityHash`er.
-   equalsBlock := #==`er. ].
-"IdentityDictionary is an alternate prototype Dictionary using ==-based
-comparison and hashing."
+d@(OrderedDictionary traits) acceptsKey: key
+[d keys accepts: key].
 
-d@(Dictionary traits) acceptsKey: _@Nil
-[False].
-
-d@(Dictionary traits) = e@(Dictionary traits)
+d@(OrderedDictionary traits) = e@(OrderedDictionary traits)
 [
   d == e
-   \/ [d size = e size
-	 /\ [d keysAndValuesDo:
-	       [| :key :value |
-		(e at: key ifAbsent: [^ False]) = value ifFalse: [^ False]].
-	     True]]
+    \/ [d size = e size
+	  /\ [d keysAndValuesDo:
+	        [| :key :value |
+		 (e at: key ifAbsent: [^ False]) = value ifFalse: [^ False]].
+	      True]]
 ].
 
-d@(Dictionary traits) clear
+d@(OrderedDictionary traits) clear
 [
-  resend.
+  d keys clear.
   d values clear.
   d
 ].
 
-d@(Dictionary traits) includes: obj
-"Returns whether the Dictionary includes the object as a value."
+d@(OrderedDictionary traits) includes: obj
 [
-  (d detect: [| :each | d equalsBlock apply*, obj, each]) isNotNil
+  d values includes: obj
 ].
 
-d@(Dictionary traits) includesIdentity: obj
-"Returns whether the object is identical to some keyed value."
+d@(OrderedDictionary traits) includesIdentity: obj
 [
-  (d detect: [| :each | obj == each]) isNotNil
+  (d values detect: [| :each | obj == each]) isNotNil
+].
+
+d@(OrderedDictionary traits) includesKey: obj
+[
+  d keys includes: obj
+].
+
+d@(OrderedDictionary traits) keySet
+[
+  d keys as: Set
+].
+
+d@(OrderedDictionary traits) valueSet
+[
+  d values as: Set
 ].
 
 d@(Dictionary traits) occurrencesOf: obj
@@ -83,7 +91,7 @@ for any Mapping, but that other collections will not do."
   map
 ].
 
-d@(Dictionary traits) addAll: seq@(Sequence traits)
+d@(OrderedDictionary traits) addAll: seq@(Sequence traits)
 [
   seq doWithIndex: [| :assoc :index |
     (assoc isSameAs: Association)
@@ -92,7 +100,7 @@ d@(Dictionary traits) addAll: seq@(Sequence traits)
   seq
 ].
 
-d@(Dictionary traits) declare: key from: e@(Mapping traits)
+d@(OrderedDictionary traits) declare: key from: e@(Mapping traits)
 "Add key to d, unless the key already exists. Remove key from e
 and move its association to d."
 [
@@ -111,6 +119,11 @@ d@(Dictionary traits) associationAt: key ifAbsent: block
     ifNotNil: [(d contents at: index) -> (d values at: index)]
 ].
 
+d@(Dictionary traits) associationAt: key
+[
+  d associationAt: key ifAbsent: [key keyNotFoundOn: d]
+].
+
 d@(Dictionary traits) at: key ifAbsent: block
 [
   (d contents at: (index ::= d scanFor: key))
@@ -118,28 +131,22 @@ d@(Dictionary traits) at: key ifAbsent: block
     ifNotNil: [d values at: index]
 ].
 
-d@(Dictionary traits) add: assoc@(Association traits)
-"Adds a new key value pair to the Dictionary from an assocation.
-For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
+d@(OrderedDictionary traits) add: assoc@(Association traits)
+"Adds a new key value pair to the OrderedDictionary from an assocation.
+For example: OrderedDictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
 [
   d at: assoc key put: assoc value.
   assoc
 ].
 
-d@(Dictionary traits) at: key put: obj
+d@(OrderedDictionary traits) at: key put: obj
 [
-  (d contents at: (index ::= d scanFor: key)) ifNil:
-    [d contents at: index put: key.
-     d tally += 1].
-  d values at: index put: obj.
-  d fullCheck.
-  obj
+  (d keys indexOf: key)
+    ifNil:
+      [d keys addLast: key.
+       d values addLast: obj]
+    ifNotNilDo: [| :index | d values at: index put: obj]
 ].
-
-d@(Dictionary traits) acceptsKey: _@Nil [False].
-d@(Dictionary traits) at: _@Nil put: obj
-[error: 'Dictionary cannot accept Nil keys.'].
-"TODO: extend Dictionary to handle Nil keys."
 
 d@(Dictionary traits) keyAtValue: obj ifAbsent: block
 [
@@ -160,46 +167,19 @@ d@(Dictionary traits) keyAtIdentityValue: obj
   d keyAtIdentityValue: obj ifAbsent: [obj elementNotFoundOn: d]
 ].
 
-d@(Dictionary traits) keySet
+d@(OrderedDictionary traits) keysAndValuesDo: block
 [
-  result ::= Set newSizeOf: d.
-  result equalsBlock := d equalsBlock.
-  d keysDo: #(result add: _) `er.
-  result
+  d keys with: d values do: [| :key :value | block apply*, key, value]
 ].
 
-d@(Dictionary traits) keys [d keySet].
-
-d@(Dictionary traits) valueSet
+d@(OrderedDictionary traits) keysDo: block
 [
-  result ::= Set newSizeOf: d.
-  result equalsBlock := d equalsBlock.
-  d valuesDo: #(result add: _) `er.
-  result
+  d keys do: block
 ].
 
-d@(Dictionary traits) values [d valueSet].
-
-d@(Dictionary traits) keysAndValuesDo: block
+d@(OrderedDictionary traits) valuesDo: block
 [
-  d isEmpty ifFalse:
-    [d contents doWithIndex:
-       [| :each :index |
-        each ifNotNil: [block apply*, each, (d values at: index)]]]
-].
-
-d@(Dictionary traits) keysDo: block
-[
-  d isEmpty ifFalse:
-    [d contents doWithIndex:
-       [| :each :index | each ifNotNil: [block apply*, each]]]
-].
-
-d@(Dictionary traits) valuesDo: block
-[
-  d isEmpty ifFalse:
-    [d contents doWithIndex:
-       [| :each :index | each ifNotNil: [block apply*, (d values at: index)]]]
+  d values do: block
 ].
 
 d@(Dictionary traits) keysAndValuesRemove: block
@@ -262,7 +242,7 @@ d mapSelect: block into: result@(Dictionary traits)
 
 d select: block into: result@(Dictionary traits)
 [d mapSelect: [| :_ :value | block apply*, each] into: result].
-
+  
 d@(Dictionary traits) collect: block
 "Generate a new collection based on applying the block to each value."
 [
@@ -324,12 +304,4 @@ it's not found and the Dictionary is full."
   start below: end do: block.
   0 below: start do: block.
   Nil
-].
-
-x@(Root traits) slotNamesAndValues
-"Answers a Dictionary of the slot names and values from the argument."
-[
-  result ::= Dictionary new.
-  x slotNamesAndValuesDo: #(result at: _ put: _) `er.
-  result
 ].
