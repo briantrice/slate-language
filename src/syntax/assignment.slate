@@ -109,6 +109,23 @@ node@(nodes Node traits) defaultsTo: default &environment: env
 This generalizes on Load defaultsTo:."
 [`(node `unquote ifNil: [(node setTo: default &environment: env) `unquote])].
 
+message@(nodes KeywordMessage traits) defaultsTo: default &environment: env
+"Expands an at:-style selector into at:ifAbsentPut:."
+[
+  (message selector caseOf:
+    {#atSlotNamed: -> [#atSlotNamed:ifAbsentPut:].
+     #at: -> [#at:ifAbsentPut:].
+     #byteAt: -> [#byteAt:ifAbsentPut:].
+     #wordAt: -> [#wordAt:ifAbsentPut:].
+  } otherwise:
+    [| selectorWithPut |
+     (selectorWithPut: message selector name ; 'ifAbsentPut:')
+       isInterned ifTrue: [selectorWithPut intern]])
+    ifNil: [resend]
+    ifNotNilDo:
+      [| :newSel | message sending: newSel to: (message arguments copyWith: `[val `unquote])]
+].
+
 node@(nodes Node traits) setToIfNotNil: value &environment: env
 "Conditional assignment on the value being Nil or absent.
 This generalizes on Load defaultsTo:."
