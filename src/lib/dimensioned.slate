@@ -38,7 +38,7 @@ u1@(Unit traits) * u2@(Unit traits)
         [| :unit | (scratch := exponentsByUnit at: unit) isZero ifFalse:
            [units add: unit. expons add: scratch]].
   `conditions: {
-    [units size = 0] -> [CompoundUnit Nil].
+    [units size = 0] -> [ScalarUnit].
     [units size = 1 /\ [expons first = 1]] -> [units first]
   } otherwise: [ComplexUnit units: units exponents: expons]
 ].
@@ -121,7 +121,7 @@ uv@(UnitValue traits) printOn: s@(PrettyPrinterMixin traits) &full
 
 x@(Number traits) as: uv@(UnitValue traits)
 [
-  UnitValue unit: CompoundUnit Nil value: x
+  UnitValue unit: ScalarUnit value: x
 ].
 
 uv@(UnitValue traits) as: x@(Number traits)
@@ -171,10 +171,11 @@ x@(UnitValue traits) isConsistentWith: y@(UnitValue traits)
 ].
 
 x@(UnitValue traits) + y@(UnitValue traits)
-[| sum |
-  (x isConsistentWith: y) ifFalse: [^ Nil].
-  "TODO: construct sum!"
-  (x as: y) `>> [value := sum value + y value. reduced]
+[
+  (x isConsistentWith: y)
+   ifTrue:
+     [(x unit: x unit value: x value + y value) reduced]
+   ifFalse: "TODO: raise condition" []
 ].
 
 x@(UnitValue traits) + y
@@ -248,7 +249,7 @@ uv@(UnitValue traits) negated
 uv@(UnitValue traits) reduced
 "Answer the scalar part if the units have 'vanished'."
 [
-  uv unit units isEmpty ifTrue: [uv value] ifFalse: [uv]
+  (uv unit isConsistentWith: ScalarUnit) ifTrue: [uv value] ifFalse: [uv]
 ].
 
 uv1@(UnitValue traits) factor: uv2@(UnitValue traits)
@@ -314,8 +315,6 @@ cu@(CompoundUnit traits) units: units exponents: expons
 [
   cu clone `>> [units := units. exponents := expons. ]
 ].
-
-CompoundUnit traits Nil ::= CompoundUnit units: {} exponents: {}.
 
 cu@(CompoundUnit traits) reciprocal
 [
@@ -449,6 +448,40 @@ cu1@(ComplexUnit traits) isConsistentWith: cu2@(ComplexUnit traits)
 [
   cu1 bases isConsistentWith: cu2 bases
 ].
+
+numerics define: #ScalarUnit &parents: {Unit}.
+
+_@(ScalarUnit traits) units [#{}].
+_@(ScalarUnit traits) exponents [#{}].
+
+_@(ScalarUnit traits) isConsistentWith: other@(CompoundUnit traits)
+[
+  other units isEmpty /\ [other bases isEmpty]
+].
+
+_@(ScalarUnit traits) isConsistentWith: _@(Unit traits)
+[False].
+
+_@(Unit traits) isConsistentWith: _@(ScalarUnit traits)
+[False].
+
+_@(ScalarUnit traits) isConsistentWith: _@(ScalarUnit traits)
+[True].
+
+x@(ScalarUnit traits) reciprocal
+[x].
+
+x@(ScalarUnit traits) raisedTo: expon
+[x].
+
+x@(ScalarUnit traits) unitsAndExponentsDo: block
+[Nil].
+
+_@(ScalarUnit traits) conversionFactor
+[1].
+
+x@(ScalarUnit traits) printOn: s@(PrettyPrinterMixin traits)
+["Do-nothing"].
 
 numerics define: #ModifiedUnit &parents: {Unit} &slots: {#base. #modification}.
 
