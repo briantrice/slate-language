@@ -1,4 +1,11 @@
-collections define: #Dictionary &parents: {Set. Mapping} &slots: {#values -> (Array newSize: 10)}.
+collections define: #Dictionary &parents: {Mapping} &slots: {
+  #tally -> 0.
+  #keys -> (Array newSize: 10).
+  #values -> (Array newSize: 10).
+  #containsNil -> False.
+  #hashBlock -> (#hash `er) .
+  #equalsBlock -> (#= `er) .
+}.
 
 Set identityHash.
 Mapping identityHash.
@@ -10,14 +17,39 @@ as a Set of key-value pairs (but doesn't store Associations as in Smalltalk)."
 The correspondence is per-index, and there can obviously be only one value
 per key."
 
+d@(Dictionary traits) size
+"The number of elements, the conceptual size of the Dictionary."
+[
+  d tally + (d containsNil ifTrue: [1] ifFalse: [0])
+].
+
+d@(Dictionary traits) capacity
+"How large the Dictionary can be without requiring a new Array of larger size."
+[
+  d keys size
+].
+
+d@(Dictionary traits) growSize
+"The default amount to grow by, either doubling the size or a minimum."
+[
+  d keys size max: 4
+].
+
 d@(Dictionary traits) copy
-[resend `>> [values := d values copy. ]].
+[
+  d clone `>>
+    [keys := d keys copy.
+     values := d values copy. ]
+].
 
 d@(Dictionary traits) new &capacity: n
 [
-  resend `>>
+  n `defaultsTo: 0.
+  d clone `>>
     [| :newD |
-     values := d values new &capacity: ((n ifNil: [0]) max: newD contents size). ]
+     keys := d keys new &capacity: (n max: 1).
+     tally := 0.
+     values := d values new &capacity: (n max: newD keys size). ]
 ].
 
 d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
@@ -48,7 +80,9 @@ d@(Dictionary traits) = e@(Dictionary traits)
 
 d@(Dictionary traits) clear
 [
-  resend.
+  d keys clear.
+  d tally := 0.
+  d containsNil := False.
   d values clear.
   d
 ].
@@ -106,14 +140,14 @@ and move its association to d."
 
 d@(Dictionary traits) associationAt: key ifAbsent: block
 [
-  (d contents at: (index ::= d scanFor: key))
+  (d keys at: (index ::= d scanFor: key))
     ifNil: [block do]
-    ifNotNil: [(d contents at: index) -> (d values at: index)]
+    ifNotNil: [(d keys at: index) -> (d values at: index)]
 ].
 
 d@(Dictionary traits) at: key ifAbsent: block
 [
-  (d contents at: (index ::= d scanFor: key))
+  (d keys at: (index ::= d scanFor: key))
     ifNil: [block do]
     ifNotNil: [d values at: index]
 ].
@@ -128,8 +162,8 @@ For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
 
 d@(Dictionary traits) at: key put: obj
 [
-  (d contents at: (index ::= d scanFor: key)) ifNil:
-    [d contents at: index put: key.
+  (d keys at: (index ::= d scanFor: key)) ifNil:
+    [d keys at: index put: key.
      d tally += 1].
   d values at: index put: obj.
   d fullCheck.
@@ -151,7 +185,7 @@ d@(Dictionary traits) keyAtValue: obj ifAbsent: block
 d@(Dictionary traits) keyAtIdentityValue: obj ifAbsent: block
 [
   d values doWithIndex: [| :each :index | each == obj
-    ifTrue: [^ (d contents at: index)]].
+    ifTrue: [^ (d keys at: index)]].
   block do
 ].
 
@@ -183,7 +217,7 @@ d@(Dictionary traits) values [d valueSet].
 d@(Dictionary traits) keysAndValuesDo: block
 [
   d isEmpty ifFalse:
-    [d contents doWithIndex:
+    [d keys doWithIndex:
        [| :each :index |
         each ifNotNil: [block apply*, each, (d values at: index)]]]
 ].
@@ -191,14 +225,14 @@ d@(Dictionary traits) keysAndValuesDo: block
 d@(Dictionary traits) keysDo: block
 [
   d isEmpty ifFalse:
-    [d contents doWithIndex:
+    [d keys doWithIndex:
        [| :each :index | each ifNotNil: [block apply*, each]]]
 ].
 
 d@(Dictionary traits) valuesDo: block
 [
   d isEmpty ifFalse:
-    [d contents doWithIndex:
+    [d keys doWithIndex:
        [| :each :index | each ifNotNil: [block apply*, (d values at: index)]]]
 ].
 
@@ -212,12 +246,27 @@ d@(Dictionary traits) keysAndValuesRemove: block
   d
 ].
 
+d@(Dictionary traits) fixCollisionsFrom: index
+"The element at index has been removed and replaced by Nil.
+This moves forward from there, relocating any entries that were
+placed below due to collisions with this one."
+[| oldIndex newIndex element |
+  d capacity `cache.
+  oldIndex := index.
+  [(oldIndex += 1) >= d capacity
+     ifTrue: [oldIndex := 1].
+   (element := d keys at: oldIndex) isNil]
+    whileFalse:
+      [(newIndex := d scanFor: element) = oldIndex
+         ifFalse: [d swap: oldIndex with: newIndex]].
+].
+
 d@(Dictionary traits) removeKey: key ifAbsent: block
 [
   (index ::= d scanFor: key)
     ifNil: [^ block do].
-  value ::= d contents at: index.
-  d contents at: index put: Nil.
+  value ::= d keys at: index.
+  d keys at: index put: Nil.
   d values at: index put: Nil.
   d tally -= 1.
   d fixCollisionsFrom: index.
@@ -242,15 +291,18 @@ d@(Dictionary traits) remove: key ifAbsent: block
 d@(Dictionary traits) associationsDo: block
 [
   d isEmpty ifFalse:
-    [d contents doWithIndex:
+    [d keys doWithIndex:
        [| :each :index | each ifNotNil:
           [block apply*, (each -> (d values at: index))]]]
 ].
 
-d@(Dictionary traits) do: block
-"Applies a single-argument block to each keyed value in the Dictionary.
-Equivalent to valuesDo:."
-[d valuesDo: block].
+d@(Dictionary traits) doWithIndex: block
+"Allow for iterating through the elements with a notional indexing."
+[| index |
+  index := -1.
+  d do: [| :item |
+	 item ifNotNil: [block apply*, item, (index += 1)]].
+].
 
 d mapSelect: block into: result@(Dictionary traits)
 "Filter the dictionary by values satisfying a block."
@@ -273,7 +325,7 @@ d@(Dictionary traits) collect: block
 
 d@(Dictionary traits) swap: index1 with: index2
 [
-  d contents swap: index1 with: index2.
+  d keys swap: index1 with: index2.
   d values swap: index1 with: index2.
   d
 ].
@@ -281,7 +333,7 @@ d@(Dictionary traits) swap: index1 with: index2
 d@(Dictionary traits) noCheckAt: key put: value
 [
   index ::= d scanFor: key.
-  d contents at: index put: key.
+  d keys at: index put: key.
   d values at: index put: value.
   d tally += 1.
 ].
@@ -291,20 +343,33 @@ d@(Dictionary traits) noCheckAdd: assoc
   d noCheckAt: assoc key put: assoc value
 ].
 
+d@(Dictionary traits) fullCheck
+"Keep the array at least 1/4 free for decent hash behavior."
+[
+  d keys size - d tally < (d keys size // 4 max: 1)
+    ifTrue: [d grow].
+].
+
 d@(Dictionary traits) growBy: growthAmount
 [
-  tempDict ::= d new &capacity: d contents size + growthAmount.
+  tempDict ::= d new &capacity: d keys size + growthAmount.
   d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
-  d contents := tempDict contents.
+  d keys := tempDict keys.
   d values := tempDict values.
   d
+].
+
+d@(Dictionary traits) grow
+"Grow the default amount."
+[
+  d growBy: d growSize
 ].
 
 d@(Dictionary traits) rehash
 [
   tempDict ::= d newSameSize.
   d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
-  d contents := tempDict contents.
+  d keys := tempDict keys.
   d values := tempDict values.
   d
 ].
@@ -314,11 +379,11 @@ d@(Dictionary traits) scanFor: obj
 object. Returns the index at which the object is used as a key, or Nil if
 it's not found and the Dictionary is full."
 [| key |
-  end ::= d contents size.
+  end ::= d keys size.
   start ::= ((d hashBlock apply*, obj) \\ end) + 1.
   block ::=
     [| :index |
-     (key := d contents at: index) isNil \/
+     (key := d keys at: index) isNil \/
        [d equalsBlock apply*, obj, key]
        ifTrue: [^ index]].
   start below: end do: block.
