@@ -1,4 +1,4 @@
-collections define: #Dictionary &parents: {ExtensibleMapping} &slots: {
+collections define: #Dictionary &parents: {Collection. ExtensibleMapping} &slots: {
   #tally -> 0.
   #keys -> (Array newSize: 10).
   #values -> (Array newSize: 10).
@@ -232,6 +232,9 @@ d@(Dictionary traits) valuesDo: block
     [d keys doWithIndex:
        [| :each :index | each ifNotNil: [block apply*, (d values at: index)]]]
 ].
+
+d@(Dictionary traits) do: block
+[d valuesDo: block].
 
 d@(Dictionary traits) keysAndValuesRemove: block
 "Removes key-value pairs that satisfy the two-argument block."
