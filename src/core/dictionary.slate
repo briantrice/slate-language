@@ -1,8 +1,7 @@
-collections define: #Dictionary &parents: {Mapping} &slots: {
+collections define: #Dictionary &parents: {ExtensibleMapping} &slots: {
   #tally -> 0.
   #keys -> (Array newSize: 10).
   #values -> (Array newSize: 10).
-  #containsNil -> False.
   #hashBlock -> (#hash `er) .
   #equalsBlock -> (#= `er) .
 }.
@@ -20,8 +19,11 @@ per key."
 d@(Dictionary traits) size
 "The number of elements, the conceptual size of the Dictionary."
 [
-  d tally + (d containsNil ifTrue: [1] ifFalse: [0])
+  d tally
 ].
+
+d@(Dictionary traits) isEmpty
+[d size = 0].
 
 d@(Dictionary traits) capacity
 "How large the Dictionary can be without requiring a new Array of larger size."
@@ -82,7 +84,6 @@ d@(Dictionary traits) clear
 [
   d keys clear.
   d tally := 0.
-  d containsNil := False.
   d values clear.
   d
 ].
@@ -202,8 +203,6 @@ d@(Dictionary traits) keySet
   result
 ].
 
-d@(Dictionary traits) keys [d keySet].
-
 d@(Dictionary traits) valueSet
 [
   result ::= Set newSizeOf: d.
@@ -211,8 +210,6 @@ d@(Dictionary traits) valueSet
   d valuesDo: #(result add: _) `er.
   result
 ].
-
-d@(Dictionary traits) values [d valueSet].
 
 d@(Dictionary traits) keysAndValuesDo: block
 [
