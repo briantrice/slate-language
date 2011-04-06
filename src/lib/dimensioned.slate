@@ -103,49 +103,49 @@ u@(ObjectUnit traits) dimension
 
 numerics define: #Measure &parents: {Number} &slots: {#unit. #value}.
 
-uv@(Measure traits) unit: unit value: value
-[uv clone `>> [unit := unit. value := value. ]].
+m@(Measure traits) unit: unit value: value
+[m clone `>> [unit := unit. value := value. ]].
 
-uv@(Measure traits) dimension [uv unit dimension].
+m@(Measure traits) dimension [m unit dimension].
 
-uv@(Measure traits) printOn: s@(PrettyPrinterMixin traits) &full
+m@(Measure traits) printOn: s@(PrettyPrinterMixin traits) &full
 [
-  uv value printOn: s.
+  m value printOn: s.
   s ; ' '.
   (full ifNil: [True])
-    ifTrue: [uv unit printFullOn: s plural: uv value ~= 1]
-    ifFalse: [uv unit printOn: s].
-  uv
+    ifTrue: [m unit printFullOn: s plural: m value ~= 1]
+    ifFalse: [m unit printOn: s].
+  m
 ].
 
-x@(Number traits) as: uv@(Measure traits)
+x@(Number traits) as: m@(Measure traits)
 [
-  Measure unit: ScalarUnit value: x
+  m unit: ScalarUnit value: x
 ].
 
-uv@(Measure traits) as: x@(Number traits)
-[uv value].
+m@(Measure traits) as: x@(Number traits)
+[m value].
 
-uv@(Measure traits) convertTo: u@(Unit traits)
+m@(Measure traits) convertTo: u@(Unit traits)
 "Convert the value to have the same units as u, using scaling factors."
 [
-  (uv unit isConsistentWith: u) ifTrue:
-    [uv unit: u value: (uv value - uv unit additiveFactor) * (uv unit conversionFactorTo: u) + u additiveFactor]
+  (m unit isConsistentWith: u) ifTrue:
+    [m unit: u value: (m value - m unit additiveFactor) * (m unit conversionFactorTo: u) + u additiveFactor]
 ].
 
-uv@(Measure traits) in: u@(Unit traits)
+m@(Measure traits) in: u@(Unit traits)
 "Alias of convertTo:."
-[uv convertTo: u].
+[m convertTo: u].
 
-uv@(Measure traits) bases
-"Return the reduction of uv to base units."
+m@(Measure traits) bases
+"Return the reduction of m to base units."
 [
-  uv convertTo: uv unit baseUnits
+  m convertTo: m unit baseUnits
 ].
 
-uv@(Measure traits) as: u@(Unit traits)
+m@(Measure traits) as: u@(Unit traits)
 [
-  uv convertTo: u
+  m convertTo: u
 ].
 
 x@(Number traits) of: u@(Unit traits)
@@ -242,13 +242,13 @@ x@(Measure traits) < y@(Measure traits)
   (x isConsistentWith: y) /\ [x value < (y as: x unit) value]
 ].
 
-uv@(Measure traits) negated
-[uv value negated as: uv unit].
+m@(Measure traits) negated
+[m value negated as: m unit].
 
-uv@(Measure traits) reduced
+m@(Measure traits) reduced
 "Answer the scalar part if the units have 'vanished'."
 [
-  (uv unit isConsistentWith: ScalarUnit) ifTrue: [uv value] ifFalse: [uv]
+  (m unit isConsistentWith: ScalarUnit) ifTrue: [m value] ifFalse: [m]
 ].
 
 uv1@(Measure traits) factor: uv2@(Measure traits)
@@ -257,52 +257,52 @@ uv1@(Measure traits) factor: uv2@(Measure traits)
   uv1 factor: uv2 unit
 ].
 
-uv@(Measure traits) factor: u@(Unit traits)
+m@(Measure traits) factor: u@(Unit traits)
 [
-  uv as: (uv unit factor: u).
+  m as: (m unit factor: u).
 ].
 
-uv@(Measure traits) raisedTo: expon
+m@(Measure traits) raisedTo: expon
 [
-  uv unit: (uv unit raisedTo: expon) value: (uv value raisedTo: expon)
+  m unit: (m unit raisedTo: expon) value: (m value raisedTo: expon)
 ].
 
-uv@(Measure traits) reciprocal
-[uv raisedTo: -1].
+m@(Measure traits) reciprocal
+[m raisedTo: -1].
 
-uv@(Measure traits) sqrt
+m@(Measure traits) sqrt
 [
-  uv unit: (uv unit raisedTo: 1 / 2) value: (uv value sqrt)
+  m unit: (m unit raisedTo: 1 / 2) value: (m value sqrt)
 ].
 
-uv@(Measure traits) ceiling
+m@(Measure traits) ceiling
 [
-  uv value ceiling as: uv unit
+  m value ceiling as: m unit
 ].
 
-uv@(Measure traits) floor
+m@(Measure traits) floor
 [
-  uv value floor as: uv unit
+  m value floor as: m unit
 ].
 
-uv@(Measure traits) roundTo: x
+m@(Measure traits) roundTo: x
 [
-  (uv value roundTo: x) as: uv unit
+  (m value roundTo: x) as: m unit
 ].
 
-uv@(Measure traits) roundUpTo: x
+m@(Measure traits) roundUpTo: x
 [
-  (uv value roundUpTo: x) as: uv unit
+  (m value roundUpTo: x) as: m unit
 ].
 
-uv@(Measure traits) truncateTo: x
+m@(Measure traits) truncateTo: x
 [
-  (uv value truncateTo: x) as: uv unit
+  (m value truncateTo: x) as: m unit
 ].
 
-uv@(Measure traits) rounded
+m@(Measure traits) rounded
 [
-  (uv value rounded) as: uv unit
+  (m value rounded) as: m unit
 ].
 
 numerics define: #CompoundUnit &parents: {Unit} &slots: {#units -> #{}. #exponents -> #{}}.
