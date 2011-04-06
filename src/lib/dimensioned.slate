@@ -427,13 +427,15 @@ cu@(CompoundUnit traits) dimension
   ].
 ].
 
-numerics define: #ComplexUnit &parents: {CompoundUnit}
-  &slots: {#conversionFactor. #cachedBases}.
+numerics define: #ComplexUnit &parents: {CompoundUnit} &slots: {
+  #conversionFactor.
+  #cachedBases
+}.
 "Represents units which are a combination of some non-BaseUnit objects."
 
 cu@(ComplexUnit traits) units: units exponents: exponents
-[| result |
-  result := resend `>> [conversionFactor := 1. cachedBases := Nil. ].
+[
+  result ::= resend `>> [conversionFactor := 1. cachedBases := Nil. ].
   units with: exponents do:
     [| :unit :expon |
      result conversionFactor *= unit conversionFactor raisedTo: expon].
