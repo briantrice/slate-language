@@ -19,28 +19,21 @@ numerics define: #ElectricalCharge &parents: {Dimension}.
 
 numerics define: #Unit.
 
+u@(Unit traits) units
+[{u}].
+
+_@(Unit traits) exponents
+[#{1}].
+
 u1@(Unit traits) isConsistentWith: u2@(Unit traits) [u1 dimension isConsistentWith: u2 dimension].
 
 u1@(Unit traits) * u2@(Unit traits)
-[| exponentsByUnit units expons scratch |
-  exponentsByUnit := Dictionary new.
-  u1 unitsAndExponentsDo: [| :unit :expon | (exponentsByUnit includesKey: unit)
-    ifTrue: [exponentsByUnit at: unit += expon]
-    ifFalse: [exponentsByUnit at: unit := expon]].
+[
+  exponentsByUnit ::= OrderedDictionary newFrom: u1 units to: u1 exponents.
   u2 unitsAndExponentsDo: [| :unit :expon | (exponentsByUnit includesKey: unit)
     ifTrue: [exponentsByUnit at: unit += expon]
     ifFalse: [exponentsByUnit at: unit := expon]].
-  units := ExtensibleArray new.
-  expons := ExtensibleArray new.
-  (exponentsByUnit keySet sortBy:
-    [| :left :right |
-      (left abbrev lexicographicallyCompare: right abbrev) < 0]) do:
-        [| :unit | (scratch := exponentsByUnit at: unit) isZero ifFalse:
-           [units add: unit. expons add: scratch]].
-  `conditions: {
-    [units size = 0] -> [ScalarUnit].
-    [units size = 1 /\ [expons first = 1]] -> [units first]
-  } otherwise: [ComplexUnit units: units exponents: expons]
+  (ComplexUnit units: exponentsByUnit keys exponents: exponentsByUnit values) reduced
 ].
 
 u1@(Unit traits) / u2@(Unit traits)
@@ -55,12 +48,10 @@ u@(Unit traits) raisedTo: expon
 ].
 
 u@(Unit traits) reciprocal
-[
-  ComplexUnit units: {u} exponents: {-1}
-].
+[u raisedTo: -1].
 
 u@(Unit traits) squared
-[u * u].
+[u raisedTo: 2].
 
 u1@(Unit traits) factor: u2@(Unit traits)
 [
@@ -83,12 +74,11 @@ has a real standard non-zero value is Temperatures (by old convention)."
 _@(Unit traits) consistentWith: _@(Unit traits)
 [False].
 
-numerics define: #ObjectUnit &parents: {Unit}
+numerics define: #ObjectUnit &parents: {Unit} &slots: {
+  #object -> Nil. "The object/exemplar on which the Unit is based."
+  #comparisonBlock -> #= `er. "How to tell if units are compatible; the caller needs to consider this."
+}.
 "A Unit used to describe/count Slate objects."
-  &slots: {#object -> Nil.
-"The object/exemplar on which the Unit is based."
-#comparisonBlock -> #= `er.
-"How to tell if units are compatible; the caller needs to consider this."}.
 
 u@(ObjectUnit traits) isConsistentWith: v@(ObjectUnit traits)
 [u comparisonBlock apply*, u object, v object].
@@ -111,14 +101,14 @@ u@(ObjectUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: p
 u@(ObjectUnit traits) dimension
 [u object].
 
-numerics define: #UnitValue &parents: {Number} &slots: {#unit. #value}.
+numerics define: #Measure &parents: {Number} &slots: {#unit. #value}.
 
-uv@(UnitValue traits) unit: unit value: value
+uv@(Measure traits) unit: unit value: value
 [uv clone `>> [unit := unit. value := value. ]].
 
-uv@(UnitValue traits) dimension [uv unit dimension].
+uv@(Measure traits) dimension [uv unit dimension].
 
-uv@(UnitValue traits) printOn: s@(PrettyPrinterMixin traits) &full
+uv@(Measure traits) printOn: s@(PrettyPrinterMixin traits) &full
 [
   uv value printOn: s.
   s ; ' '.
@@ -128,45 +118,45 @@ uv@(UnitValue traits) printOn: s@(PrettyPrinterMixin traits) &full
   uv
 ].
 
-x@(Number traits) as: uv@(UnitValue traits)
+x@(Number traits) as: uv@(Measure traits)
 [
-  UnitValue unit: ScalarUnit value: x
+  Measure unit: ScalarUnit value: x
 ].
 
-uv@(UnitValue traits) as: x@(Number traits)
+uv@(Measure traits) as: x@(Number traits)
 [uv value].
 
-uv@(UnitValue traits) convertTo: u@(Unit traits)
+uv@(Measure traits) convertTo: u@(Unit traits)
 "Convert the value to have the same units as u, using scaling factors."
 [
   (uv unit isConsistentWith: u) ifTrue:
     [uv unit: u value: (uv value - uv unit additiveFactor) * (uv unit conversionFactorTo: u) + u additiveFactor]
 ].
 
-uv@(UnitValue traits) in: u@(Unit traits)
+uv@(Measure traits) in: u@(Unit traits)
 "Alias of convertTo:."
 [uv convertTo: u].
 
-uv@(UnitValue traits) bases
+uv@(Measure traits) bases
 "Return the reduction of uv to base units."
 [
   uv convertTo: uv unit baseUnits
 ].
 
-uv@(UnitValue traits) as: u@(Unit traits)
+uv@(Measure traits) as: u@(Unit traits)
 [
   uv convertTo: u
 ].
 
 x@(Number traits) of: u@(Unit traits)
 [
-  UnitValue unit: u value: x
+  Measure unit: u value: x
 ].
 
 x@(Number traits) of: obj &comparison
 [| u |
   u := ObjectUnit `>> [object := obj. comparisonBlock ?= comparison. ].
-  UnitValue unit: u value: x
+  Measure unit: u value: x
 ].
 
 x@(Number traits) as: u@(Unit traits)
@@ -174,12 +164,12 @@ x@(Number traits) as: u@(Unit traits)
   x of: u
 ].
 
-x@(UnitValue traits) isConsistentWith: y@(UnitValue traits)
+x@(Measure traits) isConsistentWith: y@(Measure traits)
 [
   x unit isConsistentWith: y unit
 ].
 
-x@(UnitValue traits) + y@(UnitValue traits)
+x@(Measure traits) + y@(Measure traits)
 [
   (x isConsistentWith: y)
    ifTrue:
@@ -187,138 +177,151 @@ x@(UnitValue traits) + y@(UnitValue traits)
    ifFalse: "TODO: raise condition" []
 ].
 
-x@(UnitValue traits) + y
+x@(Measure traits) + y
 [
   x value + y as: x unit
 ].
 
-x + y@(UnitValue traits)
+x + y@(Measure traits)
 [
   y + x
 ].
 
-x@(UnitValue traits) - y@(UnitValue traits)
+x@(Measure traits) - y@(Measure traits)
 [
   x + y negated
 ].
 
-x@(UnitValue traits) - y
+x@(Measure traits) - y
 [
   x value - y as: x unit
 ].
 
-x - y@(UnitValue traits)
+x - y@(Measure traits)
 [
   x - y value as: x unit
 ].
 
-x@(UnitValue traits) * y@(UnitValue traits)
+x@(Measure traits) * y@(Measure traits)
 [
   (x unit: x unit * y unit value: x value * y value) reduced
 ].
 
-x@(UnitValue traits) * y
+x@(Measure traits) * y
 [
   x value * y as: x unit
 ].
 
-x * y@(UnitValue traits)
+x * y@(Measure traits)
 [
   y * x
 ].
 
-x@(UnitValue traits) / y@(UnitValue traits)
+x@(Measure traits) / y@(Measure traits)
 [
   (y unit: x unit / y unit value: x value / y value) reduced
 ].
 
-x@(UnitValue traits) / y
+x@(Measure traits) / y
 [
   x value / y as: x unit
 ].
 
-x / y@(UnitValue traits)
+x / y@(Measure traits)
 [
   x / y value as: x unit
 ].
 
-x@(UnitValue traits) = y@(UnitValue traits)
+x@(Measure traits) = y@(Measure traits)
 [
   (x isConsistentWith: y) /\ [y value = (x as: y) value]
 ].
 
-x@(UnitValue traits) < y@(UnitValue traits)
+x@(Measure traits) < y@(Measure traits)
 [
   (x isConsistentWith: y) /\ [x value < (y as: x unit) value]
 ].
 
-uv@(UnitValue traits) negated
+uv@(Measure traits) negated
 [uv value negated as: uv unit].
 
-uv@(UnitValue traits) reduced
+uv@(Measure traits) reduced
 "Answer the scalar part if the units have 'vanished'."
 [
   (uv unit isConsistentWith: ScalarUnit) ifTrue: [uv value] ifFalse: [uv]
 ].
 
-uv1@(UnitValue traits) factor: uv2@(UnitValue traits)
+uv1@(Measure traits) factor: uv2@(Measure traits)
 "Factor with respect to another unit or unitValue."
 [
   uv1 factor: uv2 unit
 ].
 
-uv@(UnitValue traits) factor: u@(Unit traits)
+uv@(Measure traits) factor: u@(Unit traits)
 [
   uv as: (uv unit factor: u).
 ].
 
-uv@(UnitValue traits) raisedTo: expon
+uv@(Measure traits) raisedTo: expon
 [
   uv unit: (uv unit raisedTo: expon) value: (uv value raisedTo: expon)
 ].
 
-uv@(UnitValue traits) reciprocal
+uv@(Measure traits) reciprocal
 [uv raisedTo: -1].
 
-uv@(UnitValue traits) sqrt
+uv@(Measure traits) sqrt
 [
   uv unit: (uv unit raisedTo: 1 / 2) value: (uv value sqrt)
 ].
 
-uv@(UnitValue traits) ceiling
+uv@(Measure traits) ceiling
 [
   uv value ceiling as: uv unit
 ].
 
-uv@(UnitValue traits) floor
+uv@(Measure traits) floor
 [
   uv value floor as: uv unit
 ].
 
-uv@(UnitValue traits) roundTo: x
+uv@(Measure traits) roundTo: x
 [
   (uv value roundTo: x) as: uv unit
 ].
 
-uv@(UnitValue traits) roundUpTo: x
+uv@(Measure traits) roundUpTo: x
 [
   (uv value roundUpTo: x) as: uv unit
 ].
 
-uv@(UnitValue traits) truncateTo: x
+uv@(Measure traits) truncateTo: x
 [
   (uv value truncateTo: x) as: uv unit
 ].
 
-uv@(UnitValue traits) rounded
+uv@(Measure traits) rounded
 [
   (uv value rounded) as: uv unit
 ].
 
-numerics define: #CompoundUnit &parents: {Unit} &slots: {#units. #exponents}.
+numerics define: #CompoundUnit &parents: {Unit} &slots: {#units -> #{}. #exponents -> #{}}.
 "Represents units which are a direct combination of BaseUnit objects, vs. DerivedUnit/PrefixedUnit/etc. objects."
 
 CompoundUnit traits compareAndHashUsingSlots: #{#units. #exponents}.
+
+cu@(CompoundUnit traits) copy
+[resend `>> [units := cu units copy. exponents := cu exponents copy. ]].
+
+u@(Unit traits) as: cu@(CompoundUnit traits)
+[
+  cu units: {u} exponents: {1}
+].
+
+cu@(CompoundUnit traits) as: _@(CompoundUnit traits)
+[
+  cu
+].
 
 cu@(CompoundUnit traits) units: units exponents: expons
 [
@@ -344,6 +347,14 @@ cu@(CompoundUnit traits) unitsAndExponentsDo: block
 
 cu@(CompoundUnit traits) conversionFactor
 [1].
+
+cu@(CompoundUnit traits) reduced
+[
+  `conditions: {
+    [cu units isEmpty] -> [ScalarUnit].
+    [cu units size = 1 /\ [cu expons first = 1]] -> [cu units first]
+  } otherwise: [cu]
+].
 
 cu@(CompoundUnit traits) printOn: s@(PrettyPrinterMixin traits)
 [| first any count |
@@ -422,11 +433,15 @@ numerics define: #ComplexUnit &parents: {CompoundUnit}
 
 cu@(ComplexUnit traits) units: units exponents: exponents
 [| result |
-  result := cu clone `>> [units := units. exponents := exponents. conversionFactor := 1. ].
-  result units with: result exponents do: [| :unit :expon |
-    result conversionFactor *= unit conversionFactor raisedTo: expon].
+  result := resend `>> [conversionFactor := 1. cachedBases := Nil. ].
+  units with: exponents do:
+    [| :unit :expon |
+     result conversionFactor *= unit conversionFactor raisedTo: expon].
   result
 ].
+
+cu@(ComplexUnit traits) copy
+[resend `>> [cachedBases := cu cachedBases copy. ]].
 
 cu@(ComplexUnit traits) bases
 "Calculating bases is expensive, so the values are cached."
@@ -697,7 +712,7 @@ bu@(BaseUnit traits) conversionFactor
 bu1@(BaseUnit traits) isConsistentWith: bu2@(BaseUnit traits)
 [bu1 == bu2].
 
-x@(UnitValue traits) / y@(Unit traits)
+x@(Measure traits) / y@(Unit traits)
 [x / (1 of: y)].
 
 bu@(BaseUnit traits) isConsistentWith: cu@(ComplexUnit traits)
@@ -883,7 +898,7 @@ DerivedUnit
 DerivedUnit
   name: 'hertz'
   abbrev: 'Hz'
-  value: ((1 of: units s) raisedTo: -1)
+  value: (1 of: units s) reciprocal
   &plural: 'hertz'.
 
 numerics define: #TemperatureUnit &parents: {DerivedUnit}
