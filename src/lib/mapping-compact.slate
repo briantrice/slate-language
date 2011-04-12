@@ -1,0 +1,86 @@
+define: #CompactMapping &parents: {Collection. Mapping} &slots: {
+  #contents -> #{}
+}.
+
+m@(CompactMapping traits) new*
+[| *rest |
+  m clone `>> [contents := rest. ]
+].
+
+m@(CompactMapping traits) size
+[m contents size // 2].
+
+m@(CompactMapping traits) capacity
+[m size].
+
+m@(CompactMapping traits) keysDo: block
+[
+  0 below: m contents size by: 2 do:
+    [| :index | block apply*, (m contents at: index)].
+].
+
+m@(CompactMapping traits) valuesDo: block
+[
+  1 below: m contents size by: 2 do:
+    [| :index | block apply*, (m contents at: index)].
+].
+
+m@(CompactMapping traits) at: key ifAbsent: block
+[
+  0 below: m contents size do:
+    [| :index | (m contents at: index) = key ifTrue:
+       [^ (m contents at: index + 1)]].
+  block do
+].
+
+m@(CompactMapping traits) at: key put: obj
+[
+  0 below: m contents size do:
+    [| :index | (m contents at: index) = key ifTrue:
+       [^ (m contents at: index + 1 put: obj)]].
+  0 below: m contents size do:
+    [| :index | (m contents at: index) ifNil:
+       [m contents at: index put: key.
+        ^ (m contents at: index + 1 put: obj)]].
+  error: 'This mapping cannot accept new key-value pairs.'
+].
+
+m@(CompactMapping traits) removeKey: key ifAbsent: block
+[
+  0 below: m contents size do:
+    [| :index | (m contents at: index) = key ifTrue:
+       [m contents at: index put: Nil. m contents at: index + 1 put: Nil]].
+  block do
+].
+
+m@(CompactMapping traits) keyAtValue: obj ifAbsent: block
+[
+  1 below: m contents size by: 2 do:
+    [| :index | (m contents at: index) = obj ifTrue:
+       [^ (m contents at: index - 1)]].
+  block do
+].
+
+m@(CompactMapping traits) keysAndValuesDo: block
+[
+  0 below: m contents size by: 2 do:
+    [| :index | block apply*, (m contents at: index), (m contents at: index + 1)].
+].
+
+m@(CompactMapping traits) allSatisfy: block
+[
+  m valuesDo: [| :value | (block apply*, value) ifFalse: [^ False]].
+  True
+].
+
+m@(CompactMapping traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"Print out the keys and values as Association constructors."
+[
+  0 below: m contents size by: 2 do:
+    [| :index |
+     (m contents at: index) printOn: o.
+     o ; ' -> '.
+     (m contents at: index + 1) printOn: o.
+     block do].
+  o
+].
