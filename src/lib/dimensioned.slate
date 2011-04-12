@@ -174,7 +174,10 @@ x@(Measure traits) + y@(Measure traits)
   (x isConsistentWith: y)
    ifTrue:
      [(x unit: x unit value: x value + y value) reduced]
-   ifFalse: "TODO: raise condition" []
+   ifFalse:
+     [(x hasSameDimensionAs: y)
+        ifTrue: [x + (y as: x)]
+        ifFalse: ["TODO: raise condition"]]
 ].
 
 x@(Measure traits) + y
@@ -349,66 +352,92 @@ cu@(CompoundUnit traits) conversionFactor
 [1].
 
 cu@(CompoundUnit traits) reduced
-[
+[| index |
+  exponentsByUnit ::= Dictionary newSizeOf: (oldUnits ::= cu units).
+  cu unitsAndExponentsDo:
+    [| :unit :exponent |
+     (exponentsByUnit includesKey: unit)
+       ifTrue: [exponentsByUnit at: unit += exponent]
+       ifFalse: [exponentsByUnit at: unit := exponent]].
+  (exponentsByUnit size = oldUnits size) ifFalse:
+    [cu units := Array newSizeOf: exponentsByUnit.
+     cu exponents := Array newSizeOf: exponentsByUnit.
+     index := 0.
+     cu units do:
+       [| :unit |
+        (exponentsByUnit includesKey: unit) ifTrue:
+          [cu units at: index := unit.
+           cu exponents at: index := exponentsByUnit at: unit.
+           index += 1.
+           exponentsByUnit removeKey: unit]]].
   `conditions: {
     [cu units isEmpty] -> [ScalarUnit].
-    [cu units size = 1 /\ [cu expons first = 1]] -> [cu units first]
+    [cu units size = 1 /\ [cu exponents first = 1]] -> [cu units first]
   } otherwise: [cu]
 ].
 
 cu@(CompoundUnit traits) printOn: s@(PrettyPrinterMixin traits)
-[| first any count |
+[| first any |
   first := True.
   any := False.
-  cu unitsAndExponentsDo: [| :unit :expon |
-    expon isPositive
-      ifTrue: [any := True.
+  cu unitsAndExponentsDo:
+    [| :unit :expon |
+     expon isPositive ifTrue:
+       [any := True.
         first ifFalse: [s nextPut: $*].
         first := False.
         unit printOn: s.
-        expon ~= 1 ifTrue: [s nextPut: $^. expon printOn: s]]].
-  count := cu exponents inject: 0 into: [| :c :each |
-    each isNegative ifTrue: [c + 1] ifFalse: [c]].
-  count isPositive
-    ifTrue: [any ifFalse: [s nextPut: $1].
-      s nextPut: $/.
-      count > 1 ifTrue: [s nextPut: $(].
-      first := True.
-      cu unitsAndExponentsDo: [| :unit :expon |
-        expon ~= 1 ifTrue: [first ifFalse: [s nextPut: $*].
-        first := False.
-        unit printOn: s.
-        expon < -1 ifTrue: [s nextPut: $^. expon negated printOn: s]]].
-      count > 1 ifTrue: [s nextPut: $)]].
+        expon ~= 1 ifTrue:
+          [s nextPut: $^. expon printOn: s]]].
+  count ::= cu exponents inject: 0 into:
+    [| :c :each | each isNegative ifTrue: [c + 1] ifFalse: [c]].
+  count isPositive ifTrue:
+    [any ifFalse: [s nextPut: $1].
+     s nextPut: $/.
+     count > 1 ifTrue:
+       [s nextPut: $(].
+        first := True.
+        cu unitsAndExponentsDo:
+          [| :unit :expon |
+           expon ~= 1 ifTrue:
+             [first ifFalse: [s nextPut: $*].
+              first := False.
+              unit printOn: s.
+              expon < -1 ifTrue: [s nextPut: $^. expon negated printOn: s]]].
+        count > 1 ifTrue: [s nextPut: $)]].
   cu
 ].
 
 cu@(CompoundUnit traits) printFullOn: s@(PrettyPrinterMixin traits) plural: b
-[| pos neg |
-  pos := cu exponents anySatisfy: #isPositive `er.
-  neg := cu exponents anySatisfy: #isNegative `er.
-  pos ifTrue: [cu printUnitsWhereExponent: #isPositive `er
-                  on: s plural: b].
-  neg /\ pos ifTrue: [s nextPut: $\s].
-  neg ifTrue: [s ; 'per '.
-    cu printUnitsWhereExponent: #isNegative `er on: s plural: b].
+[
+  pos ::= cu exponents anySatisfy: #isPositive `er.
+  neg ::= cu exponents anySatisfy: #isNegative `er.
+  pos ifTrue:
+    [cu printUnitsWhereExponent: #isPositive `er on: s plural: b].
+  neg /\ pos ifTrue:
+    [s nextPut: $\s].
+  neg ifTrue:
+    [s ; 'per '.
+     cu printUnitsWhereExponent: #isNegative `er on: s plural: b].
   cu
 ].
 
 cu@(CompoundUnit traits) printUnitsWhereExponent: block on: s plural: plural
-[| power first count index thisPlural |
+[| power first index |
   first := True.
-  count := cu exponents count: block.
+  count ::= cu exponents count: block.
   index := 0.
-  cu unitsAndExponentsDo: [| :unit :expon |
-    (block applyWith: expon)
-      ifTrue: [first ifTrue: [first := False] ifFalse: [s nextPut: $\s].
+  cu unitsAndExponentsDo:
+    [| :unit :expon |
+     (block applyWith: expon) ifTrue:
+       [first
+          ifTrue: [first := False]
+          ifFalse: [s nextPut: $\s].
         index += 1.
-        thisPlural := plural /\ [index = count].
         power := expon abs.
         (power is: Integer) /\ [power <= 3]
           ifTrue: [power = 2 ifTrue: [s ; 'square '].
-            power = 3 ifTrue: [s ; 'cubic ']].
+                   power = 3 ifTrue: [s ; 'cubic ']].
         unit printFullOn: s plural: plural.
         power > 3 \/ [(power is: Integer) not] ifTrue:
           [s nextPut: $^. power printOn: s]]].
@@ -452,19 +481,19 @@ cu@(ComplexUnit traits) bases
 ].
 
 cu@(ComplexUnit traits) calculateBases
-[| bases exponentsByUnit newUnits newExpons scratch |
+[| newUnits newExpons |
+  exponentsByUnit ::= Dictionary newSizeOf: cu units.
   cu unitsAndExponentsDo:
     [| :unit :expon |
-     (bases := unit bases) unitsAndExponentsDo:
+     unit bases unitsAndExponentsDo:
        [| :subunit :subexpon |
-        scratch := subexpon * expon.
         (exponentsByUnit includesKey: subunit)
-          ifTrue: [exponentsByUnit at: subunit += scratch]
-          ifFalse: [exponentsByUnit at: subunit := scratch]]].
+          ifTrue: [exponentsByUnit at: subunit += subexpon * expon]
+          ifFalse: [exponentsByUnit at: subunit := subexpon * expon]]].
   newUnits := ExtensibleArray new.
   newExpons := ExtensibleArray new.
-  (exponentsByUnit keySet sortedBy: [| :l :r | l abbrev < r abbrev]) do:
-    [| :unit |
+  (exponentsByUnit keySet sortBy: [| :l :r | l abbrev < r abbrev]) do:
+    [| :unit scratch |
      (scratch := exponentsByUnit at: unit) isZero ifFalse:
        [newUnits add: unit. newExpons add: scratch]].
   CompoundUnit units: newUnits exponents: newExpons
