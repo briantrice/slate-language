@@ -424,14 +424,15 @@ nodes Literal traits define: #ReusableValues &builder: [Dictionary new].
 nodes Literal traits define: #Nil &builder: [nodes Literal clone].
 
 l@(nodes Literal traits) noteReusable: obj
-[l ReusableValues at: obj ifAbsentPut:
-  [l new `setting: #{#value} to: {obj}]].
+[
+  l ReusableValues at: obj ifAbsentPut: [l new `setting: #{#value} to: {obj}]
+].
 
 [| :each | nodes Literal noteReusable: each] for:
   {Array new. ByteArray new. #''. ''}.
 
 node@(nodes Literal traits) for: obj
-[node ReusableValues at: obj ifAbsent: [node new `setting: #{#value} to: {obj}]].
+[node ReusableValues at: obj ifAbsent: [node new `>> [value := obj. ]]].
 
 node@(nodes Literal traits) for: _@Nil [node Nil].
 
@@ -733,24 +734,30 @@ Block with that method body and those input variables."
   result
 ].
 
-b@(nodes Block traits) deepCopy: scope &into: target
+block@(nodes Block traits) deepCopy: scope &into: target
 "Copies up to the level of the given scope, and sets the scope to that one."
 [
-  (target ifNil: [b]) clone `>>
+  (target ifNil: [block]) clone `>>
    [| :newBlock |
     parentScope := scope.
     localVariables :=
-      b localVariables collect:
+      block localVariables collect:
         [| :var newVar | var clone `>> [scope := newBlock. ]].
     inputVariables :=
-      b inputVariables collect: [| :var | newBlock findVariable: var name].
+      block inputVariables collect: [| :var | newBlock findVariable: var name].
     optionalVariables :=
-      b optionalVariables collect: [| :var | newBlock findVariable: var name].
+      block optionalVariables collect: [| :var | newBlock findVariable: var name].
     restVariable :=
-      b restVariable ifNotNil: [newBlock findVariable: b restVariable name].
+      block restVariable ifNotNil: [newBlock findVariable: block restVariable name].
     statements :=
-      b statements collect: #(deepCopy: newBlock) `er.
+      block statements collect: #(deepCopy: newBlock) `er.
   ]
+].
+
+block@(nodes Block traits) fixVariableScopes
+[
+  block localVariables do: [| :var | var scope := block].
+  block optionalVariables do: [| :var | var scope := block].
 ].
 
 block@(nodes Block traits) deepCopy &into: target
@@ -918,16 +925,22 @@ sig@(nodes Signature traits) new
      optionalVariables := sig optionalVariables new. ]
 ].
 
+sig@(nodes Signature traits) fixVariableScopes
+[
+  sig inputVariables do: [| :var | var scope := sig].
+  sig localVariables do: [| :var | var scope := sig].
+].
+
 method@(nodes MethodDefinition traits) as: sig@(nodes Signature traits)
 [
   sig new `>>
     [selector := method selector.
      roles := method roles.
      inputVariables := method inputVariables.
-     inputVariables do: [| :var | var scope := sig].
      restVariable := method restVariable.
      optionalKeywords := method optionalKeywords.
-     optionalVariables := method optionalVariables. ]
+     optionalVariables := method optionalVariables.
+     fixVariableScopes. ]
 ].
 
 sig@(nodes Signature traits) as: method@(nodes MethodDefinition traits)
@@ -937,12 +950,11 @@ sig@(nodes Signature traits) as: method@(nodes MethodDefinition traits)
      selector := sig selector.
      roles := sig roles.
      inputVariables := sig inputVariables copy.
-     inputVariables do: [| :var | var scope := result].
      localVariables := result inputVariables copy.
      restVariable := sig restVariable.
      optionalKeywords := sig optionalKeywords.
      optionalVariables := sig optionalVariables.
-     optionalVariables do: [| :var | var scope := result]. ]
+     fixVariableScopes. ]
 ].
 
 node1@(nodes Signature traits) = node2@(nodes Signature traits)
