@@ -93,9 +93,26 @@ array@(nodes Array traits) setTo: vals &environment: env
           {tmpVar store: vals. result} as: nodes Parenthesis]]
 ].
 
+sub@(nodes Signature traits) setTo: literal@(nodes Literal traits) &environment: env
+[
+  literal value
+    ifNil: [nodes KeywordMessage sending: #removeFrom: to: {sub selector. sub inputVariables as: nodes Array}]
+    ifNotNil: [resend]
+].
+
 sig@(nodes Signature traits) setTo: body@(nodes Block traits) &environment: env
 [| result |
-  result: (body as: (sig as: nodes MethodDefinition)).
+  result: (sig as: nodes MethodDefinition).
+  result localVariables: result localVariables ; body localVariables.
+  result optionalVariables: result optionalVariables ; body optionalVariables.
+  result fixVariableScopes.
+  result transformBy:
+    [| :node |
+     (node isSameAs: nodes UnaryMessage) /\ [node arguments first = nodes ImplicitArgument]
+       ifTrue: [(result localVariables detect: [| :var | var name = node selector])
+                  ifNil: [node]
+                  ifNotNilDo: [| :var | var load]]
+       ifFalse: [node]].
   result
 ].
 
@@ -123,7 +140,7 @@ message@(nodes KeywordMessage traits) defaultsTo: default &environment: env
        isInterned ifTrue: [selectorWithPut intern]])
     ifNil: [resend]
     ifNotNilDo:
-      [| :newSel | message sending: newSel to: (message arguments copyWith: `[val `unquote])]
+      [| :newSel | message sending: newSel to: (message arguments copyWith: `[value `unquote])]
 ].
 
 node@(nodes Node traits) setToIfNotNil: value &environment: env
