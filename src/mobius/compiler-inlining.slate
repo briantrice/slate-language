@@ -1,14 +1,14 @@
 
-gen@(VM SSACompiler traits) generate: _@#apply* on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#apply* on: args fromSource: msg result: result
 [
   result `defaultsTo: gen newRegister.
   methodReg ::= gen generate: args first result: Nil.
   argRegs ::= args allButFirst collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs from: msg.
+  gen emitInstruction: gen directApplyTo withParameters: {methodReg. argRegs size. result} ; argRegs fromSource: msg.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#applyTo: on: args fromSource: msg result: result
 [
   (args second isSameAs: nodes Array)
     ifTrue:
@@ -18,50 +18,50 @@ gen@(VM SSACompiler traits) generate: _@#applyTo: on: args from: msg result: res
          [| :item | gen generate: item result: Nil].
        gen emitInstruction: gen directApplyTo
          withParameters: {methodReg. argRegs size. result} ; argRegs
-         from: msg.
+         fromSource: msg.
        result]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args fromSource: msg result: result
 [
   result `defaultsTo: gen newRegister.
   indexReg ::= gen generate: args first result: Nil.
   argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs from: msg.
+  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs fromSource: msg.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#True on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#True on: args fromSource: msg result: result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: True from: msg result: result]
+    ifTrue: [gen registerFor: True fromSource: msg result: result]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#False on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#False on: args fromSource: msg result: result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: False from: msg result: result]
+    ifTrue: [gen registerFor: False fromSource: msg result: result]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#Nil on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#Nil on: args fromSource: msg result: result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: Nil from: msg result: result]
+    ifTrue: [gen registerFor: Nil fromSource: msg result: result]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#== on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#== on: args fromSource: msg result: result
 [
   result `defaultsTo: gen newRegister.
   argRegs ::= args collect: [| :arg | gen generate: arg result: Nil].
-  gen emitInstruction: gen isIdenticalTo withParameters: {result. argRegs first. argRegs second} from: msg.
+  gen emitInstruction: gen isIdenticalTo withParameters: {result. argRegs first. argRegs second} fromSource: msg.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#do on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#do on: args fromSource: msg result: result
 "If the block is a literal with no variables, then inline it.
 Otherwise, fall back to evaluating it via 'do'."
 [
@@ -70,31 +70,31 @@ Otherwise, fall back to evaluating it via 'do'."
     ifTrue:
       [result `defaultsTo: gen newRegister.
        block statements isEmpty
-         ifTrue: [gen emitInstruction: gen loadLiteral withParameters: {result. Nil} from: msg.
+         ifTrue: [gen emitInstruction: gen loadLiteral withParameters: {result. Nil} fromSource: msg.
                   result]
          ifFalse: [block statements allButLastDo: [| :node | gen generate: node result: Nil].
                    gen generate: block statements last result: result]]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generateExecutionOf: args from: msg result: result
-[gen generate: #do on: args from: msg result: result].
+gen@(VM SSACompiler traits) generateExecutionOf: args fromSource: msg result: result
+[gen generate: #do on: args fromSource: msg result: result].
 
-gen@(VM SSACompiler traits) generate: _@#loop on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#loop on: args fromSource: msg result: result
 "Repeatedly evaluates a block via 'do'."
 [
   label ::= gen emitLabel.
-  gen generateExecutionOf: args from: msg result: Nil.
-  gen emitInstruction: gen jumpTo withParameters: #{}"see below" from: msg.
-  gen emitBranchTo: label from: msg.
-  gen registerFor: Nil from: msg result: result "return nil"
+  gen generateExecutionOf: args fromSource: msg result: Nil.
+  gen emitInstruction: gen jumpTo withParameters: #{}"see below" fromSource: msg.
+  gen emitBranchTo: label fromSource: msg.
+  gen registerFor: Nil fromSource: msg result: result "return nil"
 ].
 
-gen@(VM SSACompiler traits) generate: _@#isNil on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#isNil on: args fromSource: msg result: result
 [
   result `defaultsTo: gen newRegister.
   objReg ::= gen generate: args first result: Nil.
-  gen emitInstruction: gen isNilOp withParameters: {result. objReg} from: msg.
+  gen emitInstruction: gen isNilOp withParameters: {result. objReg} fromSource: msg.
   result
 ].
 
@@ -140,7 +140,7 @@ out with literal keys."
           [| :proto | assoc arguments first value is: proto]]]]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: msg result: finalResult
 [
   (gen mayInlineCaseOf: msg)
    ifFalse: [^ resend].
@@ -156,13 +156,13 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args from: msg re
 
   switchKeyRegister ::= gen generate: args first result: Nil.
   gen emitInstruction: gen branchKeyed
-    withParameters: {switchKeyRegister. gen registerFor: table from: msg result: Nil}
-    from: msg.
+    withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
+    fromSource: msg.
   branchOffset ::= gen codeWriter position.
-  gen emitInstruction: gen jumpTo from: msg.
+  gen emitInstruction: gen jumpTo fromSource: msg.
   endLabel ::= gen newLabelIndex.
   otherwiseLabel ::= gen newLabelIndex.
-  gen emitBranchTo: otherwiseLabel from: msg.
+  gen emitBranchTo: otherwiseLabel fromSource: msg.
 
   assocs with: labels do:
     [| :assoc :label |
@@ -170,29 +170,29 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args from: msg re
      table
        at: (indices at: assoc arguments first value) + 1
        put: (gen currentContext resolveLabel: label at: branchOffset).
-     gen generateExecutionOf: {assoc arguments second} from: msg result: finalResult.
-     gen emitInstruction: gen jumpTo from: msg.
-     gen emitBranchTo: endLabel from: msg].
+     gen generateExecutionOf: {assoc arguments second} fromSource: msg result: finalResult.
+     gen emitInstruction: gen jumpTo fromSource: msg.
+     gen emitBranchTo: endLabel fromSource: msg].
 
   "Handle the otherwise clause. If we didn't get a literal block for it, just
     encode a Nil-push."
   gen emitLabel &labelIndex: otherwiseLabel.
   args size >= 3
-    ifTrue: [gen generateExecutionOf: {args third} from: msg result: finalResult]
-    ifFalse: [gen registerFor: Nil from: msg result: finalResult].
+    ifTrue: [gen generateExecutionOf: {args third} fromSource: msg result: finalResult]
+    ifFalse: [gen registerFor: Nil fromSource: msg result: finalResult].
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#caseOf: on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#caseOf: on: args fromSource: msg result: result
 "Generates a caseOf:otherwise: with a default otherwise clause."
 [
   (gen mayInlineCaseOf: msg)
-    ifTrue: [gen generate: #caseOf:otherwise: on: args from: msg result: result]
+    ifTrue: [gen generate: #caseOf:otherwise: on: args fromSource: msg result: result]
     ifFalse: [resend]
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: msg result: finalResult
 "Branches to one of two blocks and evaluates it."
 [
   falseLabel ::= gen newLabelIndex.
@@ -200,18 +200,18 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args from: msg resu
   finalResult `defaultsTo: gen newRegister.
   (condReg ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse withParameters: {condReg} from: msg.
-  gen emitBranchTo: falseLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: endLabel from: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condReg} fromSource: msg.
+  gen emitBranchTo: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
-  gen generateExecutionOf: {args third} from: msg result: finalResult.
+  gen generateExecutionOf: {args third} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args fromSource: msg result: finalResult
 "Optionally evaluates a block."
 [
   falseLabel ::= gen newLabelIndex.
@@ -219,64 +219,64 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args from: msg result: fina
   finalResult `defaultsTo: gen newRegister.
   (condReg ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse withParameters: {condReg} from: msg.
-  gen emitBranchTo: falseLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: endLabel from: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condReg} fromSource: msg.
+  gen emitBranchTo: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: Nil from: msg result: finalResult.
+  gen registerFor: Nil fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args fromSource: msg result: finalResult
 [
   falseLabel ::= gen newLabelIndex.
   endLabel ::= gen newLabelIndex.
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
-  gen emitBranchTo: falseLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: endLabel from: msg.
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: Nil from: msg result: finalResult.
+  gen registerFor: Nil fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifNil: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#ifNil: on: args fromSource: msg result: finalResult
 [
   endLabel ::= gen newLabelIndex.
   finalResult `defaultsTo: gen newRegister.
   lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
   condReg ::= gen newRegister.
-  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} from: msg.
-  gen emitInstruction: gen branchIfFalse withParameters: {condReg} from: msg.
-  gen emitBranchTo: endLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} fromSource: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condReg} fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args fromSource: msg result: finalResult
 [
   endLabel ::= gen newLabelIndex.
   finalResult `defaultsTo: gen newRegister.
   lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
   condReg ::= gen newRegister.
-  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} from: msg.
-  gen emitInstruction: gen branchIfTrue withParameters: {condReg} from: msg.
-  gen emitBranchTo: endLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
+  gen emitInstruction: gen isNilOp withParameters: {condReg. lhsValueReg} fromSource: msg.
+  gen emitInstruction: gen branchIfTrue withParameters: {condReg} fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#/\ on: args fromSource: msg result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
@@ -286,18 +286,18 @@ gen@(VM SSACompiler traits) generate: _@#/\ on: args from: msg result: finalResu
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
-  gen emitBranchTo: falseLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: endLabel from: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: False from: msg result: finalResult.
+  gen registerFor: False fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#\/ on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#\/ on: args fromSource: msg result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
@@ -307,81 +307,81 @@ gen@(VM SSACompiler traits) generate: _@#\/ on: args from: msg result: finalResu
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
-  gen emitBranchTo: falseLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: finalResult.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: endLabel from: msg.
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: True from: msg result: finalResult.
+  gen registerFor: True fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args fromSource: msg result: finalResult
 "Repeatedly evaluates a block while it returns True."
 [
   endLabel ::= gen newLabelIndex.
   label ::= gen emitLabel.
-  (condResult ::= gen generateExecutionOf: {args first} from: msg result: Nil)
+  (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
-  gen emitBranchTo: endLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: Nil.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: label from: msg.
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: Nil.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
-  gen registerFor: Nil from: msg result: finalResult
+  gen registerFor: Nil fromSource: msg result: finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#whileFalse: on: args from: msg result: finalResult
+gen@(VM SSACompiler traits) generate: _@#whileFalse: on: args fromSource: msg result: finalResult
 "Repeatedly evaluates a block while it returns False."
 [
   endLabel ::= gen newLabelIndex.
   label ::= gen emitLabel.
-  (condResult ::= gen generateExecutionOf: {args first} from: msg result: Nil)
+  (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
-  gen emitBranchTo: endLabel from: msg.
-  gen generateExecutionOf: {args second} from: msg result: Nil.
-  gen emitInstruction: gen jumpTo from: msg.
-  gen emitBranchTo: label from: msg.
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: endLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: Nil.
+  gen emitInstruction: gen jumpTo fromSource: msg.
+  gen emitBranchTo: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
-  gen registerFor: Nil from: msg result: finalResult
+  gen registerFor: Nil fromSource: msg result: finalResult
 ].
 
-gen@(VM SSACompiler traits) generate: _@#whileTrue on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#whileTrue on: args fromSource: msg result: result
 "Repeatedly evaluates a block while it returns True."
 [
   label ::= gen emitLabel.
-  (condResult ::= gen generateExecutionOf: args from: msg result: Nil)
+  (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue withParameters: {condResult} from: msg.
-  gen emitBranchTo: label from: msg.
-  gen registerFor: Nil from: msg result: result
+  gen emitInstruction: gen branchIfTrue withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: label fromSource: msg.
+  gen registerFor: Nil fromSource: msg result: result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#whileFalse on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#whileFalse on: args fromSource: msg result: result
 "Repeatedly evaluates a block while it returns False."
 [
   label ::= gen emitLabel.
-  (condResult ::= gen generateExecutionOf: args from: msg result: Nil)
+  (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse withParameters: {condResult} from: msg.
-  gen emitBranchTo: label from: msg.
-  gen registerFor: Nil from: msg result: result
+  gen emitInstruction: gen branchIfFalse withParameters: {condResult} fromSource: msg.
+  gen emitBranchTo: label fromSource: msg.
+  gen registerFor: Nil fromSource: msg result: result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args fromSource: msg result: result
 [
   result `defaultsTo: gen newRegister.
   indexReg ::= gen generate: args first result: Nil.
   argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs from: msg.
+  gen emitInstruction: gen primitiveDo withParameters: {indexReg. argRegs size. result} ; argRegs fromSource: msg.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#fill:with: on: args fromSource: msg result: result
 [| index value tempVar |
   block ::= args first.
   index := args second.
@@ -409,7 +409,7 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args from: msg result: r
   gen generate: block result: result
 ].
 
-gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
+gen@(VM SSACompiler traits) generate: _@#<-* on: args fromSource: msg result: result
 "Optimizes currying calls on literal blocks using #fill:with:."
 [
   (args first isSameAs: nodes Block)
@@ -418,7 +418,7 @@ gen@(VM SSACompiler traits) generate: _@#<-* on: args from: msg result: result
          generate: #fill:with:
          on: (args copyWith:
                 (nodes Literal for: args first inputVariables indexLast) at: 1)
-         from: msg
+         fromSource: msg
          result: result]
     ifFalse: [resend]
 ].

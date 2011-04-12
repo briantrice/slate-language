@@ -190,7 +190,7 @@ gen@(VM SSACompiler traits) newRegister
   gen contexts top currentRegister += 1
 ].
 
-gen@(VM SSACompiler traits) registerFor: obj from: def result: result
+gen@(VM SSACompiler traits) registerFor: obj fromSource: def result: result
 [
    "the whole problem with this function is that we could cache a literal that
  is only loaded in a loop which may not always be executed. remove this code
@@ -201,14 +201,14 @@ until we have it figured out."
                    [val key = result \/ [result isNil]
                         ifTrue: [^ val key]
                         ifFalse: [result `defaultsTo: gen newRegister.
-                                   gen emitInstruction: gen moveRegister withParameters: {result. val key} from: def.
+                                   gen emitInstruction: gen moveRegister withParameters: {result. val key} fromSource: def.
                                   ^ result]]].
  "
   "we don't want result to be a local variable and have it overwritten later"
   "saveRegister ::= result isNil."
   saveRegister ::= False.
   result `defaultsTo: gen newRegister.
-  gen emitInstruction: gen loadLiteral withParameters: {result. obj} from: def.
+  gen emitInstruction: gen loadLiteral withParameters: {result. obj} fromSource: def.
   saveRegister ifTrue: [gen setRegister: result to: obj].
   result
 ].
@@ -242,17 +242,17 @@ gen@(VM SSACompiler traits) emitRelocationAgainst: label
   gen currentContext relocations at: gen codeWriter position put: label
 ].
 
-gen@(VM SSACompiler traits) emitObject: value from: node
+gen@(VM SSACompiler traits) emitObject: value fromSource: node
 [
-  "0 below: bytesPerWord do: [| :byte | gen emitByte: (value byteShift: 0 - byte) intoByte from: node]."
+  "0 below: bytesPerWord do: [| :byte | gen emitByte: (value byteShift: 0 - byte) intoByte fromSource: node]."
   gen mapTo: node.
   gen codeWriter nextPut: value
 ].
 
-gen@(VM SSACompiler traits) emitBranchTo: label from: msg
+gen@(VM SSACompiler traits) emitBranchTo: label fromSource: msg
 [
   gen emitRelocationAgainst: label.
-  gen emitObject: 0 from: msg "replaced later when flushed"
+  gen emitObject: 0 fromSource: msg "replaced later when flushed"
 ].
 
 gen@(VM SSACompiler traits) mapTo: sourceTree
@@ -265,28 +265,28 @@ gen@(VM SSACompiler traits) mapTo: sourceTree
 ].
 
 "commented out because we could actually load node literals in compiler code:
-gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameters: values from: node
+gen@(VM SSACompiler traits) emitInstruction: code@(Integer traits) withParameters: values fromSource: node
 [
   values do: [| :value | (value is: nodes Node) ifTrue: [error: 'bad code']].
   resend
 ]."
 
-gen@(VM SSACompiler traits) emitInstruction: code withParameters: values from: node
+gen@(VM SSACompiler traits) emitInstruction: code withParameters: values fromSource: node
 [
   "add the selector to the list so we know what this function calls... so it can be unoptimized if needed"
   code = gen directSendMessage
     \/ [code = gen sendMessageWithOptionals]
     \/ [code = gen sendMessageWithOptionalsInline]
     ifTrue: [gen currentContext method selectors := gen currentContext method selectors ; {values second}].
-  gen emitObject: code from: node.
-  values do: [| :value | gen emitObject: value from: node]
+  gen emitObject: code fromSource: node.
+  values do: [| :value | gen emitObject: value fromSource: node]
 ].
 
-gen@(VM SSACompiler traits) emitInstruction: code from: node
+gen@(VM SSACompiler traits) emitInstruction: code fromSource: node
 "Emitting an instruction without an immediate value required just puts the
 byte onto the end."
 [
-  gen emitInstruction: code withParameters: #{} from: node
+  gen emitInstruction: code withParameters: #{} fromSource: node
 ].
 
 "
@@ -327,10 +327,10 @@ and push it onto the stack."
     [| :statement | statement macroExpand &environment: gen currentMethod sourceTree].
   gen currentContext currentRegister := block localVariables size. "input variables might not be needed"
   statements isEmpty
-    ifTrue: [gen emitInstruction: gen returnValue withParameters: {Nil} from: block]
+    ifTrue: [gen emitInstruction: gen returnValue withParameters: {Nil} fromSource: block]
     ifFalse:
       [statements allButLastDo: [| :node | gen generate: node result: Nil].
-       gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} from: block].
+       gen emitInstruction: gen returnRegister withParameters: {gen generate: statements last result: Nil} fromSource: block].
 
   "Set the variable information after generation, just in case it was modified."
   newBlock `>>
@@ -349,7 +349,7 @@ and push it onto the stack."
     ifFalse:
       [result `defaultsTo: gen newRegister. "asking for a register requires a context"
        gen emitInstruction: (isClosure ifTrue: [gen newClosure] ifFalse: [gen loadLiteral])
-           withParameters: {result. newBlock} from: block].
+           withParameters: {result. newBlock} fromSource: block].
 
   gen contexts isEmpty \/ [topLevel] ifTrue: [newBlock] ifFalse: [result]
 ].
@@ -366,11 +366,11 @@ gen@(VM SSACompiler traits) generate: def@(nodes MethodDefinition traits) result
     ifTrue: [^ resend].
   blockRegister ::= #generate:result: sendTo: {gen. def. Nil} through: {gen. nodes Block. Nil}.
   arrayRegister ::= gen newRegister.
-  selectorRegister ::= gen registerFor: def selector from: def result: Nil.
+  selectorRegister ::= gen registerFor: def selector fromSource: def result: Nil.
   roleRegisters ::= def roles collect: #(gen generate: _ result: Nil) `er.
   resultRegister `defaultsTo: gen newRegister.
-  gen emitInstruction: gen newArrayWith withParameters: {arrayRegister. roleRegisters size} ; roleRegisters from: def.
-  gen emitInstruction: gen directSendMessage withParameters: {resultRegister. #asMethod:on:. 3. blockRegister. selectorRegister. arrayRegister} from: def.
+  gen emitInstruction: gen newArrayWith withParameters: {arrayRegister. roleRegisters size} ; roleRegisters fromSource: def.
+  gen emitInstruction: gen directSendMessage withParameters: {resultRegister. #asMethod:on:. 3. blockRegister. selectorRegister. arrayRegister} fromSource: def.
   resultRegister
 ].
 
@@ -386,7 +386,7 @@ gen@(VM SSACompiler traits) generate: r@(nodes Resend traits) result: resultRegi
       [(gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er].
   resultRegister `defaultsTo: gen newRegister.
-  gen emitInstruction: gen resendMessage withParameters: {resultRegister. lexOffset} from: r.
+  gen emitInstruction: gen resendMessage withParameters: {resultRegister. lexOffset} fromSource: r.
   resultRegister
 ].
 
@@ -401,7 +401,7 @@ gen@(VM SSACompiler traits) generate: r@(nodes Return traits) by: lexOffset resu
       [(gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er].
   gen generate: r value result: resultRegister.
-  gen emitInstruction: gen returnFrom withParameters: {resultRegister. lexOffset} from: r.
+  gen emitInstruction: gen returnFrom withParameters: {resultRegister. lexOffset} fromSource: r.
   resultRegister.
 ].
 
@@ -431,7 +431,7 @@ gen@(VM SSACompiler traits) generate: r@(nodes ReturnLevel traits) result: resul
 
 gen@(VM SSACompiler traits) generate: literal@(nodes Literal traits) result: result
 [
-  gen registerFor: literal value from: literal result: result
+  gen registerFor: literal value fromSource: literal result: result
 ].
 
 gen@(VM SSACompiler traits) generate: n@(nodes CompoundStatement traits) result: result
@@ -455,7 +455,7 @@ gen@(VM SSACompiler traits) generate: n@(nodes Parenthesis traits) result: resul
 gen@(VM SSACompiler traits) generate: i@(nodes ImplicitArgument traits) result: result
 [
   result `defaultsTo: gen newRegister.
-  gen emitInstruction: gen loadEnvironment withParameters: {result} from: i.
+  gen emitInstruction: gen loadEnvironment withParameters: {result} fromSource: i.
   result
 ].
 
@@ -473,14 +473,14 @@ gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: r
   lexOffset isZero
     ifTrue:
       [result `defaultsTo: varIndex.
-       gen emitInstruction: gen loadVariable withParameters: {varIndex} from: load.
+       gen emitInstruction: gen loadVariable withParameters: {varIndex} fromSource: load.
        result = varIndex
-              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} from: load]]
+              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} fromSource: load]]
     ifFalse:
       [result `defaultsTo: gen newRegister.
        (gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er.
-       gen emitInstruction: gen loadFreeVariable withParameters: {result. lexOffset. varIndex} from: load].
+       gen emitInstruction: gen loadFreeVariable withParameters: {result. lexOffset. varIndex} fromSource: load].
   result
 ].
 
@@ -496,15 +496,15 @@ gen@(VM SSACompiler traits) generate: store@(nodes StoreVariable traits) result:
     ifTrue:
       [result `defaultsTo: varIndex.
        gen generate: store value result: varIndex.
-       gen emitInstruction: gen storeVariable withParameters: {varIndex} from: store.
+       gen emitInstruction: gen storeVariable withParameters: {varIndex} fromSource: store.
        result = varIndex
-              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} from: store]]
+              ifFalse: [gen emitInstruction: gen moveRegister withParameters: {result. varIndex} fromSource: store]]
     ifFalse:
       [result `defaultsTo: gen newRegister.
        gen generate: store value result: result.
        (gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er.
-       gen emitInstruction: gen storeFreeVariable withParameters: {lexOffset. varIndex. result} from: store].
+       gen emitInstruction: gen storeFreeVariable withParameters: {lexOffset. varIndex. result} fromSource: store].
   result
 ].
 
@@ -514,23 +514,23 @@ then the appropriate literal-array constructor bytecode."
 [
   registers ::= resend.
   result `defaultsTo: gen newRegister.
-  gen emitInstruction: gen newArrayWith withParameters: {result. array size} ; registers from: array.
+  gen emitInstruction: gen newArrayWith withParameters: {result. array size} ; registers fromSource: array.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: msg@(nodes Message traits) result: result
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: msg@(nodes Message traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
   result `defaultsTo: gen newRegister.
   argRegisters ::= args collect: #(gen generate: _ result: Nil) `er.
-  gen emitInstruction: gen directSendMessage withParameters: {result. selector. args size} ; argRegisters from: msg.
+  gen emitInstruction: gen directSendMessage withParameters: {result. selector. args size} ; argRegisters fromSource: msg.
   result
 ].
 
 gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals: opts
 [
-  gen generate: msg selector on: msg arguments from: (opts `defaultsTo: msg) result: result
+  gen generate: msg selector on: msg arguments fromSource: (opts `defaultsTo: msg) result: result
 ].
 
 gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals: opts
@@ -558,7 +558,7 @@ gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result
     result: result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args from: opts@(nodes OptionalKeywords traits) result: result
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: opts@(nodes OptionalKeywords traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
@@ -568,10 +568,10 @@ the push for the selector, and then the appropriate message send bytecode."
   optsWriter ::= optsArray writer.
   opts keywords with: opts arguments do:
     [| :key :arg |
-     optsWriter nextPut: (gen registerFor: key from: opts result: Nil).
+     optsWriter nextPut: (gen registerFor: key fromSource: opts result: Nil).
      optsWriter nextPut: (gen generate: arg result: Nil)].
   gen emitInstruction: gen sendMessageWithOptionalsInline withParameters:
-    {result. selector. args size. optsArray size} ; argRegisters ; optsArray from: opts.
+    {result. selector. args size. optsArray size} ; argRegisters ; optsArray fromSource: opts.
   result
 ].
 
@@ -582,5 +582,5 @@ gen@(VM SSACompiler traits) generate: opts@(nodes OptionalKeywords traits) resul
 
 gen@(VM SSACompiler traits) generate: rest@(nodes RestArguments traits) result: result
 [
-  gen generate: rest message selector on: rest message arguments ; rest arguments from: rest message result: result
+  gen generate: rest message selector on: rest message arguments ; rest arguments fromSource: rest message result: result
 ].
