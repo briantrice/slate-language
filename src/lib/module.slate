@@ -310,6 +310,12 @@ contents within the argument namespace or an optional override."
     ensure: [loader Level := oldLevel].
 ].
 
+ns@(Namespace traits) use: file
+[
+  ((result ::= ns new load: file) hasSlotNamed: #exports)
+    ifTrue: [result exports] ifFalse: [result]
+].
+
 ns@(Namespace traits) reload: file &in: namespace &verbose &showLoadMessage &imports
 [
   [ns load: file &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
