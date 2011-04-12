@@ -156,6 +156,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
 
   struct Object* traitsWindow = closure->base.map->delegates->elements[0];
   if (traitsWindow != oh->cached.compiled_method_window && traitsWindow != oh->cached.closure_method_window) {
+    fprintf(stderr, "Error: traitsWindow is not a compiled method or closure.\n");
     interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), (struct Object*)closure, NULL, 0, resultStackPointer);
     return;
   }
