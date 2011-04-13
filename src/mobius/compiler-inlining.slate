@@ -88,15 +88,19 @@ Otherwise, fall back to evaluating it via 'do'."
 gen@(VM SSACompiler traits) generateExecutionOf: args fromSource: msg result: result
 [gen generate: #do on: args fromSource: msg result: result].
 
+gen@(VM SSACompiler traits) emitJumpToLabel: label fromSource: node
+[
+  gen emitInstruction: gen jumpTo
+      fromSource: node.
+  gen emitBranchTo: label from: node.
+].
+
 gen@(VM SSACompiler traits) generate: _@#loop on: args fromSource: msg result: result
 "Repeatedly evaluates a block via 'do'."
 [
   label ::= gen emitLabel.
   gen generateExecutionOf: args fromSource: msg result: Nil.
-  gen emitInstruction: gen jumpTo
-      withParameters: #{}"see below"
-      fromSource: msg.
-  gen emitBranchTo: label fromSource: msg.
+  gen emitJumpToLabel: label fromSource: msg.
   gen registerFor: Nil fromSource: msg result: result "return nil"
 ].
 
@@ -171,9 +175,7 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
       withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
       fromSource: msg.
   branchOffset ::= gen codeWriter position.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  endLabel ::= gen newLabelIndex.
+  gen emitJumpToLabel: (endLabel ::= gen newLabelIndex) fromSource: msg.
   otherwiseLabel ::= gen newLabelIndex.
   gen emitBranchTo: otherwiseLabel fromSource: msg.
 
@@ -184,9 +186,7 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
        at: (indices at: assoc arguments first value) + 1
        put: (gen currentContext resolveLabel: label at: branchOffset).
      gen generateExecutionOf: {assoc arguments second} fromSource: msg result: finalResult.
-     gen emitInstruction: gen jumpTo
-         fromSource: msg.
-     gen emitBranchTo: endLabel fromSource: msg].
+     gen emitJumpToLabel: endLabel fromSource: msg].
 
   "Handle the otherwise clause. If we didn't get a literal block for it, just
     encode a Nil-push."
@@ -219,9 +219,7 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: ms
       fromSource: msg.
   gen emitBranchTo: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
   gen generateExecutionOf: {args third} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
@@ -241,9 +239,7 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args fromSource: msg result
       fromSource: msg.
   gen emitBranchTo: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
   gen registerFor: Nil fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
@@ -262,9 +258,7 @@ gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args fromSource: msg resul
       fromSource: msg.
   gen emitBranchTo: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
   gen registerFor: Nil fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
@@ -322,9 +316,7 @@ gen@(VM SSACompiler traits) generate: _@#/\ on: args fromSource: msg result: fin
       fromSource: msg.
   gen emitBranchTo: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
   gen registerFor: False fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
@@ -346,9 +338,7 @@ gen@(VM SSACompiler traits) generate: _@#\/ on: args fromSource: msg result: fin
       fromSource: msg.
   gen emitBranchTo: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
   gen registerFor: True fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
@@ -367,9 +357,7 @@ gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args fromSource: msg res
       fromSource: msg.
   gen emitBranchTo: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: Nil.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: label fromSource: msg.
+  gen emitJumpToLabel: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
   gen registerFor: Nil fromSource: msg result: finalResult
 ].
@@ -386,9 +374,7 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse: on: args fromSource: msg re
       fromSource: msg.
   gen emitBranchTo: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: Nil.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  gen emitBranchTo: label fromSource: msg.
+  gen emitJumpToLabel: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
   gen registerFor: Nil fromSource: msg result: finalResult
 ].
