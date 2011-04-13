@@ -206,6 +206,22 @@ gen@(VM SSACompiler traits) generate: _@#caseOf: on: args fromSource: msg result
     ifFalse: [resend]
 ].
 
+gen@(VM SSACompiler traits) emitBranchIfTrue: conditionRegister to: label fromSource: node
+[
+  gen emitInstruction: gen branchIfTrue
+      withParameters: {conditionRegister}
+      fromSource: node.
+  gen emitBranchTo: label fromSource: msg.
+].
+
+gen@(VM SSACompiler traits) emitBranchIfFalse: conditionRegister to: label fromSource: node
+[
+  gen emitInstruction: gen branchIfFalse
+      withParameters: {conditionRegister}
+      fromSource: node.
+  gen emitBranchTo: label fromSource: msg.
+].
+
 gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: msg result: finalResult
 "Branches to one of two blocks and evaluates it."
 [
@@ -214,10 +230,7 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: ms
   finalResult `defaultsTo: gen newRegister.
   (condReg ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condReg}
-      fromSource: msg.
-  gen emitBranchTo: falseLabel fromSource: msg.
+  gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
@@ -234,10 +247,7 @@ gen@(VM SSACompiler traits) generate: _@#ifTrue: on: args fromSource: msg result
   finalResult `defaultsTo: gen newRegister.
   (condReg ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condReg}
-      fromSource: msg.
-  gen emitBranchTo: falseLabel fromSource: msg.
+  gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
@@ -253,10 +263,7 @@ gen@(VM SSACompiler traits) generate: _@#ifFalse: on: args fromSource: msg resul
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: falseLabel fromSource: msg.
+  gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
@@ -274,10 +281,7 @@ gen@(VM SSACompiler traits) generate: _@#ifNil: on: args fromSource: msg result:
   gen emitInstruction: gen isNilOp
       withParameters: {condReg. lhsValueReg}
       fromSource: msg.
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condReg}
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitBranchIfFalse: condReg to: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
@@ -292,10 +296,7 @@ gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args fromSource: msg resu
   gen emitInstruction: gen isNilOp
       withParameters: {condReg. lhsValueReg}
       fromSource: msg.
-  gen emitInstruction: gen branchIfTrue
-      withParameters: {condReg}
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitBranchIfTrue: condReg to: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitLabel &labelIndex: endLabel.
   finalResult
@@ -311,10 +312,7 @@ gen@(VM SSACompiler traits) generate: _@#/\ on: args fromSource: msg result: fin
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: falseLabel fromSource: msg.
+  gen emitBranchIfFalse: condResult to: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
@@ -333,10 +331,7 @@ gen@(VM SSACompiler traits) generate: _@#\/ on: args fromSource: msg result: fin
   finalResult `defaultsTo: gen newRegister.
   (condResult ::= gen generate: args first result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: falseLabel fromSource: msg.
+  gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
   gen emitJumpToLabel: endLabel fromSource: msg.
   gen emitLabel &labelIndex: falseLabel.
@@ -352,10 +347,7 @@ gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args fromSource: msg res
   label ::= gen emitLabel.
   (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitBranchIfFalse: condResult to: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: Nil.
   gen emitJumpToLabel: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
@@ -369,10 +361,7 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse: on: args fromSource: msg re
   label ::= gen emitLabel.
   (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: endLabel fromSource: msg.
+  gen emitBranchIfTrue: condResult to: endLabel fromSource: msg.
   gen generateExecutionOf: {args second} fromSource: msg result: Nil.
   gen emitJumpToLabel: label fromSource: msg.
   gen emitLabel &labelIndex: endLabel.
@@ -385,10 +374,7 @@ gen@(VM SSACompiler traits) generate: _@#whileTrue on: args fromSource: msg resu
   label ::= gen emitLabel.
   (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfTrue
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: label fromSource: msg.
+  gen emitBranchIfTrue: condResult to: label fromSource: msg.
   gen registerFor: Nil fromSource: msg result: result
 ].
 
@@ -398,10 +384,7 @@ gen@(VM SSACompiler traits) generate: _@#whileFalse on: args fromSource: msg res
   label ::= gen emitLabel.
   (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
     ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitInstruction: gen branchIfFalse
-      withParameters: {condResult}
-      fromSource: msg.
-  gen emitBranchTo: label fromSource: msg.
+  gen emitBranchIfFalse: condResult to: label fromSource: msg.
   gen registerFor: Nil fromSource: msg result: result
 ].
 
