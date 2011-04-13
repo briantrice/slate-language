@@ -137,23 +137,23 @@ VM SSACompiler traits define: #Context &parents: {Cloneable} &slots: {
 c@(VM SSACompiler Context traits) newOn: method
 [
   method code := Array new.
-  c clone `setting: #{#method. #codeWriter. #debugMap. #registerValues. #relocations. #labels. #currentRegister}
-   to: {method.
-        method code writer.
-	method debugMap as: c debugMap.
-        c registerValues new.
-        c relocations new.
-        c labels new.
-	method inputVariables + method localVariables}
+  c clone `>>
+    [method := method.
+     codeWriter := method code writer.
+     debugMap := method debugMap as: c debugMap.
+     registerValues := c registerValues new.
+     relocations := c relocations new.
+     labels := c labels new.
+     currentRegister := method inputVariables + method localVariables. ]
 ].
 
 c@(VM SSACompiler Context traits) copy
 [
-  resend `setting: (registerValues relocations labels currentRegister)
-    to: {c registerValues copy.
-         c relocations copy.
-         c labels copy.
-         c currentRegister}
+  resend `>>
+    [registerValues := c registerValues copy.
+     relocations := c relocations copy.
+     labels := c labels copy.
+     currentRegister := c currentRegister. ]
 ].
 
 c@(VM SSACompiler Context traits) resolveLabel: label at: index
