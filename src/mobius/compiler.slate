@@ -106,8 +106,7 @@ VM SSACode Instruction instancesSetting: #{#code. #selector. #name. #argNames. #
   "it also needs to set up the input varibles"
   {28. #inlinePrimitiveCheckJump. 'Inline Primitive Check Jump'. {'register of result'. 'map array'. 'prim number(in-opcode not a register)'. 'arity'. 'jump offset' ". args..."}. {3}}.
   {29. #inlineMethodCheckJump. 'Inline Method Check Jump'. {'map array'. 'arity'. 'jump offset' ". args..."}. {1}}.
-  {30. #sendMessageWithOptionalsInline. 'Send with Optionals Inline'. {'register of result'. 'selector'. 'arity'. 'optional count'. ". args...optionals..."}. {2. 3}}.
-
+  {30. #sendMessageWithOptionalsInline. 'Send with Optionals Inline'. {'register of result'. 'selector'. 'arity'. 'optional count'. ". args...optionals..."}. {2. 3}}
 }.
 
 VM define: #SSACompiler &parents: {Cloneable}
@@ -457,19 +456,19 @@ gen@(VM SSACompiler traits) generate: literal@(nodes Literal traits) result: res
 gen@(VM SSACompiler traits) generate: n@(nodes CompoundStatement traits) result: result
 "return the registers that the values were saved into"
 [
-  n statements isEmpty
-    ifTrue: [#{}]
-    ifFalse: [(n statements allButLast collect: [| :node | gen generate: node result: Nil])
-                ; {(gen generate: n statements last result: result)}]
+  n statements collectWithIndex:
+    [| :node :index |
+     gen generate: node result:
+       (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
 ].
 
 gen@(VM SSACompiler traits) generate: n@(nodes Parenthesis traits) result: result
 "return the registers that the values were saved into"
 [
-  n statements isEmpty
-   ifTrue: [#{}]
-   ifFalse: [n statements allButLastDo: [| :node | gen generate: node result: Nil].
-             gen generate: n statements last result: result]
+  n statements doWithIndex:
+    [| :node :index |
+     gen generate: node result:
+       (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
 ].
 
 gen@(VM SSACompiler traits) generate: i@(nodes ImplicitArgument traits) result: result
@@ -566,28 +565,26 @@ the push for the selector, and then the appropriate message send bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals
 [
-  gen generate: msg selector on: msg arguments fromSource: (opts `defaultsTo: msg) result: result
+  gen generate: msg selector on: msg arguments fromSource: (optionals `defaultsTo: msg) result: result
 ].
 
-gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals
 [
-  "gen generate: (macro macroExpand &optionals: opts &environment: gen currentMethod sourceTree) result: result"
-  error: 'SSA Compiler cannot support macroexpansion at code generation time because of localVariable side-effects'.
+  "gen generate: (macro macroExpand &optionals: optionals &environment: gen currentMethod sourceTree) result: result"
+  error: 'Cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
-gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result &optionals: opts
+gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result &optionals
 [| message |
   block ::= nodes Block new `>> [parentScope := gen currentMethod sourceTree. ].
   def arguments size timesRepeat: [block addInputVariable].
   message := nodes Message sending: def selector to:
     (block inputVariables collect: #(nodes LoadVariable from: _) `er).
-  opts
-    ifNotNil:
-      [message :=
-        ((nodes OptionalArguments for: message)
-          `>> [arguments := opts arguments deepCopy: block. ])].
+  optionals ifNotNil:
+    [message := (nodes OptionalArguments for: message)
+       `>> [arguments := optionals arguments deepCopy: block. ]].
   block statements := {message}.
   gen generate:
     (nodes KeywordMessage
@@ -596,27 +593,27 @@ gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result
     result: result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: opts@(nodes OptionalKeywords traits) result: result
+gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: optionals@(nodes OptionalKeywords traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
   result `defaultsTo: gen newRegister.
   argRegisters ::= args collect: #(gen generate: _ result: Nil) `er.
-  optsArray ::= ExtensibleArray new.
-  optsWriter ::= optsArray writer.
-  opts keywords with: opts arguments do:
+  optionalsArray ::= ExtensibleArray new.
+  optionalsWriter ::= optionalsArray writer.
+  optionals keywords with: optionals arguments do:
     [| :key :arg |
-     optsWriter nextPut: (gen registerFor: key fromSource: opts result: Nil).
-     optsWriter nextPut: (gen generate: arg result: Nil)].
+     optionalsWriter nextPut: (gen registerFor: key fromSource: optionals result: Nil).
+     optionalsWriter nextPut: (gen generate: arg result: Nil)].
   gen emitInstruction: gen sendMessageWithOptionalsInline
-      withParameters: {result. selector. args size. optsArray size} ; argRegisters ; optsArray
-      fromSource: opts.
+      withParameters: {result. selector. args size. optionalsArray size} ; argRegisters ; optionalsArray
+      fromSource: optionals.
   result
 ].
 
-gen@(VM SSACompiler traits) generate: opts@(nodes OptionalKeywords traits) result: result
+gen@(VM SSACompiler traits) generate: optionals@(nodes OptionalKeywords traits) result: result
 [
-  gen generate: opts message result: result &optionals: opts
+  gen generate: optionals message result: result &optionals: optionals
 ].
 
 gen@(VM SSACompiler traits) generate: rest@(nodes RestArguments traits) result: result
