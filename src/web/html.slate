@@ -27,10 +27,9 @@ b@(Html Builder traits) didNotUnderstand: message at: position
    message optionals doWithIndex:
      [| :op :i |
       (op isSameAs: Symbol) ifTrue:
-        [| key val |
-         key := (op as: b tag) allButFirst allButLast.
-         val := ((message optionals at: i + 1) as: b tag).
-         attributes at: key put: val]].
+        [attributes
+           at: (op as: b tag) allButFirst allButLast
+           put: ((message optionals at: i + 1) as: b tag)]].
 
    message selector isUnarySelector
      ifTrue:
@@ -38,7 +37,7 @@ b@(Html Builder traits) didNotUnderstand: message at: position
      ifFalse:
        [message selector keywords doWithIndex:
           [| :tag :i builder child |
-           builder := (b new &attributes: attributes &tag: tag).
+           builder := b new &attributes: attributes &tag: tag.
            ((message arguments at: i + 1) is: Method)
              ifTrue:
                [builder environment := child environment.

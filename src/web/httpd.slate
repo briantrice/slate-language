@@ -5,60 +5,63 @@ Http define: #Server &parents: {Cloneable}.
 Http define: #Request &parents: {Cloneable} &slots: {#headers. #request. #stream}.
 Http define: #Status &parents: {Cloneable} &slots: {#code. #text}.
 
-hs@(Http Status) as: _@(String traits) [(hs code as: String) ; ' ' ; hs text].
+hs@(Http Status) as: s@(String traits) [(hs code as: s) ; ' ' ; hs text].
 
 Http define: #StatusResponse -> Dictionary new.
 
+[| :each |
+  Http StatusResponse define: each key ->
+   (Http Status clone `>>
+      [code := each value first. text := each value second. ])] for:
 {
- #Continue -> { 100. 'Continue'. }.
- #SwitchingProtocols -> { 101. 'Switching Protocols'. }.
+  #Continue -> { 100. 'Continue'. }.
+  #SwitchingProtocols -> { 101. 'Switching Protocols'. }.
 
- #OK -> { 200. 'OK'. }.
- #Created -> { 201. 'Created'. }.
- #Accepted -> { 202. 'Accepted'. }.
- #NonAuthoritativeInfo -> { 203. 'Non-Authoritative Information'. }.
- #NoContent -> { 204. 'No Content'. }.
- #ResetContent -> { 205. 'Reset Content'. }.
- #PartialContent -> { 206. 'Partial Content'. }.
+  #OK -> { 200. 'OK'. }.
+  #Created -> { 201. 'Created'. }.
+  #Accepted -> { 202. 'Accepted'. }.
+  #NonAuthoritativeInfo -> { 203. 'Non-Authoritative Information'. }.
+  #NoContent -> { 204. 'No Content'. }.
+  #ResetContent -> { 205. 'Reset Content'. }.
+  #PartialContent -> { 206. 'Partial Content'. }.
 
- #MultipleChoices -> { 300. 'Multiple Choices'. }.
- #MovedPermanently -> { 301. 'Moved Permanently'. }.
- #Found -> { 302. 'Found'. }.
- #SeeOther -> { 303. 'See Other'. }.
- #NotModified -> { 304. 'Not Modified'. }.
- #UseProxy -> { 305. 'Use Proxy'. }.
- #TemporaryRedirect -> { 307. 'Temporary Redirect'. }.
+  #MultipleChoices -> { 300. 'Multiple Choices'. }.
+  #MovedPermanently -> { 301. 'Moved Permanently'. }.
+  #Found -> { 302. 'Found'. }.
+  #SeeOther -> { 303. 'See Other'. }.
+  #NotModified -> { 304. 'Not Modified'. }.
+  #UseProxy -> { 305. 'Use Proxy'. }.
+  #TemporaryRedirect -> { 307. 'Temporary Redirect'. }.
 
- #BadRequest -> { 400. 'Bad Request'. }.
- #Unauthorized -> { 401. 'Unauthorized'. }.
- #PaymentRequired -> { 402. 'Payment Required'. }.
- #Forbidden -> { 403. 'Forbidden'. }.
- #NotFound -> { 404. 'Not Found'. }.
- #MethodNotAllowed -> { 405. 'Method Not Allowed'. }.
- #NotAcceptable -> { 406. 'Not Acceptable'. }.
- #ProxyAuthRequired -> { 407. 'Proxy Authentication Required'. }.
- #RequestTimeout -> { 408. 'Request Timeout'. }.
- #Conflict -> { 409. 'Conflict'. }.
- #Gone -> { 410. 'Gone'. }.
- #LengthRequired -> { 411. 'Length Required'. }.
- #PreconditionFailed -> { 412. 'Precondition Failed'. }.
- #RequestEntityTooLarge -> { 413. 'Request Entity Too Large'. }.
- #RequestURITooLong -> { 414. 'Request URI Too Long'. }.
- #UnsupportedMediaType -> { 415. 'Unsupported Media Type'. }.
- #RequestedRangeNotSatisfiable -> { 416. 'Requested Range Not Satisfiable'. }.
- #ExpectationFailed -> { 417. 'ExpectationFailed'. }.
+  #BadRequest -> { 400. 'Bad Request'. }.
+  #Unauthorized -> { 401. 'Unauthorized'. }.
+  #PaymentRequired -> { 402. 'Payment Required'. }.
+  #Forbidden -> { 403. 'Forbidden'. }.
+  #NotFound -> { 404. 'Not Found'. }.
+  #MethodNotAllowed -> { 405. 'Method Not Allowed'. }.
+  #NotAcceptable -> { 406. 'Not Acceptable'. }.
+  #ProxyAuthRequired -> { 407. 'Proxy Authentication Required'. }.
+  #RequestTimeout -> { 408. 'Request Timeout'. }.
+  #Conflict -> { 409. 'Conflict'. }.
+  #Gone -> { 410. 'Gone'. }.
+  #LengthRequired -> { 411. 'Length Required'. }.
+  #PreconditionFailed -> { 412. 'Precondition Failed'. }.
+  #RequestEntityTooLarge -> { 413. 'Request Entity Too Large'. }.
+  #RequestURITooLong -> { 414. 'Request URI Too Long'. }.
+  #UnsupportedMediaType -> { 415. 'Unsupported Media Type'. }.
+  #RequestedRangeNotSatisfiable -> { 416. 'Requested Range Not Satisfiable'. }.
+  #ExpectationFailed -> { 417. 'ExpectationFailed'. }.
 
- #InternalServerError -> { 500. 'Internal Server Error'. }.
- #NotImplemented -> { 501. 'Not Implemented'. }.
- #BadGateway -> { 502. 'Bad Gateway'. }.
- #ServiceUnavailable -> { 503. 'Service Unavailable'. }.
- #GatewayTimeout -> { 504. 'Gateway Timeout'. }.
- #HTTPVersionNotSupported -> { 505. 'HTTP Version Not Supported'. }.
-} do: [ | :each | Http StatusResponse define: each key -> (Http Status clone `>>
-                                     [code: each value first. text: each value second. ])].
+  #InternalServerError -> { 500. 'Internal Server Error'. }.
+  #NotImplemented -> { 501. 'Not Implemented'. }.
+  #BadGateway -> { 502. 'Bad Gateway'. }.
+  #ServiceUnavailable -> { 503. 'Service Unavailable'. }.
+  #GatewayTimeout -> { 504. 'Gateway Timeout'. }.
+  #HTTPVersionNotSupported -> { 505. 'HTTP Version Not Supported'. }.
+}.
 
 p@(Http HeaderParser traits) readHeaders
-[ | headers line lineReader keyVal|
+[| headers line lineReader keyVal|
   headers := Dictionary new.
   lineReader := p source reader.
   [line := lineReader next. line isEmpty]
@@ -68,18 +71,18 @@ p@(Http HeaderParser traits) readHeaders
 ].
 
 r@(Http Request traits) respond: status body: body
-[ | reply header |
-  reply := (body as: ByteArray).
-  header := (('HTTP/1.1 ' ; (status as: String) ; '\r\nServer: Slate/0.0\r\nContent-Type: text/html; charset=UTF-8\r\n'
+[| reply header |
+  reply := body as: ByteArray.
+  header := ('HTTP/1.1 ' ; (status as: String) ; '\r\nServer: Slate/0.0\r\nContent-Type: text/html; charset=UTF-8\r\n'
                            ; 'Content-Length: '; reply length printString
-                           ; '\r\nConnection: keep-alive\r\nKeep-Alive: timeout=10\r\n\r\n') as: ByteArray).
+                           ; '\r\nConnection: keep-alive\r\nKeep-Alive: timeout=10\r\n\r\n') as: ByteArray.
   inform: (header as: String).
   r stream nextPutAll: header ; reply.
   r stream flush.
 ].
 
 r@(Http Request traits) handle
-[ | reply out |
+[| out |
   out := '' writer.
   out ; 'Hello, <em>world</em>!'.
   out ; '<br/>Request: ' ; r request printString ; '<br/>'.
@@ -89,8 +92,8 @@ r@(Http Request traits) handle
 ].
 
 server@(Http Server traits) start
-[ | socket |
-  socket := (Net SocketServer newOn: {127. 0. 0. 1} port: 8080 dispatch: [
+[| socket |
+  socket := Net SocketServer newOn: {127. 0. 0. 1} port: 8080 dispatch: [
     | :parent :peer stream headers parser request lineStream streamReader |
 
     stream := (Net SocketStream newOn: peer).
@@ -104,7 +107,7 @@ server@(Http Server traits) start
 
     Http Request new `>> [headers := headers. stream := stream. request := request. handle].
     stream flush.
-  ]).
+  ].
   socket startAndRunInForeground.
 ].
 
