@@ -267,12 +267,15 @@ gen@(VM SSACompiler traits) mapTo: sourceTree
     ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
 ].
 
-"commented out because we could actually load node literals in compiler code:
 gen@(VM SSACompiler traits) emit: code@(Integer traits) withParameters: values fromSource: node
 [
-  values do: [| :value | (value is: nodes Node) ifTrue: [error: 'bad code']].
-  resend
-]."
+  gen emit: (gen ByCode at: code) withParameters: values fromSource: node
+].
+
+gen@(VM SSACompiler traits) emit: code@(Symbol traits) withParameters: values fromSource: node
+[
+  gen emit: (code sendTo: {gen}) withParameters: values fromSource: node
+].
 
 gen@(VM SSACompiler traits) emit: code@(VM SSACompiler Instruction traits) withParameters: values fromSource: node
 [
