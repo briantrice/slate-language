@@ -62,6 +62,7 @@ void print_usage (char *progName) {
   fprintf(stderr, "  -mn <bytes>(GB|MB|KB) New memory for young/new objects (Default 10MB)\n");
   //fprintf(stderr, "  -V                    Verbose mode (print extra diagnostic messages)\n");
   fprintf(stderr, "  -q, --quiet           Quiet mode (suppress many stderr messages)\n");
+  fprintf(stderr, "  -d                    Die with a backtrace on break\n");
   fprintf(stderr, "  -gc, --show-gc        Show Garbage Collector messages\n");
   fprintf(stderr, "  --image-help          Print the help message for the image\n");
   fprintf(stderr, "\nNotes:\n");
@@ -88,7 +89,7 @@ int main(int argc, char** argv, char **envp) {
   word_t young_limit = 5 * MB;
   size_t res;
   bool_t automaticallyInline = 0;
-  int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1;
+  int i, quiet = 0, verbose = 0, fread_num = 0, quietGC = 1, die_on_break = 0;
 #ifndef WIN32
   struct sigaction interrupt_action, pipe_ignore_action;
 #endif
@@ -121,6 +122,8 @@ int main(int argc, char** argv, char **envp) {
     } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
       quiet = 1;
       verbose = 0;
+    } else if (strcmp(argv[i], "-d") == 0) {
+      die_on_break = 1;
     } else if (strcmp(argv[i], "-gc") == 0 || strcmp(argv[i], "--show-gc") == 0) {
       quietGC = 0;
     } else if (strcmp(argv[i], "--") == 0) {
@@ -199,6 +202,7 @@ int main(int argc, char** argv, char **envp) {
   heap->automaticallyInline = automaticallyInline;
   heap->quiet = quiet;
   heap->quietGC = quietGC;
+  heap->die_on_break = die_on_break;
   heap->envp = envp;
   if (!heap->quiet) {
     fprintf(stderr, "Old Memory size: %" PRIdPTR " bytes\n", memory_limit);

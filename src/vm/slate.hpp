@@ -342,6 +342,7 @@ struct object_heap
   bool_t interrupt_flag;
   bool_t quiet; /*suppress excess stdout*/
   bool_t quietGC; /*suppress excess gc messages*/
+  bool_t die_on_break;
   bool_t automaticallyInline;
   word_t lastHash;
   word_t method_cache_hit, method_cache_access;

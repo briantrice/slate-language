@@ -652,8 +652,13 @@ void interpret(struct object_heap* oh) {
       
       if (globalInterrupt) {
         fprintf(stderr, "\nInterrupting...\n");
-        interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, 0, object_to_smallint(i->stack->elements[i->framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]));
-        globalInterrupt = 0;
+        if (oh->die_on_break) {
+          print_backtrace(oh);
+          exit(1);
+        } else {
+          interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, 0, object_to_smallint(i->stack->elements[i->framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]));
+          globalInterrupt = 0;
+        }
       }
 
 #ifdef SLATE_CUSTOM_BREAKPOINT
