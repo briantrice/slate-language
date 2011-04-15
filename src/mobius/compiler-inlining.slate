@@ -4,7 +4,7 @@ gen@(VM SSACompiler traits) generate: _@#apply* on: args fromSource: msg result:
   result `defaultsTo: gen newRegister.
   methodReg ::= gen generate: args first result: Nil.
   argRegs ::= args allButFirst collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen directApplyTo
+  gen emit: gen directApplyTo
       withParameters: {methodReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
@@ -18,7 +18,7 @@ gen@(VM SSACompiler traits) generate: _@#applyTo: on: args fromSource: msg resul
        methodReg ::= gen generate: args first result: Nil.
        argRegs ::= args second statements collect:
          [| :item | gen generate: item result: Nil].
-       gen emitInstruction: gen directApplyTo
+       gen emit: gen directApplyTo
          withParameters: {methodReg. argRegs size. result} ; argRegs
          fromSource: msg.
        result]
@@ -30,7 +30,7 @@ gen@(VM SSACompiler traits) generate: _@#primitiveApply* on: args fromSource: ms
   result `defaultsTo: gen newRegister.
   indexReg ::= gen generate: args first result: Nil.
   argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen primitiveDo
+  gen emit: gen primitiveDo
       withParameters: {indexReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
@@ -61,7 +61,7 @@ gen@(VM SSACompiler traits) generate: _@#== on: args fromSource: msg result: res
 [
   result `defaultsTo: gen newRegister.
   argRegs ::= args collect: [| :arg | gen generate: arg result: Nil].
-  gen emitInstruction: gen isIdenticalTo
+  gen emit: gen isIdenticalTo
       withParameters: {result. argRegs first. argRegs second}
       fromSource: msg.
   result
@@ -76,7 +76,7 @@ Otherwise, fall back to evaluating it via 'do'."
     ifTrue:
       [result `defaultsTo: gen newRegister.
        block statements isEmpty
-         ifTrue: [gen emitInstruction: gen loadLiteral
+         ifTrue: [gen emit: gen loadLiteral
                       withParameters: {result. Nil}
                       fromSource: msg.
                   result]
@@ -90,7 +90,7 @@ gen@(VM SSACompiler traits) generateExecutionOf: args fromSource: msg result: re
 
 gen@(VM SSACompiler traits) emitJumpToLabel: label fromSource: node
 [
-  gen emitInstruction: gen jumpTo
+  gen emit: gen jumpTo
       fromSource: node.
   gen emitBranchTo: label from: node.
 ].
@@ -108,7 +108,7 @@ gen@(VM SSACompiler traits) generate: _@#isNil on: args fromSource: msg result: 
 [
   result `defaultsTo: gen newRegister.
   objReg ::= gen generate: args first result: Nil.
-  gen emitInstruction: gen isNilOp
+  gen emit: gen isNilOp
       withParameters: {result. objReg}
       fromSource: msg.
   result
@@ -171,7 +171,7 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
     [| :index | (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
 
   switchKeyRegister ::= gen generate: args first result: Nil.
-  gen emitInstruction: gen branchKeyed
+  gen emit: gen branchKeyed
       withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
       fromSource: msg.
   branchOffset ::= gen codeWriter position.
@@ -208,7 +208,7 @@ gen@(VM SSACompiler traits) generate: _@#caseOf: on: args fromSource: msg result
 
 gen@(VM SSACompiler traits) emitBranchIfTrue: conditionRegister to: label fromSource: node
 [
-  gen emitInstruction: gen branchIfTrue
+  gen emit: gen branchIfTrue
       withParameters: {conditionRegister}
       fromSource: node.
   gen emitBranchTo: label fromSource: msg.
@@ -216,7 +216,7 @@ gen@(VM SSACompiler traits) emitBranchIfTrue: conditionRegister to: label fromSo
 
 gen@(VM SSACompiler traits) emitBranchIfFalse: conditionRegister to: label fromSource: node
 [
-  gen emitInstruction: gen branchIfFalse
+  gen emit: gen branchIfFalse
       withParameters: {conditionRegister}
       fromSource: node.
   gen emitBranchTo: label fromSource: msg.
@@ -278,7 +278,7 @@ gen@(VM SSACompiler traits) generate: _@#ifNil: on: args fromSource: msg result:
   finalResult `defaultsTo: gen newRegister.
   lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
   condReg ::= gen newRegister.
-  gen emitInstruction: gen isNilOp
+  gen emit: gen isNilOp
       withParameters: {condReg. lhsValueReg}
       fromSource: msg.
   gen emitBranchIfFalse: condReg to: endLabel fromSource: msg.
@@ -293,7 +293,7 @@ gen@(VM SSACompiler traits) generate: _@#ifNotNil: on: args fromSource: msg resu
   finalResult `defaultsTo: gen newRegister.
   lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
   condReg ::= gen newRegister.
-  gen emitInstruction: gen isNilOp
+  gen emit: gen isNilOp
       withParameters: {condReg. lhsValueReg}
       fromSource: msg.
   gen emitBranchIfTrue: condReg to: endLabel fromSource: msg.
@@ -393,7 +393,7 @@ gen@(VM SSACompiler traits) generate: _@#primitiveDo: on: args fromSource: msg r
   result `defaultsTo: gen newRegister.
   indexReg ::= gen generate: args first result: Nil.
   argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
-  gen emitInstruction: gen primitiveDo
+  gen emit: gen primitiveDo
       withParameters: {indexReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
