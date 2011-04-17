@@ -58,6 +58,10 @@ word_t opcode_length(std::vector<struct Object*>& code, word_t start){
   return 1 + opcode_base_length((word_t)code[start]) + opcode_arg_length(code, start);
 }
 
+void error_bad_opcode(word_t op) {
+  fprintf(stderr, "ERROR bad opcode: %" PRIdPTR "\n", op>>1);
+}
+
 // the opcode vararg length
 word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
   word_t op = (word_t)code[start];
@@ -93,7 +97,9 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
   case OP_IS_NIL:
     return 0;
 
-  default: assert(0);
+  default:
+    error_bad_opcode(op);
+    return 0;
   }
   return 0;
 }
@@ -128,7 +134,9 @@ word_t opcode_base_length(word_t rawop) {
   case OP_IS_NIL: return 2;
   case OP_INLINE_PRIMITIVE_CHECK: return 5;
   case OP_INLINE_METHOD_CHECK: return 3;
-  default: assert(0);
+  default:
+    error_bad_opcode(rawop);
+    return 0;
   }
   return 0;
 }
@@ -141,7 +149,9 @@ word_t opcode_jump_offset(word_t rawop) {
   case OP_BRANCH_IF_TRUE: return 2;
   case OP_INLINE_PRIMITIVE_CHECK: return 5;
   case OP_INLINE_METHOD_CHECK: return 3;
-  default: assert(0);
+  default:
+    error_bad_opcode(rawop);
+    return 0;
   }
   return 0;
 }
@@ -154,7 +164,9 @@ word_t opcode_jump_adjustment(word_t rawop) {
   case OP_BRANCH_IF_TRUE: return -1;
   case OP_INLINE_PRIMITIVE_CHECK: return 0;
   case OP_INLINE_METHOD_CHECK: return 0;
-  default: assert(0);
+  default:
+    error_bad_opcode(rawop);
+    return 0;
   }
   return 0;
 }
@@ -207,7 +219,9 @@ word_t opcode_register_locations(word_t rawop) {
   case OP_IS_NIL: return 1+2;
   case OP_INLINE_PRIMITIVE_CHECK: return 1;
   case OP_INLINE_METHOD_CHECK: return 0;
-  default: assert(0);
+  default:
+    error_bad_opcode(rawop);
+    return 0;
   }
   return 0;
 }

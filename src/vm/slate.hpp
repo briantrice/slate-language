@@ -1036,6 +1036,7 @@ keep a list of all the pics that it is in */
 void method_pic_add_callee_backreference(struct object_heap* oh,
                                          struct CompiledMethod* caller, struct CompiledMethod* callee);
 
+void error_bad_opcode(word_t op);
 void print_code_disassembled(struct object_heap* oh, struct OopArray* code);
 void print_pic_entries(struct object_heap* oh, struct CompiledMethod* method);
 
