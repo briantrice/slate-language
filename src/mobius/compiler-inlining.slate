@@ -175,7 +175,9 @@ gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
       withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
       fromSource: msg.
   branchOffset ::= gen codeWriter position.
-  gen emitJumpToLabel: (endLabel ::= gen newLabelIndex) fromSource: msg.
+  gen emitInstruction: gen jumpTo
+      fromSource: msg.
+  endLabel ::= gen newLabelIndex.
   otherwiseLabel ::= gen newLabelIndex.
   gen emitBranchTo: otherwiseLabel fromSource: msg.
 
