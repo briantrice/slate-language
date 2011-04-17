@@ -159,45 +159,46 @@ out with literal keys."
 gen@(VM SSACompiler traits) generate: _@#caseOf:otherwise: on: args fromSource: msg result: finalResult
 [
   (gen mayInlineCaseOf: msg)
-   ifFalse: [^ resend].
-  assocs ::= args second statements.
-  labels ::= assocs collect: [| :_ | gen newLabelIndex].
-  finalResult `defaultsTo: gen newRegister.
-  table ::=
-    gen buildBranchTableMapping:
-      (assocs collect: [| :assoc | assoc arguments first value]).
-  indices ::= IdentityDictionary new.
-  0 below: table size by: 2 do:
-    [| :index | (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
+    ifTrue:
+      [assocs ::= args second statements.
+       labels ::= assocs collect: [| :_ | gen newLabelIndex].
+       finalResult `defaultsTo: gen newRegister.
+       table ::=
+         gen buildBranchTableMapping:
+           (assocs collect: [| :assoc | assoc arguments first value]).
+       indices ::= IdentityDictionary new.
+       0 below: table size by: 2 do:
+         [| :index | (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
 
-  switchKeyRegister ::= gen generate: args first result: Nil.
-  gen emit: gen branchKeyed
-      withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
-      fromSource: msg.
-  branchOffset ::= gen codeWriter position.
-  gen emitInstruction: gen jumpTo
-      fromSource: msg.
-  endLabel ::= gen newLabelIndex.
-  otherwiseLabel ::= gen newLabelIndex.
-  gen emitBranchTo: otherwiseLabel fromSource: msg.
+       switchKeyRegister ::= gen generate: args first result: Nil.
+       gen emit: gen branchKeyed
+         withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
+         fromSource: msg.
+       branchOffset ::= gen codeWriter position.
+       gen emitInstruction: gen jumpTo
+         fromSource: msg.
+       endLabel ::= gen newLabelIndex.
+       otherwiseLabel ::= gen newLabelIndex.
+       gen emitBranchTo: otherwiseLabel fromSource: msg.
 
-  assocs with: labels do:
-    [| :assoc :label |
-     gen emitLabel &labelIndex: label.
-     table
-       at: (indices at: assoc arguments first value) + 1
-       put: (gen currentContext resolveLabel: label at: branchOffset).
-     gen generateExecutionOf: {assoc arguments second} fromSource: msg result: finalResult.
-     gen emitJumpToLabel: endLabel fromSource: msg].
+       assocs with: labels do:
+         [| :assoc :label |
+          gen emitLabel &labelIndex: label.
+          table
+            at: (indices at: assoc arguments first value) + 1
+            put: (gen currentContext resolveLabel: label at: branchOffset).
+          gen generateExecutionOf: {assoc arguments second} fromSource: msg result: finalResult.
+          gen emitJumpToLabel: endLabel fromSource: msg].
 
-  "Handle the otherwise clause. If we didn't get a literal block for it, just
-    encode a Nil-push."
-  gen emitLabel &labelIndex: otherwiseLabel.
-  args size >= 3
-    ifTrue: [gen generateExecutionOf: {args third} fromSource: msg result: finalResult]
-    ifFalse: [gen registerFor: Nil fromSource: msg result: finalResult].
-  gen emitLabel &labelIndex: endLabel.
-  finalResult
+       "Handle the otherwise clause. If we didn't get a literal block for it, just
+         encode a Nil-push."
+       gen emitLabel &labelIndex: otherwiseLabel.
+       args size >= 3
+         ifTrue: [gen generateExecutionOf: {args third} fromSource: msg result: finalResult]
+         ifFalse: [gen registerFor: Nil fromSource: msg result: finalResult].
+       gen emitLabel &labelIndex: endLabel.
+       finalResult]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#caseOf: on: args fromSource: msg result: result
@@ -308,38 +309,40 @@ gen@(VM SSACompiler traits) generate: _@#/\ on: args fromSource: msg result: fin
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
-    ifFalse: [^ resend].
-  falseLabel ::= gen newLabelIndex.
-  endLabel ::= gen newLabelIndex.
-  finalResult `defaultsTo: gen newRegister.
-  (condResult ::= gen generate: args first result: Nil)
-    ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitBranchIfFalse: condResult to: falseLabel fromSource: msg.
-  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitJumpToLabel: endLabel fromSource: msg.
-  gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: False fromSource: msg result: finalResult.
-  gen emitLabel &labelIndex: endLabel.
-  finalResult
+    ifTrue:
+      [falseLabel ::= gen newLabelIndex.
+       endLabel ::= gen newLabelIndex.
+       finalResult `defaultsTo: gen newRegister.
+       (condResult ::= gen generate: args first result: Nil)
+         ifNil: [error: 'conditional is nil: ' ; args first printString].
+       gen emitBranchIfFalse: condResult to: falseLabel fromSource: msg.
+       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen emitJumpToLabel: endLabel fromSource: msg.
+       gen emitLabel &labelIndex: falseLabel.
+       gen registerFor: False fromSource: msg result: finalResult.
+       gen emitLabel &labelIndex: endLabel.
+       finalResult]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#\/ on: args fromSource: msg result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
-    ifFalse: [^ resend].
-  falseLabel ::= gen newLabelIndex.
-  endLabel ::= gen newLabelIndex.
-  finalResult `defaultsTo: gen newRegister.
-  (condResult ::= gen generate: args first result: Nil)
-    ifNil: [error: 'conditional is nil: ' ; args first printString].
-  gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
-  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
-  gen emitJumpToLabel: endLabel fromSource: msg.
-  gen emitLabel &labelIndex: falseLabel.
-  gen registerFor: True fromSource: msg result: finalResult.
-  gen emitLabel &labelIndex: endLabel.
-  finalResult
+    ifTrue:
+      [falseLabel ::= gen newLabelIndex.
+       endLabel ::= gen newLabelIndex.
+       finalResult `defaultsTo: gen newRegister.
+       (condResult ::= gen generate: args first result: Nil)
+         ifNil: [error: 'conditional is nil: ' ; args first printString].
+       gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
+       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen emitJumpToLabel: endLabel fromSource: msg.
+       gen emitLabel &labelIndex: falseLabel.
+       gen registerFor: True fromSource: msg result: finalResult.
+       gen emitLabel &labelIndex: endLabel.
+       finalResult]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#whileTrue: on: args fromSource: msg result: finalResult
@@ -409,24 +412,25 @@ gen@(VM SSACompiler traits) generate: _@#fill:with: on: args fromSource: msg res
   (block isSameAs: nodes Block)
     /\ [index isSameAs: nodes Literal]
     /\ [block inputVariables acceptsKey: index value]
-    ifFalse: [^ resend].
-  (value isSameAs: nodes Literal)
-    ifFalse:
-      [tempVar := gen currentMethod sourceTree addVariable.
-       gen generate: (nodes StoreVariable of: value into: tempVar) result: Nil. "fixme"
-       value := nodes LoadVariable from: tempVar].
-  index := index value.
-  var ::= block inputVariables at: index.
-  block inputVariables := block inputVariables copyWithoutAt: index.
-  block localVariables
-    replaceFrom: index
-    below: block localVariables indexLast
-    with: block localVariables
-    startingAt: index + 1.
-  block localVariables at: block localVariables indexLast put: var.
-  block statements :=
-    {nodes StoreVariable of: value into: var} ; block statements.
-  gen generate: block result: result
+    ifTrue:
+      [(value isSameAs: nodes Literal)
+         ifFalse:
+           [tempVar := gen currentMethod sourceTree addVariable.
+            gen generate: (nodes StoreVariable of: value into: tempVar) result: Nil. "fixme"
+            value := nodes LoadVariable from: tempVar].
+       index := index value.
+       var ::= block inputVariables at: index.
+       block inputVariables := block inputVariables copyWithoutAt: index.
+       block localVariables
+         replaceFrom: index
+         below: block localVariables indexLast
+         with: block localVariables
+         startingAt: index + 1.
+       block localVariables at: block localVariables indexLast put: var.
+       block statements :=
+         {nodes StoreVariable of: value into: var} ; block statements.
+       gen generate: block result: result]
+    ifFalse: [resend]
 ].
 
 gen@(VM SSACompiler traits) generate: _@#<-* on: args fromSource: msg result: result
