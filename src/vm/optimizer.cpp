@@ -39,10 +39,8 @@ void print_opcode_args(struct object_heap* oh, std::vector<struct Object*>& code
   }
 }
 
-
 // this should eventually obsolete print_code_disassembled
 void print_code(struct object_heap* oh, std::vector<struct Object*> code) {
-
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
     fprintf(stderr, "[%" PRIuMAX "] ", i);
     word_t rawop = (word_t)code[i];
@@ -54,8 +52,6 @@ void print_code(struct object_heap* oh, std::vector<struct Object*> code) {
     print_opcode_args(oh, code, i+1, opcode_length(code, i)-1);
     fprintf(stderr, "\n");
   }
-
-  
 }
 
 word_t opcode_length(std::vector<struct Object*>& code, word_t start){
@@ -75,7 +71,6 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
   case OP_APPLY_TO: return object_to_smallint(code[i+1]);
   case OP_INLINE_PRIMITIVE_CHECK: return object_to_smallint(code[i+3]);
   case OP_INLINE_METHOD_CHECK: return object_to_smallint(code[i+1]);
-
 
   case OP_LOAD_LITERAL:
   case OP_NEW_CLOSURE:
@@ -98,7 +93,6 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
   case OP_IS_NIL:
     return 0;
 
-
   default: assert(0);
   }
   return 0;
@@ -107,7 +101,7 @@ word_t opcode_arg_length(std::vector<struct Object*>& code, word_t start) {
 // amount of arguments for an op not including varargs
 word_t opcode_base_length(word_t rawop) {
   switch (rawop) {
-  case OP_SEND: case OP_INTERNAL_SEND: return 3; 
+  case OP_SEND: case OP_INTERNAL_SEND: return 3;
   case OP_LOAD_LITERAL: return 2;
   case OP_SEND_MESSAGE_WITH_OPTS: return 4;
   case OP_SEND_WITH_OPTIONALS_INLINE: return 4;
@@ -137,7 +131,6 @@ word_t opcode_base_length(word_t rawop) {
   default: assert(0);
   }
   return 0;
-
 }
 
 // what argument is the jump for the given op
@@ -174,15 +167,13 @@ bool opcode_can_jump(word_t rawop) {
   case OP_INLINE_PRIMITIVE_CHECK:
   case OP_INLINE_METHOD_CHECK:
     return true;
-  default: 
+  default:
     // i just have this to throw an error of it's an invalid instruction
     assert(opcode_base_length(rawop) >= 0);
     return false;
-
   }
   return 0;
 }
-
 
 // bit or-ing with LSB being the first argument and MSB being the last argument
 // all addition arguments (when opcode_arg_len > 0), are register arguments
@@ -218,13 +209,11 @@ word_t opcode_register_locations(word_t rawop) {
   case OP_INLINE_METHOD_CHECK: return 0;
   default: assert(0);
   }
-
   return 0;
 }
 
 void optimizer_append_code_to_vector(struct OopArray* code, std::vector<struct Object*>& vector) {
   std::copy(code->elements, code->elements + array_size(code), std::back_inserter(vector));
-
 }
 
 void optimizer_offset_value(std::vector<struct Object*>& code, word_t pos, word_t offset) {
@@ -253,16 +242,12 @@ void optimizer_offset_registers(std::vector<struct Object*>& code, int offset) {
     for (size_t offsetArg = i + 1 + baseLength; offsetArg < i + 1 + baseLength + opcodeArgCount; offsetArg++) {
       optimizer_offset_value(code, offsetArg, offset);
     }
-
   }
-
 }
-
 
 void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std::vector<struct Object*>& newCode) {
   assert(offset >= 0 && offset <= code.size());
   //fix all relative jumps before inserting code if they jump over where our code is to be inserted
-
 
   //cases before the offset jumping past it
   for (size_t i = 0; i < offset; i += opcode_length(code, i)) {
@@ -274,7 +259,6 @@ void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std
         optimizer_offset_value(code, i + codeJumpParameter, newCode.size());
       }
     }
-
   }
 
   //cases after the offset jumping before it
@@ -287,18 +271,14 @@ void optimizer_insert_code(std::vector<struct Object*>& code, size_t offset, std
         optimizer_offset_value(code, i + codeJumpParameter, 0 - newCode.size());
       }
     }
-
   }
 
   code.insert(code.begin() + offset, newCode.begin(), newCode.end());
-
 }
-
 
 void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, word_t amount) {
   assert(offset >= 0 && offset < code.size() && amount > 0);
   //fix all relative jumps before inserting code if they jump over where our code is to be inserted
-
 
   //cases before the offset jumping past it
   for (size_t i = 0; i < offset; i += opcode_length(code, i)) {
@@ -310,7 +290,6 @@ void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, wor
         optimizer_offset_value(code, i + codeJumpParameter, 0 - amount);
       }
     }
-
   }
 
   //cases after the offset jumping before it
@@ -323,18 +302,13 @@ void optimizer_delete_code(std::vector<struct Object*>& code, size_t offset, wor
         optimizer_offset_value(code, i + codeJumpParameter, amount);
       }
     }
-
   }
-         
-
   code.erase(code.begin() + offset, code.begin() + offset + amount);
 }
-
 
 bool optimizer_picEntry_compare(struct Object** entryA, struct Object** entryB) {
   return (word_t)entryA[PIC_CALLEE_COUNT] > (word_t)entryB[PIC_CALLEE_COUNT];
 }
-
 
 bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMethod* method) {
   if (method->heapAllocate == oh->cached.true_object) return false; //since i'm removing load/store ops currently
@@ -358,7 +332,6 @@ bool optimizer_method_can_be_optimized(struct object_heap* oh, struct CompiledMe
   return true;
 }
 
-
 bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMethod* method) {
   if (method->heapAllocate == oh->cached.true_object) return false;
   if (method->restVariable == oh->cached.true_object) return false;
@@ -378,9 +351,7 @@ bool optimizer_method_can_be_inlined(struct object_heap* oh, struct CompiledMeth
     case OP_BRANCH_KEYED: /*i don't want to figure this one out now*/
     case OP_STORE_FREE_VARIABLE: /*maybe these should be possible*/
     case OP_LOAD_FREE_VARIABLE:
-      
       return false;
-
     default: break;
     }
   }
@@ -416,7 +387,6 @@ void optimizer_commonly_called_implementations(struct object_heap* oh, struct Co
 
 void optimizer_change_returns_to_jumps(struct object_heap* oh, std::vector<struct Object*>& code, word_t resultReg, word_t jumpOutDistance) {
 
-
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
     if (OP_RETURN_REGISTER == (word_t)code[i]) {
       struct Object* reg = code[i+1];
@@ -438,18 +408,12 @@ void optimizer_change_returns_to_jumps(struct object_heap* oh, std::vector<struc
       codeToInsert.push_back(smallint_to_object(code.size() - i - 2 + jumpOutDistance + 1));
       optimizer_delete_code(code, i, 2);
       optimizer_insert_code(code, i, codeToInsert);
-
     }
   }
-
-
 }
 
-
 void optimizer_remove_redundant_ops(struct object_heap* oh, struct CompiledMethod* method, std::vector<struct Object*>& code) {
-
   if (method->heapAllocate == oh->cached.true_object) return;
-
   for (size_t i = 0; i < code.size(); ) {
     if (OP_LOAD_VARIABLE == (word_t)code[i]) {
       optimizer_delete_code(code, i, 2);
@@ -458,7 +422,6 @@ void optimizer_remove_redundant_ops(struct object_heap* oh, struct CompiledMetho
     } else {
       i += opcode_length(code, i);
     }
-
   }
 }
 
@@ -481,7 +444,6 @@ size_t optimizer_op_location_before(std::vector<struct Object*>& code, size_t op
   return j;
 }
 
-
 //fixme: remove double jumps (a jump that points to another jump), remove no-op load/store variables
 // the main inliner function
 void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* method) {
@@ -490,11 +452,10 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
   std::vector<struct Object**> commonCalledImplementations; //picEntries for each selector
   word_t newRegisterCount = object_to_smallint(method->registerCount);
 
-
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
 
     // mark default sends (which come after inline checks as internals so they don't get inline checks generated again)
-    
+
     // inline checks will point to the instruction after the default case
     if (OP_INLINE_PRIMITIVE_CHECK == (word_t)code[i]) {
       //jump past the send because this one coming up has already been inlined
@@ -502,7 +463,7 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
       size_t j = i + opcode_length(code, i);
       j += jumpAmount;
       size_t plainSendLocation = optimizer_op_location_before(code, j);
-      assert(plainSendLocation < j 
+      assert(plainSendLocation < j
              && (OP_SEND == (word_t)code[plainSendLocation] || OP_INTERNAL_SEND == (word_t)code[plainSendLocation]));
       //don't jump past it because there may be an actual inline function somewhere
       if (OP_SEND == (word_t)code[plainSendLocation]) {
@@ -570,7 +531,7 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
         //remap registers
         optimizer_offset_registers(codeToInsert, newRegisterCount);
         newRegisterCount += requiredRegisters;
-        
+
         optimizer_remove_redundant_ops(oh, cmethod, codeToInsert);
 
         // put this in after we do register moving because it's already been done for this
@@ -582,7 +543,7 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
         inlineOpcodeCode[3] = smallint_to_object(codeToInsert.size()); // this is the jump
         std::copy(codeToInsert.begin(), codeToInsert.end(), std::back_inserter(inlineOpcodeCode));
         optimizer_insert_code(code, i, inlineOpcodeCode);
-        
+
         //this next would skip over inlining further
         //which might protect us from infinite loops
         //if you comment this out, the jumps at the end of inserted code will be wrong
@@ -609,7 +570,6 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
         assert(0);
       }
     }
-
   }
 
   optimizer_remove_redundant_ops(oh, method, code);
@@ -622,7 +582,4 @@ void optimizer_inline_callees(struct object_heap* oh, struct CompiledMethod* met
   method->code = newCode;
   method->registerCount = smallint_to_object(newRegisterCount);
   heap_store_into(oh, (struct Object*) method, (struct Object*) method->code);
-
-
-
 }
