@@ -1255,6 +1255,7 @@ void interpret(struct object_heap* oh) {
         }
       default:
         fprintf(stderr, "error bad opcode... %" PRIdPTR "\n", op>>1);
+        print_code_disassembled(oh, i->method->code);
         assert(0);
         break;
       }
