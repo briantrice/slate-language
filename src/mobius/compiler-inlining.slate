@@ -275,6 +275,25 @@ gen@(SSAVM Compiler traits) generate: _@#ifFalse: on: args fromSource: msg resul
   finalResult
 ].
 
+gen@(SSAVM Compiler traits) generate: _@#ifNil:ifNotNil: on: args fromSource: msg result: finalResult
+[
+  falseLabel ::= gen newLabelIndex.
+  endLabel ::= gen newLabelIndex.
+  finalResult `defaultsTo: gen newRegister.
+  lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
+  condReg ::= gen newRegister.
+  gen emit: gen isNilOp
+      withParameters: {condReg. lhsValueReg}
+      fromSource: msg.
+  gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
+  gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+  gen emitJumpToLabel: endLabel fromSource: msg.
+  gen emitLabel &labelIndex: falseLabel.
+  gen generateExecutionOf: {args third} fromSource: msg result: finalResult.
+  gen emitLabel &labelIndex: endLabel.
+  finalResult
+].
+
 gen@(SSAVM Compiler traits) generate: _@#ifNil: on: args fromSource: msg result: finalResult
 [
   endLabel ::= gen newLabelIndex.
