@@ -45,10 +45,10 @@ of it."
     ifNotNilDo: [| :src | m forwardTo: src compile]
 ].
 
-lobby ensureNamespace: #VM.
-VM ensureNamespace: #SSACode.
+ensureNamespace: #SSAVM.
+SSAVM ensureNamespace: #Code.
 
-VM SSACode define: #Instruction &parents: {Cloneable} &slots: {
+SSAVM Code define: #Instruction &parents: {Cloneable} &slots: {
   #code.
   #selector.
   #name.
@@ -56,21 +56,21 @@ VM SSACode define: #Instruction &parents: {Cloneable} &slots: {
   #offsettingArgIndices -> {}.
 }.
 
-VM SSACode define: #ByCode ->
-  (VM SSACode Instruction traits define: #ByCode -> Dictionary new).
+SSAVM Code define: #ByCode ->
+  (SSAVM Code Instruction traits define: #ByCode -> Dictionary new).
 
-i@(VM SSACode Instruction traits) instancesSetting: slotNames to: values
+i@(SSAVM Code Instruction traits) instancesSetting: slotNames to: values
 [
   resend `>> [do: [| :each |
     each argNames do:
       [| :argName | (#{'arity'. 'size'} includes: argName) ifTrue:
         [""]].
-    VM SSACode addImmutableSlot: each selector valued: each code.
+    SSAVM Code addImmutableSlot: each selector valued: each code.
     i ByCode at: each code put: each].
   ]
 ].
 
-VM SSACode Instruction instancesSetting: #{#code. #selector. #name. #argNames. #offsettingArgIndices} to: #{
+SSAVM Code Instruction instancesSetting: #{#code. #selector. #name. #argNames. #offsettingArgIndices} to: #{
   {0. #directSendMessage. 'Direct Send'. {'register of result'. 'selector'. 'arity' ". args..."}. {2}}.
   "{1. #indirectSendMessage. 'Indirect Send'. {'register of result'. 'selector'. 'arity'. args...}. {2}}."
   "{2. #allocateRegisters. 'Allocate Registers'. 3. {}}."
@@ -110,15 +110,15 @@ VM SSACode Instruction instancesSetting: #{#code. #selector. #name. #argNames. #
   {30. #sendMessageWithOptionalsInline. 'Send with Optionals Inline'. {'register of result'. 'selector'. 'arity'. 'optional count'. ". args...optionals..."}. {2. 3}}
 }.
 
-VM define: #SSACompiler &parents: {Cloneable}
+SSAVM define: #Compiler &parents: {Cloneable}
   &slots: {#contexts -> Stack new}.
 
-VM SSACompiler traitsWindow addDelegate: VM SSACode.
+SSAVM Compiler traitsWindow addDelegate: SSAVM Code.
 
-g@(VM SSACompiler traits) new
+g@(SSAVM Compiler traits) new
 [g clone `>> [contexts := g contexts new. ]].
 
-VM SSACompiler traits define: #Context &parents: {Cloneable} &slots: {
+SSAVM Compiler traits define: #Context &parents: {Cloneable} &slots: {
   #isClosure -> False "Whether the method being compiled is a closure.".
   #method -> CompiledMethod new "The method the context targets.".
   #codeWriter "The stream for writing bytecodes to the method.".
@@ -134,7 +134,7 @@ VM SSACompiler traits define: #Context &parents: {Cloneable} &slots: {
     "The last assigned register value.. or the count?"
 }.
 
-c@(VM SSACompiler Context traits) newOn: method
+c@(SSAVM Compiler Context traits) newOn: method
 [
   method code := Array new.
   c clone `>>
@@ -147,7 +147,7 @@ c@(VM SSACompiler Context traits) newOn: method
      currentRegister := method inputVariables + method localVariables. ]
 ].
 
-c@(VM SSACompiler Context traits) copy
+c@(SSAVM Compiler Context traits) copy
 [
   resend `>>
     [registerValues := c registerValues copy.
@@ -156,12 +156,12 @@ c@(VM SSACompiler Context traits) copy
      currentRegister := c currentRegister. ]
 ].
 
-c@(VM SSACompiler Context traits) resolveLabel: label at: index
+c@(SSAVM Compiler Context traits) resolveLabel: label at: index
 [
   (c labels at: label) - index
 ].
 
-c@(VM SSACompiler Context traits) resolveLabels
+c@(SSAVM Compiler Context traits) resolveLabels
 "This takes the labels Dictionary and uses it to replace the temporary ID's
 placed in the jump fields with actual offsets."
 [
@@ -172,7 +172,7 @@ placed in the jump fields with actual offsets."
      code at: index put: offset]
 ].
 
-c@(VM SSACompiler Context traits) flush
+c@(SSAVM Compiler Context traits) flush
 [
   c method code := c codeWriter contents.
   c method debugMap := c debugMap as: Array.
@@ -180,17 +180,17 @@ c@(VM SSACompiler Context traits) flush
   c
 ].
 
-c@(VM SSACompiler Context traits) beClosure [c isClosure := True].
+c@(SSAVM Compiler Context traits) beClosure [c isClosure := True].
 
-gen@(VM SSACompiler traits) currentContext
+gen@(SSAVM Compiler traits) currentContext
 [gen contexts top].
 
-gen@(VM SSACompiler traits) newRegister
+gen@(SSAVM Compiler traits) newRegister
 [
   gen contexts top currentRegister += 1
 ].
 
-gen@(VM SSACompiler traits) registerFor: obj fromSource: def result: result
+gen@(SSAVM Compiler traits) registerFor: obj fromSource: def result: result
 [
    "the whole problem with this function is that we could cache a literal that
  is only loaded in a loop which may not always be executed. remove this code
@@ -217,49 +217,49 @@ until we have it figured out."
   result
 ].
 
-gen@(VM SSACompiler traits) setRegister: x to: y
+gen@(SSAVM Compiler traits) setRegister: x to: y
 [
   gen contexts top registerValues add: x -> y ifPresent:
     [error: 'Compiler error: Register already set.'].
 ].
 
-gen@(VM SSACompiler traits) currentMethod
+gen@(SSAVM Compiler traits) currentMethod
 [gen currentContext method].
 
-gen@(VM SSACompiler traits) codeWriter
+gen@(SSAVM Compiler traits) codeWriter
 [gen currentContext codeWriter].
 
-gen@(VM SSACompiler traits) newLabelIndex
+gen@(SSAVM Compiler traits) newLabelIndex
 [
   gen currentContext labels `>> [addLast: Nil. indexLast]
 ].
 
-gen@(VM SSACompiler traits) emitLabel &labelIndex
+gen@(SSAVM Compiler traits) emitLabel &labelIndex
 [
   labelIndex `defaultsTo: gen newLabelIndex.
   gen currentContext labels at: labelIndex put: gen codeWriter position.
   labelIndex
 ].
 
-gen@(VM SSACompiler traits) emitRelocationAgainst: label
+gen@(SSAVM Compiler traits) emitRelocationAgainst: label
 [
   gen currentContext relocations at: gen codeWriter position put: label
 ].
 
-gen@(VM SSACompiler traits) emitObject: value fromSource: node
+gen@(SSAVM Compiler traits) emitObject: value fromSource: node
 [
   "0 below: bytesPerWord do: [| :byte | gen emitByte: (value byteShift: 0 - byte) intoByte fromSource: node]."
   gen mapTo: node.
   gen codeWriter nextPut: value
 ].
 
-gen@(VM SSACompiler traits) emitBranchTo: label fromSource: msg
+gen@(SSAVM Compiler traits) emitBranchTo: label fromSource: msg
 [
   gen emitRelocationAgainst: label.
   gen emitObject: 0 fromSource: msg "replaced later when flushed"
 ].
 
-gen@(VM SSACompiler traits) mapTo: sourceTree
+gen@(SSAVM Compiler traits) mapTo: sourceTree
 [
   index ::= gen codeWriter position.
   (debugMap ::= gen currentContext debugMap) isEmpty not /\ [debugMap last == sourceTree]
@@ -268,17 +268,17 @@ gen@(VM SSACompiler traits) mapTo: sourceTree
     ifFalse: [debugMap addAllLast: {index. index. sourceTree}]
 ].
 
-gen@(VM SSACompiler traits) emit: code@(Integer traits) withParameters: values fromSource: node
+gen@(SSAVM Compiler traits) emit: code@(Integer traits) withParameters: values fromSource: node
 [
   gen emit: (gen ByCode at: code) withParameters: values fromSource: node
 ].
 
-gen@(VM SSACompiler traits) emit: code@(Symbol traits) withParameters: values fromSource: node
+gen@(SSAVM Compiler traits) emit: code@(Symbol traits) withParameters: values fromSource: node
 [
   gen emit: (code sendTo: {gen}) withParameters: values fromSource: node
 ].
 
-gen@(VM SSACompiler traits) emit: code@(VM SSACompiler Instruction traits) withParameters: values fromSource: node
+gen@(SSAVM Compiler traits) emit: code@(SSAVM Compiler Instruction traits) withParameters: values fromSource: node
 [
   "add the selector to the list so we know what this function calls... so it can be unoptimized if needed"
   code = gen directSendMessage
@@ -289,7 +289,7 @@ gen@(VM SSACompiler traits) emit: code@(VM SSACompiler Instruction traits) withP
   values do: [| :value | gen emitObject: value fromSource: node]
 ].
 
-gen@(VM SSACompiler traits) emit: code@(VM SSACompiler Instruction traits) fromSource: node
+gen@(SSAVM Compiler traits) emit: code@(SSAVM Compiler Instruction traits) fromSource: node
 "Emitting an instruction without an immediate value required just puts the
 byte onto the end."
 [
@@ -304,21 +304,21 @@ Generate methods. They all must return the register(s) with the results
 =======================================================================
 "
 
-_@(VM SSACompiler traits) generate: _@(nodes Node traits)
+_@(SSAVM Compiler traits) generate: _@(nodes Node traits)
 "Do nothing in the default case, for comments and annotations and such."
 [error: 'do not call generate without a result'].
 
-_@(VM SSACompiler traits) generate: _@(nodes Node traits) result: result
+_@(SSAVM Compiler traits) generate: _@(nodes Node traits) result: result
 "Do nothing in the default case, for comments and annotations and such."
 [].
 
-gen@(VM SSACompiler traits) generate: ann@(nodes Annotation traits) result: result
+gen@(SSAVM Compiler traits) generate: ann@(nodes Annotation traits) result: result
 "Generate the annotation's value."
 [
   gen generate: ann value
 ].
 
-gen@(VM SSACompiler traits) generate: block@(nodes Block traits) result: result &topLevel
+gen@(SSAVM Compiler traits) generate: block@(nodes Block traits) result: result &topLevel
 "Encountering a new block, build a new CompiledMethod object and push it and
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
@@ -369,12 +369,12 @@ and push it onto the stack."
   gen contexts isEmpty \/ [topLevel] ifTrue: [newBlock] ifFalse: [result]
 ].
 
-gen@(VM SSACompiler traits) generate: sig@(nodes Signature traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: sig@(nodes Signature traits) result: resultRegister
 [
   shouldNotImplement
 ].
 
-gen@(VM SSACompiler traits) generate: def@(nodes MethodDefinition traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: def@(nodes MethodDefinition traits) result: resultRegister
 "Translate method definitions to equivalent asMethod:on: invocations."
 [
   gen contexts isEmpty
@@ -393,7 +393,7 @@ gen@(VM SSACompiler traits) generate: def@(nodes MethodDefinition traits) result
   resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(nodes Resend traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes Resend traits) result: resultRegister
 [
   scope ::= gen currentMethod sourceTree.
   lexOffset ::= gen contexts indexLast -
@@ -411,10 +411,10 @@ gen@(VM SSACompiler traits) generate: r@(nodes Resend traits) result: resultRegi
   resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(nodes Return traits) result: blah
+gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) result: blah
 [overrideThis].
 
-gen@(VM SSACompiler traits) generate: r@(nodes Return traits) by: lexOffset result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) by: lexOffset result: resultRegister
 [
   resultRegister `defaultsTo: gen newRegister.
   lexOffset isPositive
@@ -428,7 +428,7 @@ gen@(VM SSACompiler traits) generate: r@(nodes Return traits) by: lexOffset resu
   resultRegister.
 ].
 
-gen@(VM SSACompiler traits) generate: r@(nodes ReturnClose traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnClose traits) result: resultRegister
 "Exits the first enclosing named method in the lexical scope."
 [
   lexOffset ::= gen contexts indexLast -
@@ -438,7 +438,7 @@ gen@(VM SSACompiler traits) generate: r@(nodes ReturnClose traits) result: resul
   gen generate: r by: lexOffset result: resultRegister
 ].
 
-gen@(VM SSACompiler traits) generate: r@(nodes ReturnFar traits) result: result
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnFar traits) result: result
 "Exits the last enclosing named method in the lexical scope."
 [
   lexOffset ::= gen contexts indexLast -
@@ -448,16 +448,16 @@ gen@(VM SSACompiler traits) generate: r@(nodes ReturnFar traits) result: result
   gen generate: r by: lexOffset result: result
 ].
 
-gen@(VM SSACompiler traits) generate: r@(nodes ReturnLevel traits) result: result
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnLevel traits) result: result
 "Exits the Nth enclosing lexical scope."
 [gen generate: r by: r level result: result].
 
-gen@(VM SSACompiler traits) generate: literal@(nodes Literal traits) result: result
+gen@(SSAVM Compiler traits) generate: literal@(nodes Literal traits) result: result
 [
   gen registerFor: literal value fromSource: literal result: result
 ].
 
-gen@(VM SSACompiler traits) generate: n@(nodes CompoundStatement traits) result: result
+gen@(SSAVM Compiler traits) generate: n@(nodes CompoundStatement traits) result: result
 "return the registers that the values were saved into"
 [
   n statements collectWithIndex:
@@ -466,7 +466,7 @@ gen@(VM SSACompiler traits) generate: n@(nodes CompoundStatement traits) result:
        (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
 ].
 
-gen@(VM SSACompiler traits) generate: n@(nodes Parenthesis traits) result: result
+gen@(SSAVM Compiler traits) generate: n@(nodes Parenthesis traits) result: result
 "return the registers that the values were saved into"
 [
   n statements doWithIndex:
@@ -475,7 +475,7 @@ gen@(VM SSACompiler traits) generate: n@(nodes Parenthesis traits) result: resul
        (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
 ].
 
-gen@(VM SSACompiler traits) generate: i@(nodes ImplicitArgument traits) result: result
+gen@(SSAVM Compiler traits) generate: i@(nodes ImplicitArgument traits) result: result
 [
   result `defaultsTo: gen newRegister.
   gen emit: gen loadEnvironment
@@ -484,10 +484,10 @@ gen@(VM SSACompiler traits) generate: i@(nodes ImplicitArgument traits) result: 
   result
 ].
 
-gen@(VM SSACompiler traits) generate: _@(nodes Namespace traits) result: result
+gen@(SSAVM Compiler traits) generate: _@(nodes Namespace traits) result: result
 [shouldNotImplement].
 
-gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: result
+gen@(SSAVM Compiler traits) generate: load@(nodes LoadVariable traits) result: result
 [
   scope ::= load variable scope.
   varIndex ::= scope localVariables indexOf: load variable.
@@ -515,7 +515,7 @@ gen@(VM SSACompiler traits) generate: load@(nodes LoadVariable traits) result: r
   result
 ].
 
-gen@(VM SSACompiler traits) generate: store@(nodes StoreVariable traits) result: result
+gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) result: result
 [
   scope ::= store variable scope.
   varIndex ::= scope localVariables indexOf: store variable.
@@ -545,7 +545,7 @@ gen@(VM SSACompiler traits) generate: store@(nodes StoreVariable traits) result:
   result
 ].
 
-gen@(VM SSACompiler traits) generate: array@(nodes Array traits) result: result
+gen@(SSAVM Compiler traits) generate: array@(nodes Array traits) result: result
 "Generate the code to push the element expression results on the stack,
 then the appropriate literal-array constructor bytecode."
 [
@@ -557,7 +557,7 @@ then the appropriate literal-array constructor bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: msg@(nodes Message traits) result: result
+gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: msg@(nodes Message traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
@@ -569,18 +569,18 @@ the push for the selector, and then the appropriate message send bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: msg@(nodes Message traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: msg@(nodes Message traits) result: result &optionals
 [
   gen generate: msg selector on: msg arguments fromSource: (optionals `defaultsTo: msg) result: result
 ].
 
-gen@(VM SSACompiler traits) generate: macro@(nodes Macro traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: macro@(nodes Macro traits) result: result &optionals
 [
   "gen generate: (macro macroExpand &optionals: optionals &environment: gen currentMethod sourceTree) result: result"
   error: 'Cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
-gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: def@(nodes Deferred traits) result: result &optionals
 [| message |
   block ::= nodes Block new `>> [parentScope := gen currentMethod sourceTree. ].
   def arguments size timesRepeat: [block addInputVariable].
@@ -597,7 +597,7 @@ gen@(VM SSACompiler traits) generate: def@(nodes Deferred traits) result: result
     result: result
 ].
 
-gen@(VM SSACompiler traits) generate: selector@(Symbol traits) on: args fromSource: optionals@(nodes OptionalKeywords traits) result: result
+gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: optionals@(nodes OptionalKeywords traits) result: result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
@@ -615,15 +615,17 @@ the push for the selector, and then the appropriate message send bytecode."
   result
 ].
 
-gen@(VM SSACompiler traits) generate: optionals@(nodes OptionalKeywords traits) result: result
+gen@(SSAVM Compiler traits) generate: optionals@(nodes OptionalKeywords traits) result: result
 [
   gen generate: optionals message result: result &optionals: optionals
 ].
 
-gen@(VM SSACompiler traits) generate: rest@(nodes RestArguments traits) result: result
+gen@(SSAVM Compiler traits) generate: rest@(nodes RestArguments traits) result: result
 [
   gen generate: rest message selector
       on: rest message arguments ; rest arguments
       fromSource: rest message
       result: result
 ].
+
+define: #VM -> SSAVM.

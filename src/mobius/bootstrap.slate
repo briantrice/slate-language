@@ -490,10 +490,10 @@ gen@(Generator traits) addAccessorFor: slotName on: obj
      setSlot: #selectors to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:}).
      setSlot: #code to:
        (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {
-         VM SSACode loadVariable. 0.
-         VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
-         VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
-         VM SSACode returnRegister. 0
+         SSAVM Code loadVariable. 0.
+         SSAVM Code loadLiteral. 1. gen generateLiteral: slotName.
+         SSAVM Code directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
+         SSAVM Code returnRegister. 0
      }). ].
   (accessor addMethodNamed: selector on: {obj}) slotAccessor: slotName.
   accessor
@@ -512,11 +512,11 @@ gen@(Generator traits) addMutatorFor: slotName on: obj
      setSlot: #selectors to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:put:}).
      setSlot: #code to:
        (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {
-         VM SSACode loadVariable. 0.
-         VM SSACode loadVariable. 1.
-         VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
-         VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
-         VM SSACode returnRegister. 0
+         SSAVM Code loadVariable. 0.
+         SSAVM Code loadVariable. 1.
+         SSAVM Code loadLiteral. 2. gen generateLiteral: slotName.
+         SSAVM Code directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
+         SSAVM Code returnRegister. 0
      }). ].
   (mutator addMethodNamed: selector on: {obj. Nil}) slotAccessor: slotName.
   mutator
@@ -684,10 +684,10 @@ gen@(Generator traits) generateKernel
      setSlot: #method to: marker.
      setSlot: #code to:
        (gen cloneOf: (gen objectsAt: #ArrayProto)
-          elements: {VM SSACode resume})].
+          elements: {SSAVM Code resume})].
 ].
 
-Generator traits define: #Compiler &parents: {VM SSACompiler} &slots: {
+Generator traits define: #Compiler &parents: {SSAVM Compiler} &slots: {
   #generator.
 }.
 
