@@ -78,7 +78,7 @@ void unhandled_signal(struct object_heap* oh, struct Symbol* selector, word_t n,
   /*print_stack_types(oh, 200);*/
   print_backtrace(oh);
   assert(0);
-  exit(1);
+  exit(EXIT_FAILURE);
 }
 
 void interpreter_signal(struct object_heap* oh, struct Interpreter* i, struct Object* signal, struct Object* args[], word_t n, struct Object* opts[], word_t optCount, word_t resultStackPointer) {
@@ -440,7 +440,7 @@ bool_t interpreter_return_result(struct object_heap* oh, struct Interpreter* i, 
   i->framePointer = object_to_smallint(i->stack->elements[framePointer - FRAME_OFFSET_PREVIOUS_FRAME_POINTER]);
   if (i->framePointer < FUNCTION_FRAME_SIZE) {
     /* returning from the last function on the stack seems to happen when the user presses Ctrl-D */
-    exit(0);
+    exit(EXIT_SUCCESS);
     return 0;
   }
 
@@ -654,7 +654,7 @@ void interpret(struct object_heap* oh) {
         fprintf(stderr, "\nInterrupting...\n");
         if (oh->die_on_break) {
           print_backtrace(oh);
-          exit(1);
+          exit(EXIT_FAILURE);
         } else {
           interpreter_signal_with(oh, oh->cached.interpreter, get_special(oh, SPECIAL_OOP_TYPE_ERROR_ON), oh->cached.nil, NULL, 0, object_to_smallint(i->stack->elements[i->framePointer - FRAME_OFFSET_RESULT_STACK_POINTER]));
           globalInterrupt = 0;

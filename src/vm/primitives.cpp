@@ -405,7 +405,7 @@ void prim_removefrom(struct object_heap* oh, struct Object* args[], word_t arity
     selector = ((struct Closure*)method)->method->selector;
   } else {
     /*May only remove a CompiledMethod or Closure.*/
-    assert(0);
+    exit(EXIT_FAILURE);
   };
 
   def = method_is_on_arity(oh, method, selector, array_elements(roles), array_size(roles));
@@ -618,7 +618,7 @@ void prim_bytearray_replaceFromToWithStartingAt(struct object_heap* oh, struct O
 
 #ifdef GC_BUG_CHECK
   if (byte_array_elements(dest) + amt > (byte_t*)object_after(oh, (struct Object*)dest)) {
-    assert(0);
+    exit(EXIT_FAILURE);
   }
 #endif
 

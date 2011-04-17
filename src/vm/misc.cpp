@@ -225,7 +225,7 @@ int fork2()
         {
         case 0: return 0;
         case -1: _exit(errno); /* assumes all errnos are <256 */
-        default: _exit(0);
+        default: _exit(EXIT_SUCCESS);
         }
     }
   

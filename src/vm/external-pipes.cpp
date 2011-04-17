@@ -26,7 +26,7 @@ word_t pipe_open(struct object_heap* oh, struct ByteArray * name, struct Object*
 
   if((pid = fork2()) == -1) {
     fprintf(stderr, "fork() failed.\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   
   /* If we're the child. */
