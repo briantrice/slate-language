@@ -3,14 +3,14 @@
 void interpreter_grow_stack(struct object_heap* oh, struct Interpreter* i, word_t minimum) {
 
   struct OopArray * newStack;
-  
+
   /* i suppose this isn't treated as a SmallInt type*/
   do {
     i->stackSize *= 2;
   } while (i->stackSize < minimum);
   newStack = (struct OopArray *) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), i->stackSize);
   copy_words_into((word_t*) i->stack->elements, i->stackPointer, (word_t*) newStack->elements);
-  
+
   i -> stack = newStack;
 }
 
@@ -178,7 +178,7 @@ void interpreter_apply_to_arity_with_optionals(struct object_heap* oh, struct In
     method->nextInlineAtCallCount = smallint_to_object(object_to_smallint(method->callCount) * 2);
   }
 #endif
-  
+
   if (n < inputs || (n > inputs && method->restVariable != oh->cached.true_object)) {
     Pinned<struct OopArray> argsArray(oh);
     argsArray = heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_ARRAY_PROTO), n);
@@ -548,7 +548,7 @@ void interpreter_branch_keyed(struct object_heap* oh, struct Interpreter * i, st
   word_t tableSize;
   word_t hash;
   word_t index;
-  
+
   if (oop_is_object((word_t)oop))
     hash = object_hash(oop);
   else
@@ -625,10 +625,10 @@ void interpret(struct object_heap* oh) {
   fprintf(stderr, "Interpreter stack size: %" PRIdPTR "\n", oh->cached.interpreter->stackSize);
   fprintf(stderr, "Interpreter SP: %" PRIdPTR "\n", oh->cached.interpreter->stackPointer);
   fprintf(stderr, "Interpreter FP: %" PRIdPTR "\n", oh->cached.interpreter->framePointer);
-#endif 
+#endif
   /*fixme this should only be called in the initial bootstrap because
     the stack doesn't have enough room for the registers */
-  if (oh->cached.interpreter->framePointer == FUNCTION_FRAME_SIZE 
+  if (oh->cached.interpreter->framePointer == FUNCTION_FRAME_SIZE
       && oh->cached.interpreter->stackPointer == FUNCTION_FRAME_SIZE
       && oh->cached.interpreter->stackSize == MAX_ARITY) {
     interpreter_stack_allocate(oh, oh->cached.interpreter, object_to_smallint(oh->cached.interpreter->method->registerCount));
@@ -644,12 +644,12 @@ void interpret(struct object_heap* oh) {
     /*while (oh->cached.interpreter->codePointer < oh->cached.interpreter->codeSize) {*/
     /*optimize and make sure every function has manual return opcodes*/
     for(;;) {
-      
+
       if (oh->interrupt_flag) {
         oh->interrupt_flag = 0;
         break;
       }
-      
+
       if (globalInterrupt) {
         fprintf(stderr, "\nInterrupting...\n");
         if (oh->die_on_break) {
@@ -700,7 +700,7 @@ void interpret(struct object_heap* oh) {
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
           send_to_through_arity_with_optionals(oh, (struct Symbol*)selector, argsArray, argsArray, arity, NULL, 0, i->framePointer + result);
-          
+
           HEAP_UNPIN_ARGS(k, pinnedArgs);
 
           break;
@@ -802,7 +802,7 @@ void interpret(struct object_heap* oh) {
             newClosure = (struct Closure *) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_CLOSURE_PROTO), 1);
           } else {
             word_t inheritedSize;
-            
+
             inheritedSize = object_array_size((struct Object *) i->closure);
             newClosure = (struct Closure *) heap_clone_oop_array_sized(oh, get_special(oh, SPECIAL_OOP_CLOSURE_PROTO), inheritedSize+1);
             copy_words_into((word_t *) i->closure->lexicalWindow, inheritedSize, (word_t*) newClosure->lexicalWindow + 1);
@@ -970,7 +970,7 @@ void interpret(struct object_heap* oh) {
           fprintf(stderr, "is identical %" PRIdPTR ", %" PRIdPTR "\n", destReg, srcReg);
 #endif
           ASSERT_VALID_REGISTER(resultReg);
-          
+
           SSA_REGISTER(resultReg) = (SSA_REGISTER(destReg) == SSA_REGISTER(srcReg)) ? oh->cached.true_object : oh->cached.false_object;
 #ifdef PRINT_DEBUG_STACK
           fprintf(stderr, "%" PRIuPTR "u: setting stack[%" PRIdPTR "] = ", instruction_counter, REG_STACK_POINTER(resultReg)); print_object(SSA_REGISTER(resultReg));
@@ -1050,7 +1050,7 @@ void interpret(struct object_heap* oh) {
           fprintf(stderr, "jump to offset: %" PRIdPTR "\n", offset);
 #endif
           i->codePointer = i->codePointer + offset;
-          
+
           break;
         }
       case OP_LOAD_ENVIRONMENT:
@@ -1175,7 +1175,7 @@ void interpret(struct object_heap* oh) {
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
 
-          
+
           word_t success = 0;
           if (arity == object_array_size(mapArray)) {
             success = 1;
@@ -1189,14 +1189,14 @@ void interpret(struct object_heap* oh) {
 
           if (success) {
             //change the code pointer before the primitive because some primitives like prim_ensure will change stuff
-            i->codePointer = i->codePointer + jumpOffset; 
+            i->codePointer = i->codePointer + jumpOffset;
             primitives[primNum](oh, argsArray, arity, NULL, 0, i->framePointer + resultReg);
             heap_store_into_stack(oh, i->framePointer + resultReg);
           }
-          
+
           HEAP_UNPIN_ARGS(k, pinnedArgs);
 
-          
+
           break;
         }
 
@@ -1212,7 +1212,7 @@ void interpret(struct object_heap* oh) {
           assert(arity <= MAX_ARITY);
 
           HEAP_READ_AND_PIN_ARGS(k, arity, argsArray, pinnedArgs);
-          
+
           word_t success = 0;
           if (arity == object_array_size(mapArray)) {
             success = 1;
@@ -1227,9 +1227,9 @@ void interpret(struct object_heap* oh) {
           if (!success) {
             i->codePointer = i->codePointer + jumpOffset;
           }
-          
+
           HEAP_UNPIN_ARGS(k, pinnedArgs);
-          
+
           break;
         }
 
@@ -1248,9 +1248,9 @@ void interpret(struct object_heap* oh) {
 
           interpreter_apply_to_arity_with_optionals(oh, oh->cached.interpreter, method,
                                                     argsArray, arity, NULL, 0, i->framePointer + resultReg);
-          
+
           HEAP_UNPIN_ARGS(k, pinnedArgs);
-          
+
           break;
         }
       default:

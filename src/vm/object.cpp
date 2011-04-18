@@ -48,9 +48,9 @@ word_t heap_new_hash(struct object_heap* oh) {
 
 
 
-/* DETAILS: This trick is from Tim Rowledge. Use a shift and XOR to set the 
- * sign bit if and only if the top two bits of the given value are the same, 
- * then test the sign bit. Note that the top two bits are equal for exactly 
+/* DETAILS: This trick is from Tim Rowledge. Use a shift and XOR to set the
+ * sign bit if and only if the top two bits of the given value are the same,
+ * then test the sign bit. Note that the top two bits are equal for exactly
  * those integers in the range that can be represented in 31-bits.
 */
 word_t smallint_fits_object(word_t i) {   return (i ^ (i << 1)) >= 0;}
@@ -158,8 +158,8 @@ struct RoleEntry* role_table_entry_for_name(struct object_heap* oh, struct RoleT
   tableSize = role_table_capacity(roles);
   if (tableSize == 0) return NULL;
   hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
-  
-  
+
+
   for (index = hash; index < tableSize; index++) {
 
     role = &roles->roles[index];
@@ -184,8 +184,8 @@ struct RoleEntry* role_table_entry_for_inserting_name(struct object_heap* oh, st
   tableSize = role_table_capacity(roles);
   if (tableSize == 0) return NULL;
   hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
-  
-  
+
+
   for (index = hash; index < tableSize; index++) {
 
     role = &roles->roles[index];
@@ -223,8 +223,8 @@ struct SlotEntry* slot_table_entry_for_name(struct object_heap* oh, struct SlotT
   tableSize = slot_table_capacity(slots);
   if (tableSize == 0) return NULL;
   hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
-  
-  
+
+
   for (index = hash; index < tableSize; index++) {
 
     slot = &slots->slots[index];
@@ -249,8 +249,8 @@ struct SlotEntry* slot_table_entry_for_inserting_name(struct object_heap* oh, st
   tableSize = slot_table_capacity(slots);
   if (tableSize == 0) return NULL;
   hash = object_hash((struct Object*)name) & (tableSize-1); /*fix base2 assumption*/
-  
-  
+
+
   for (index = hash; index < tableSize; index++) {
     slot = &slots->slots[index];
     if (slot->name == (struct Symbol*)oh->cached.nil) return slot;
@@ -338,7 +338,7 @@ struct RoleTable* role_table_grow_excluding(struct object_heap* oh, struct RoleT
       *role = roles->roles[i];
       role->nextRole = oh->cached.nil;
     }
-    
+
   }
 
   return newRoles;
@@ -360,7 +360,7 @@ struct SlotTable* slot_table_grow_excluding(struct object_heap* oh, struct SlotT
       struct SlotEntry * slot = slot_table_entry_for_inserting_name(oh, newSlots, slotName);
       *slot = slots->slots[i];
     }
-    
+
   }
 
   return newSlots;
@@ -426,7 +426,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
   mapRoleTable = map->roleTable;
   chain = role_table_entry_for_name(oh, objMapRoleTable, selector);
   object_represent(oh, obj, map);
-  
+
   while (chain != NULL) {
 
     if (chain->methodDefinition == method) {
@@ -449,7 +449,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
           entry = &map->roleTable->roles[object_to_smallint(entry->nextRole)];
         }
       }
-      
+
     }
 
     if (chain->nextRole == oh->cached.nil) {
@@ -458,7 +458,7 @@ word_t object_add_role_at(struct object_heap* oh, struct Object* obj, struct Sym
       chain = &map->roleTable->roles[object_to_smallint(chain->nextRole)];
     }
   }
-  
+
   /*not found, adding role*/
   mapRoleTable = map->roleTable;
   map->roleTable = role_table_grow_excluding(oh, mapRoleTable, 1, NULL);
@@ -526,7 +526,7 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
     newObj = heap_allocate_with_payload(oh, object_size(obj) + 1, payload_size(obj));
   }
   object_set_format(newObj, object_type(obj));
-  
+
 
 
   object_set_idhash(newObj, heap_new_hash(oh));
@@ -546,8 +546,8 @@ struct Object* object_add_slot_named_at(struct object_heap* oh, struct Object* o
 
 struct Object* object_add_slot_named(struct object_heap* oh, struct Object* obj, struct Symbol* name, struct Object* value) {
 
-  
-  struct Object* newObj = 
+
+  struct Object* newObj =
     object_add_slot_named_at(oh, obj, name, value,
                              object_first_slot_offset(obj) + object_to_smallint(obj->map->slotCount) * sizeof(word_t));
 
@@ -586,11 +586,11 @@ struct Object* object_remove_slot(struct object_heap* oh, struct Object* obj, st
   /*fix we don't need to set the format again, right?*/
   object_set_idhash(newObj, heap_new_hash(oh));
   copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj),
-                  offset - object_first_slot_offset(obj), 
+                  offset - object_first_slot_offset(obj),
                   (byte_t*) newObj + object_first_slot_offset(newObj));
 
   copy_bytes_into((byte_t*) obj + object_first_slot_offset(obj) + sizeof(word_t), /*+one slot*/
-                  object_total_size(obj) - offset - sizeof(word_t), 
+                  object_total_size(obj) - offset - sizeof(word_t),
                   (byte_t*) newObj + offset);
   newObj->map = map;
   map->representative = newObj;
@@ -653,7 +653,7 @@ void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, wor
                                      struct ForwardPointerEntry* table, word_t forwardPointerEntryCount) {
 
   struct Object* o = (struct Object*) memory;
- 
+
   while (object_in_memory(oh, o, memory, memorySize)) {
     word_t offset, limit;
     o->map = (struct Map*)forward_pointer_hash_get(table, forwardPointerEntryCount, (struct Object*)o->map)->toObj;
@@ -662,7 +662,7 @@ void adjust_object_fields_with_table(struct object_heap* oh, byte_t* memory, wor
     for (; offset != limit; offset += sizeof(word_t)) {
       struct Object* val = object_slot_value_at_offset(o, offset);
       if (!object_is_smallint(val)) {
-        object_slot_value_at_offset_put(oh, o, offset, 
+        object_slot_value_at_offset_put(oh, o, offset,
                                         forward_pointer_hash_get(table, forwardPointerEntryCount, val)->toObj);
       }
     }

@@ -14,7 +14,6 @@ void profiler_start(struct object_heap* oh) {
 
   oh->profilerCallStack.clear();
   oh->profilerCallStackTimes.clear();
-
 }
 
 void profiler_stop(struct object_heap* oh) {

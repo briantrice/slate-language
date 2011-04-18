@@ -3,7 +3,6 @@
  * INLINE STUFF                  *
  *********************************/
 
-
 SLATE_INLINE void heap_store_into(struct object_heap* oh, struct Object* src, struct Object* dest) {
   /*  print_object(dest);*/
   if (!object_is_smallint(dest)) {
@@ -21,11 +20,9 @@ SLATE_INLINE void heap_store_into_stack(struct object_heap* oh, word_t resultSta
   heap_store_into(oh, (struct Object*)oh->cached.interpreter->stack, oh->cached.interpreter->stack->elements[resultStackPointer]);
 }
 
-
 SLATE_INLINE bool_t object_is_smallint(struct Object* xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
 SLATE_INLINE word_t object_to_smallint(struct Object* xxx)  {return ((((word_t)xxx)>>1)); }
 SLATE_INLINE struct Object* smallint_to_object(word_t xxx) {return ((struct Object*)(((xxx)<<1)|1)); }
-
 
 SLATE_INLINE bool_t oop_is_object(word_t xxx)   { return ((((word_t)xxx)&SMALLINT_MASK) == 0); }
 SLATE_INLINE bool_t oop_is_smallint(word_t xxx) { return ((((word_t)xxx)&SMALLINT_MASK) == 1);}
@@ -46,37 +43,29 @@ SLATE_INLINE struct Map* object_get_map(struct object_heap* oh, struct Object* o
 }
 
 SLATE_INLINE word_t object_array_size(struct Object* o) {
-
   assert(object_type(o) != TYPE_OBJECT);
   return (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t);
-
 }
 
 SLATE_INLINE word_t byte_array_size(struct ByteArray* o) {
   return payload_size((struct Object*)o);
 }
 
-
 SLATE_INLINE word_t array_size(struct OopArray* x) {
   return object_array_size((struct Object*) x);
 }
-
 
 SLATE_INLINE word_t object_byte_size(struct Object* o) {
   if (object_type(o) == TYPE_OBJECT) {
     return object_array_offset(o);
   } 
   return object_array_offset(o) + payload_size(o);
-
 }
 
 SLATE_INLINE word_t object_total_size(struct Object* o) {
   /*IMPORTANT: rounds up to word size*/
-
   return object_word_size(o)*sizeof(word_t);
-
 }
-
 
 SLATE_INLINE void heap_pin_object(struct object_heap* oh, struct Object* x) {
   //  printf("Pinning %p\n", x);
@@ -108,7 +97,6 @@ SLATE_INLINE void heap_unpin_object(struct object_heap* oh, struct Object* x) {
   object_decrement_pin_count(x);
 }
 
-
 SLATE_INLINE void object_increment_pin_count(struct Object* xxx)     {
   word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
   assert (count != PINNED_MASK);
@@ -125,7 +113,6 @@ SLATE_INLINE void object_increment_pin_count(struct Object* xxx)     {
   xxx->header |= count << PINNED_OFFSET;
 }
 
-
 SLATE_INLINE void object_decrement_pin_count(struct Object* xxx)     {
   word_t count = ((((xxx)->header)>>PINNED_OFFSET)&PINNED_MASK);
   //this could happen for the forwardTo: call since we manually unpin it
@@ -141,31 +128,24 @@ SLATE_INLINE void object_decrement_pin_count(struct Object* xxx)     {
   xxx->header |= count << PINNED_OFFSET;
 }
 
-
 SLATE_INLINE bool_t object_is_old(struct object_heap* oh, struct Object* oop) {
   return (oh->memoryOld <= (byte_t*)oop && (byte_t*)oh->memoryOld + oh->memoryOldSize > (byte_t*)oop);
-
 }
 
 SLATE_INLINE bool_t object_is_young(struct object_heap* oh, struct Object* obj) {
   return (oh->memoryYoung <= (byte_t*)obj && (byte_t*)oh->memoryYoung + oh->memoryYoungSize > (byte_t*)obj);
-  
 }
 
 SLATE_INLINE bool_t object_in_memory(struct object_heap* oh, struct Object* oop, byte_t* memory, word_t memorySize) {
   return (memory <= (byte_t*)oop && (byte_t*)memory + memorySize > (byte_t*)oop);
-
 }
 
 SLATE_INLINE struct Object* object_after(struct object_heap* heap, struct Object* o) {
-
   assert(object_total_size(o) != 0);
-
   return (struct Object*)inc_ptr(o, object_total_size(o));
 }
 
 SLATE_INLINE bool_t object_is_free(struct Object* o) {
-
   return (object_hash(o) >= ID_HASH_RESERVED);
 }
 
@@ -174,18 +154,14 @@ SLATE_INLINE byte_t* inc_ptr(struct Object* obj, word_t amt) {
 }
 
 SLATE_INLINE word_t object_word_size(struct Object* o) {
-
   if (object_type(o) == TYPE_OBJECT) {
     return object_size(o);
   } 
   return object_size(o) + (payload_size(o) + sizeof(word_t) - 1) / sizeof(word_t); 
-
 }
 
 SLATE_INLINE struct Object* object_slot_value_at_offset(struct Object* o, word_t offset) {
-
   return (struct Object*)*((word_t*)inc_ptr(o, offset));
-
 }
 
 SLATE_INLINE word_t hash_selector(struct object_heap* oh, struct Symbol* name, struct Object* arguments[], word_t n) {
@@ -196,7 +172,6 @@ SLATE_INLINE word_t hash_selector(struct object_heap* oh, struct Symbol* name, s
   }
   return hash;
 }
-
 
 #ifdef SLATE_USE_RDTSC
 SLATE_INLINE volatile int64_t getRealTimeClock() {

@@ -43,7 +43,7 @@ void copy_words_into(void * src, word_t n, void * dst) {
     {
       dst = dst + n;
       src = src + n;
-    
+
       {
         do
           {
@@ -74,7 +74,7 @@ void copy_bytes_into(byte_t * src, word_t n, byte_t * dst) {
     {
       dst = dst + n;
       src = src + n;
-    
+
       {
         do
           {
@@ -183,7 +183,7 @@ word_t byte_array_extract_into(struct ByteArray * fromArray, byte_t* targetBuffe
     return SLATE_ERROR_RETURN;
 
   copy_bytes_into((byte_t*) fromArray -> elements, bufferSize, targetBuffer);
-  
+
   return payloadSize;
 }
 
@@ -218,7 +218,7 @@ int fork2()
 {
   pid_t pid;
   int status;
-  
+
   if (!(pid = fork()))
     {
       switch (fork())
@@ -228,10 +228,10 @@ int fork2()
         default: _exit(EXIT_SUCCESS);
         }
     }
-  
+
   if (pid < 0 || waitpid(pid,&status,0) < 0)
     return -1;
-  
+
   if (WIFEXITED(status))
     if (WEXITSTATUS(status) == 0)
       return 1;
@@ -239,7 +239,7 @@ int fork2()
       errno = WEXITSTATUS(status);
   else
     errno = EINTR; /* well, sort of :-) */
-  
+
   return -1;
 }
 #endif
