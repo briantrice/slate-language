@@ -1,23 +1,23 @@
 
-gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg &result
 [
   result `defaultsTo: gen newRegister.
-  methodReg ::= gen generate: args first result: Nil.
-  argRegs ::= args allButFirst collect: [| :item | gen generate: item result: Nil].
+  methodReg ::= gen generate: args first.
+  argRegs ::= args allButFirst collect: [| :item | gen generate: item].
   gen emit: gen directApplyTo
       withParameters: {methodReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg &result
 [
   (args second isSameAs: nodes Array)
     ifTrue:
       [result `defaultsTo: gen newRegister.
-       methodReg ::= gen generate: args first result: Nil.
+       methodReg ::= gen generate: args first.
        argRegs ::= args second statements collect:
-         [| :item | gen generate: item result: Nil].
+         [| :item | gen generate: item].
        gen emit: gen directApplyTo
          withParameters: {methodReg. argRegs size. result} ; argRegs
          fromSource: msg.
@@ -25,49 +25,49 @@ gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg resul
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#primitiveApply* on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#primitiveApply* on: args fromSource: msg &result
 [
   result `defaultsTo: gen newRegister.
-  indexReg ::= gen generate: args first result: Nil.
-  argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
+  indexReg ::= gen generate: args first.
+  argRegs ::= args second statements collect: [| :item | gen generate: item].
   gen emit: gen primitiveDo
       withParameters: {indexReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#True on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#True on: args fromSource: msg &result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: True fromSource: msg result: result]
+    ifTrue: [gen registerFor: True fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#False on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#False on: args fromSource: msg &result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: False fromSource: msg result: result]
+    ifTrue: [gen registerFor: False fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#Nil on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#Nil on: args fromSource: msg &result
 [
   (args first isSameAs: nodes ImplicitArgument)
-    ifTrue: [gen registerFor: Nil fromSource: msg result: result]
+    ifTrue: [gen registerFor: Nil fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#== on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#== on: args fromSource: msg &result
 [
   result `defaultsTo: gen newRegister.
-  argRegs ::= args collect: [| :arg | gen generate: arg result: Nil].
+  argRegs ::= args collect: [| :arg | gen generate: arg].
   gen emit: gen isIdenticalTo
       withParameters: {result. argRegs first. argRegs second}
       fromSource: msg.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#do on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#do on: args fromSource: msg &result
 "If the block is a literal with no variables, then inline it.
 Otherwise, fall back to evaluating it via 'do'."
 [
@@ -80,13 +80,13 @@ Otherwise, fall back to evaluating it via 'do'."
                       withParameters: {result. Nil}
                       fromSource: msg.
                   result]
-         ifFalse: [block statements allButLastDo: [| :node | gen generate: node result: Nil].
-                   gen generate: block statements last result: result]]
+         ifFalse: [block statements allButLastDo: [| :node | gen generate: node].
+                   gen generate: block statements last &result: result]]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generateExecutionOf: args fromSource: msg result: result
-[gen generate: #do on: args fromSource: msg result: result].
+gen@(SSAVM Compiler traits) generateExecutionOf: args fromSource: msg &result
+[gen generate: #do on: args fromSource: msg &result: result].
 
 gen@(SSAVM Compiler traits) emitJumpToLabel: label fromSource: node
 [
@@ -95,19 +95,19 @@ gen@(SSAVM Compiler traits) emitJumpToLabel: label fromSource: node
   gen emitBranchTo: label from: node.
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#loop on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#loop on: args fromSource: msg &result
 "Repeatedly evaluates a block via 'do'."
 [
   label ::= gen emitLabel.
-  gen generateExecutionOf: args fromSource: msg result: Nil.
+  gen generateExecutionOf: args fromSource: msg.
   gen emitJumpToLabel: label fromSource: msg.
-  gen registerFor: Nil fromSource: msg result: result "return nil"
+  gen registerFor: Nil fromSource: msg &result: result "return nil"
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#isNil on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#isNil on: args fromSource: msg &result
 [
   result `defaultsTo: gen newRegister.
-  objReg ::= gen generate: args first result: Nil.
+  objReg ::= gen generate: args first.
   gen emit: gen isNilOp
       withParameters: {result. objReg}
       fromSource: msg.
@@ -156,7 +156,7 @@ out with literal keys."
           [| :proto | assoc arguments first value is: proto]]]]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#caseOf:otherwise: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#caseOf:otherwise: on: args fromSource: msg &result: finalResult
 [
   (gen mayInlineCaseOf: msg)
     ifTrue:
@@ -170,9 +170,9 @@ gen@(SSAVM Compiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
        0 below: table size by: 2 do:
          [| :index | (table at: index) ifNotNilDo: [| :val | indices at: val put: index]].
 
-       switchKeyRegister ::= gen generate: args first result: Nil.
+       switchKeyRegister ::= gen generate: args first.
        gen emit: gen branchKeyed
-         withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg result: Nil}
+         withParameters: {switchKeyRegister. gen registerFor: table fromSource: msg}
          fromSource: msg.
        branchOffset ::= gen codeWriter position.
        gen emitInstruction: gen jumpTo
@@ -187,25 +187,25 @@ gen@(SSAVM Compiler traits) generate: _@#caseOf:otherwise: on: args fromSource: 
           table
             at: (indices at: assoc arguments first value) + 1
             put: (gen currentContext resolveLabel: label at: branchOffset).
-          gen generateExecutionOf: {assoc arguments second} fromSource: msg result: finalResult.
+          gen generateExecutionOf: {assoc arguments second} fromSource: msg &result: finalResult.
           gen emitJumpToLabel: endLabel fromSource: msg].
 
        "Handle the otherwise clause. If we didn't get a literal block for it, just
          encode a Nil-push."
        gen emitLabel &labelIndex: otherwiseLabel.
        args size >= 3
-         ifTrue: [gen generateExecutionOf: {args third} fromSource: msg result: finalResult]
-         ifFalse: [gen registerFor: Nil fromSource: msg result: finalResult].
+         ifTrue: [gen generateExecutionOf: {args third} fromSource: msg &result: finalResult]
+         ifFalse: [gen registerFor: Nil fromSource: msg &result: finalResult].
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#caseOf: on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#caseOf: on: args fromSource: msg &result
 "Generates a caseOf:otherwise: with a default otherwise clause."
 [
   (gen mayInlineCaseOf: msg)
-    ifTrue: [gen generate: #caseOf:otherwise: on: args fromSource: msg result: result]
+    ifTrue: [gen generate: #caseOf:otherwise: on: args fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
@@ -225,7 +225,7 @@ gen@(SSAVM Compiler traits) emitBranchIfFalse: conditionRegister to: label fromS
   gen emitBranchTo: label fromSource: msg.
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: msg &result: finalResult
 "Branches to one of two blocks and evaluates it."
 [
   (args second isSameAs: nodes Block)
@@ -234,19 +234,19 @@ gen@(SSAVM Compiler traits) generate: _@#ifTrue:ifFalse: on: args fromSource: ms
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       (condReg ::= gen generate: args first result: Nil)
+       (condReg ::= gen generate: args first)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen generateExecutionOf: {args third} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args third} fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifTrue: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifTrue: on: args fromSource: msg &result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
@@ -254,38 +254,38 @@ gen@(SSAVM Compiler traits) generate: _@#ifTrue: on: args fromSource: msg result
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       (condReg ::= gen generate: args first result: Nil)
+       (condReg ::= gen generate: args first)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen registerFor: Nil fromSource: msg result: finalResult.
+       gen registerFor: Nil fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifFalse: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifFalse: on: args fromSource: msg &result: finalResult
 [
   (args second isSameAs: nodes Block)
     ifTrue:
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       (condResult ::= gen generate: args first result: Nil)
+       (condResult ::= gen generate: args first)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen registerFor: Nil fromSource: msg result: finalResult.
+       gen registerFor: Nil fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifNil:ifNotNil: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifNil:ifNotNil: on: args fromSource: msg &result: finalResult
 [
   (args second isSameAs: nodes Block)
     /\ [args third isSameAs: nodes Block]
@@ -293,58 +293,58 @@ gen@(SSAVM Compiler traits) generate: _@#ifNil:ifNotNil: on: args fromSource: ms
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
+       lhsValueReg ::= gen generate: args first &result: finalResult. "do not evaluate twice"
        condReg ::= gen newRegister.
        gen emit: gen isNilOp
          withParameters: {condReg. lhsValueReg}
          fromSource: msg.
        gen emitBranchIfFalse: condReg to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen generateExecutionOf: {args third} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args third} fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifNil: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifNil: on: args fromSource: msg &result: finalResult
 [
   (args second isSameAs: nodes Block)
     ifTrue:
       [endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
+       lhsValueReg ::= gen generate: args first &result: finalResult. "do not evaluate twice"
        condReg ::= gen newRegister.
        gen emit: gen isNilOp
          withParameters: {condReg. lhsValueReg}
          fromSource: msg.
        gen emitBranchIfFalse: condReg to: endLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#ifNotNil: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#ifNotNil: on: args fromSource: msg &result: finalResult
 [
   (args second isSameAs: nodes Block)
     ifTrue:
       [endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       lhsValueReg ::= gen generate: args first result: finalResult. "do not evaluate twice"
+       lhsValueReg ::= gen generate: args first &result: finalResult. "do not evaluate twice"
        condReg ::= gen newRegister.
        gen emit: gen isNilOp
          withParameters: {condReg. lhsValueReg}
          fromSource: msg.
        gen emitBranchIfTrue: condReg to: endLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#/\ on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#/\ on: args fromSource: msg &result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
@@ -352,19 +352,19 @@ gen@(SSAVM Compiler traits) generate: _@#/\ on: args fromSource: msg result: fin
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       (condResult ::= gen generate: args first result: Nil)
+       (condResult ::= gen generate: args first)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfFalse: condResult to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen registerFor: False fromSource: msg result: finalResult.
+       gen registerFor: False fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#\/ on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#\/ on: args fromSource: msg &result: finalResult
 "Optionally evaluates a block."
 [
   (args second isSameAs: nodes Block)
@@ -372,19 +372,19 @@ gen@(SSAVM Compiler traits) generate: _@#\/ on: args fromSource: msg result: fin
       [falseLabel ::= gen newLabelIndex.
        endLabel ::= gen newLabelIndex.
        finalResult `defaultsTo: gen newRegister.
-       (condResult ::= gen generate: args first result: Nil)
+       (condResult ::= gen generate: args first)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfTrue: condResult to: falseLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: finalResult.
+       gen generateExecutionOf: {args second} fromSource: msg &result: finalResult.
        gen emitJumpToLabel: endLabel fromSource: msg.
        gen emitLabel &labelIndex: falseLabel.
-       gen registerFor: True fromSource: msg result: finalResult.
+       gen registerFor: True fromSource: msg &result: finalResult.
        gen emitLabel &labelIndex: endLabel.
        finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#whileTrue: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#whileTrue: on: args fromSource: msg &result: finalResult
 "Repeatedly evaluates a block while it returns True."
 [
   (args first isSameAs: nodes Block)
@@ -392,17 +392,17 @@ gen@(SSAVM Compiler traits) generate: _@#whileTrue: on: args fromSource: msg res
     ifTrue:
       [endLabel ::= gen newLabelIndex.
        label ::= gen emitLabel.
-       (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
+       (condResult ::= gen generateExecutionOf: {args first} fromSource: msg)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfFalse: condResult to: endLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: Nil.
+       gen generateExecutionOf: {args second} fromSource: msg.
        gen emitJumpToLabel: label fromSource: msg.
        gen emitLabel &labelIndex: endLabel.
-       gen registerFor: Nil fromSource: msg result: finalResult]
+       gen registerFor: Nil fromSource: msg &result: finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#whileFalse: on: args fromSource: msg result: finalResult
+gen@(SSAVM Compiler traits) generate: _@#whileFalse: on: args fromSource: msg &result: finalResult
 "Repeatedly evaluates a block while it returns False."
 [
   (args first isSameAs: nodes Block)
@@ -410,54 +410,54 @@ gen@(SSAVM Compiler traits) generate: _@#whileFalse: on: args fromSource: msg re
     ifTrue:
       [endLabel ::= gen newLabelIndex.
        label ::= gen emitLabel.
-       (condResult ::= gen generateExecutionOf: {args first} fromSource: msg result: Nil)
+       (condResult ::= gen generateExecutionOf: {args first} fromSource: msg)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfTrue: condResult to: endLabel fromSource: msg.
-       gen generateExecutionOf: {args second} fromSource: msg result: Nil.
+       gen generateExecutionOf: {args second} fromSource: msg.
        gen emitJumpToLabel: label fromSource: msg.
        gen emitLabel &labelIndex: endLabel.
-       gen registerFor: Nil fromSource: msg result: finalResult]
+       gen registerFor: Nil fromSource: msg &result: finalResult]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#whileTrue on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#whileTrue on: args fromSource: msg &result
 "Repeatedly evaluates a block while it returns True."
 [
   (args first isSameAs: nodes Block)
     ifTrue:
       [label ::= gen emitLabel.
-       (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
+       (condResult ::= gen generateExecutionOf: args fromSource: msg)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfTrue: condResult to: label fromSource: msg.
-       gen registerFor: Nil fromSource: msg result: result]
+       gen registerFor: Nil fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#whileFalse on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#whileFalse on: args fromSource: msg &result
 "Repeatedly evaluates a block while it returns False."
 [
   (args first isSameAs: nodes Block)
     ifTrue:
       [label ::= gen emitLabel.
-       (condResult ::= gen generateExecutionOf: args fromSource: msg result: Nil)
+       (condResult ::= gen generateExecutionOf: args fromSource: msg)
          ifNil: [error: 'conditional is nil: ' ; args first printString].
        gen emitBranchIfFalse: condResult to: label fromSource: msg.
-       gen registerFor: Nil fromSource: msg result: result]
+       gen registerFor: Nil fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#primitiveDo: on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#primitiveDo: on: args fromSource: msg &result
 [
   result `defaultsTo: gen newRegister.
-  indexReg ::= gen generate: args first result: Nil.
-  argRegs ::= args second statements collect: [| :item | gen generate: item result: Nil].
+  indexReg ::= gen generate: args first.
+  argRegs ::= args second statements collect: [| :item | gen generate: item].
   gen emit: gen primitiveDo
       withParameters: {indexReg. argRegs size. result} ; argRegs
       fromSource: msg.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#fill:with: on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#fill:with: on: args fromSource: msg &result
 [| index value tempVar |
   block ::= args first.
   index := args second.
@@ -469,7 +469,7 @@ gen@(SSAVM Compiler traits) generate: _@#fill:with: on: args fromSource: msg res
       [(value isSameAs: nodes Literal)
          ifFalse:
            [tempVar := gen currentMethod sourceTree addVariable.
-            gen generate: (nodes StoreVariable of: value into: tempVar) result: Nil. "fixme"
+            gen generate: (nodes StoreVariable of: value into: tempVar). "fixme"
             value := nodes LoadVariable from: tempVar].
        index := index value.
        var ::= block inputVariables at: index.
@@ -482,11 +482,11 @@ gen@(SSAVM Compiler traits) generate: _@#fill:with: on: args fromSource: msg res
        block localVariables at: block localVariables indexLast put: var.
        block statements :=
          {nodes StoreVariable of: value into: var} ; block statements.
-       gen generate: block result: result]
+       gen generate: block &result: result]
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#<-* on: args fromSource: msg result: result
+gen@(SSAVM Compiler traits) generate: _@#<-* on: args fromSource: msg &result
 "Optimizes currying calls on literal blocks using #fill:with:."
 [
   (args first isSameAs: nodes Block)
@@ -496,6 +496,6 @@ gen@(SSAVM Compiler traits) generate: _@#<-* on: args fromSource: msg result: re
          on: (args copyWith:
                 (nodes Literal for: args first inputVariables indexLast) at: 1)
          fromSource: msg
-         result: result]
+         &result: result]
     ifFalse: [resend]
 ].

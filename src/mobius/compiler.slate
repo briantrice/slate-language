@@ -192,7 +192,7 @@ gen@(SSAVM Compiler traits) newRegister
   gen contexts top currentRegister += 1
 ].
 
-gen@(SSAVM Compiler traits) registerFor: obj fromSource: def result: result
+gen@(SSAVM Compiler traits) registerFor: obj fromSource: def &result
 [
    "the whole problem with this function is that we could cache a literal that
  is only loaded in a loop which may not always be executed. remove this code
@@ -310,17 +310,17 @@ _@(SSAVM Compiler traits) generate: _@(nodes Node traits)
 "Do nothing in the default case, for comments and annotations and such."
 [error: 'do not call generate without a result'].
 
-_@(SSAVM Compiler traits) generate: _@(nodes Node traits) result: result
+_@(SSAVM Compiler traits) generate: _@(nodes Node traits) &result
 "Do nothing in the default case, for comments and annotations and such."
 [].
 
-gen@(SSAVM Compiler traits) generate: ann@(nodes Annotation traits) result: result
+gen@(SSAVM Compiler traits) generate: ann@(nodes Annotation traits) &result
 "Generate the annotation's value."
 [
   gen generate: ann value
 ].
 
-gen@(SSAVM Compiler traits) generate: block@(nodes Block traits) result: result &topLevel
+gen@(SSAVM Compiler traits) generate: block@(nodes Block traits) &result &topLevel
 "Encountering a new block, build a new CompiledMethod object and push it and
 a new bytecode array writer onto the generator, then go through the underlying
 code and generate that. When done, pop both, set up the block as a literal
@@ -343,9 +343,9 @@ and push it onto the stack."
            withParameters: {Nil}
            fromSource: block]
     ifFalse:
-      [statements allButLastDo: [| :node | gen generate: node result: Nil].
+      [statements allButLastDo: [| :node | gen generate: node].
        gen emit: gen returnRegister
-           withParameters: {gen generate: statements last result: Nil}
+           withParameters: {gen generate: statements last}
            fromSource: block].
 
   "Set the variable information after generation, just in case it was modified."
@@ -371,31 +371,31 @@ and push it onto the stack."
   gen contexts isEmpty \/ [topLevel] ifTrue: [newBlock] ifFalse: [result]
 ].
 
-gen@(SSAVM Compiler traits) generate: sig@(nodes Signature traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: sig@(nodes Signature traits) &result
 [
   shouldNotImplement
 ].
 
-gen@(SSAVM Compiler traits) generate: def@(nodes MethodDefinition traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: def@(nodes MethodDefinition traits) &result
 "Translate method definitions to equivalent asMethod:on: invocations."
 [
   gen contexts isEmpty
     ifTrue: [^ resend].
   blockRegister ::= #generate:result: sendTo: {gen. def. Nil} through: {gen. nodes Block. Nil}.
   arrayRegister ::= gen newRegister.
-  selectorRegister ::= gen registerFor: def selector fromSource: def result: Nil.
-  roleRegisters ::= def roles collect: #(gen generate: _ result: Nil) `er.
-  resultRegister `defaultsTo: gen newRegister.
+  selectorRegister ::= gen registerFor: def selector fromSource: def.
+  roleRegisters ::= def roles collect: #(gen generate: _) `er.
+  result `defaultsTo: gen newRegister.
   gen emit: gen newArrayWith
       withParameters: {arrayRegister. roleRegisters size} ; roleRegisters
       fromSource: def.
   gen emit: gen directSendMessage
-      withParameters: {resultRegister. #asMethod:on:. 3. blockRegister. selectorRegister. arrayRegister}
+      withParameters: {result. #asMethod:on:. 3. blockRegister. selectorRegister. arrayRegister}
       fromSource: def.
-  resultRegister
+  result
 ].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes Resend traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes Resend traits) &result
 [
   scope ::= gen currentMethod sourceTree.
   lexOffset ::= gen contexts indexLast -
@@ -406,78 +406,80 @@ gen@(SSAVM Compiler traits) generate: r@(nodes Resend traits) result: resultRegi
     ifTrue:
       [(gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er].
-  resultRegister `defaultsTo: gen newRegister.
+  result `defaultsTo: gen newRegister.
   gen emit: gen resendMessage
-      withParameters: {resultRegister. lexOffset}
+      withParameters: {result. lexOffset}
       fromSource: r.
-  resultRegister
+  result
 ].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) result: blah
+gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) &result
 [overrideThis].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) by: lexOffset result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes Return traits) by: lexOffset &result
 [
-  resultRegister `defaultsTo: gen newRegister.
+  result `defaultsTo: gen newRegister.
   lexOffset isPositive
     ifTrue:
       [(gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er].
-  gen generate: r value result: resultRegister.
+  gen generate: r value &result: result.
   gen emit: gen returnFrom
-      withParameters: {resultRegister. lexOffset}
+      withParameters: {result. lexOffset}
       fromSource: r.
-  resultRegister.
+  result.
 ].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes ReturnClose traits) result: resultRegister
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnClose traits) &result
 "Exits the first enclosing named method in the lexical scope."
 [
   lexOffset ::= gen contexts indexLast -
     ((gen contexts indexOfLastSatisfying: [| :context | context method sourceTree isSameAs: nodes MethodDefinition])
       ifNil:
         [error: '^ must be used within a method definition.']).
-  gen generate: r by: lexOffset result: resultRegister
+  gen generate: r by: lexOffset &result: result
 ].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes ReturnFar traits) result: result
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnFar traits) &result
 "Exits the last enclosing named method in the lexical scope."
 [
   lexOffset ::= gen contexts indexLast -
     ((gen contexts indexOfFirstSatisfying: [| :context | context method sourceTree isSameAs: nodes MethodDefinition])
       ifNil:
         [error: '^^ must be used within a method definition.']).
-  gen generate: r by: lexOffset result: result
+  gen generate: r by: lexOffset &result: result
 ].
 
-gen@(SSAVM Compiler traits) generate: r@(nodes ReturnLevel traits) result: result
+gen@(SSAVM Compiler traits) generate: r@(nodes ReturnLevel traits) &result
 "Exits the Nth enclosing lexical scope."
-[gen generate: r by: r level result: result].
+[gen generate: r by: r level &result: result].
 
-gen@(SSAVM Compiler traits) generate: literal@(nodes Literal traits) result: result
+gen@(SSAVM Compiler traits) generate: literal@(nodes Literal traits) &result
 [
-  gen registerFor: literal value fromSource: literal result: result
+  gen registerFor: literal value fromSource: literal &result: result
 ].
 
-gen@(SSAVM Compiler traits) generate: n@(nodes CompoundStatement traits) result: result
+gen@(SSAVM Compiler traits) generate: n@(nodes CompoundStatement traits) &result
 "return the registers that the values were saved into"
 [
   n statements collectWithIndex:
     [| :node :index |
-     gen generate: node result:
-       (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
+     index = n statements indexLast
+       ifTrue: [gen generate: node &result: result]
+       ifFalse: [gen generate: node]]
 ].
 
-gen@(SSAVM Compiler traits) generate: n@(nodes Parenthesis traits) result: result
+gen@(SSAVM Compiler traits) generate: n@(nodes Parenthesis traits) &result
 "return the registers that the values were saved into"
 [
   n statements doWithIndex:
     [| :node :index |
-     gen generate: node result:
-       (index = n statements indexLast ifTrue: [result] ifFalse: [Nil])]
+     index = n statements indexLast
+       ifTrue: [gen generate: node &result: result]
+       ifFalse: [gen generate: node]]
 ].
 
-gen@(SSAVM Compiler traits) generate: i@(nodes ImplicitArgument traits) result: result
+gen@(SSAVM Compiler traits) generate: i@(nodes ImplicitArgument traits) &result
 [
   result `defaultsTo: gen newRegister.
   gen emit: gen loadEnvironment
@@ -486,10 +488,10 @@ gen@(SSAVM Compiler traits) generate: i@(nodes ImplicitArgument traits) result: 
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@(nodes Namespace traits) result: result
+gen@(SSAVM Compiler traits) generate: _@(nodes Namespace traits) &result
 [shouldNotImplement].
 
-gen@(SSAVM Compiler traits) generate: load@(nodes LoadVariable traits) result: result
+gen@(SSAVM Compiler traits) generate: load@(nodes LoadVariable traits) &result
 [
   scope ::= load variable scope.
   varIndex ::= scope localVariables indexOf: load variable.
@@ -517,7 +519,7 @@ gen@(SSAVM Compiler traits) generate: load@(nodes LoadVariable traits) result: r
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) result: result
+gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) &result
 [
   scope ::= store variable scope.
   varIndex ::= scope localVariables indexOf: store variable.
@@ -528,7 +530,7 @@ gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) result:
   lexOffset isZero
     ifTrue:
       [result `defaultsTo: varIndex.
-       gen generate: store value result: varIndex.
+       gen generate: store value &result: varIndex.
        gen emit: gen storeVariable
            withParameters: {varIndex}
            fromSource: store.
@@ -538,7 +540,7 @@ gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) result:
               fromSource: store]]
     ifFalse:
       [result `defaultsTo: gen newRegister.
-       gen generate: store value result: result.
+       gen generate: store value &result.
        (gen contexts fromTop: lexOffset) method heapAllocate := True.
        (gen contexts top: lexOffset) do: #beClosure `er.
        gen emit: gen storeFreeVariable
@@ -547,7 +549,7 @@ gen@(SSAVM Compiler traits) generate: store@(nodes StoreVariable traits) result:
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: array@(nodes Array traits) result: result
+gen@(SSAVM Compiler traits) generate: array@(nodes Array traits) &result
 "Generate the code to push the element expression results on the stack,
 then the appropriate literal-array constructor bytecode."
 [
@@ -559,30 +561,30 @@ then the appropriate literal-array constructor bytecode."
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: msg@(nodes Message traits) result: result
+gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: msg@(nodes Message traits) &result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
   result `defaultsTo: gen newRegister.
-  argRegisters ::= args collect: #(gen generate: _ result: Nil) `er.
+  argRegisters ::= args collect: #(gen generate: _) `er.
   gen emit: gen directSendMessage
       withParameters: {result. selector. args size} ; argRegisters
       fromSource: msg.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: msg@(nodes Message traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: msg@(nodes Message traits) &result &optionals
 [
-  gen generate: msg selector on: msg arguments fromSource: (optionals `defaultsTo: msg) result: result
+  gen generate: msg selector on: msg arguments fromSource: (optionals `defaultsTo: msg) &result
 ].
 
-gen@(SSAVM Compiler traits) generate: macro@(nodes Macro traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: macro@(nodes Macro traits) &result &optionals
 [
-  "gen generate: (macro macroExpand &optionals: optionals &environment: gen currentMethod sourceTree) result: result"
+  "gen generate: (macro macroExpand &optionals: optionals &environment: gen currentMethod sourceTree) &result"
   error: 'Cannot support macroexpansion at code generation time because of localVariable side-effects'.
 ].
 
-gen@(SSAVM Compiler traits) generate: def@(nodes Deferred traits) result: result &optionals
+gen@(SSAVM Compiler traits) generate: def@(nodes Deferred traits) &result &optionals
 [| message |
   block ::= nodes Block new `>> [parentScope := gen currentMethod sourceTree. ].
   def arguments size timesRepeat: [block addInputVariable].
@@ -596,38 +598,38 @@ gen@(SSAVM Compiler traits) generate: def@(nodes Deferred traits) result: result
     (nodes KeywordMessage
       sending: #whenFulfilled:
       to: {def arguments as: nodes Array. block})
-    result: result
+    &result: result
 ].
 
-gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: optionals@(nodes OptionalKeywords traits) result: result
+gen@(SSAVM Compiler traits) generate: selector@(Symbol traits) on: args fromSource: optionals@(nodes OptionalKeywords traits) &result
 "Generate the code to push the argument expression results on the stack, then
 the push for the selector, and then the appropriate message send bytecode."
 [
   result `defaultsTo: gen newRegister.
-  argRegisters ::= args collect: #(gen generate: _ result: Nil) `er.
+  argRegisters ::= args collect: #(gen generate: _) `er.
   optionalsArray ::= ExtensibleArray new.
   optionalsWriter ::= optionalsArray writer.
   optionals keywords with: optionals arguments do:
     [| :key :arg |
-     optionalsWriter nextPut: (gen registerFor: key fromSource: optionals result: Nil).
-     optionalsWriter nextPut: (gen generate: arg result: Nil)].
+     optionalsWriter nextPut: (gen registerFor: key fromSource: optionals).
+     optionalsWriter nextPut: (gen generate: arg)].
   gen emit: gen sendMessageWithOptionalsInline
       withParameters: {result. selector. args size. optionalsArray size} ; argRegisters ; optionalsArray
       fromSource: optionals.
   result
 ].
 
-gen@(SSAVM Compiler traits) generate: optionals@(nodes OptionalKeywords traits) result: result
+gen@(SSAVM Compiler traits) generate: optionals@(nodes OptionalKeywords traits) &result
 [
-  gen generate: optionals message result: result &optionals: optionals
+  gen generate: optionals message &result: result &optionals: optionals
 ].
 
-gen@(SSAVM Compiler traits) generate: rest@(nodes RestArguments traits) result: result
+gen@(SSAVM Compiler traits) generate: rest@(nodes RestArguments traits) &result
 [
   gen generate: rest message selector
       on: rest message arguments ; rest arguments
       fromSource: rest message
-      result: result
+      &result: result
 ].
 
 define: #VM -> SSAVM.
