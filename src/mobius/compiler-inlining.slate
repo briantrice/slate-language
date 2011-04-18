@@ -10,6 +10,16 @@ gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg &result
   result
 ].
 
+gen@(SSAVM Compiler traits) generate: _@#applyWith: on: args fromSource: msg &result
+[
+  gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg &result: result
+].
+
+gen@(SSAVM Compiler traits) generate: _@#applyWith:with: on: args fromSource: msg &result
+[
+  gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg &result: result
+].
+
 gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg &result
 [
   (args second isSameAs: nodes Array)
@@ -24,6 +34,27 @@ gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg &resu
        result]
     ifFalse: [resend]
 ].
+
+gen@(SSAVM Compiler traits) generate: _@#do on: args fromSource: msg &result
+"If the block is a literal with no variables, then inline it.
+Otherwise, fall back to evaluating it via 'do'."
+[
+  ((block ::= args first) isSameAs: nodes Block)
+    /\ [block localVariables isEmpty]
+    ifTrue:
+      [result `defaultsTo: gen newRegister.
+       block statements isEmpty
+         ifTrue: [gen emit: gen loadLiteral
+                      withParameters: {result. Nil}
+                      fromSource: msg.
+                  result]
+         ifFalse: [block statements allButLastDo: [| :node | gen generate: node].
+                   gen generate: block statements last &result: result]]
+    ifFalse: [resend]
+].
+
+gen@(SSAVM Compiler traits) generateExecutionOf: args fromSource: msg &result
+[gen generate: #do on: args fromSource: msg &result: result].
 
 gen@(SSAVM Compiler traits) generate: _@#primitiveApply* on: args fromSource: msg &result
 [
@@ -66,27 +97,6 @@ gen@(SSAVM Compiler traits) generate: _@#== on: args fromSource: msg &result
       fromSource: msg.
   result
 ].
-
-gen@(SSAVM Compiler traits) generate: _@#do on: args fromSource: msg &result
-"If the block is a literal with no variables, then inline it.
-Otherwise, fall back to evaluating it via 'do'."
-[
-  ((block ::= args first) isSameAs: nodes Block)
-    /\ [block localVariables isEmpty]
-    ifTrue:
-      [result `defaultsTo: gen newRegister.
-       block statements isEmpty
-         ifTrue: [gen emit: gen loadLiteral
-                      withParameters: {result. Nil}
-                      fromSource: msg.
-                  result]
-         ifFalse: [block statements allButLastDo: [| :node | gen generate: node].
-                   gen generate: block statements last &result: result]]
-    ifFalse: [resend]
-].
-
-gen@(SSAVM Compiler traits) generateExecutionOf: args fromSource: msg &result
-[gen generate: #do on: args fromSource: msg &result: result].
 
 gen@(SSAVM Compiler traits) emitJumpToLabel: label fromSource: node
 [
