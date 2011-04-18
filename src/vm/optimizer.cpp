@@ -145,8 +145,7 @@ word_t opcode_base_length(word_t rawop) {
 word_t opcode_jump_offset(word_t rawop) {
   switch (rawop) {
   case OP_JUMP_TO: return 1;
-  case OP_BRANCH_IF_FALSE: return 2;
-  case OP_BRANCH_IF_TRUE: return 2;
+  case OP_BRANCH_IF_FALSE: case OP_BRANCH_IF_TRUE: return 2;
   case OP_INLINE_PRIMITIVE_CHECK: return 5;
   case OP_INLINE_METHOD_CHECK: return 3;
   default:
@@ -159,14 +158,16 @@ word_t opcode_jump_offset(word_t rawop) {
 // where the jump (offset) is relative from the end of the instruction
 word_t opcode_jump_adjustment(word_t rawop) {
   switch (rawop) {
-  case OP_JUMP_TO: return -1;
-  case OP_BRANCH_IF_FALSE: return -1;
-  case OP_BRANCH_IF_TRUE: return -1;
-  case OP_INLINE_PRIMITIVE_CHECK: return 0;
-  case OP_INLINE_METHOD_CHECK: return 0;
+  case OP_JUMP_TO:
+  case OP_BRANCH_IF_FALSE:
+  case OP_BRANCH_IF_TRUE:
+    return -1;
+  case OP_INLINE_PRIMITIVE_CHECK:
+  case OP_INLINE_METHOD_CHECK:
+    return 0;
   default:
     error_bad_opcode(rawop);
-    return 0;
+    return -1;
   }
   return 0;
 }
