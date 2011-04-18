@@ -211,7 +211,7 @@ will be interpreted immediately upon loading the image."
 ].
 
 gen@(Generator traits) objectsAt: name
-[gen objects at: name].
+[gen objects at: name ifAbsent: [name]].
 
 gen@(Generator traits) objectsAt: name put: obj
 [
@@ -246,7 +246,7 @@ gen@(Generator traits) capacityForTable: table
 gen@(Generator traits) generateSlotTableFor: map
 [| obj capacity selector hash |
   capacity := gen capacityForTable: map slotTable.
-  obj := gen cloneOf: (gen objectsAt: #ArrayProto) sized: 2 * capacity.
+  obj := gen newArrayOf: ({} newSize: 2 * capacity).
   map slotTable do:
     [| :se |
      selector := gen generateLiteral: se name.
@@ -262,7 +262,7 @@ gen@(Generator traits) generateSlotTableFor: map
 gen@(Generator traits) generateRoleTableFor: map
 [| obj capacity selector hash insert |
   capacity := gen capacityForTable: map roleTable.
-  obj := gen cloneOf: (gen objectsAt: #ArrayProto) sized: 4 * capacity.
+  obj := gen newArrayOf: ({} newSize: 4 * capacity).
   map roleTable do:
     [| :re |
      selector := gen generateLiteral: re name.
@@ -292,7 +292,7 @@ gen@(Generator traits) generateMethodDef: def
     [| obj sym |
      (sym := def method getSlot: #selector)
        setSlot: #cacheMask to: ((sym getSlot: #cacheMask) bitOr: def dispatchPositions).
-     (obj := gen cloneOf: (gen objectsAt: #MethodDefinitionProto)) `>>
+     (obj := gen cloneOf: #MethodDefinitionProto) `>>
        [setSlot: #method to: def method.
         setSlot: #slotAccessor to: (gen generateLiteral: def slotAccessor). ].
      gen wordAt: 1 * gen bytesPerWord in: obj put: def dispatchPositions.
@@ -302,10 +302,10 @@ gen@(Generator traits) generateMethodDef: def
 gen@(Generator traits) generateMap: map
 [
   gen translations at: map ifAbsentPut:
-    [(gen cloneOf: (gen objectsAt: #MapProto)) `>>
+    [(gen cloneOf: #MapProto) `>>
        [setSlot: #flags to: map flags.
         setSlot: #representative to: (map representative ifNil: [gen objectsAt: #NilObject]).
-        setSlot: #delegates to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: map delegates).
+        setSlot: #delegates to: (gen newArrayOf: map delegates).
         setSlot: #slotCount to: map slotCount.
         setSlot: #slotTable to: (gen generateSlotTableFor: map).
         setSlot: #roleTable to: (gen generateRoleTableFor: map). ]]
@@ -465,58 +465,67 @@ gen@(Generator traits) newObject &layout &map
 gen@(Generator traits) cloneOf: proto@(Object traits)
 [
   gen chunks addLast: proto clone `>>
-    [idHash := gen newIdentityHash. slotValues := proto slotValues copy. ]
+    [idHash := gen newIdentityHash.
+     slotValues := proto slotValues copy. ]
 ].
 
-gen@(Generator traits) cloneOf: arr@(Array traits)
-[resend `>> [elements := arr elements copy. ]].
+gen@(Generator traits) cloneOf: name
+[gen cloneOf: (gen objectsAt: name)].
 
-gen@(Generator traits) cloneOf: proto sized: size
-[(gen cloneOf: proto) `>> [elements := proto elements newSize: size. ]].
+gen@(Generator traits) cloneOf: proto@(Array traits)
+[
+  gen chunks addLast: proto clone `>>
+    [idHash := gen newIdentityHash.
+     slotValues := proto slotValues copy.
+     elements := proto elements copy. ]
+].
 
 gen@(Generator traits) cloneOf: proto elements: elements
 [(gen cloneOf: proto) `>> [elements := elements as: proto elements. ]].
 
+gen@(Generator traits) newArrayOf: elements
+[gen cloneOf: (gen objectsAt: #ArrayProto) elements: elements].
+
 gen@(Generator traits) addAccessorFor: slotName on: obj
-[| accessor selector |
-  selector := obj accessorNameFor: slotName.
-  (accessor := gen cloneOf: (gen objectsAt: #CompiledMethodProto)) `>>
+[
+  selector ::= obj accessorNameFor: slotName.
+  (accessor ::= gen cloneOf: #CompiledMethodProto) `>>
     [setSlot: #method to: accessor.
      setSlot: #selector to: (gen generateLiteral: selector).
      setSlot: #inputVariables to: 1.
      setSlot: #localVariables to: 1.
      setSlot: #registerCount to: 3.
-     setSlot: #literals to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: slotName}).
-     setSlot: #selectors to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:}).
+     setSlot: #literals to: (gen newArrayOf: {gen generateLiteral: slotName}).
+     setSlot: #selectors to: (gen newArrayOf: {gen generateLiteral: #atSlotNamed:}).
      setSlot: #code to:
-       (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {
-         SSAVM Code loadVariable. 0.
-         SSAVM Code loadLiteral. 1. gen generateLiteral: slotName.
-         SSAVM Code directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
-         SSAVM Code returnRegister. 0
+       (gen newArrayOf: {
+         VM SSACode loadVariable. 0.
+         VM SSACode loadLiteral. 1. gen generateLiteral: slotName.
+         VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:. 2. 0. 1.
+         VM SSACode returnRegister. 0
      }). ].
   (accessor addMethodNamed: selector on: {obj}) slotAccessor: slotName.
   accessor
 ].
 
 gen@(Generator traits) addMutatorFor: slotName on: obj
-[| mutator selector |
-  selector := obj mutatorNameFor: slotName.
-  (mutator := gen cloneOf: (gen objectsAt: #CompiledMethodProto)) `>>
+[
+  selector ::= obj mutatorNameFor: slotName.
+  (mutator ::= gen cloneOf: #CompiledMethodProto) `>>
     [setSlot: #method to: mutator.
      setSlot: #selector to: (gen generateLiteral: selector).
      setSlot: #inputVariables to: 2.
      setSlot: #localVariables to: 1.
      setSlot: #registerCount to: 4.
-     setSlot: #literals to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: slotName}).
-     setSlot: #selectors to: (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {gen generateLiteral: #atSlotNamed:put:}).
+     setSlot: #literals to: (gen newArrayOf: {gen generateLiteral: slotName}).
+     setSlot: #selectors to: (gen newArrayOf: {gen generateLiteral: #atSlotNamed:put:}).
      setSlot: #code to:
-       (gen cloneOf: (gen objectsAt: #ArrayProto) elements: {
-         SSAVM Code loadVariable. 0.
-         SSAVM Code loadVariable. 1.
-         SSAVM Code loadLiteral. 2. gen generateLiteral: slotName.
-         SSAVM Code directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
-         SSAVM Code returnRegister. 0
+       (gen newArrayOf: {
+         VM SSACode loadVariable. 0.
+         VM SSACode loadVariable. 1.
+         VM SSACode loadLiteral. 2. gen generateLiteral: slotName.
+         VM SSACode directSendMessage. 0. gen generateLiteral: #atSlotNamed:put:. 3. 0. 2. 1.
+         VM SSACode returnRegister. 0
      }). ].
   (mutator addMethodNamed: selector on: {obj. Nil}) slotAccessor: slotName.
   mutator
@@ -546,7 +555,7 @@ gen@(Generator traits) generatePrototype: name &suffix &layout &parents &slots: 
     ifNotNil:
       [parents reverseDoWithIndex:
         [| :parent :index |
-          window addDelegateValued: parent]].
+         window addDelegateValued: (gen objectsAt: parent)]].
   window addDelegateValued: traits.
   result := (gen objectsAt: (name ; suffix) intern := gen newObject &layout: layout)
     `>> [addDelegateValued: window. ].
@@ -558,67 +567,69 @@ gen@(Generator traits) generatePrototype: name &suffix &layout &parents &slots: 
 ].
 
 gen@(Generator traits) generateInstance: name of: window
-[(gen objectsAt: name := gen newObject) `>>
-  [addDelegateValued: window.]
+[
+  (gen objectsAt: name := gen newObject) `>>
+    [addDelegateValued: (gen objectsAt: window). ]
 ].
 
 gen@(Generator traits) generateKernel
 [
   gen generatePrototype: 'Root'.
-  gen generatePrototype: 'Oddball' &parents: {gen objectsAt: #RootTraits}.
-  gen generatePrototype: 'Derivable' &parents: {gen objectsAt: #RootTraits}.
-  gen generatePrototype: 'Cloneable' &parents: {gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}.
+  gen generatePrototype: 'Oddball' &parents: {#RootTraits}.
+  gen generatePrototype: 'Derivable' &parents: {#RootTraits}.
+  gen generatePrototype: 'Cloneable' &parents: {#DerivableTraits. #RootTraits}.
 
-  gen generateInstance: #NilObject of: (gen objectsAt: #OddballWindow).
-  gen generateInstance: #NoRoleObject of: (gen objectsAt: #OddballWindow).
+  gen generateInstance: #NilObject of: #OddballWindow.
+  gen generateInstance: #NoRoleObject of: #OddballWindow.
 
-  gen generatePrototype: 'Boolean' &parents: {gen objectsAt: #OddballTraits. gen objectsAt: #RootTraits}.
-  gen generateInstance: #TrueObject of: (gen objectsAt: #BooleanWindow).
-  gen generateInstance: #FalseObject of: (gen objectsAt: #BooleanWindow).
+  gen generatePrototype: 'Boolean' &parents: {#OddballTraits. #RootTraits}.
+  gen generateInstance: #TrueObject of: #BooleanWindow.
+  gen generateInstance: #FalseObject of: #BooleanWindow.
 
   gen generatePrototype: 'Array' &layout: gen surroundings OopArray
-    &parents: {gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}
     &elements: Array new.
   gen generatePrototype: 'ByteArray' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}
     &elements: ByteArray new.
 
-  gen generatePrototype: 'SmallInteger' &parents: {gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #OddballTraits. gen objectsAt: #RootTraits}.
+  gen generatePrototype: 'SmallInteger' &parents: {#NilObject. #NilObject. #NilObject. #NilObject. #OddballTraits. #RootTraits}.
   (gen generatePrototype: 'Float' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #ByteArrayTraits. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits})
+    &parents: {#NilObject. #NilObject. #NilObject. #NilObject. #ByteArrayTraits. #NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits})
     `>> [elements := ByteArray newSize: gen bytesPerWord].
 
   gen generatePrototype: 'ASCIIString' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #NilObject. gen objectsAt: #ByteArrayTraits. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}.
+    &parents: {#NilObject. #ByteArrayTraits. #NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}.
 
   gen generatePrototype: 'Symbol' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #ASCIIStringTraits. gen objectsAt: #NilObject. gen objectsAt: #ByteArrayTraits. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#ASCIIStringTraits. #NilObject. #ByteArrayTraits. #NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {#cacheMask -> 0}.
 
   gen symbols at: #'' put: (gen objectsAt: #SymbolProto).
 
   gen generatePrototype: 'ASCIICharacter'
-    &parents: {gen objectsAt: #NilObject. gen objectsAt: #OddballTraits. gen objectsAt: #RootTraits} &slots: {#code -> 0}.
-  gen characters at: 0 put: (gen objectsAt: #ASCIICharacterProto).
-  1 below: gen characters size do:
+    &parents: {#NilObject. #OddballTraits. #RootTraits} &slots: {#code -> 0}.
+  gen characters keysDo:
     [| :index c |
-     c := gen cloneOf: (gen objectsAt: #ASCIICharacterProto).
+     c := index = 0
+       ifTrue: [gen objectsAt: #ASCIICharacterProto]
+       ifFalse: [gen cloneOf: (gen objectsAt: #ASCIICharacterProto)].
      c setSlot: #code to: index.
      gen characters at: index put: c].
   (gen objectsAt: #ASCIIStringTraits) makeSlotNamed: #Character valued: (gen objectsAt: #ASCIICharacterProto).
 
   gen generatePrototype: 'Namespace'
-    &parents: {gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}.
-  gen generateInstance: #BootstrapObject of: (gen objectsAt: #NamespaceWindow).
+    &parents: {#CloneableTraits. #DerivableTraits. #RootTraits}.
+  gen generateInstance: #BootstrapObject of: (#NamespaceWindow).
 
-  gen generatePrototype: 'Method' &parents: {gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}.
+  gen generatePrototype: 'Method' &parents: {#CloneableTraits. #DerivableTraits. #RootTraits}.
 
   gen generatePrototype: 'PrimitiveMethod'
-    &parents: {gen objectsAt: #MethodTraits. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#MethodTraits. #CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {#index -> 0. #selector -> (gen objectsAt: #NilObject). #inputVariables -> 0}.
 
   gen generatePrototype: 'CompiledMethod'
-    &parents: {gen objectsAt: #MethodTraits. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#MethodTraits. #CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {
       #method -> (gen objectsAt: #NilObject).
       #selector -> (gen objectsAt: #NilObject).
@@ -644,18 +655,18 @@ gen@(Generator traits) generateKernel
       #reserved6 -> 0}.
 
   gen generatePrototype: 'Closure' &layout: gen surroundings OopArray
-    &parents: {gen objectsAt: #MethodTraits. gen objectsAt: #ArrayTraits. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#MethodTraits. #ArrayTraits. #NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {#method -> (gen objectsAt: #NilObject)}.
 
   gen generatePrototype: 'MethodDefinition' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {
       #method -> (gen objectsAt: #CompiledMethodProto).
       #slotAccessor -> (gen objectsAt: #NilObject)}
     &elements: (ByteArray newSize: 4 * gen bytesPerWord).
 
   gen generatePrototype: 'Map' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {
       #flags -> 0.
       #representative -> (gen objectsAt: #NilObject).
@@ -666,11 +677,11 @@ gen@(Generator traits) generateKernel
     &elements: (ByteArray newSize: 3 * gen bytesPerWord).
 
   gen generatePrototype: 'LexicalContext' &layout: gen surroundings OopArray
-    &parents: {gen objectsAt: #ArrayTraits. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #NilObject. gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#ArrayTraits. #NilObject. #NilObject. #NilObject. #CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {#framePointer -> 0}.
 
   gen generatePrototype: 'Interpreter' &layout: gen surroundings ByteArray
-    &parents: {gen objectsAt: #CloneableTraits. gen objectsAt: #DerivableTraits. gen objectsAt: #RootTraits}
+    &parents: {#CloneableTraits. #DerivableTraits. #RootTraits}
     &slots: {
       #stack -> (gen objectsAt: #ArrayProto).
       #method -> (gen objectsAt: #NilObject).
@@ -679,15 +690,13 @@ gen@(Generator traits) generateKernel
       #ensureHandlers -> 0}
     &elements: (ByteArray newSize: 5 * gen bytesPerWord).
 
-  (gen objectsAt: #EnsureMarkerObject := gen cloneOf: (gen objectsAt: #CompiledMethodProto)) `>>
+  (gen objectsAt: #EnsureMarkerObject := gen cloneOf: #CompiledMethodProto) `>>
     [| :marker |
      setSlot: #method to: marker.
-     setSlot: #code to:
-       (gen cloneOf: (gen objectsAt: #ArrayProto)
-          elements: {SSAVM Code resume})].
+     setSlot: #code to: (gen newArrayOf: {VM SSACode resume})].
 ].
 
-Generator traits define: #Compiler &parents: {SSAVM Compiler} &slots: {
+Generator traits define: #Compiler &parents: {VM SSACompiler} &slots: {
   #generator.
 }.
 
@@ -719,7 +728,7 @@ gen@(Generator traits) generateInterpreterBooting: method
 
   stackSize := 16. "if you change this, change vm.c which has it hard-coded in the beginning of interpret()"
 
-  stackObj ::= (gen cloneOf: (gen objectsAt: #ArrayProto) sized: stackSize) `>>
+  stackObj ::= (gen newArrayOf: ({} newSize: stackSize)) `>>
     [elements at: 0 put: 0. "-6: prev sp"
      elements at: 1 put: -1. "-5: resultStackPointer"
      elements at: 2 put: 0. "-4: code pointer"
@@ -730,7 +739,7 @@ gen@(Generator traits) generateInterpreterBooting: method
 
   codeSize ::= methodCompiled code size.
 
-  (interpreter ::= gen objectsAt: #InterpreterObject := gen cloneOf: (gen objectsAt: #InterpreterProto)) `>>
+  (interpreter ::= gen objectsAt: #InterpreterObject := gen cloneOf: #InterpreterProto) `>>
     [setSlot: #stack to: stackObj.
      setSlot: #method to: methodLiteral.
      setSlot: #closure to: methodLiteral. ].
@@ -743,31 +752,23 @@ gen@(Generator traits) generateInterpreterBooting: method
 
 gen@(Generator traits) generateUtilities
 [
-  gen generateInstance: #ConsoleObject of: (gen objectsAt: #OddballWindow).
+  gen generateInstance: #ConsoleObject of: #OddballWindow.
 
-  gen generatePrototype: 'File' &parents: {
-    gen objectsAt: #NilObject.
-    gen objectsAt: #CloneableTraits.
-    gen objectsAt: #DerivableTraits.
-    gen objectsAt: #RootTraits
+  parentSpec ::= {
+    #NilObject.
+    #CloneableTraits.
+    #DerivableTraits.
+    #RootTraits
   }.
-  gen generatePrototype: 'Directory' &parents: {
-    gen objectsAt: #NilObject.
-    gen objectsAt: #CloneableTraits.
-    gen objectsAt: #DerivableTraits.
-    gen objectsAt: #RootTraits
-  }.
-  gen generatePrototype: 'ExternalLibrary' &parents: {
-    gen objectsAt: #NilObject.
-    gen objectsAt: #CloneableTraits.
-    gen objectsAt: #DerivableTraits.
-    gen objectsAt: #RootTraits
-  }.
+
+  gen generatePrototype: 'File' &parents: parentSpec.
+  gen generatePrototype: 'Directory' &parents: parentSpec.
+  gen generatePrototype: 'ExternalLibrary' &parents: parentSpec.
 ].
 
 gen@(Generator traits) generateBootstrapNamespace
 [
-  gen objectsAt: #PrototypesObject := gen cloneOf: (gen objectsAt: #NamespaceProto).
+  gen objectsAt: #PrototypesObject := gen cloneOf: #NamespaceProto.
   (gen objectsAt: #BootstrapObject) addDelegateValued: (gen objectsAt: #PrototypesObject).
   "timmy: no named delegate slots but name needed for accessor"
   (gen objectsAt: #BootstrapObject) makeSlotNamed: #prototypes valued: (gen objectsAt: #PrototypesObject).
@@ -815,7 +816,7 @@ gen@(Generator traits) generateBootstrapNamespace
     {#ExternalLibrary.  #ExternalLibraryProto}
   }.
 
-  gen objectsAt: #GlobalsObject := gen cloneOf: (gen objectsAt: #NamespaceProto).
+  gen objectsAt: #GlobalsObject := gen cloneOf: #NamespaceProto.
   (gen objectsAt: #BootstrapObject) addDelegateValued: (gen objectsAt: #GlobalsObject).
   (gen objectsAt: #BootstrapObject) makeSlotNamed: #globals valued: (gen objectsAt: #GlobalsObject).
   gen addAccessorFor: #globals on: (gen objectsAt: #BootstrapObject).
@@ -828,7 +829,7 @@ gen@(Generator traits) generateBootstrapNamespace
      {#True.                 gen objectsAt: #TrueObject}.
      {#False.                gen objectsAt: #FalseObject}.
      {#lobby.                gen objectsAt: #BootstrapObject}.
-     {#bootstrapCharacters.  gen cloneOf: (gen objectsAt: #ArrayProto) elements: gen characters}.
+     {#bootstrapCharacters.  gen newArrayOf: gen characters}.
      {#Symbols.              gen objectsAt: #ArrayProto}.
      {#bootstrapInterpreter. gen objectsAt: #InterpreterObject}.
      {#ensureMarker.         gen objectsAt: #EnsureMarkerObject}.
@@ -842,7 +843,7 @@ gen@(Generator traits) generateLinkage
 "TODO: The order in this method must be the same as in memory.slate, enforce it"
 [
   (gen objectsAt: #GlobalsObject) setSlot: #specialOops to:
-    (gen cloneOf: (gen objectsAt: #ArrayProto) elements:
+    (gen newArrayOf:
        (#{#BootstrapObject.
           #NoRoleObject.
           #NilObject.
@@ -880,7 +881,7 @@ gen@(Generator traits) generateLinkage
            #&optionals:.
            #badTypeError} collect: #(gen generateLiteral: _) `er)).
   (gen objectsAt: #GlobalsObject) setSlot: #Symbols to:
-    (gen cloneOf: (gen objectsAt: #ArrayProto) elements: gen symbols valueSet).
+    (gen newArrayOf: gen symbols valueSet).
 ].
 
 gen@(Generator traits) generatePrimitive: prim at: index
@@ -888,7 +889,7 @@ gen@(Generator traits) generatePrimitive: prim at: index
 this defines a PrimitiveMethod stub that will invoke the given primitive
 index. Must be called after generateImageBooting:."
 [
-  (gen cloneOf: (gen objectsAt: #PrimitiveMethodProto)) `>>
+  (gen cloneOf: #PrimitiveMethodProto) `>>
     [setSlot: #selector to: (gen generateLiteral: prim selector).
      setSlot: #inputVariables to: prim roles size.
      setSlot: #index to: index.
@@ -954,14 +955,14 @@ gen@(Generator traits) generateLiteral: a@(imports ByteArray traits)
 [
   a isEmpty
     ifTrue: [gen objectsAt: #ByteArrayProto]
-    ifFalse: [gen cloneOf: (gen objectsAt: #ByteArrayProto) elements: a]
+    ifFalse: [gen cloneOf: #ByteArrayProto elements: a]
 ].
 
 gen@(Generator traits) generateLiteral: a@(imports Array traits)
 [
   a isEmpty
     ifTrue: [gen objectsAt: #ArrayProto]
-    ifFalse: [gen cloneOf: (gen objectsAt: #ArrayProto) elements:
+    ifFalse: [gen newArrayOf:
                 (a collect: #(gen generateLiteral: _) `er)]
 ].
 
@@ -972,7 +973,7 @@ gen@(Generator traits) generateLiteral: c@(imports ASCIIString Character traits)
 
 gen@(Generator traits) generateLiteral: block@(imports CompiledMethod traits)
 [| obj |
-  obj := (gen cloneOf: (gen objectsAt: #CompiledMethodProto)) `>>
+  obj := (gen cloneOf: #CompiledMethodProto) `>>
    [| :obj |
     setSlot: #inputVariables to: block inputVariables.
     setSlot: #localVariables to: block localVariables.
