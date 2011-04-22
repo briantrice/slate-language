@@ -20,9 +20,14 @@ gen@(SSAVM Compiler traits) generate: _@#applyWith:with: on: args fromSource: ms
   gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: msg &result: result
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg &result
+gen@(SSAVM Compiler traits) canGenerate: _@#applyTo: on: args
 [
-  (args second isSameAs: nodes Array)
+  args second isSameAs: nodes Array
+].
+
+gen@(SSAVM Compiler traits) generate: sel@#applyTo: on: args fromSource: msg &result
+[
+  (gen canGenerate: sel on: args)
     ifTrue:
       [result `defaultsTo: gen newRegister.
        methodReg ::= gen generate: args first.
@@ -35,21 +40,27 @@ gen@(SSAVM Compiler traits) generate: _@#applyTo: on: args fromSource: msg &resu
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) generate: _@#do on: args fromSource: msg &result
+gen@(SSAVM Compiler traits) canGenerate: _@#do on: args
+[
+  (args first isSameAs: nodes Block)
+    /\ [args first localVariables isEmpty]
+].
+
+gen@(SSAVM Compiler traits) generate: sel@#do on: args fromSource: msg &result
 "If the block is a literal with no variables, then inline it.
 Otherwise, fall back to evaluating it via 'do'."
 [
-  ((block ::= args first) isSameAs: nodes Block)
-    /\ [block localVariables isEmpty]
+  (gen canGenerate: sel on: args)
     ifTrue:
-      [result `defaultsTo: gen newRegister.
-       block statements isEmpty
+      [statements ::= args first statements.
+       result `defaultsTo: gen newRegister.
+       statements isEmpty
          ifTrue: [gen emit: gen loadLiteral
                       withParameters: {result. Nil}
                       fromSource: msg.
                   result]
-         ifFalse: [block statements allButLastDo: [| :node | gen generate: node].
-                   gen generate: block statements last &result: result]]
+         ifFalse: [statements allButLastDo: [| :node | gen generate: node].
+                   gen generate: statements last &result: result]]
     ifFalse: [resend]
 ].
 
