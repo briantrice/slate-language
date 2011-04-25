@@ -472,11 +472,10 @@ gen@(SSAVM Compiler traits) generate: n@(nodes CompoundStatement traits) &result
 gen@(SSAVM Compiler traits) generate: n@(nodes Parenthesis traits) &result
 "return the registers that the values were saved into"
 [
-  n statements doWithIndex:
-    [| :node :index |
-     index = n statements indexLast
-       ifTrue: [gen generate: node &result: result]
-       ifFalse: [gen generate: node]]
+  n statements isEmpty
+    ifTrue: [#{}]
+    ifFalse: [n statements allButLastDo: [| :node | gen generate: node result: Nil].
+              gen generate: n statements last result: result]
 ].
 
 gen@(SSAVM Compiler traits) generate: i@(nodes ImplicitArgument traits) &result
