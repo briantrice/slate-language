@@ -78,23 +78,28 @@ gen@(SSAVM Compiler traits) generate: _@#primitiveApply* on: args fromSource: ms
   result
 ].
 
+gen@(SSAVM Compiler traits) canGenerateGlobalAccessOn: args
+[
+  args first isSameAs: nodes ImplicitArgument
+].
+
 gen@(SSAVM Compiler traits) generate: _@#True on: args fromSource: msg &result
 [
-  (args first isSameAs: nodes ImplicitArgument)
+  (gen canGenerateGlobalAccessOn: args)
     ifTrue: [gen registerFor: True fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#False on: args fromSource: msg &result
 [
-  (args first isSameAs: nodes ImplicitArgument)
+  (gen canGenerateGlobalAccessOn: args)
     ifTrue: [gen registerFor: False fromSource: msg &result: result]
     ifFalse: [resend]
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#Nil on: args fromSource: msg &result
 [
-  (args first isSameAs: nodes ImplicitArgument)
+  (gen canGenerateGlobalAccessOn: args)
     ifTrue: [gen registerFor: Nil fromSource: msg &result: result]
     ifFalse: [resend]
 ].
