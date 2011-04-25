@@ -12,22 +12,34 @@ gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: node &resul
 
 gen@(SSAVM Compiler traits) generate: _@#applyWith: on: args fromSource: node &result
 [
-  gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: node &result: result
+  result `defaultsTo: gen newRegister.
+  methodReg ::= gen generate: args first.
+  argReg ::= gen generate: args second.
+  gen emit: gen directApplyTo
+      withParameters: {methodReg. argRegs size. result. argReg}
+      fromSource: node.
+  result
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#applyWith:with: on: args fromSource: node &result
 [
-  gen@(SSAVM Compiler traits) generate: _@#apply* on: args fromSource: node &result: result
+  result `defaultsTo: gen newRegister.
+  methodReg ::= gen generate: args first.
+  argRegs ::= args allButFirst collect: [| :item | gen generate: item].
+  gen emit: gen directApplyTo
+      withParameters: {methodReg. argRegs size. result} ; argRegs
+      fromSource: node.
+  result
 ].
 
-gen@(SSAVM Compiler traits) canGenerate: _@#applyTo: on: args
+gen@(SSAVM Compiler traits) canInline: _@#applyTo: on: args
 [
   args second isSameAs: nodes Array
 ].
 
 gen@(SSAVM Compiler traits) generate: sel@#applyTo: on: args fromSource: node &result
 [
-  (gen canGenerate: sel on: args)
+  (gen canInline: sel on: args)
     ifTrue:
       [result `defaultsTo: gen newRegister.
        methodReg ::= gen generate: args first.
@@ -40,7 +52,7 @@ gen@(SSAVM Compiler traits) generate: sel@#applyTo: on: args fromSource: node &r
     ifFalse: [resend]
 ].
 
-gen@(SSAVM Compiler traits) canGenerate: _@#do on: args
+gen@(SSAVM Compiler traits) canInline: _@#do on: args
 [
   (args first isSameAs: nodes Block)
     /\ [args first localVariables isEmpty]
@@ -50,7 +62,7 @@ gen@(SSAVM Compiler traits) generate: sel@#do on: args fromSource: node &result
 "If the block is a literal with no variables, then inline it.
 Otherwise, fall back to evaluating it via 'do'."
 [
-  (gen canGenerate: sel on: args)
+  (gen canInline: sel on: args)
     ifTrue:
       [statements ::= args first statements.
        result `defaultsTo: gen newRegister.
@@ -78,28 +90,28 @@ gen@(SSAVM Compiler traits) generate: _@#primitiveApply* on: args fromSource: no
   result
 ].
 
-gen@(SSAVM Compiler traits) canGenerateGlobalAccessOn: args
+gen@(SSAVM Compiler traits) canInlineGlobalAccessOn: args
 [
   args first isSameAs: nodes ImplicitArgument
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#True on: args fromSource: node &result
 [
-  (gen canGenerateGlobalAccessOn: args)
+  (gen canInlineGlobalAccessOn: args)
     ifTrue: [gen registerFor: True fromSource: node &result: result]
     ifFalse: [resend]
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#False on: args fromSource: node &result
 [
-  (gen canGenerateGlobalAccessOn: args)
+  (gen canInlineGlobalAccessOn: args)
     ifTrue: [gen registerFor: False fromSource: node &result: result]
     ifFalse: [resend]
 ].
 
 gen@(SSAVM Compiler traits) generate: _@#Nil on: args fromSource: node &result
 [
-  (gen canGenerateGlobalAccessOn: args)
+  (gen canInlineGlobalAccessOn: args)
     ifTrue: [gen registerFor: Nil fromSource: node &result: result]
     ifFalse: [resend]
 ].
