@@ -145,6 +145,18 @@ c@(Collection traits) collect: block
 This returns a collection of the same kind."
 [c collect: block into: c].
 
+c@(Collection traits) flatCollect: block into: d
+"Answer a new collection resulting from mapping the block onto each element."
+[
+  [| :result | c do: [| :each | result nextPutAll: (block apply*, each)]]
+     writingAs: d
+].
+
+c@(Collection traits) flatCollect: block
+"Answer a new collection resulting from mapping the block onto each element.
+This returns a collection of the same kind."
+[c flatCollect: block into: c].
+
 c@(Collection traits) count: test
 "Return the number of elements of the collection satisfying the test."
 [| sum |
