@@ -1,11 +1,6 @@
 Information for the Slate Distribution
 --------------------------------------
 
-Copyright/License Information
------------------------------
-
-See the LICENSE file.
-
 What is Slate?
 --------------
 
@@ -27,6 +22,11 @@ See the wiki for more detailed documentation:
 
 See our bug-tracker for issues:
  <http://code.google.com/p/slate-language/issues/list>
+
+Copyright/License Information
+-----------------------------
+
+In short, MIT-style Public License. See the LICENSE file.
 
 Obtaining Slate
 ---------------
