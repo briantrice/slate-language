@@ -1,0 +1,86 @@
+%define name		slate-language
+%define version		slateversion
+
+%define _prefix		/usr
+%define _exec_prefix	%{_prefix}/bin
+%define _bindir		%{_exec_prefix}
+%define _datadir	%{_prefix}/share/slate
+%define _includedir	%{_prefix}/include
+%define _mandir		%{_prefix}/share/man
+%define _infodir	%{_prefix}/info
+%define _vimdir		%{_prefix}/share/vim/vim73/syntax
+
+%define mymake \
+	%{__make} \\\
+	prefix=%{_prefix} \\\
+	exec_prefix=%{_exec_prefix} \\\
+	datadir=%{_datadir} \\\
+	includedir=%{_includedir} \\\
+	mandir=%{_mandir} \\\
+	infodir=%{_infodir} \\\
+	bindir=%{_bindir} \\\
+	vimdir=%{_vimdir}
+
+
+%define my_makeinstall \
+	%{__make} \\\
+		prefix=%{?buildroot:%{buildroot}}%{_prefix} \\\
+		exec_prefix=%{?buildroot:%{buildroot}}%{_exec_prefix} \\\
+		datadir=%{?buildroot:%{buildroot}}%{_datadir} \\\
+		includedir=%{?buildroot:%{buildroot}}%{_includedir} \\\
+		mandir=%{?buildroot:%{buildroot}}%{_mandir} \\\
+		infodir=%{?buildroot:%{buildroot}}%{_infodir} \\\
+		bindir=%{?buildroot:%{buildroot}}%{_bindir} \\\
+		vimdir=%{?buildroot:%{buildroot}}%{_vimdir} \\\
+	install
+
+
+Summary:	Prototype-based object-oriented language based on Self, CLOS and Smalltalk-80
+Name:		%{name}
+Version:	%{version}
+Release:	1%{?dist}
+License:	MIT
+Group:		Slate Programming Language
+URL:		http://code.google.com/p/slate-language
+Source0:	%{_sourcedir}/%{name}-%{version}.tar.gz
+BuildRoot: 	%{buildroot}
+BuildRequires:	libtool
+BuildRequires:	gtk2-devel
+BuildRequires:	llvm-devel
+BuildRequires:	sed
+BuildRequires:	gcc
+BuildRequires:	bzip2
+Requires:	gtk2
+Requires:	glibc
+Requires:	llvm
+
+%description
+Slate is a prototype-based object-oriented programming language based on Self, CLOS, and Smalltalk-80. Slate syntax is intended to be as familiar as possible to a Smalltalker, for the clarity of messages as phrases. Unlike the Smalltalk family, methods within Slate can be assigned to a signature of objects, instead of being installed on one favored receiver. Slate has also many further expansions of the semantics which enable more concise and natural ways to express solutions to problems.Particular attention is being paid to the design of a fuller and more useful set of libraries than even the usual Smalltalk set, for collections, streams, meta-level protocols, concurrency, and exception-handling, among others. Our prime inspirations are the libraries of Strongtalk, Common Lisp, and Dylan.
+
+%prep
+%setup -q
+
+%build
+
+%{mymake} latest_release_image
+%{mymake}
+%{mymake} slate-completions
+%{mymake} plugins
+
+%install
+rm -rf %{buildroot}
+%{my_makeinstall}
+
+%clean
+rm -rf %{buildroot}
+
+%files
+%defattr(0644,root,root)
+%doc README.md LICENSE
+%{_datadir}
+%{_mandir}/man1/*
+#%{_infodir}/*
+%{_prefix}/share/vim/vim73/syntax/slate.vim
+%{_prefix}/share/emacs/site-lisp/*
+%{_includedir}/*
+%attr(0755,root,root) %{_exec_prefix}/slate
