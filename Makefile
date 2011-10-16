@@ -96,9 +96,12 @@ clean: pluginsclean vmclean tagsclean
 
 tags: TAGS
 
-TAGS: $(SOURCES) $(HEADERS)
+TAGS: $(SOURCES) $(HEADERS) $(SLATE_SOURCES)
 	$(SECHO) "Creating $@ file"
 	$(SILENT) $(ETAGS) $(SOURCES) $(HEADERS) -o $@
-	$(SILENT) $(ETAGS) -a --lang=none -r '/^[^\[\n]*@[^\[\"]*$$/' $(SLATE_SOURCES) -o $@
+	$(SILENT) $(ETAGS) -a --lang=none --regex='/^[^\[\n]*@[^\[\"]*$$/' \
+	--regex='/#\([A-Za-z][-A-Za-z0-9_:]*[^:]\)[ \t]+\(:\)?:=/\1/' \
+	--regex='/^\(.*[ \t]*\)?define\(Prototype\)?:[ \t]+#\([A-Za-z][-A-Za-z0-9_:]*[^:]\)/\3/' \
+	$(SLATE_SOURCES) -o $@
 
 .PHONY: clean superclean backup plugins pluginsclean vmclean
