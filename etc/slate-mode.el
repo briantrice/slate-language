@@ -1207,7 +1207,7 @@ a list. Note that the first argument must be found by searching backwards."
                             slate-name-regexp) 2)
     ("Definitions" ,(format "#\\(%s\\) :?:="
                             slate-name-regexp) 2)
-    ("Methods" "^\\([^\[]*@[^\[\"]*\\)$" 1) ; Matches the whole signature.
+    ("Methods" "^\\([^\[\n]*@[^\[\"]*\\)$" 1) ; Matches the whole signature.
     ))
 
 (defun slate-mode ()
