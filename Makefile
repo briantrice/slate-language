@@ -89,12 +89,16 @@ pluginsclean:
 vmclean:
 	$(MAKE) -C src/vm clean
 
-clean: pluginsclean vmclean
+tagsclean:
+	$(RM) TAGS
+
+clean: pluginsclean vmclean tagsclean
 
 tags: TAGS
 
 TAGS: $(SOURCES) $(HEADERS)
 	$(SECHO) "Creating $@ file"
-	$(SILENT) $(ETAGS) $(SOURCES) $(HEADERS)
+	$(SILENT) $(ETAGS) $(SOURCES) $(HEADERS) -o $@
+	$(SILENT) $(ETAGS) -a --lang=none -r '/^[^\[\n]*@[^\[\"]*$$/' $(SLATE_SOURCES) -o $@
 
 .PHONY: clean superclean backup plugins pluginsclean vmclean

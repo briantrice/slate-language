@@ -131,6 +131,7 @@ LATEST_SLATE_IMAGE_RELEASE_DATE = 2011-03-15
 LATEST_SLATE_IMAGE_RELEASE_NAME ?= slate.$(BYTE_ORDER_PREFIX).$(WORD_SIZE).$(LATEST_SLATE_IMAGE_RELEASE_DATE).image
 LATEST_SLATE_IMAGE_URL ?= http://slate-language.googlecode.com/files/$(LATEST_SLATE_IMAGE_RELEASE_NAME).bz2
 BOOTSTRAP_DIR := $(slateroot)
+SLATE_SOURCES ?= $(srcdir)/**/*.slate
 
 CFLAGS_x-windows.c=`pkg-config --cflags x11` `pkg-config --cflags cairo` -Werror
 LDFLAGS_x-windows.lo=`pkg-config --libs x11` `pkg-config --libs cairo`
