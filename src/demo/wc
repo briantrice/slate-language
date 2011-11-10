@@ -33,8 +33,9 @@ rawInputs doWithIndex:
    in reader sessionDo:
      [| :r pipe |
       pipe := r.
-      countTypes do: [| :type |
-        (countFlags at: type) ifTrue: [pipe := pipe echoTo: ((counts at: type) at: idx)]]].
+      (countFlags at: #byte) ifTrue: [pipe := pipe echoTo: (byteCounts at: idx)].
+      (countFlags at: #line) ifTrue: [pipe := pipe lines echoTo: (lineCounts at: idx)].
+      (countFlags at: #word) ifTrue: [pipe := pipe split echoTo: (wordCounts at: idx)]]].
 
 _@here printCountsAt: index
 [
