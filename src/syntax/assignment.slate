@@ -164,6 +164,20 @@ node@(nodes Node traits) \= value &environment: env
   node defaultsTo: value &environment: env
 ].
 
+node@(nodes Node traits) >:= value
+"Perform the assignment if the comparison indicated is true (original value is
+greater than the new potential value)."
+[
+  `(node `unquote > value `unquote ifTrue: [(node setTo: value &environment: env) `unquote])
+].
+
+node@(nodes Node traits) <:= value
+"Perform the assignment if the comparison indicated is true (original value is
+less than the new potential value)."
+[
+  `(node `unquote < value `unquote ifTrue: [(node setTo: value &environment: env) `unquote])
+].
+
 node@(nodes Node traits) += value &environment: env
 [
   node setTo: (nodes BinaryMessage sending: #+ to: {node. value}) &environment: env
