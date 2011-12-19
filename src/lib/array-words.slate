@@ -1,55 +1,70 @@
 collections define: #WordArray &parents: {Array}
-  &slots: {#bytes -> ByteArray new. #wordSize -> bytesPerWord}.
+  &slots: {#bytes -> ByteArray new. #bytesPerWordLocal -> bytesPerWord}.
 
 WordArray traits define: #LittleEndian &parents: {WordArray}.
 WordArray LittleEndian traitsWindow atSlotNamed: #printName put: 'WordArray LittleEndian'.
 WordArray traits define: #BigEndian &parents: {WordArray}.
 WordArray BigEndian traitsWindow atSlotNamed: #printName put: 'WordArray BigEndian'.
 
-w@(WordArray traits) new &capacity: size &wordSize
+w@(WordArray traits) new &capacity: size &bytesPerWordLocal
 "If called on WordArray, create a bigendian WordArray"
 "TODO: Change this to use the image startup code to create a platform endian WordArray. Maybe. Would need to be careful about passing them to external code after an image restart (we may be on a different endian platform)"
 [
   size `defaultsTo: 0.
-  wordSize `defaultsTo: bytesPerWord.
+  bytesPerWordLocal `defaultsTo: bytesPerWord.
   w traits == WordArray traits
-    ifTrue: [WordArray BigEndian newSized: size wordSize: wordSize]
-    ifFalse: [w clone newSized: size wordSize: wordSize]
+    ifTrue: [WordArray BigEndian newSized: size bytesPerWordLocal: bytesPerWordLocal]
+    ifFalse: [w clone newSized: size bytesPerWordLocal: bytesPerWordLocal]
 ].
 
-w@(WordArray traits) newFrom: a &wordSize
-[ wordSize `defaultsTo: bytesPerWord.
-  w clone `setting: #{#bytes. #wordSize} to: {a. wordSize}].
+w@(WordArray traits) newFrom: a &bytesPerWordLocal
+[
+  bytesPerWordLocal `defaultsTo: bytesPerWord.
+  w clone `setting: #{#bytes. #bytesPerWordLocal} to: {a. bytesPerWordLocal}
+].
 
-w@(WordArray traits) newSized: size wordSize: wordSize
-[w clone `setting: #{#bytes. #wordSize} to: {w bytes newSize: (size * wordSize) abs. wordSize}].
+w@(WordArray traits) newSized: size bytesPerWordLocal: bytesPerWordLocal
+[
+  w clone `setting: #{#bytes. #bytesPerWordLocal}
+    to: {w bytes newSize: (size * bytesPerWordLocal) abs. bytesPerWordLocal}
+].
 
 w@(WordArray traits) size
-[w bytes size / w wordSize].
+[w bytes size / w bytesPerWordLocal].
 
 _@(WordArray traits) elementType [Integer].
 
 _@(WordArray traits) defaultElement [0].
 
+_@(WordArray traits) bitsPerByte [8].
+
 w@(WordArray traits) accepts: i@(Integer traits) "Should be fixed 32bits"
-[(0 below: (1 << (w wordSize * 8))) includes: i].
+[(0 below: (1 << (w bytesPerWordLocal * w bitsPerByte))) includes: i].
 
 a@(WordArray BigEndian traits) at: offset
 [
-  a wordSize = 8 ifTrue: [a bytes bigEndianInt64At: offset] ifFalse: [a bytes bigEndianInt32At: offset]
+  a bytesPerWordLocal caseOf: {
+    [4] -> [a bytes bigEndianInt32At: offset].
+    [8] -> [a bytes bigEndianInt64At: offset]}
 ].
 
 a@(WordArray LittleEndian traits) at: offset
 [
-  a wordSize = 8 ifTrue: [a bytes littleEndianInt64At: offset] ifFalse: [a bytes littleEndianInt32At: offset]
+  a bytesPerWordLocal caseOf: {
+    [4] -> [a bytes littleEndianInt32At: offset].
+    [8] -> [a bytes littleEndianInt64At: offset]}
 ].
 
 a@(WordArray BigEndian traits) at: offset put: word
 [
-  a wordSize = 8 ifTrue: [a bytes bigEndianInt64At: offset put: word] ifFalse: [a bytes bigEndianInt32At: offset put: word]
+  a bytesPerWordLocal caseOf: {
+    [4] -> [a bytes bigEndianInt32At: offset put: word].
+    [8] -> [a bytes bigEndianInt64At: offset put: word]}
 ].
 
 a@(WordArray LittleEndian traits) at: offset put: word
 [
-  a wordSize = 8 ifTrue: [a bytes littleEndianInt64At: offset put: word] ifFalse: [a bytes littleEndianInt32At: offset put: word]
+  a bytesPerWordLocal caseOf: {
+    [4] -> [a bytes littleEndianInt32At: offset put: word].
+    [8] -> [a bytes littleEndianInt64At: offset put: word]}
 ].
