@@ -1,6 +1,6 @@
 prototypes define: #Semaphore &parents: {Cloneable}
   &slots: {#count -> 0.
-	   #waiters -> Queue new}.
+           #waiters -> Queue new}.
 "Counting semaphore implementation. Use Semaphore new for a fresh
 empty semaphore, and Semaphore newMutex for a fresh semaphore for
 mutual-exclusion (with an initial signal)."
@@ -15,7 +15,7 @@ s@(Semaphore traits) signal
 [
   Scheduler criticalSection: [
     s count isZero ifTrue: [s waiters isEmpty ifFalse: [
-			      Scheduler unblock: s waiters pop. ^ 0]].
+                              Scheduler unblock: s waiters pop. ^ 0]].
     s count: s count + 1]
 ].
 

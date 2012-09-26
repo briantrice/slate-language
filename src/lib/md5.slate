@@ -10,17 +10,17 @@ prototypes define: #Md5Sum &parents: {Cloneable} &slots: {
         }
 }.
 
-_@Md5Sum leftRotate: x@(Integer traits) by: c
+_@(Md5Sum traits) leftRotate: x@(Integer traits) by: c
 [
   (x << c) bitOr: (x >> (32 - c))
 ].
 
-_@Md5Sum mask: x@(Integer traits)
+_@(Md5Sum traits) mask: x@(Integer traits)
 [
   x bitAnd: 16rFFFFFFFF
 ].
 
-md5@Md5Sum stringFrom: array@(ByteArray traits)
+md5@(Md5Sum traits) stringFrom: array@(ByteArray traits)
 [| sum |
   sum := md5 of: array.
   [| :output |
@@ -31,7 +31,7 @@ md5@Md5Sum stringFrom: array@(ByteArray traits)
                   #(toLowercase truncateTo: 2 paddedBy: $0))]] writingAs: ''
 ].
 
-md5@Md5sum of: array@(ByteArray traits)
+md5@(Md5Sum traits) of: array@(ByteArray traits)
 [| h0 h1 h2 h3 arrayUnpaddedSizeInBits bitsToAdd newArray |
   h0 := 1732584193.
   h1 := md5 mask: -271733879.

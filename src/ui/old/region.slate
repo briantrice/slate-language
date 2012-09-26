@@ -70,7 +70,7 @@ being robust in case of round-off."
   dy: b y - a y.
   dx isZero /\ [dy isZero]
     \/ [((p y * dx - p x * dy) - (a y * b x - a x * b y)) squared
-	   <= (epsilon squared * (dx squared + dy squared))]
+           <= (epsilon squared * (dx squared + dy squared))]
 ].
 
 prototypes define: #Point3D &builder: [PointND deriveForSize: 3].
@@ -514,21 +514,21 @@ r@(Rectangle traits) areasOutside: q@(Rectangle traits)
   q origin y > r origin y
     ifTrue: [areas addLast:
       (r origin: r origin
-	 corner: (r origin x <> (oy: q origin y)))]
+         corner: (r origin x <> (oy: q origin y)))]
     ifFalse: [oy: r origin y].
   q corner y < r corner y
     ifTrue: [areas addLast:
       (r origin: (r origin x <> (cy: q corner y))
-	 corner: q corner)]
+         corner: q corner)]
     ifFalse: [cy: r corner y].
   q origin x > r origin x
     ifTrue: [areas addLast:
       (r origin: (r origin x <> yo)
-	 corner: (q origin x <> yc))].
+         corner: (q origin x <> yc))].
   q corner x < r corner x
     ifTrue: [areas addLast:
       (r origin: (q corner x <> yo)
-	 corner: (r corner x <> yc))].
+         corner: (r corner x <> yc))].
   areas
 ].
 
@@ -576,10 +576,10 @@ Use this over merge: whenever possible."
   minX: r origin x. minY: r origin y.
   maxX: r corner x. maxY: r corner y.
   col do: [| :each |
-	     minX: (each origin x min: minX).
-	     minY: (each origin y min: minY).
-	     maxX: (each corner x max: maxX).
-	     maxY: (each corner y max: maxY)].
+             minX: (each origin x min: minX).
+             minY: (each origin y min: minY).
+             maxX: (each corner x max: maxX).
+             maxY: (each corner y max: maxY)].
   r origin: (minX <> minY) corner: (maxX <> maxY)
 ].
 
@@ -665,7 +665,7 @@ line@(LineSegment traits) contains: p@(Point traits)
     [| :start :end |
      (line boundingRect contains: p)
        /\ [(p y - start y) * (end x - start x) =
-	     ((p x - start x) * (end y - start y))]]
+             ((p x - start x) * (end y - start y))]]
 ].
 
 line@(LineSegment traits) calcBoundingRect
@@ -692,7 +692,7 @@ path@(Path traits) as: poly@(Polygon traits)
 "Coerce the path to be closed while converting."
 [| newP |
   newP: (poly cloneSettingSlots: #{#points}
-	      to: {path points as: (poly points new &capacity: path points size + 1)}).
+              to: {path points as: (poly points new &capacity: path points size + 1)}).
   path isClosed
     ifFalse: [newP points add: path points first].
   newP
@@ -714,16 +714,16 @@ from (X,Y) to (+infinity,Y).  If there are an odd number of crossings,
   crossings: 0.
   lastPoint: poly first.
   testBlock: [| :a :b |
-		(p x <= a y eqv: p y > b y) "The segment crosses the ray."
-		  /\ [a y ~= b y]
-		  /\ [(p x - a x) -
-			  ((p y - a y) * (b x - a x)) / (b y - a y) < 0]
-		"The point is to the left."
-		   ifTrue: [crossings: crossings + 1]].
+                (p x <= a y eqv: p y > b y) "The segment crosses the ray."
+                  /\ [a y ~= b y]
+                  /\ [(p x - a x) -
+                          ((p y - a y) * (b x - a x)) / (b y - a y) < 0]
+                "The point is to the left."
+                   ifTrue: [crossings: crossings + 1]].
   1 below: poly size
     do: [| :index thisPoint |
-	 thisPoint: (poly at: index)
-	 testBlock applyWith: thisPoint with: lastPoint.
-	 lastPoint: thisPoint].
+         thisPoint: (poly at: index)
+         testBlock applyWith: thisPoint with: lastPoint.
+         lastPoint: thisPoint].
   crossings isOdd
 ].

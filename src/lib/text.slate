@@ -271,17 +271,17 @@ action@(DeleteRegionCommand traits) execute
 [
   (action buffer activePoint partner)
    ifNil: [action deletedText := ''.
-	   action oldPoint := action buffer activePoint.
-	   action oldMark := Nil]
+           action oldPoint := action buffer activePoint.
+           action oldMark := Nil]
    ifNotNil: [action oldPoint := action buffer activePoint copy.
-	      action oldMark := action buffer activePoint partner copy.
-	      action deletedText := (action buffer getContentsFrom: action buffer activePoint
+              action oldMark := action buffer activePoint partner copy.
+              action deletedText := (action buffer getContentsFrom: action buffer activePoint
                               to: action buffer activePoint partner).
-	      action buffer at: (action buffer activePoint min: action buffer activePoint partner)
-			    delete: action deletedText size.
-	      action buffer activePoint setTo: (action buffer activePoint min: action buffer activePoint partner).
-	      action buffer deletePoint: action oldPoint.
-	      action buffer activePoint disconnect]
+              action buffer at: (action buffer activePoint min: action buffer activePoint partner)
+                            delete: action deletedText size.
+              action buffer activePoint setTo: (action buffer activePoint min: action buffer activePoint partner).
+              action buffer deletePoint: action oldPoint.
+              action buffer activePoint disconnect]
 ].
 
 action@(DeleteRegionCommand traits) undo
@@ -439,13 +439,13 @@ tb@(ArrayTextBuffer traits) at: p1@(TextBuffer Pointer traits) delete: character
   characters timesRepeat:
     [(p1 = tb endOfBuffer) ifFalse:
       [p1 columnNo = (tb endOfLine: p1 lineNo)
-	 ifTrue:
-	   ["cursor at end of line, suck up the next one"
-	    (tb lines at: p1 lineNo) addAll: (tb lines at: p1 lineNo + 1).
-	    tb lines removeAt: p1 lineNo + 1]
-	 ifFalse:
-	   ["delete a character"
-	    (tb lines at: p1 lineNo) removeAt: p1 columnNo]]]
+         ifTrue:
+           ["cursor at end of line, suck up the next one"
+            (tb lines at: p1 lineNo) addAll: (tb lines at: p1 lineNo + 1).
+            tb lines removeAt: p1 lineNo + 1]
+         ifFalse:
+           ["delete a character"
+            (tb lines at: p1 lineNo) removeAt: p1 columnNo]]]
 ].
 
 tb@(ArrayTextBuffer traits) getContentsFrom: p1@(TextBuffer Pointer traits) to: p2@(TextBuffer Pointer traits)

@@ -2,27 +2,27 @@ Gtk define: #ScrolledWindow &parents: {Gtk Bin}.
 Gtk ScrolledWindow traits atSlotNamed: #printName put: 'Gtk ScrolledWindow'. 
 
 sw@(Gtk ScrolledWindow traits) new &hAdjustment: hAdjustment &vAdjustment: vAdjustment [
-	| scrolledWindow hAdjustmentHandle vAdjustmentHandle |
-	hAdjustment `defaultsTo: Nil.
-	hAdjustmentHandle: (hAdjustment ifNil: [Nil] ifNotNil: [ hAdjustment handle ]).
-	vAdjustment `defaultsTo: Nil.
-	vAdjustmentHandle: (vAdjustment ifNil: [Nil] ifNotNil: [ vAdjustment handle ]).
-	sw newWithHandle: (Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_scrolled_window_new applyTo: {hAdjustmentHandle. vAdjustmentHandle }
-	])
+        | scrolledWindow hAdjustmentHandle vAdjustmentHandle |
+        hAdjustment `defaultsTo: Nil.
+        hAdjustmentHandle: (hAdjustment ifNil: [Nil] ifNotNil: [ hAdjustment handle ]).
+        vAdjustment `defaultsTo: Nil.
+        vAdjustmentHandle: (vAdjustment ifNil: [Nil] ifNotNil: [ vAdjustment handle ]).
+        sw newWithHandle: (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_scrolled_window_new applyTo: {hAdjustmentHandle. vAdjustmentHandle }
+        ])
 ].
 
 sw@(Gtk ScrolledWindow traits) hScrollbarPolicy: aGtkHPolicyType vScrollbarPolicy: aGtkVPolicyType [
-	(Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_scrolled_window_set_policy applyTo: { sw handle. aGtkHPolicyType. aGtkVPolicyType }
-	])
+        (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_scrolled_window_set_policy applyTo: { sw handle. aGtkHPolicyType. aGtkVPolicyType }
+        ])
 ].
 
 sw@(Gtk ScrolledWindow traits) newWithChild: child [
-	| scrolledWindow |
-	scrolledWindow: sw new.
-	scrolledWindow hScrollbarPolicy: Gtk PolicyType Automatic vScrollbarPolicy: Gtk PolicyType Automatic.
-	scrolledWindow add: child.
-	scrolledWindow
+        | scrolledWindow |
+        scrolledWindow: sw new.
+        scrolledWindow hScrollbarPolicy: Gtk PolicyType Automatic vScrollbarPolicy: Gtk PolicyType Automatic.
+        scrolledWindow add: child.
+        scrolledWindow
 ].
 

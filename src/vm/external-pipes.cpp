@@ -84,7 +84,7 @@ word_t pipe_write(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesWritten = 0;
   return (WriteFile((HANDLE)file, bytes, (DWORD)n, &bytesWritten, NULL)
-	  ? bytesWritten : SLATE_ERROR_RETURN);
+          ? bytesWritten : SLATE_ERROR_RETURN);
 #else
   return write(file, bytes, n);
 #endif
@@ -94,7 +94,7 @@ word_t pipe_read(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesRead = 0;
   return (ReadFile((HANDLE)file, bytes, (DWORD)n, &bytesRead, NULL)
-	  ? bytesRead : SLATE_ERROR_RETURN);
+          ? bytesRead : SLATE_ERROR_RETURN);
 #else
   return read(file, bytes, n);
 #endif

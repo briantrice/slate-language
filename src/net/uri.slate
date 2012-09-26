@@ -97,42 +97,42 @@ both URIs have already been parsed.
     ifTrue: [^ rel].
   "Use rel's query and fragment, and abs's scheme."
   result := (abs cloneSettingSlots: #{#query. #fragment. #scheme}
-	       to: {rel query. rel fragment. abs scheme}).
+               to: {rel query. rel fragment. abs scheme}).
   "If rel's authority is defined, use it, or else use abs's."
   rel authority
     ifNil:
       [result authority := abs authority.
        rel path isEmpty not
-	 /\ [rel path first = '']
-	 ifTrue: [result path := rel path]
-	 ifFalse:
-	   [| resultPath dotDotIndex |
-	    "Copy all but the last segment of abs path to a buffer.
-	     Append rel path to the buffer."
-	    resultPath := (abs path allButLast ; rel path as: ExtensibleArray).
-	    resultPath isEmpty not
-	      /\ [resultPath first ~= '']
-	      ifTrue: [resultPath addFirst: ''].
-	    rel path isEmpty
-	      /\ [abs path isEmpty not]
-	      ifTrue: [resultPath addLast: ''].
-	    "If the last segment is '.', preserve a trailing slash."
-	    resultPath last = '.' ifTrue: [resultPath addLast: ''].
-	    "Remove all occurrences of '.' from the buffer."
-	    resultPath removeAllSuchThat: [| :seg | seg = '.'].
-	    "If the last segment is '..', preserve a trailing slash."
-	    resultPath last = '..' ifTrue: [resultPath addLast: ''].
-	    "Find occurrences of '..' from the left."
-	    dotDotIndex := 0.
-	    [dotDotIndex := (resultPath indexOf: '..' startingAt: dotDotIndex).
-	     dotDotIndex isNil]
-	      whileFalse:
-		[dotDotIndex = 1
-		   ifTrue: "Do not remove a leading slash."
-		     [dotDotIndex += 1]
-		   ifFalse: "Remove the '..' and the preceding element."
-		     [resultPath at: dotDotIndex - 1 remove: 2]].
-	    result path := resultPath]]
+         /\ [rel path first = '']
+         ifTrue: [result path := rel path]
+         ifFalse:
+           [| resultPath dotDotIndex |
+            "Copy all but the last segment of abs path to a buffer.
+             Append rel path to the buffer."
+            resultPath := (abs path allButLast ; rel path as: ExtensibleArray).
+            resultPath isEmpty not
+              /\ [resultPath first ~= '']
+              ifTrue: [resultPath addFirst: ''].
+            rel path isEmpty
+              /\ [abs path isEmpty not]
+              ifTrue: [resultPath addLast: ''].
+            "If the last segment is '.', preserve a trailing slash."
+            resultPath last = '.' ifTrue: [resultPath addLast: ''].
+            "Remove all occurrences of '.' from the buffer."
+            resultPath removeAllSuchThat: [| :seg | seg = '.'].
+            "If the last segment is '..', preserve a trailing slash."
+            resultPath last = '..' ifTrue: [resultPath addLast: ''].
+            "Find occurrences of '..' from the left."
+            dotDotIndex := 0.
+            [dotDotIndex := (resultPath indexOf: '..' startingAt: dotDotIndex).
+             dotDotIndex isNil]
+              whileFalse:
+                [dotDotIndex = 1
+                   ifTrue: "Do not remove a leading slash."
+                     [dotDotIndex += 1]
+                   ifFalse: "Remove the '..' and the preceding element."
+                     [resultPath at: dotDotIndex - 1 remove: 2]].
+            result path := resultPath]]
     ifNotNil:
       [result authority := rel authority.
        result path := rel path].
@@ -152,11 +152,11 @@ u@(Net URI traits) newFrom: s
   r := (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r match: s) ~= -1
     ifTrue: [u cloneSettingSlots: #{#scheme. #authority. #path. #query. #fragment}
-		     to: {(r subexpression: 1) as: Net Schemes Scheme.
-			  r subexpression: 3. 
-			  (r subexpression: 4) ifNil: ['/']. 
-			  r subexpression: 6. 
-			  r subexpression: 7}]
+                     to: {(r subexpression: 1) as: Net Schemes Scheme.
+                          r subexpression: 3. 
+                          (r subexpression: 4) ifNil: ['/']. 
+                          r subexpression: 6. 
+                          r subexpression: 7}]
     ifFalse: [error: 'Unable to parse: ' ; s ; ' as URI']
 ].
 

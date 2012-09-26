@@ -2,8 +2,8 @@ prototypes ensureNamespace: #concurrency &delegate: True.
 
 concurrency define: #Promise &parents: {Cloneable}
  &slots: {#value -> Nil.
-	  #dependents -> {}.
-	  #dependencies -> {}}.
+          #dependents -> {}.
+          #dependencies -> {}}.
 
 Promise aliasSlotNamed: #value as: #fulfilledBlock.
 
@@ -46,7 +46,7 @@ Otherwise, add this Promise to the dependents of the unresolved dependencies
     ifTrue: [currentProcess readyPromises add: p]
     ifFalse: [p dependencies do:
       [| :dep | dep isResolved
-		ifFalse: [dep dependents := dep dependents copyWith: p]]].
+                ifFalse: [dep dependents := dep dependents copyWith: p]]].
   p
 ].
 
@@ -99,7 +99,7 @@ p@(Promise traits) run
   p fulfillWith: 
     (p fulfilledBlock applyTo: 
       (p dependencies collect:
-	[| :dep | dep isBroken ifTrue: [p break. ^ False].
+        [| :dep | dep isBroken ifTrue: [p break. ^ False].
          dep value])).
   True
 ].

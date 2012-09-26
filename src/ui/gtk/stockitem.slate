@@ -2,64 +2,64 @@ Gtk define: #StockItem &parents: {GLib Pointer}.
 Gtk StockItem traits atSlotNamed: #printName put: 'Gtk StockItem'. 
 
 si@(Gtk StockItem traits) new [
-	si newWithHandle: (Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_stock_item_new do
-	])
+        si newWithHandle: (Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_stock_item_new do
+        ])
 ].
 
 si@(Gtk StockItem traits) newFromStock: stockId@(String traits) [
-	| stockItem |
-	stockItem: si new.
-	(Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_stock_lookup applyTo: {stockId. stockItem handle}
-	])
-		ifTrue: [ stockItem ]
-		ifFalse: [ Nil ]
+        | stockItem |
+        stockItem: si new.
+        (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_stock_lookup applyTo: {stockId. stockItem handle}
+        ])
+                ifTrue: [ stockItem ]
+                ifFalse: [ Nil ]
 ].
 
 si@(Gtk StockItem traits) listStocks [
-	| list listSize array |
-	list: (GLib SList newWithHandle: (Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_stock_list_ids do
-	])).
-	listSize: list size.
-	array: (Array new &capacity: listSize).
-	0 below: listSize do: [ | :index item |
-		item: (list at: index).
-		array at: index put: (item as: String).
-		item free.
-	].
-	list free.
-	array
+        | list listSize array |
+        list: (GLib SList newWithHandle: (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_stock_list_ids do
+        ])).
+        listSize: list size.
+        array: (Array new &capacity: listSize).
+        0 below: listSize do: [ | :index item |
+                item: (list at: index).
+                array at: index put: (item as: String).
+                item free.
+        ].
+        list free.
+        array
 ].
 
 si@(Gtk StockItem traits) list [
-	si listStocks collect: [ | :each |
-		si newFromStock: each
-	]
+        si listStocks collect: [ | :each |
+                si newFromStock: each
+        ]
 ].
 
 si@(Gtk StockItem traits) id [
-	Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_stock_item_get_stock_id applyTo: {si handle}
-	]
+        Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_stock_item_get_stock_id applyTo: {si handle}
+        ]
 ].
 
 si@(Gtk StockItem traits) label [
-	Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_stock_item_get_label applyTo: {si handle}
-	]
+        Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_stock_item_get_label applyTo: {si handle}
+        ]
 ].
 
 si@(Gtk StockItem traits) keyValue [
-	Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_stock_item_get_keyval applyTo: {si handle}
-	]
+        Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_stock_item_get_keyval applyTo: {si handle}
+        ]
 ].
 
 si@(Gtk StockItem traits) modifier [
-	Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_stock_item_get_modifier applyTo: {si handle}
-	]
+        Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_stock_item_get_modifier applyTo: {si handle}
+        ]
 ].
 

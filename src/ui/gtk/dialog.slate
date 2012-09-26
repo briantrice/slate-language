@@ -2,35 +2,35 @@ Gtk define: #Dialog &parents: {Gtk Window}.
 Gtk Dialog traits atSlotNamed: #printName put: 'Gtk Dialog'. 
 
 d@(Gtk Dialog traits) new [
-	d newWithHandle: (Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_dialog_new do
-	])
+        d newWithHandle: (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_dialog_new do
+        ])
 ].
 
 d@(Gtk Dialog traits) newWithFlags: flags &title: title &parent: parent [
-	| parentHandle |
-	parentHandle: (parent ifNil: [ Nil ] ifNotNil: [ parent handle ]).
-	d newWithHandle: (Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_dialog_new_with_buttons applyTo: {title. parentHandle. flags. Nil }
-	])
+        | parentHandle |
+        parentHandle: (parent ifNil: [ Nil ] ifNotNil: [ parent handle ]).
+        d newWithHandle: (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_dialog_new_with_buttons applyTo: {title. parentHandle. flags. Nil }
+        ])
 ].
 
 "This method is not compatible with the way that the wrapper is implemented
 d@(Gtk Dialog traits) run [
-	Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_dialog_run applyTo: { d handle }.
-	]
+        Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_dialog_run applyTo: { d handle }.
+        ]
 ]."
 
 d@(Gtk Dialog traits) addButton: text@(String traits) responseId: responseId@(Integer traits) [
-	Gtk Button newWithHandle: (Gdk Lib protectedDo: [
-		Gtk Lib primitives gtk_dialog_add_button applyTo: { d handle. text. responseId }.
-	])
+        Gtk Button newWithHandle: (Gdk Lib protectedDo: [
+                Gtk Lib primitives gtk_dialog_add_button applyTo: { d handle. text. responseId }.
+        ])
 ].
 
 d@(Gtk Dialog traits) vBox [
-	Gtk VBox newWithHandle: (Gdk Lib protectedDo: [
-		Gtk LibWrapper primitives wrapper_gtk_dialog_get_vbox applyTo: { d handle }
-	])
+        Gtk VBox newWithHandle: (Gdk Lib protectedDo: [
+                Gtk LibWrapper primitives wrapper_gtk_dialog_get_vbox applyTo: { d handle }
+        ])
 ].
 
