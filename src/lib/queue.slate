@@ -28,7 +28,7 @@ s@(Sequence traits) as: es@(Queue traits)
 "Likewise, we have to protect the buggy coding of whoever wrote this class."
 [
   es new `>> [contents := s arrayType newSize: s length + 1.
-	      addAll: s. ]
+              addAll: s. ]
 ].
 
 
@@ -198,14 +198,14 @@ q@(Queue traits) removeLast: n
    Array's start."
   newLastIndex > q lastIndex
     ifTrue: [| split |
-	     split := n - q lastIndex.
-	     removed replaceFrom: split below: n with: q contents.
-	     removed replaceFrom: 0 below: split with: q contents &startingAt: q contents size - split.
-	     "Clear the contents Array at the removed locations."
-	     0 below: n - split do: [| :i | q contents at: i put: Nil].
-	     newLastIndex below: q contents size do: [| :i | q contents at: i put: Nil]]
+             split := n - q lastIndex.
+             removed replaceFrom: split below: n with: q contents.
+             removed replaceFrom: 0 below: split with: q contents &startingAt: q contents size - split.
+             "Clear the contents Array at the removed locations."
+             0 below: n - split do: [| :i | q contents at: i put: Nil].
+             newLastIndex below: q contents size do: [| :i | q contents at: i put: Nil]]
     ifFalse: [removed replaceFrom: 0 below: removed size with: q contents &startingAt: q lastIndex.
-	      newLastIndex below: q lastIndex do: [| :index | q contents at: index put: Nil]].
+              newLastIndex below: q lastIndex do: [| :index | q contents at: index put: Nil]].
   "Finally, update the firstIndex."
   q forgetLast: n.
   removed
@@ -219,15 +219,15 @@ q@(Queue traits) removeFirst: n
   underlying Array's end."
   newFirstIndex < q firstIndex
     ifTrue: [| split |
-	     split := q contents size - q firstIndex.
-	     removed replaceFrom: split below: n with: q contents &startingAt: q firstIndex.
-	     removed replaceFrom: 0 below: split with: q contents.
-	     q firstIndex below: q contents size do:
-	       [| :i | q contents at: i put: Nil].
-	     0 below: newFirstIndex do: [| :i | q contents at: i put: Nil]]
+             split := q contents size - q firstIndex.
+             removed replaceFrom: split below: n with: q contents &startingAt: q firstIndex.
+             removed replaceFrom: 0 below: split with: q contents.
+             q firstIndex below: q contents size do:
+               [| :i | q contents at: i put: Nil].
+             0 below: newFirstIndex do: [| :i | q contents at: i put: Nil]]
     ifFalse: [removed replaceFrom: 0 below: n with: q contents &startingAt: q firstIndex.
-	      q firstIndex below: q firstIndex + n do:
-		[| :i | q contents at: i put: Nil]].
+              q firstIndex below: q firstIndex + n do:
+                [| :i | q contents at: i put: Nil]].
   "Finally, update the firstIndex."
   q forgetFirst: n.
   removed

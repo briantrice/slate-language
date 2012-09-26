@@ -207,7 +207,7 @@ word_t extractCString(struct ByteArray * array, byte_t* buffer, word_t bufferSiz
   if (arrayLength < 0)
     return SLATE_ERROR_RETURN;
 
-  buffer [arrayLength] = '\0';	
+  buffer [arrayLength] = '\0';  
   return arrayLength;
 }
 

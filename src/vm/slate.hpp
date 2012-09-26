@@ -119,8 +119,8 @@ struct Object
 #define SLATE_IMAGE_MAGIC (word_t)0xABCDEF43
 
 #ifdef _MSC_VER
-	#define SLATE_INLINE 
-	#pragma warning(disable : 4996)
+        #define SLATE_INLINE 
+        #pragma warning(disable : 4996)
 #else
 #define SLATE_INLINE inline
 // fixme
@@ -515,10 +515,10 @@ struct object_heap
 #define SPECIAL_OOP_TYPE_ERROR_ON 34
 #define SPECIAL_OOP_COUNT 35
 
-#define SF_READ				1
-#define SF_WRITE			1 << 1
-#define SF_CREATE			1 << 2
-#define SF_CLEAR			1 << 3
+#define SF_READ                         1
+#define SF_WRITE                        1 << 1
+#define SF_CREATE                       1 << 2
+#define SF_CLEAR                        1 << 3
 
 #define SLATE_DOMAIN_LOCAL  1
 #define SLATE_DOMAIN_IPV4   2

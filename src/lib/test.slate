@@ -7,7 +7,7 @@ TODO
 "
 
 prototypes ensureNamespace: #testing &delegate: True.
-"The category for testing-related functionality."	
+"The category for testing-related functionality."       
 
 testing ensureNamespace: #UnitTests.
 "Where the actual test data is stored."
@@ -28,17 +28,17 @@ testing@(testing) runAllTests
           (value is: Namespace)
             ifTrue: [runnerBlock applyWith: value]
             ifFalse:
-	      [
-	        (value is: TestCase) ifTrue:
-		  [| result |
-		    Console writer print: ('Running test \'' ; value printName ; '\'') paddingUntil: 40.
+              [
+                (value is: TestCase) ifTrue:
+                  [| result |
+                    Console writer print: ('Running test \'' ; value printName ; '\'') paddingUntil: 40.
                     Console writer flush.
                     "Console writer ensureColumnAtLeast: 20."
-		    "Console writer print: ('Running test \'' ; 'xxx' ; '\'') paddingUntil: 30."
-		    Console writer ; (value runSuite printString).
+                    "Console writer print: ('Running test \'' ; 'xxx' ; '\'') paddingUntil: 30."
+                    Console writer ; (value runSuite printString).
                     Console writer newLine.
                   ].
-	      ].
+              ].
         ].
     ].
   runnerBlock applyWith: UnitTests.
@@ -254,7 +254,7 @@ tc@(TestCase traits) failureLog
 
 testing define: #TestResource &parents: {Cloneable}
   &slots: {#testName -> 'a Resource'.
-	   #description -> 'a Resource'}.
+           #description -> 'a Resource'}.
 
 tr@(TestResource traits) defaultResources
 [#{}].
@@ -369,12 +369,12 @@ tc@(TestCase traits) run: result
        on: TestFailure
        do: [| :failure |
             tc logErrors ifTrue: [failure describeOn: (tc failureLog)].
-	    result failures include: tc.
-	    failure exit: False]]
+            result failures include: tc.
+            failure exit: False]]
     on: Error do: [| :error |
-		   result errors include: tc.
+                   result errors include: tc.
                    tc logErrors ifTrue: [error describeOn: (tc failureLog)].
-		   error exit: False]).
+                   error exit: False]).
   passed ifTrue: [result passed include: tc]
 ].
 
@@ -420,8 +420,8 @@ ts@(TestSuite traits) run: result
 [
   ts tests
     do: [| :each |
-	 "ts changed: each. TODO: include with dependency-support."
-	 each run: result]
+         "ts changed: each. TODO: include with dependency-support."
+         each run: result]
 ].
 
 ts@(TestSuite traits) run
@@ -429,7 +429,7 @@ ts@(TestSuite traits) run
   result := TestResult new.
   ts resources
     do: [| :each | each isAvailable
-		ifFalse: [error: 'Resource not available: ' ; each]].
+                ifFalse: [error: 'Resource not available: ' ; each]].
   [ts run: result]
     ensure: [ts resources do: #tearDown `er].
   result

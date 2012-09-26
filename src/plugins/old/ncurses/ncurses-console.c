@@ -14,13 +14,13 @@ extern int setupterm(char* term, int fildes, int* errret);
 void
 error (const char * message, ...)
 {
-	va_list args;
+        va_list args;
 
-	va_start (args, message);
-	fprintf (stderr, "Slate: ");
+        va_start (args, message);
+        fprintf (stderr, "Slate: ");
     vfprintf (stderr, message, args);
-	fputc ('\n', stderr);
-	va_end (args);
+        fputc ('\n', stderr);
+        va_end (args);
     exit (EXIT_FAILURE);
 }
 
