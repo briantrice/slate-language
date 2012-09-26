@@ -1,0 +1,230 @@
+define: #OrderedDictionary &parents: {ExtensibleSequence. ExtensibleMapping} &slots: {
+  #keys -> (ExtensibleArray newSize: 10).
+  #values -> (ExtensibleArray newSize: 10)
+}.
+
+d@(OrderedDictionary traits) size
+[d keys size].
+
+d@(OrderedDictionary traits) capacity
+[d keys capacity].
+
+d@(OrderedDictionary traits) copy
+[resend `>> [keys := d keys copy. values := d values copy. ]].
+
+d@(OrderedDictionary traits) new &capacity: n
+[
+  n `defaultsTo: 0.
+  d clone `>>
+    [keys := d keys new &capacity: n.
+     values := d values new &capacity: n. ]
+].
+
+d@(OrderedDictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
+[
+  d new `>>
+    [keys := keys as: d keys.
+     values := values as: d values. ]
+].
+
+d@(OrderedDictionary traits) acceptsKey: key
+[d keys accepts: key].
+
+d@(OrderedDictionary traits) = e@(OrderedDictionary traits)
+[
+  d == e
+    \/ [d size = e size
+	  /\ [d keysAndValuesDo:
+	        [| :key :value |
+		 (e at: key ifAbsent: [^ False]) = value ifFalse: [^ False]].
+	      True]]
+].
+
+d@(OrderedDictionary traits) clear
+[
+  d keys clear.
+  d values clear.
+  d
+].
+
+d@(OrderedDictionary traits) includes: obj
+[
+  d values includes: obj
+].
+
+d@(OrderedDictionary traits) includesIdentity: obj
+[
+  (d values detect: [| :each | obj == each]) isNotNil
+].
+
+d@(OrderedDictionary traits) includesKey: obj
+[
+  d keys includes: obj
+].
+
+d@(OrderedDictionary traits) keySet
+[
+  d keys as: Set
+].
+
+d@(OrderedDictionary traits) valueSet
+[
+  d values as: Set
+].
+
+d@(OrderedDictionary traits) occurrencesOf: obj
+[
+  d values count: #(= obj) `er
+].
+
+d@(OrderedDictionary traits) associationAt: key ifAbsent: block
+[
+  (d keys at: (index ::= d scanFor: key))
+    ifNil: [block do]
+    ifNotNil: [key -> (d values at: index)]
+].
+
+d@(OrderedDictionary traits) at: key ifAbsent: block
+[
+  (d keys at: (index ::= d scanFor: key))
+    ifNil: [block do]
+    ifNotNil: [d values at: index]
+].
+
+d@(OrderedDictionary traits) at: key put: obj
+[
+  (d scanFor: key)
+    ifNil:
+      [d keys addLast: key.
+       d values addLast: obj]
+    ifNotNilDo: [| :index | d values at: index put: obj]
+].
+
+d@(OrderedDictionary traits) keyAtValue: obj ifAbsent: block
+[
+  d values doWithIndex:
+    [| :value :index | obj = value ifTrue: [^ (d keys at: index)]].
+  block do
+].
+
+d@(OrderedDictionary traits) keyAtIdentityValue: obj ifAbsent: block
+[
+  d values doWithIndex:
+    [| :each :index | each == obj ifTrue: [^ (d keys at: index)]].
+  block do
+].
+
+d@(OrderedDictionary traits) keyAtIdentityValue: obj
+[
+  d keyAtIdentityValue: obj ifAbsent: [obj elementNotFoundOn: d]
+].
+
+d@(OrderedDictionary traits) keysAndValuesDo: block
+[
+  d keys with: d values do: [| :key :value | block apply*, key, value]
+].
+
+d@(OrderedDictionary traits) keysDo: block
+[
+  d keys do: block
+].
+
+d@(OrderedDictionary traits) valuesDo: block
+[
+  d values do: block
+].
+
+d@(OrderedDictionary traits) keysAndValuesRemove: block
+"Removes key-value pairs that satisfy the two-argument block."
+[
+  removals ::= ExtensibleArray new.
+  d keysAndValuesDo: [| :key :value | (block apply*, key, value)
+      ifTrue: [removals add: key]].
+  removals do: #(d removeKey: _) `er.
+  d
+].
+
+d@(OrderedDictionary traits) removeKey: key ifAbsent: block
+[
+  (d scanFor: key)
+    ifNil: [block do]
+    ifNotNilDo:
+      [| :index |
+       d keys removeAt: index.
+       d values removeAt: index]
+].
+
+d@(OrderedDictionary traits) associationsDo: block
+[
+  d isEmpty ifFalse:
+    [d keys doWithIndex:
+       [| :each :index | each ifNotNil:
+          [block apply*, (each -> (d values at: index))]]]
+].
+
+d mapSelect: block into: result@(OrderedDictionary traits)
+"Filter the dictionary by values satisfying a block."
+[d keysAndValuesDo:
+  [| :key :value | (block apply*, key, value)
+      ifTrue: [result noCheckAt: key put: value]].
+  result
+].
+
+d select: block into: result@(OrderedDictionary traits)
+[d mapSelect: [| :_ :value | block apply*, each] into: result].
+
+d@(OrderedDictionary traits) collect: block
+"Generate a new collection based on applying the block to each value."
+[
+  result ::= ExtensibleArray new.
+  d do: [| :each | result add: (block apply*, each)].
+  result
+].
+
+d@(OrderedDictionary traits) swap: index1 with: index2
+[
+  d keys swap: index1 with: index2.
+  d values swap: index1 with: index2.
+  d
+].
+
+d@(OrderedDictionary traits) noCheckAt: key put: value
+[
+  d keys addLast: key.
+  d values addLast: value.
+].
+
+d@(OrderedDictionary traits) noCheckAdd: assoc
+[
+  d noCheckAt: assoc key put: assoc value
+].
+
+d@(OrderedDictionary traits) growBy: growthAmount
+[
+  tempDict ::= d new &capacity: d keys size + growthAmount.
+  d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
+  d keys := tempDict keys.
+  d values := tempDict values.
+  d
+].
+
+d@(OrderedDictionary traits) rehash
+[].
+
+d@(OrderedDictionary traits) scanFor: key
+[
+  d keys indexOf: key
+].
+
+d@(OrderedDictionary traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"Print out the keys and values as Association constructors."
+[
+  d keys
+    doWithIndex:
+      [| :key :index |
+       key printOn: o.
+       o ; ' -> '.
+       (d values at: index) printOn: o]
+    separatedBy: [block do].
+  o
+].

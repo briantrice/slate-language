@@ -23,8 +23,8 @@ v1@(Version traits) < v2@(Version traits)
   (v1 isInSameBranchAs: v2) ifFalse: [error: 'Incomparable versions.'].
   v1 numbers size = v2 numbers size
      ifTrue: [v1 numbers with: v2 numbers
-                         do: [| :n1 :n2 | n1 < n2 ifTrue: [^ True]].
-              False]
+			 do: [| :n1 :n2 | n1 < n2 ifTrue: [^ True]].
+	      False]
      ifFalse: [v1 numbers size < v2 numbers size]
 ].
 
@@ -100,9 +100,9 @@ h@(VersionHistory traits) firstVersion
   h versions
     inject: h versions anyOne
     into: [| :result :each |
-        (result isInSameBranchAs: each)
-          ifTrue: [result < each ifTrue: [result] ifFalse: [each]]
-          ifFalse: [each]]
+	(result isInSameBranchAs: each)
+	  ifTrue: [result < each ifTrue: [result] ifFalse: [each]]
+	  ifFalse: [each]]
 ].
 
 h@(VersionHistory traits) versionsAfter: v
@@ -110,7 +110,7 @@ h@(VersionHistory traits) versionsAfter: v
   result := h versions new.
   h versions
     do: [| :each | (each isInSameBranchAs: v) /\ [each > v]
-          ifTrue: [result include: each]].
+	  ifTrue: [result include: each]].
   result
 ].
 
@@ -119,7 +119,7 @@ h@(VersionHistory traits) versionsBefore: v
   result := h versions new.
   h versions
     do: [| :each | (each isInSameBranchAs: v) /\ [each < v]
-          ifTrue: [result include: each]].
+	  ifTrue: [result include: each]].
   result
 ].
 
@@ -164,7 +164,7 @@ h@(VersionHistory traits) canRemove: v
        "Prevent versions in the middle from extraction."
        (hasPriors /\ [followers isEmpty not]) not
        "Prevent versions with more than one follower from extraction."
-         /\ [(hasPriors not /\ [followers size > 1]) not]]
+	 /\ [(hasPriors not /\ [followers size > 1]) not]]
 ].
 
 h@(VersionHistory traits) includes: v
@@ -225,10 +225,10 @@ h@(VersionHistory traits) treeStringOn: s startingAt: v
 [| line |
   line := h mainLineStartingAt: v.
   line do: [| :each | each versionStringOn: s.
-                s ; '  '].
+		s ; '  '].
   s nextPut: $\n.
   line do: [| :each | (h versions includes: each branchNext)
-                ifTrue: [h treeStringOn: s startingAt: each branchNext]].
+		ifTrue: [h treeStringOn: s startingAt: each branchNext]].
   h
 ].
 

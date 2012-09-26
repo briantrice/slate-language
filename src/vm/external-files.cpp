@@ -79,9 +79,9 @@ word_t file_open(struct object_heap* oh, struct ByteArray * name, word_t flags) 
 #endif
       if (flags & SF_READ)
 #ifdef WIN32
-        rwMode |= GENERIC_READ;
+	rwMode |= GENERIC_READ;
 #else
-        mode[modeIndex++] = '+';
+	mode[modeIndex++] = '+';
 #endif
     } else {
 #ifdef WIN32
@@ -124,9 +124,9 @@ word_t file_open(struct object_heap* oh, struct ByteArray * name, word_t flags) 
 #ifdef WIN32
     if (flags & SF_CLEAR) {
       if (!SetFilePointerEx(oh->file_index[file], liZero, NULL, FILE_BEGIN) || !SetEndOfFile(oh->file_index[file])) {
-        CloseHandle(oh->file_index[file]);
-        oh->file_index[file] = 0;
-        return SLATE_ERROR_RETURN;
+	CloseHandle(oh->file_index[file]);
+	oh->file_index[file] = 0;
+	return SLATE_ERROR_RETURN;
       }
     }
 #endif
@@ -139,10 +139,10 @@ word_t file_write(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesWritten = 0;
   return (WriteFile(oh->file_index[file], bytes, (DWORD)n, &bytesWritten, NULL)
-          ? bytesWritten : SLATE_ERROR_RETURN);
+	  ? bytesWritten : SLATE_ERROR_RETURN);
 #else
   return (file_handle_isvalid(oh, file) ? fwrite (bytes, 1, n, oh->file_index[file])
-          : SLATE_ERROR_RETURN);
+	  : SLATE_ERROR_RETURN);
 #endif
 }
 
@@ -150,10 +150,10 @@ word_t file_read(struct object_heap* oh, word_t file, word_t n, char * bytes) {
 #ifdef WIN32
   DWORD bytesRead = 0;
   return (file_handle_isvalid(oh, file) && ReadFile(oh->file_index[file], bytes, (DWORD)n, &bytesRead, NULL)
-          ? bytesRead : SLATE_ERROR_RETURN);
+	  ? bytesRead : SLATE_ERROR_RETURN);
 #else
   return (file_handle_isvalid(oh, file) ? fread (bytes, 1, n, oh->file_index[file])
-          : SLATE_ERROR_RETURN);
+	  : SLATE_ERROR_RETURN);
 #endif
 }
 
@@ -184,10 +184,10 @@ word_t file_seek(struct object_heap* oh, word_t file, word_t offset) {
   pos.QuadPart = 0;
   win_offset.QuadPart = offset;
   return (SetFilePointerEx(oh->file_index[file], win_offset, &pos, FILE_BEGIN)
-          ? pos.QuadPart : SLATE_ERROR_RETURN);
+	  ? pos.QuadPart : SLATE_ERROR_RETURN);
 #else
   return (file_handle_isvalid(oh, file) && fseek (oh->file_index[file], offset, SEEK_SET) == 0
-          ? ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
+	  ? ftell (oh->file_index[file]) : SLATE_ERROR_RETURN);
 #endif
 }
 
@@ -200,7 +200,7 @@ word_t file_tell(struct object_heap* oh, word_t file) {
 #ifdef WIN32
   pos.QuadPart = 0;
   return (SetFilePointerEx(oh->file_index[file], liZero, &pos, FILE_CURRENT)
-          ? pos.QuadPart : SLATE_ERROR_RETURN);
+	  ? pos.QuadPart : SLATE_ERROR_RETURN);
 #else
   return ftell(oh->file_index[file]);
 #endif
@@ -217,7 +217,7 @@ bool_t file_isatend(struct object_heap* oh, word_t file) {
     return SLATE_ERROR_RETURN;
   else
     return (GetFileSizeEx(oh->file_index[file], &size)
-            ? pos.QuadPart >= size.QuadPart : SLATE_ERROR_RETURN);
+	    ? pos.QuadPart >= size.QuadPart : SLATE_ERROR_RETURN);
 #else
   word_t c;
   if (!(file_handle_isvalid(oh, file)))

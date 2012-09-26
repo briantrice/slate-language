@@ -1,0 +1,103 @@
+prototypes define: #MemoryArea &parents: {Sequence. ExternalResource} &slots:
+  {#savedForm -> ByteArray new "A ByteArray which can preserve the contents when closed."}.
+"Represents the result of a malloc() call as a ByteArray, while supporting all
+of the ExternalResource protocol."
+
+"MemoryArea traitsWindow addImmutableDelegate: #ByteArray after: #traits1 valued: ByteArray traits."
+MemoryArea traitsWindow _delegates: {Root traits. Derivable traits. Cloneable traits. Mapping traits.
+  Collection traits. ExternalResource traits. ByteArray traits. Sequence traits. MemoryArea traits}.
+
+
+m@(MemoryArea traits) printOn: o
+[m isOpen ifTrue: [resend] ifFalse: [#printOn: sendTo: {m. o} through: {ExternalResource traits. o}]].
+
+MemoryArea traits define: #Locator &parents: {ExternalResource Locator}
+  &slots: {#byteSize -> 0 "The size to allocate in bytes."}.
+
+m@(MemoryArea traits) newSize: n
+[
+  m clone `setting: #{#locator} to:
+    {m Locator clone `setting: #{#byteSize} to: {n}}
+].
+
+m@(MemoryArea traits) new &capacity: n &fixed
+[
+  (fixed `defaultsTo: False)
+    ifTrue: [result ::= m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}.
+	     n ifNotNil: [result locator byteSize := n].
+	     result]
+    ifFalse: [ByteArray new &capacity: n]
+].
+
+m@(MemoryArea traits) enable
+[
+  (m newFixedAreaSized: m locator byteSize)
+    ifNil: [error: 'Failed to allocate ' ; byteSize printString ; ' bytes.']
+    ifNotNilDo:
+      [| :handle | handle isNegative ifTrue: ['Primitive allocation error']
+				     ifFalse: [m handle := handle]].
+  m
+].
+
+m@(MemoryArea traits) disable
+[m close: m handle].
+
+m@(MemoryArea traits) at: index
+[| result |
+  result := (ByteArray newSize: 1).
+  (result read: 1 from: m handle startingAt: index) isNegative
+    ifTrue: [error: 'Primitive read error']
+    ifFalse: [result first]
+].
+
+m@(MemoryArea traits) at: index put: value
+[
+  {value}
+    #(as: ByteArray)
+    #(write: 1 into: m handle startingAt: index) isNegative
+    ifTrue: [error: 'Primitive write error']
+    ifFalse: [value]
+].
+
+m@(MemoryArea traits) replaceFrom: start to: end with: replacement startingAt: repStart
+[| numToWrite |
+  numToWrite := end - start - 1.
+  ((replacement sliceFrom: repStart to: repStart + numToWrite)
+    #(as: ByteArray)
+    #(write: numToWrite into: m handle startingAt: start))
+    isNegative
+    ifTrue: [error: 'Primitive write error']
+    ifFalse: [m]
+].
+
+m@(MemoryArea traits) size
+[m sizeOf: m handle].
+
+m@(MemoryArea traits) resizeTo: size
+[
+  (m resize: m handle to: size)
+    ifNil: [error: 'Not a valid memory handle.']
+    ifNotNilDo: [| :newSize |
+		newSize isNegative ifTrue: [error: 'Unsuccessful allocation.']
+				   ifFalse: [m locator byteSize := newSize]]
+].
+
+m@(MemoryArea traits) addressAt: index
+"Answers the address of the element."
+[| result |
+  result := (ByteArray newSize: lobby bytesPerWord).
+  m addressOf: m handle at: index into: result.
+  result
+].
+
+m@(MemoryArea traits) address
+[m addressAt: 0].
+
+m@(MemoryArea traits) copy
+[m copyFrom: 0 below: m size].
+
+m@(MemoryArea traits) save
+[m savedForm: m copy].
+
+m@(MemoryArea traits) restore
+[m savedForm ifNotNil: [m replaceFrom: 0 with: m savedForm]].

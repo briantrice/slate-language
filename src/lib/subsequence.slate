@@ -1,0 +1,108 @@
+define: #SubSequence &parents: {Sequence}
+"Represents a section/slice of a Sequence without allocating a new Sequence."
+  &slots: {#sequence -> {}. "The source of the elements."
+	   #start -> 0. "The index within the source of the first element."
+	   #end -> 0 "The index within the source following the last element."}.
+
+c@(Sequence traits) sliceFrom: start below: end
+[
+  start <= end ifFalse: [error: 'This results in a negative size.'].
+  start = 0 /\ [end = c size] ifTrue: [^ c].
+  SubSequence clone `setting: #{#sequence. #start. #end} to: {c. start. end}
+].
+
+c@(SubSequence traits) sliceFrom: start below: end
+[
+  start <= end
+    ifTrue: [c clone `setting: #{#start. #end}
+	       to: {c start + start. c start + end}]
+    ifFalse: [error: 'This results in a negative size.']
+].
+
+c@(SubSequence traits) new &capacity: n
+"Delegate Collection creation calls to the underlying Sequence."
+[c sequence new &capacity: n].
+
+c@(SubSequence traits) elementType
+"The element type is dependent upon the underlying Sequence."
+[c sequence elementType].
+
+c@(Sequence traits) sliceFrom: start to: end
+"Slice the range from the start through the end index."
+[c sliceFrom: start below: end + 1].
+
+c@(Sequence traits) sliceFrom: start
+"Slice the range from the start through the Sequence's end."
+[c sliceFrom: start below: c size].
+
+c@(Sequence traits) sliceUpTo: end
+"Slice the beginning up to but not including the end index."
+[c sliceFrom: 0 below: end].
+
+c@(Sequence traits) sliceEndAbove: end
+[c sliceFrom: c size - end].
+
+ss@(SubSequence traits) size
+[
+  ss end - ss start
+].
+
+ss@(SubSequence traits) at: index
+[
+  ss sequence at: index + ss start
+].
+
+ss@(SubSequence traits) at: index put: obj
+[
+  ss sequence at: index + ss start put: obj
+].
+
+ss@(SubSequence traits) do: block
+[
+  ss start below: ss end do:
+    [| :index | block applyWith: (ss sequence at: index)].
+  ss
+].
+
+ss@(SubSequence traits) reverseDo: block
+[
+  ss end - 1 downTo: ss start do:
+    [| :index | block applyWith: (ss sequence at: index)].
+  ss
+].
+
+ss@(SubSequence traits) doWithIndex: binBlock
+[
+  ss start below: ss end do:
+    [| :index | binBlock applyWith: (ss sequence at: index) with: index - ss start].
+  ss
+].
+
+ss@(SubSequence traits) ; seq
+"An override to provide correct concatenation behavior."
+[| midpt |
+  midpt := ss size.
+  (ss sequence new &capacity: midpt + seq size) `>>
+    [| :newS | replaceFrom: 0 to: midpt - 1 with: ss.
+     replaceFrom: midpt to: newS indexLast with: seq. ]
+].
+
+c@(SubSequence traits) copyFrom: start to: end
+[| newSize |
+  end < start \/ [c isEmpty]
+    ifTrue: [c new]
+    ifFalse: [(c arrayType new &capacity: (newSize := end - start + 1))
+		replaceFrom: 0 to: newSize - 1 with: c startingAt: start]
+].
+
+s@(WriteStream traits) nextPutAll: c@(SubSequence traits)
+"Place the Collection's contents into the stream."
+[
+  s next: c end - c start putAll: c sequence startingAt: c start.
+  s
+].
+
+ss@(SubSequence traits) as: y
+[
+  (ss sequence copyFrom: ss start to: ss end - 1) as: y
+].

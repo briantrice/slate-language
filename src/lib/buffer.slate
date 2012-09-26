@@ -1,0 +1,123 @@
+define: #BufferStream &parents: {Stream} &slots: {#stream -> Stream clone. #buffer -> RingBuffer new}.
+"A BufferStream is a Stream with a buffer array resizable up to a fixed amount,
+with wrap-around semantics to reduce heavy i/o interaction and avoid stressing
+the memory-manager."
+
+b@(BufferStream traits) on: s
+[
+  b stream := s.
+  b buffer := b buffer newSameSize.
+  b
+].
+
+define: #WriteBufferStream &parents: {BufferStream. WriteStream}.
+"A BufferStream with semantics for writing."
+
+s@(WriteBufferStream traits) flush
+"Empty the buffer into the stream all at once."
+[| b |
+  (b := s buffer) isSplit
+    ifTrue: [s nextPutAll: b from: b firstIndex to: b size - 1.
+	     s nextPutAll: b from: 0 to: b lastIndex]
+    ifFalse: [s nextPutAll: b from: b firstIndex to: b lastIndex].
+  b clear.
+  s stream flush.
+  s
+].
+
+s@(WriteBufferStream traits) nextPut: obj
+[
+  s buffer isFull ifTrue: [s flush].
+  s buffer addLast: obj
+].
+
+s@(WriteBufferStream traits) nextPutAll: seq
+[
+  s buffer gapSize < seq size ifFalse: [s flush].
+  s buffer isSplit
+    ifTrue:
+      [seq doWithIndex:
+         [| :each :index |
+          s contents at: s buffer firstIndex + index := each].
+       s firstIndex := s buffer firstIndex + seq size]
+    ifFalse:
+      [| dstIndex |
+       dstIndex := s lastIndex.
+       0 below: seq size do:
+         [| :each |
+	  dstIndex := dstIndex = s contents size
+	    ifTrue: [0]
+	    ifFalse: [dstIndex + 1].
+	  s contents at: dstIndex := each].
+       s lastIndex := dstIndex].
+  seq
+].
+
+s@(WriteBufferStream traits) nextPutAll: seq from: start to: end
+"Overridden to use the optimized BufferStream method nextPutAll:."
+[
+  s nextPutAll: (seq sliceFrom: start to: end)
+].
+
+define: #ReadBufferStream &parents: {BufferStream. ReadStream}.
+"A BufferStream designed to be read from."
+
+s@(ReadBufferStream traits) flush
+"Fill the buffer from the stream all at once."
+[| b |
+  (b := s buffer) isSplit
+    ifTrue: [s stream next: b gapSize putInto: b]
+    ifFalse: [s stream next: b capacity - b lastIndex putInto: b.
+	      s stream next: b firstIndex putInto: b].
+  s
+].
+
+s@(ReadBufferStream traits) next
+[
+  s buffer isEmpty
+    ifTrue: 
+      [s buffer firstIndex := 0. 
+       s buffer lastIndex := s stream next: s buffer capacity putInto: s buffer contents].
+  s buffer removeFirst
+].
+
+s@(ReadBufferStream traits) peek
+[
+  s buffer isEmpty
+    ifTrue: [s buffer addFirst: s next]
+    ifFalse: [s buffer first]
+].
+
+s@(ReadBufferStream traits) next: n putInto: seq@(Sequence traits)
+[| b oldSize |
+  oldSize := (b := s buffer) size.
+  n > oldSize
+    ifTrue:
+      [b doWithIndex:
+	 [| :each :index | seq at: index := each].
+       b clear.
+       s stream next: b capacity putInto: b.
+       oldSize below: seq size do:
+	 [| :index | seq at: index := b removeFirst]]
+    ifFalse:
+      [0 below: n do: [| :index | seq at: index := b removeFirst]].
+  seq size
+].
+
+s@(ReadBufferStream traits) isAtEnd
+[
+  s buffer isEmpty /\ s stream isAtEnd
+].
+
+define: #ReadWriteBufferStream &slots: {}.
+"This is a rough concept to implement that requires basically two
+BufferStreams and coordination between them."
+"TODO: Implement something workable."
+
+"Return new BufferStreams of the appropriate type wrapping their arguments."
+
+s@(ReadStream traits) buffered [ReadBufferStream newOn: s].
+s@(Stream traits) readBuffered [ReadBufferStream newOn: s].
+
+s@(WriteStream traits) buffered [WriteBufferStream newOn: s].
+s@(Stream traits) writeBuffered [WriteBufferStream newOn: s].

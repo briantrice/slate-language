@@ -1,0 +1,190 @@
+collections define: #ExtensibleSequence
+	    &parents: {ExtensibleCollection. Sequence}.
+"A Sequence which is Extensible. This is abstract, with several possible
+implementations. A particular feature of this type is that add: maps to
+addLast:, adding at the end."
+
+es@(ExtensibleSequence traits) copyFrom: start to: end
+[| result |
+  end < start \/ [es isEmpty]
+    ifTrue: [result := es new]
+    ifFalse:
+      [result := es new &capacity: end + 1 - start.
+       start to: end do: [| :index | result addLast: (es at: index)]].
+  result
+].
+
+es@(ExtensibleSequence traits) copyWith: obj
+"Non-destructively append."
+[es copy `>> [addLast: obj. ]].
+
+es@(ExtensibleSequence traits) reversed
+[
+  result ::= es newSameSize.
+  es reverseDo: [| :obj |
+    result addLast: obj].
+  result
+].
+
+es@(ExtensibleSequence traits) growSize
+"The new capacity for a call to a grow- method."
+[es capacity * 2 max: 8].
+
+es@(ExtensibleSequence traits) grow
+[es growTo: es growSize].
+
+es@(ExtensibleSequence traits) growTo: n
+[overrideThis].
+
+es@(ExtensibleSequence traits) growBy: n
+[es growTo: es capacity + n].
+
+es@(ExtensibleSequence traits) capacity
+[overrideThis].
+
+es@(ExtensibleSequence traits) addFirst: obj
+"Add the given object to the beginning of the Sequence."
+[overrideThis].
+
+es@(ExtensibleSequence traits) addLast: obj
+"Add the given object to the end of the Sequence."
+[overrideThis].
+
+es@(ExtensibleSequence traits) add: obj
+"A particular feature of this type is that add: maps to addLast:, adding at
+the end."
+[es addLast: obj].
+
+es@(ExtensibleSequence traits) append: obj
+"Append the object to the Sequence; aliases addLast:."
+[es addLast: obj].
+
+es@(ExtensibleSequence traits) prepend: obj
+"Prepend the object to the Sequence; aliases addFirst:."
+[es addFirst: obj].
+
+es@(ExtensibleSequence traits) addAll: c
+[es addAllLast: c].
+
+es@(ExtensibleSequence traits) addAllFirst: seq
+[
+  seq reverseDo: #(es addFirst: _) `er.
+  seq
+].
+
+es@(ExtensibleSequence traits) addAllLast: seq
+[
+  seq do: #(es addLast: _) `er.
+  seq
+].
+
+es@(ExtensibleSequence traits) prependAll: seq
+"Prepend all of the objects to the Sequence; aliases addAllFirst:."
+[es addAllFirst: seq].
+
+es@(ExtensibleSequence traits) appendAll: seq
+"Append all of the objects to the Sequence; aliases addAllLast:."
+[es addAllLast: seq].
+
+es@(ExtensibleSequence traits) collect: block
+"Override to use addLast: vice at:put:."
+[
+  result ::= es newSameSize.
+  es do: [| :each | result addLast: (block applyWith: each)].
+  result
+].
+
+es@(ExtensibleSequence traits) collect: block from: start to: end
+"Override to use addLast: vice at:put:."
+[| result |
+  start < 0 \/ [end >= es size]
+    ifTrue: [result := es new]
+    ifFalse:
+      [result := es new &capacity: end - start + 1.
+       start to: end do:
+         [| :index | result addLast: (block applyWith: (es at: index))]].
+  result
+].
+
+es@(ExtensibleSequence traits) with: seq collect: binBlock
+[
+  result ::= es new &capacity: (es size min: seq size).
+  0 below: result capacity do: [| :index |
+    result addLast: (binBlock applyWith: (es at: index) with: (seq at: index))].
+  result
+].
+
+es@(ExtensibleSequence traits) removeFirst
+"Removes and answers the first element."
+[overrideThis].
+
+es@(ExtensibleSequence traits) removeLast
+"Removes and answers the last element."
+[overrideThis].
+
+es@(ExtensibleSequence traits) remove
+"Removes from the front by default, providing LIFO semantics in combination
+with add:->addLast:."
+[es removeFirst].
+
+es@(ExtensibleSequence traits) removeFirst: n
+[
+  n > es size ifTrue: [n := es size].
+  result ::= es new &capacity: n.
+  n timesRepeat: [result addLast: n removeFirst].
+  result
+].
+
+es@(ExtensibleSequence traits) removeLast: n
+[
+  n > es size ifTrue: [n := es size].
+  result ::= es new &capacity: n.
+  n timesRepeat: [result addFirst: es removeLast].
+  result
+].
+
+collections define: #ArrayBacked &parents: {ExtensibleSequence} &slots: {#contents -> {}}.
+"This merely provides an area for common methods for various implementation
+extensions of ExtensibleSequence which use a contents Array to store their
+elements."
+
+es@(ArrayBacked traits) clear
+[es contents clear. ].
+
+es@(ArrayBacked traits) copy
+[es cloneSettingSlots: #{#contents} to: {es contents copy}].
+
+es@(ArrayBacked traits) new &capacity: n
+[es cloneSettingSlots: #{#contents}
+    to: {es contents new &capacity: (n ifNil: [es contents size max: 4])}].
+
+es@(ArrayBacked traits) arrayType
+"The underlying implementation prototype."
+[es contents arrayType].
+
+es@(ArrayBacked traits) elementType
+"The underlying implementation element type accepted."
+[es contents elementType].
+
+es@(ArrayBacked traits) capacity
+[es contents size].
+
+es@(ArrayBacked traits) growTo: n
+[
+  result ::= es contents new &capacity: n.
+  result replaceFrom: 0 to: es size - 1 with: es contents.
+  es contents := result.
+  es
+].
+
+s@(Sequence traits) as: es@(ArrayBacked traits)
+"Allows dynamically carrying forward the arrayType into the new Sequence."
+[
+  es new `>> [contents := s arrayType newSizeOf: s.
+	      addAll: s. ]
+].
+
+es@(ArrayBacked traits) convertContentsTo: s
+[
+  es contents := es contents as: s. es
+].

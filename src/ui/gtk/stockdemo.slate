@@ -2,100 +2,100 @@ Gtk define: #StockDemo &parents: {Cloneable} &slots: { #view. #nameLabel. #idLab
 Gtk StockDemo traits atSlotNamed: #printName put: 'Gtk StockDemo'. 
 
 sd@(Gtk StockDemo traits) new [
-        | stockDemo |
-                        
-        stockDemo: sd clone.
-        stockDemo buildView.
-        stockDemo
+	| stockDemo |
+			
+	stockDemo: sd clone.
+	stockDemo buildView.
+	stockDemo
 ].
 
 sd@(Gtk StockDemo traits) show [
-        sd view showAll.
-        sd
+	sd view showAll.
+	sd
 ].
 
 sd@(Gtk StockDemo traits) destroy: _ [
-        sd view: Nil.
-        sd nameLabel: Nil.
-        sd idLabel: Nil.
-        sd accelLabel: Nil.
-        sd iconImage: Nil.
+	sd view: Nil.
+	sd nameLabel: Nil.
+	sd idLabel: Nil.
+	sd accelLabel: Nil.
+	sd iconImage: Nil.
 ].
 
 sd@(Gtk StockDemo traits) buildView [
-        | model tree hBox |
-        
-        sd view: Gtk Window newTopLevel.
-        sd view when: #destroy send: #destroy: to: sd.
-        sd view title: 'Stock Item and Icon Browser'.
-        sd view defaultSizeWidth: 600 height: 600.
-        model: (Gtk ListStore newWithTypes: {
-                GLib FundamentalType String.
-                GLib FundamentalType String.
-                GLib FundamentalType String.
-                GLib FundamentalType String
-        }).
-        Gtk StockItem list do: [ | :each |
-                each ifNotNil: [
-                        model append: {
-                                each id.
-                                each id.
-                                each label.
-                                Gtk Accelerator nameFromKey: each keyValue modifier: each modifier
-                        }
-                ]
-        ].
-        tree: (Gtk TreeView newWithModel: model).
-        sd createFirstColumn: tree.
-        tree appendColumns: {
-                Gtk TreeViewColumn new title: 'Label' text: 2.
-                Gtk TreeViewColumn new title: 'Accel' text: 3.
-                Gtk TreeViewColumn new title: 'ID' text: 0
-        }.
-        tree selection when: #changed send: #onItemChanged: to: sd.
-                
-        hBox: (Gtk HBox new &spacing: 5).
-        hBox packStart: (Gtk ScrolledWindow newWithChild: tree).
-        hBox packEnd: sd createInfoFrame &expand: False &fill: False.
-        sd view add: hBox.
-        sd
+	| model tree hBox |
+	
+	sd view: Gtk Window newTopLevel.
+	sd view when: #destroy send: #destroy: to: sd.
+	sd view title: 'Stock Item and Icon Browser'.
+	sd view defaultSizeWidth: 600 height: 600.
+	model: (Gtk ListStore newWithTypes: {
+		GLib FundamentalType String.
+		GLib FundamentalType String.
+		GLib FundamentalType String.
+		GLib FundamentalType String
+	}).
+	Gtk StockItem list do: [ | :each |
+		each ifNotNil: [
+			model append: {
+				each id.
+				each id.
+				each label.
+				Gtk Accelerator nameFromKey: each keyValue modifier: each modifier
+			}
+		]
+	].
+	tree: (Gtk TreeView newWithModel: model).
+	sd createFirstColumn: tree.
+	tree appendColumns: {
+		Gtk TreeViewColumn new title: 'Label' text: 2.
+		Gtk TreeViewColumn new title: 'Accel' text: 3.
+		Gtk TreeViewColumn new title: 'ID' text: 0
+	}.
+	tree selection when: #changed send: #onItemChanged: to: sd.
+		
+	hBox: (Gtk HBox new &spacing: 5).
+	hBox packStart: (Gtk ScrolledWindow newWithChild: tree).
+	hBox packEnd: sd createInfoFrame &expand: False &fill: False.
+	sd view add: hBox.
+	sd
 ].
 
 sd@(Gtk StockDemo traits) onItemChanged: aTreeView [
-        | row |
-        row: aTreeView selectedRow.
-        sd idLabel label: row first.
-        sd nameLabel label: ('#'; row second).
-        sd accelLabel label: row third.
-        sd iconImage stock: row second size: Gtk IconSize Dialog
+	| row |
+	row: aTreeView selectedRow.
+	sd idLabel label: row first.
+	sd nameLabel label: ('#'; row second).
+	sd accelLabel label: row third.
+	sd iconImage stock: row second size: Gtk IconSize Dialog
 ].
 
 sd@(Gtk StockDemo traits) createInfoFrame [
-        | vbox align |
-        vbox: (Gtk VBox new &spacing: 8).
-        vbox borderWidth: 4.
-        vbox packStartAll: {
-                Gtk Label new &text: 'Icon and Item'.
-                sd iconImage: Gtk Image new.
-                sd accelLabel: (Gtk Label new useUnderline: True).
-                sd nameLabel: Gtk Label new.
-                sd idLabel: Gtk Label new
-        } &expand: False &fill: False.
-        align: (Gtk Alignment newWithAlign: 0.5 <> 0.0).
-        align add: (Gtk Frame newWithLabel: 'Selected Item' child: vbox).
-        align
+	| vbox align |
+	vbox: (Gtk VBox new &spacing: 8).
+	vbox borderWidth: 4.
+	vbox packStartAll: {
+		Gtk Label new &text: 'Icon and Item'.
+		sd iconImage: Gtk Image new.
+		sd accelLabel: (Gtk Label new useUnderline: True).
+		sd nameLabel: Gtk Label new.
+		sd idLabel: Gtk Label new
+	} &expand: False &fill: False.
+	align: (Gtk Alignment newWithAlign: 0.5 <> 0.0).
+	align add: (Gtk Frame newWithLabel: 'Selected Item' child: vbox).
+	align
 ].
 
 sd@(Gtk StockDemo traits) createFirstColumn: aTreeView [
-        | col cell |
-        col: Gtk TreeViewColumn new.
-        col title: 'Name'.
-        cell: Gtk CellRendererPixbuf new.
-        col packStart: cell &expand: False.
-        col addAttribute: #stock-id column: 0 on: cell.
-        cell: Gtk CellRendererText new.
-        col packStart: cell.
-        col addAttribute: #text column: 1 on: cell.
-        aTreeView appendColumn: col
+	| col cell |
+	col: Gtk TreeViewColumn new.
+	col title: 'Name'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col packStart: cell.
+	col addAttribute: #text column: 1 on: cell.
+	aTreeView appendColumn: col
 ].
 

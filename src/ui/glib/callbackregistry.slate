@@ -3,44 +3,44 @@ GLib define: #CallbackRegistry &builder: [Oddball clone] &slots: { #callbackBloc
 _@(GLib CallbackRegistry) printName [ 'GLib CallbackRegistry' ].
 
 cr@(GLib CallbackRegistry) register: aBlock [
-        | blockID |
-        blockID: cr nextBlockID.
-        cr callbackBlocks at: blockID put: aBlock.
-        cr nextBlockID: (blockID + 1).
-        blockID
+	| blockID |
+	blockID: cr nextBlockID.
+	cr callbackBlocks at: blockID put: aBlock.
+	cr nextBlockID: (blockID + 1).
+	blockID
 ].
 
 cr@(GLib CallbackRegistry) unregister: blockID [
-        cr callbackBlocks removeKey: blockID.
+	cr callbackBlocks removeKey: blockID.
 ].
 
 cr@(GLib CallbackRegistry) init [
-        cr callbackBlocks: Dictionary new.
-        cr nextBlockID: 0.
+	cr callbackBlocks: Dictionary new.
+	cr nextBlockID: 0.
 ].
 
 cr@(GLib CallbackRegistry) uninitialize [
-        cr callbackBlocks: Nil.
-        cr nextBlockID: Nil.
+	cr callbackBlocks: Nil.
+	cr nextBlockID: Nil.
 ].
 
 cr@(GLib CallbackRegistry) callbackBlockDo: callbackData@(GLib CallbackData traits) [
-        | block |
-        callbackData parameterCount = 0
-                ifTrue: [
-                        "callbacks with parameter count=0 signal the finalization of a callback, which means that it is no longer valid, ie: the object was destroyed"
-                        cr unregister: callbackData blockID.  
-                ]
-                ifFalse: [
-                        "FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
-                        [ (cr callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
-                                ensure: [
-                                        "callbackBlocks will be emptied on startup, and we should not use any pre shutdown object in new images"
-                                        cr callbackBlocks ifNotNil: [ callbackData end ].
-                                ].
-                ]
+	| block |
+	callbackData parameterCount = 0
+		ifTrue: [
+			"callbacks with parameter count=0 signal the finalization of a callback, which means that it is no longer valid, ie: the object was destroyed"
+			cr unregister: callbackData blockID.  
+		]
+		ifFalse: [
+			"FIXME: should test for the the coincidence on the number of arguments to the block and the number of the parameters to the callback"
+			[ (cr callbackBlocks at: callbackData blockID) applyTo: callbackData parameterArray ]
+				ensure: [
+					"callbackBlocks will be emptied on startup, and we should not use any pre shutdown object in new images"
+					cr callbackBlocks ifNotNil: [ callbackData end ].
+				].
+		]
 ].
  
 cr@(GLib CallbackRegistry) executeNextCallback [
-        cr callbackBlockDo: GLib CallbackData waitNext.
+	cr callbackBlockDo: GLib CallbackData waitNext.
 ].

@@ -1,0 +1,42 @@
+define: #Repetition &parents: {Sequence}
+"A Repetition is a Sequence of the same element repeated over its length."
+  &slots: {#number. "The number of times the element occurs."
+	   #element. "The repeated element." }.
+
+r@(Repetition traits) new &capacity: n
+[r clone `setting: #{#number. #element} to: {n. Nil}].
+
+r@(Repetition traits) newFor: obj sized: n
+[r clone `setting: #{#number. #element} to: {n. obj}].
+
+obj@(Root traits) repeatedTimes: n
+"Convenient syntax to instantiate it."
+[Repetition newFor: obj sized: n].
+
+r@(Repetition traits) size
+[r number].
+
+r@(Repetition traits) at: index ifAbsent: block
+[(index between: 0 and: r number) ifTrue: [r element] ifFalse: [block do]].
+
+r@(Repetition traits) at: index put: obj
+[
+  r element
+    ifNil: [r element := obj]
+    ifNotNil: [error: 'An attempt was made to modify a Repetition.']
+].
+
+r@(Repetition traits) do: block
+[r number timesRepeat: [block applyWith: r element]].
+
+r@(Repetition traits) collect: block
+[r collect: block into: (Array newSizeOf: r)].
+
+c@(Repetition traits) printContentsOn: o@(PrettyPrinterMixin traits) separatedBy: block
+"Print out the element and occurrences like a faux multiplication."
+[
+  c element printOn: o.
+  o ; ' x '.
+  c number printOn: o.
+  o
+].

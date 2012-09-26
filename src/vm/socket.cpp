@@ -15,7 +15,7 @@ word_t socket_return(word_t ret) {
   
   switch (-ret) {
 #ifdef WIN32
-          // TODO WIN32 port
+	  // TODO WIN32 port
 #else
   case EACCES: return -2;
   case EAFNOSUPPORT: return -3;
@@ -162,9 +162,9 @@ int socket_set_nonblocking(int fd) {
 
 #ifdef WIN32
 #pragma message("TODO WIN32 port set-nonblocking on socket")
-        return 0;
+	return 0;
 #else
-        if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
+	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
         flags = 0;
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
@@ -233,15 +233,15 @@ int socket_getaddrinfo(struct object_heap* oh, struct ByteArray* hostname, word_
       }
 
 #ifdef WIN32
-          ReleaseMutex(oh->socketThreadMutex);
-          thread = CreateThread(NULL, 0, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i], 0, &pret);
+	  ReleaseMutex(oh->socketThreadMutex);
+	  thread = CreateThread(NULL, 0, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i], 0, &pret);
 #else
 #if 0
       pthread_mutex_unlock(&oh->socketTicketMutex);
 #endif
       pret = pthread_create(&thread, NULL, socket_getaddrinfo_callback, (void*) &oh->socketTickets[i]);
 #endif
-          if (pret != 0) {
+	  if (pret != 0) {
         free(oh->socketTickets[i].hostname);
         free(oh->socketTickets[i].service);
         oh->socketTickets[i].hostname = NULL;

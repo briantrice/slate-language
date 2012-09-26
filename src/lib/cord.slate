@@ -1,0 +1,113 @@
+define: #Cord &parents: {Sequence}
+"A Cord is an object representing the binary concatentation of two Sequences,
+without allocating a new piece of literal memory for the whole result."
+&slots: {#split. "The index where the second half begins."
+	 #firstBranch. "The first half of the cord."
+	 #secondBranch. "The latter half of the cord."
+	 #depth -> 1. "The default for a couple of strings ;;'d."
+	 #size "The incrementally-calculated Cord size."}.
+
+obj ;; seq@(Sequence traits)
+[{obj} ;; seq].
+
+seq@(Sequence traits) ;; obj
+[seq ;; {obj}].
+
+c1@(Sequence traits) ;; c2@(Sequence traits)
+"Build a cord concatenation out of any 2 sequences,
+or lazily answer an argument if the other is empty."
+[
+  `conditions: (
+    [c1 isEmpty] -> [c2].
+    [c2 isEmpty] -> [c1]
+  ) otherwise: [
+    Cord clone `>>
+      [split := c1 size.
+       firstBranch := c1.
+       secondBranch := c2.
+       size := c1 size + c2 size. ]]
+].
+
+c1@(Sequence traits) ;; c2@(Cord traits)
+"Set up the depth if the second element is a cord."
+[resend `>> [depth := c2 depth + 1. ]].
+
+c1@(Cord traits) ;; c2@(Sequence traits)
+"Set up the depth if the first element is a cord."
+[resend `>> [depth := c1 depth + 1. ]].
+
+obj ;; c@(Cord traits)
+[{obj} ;; seq].
+
+c@(Cord traits) ;; obj
+[c ;; {obj}].
+
+c1@(Cord traits) ;; c2@(Cord traits)
+"If both are cords, the deepest counts for the depth."
+[resend `>> [depth := (c1 depth max: c2 depth) + 1. ]].
+
+c@(Cord traits) at: n
+"Recursively descend the tree to find the element in the base sequences.
+Since this is ~O(log n) vs O(0), iterators need to avoid this and use do:
+or doWithIndex:."
+[
+  n < c split
+    ifTrue: [c firstBranch at: n]
+    ifFalse: [c secondBranch at: n - c split]
+].
+
+c@(Cord traits) do: block
+"The major premise of this override is to avoid calling at: for each index,
+since it is more expensive for Cords to perform."
+[
+  c firstBranch do: block.
+  c secondBranch do: block.
+].
+
+c@(Cord traits) doWithIndex: block
+"Simulate an index during the traversal."
+[| index |
+  index := 0.
+  c do: [| :each | block applyWith: each with: index.
+	 index += 1].
+].
+
+c@(Cord traits) collectionType
+[
+  c detect: [| :each | (each isSameAs: c) not]
+].
+
+c@(Cord traits) shouldBeFlattened
+"Pick a pretty small number that statistically is easier to just make a new
+sequence for, and make sure that it's not just a base Cord."
+[
+  c size < 20 /\ [c depth >= 2]
+].
+
+c@(Cord traits) flatten
+[
+  c as: c collectionType
+].
+
+c@(Cord traits) shouldBeBalanced
+[
+  c depth >= 4
+].
+
+c@(Cord traits) balance
+[
+  c notYetImplemented
+].
+
+s@(Sequence traits) join &separator: delim
+"#join is the opposite of #splitWith:, taking a collection of Sequences and
+splicing them together. Optionally, a delimiter may be given to use between
+each instance. The fact that this is optional is why join is not joinWith:."
+[
+  (s reduce:
+     (delim
+        ifNil: [#;;`er]
+        ifNotNil: [[| :result :each | result ;; delim ;; each]])
+     ifEmpty: [s])
+    as: (delim ifNil: [s first])
+].

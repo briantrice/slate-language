@@ -126,7 +126,7 @@ l@(Lexer traits) readMantissa: radix
     [| c |
      ((c := l nextCharacter) toDigit: radix) ifNotNilDo:
        [| :digit |
-        number := number * radix + digit.
+	number := number * radix + digit.
         place *= radix]].
   (number as: Float) / (place as: Float)
 ].
@@ -236,7 +236,7 @@ Escaping is accounted for."
 
 l@(Lexer traits) nextQuoteMacroNamed: sel &terminator: terminator
 [| contents |
-  terminator `defaultsTo: (l QuoteMacroChars at: l nextCharacter ifAbsent: [$\n]).
+  terminator `defaultsTo: (l QuoteMacroChars at: l nextCharacter).
   contents := l nextSegmentUntil: terminator.
   (tokens QuoteMacro for: contents) `>>
     [prefix := sel value intern.

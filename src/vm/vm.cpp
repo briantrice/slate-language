@@ -132,7 +132,7 @@ int main(int argc, char** argv, char **envp) {
     } else {
       /* The VM did not process this argument. The warning is disabled by default, because the image may know how to process it. */
       if (verbose) {
-        fprintf(stderr, "Illegal argument: %s\n", argv[i]);
+	fprintf(stderr, "Illegal argument: %s\n", argv[i]);
       }
     }
   };

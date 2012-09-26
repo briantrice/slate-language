@@ -102,11 +102,11 @@ int readExternalLibraryError(struct ByteArray *messageBuffer) {
   // the buffer, returning the length.
   DWORD dw = GetLastError();
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                NULL,
-                dw,
-                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR) &message,
-                0, NULL);
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR) &message,
+		0, NULL);
 #else
   message = dlerror();
 #endif
@@ -288,20 +288,20 @@ struct Object* applyExternalLibraryPrimitive(struct object_heap* oh, struct Byte
       break;
     case ARG_FORMAT_DOUBLE:
       {
-        union {
-          double d;
-          word_t u[2];
-        } convert;
+	union {
+	  double d;
+	  word_t u[2];
+	} convert;
         memset(&convert, 0, sizeof(convert));
-        if (object_is_smallint(element)) {
-          convert.d = (double) object_to_smallint(element);
+	if (object_is_smallint(element)) {
+	  convert.d = (double) object_to_smallint(element);
         } else {
           /*TODO, support for real doubles*/
-          convert.d = (double) * (float_type *) byte_array_elements((struct ByteArray*)element);
+	  convert.d = (double) * (float_type *) byte_array_elements((struct ByteArray*)element);
         }
-        args[outArgIndex++] = convert.u[0];
-        args[outArgIndex++] = convert.u[1];
-        outArgCount++;
+	args[outArgIndex++] = convert.u[0];
+	args[outArgIndex++] = convert.u[1];
+	outArgCount++;
       }
       break;
     case ARG_FORMAT_POINTER:

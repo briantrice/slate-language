@@ -1,0 +1,588 @@
+Collection traits define: #Stream &parents: {PositionableStream} &slots: {#collection}.
+"Collection Streams allow accessing of and writing into Collections like any
+other Stream terminal."
+
+s@(Collection Stream traits) terminal [s collection].
+
+s@(Collection Stream traits) contents
+"Answer the Stream's contents, in the default case the collection itself."
+[
+  s collection
+].
+
+s@(Collection Stream traits) close
+"Closes the link between the Stream and the Collection and resets it,
+returning the Collection."
+[
+  result ::= s collection.
+  s collection := Nil.
+  s reset.
+  result
+].
+
+s@(Collection Stream traits) hasAnEnd
+"All Collections are finite, so Streams over them have an end."
+[True].
+
+s@(Collection Stream traits) collectionType
+[#{}].
+
+streamBlock@(Method traits) writingInto: c@(Collection traits)
+"Create a new WriteStream for the given collection and apply the block to it,
+answering the contents once done."
+[
+  stream ::= c writer.
+  streamBlock applyWith: stream.
+  stream contents
+].
+
+streamBlock@(Method traits) writingAs: c@(Collection traits) &capacity
+"Create a new WriteStream for a new collection like the given one and apply the
+block to it, answering the contents once done."
+[
+  streamBlock writingInto: (c new &capacity: capacity)
+].
+
+streamBlock@(Method traits) writingAs: s@(ReadStream traits) &capacity
+[
+  (streamBlock writingAs: s contents new &capacity: capacity) reader
+].
+
+Collection traits define: #ReadStream
+		  &parents: {Collection Stream. ReadStream}.
+"The default kind of iterator, a slot on the shared traits of Collection."
+
+ExtensibleCollection traits define: #WriteStream &parents: {WriteStream} &slots: {#collection}.
+"A totally non-Positionable WriteStream variant which just maps the protocol
+to Collection addition protocol."
+
+ws@(ExtensibleCollection WriteStream traits) on: c
+"Targets the collection."
+[
+  ws collection := c.
+  ws
+].
+
+ws@(ExtensibleCollection WriteStream traits) contents
+[
+  ws collection
+].
+
+ws@(ExtensibleCollection WriteStream traits) nextPut: obj
+[ws collection add: obj].
+
+ws@(ExtensibleCollection WriteStream traits) nextPutAll: c
+[ws collection addAll: c].
+
+ws@(ExtensibleCollection WriteStream traits) next: n putAll: seq startingAt: start
+[
+  ws collection addAll: (seq sliceFrom: start)
+].
+
+ws@(ExtensibleCollection WriteStream traits) close
+"Closes the link between the Stream and the Collection and resets it."
+[
+  result ::= ws collection.
+  ws collection := Nil.
+  result
+].
+
+ws@(ExtensibleCollection WriteStream traits) hasAnEnd [True].
+
+ws@(ExtensibleCollection WriteStream traits) isAtEnd
+"This type of stream cannot write over the contents and is perpetually
+`at the end' of the contents, adding new elements."
+[True].
+
+c@(Collection traits) iterator
+"Syntactic sugar for getting a new ReadStream or ReadWriteStream over the
+given Collection that respects the same type."
+[c reader].
+
+c@(Collection traits) reader
+"Syntactic sugar for getting a new ReadStream onto the given Collection
+that respects the same type."
+[c ReadStream newOn: c].
+
+c@(Collection traits) writer
+"Syntactic sugar for getting a new WriteStream onto the given Collection
+that respects the same type."
+[c WriteStream newOn: c].
+
+cols@(Collection traits) iterators
+"Returns a Collection of ReadStreams on the those in the given one. The
+argument collection cannot contain non-collections."
+[
+  cols collect: #iterator `er into: Array
+].
+
+cols@(Sequence traits) allDo: block
+"Apply a coordinated do: over all of the collections in the given one,
+using iterators."
+[
+  iterators ::= cols iterators.
+  args ::= Array newSizeOf: iterators.
+  [iterators anySatisfy: #isAtEnd `er]
+    whileFalse:
+      [iterators collect: #next `er into: args.
+       block applyTo: args].
+].
+
+x@(Collection traits) with: y@(Collection traits) do: block
+[{x. y} allDo: block].
+
+cols@(Sequence traits) allCollect: block into: result
+"Uses allDo: to perform a collect: over the Sequence's Collections' elements,
+using a stream in between."
+[[| :result | cols allDo: [| *vals | result nextPut: (block applyTo: vals)]]
+  writingAs: result
+].
+
+cols@(Sequence traits) allCollect: block
+"Perform allCollect:into: using the Sequence as the result template."
+[cols allCollect: block into: cols].
+
+cols@(Sequence traits) streamAllCollect: block
+[
+  [(cols iterators collect: #next`er)
+     reader collect: [| *rest | block applyTo: rest]]
+    breakOn: Exhaustion
+].
+
+x@(Collection traits) with: y@(Collection traits) collect: block
+[{x. y} allCollect: block].
+
+cols@(Sequence traits) zip
+"Uses allCollect: to gather all the collection's collections' elements into
+one collection. In other words, zip means to turn a pair of lists into
+a list of pairs (for general values of 'pair')."
+[cols allCollect: [| *vals | vals]].
+
+cols@(Sequence traits) unzip
+"Transposes a sequence of collection into a collection of sequences of those
+elements across them, using a collection of streams and running with:do:
+across the collection-result mapping. In other words, unzip means to turn a
+list of pairs into a pair of lists (for general values of 'pair')."
+[
+  results ::= cols first collect: [| :_ | cols newSameSize writer].
+  cols do:
+    [| :col | col with: results do: [| :val :result | result nextPut: val]].
+  results collect: #contents `er
+].
+
+cols@(Sequence traits) allInject: start into: block
+"Runs inject:into: across all the given collection's collections' elements."
+[| result |
+  result := start.
+  cols allDo: [| *vals | result := block applyTo: (vals copyWith: result at: 0)].
+  result
+].
+
+source@(Root traits) streamInto: target
+"Totally generic method for streaming the contents of one thing into another."
+[
+  source reader >> target writer
+].
+
+source@(Root traits) streamFrom: target
+[
+  target streamInto: source
+].
+
+cols@(Sequence traits) combinationsDo: block
+"This performs a basic increment-with-carry across the iterators until
+they are exhausted. The block is applied to all intermediate results."
+[| position it |
+  ((iterators ::= cols iterators) anySatisfy: #isAtEnd `er)
+   ifTrue: [^ Nil].
+  values ::= iterators collect: #next `er .
+  block applyTo: values.
+  [position := iterators indexLast.
+   eachIterator := iterators at: position.
+   [eachIterator isAtEnd /\ [position > 0]]
+     whileTrue:
+       [eachIterator reset.
+        values at: position put: eachIterator next.
+        position -= 1.
+        eachIterator := iterators at: position].
+   eachIterator isAtEnd /\ [position isZero]
+     ifTrue:
+       [^ Nil]
+     ifFalse:
+       [values at: position put: eachIterator next].
+   block applyTo: values] loop
+].
+
+cols@(Sequence traits) combinationsCollect: block into: result
+"Uses combinationsDo: to perform a collect: over all combinations of elements from the
+Collections in the Sequence, using a stream in between."
+[[| :result | cols combinationsDo: [| *vals | result nextPut: (block applyTo: vals)]]
+  writingAs: result
+].
+
+cols@(Sequence traits) combinationsCollect: block
+"Perform combinationsCollect:into: using the Sequence as the result template."
+[cols combinationsCollect: block into: cols].
+
+cols@(Sequence traits) combinationsInject: start into: block
+"Runs inject:into: across all the combinations of the given Sequence's Collections' elements."
+[| result |
+  result := start.
+  cols combinationsDo: [| *vals | result := block applyTo: (vals copyWith: result at: 0)].
+  result
+].
+
+Set traits define: #ReadStream &parents: {Collection ReadStream} &slots: {
+  #collection -> Set new.
+  #position -> 0. "The number of elements passed so far."
+  #index -> 0. "The index into the Set's contents Array."
+}.
+"Set ReadStreams are just Positionable- over the element order in the Set's
+contents Array. They're not very efficient, having to check for Nil's."
+
+i@(Set ReadStream traits) on: c
+"Retargets to the new Set, and resets position, etc."
+[i `>> [collection := c. position := 0. index := 0. ]].
+
+i@(Set ReadStream traits) next
+"Increment the index through the array until a non-Nil element is reached.
+This is poor for sparse Sets."
+[
+  (i collection contents indexOfFirstSatisfying: [| :x | x isNotNil] startingAt: i index)
+    ifNil: [i exhausted]
+    ifNotNilDo:
+      [| :nextIndex |
+       i index := nextIndex + 1.
+       i position := i position + 1.
+       i collection contents at: nextIndex]
+].
+
+i@(Set ReadStream traits) next: n putInto: seq startingAt: start
+[| numRead nextIndex |
+  numRead := 0.
+  contents ::= i collection contents.
+  nextIndex := i index.
+  seqIndex := start.
+  [(nextIndex := contents indexOfFirstSatisfying: #isNotNil `er startingAt: i index) isNil] whileFalse:
+    [i index := nextIndex + 1.
+     i position += 1.
+     seq at: seqIndex put: (contents at: nextIndex).
+     numRead += 1.
+     seqIndex += 1].
+  numRead
+].
+
+i@(Set ReadStream traits) isAtEnd
+"Checks both the Set size and then the underlying Array index, since a sparse
+Set would reach the first before the second."
+[
+  i position = i collection size \/ [i index = i collection contents indexLast]
+].
+
+Sequence traits define: #Stream &parents: {PositionableStream} &slots: {#collection -> ExtensibleArray new}.
+"A Stream over a Sequence, where the position corresponds to the index within
+the Sequence."
+
+s@(Sequence Stream traits) on: c
+"Target the stream to the specific collection, and reset the indices."
+[s `>> [reset. collection := c. readLimit := c size. ]].
+
+s@(Sequence Stream traits) contents
+"Answer the contents of the target by copying, up to the limit."
+[
+  s collection copyFrom: 0 below: s readLimit
+].
+
+s@(Sequence Stream traits) collectionType
+[s collection].
+
+s@(Sequence Stream traits) last
+[
+  s collection at: s position
+].
+
+Sequence traits define: #ReadStream
+  &parents: {Sequence Stream. ReadStream}.
+"A Stream used to read from a Sequence object."
+
+s@(Stream traits) newFrom: obj
+"A convenient method to override for creating new ReadStreams of the
+appropriate type for a given type of object."
+"NOTE: determine what overrides justify this since #reader is easier for nearly
+all cases."
+[obj ReadStream newOn: obj].
+
+rs@(Sequence ReadStream traits) next
+[
+  (pos ::= rs position) < rs readLimit
+    ifTrue:
+      [rs position := pos + 1.
+       rs collection at: pos]
+    ifFalse: [rs exhausted]
+].
+
+rs@(Sequence ReadStream traits) next: n
+"Overridden for efficiency."
+[
+  end ::= rs position + n min: rs readLimit.
+  result ::= rs collection copyFrom: rs position below: end.
+  rs position := end.
+  result
+].
+
+rs@(Sequence ReadStream traits) next: n putInto: c startingAt: start
+[
+  max ::= rs readLimit - rs position min: n.
+  c replaceFrom: start to: start + max - 1 with: rs collection startingAt: rs position.
+  rs position += max.
+  max
+].
+
+rs@(Sequence ReadStream traits) peekAt: offset
+[
+  rs collection at: rs position + offset
+].
+
+rs@(Sequence ReadStream traits) peek
+[rs peekAt: 0].
+
+rs@(Sequence ReadStream traits) peekBack
+[
+  rs position isZero ifFalse: [rs position := rs position - 1. rs next]
+].
+
+rs@(Sequence ReadStream traits) nextPut: obj
+"Sequence ReadStreams should not place elements into the stream."
+[Nil].
+
+rs@(Sequence ReadStream traits) size
+"The limit is effectively the number of elements that can be collected."
+[
+  rs readLimit
+].
+
+rs@(Sequence ReadStream traits) upTo: obj
+"Answer all the elements until the given object is reached."
+[
+  start ::= rs position.
+  end ::= rs collection indexOf: obj startingAt: start ifAbsent:
+    [rs position := rs collection size. ^ (rs collection copyFrom: start)].
+  rs position := end + 1.
+  rs collection copyFrom: start below: end
+].
+
+rs@(Sequence ReadStream traits) upToEnd
+"Answer all the elements up to the limit by a copy."
+[
+  start ::= rs position.
+  rs position := rs collection size.
+  rs collection copyFrom: start below: rs position
+].
+
+rs@(Sequence ReadStream traits) on: c from: start to: end
+"Target the stream on a particular slice of a collection."
+[rs `>> [collection := c. readLimit := end min: c size. position := start. ]].
+
+Sequence traits define: #WriteStream
+		&parents: {Sequence Stream. WriteStream}
+                &slots: {#writeLimit}.
+
+s@(Stream traits) newTo: obj@(Sequence traits) &position
+[obj WriteStream newOn: obj &position: position].
+
+seq@(Sequence traits) writer &position
+[seq WriteStream newOn: seq &position: position].
+
+seq@(Sequence traits) appender
+[seq WriteStream newOn: seq &position: seq size].
+
+ws@(Sequence WriteStream traits) newOn: c &position
+[ws clone on: c &position: position].
+
+ws@(Sequence WriteStream traits) on: c &position
+[
+  resend.
+  ws writeLimit := c size.
+  position ifNotNil: [ws position := position].
+  ws
+].
+
+ws@(Sequence WriteStream traits) contents
+[
+  ws readLimit := ws readLimit max: ws position.
+  ws collection copyFrom: 0 below: ws readLimit
+].
+
+ws@(Sequence WriteStream traits) next
+[Nil].
+
+ws@(Sequence WriteStream traits) growCollectionAtEnd &byAtLeast: minGrowth
+[
+  c ::= ws collection.
+  newSize ::= c size + (c size min: 1000000 max: (minGrowth ifNil: [20])).
+  ws collection := c newSize: newSize.
+  ws collection replaceFrom: 0 to: c size - 1 with: c.
+  ws writeLimit := newSize.
+].
+
+ws@(Sequence WriteStream traits) pastEndPut: obj
+[
+  ws growCollectionAtEnd.
+  ws collection at: ws position put: obj.
+  ws position := ws position + 1.
+  obj
+].
+
+ws@(Sequence WriteStream traits) nextPut: obj
+[
+  (pos ::= ws position) >= ws writeLimit
+    ifTrue: [ws pastEndPut: obj]
+    ifFalse: [ws position := pos + 1.
+              ws collection at: pos put: obj]
+].
+
+ws@(Sequence WriteStream traits) next: n putAll: c startingAt: start
+[
+  (newEnd ::= ws position + n - 1) >= ws writeLimit ifTrue:
+    [ws growCollectionAtEnd &byAtLeast: newEnd - ws writeLimit + 4].
+  ws collection replaceFrom: ws position to: newEnd with: c startingAt: start.
+  ws position := newEnd + 1.
+  n
+].
+
+ws@(Sequence WriteStream traits) size
+[
+  ws readLimit := ws readLimit max: ws position
+].
+
+ws@(Sequence WriteStream traits) position: n
+[
+  ws readLimit := ws readLimit max: n.
+  resend.
+  ws
+].
+
+ws@(Sequence WriteStream traits) newLine
+"Output an appropriate newLine character."
+"TODO: make this portable."
+[
+  ws nextPut: $\n
+].
+
+ws@(Sequence WriteStream traits) atBeginningOfLine
+"Returns whether the stream is writing at a point where a line ending has
+just occurred."
+"TODO: make this portable."
+[
+  (ws collection at: ws position - 1) = $\n
+].
+
+ws@(Sequence WriteStream traits) freshLine
+"Output a newLine character character if not currently at the end of a line."
+[
+  ws atBeginningOfLine ifFalse: [ws newLine]
+].
+
+ws@(Sequence WriteStream traits) reset
+[
+  ws readLimit := ws readLimit max: ws position.
+  ws position := 0.
+  ws
+].
+
+ws@(Sequence WriteStream traits) resetToStart
+[
+  ws readLimit := ws position := 0.
+  ws
+].
+
+ws@(Sequence WriteStream traits) setToEnd
+[
+  ws position := ws size.
+  ws
+].
+
+ws@(Sequence WriteStream traits) on: c from: start to: end
+[
+  ws collection := c.
+  ws readLimit := ws writeLimit := end min: c size.
+  ws position := start.
+  ws
+].
+
+ws@(Sequence WriteStream traits) peekLast
+[
+  ws position ifNotNil: [ws contents at: position]
+].
+
+ws@(Sequence WriteStream traits) with: c
+[
+  ws collection := c.
+  ws position := ws readLimit := ws writeLimit := c size.
+  ws
+].
+
+Sequence traits define: #ReadWriteStream
+		&parents: {Sequence WriteStream. Sequence ReadStream}.
+
+rws@(Sequence traits) iterator
+[
+  rws ReadWriteStream newOn: rws
+].
+
+rws@(Sequence ReadWriteStream traits) contents
+[
+  rws readLimit := rws readLimit max: rws position.
+  rws collection copyFrom: 0 below: rws readLimit
+].
+
+rws@(Sequence ReadWriteStream traits) next
+[
+  (pos ::= rws position) >= rws readLimit
+    ifTrue: [rws exhausted]
+    ifFalse: [rws position := pos + 1.
+              rws collection at: pos]
+].
+
+rws@(Sequence ReadWriteStream traits) next: n
+[
+  rws readLimit := rws readLimit max: rws position.
+  end ::= rws position + n min: rws readLimit.
+  result ::= rws collection copyFrom: rws position below: end.
+  rws position := end.
+  result
+].
+
+rws@(Sequence ReadWriteStream traits) = rws2@(Sequence ReadWriteStream traits)
+[
+  rws position = rws2 position /\ [rws contents = rws2 contents]
+].
+
+rws@(Sequence ReadWriteStream traits) hash
+[
+  (rws isSameAs: Sequence ReadWriteStream) ifFalse: [^ resend].
+  (rws position + rws readLimit + 53) hash
+].
+
+ExtensibleSequence traits define: #WriteStream
+  &parents: {Sequence WriteStream}.
+"A Stream used to write to a new or existing ExtensibleSequence."
+
+ws@(ExtensibleSequence WriteStream traits) pastEndPut: obj
+[
+  c ::= ws collection.
+  c addLast: obj.
+  ws writeLimit := c size.
+  ws position += 1.
+  obj
+].
+
+ws@(ExtensibleSequence WriteStream traits) next: n putAll: c startingAt: start
+[
+  ws collection at: ws position insertAll: (c copyFrom: start below: start + n).
+  ws position += n.
+  n
+].
+
+ExtensibleSequence traits define: #ReadWriteStream
+  &parents: {ExtensibleSequence WriteStream. ExtensibleSequence ReadStream}.

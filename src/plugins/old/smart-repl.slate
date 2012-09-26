@@ -40,7 +40,7 @@ repl@(SmartREPL traits) enter
         repl lineCount := repl lineCount + 1.
         repl printer flush.
         editor prompt := repl prompt.
-        "Catch Stream Exhaustion from this block which means the end
+	"Catch Stream Exhaustion from this block which means the end
          of input, issued by Ctrl+d on an empty line"
         [[line := (editor readLine &echoNewLine: True &showPrompt: firstRun).
           line isEmpty] whileTrue] on: Stream Exhaustion do: [| :_ | ^ Nil].
@@ -48,12 +48,12 @@ repl@(SmartREPL traits) enter
         input addAll: line.
         input add: $\n.
         editor hasInput ifFalse:
-          [parser on: input reader.
+	  [parser on: input reader.
            parser do:
-             [| :expr result |
-              result := (expr evaluateIn: repl namespace).
+	     [| :expr result |
+	      result := (expr evaluateIn: repl namespace).
               [result printOn: repl printer] on: Error do:
-                [| :c |
+	        [| :c |
                  inform: 'Printing failed.'.
                  #printOn: sendTo: {result. repl printer} through: {Root. repl printer}.
                  c return: Nil].

@@ -2,56 +2,56 @@ GLib define: #Object &parents: {GLib Pointer}.
 GLib Object traits atSlotNamed: #printName put: 'GLib Object'. 
 
 o@(GLib Object traits) new [
-        o shouldNotImplement
+	o shouldNotImplement
 ].
 
 _@(GLib Object traits) gType [
-        GLib FundamentalType Object
+	GLib FundamentalType Object
 ].
 
 o@(GLib Object traits) connectTo: aSignalName@(String traits) closure: closure@(GLib Closure traits) [
-        GLib GObjectLib primitives g_signal_connect_closure applyTo: { o handle. aSignalName. closure handle. False }
+	GLib GObjectLib primitives g_signal_connect_closure applyTo: { o handle. aSignalName. closure handle. False }
 ].
 
 o@(GLib Object traits) when: aSignalName@(String traits) do: aBlock [
-        o connectTo: aSignalName closure: (GLib Closure newWithBlock: aBlock)
+	o connectTo: aSignalName closure: (GLib Closure newWithBlock: aBlock)
 ].
 
 o@(GLib Object traits) when: aSignalName send: selector to: object [
-        o when: aSignalName do: [ | *parameters  | selector sendTo: ( {object} ; parameters ) ]
+	o when: aSignalName do: [ | *parameters  | selector sendTo: ( {object} ; parameters ) ]
 ].
 
 o@(GLib Object traits) typeFromName: name@(String traits) [
-        | aName nameSpace trait |
-        aName: name.
-        (name beginsWith: 'Gtk')
-                ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gtk ]
-                ifFalse: [
-                        (name beginsWith: 'Gdk')
-                                ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gdk ]
-                                ifFalse: [
-                                        (name beginsWith: 'G')
-                                                ifTrue: [ aName: (name allButFirst: 1). nameSpace: GLib ]
-                                                ifFalse: [ warning: 'Unknown type'. ^ Nil ]
-                                ]
-                ].
-        aName: aName intern.
-        (nameSpace hasSlotNamed: aName)
-                ifTrue: [ trait: (nameSpace atSlotNamed: aName) ]
-                ifFalse: [ warning: 'Unknown Trait'. ^ Nil ].
-        trait
+	| aName nameSpace trait |
+	aName: name.
+	(name beginsWith: 'Gtk')
+		ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gtk ]
+		ifFalse: [
+			(name beginsWith: 'Gdk')
+				ifTrue: [ aName: (name allButFirst: 3). nameSpace: Gdk ]
+				ifFalse: [
+					(name beginsWith: 'G')
+						ifTrue: [ aName: (name allButFirst: 1). nameSpace: GLib ]
+						ifFalse: [ warning: 'Unknown type'. ^ Nil ]
+				]
+		].
+	aName: aName intern.
+	(nameSpace hasSlotNamed: aName)
+		ifTrue: [ trait: (nameSpace atSlotNamed: aName) ]
+		ifFalse: [ warning: 'Unknown Trait'. ^ Nil ].
+	trait
 ].
 
 o@(GLib Object traits) objectFromHandle: aHandle [
-        | name nameSpace trait |
-        aHandle ifNil: [ warning: 'Handle is null'. ^ Nil ].
-        name: (o newWithHandle: aHandle) type name.
-        trait: (o typeFromName: name). 
-        trait newWithHandle: aHandle
+	| name nameSpace trait |
+	aHandle ifNil: [ warning: 'Handle is null'. ^ Nil ].
+	name: (o newWithHandle: aHandle) type name.
+	trait: (o typeFromName: name). 
+	trait newWithHandle: aHandle
 ].
 
 o@(GLib Object traits) type [
-        GLib Type newWithType: (
-                GLib LibWrapper primitives wrapper_g_type_from_instance applyTo: { o handle }
-        )
+	GLib Type newWithType: (
+		GLib LibWrapper primitives wrapper_g_type_from_instance applyTo: { o handle }
+	)
 ].

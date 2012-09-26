@@ -1,0 +1,420 @@
+collections definePrototype: #Collection &basis: Cloneable.
+"The abstract object type for Collections, objects which other objects can be
+added and removed and tested for as elements."
+
+"Some common idioms for testing collections."
+c@(Collection traits) isEmpty
+"The collection is empty if it contains 0 elements."
+[c size = 0].
+c@(Collection traits) isNotEmpty [c isEmpty not].
+c@(Collection traits) isNotFull [c size < c capacity].
+c@(Collection traits) isFull [c isNotFull not].
+
+c@(Collection traits) ifEmpty: block
+[c isEmpty ifTrue: [block do]].
+
+c@(Collection traits) ifNotEmpty: block
+[c isEmpty ifFalse: [block do]].
+
+c@(Collection traits) ifNotEmptyDo: block
+[c isEmpty ifFalse: [block apply*, c]].
+
+c@(Collection traits) ifEmpty: emptyBlock ifNotEmpty: block
+[c isEmpty ifTrue: [emptyBlock do] ifFalse: [block do]].
+
+c@(Collection traits) ifEmpty: emptyBlock ifNotEmptyDo: block
+[c isEmpty ifTrue: [emptyBlock do] ifFalse: [block apply*, c]].
+
+c@(Collection traits) new &capacity: n
+"Answer a new Collection based on the given one which isEmpty and has the
+given capacity if possible."
+[overrideThis].
+
+c@(Collection traits) newSize: n
+"Answer a new Collection based on the given one with no elements and the given
+capacity (the size will be 0). Override this for the new* methods to work per
+collection implementation type."
+[c new &capacity: n].
+
+c@(Collection traits) newEmpty
+"By default, new collections should be spaced to hold a certain amount,
+which makes working with small collections frequently less of a pain."
+[c new].
+
+c@(Collection traits) newSizeOf: x
+"A flexible method which uses the result of whatever size method the second
+argument defines."
+[c new &capacity: x size].
+
+c@(Collection traits) newSameSize
+"Returns a new collection of the same size as the given one."
+[c newSizeOf: c].
+
+_@(Collection traits) accepts: obj
+"Some collections are implemented so that certain types of objects cannot be
+encoded as elements, in which case, add: or at:put: would fail. Here's the
+default method."
+[True].
+
+_@(Collection traits) elementType
+"The acceptable element type of the collection."
+[Root].
+
+_@(Collection traits) defaultElement
+[Nil].
+
+c@(Collection traits) as: d@(Collection traits)
+"The default conversion between collections uses this method which doesn't
+get overridden."
+[d newWithAll: c].
+
+c@(Collection traits) newWithAll: d@(Collection traits)
+"Make a new collection of kind c and stuff in all of d's elements."
+[
+  ((c newSizeOf: d) writer ; d) contents
+].
+
+c@(Collection traits) anyOne
+"Return the first (any) element possible, not a random one."
+[
+  c emptyCheck.
+  c do: [| :each | ^ each].
+].
+
+c@(Collection traits) size
+"Tally up the number of elements in the Collection."
+[| tally |
+  tally := 0.
+  c do: [| :each | tally += 1].
+  tally
+].
+
+c@(Collection traits) capacity
+"How much can it carry? This does not always equal size, and can change
+with grow/shrink methods."
+[c size].
+
+c@(Collection traits) hash
+"Answer an integer hash value for the receiver such that, 
+the hash value of an unchanged object is constant over time, and 
+two equal objects have equal hash values."
+[| result |
+  result := c traits identityHash.
+  c size <= 10
+    ifTrue: [c do: [| :each | result := result bitXor: each hash]].
+  result bitXor: c size hash
+].
+
+c@(Collection traits) contents
+"Answer c's elements. Provides compatibility with other collections with
+complex implementations."
+[c].
+
+c@(Collection traits) do: block
+"Evaluate the block once for each element on that value."
+[overrideThis].
+
+c@(Collection traits) do: block separatedBy: sepBlock
+"Run the separator block between applying the block to each element."
+[| first |
+  first := True.
+  c do: [| :each |
+    first ifTrue: [first := False] ifFalse: [sepBlock do].
+    block apply*, each].
+].
+
+c@(Collection traits) inject: start into: block
+"Accumulate a running value starting with the input and running a block on it
+and each element of a collection in turn. The result of the block is
+implicitly the next value."
+[| result |
+  result := start.
+  c do: [| :element | result := block apply*, result, element].
+  result
+].
+
+c@(Collection traits) collect: block into: d
+"Answer a new collection resulting from mapping the block onto each element."
+[
+  [| :result | c do: [| :each | result nextPut: (block apply*, each)]]
+     writingAs: d
+].
+
+c@(Collection traits) collect: block
+"Answer a new collection resulting from mapping the block onto each element.
+This returns a collection of the same kind."
+[c collect: block into: c].
+
+c@(Collection traits) flatCollect: block into: d
+"Answer a new collection resulting from mapping the block onto each element."
+[
+  [| :result | c do: [| :each | result nextPutAll: (block apply*, each)]]
+     writingAs: d
+].
+
+c@(Collection traits) flatCollect: block
+"Answer a new collection resulting from mapping the block onto each element.
+This returns a collection of the same kind."
+[c flatCollect: block into: c].
+
+c@(Collection traits) count: test
+"Return the number of elements of the collection satisfying the test."
+[| sum |
+  sum := 0.
+  c do: [| :each | (test apply*, each) ifTrue: [sum += 1]].
+  sum
+].
+
+c@(Collection traits) detect: succeed ifNone: fail
+"Find an element satisfying a test. Conditionally execute a failure block."
+[
+  c do: [| :element | (succeed apply*, element) ifTrue: [^ element]].
+  fail do
+].
+
+c@(Collection traits) detect: succeed
+"Supply a default failure block to detect:ifNone: which just answers Nil."
+[c detect: succeed ifNone: []].
+
+c@(Collection traits) anySatisfy: predicate
+"Answer whether any elements cause the input block to be True."
+[
+  c do: [| :element | (predicate apply*, element) ifTrue: [^ True]].
+  False
+].
+
+c@(Collection traits) allSatisfy: predicate
+"Answer whether all elements cause the input block to be True."
+[
+  c do: [| :element | (predicate apply*, element) ifFalse: [^ False]].
+  True
+].
+
+c@(Collection traits) noneSatisfy: predicate
+"Answer whether none of c's elements cause the input block to be True."
+[
+  c do: [| :element | (predicate apply*, element) ifTrue: [^ False]].
+  True
+].
+
+c@(Collection traits) select: test into: result
+"Write the elements of c satisfying the test block into the given resulting
+collection."
+[
+  [| :result |
+   c do: [| :each | (test apply*, each) ifTrue: [result nextPut: each]]]
+    writingAs: result
+].
+
+c@(Collection traits) select: test
+"Answer a subset of c containing those elements causing the input block to
+return True."
+[c select: test into: c new].
+
+c@(Collection traits) select: test collect: block
+"An optimization for staged collect:'s on select: results."
+[
+  [| :result |
+   c do: [| :each | (test apply*, each)
+		    ifTrue: [result nextPut: (block apply*, each)]]]
+    writingAs: c
+].
+
+c@(Collection traits) collect: block select: test
+"An optimization for staged select:'s on collect: results."
+[
+  [| :result |
+   c do: [| :each tmp |
+	  tmp := block apply*, each.
+	  (test apply*, tmp) ifTrue: [result nextPut: tmp]]]
+    writingAs: c
+].
+
+c@(Collection traits) gather: binBlock &initial: init
+"Accumulate a running value by:
+- starting with the optional initial or a default chosen from the collection.
+- running a block on both it and each remaining element in turn.
+The result of the block becomes the next value, and then the result when done.
+e.g. {1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
+[| result |
+  c isEmpty
+    ifTrue: [init]
+    ifFalse:
+      [reader ::= c reader.
+       result := init ifNil: [reader next].
+       reader do: [| :each | result := binBlock apply*, result, each].
+       result]
+].
+
+c@(Collection traits) reduce: binBlock ifEmpty: emptyBlock
+"Reduce works like inject except that the first element of the collection is
+used as the injected element for the rest of the collection.
+e.g. #{1. 2. 3 .4} reduce: [| :a :b | a + b] returns a sum of the elements."
+[| result |
+  c isEmpty  
+   ifTrue: [emptyBlock do]
+   ifFalse:
+     [result := (reader ::= c reader) next.
+      reader do: [| :each | result := binBlock apply*, result, each].
+      result]
+].
+
+c@(Collection traits) reduce: binBlock
+"Same as reduce:ifEmpty:, except doing nothing and answering Nil in the empty
+case."
+[
+  c reduce: binBlock ifEmpty: []
+].
+
+c@(Collection traits) trace: binBlock
+"Like reduce: but returns a Collection of intermediate values."
+[
+  [| :result elem |
+   src ::= c reader.
+   elem := src next.
+   result nextPut: elem.
+   src do:
+     [| :each | elem := result nextPut: (each := binBlock apply*, elem, each)]]
+    writingInto: c newSameSize
+].
+
+block across: c@(Collection traits)
+"Apply the block to matching elements of collections in c (so, c
+should be a collection of collections). If it's a binary block, it
+works like reduce, otherwise the blocks arity should be the same as
+the number of collections in c.
+Example:
+#+`er across: {{100. 200. 300}. {10. 20. 30}. {1. 2. 3}} => {111. 222. 333}"
+[
+  block arity = 2 
+    ifTrue: [c allCollect: [| *rest | rest reduce: block]]
+    ifFalse: [block arity = c size \/ [block acceptsAdditionalArguments]
+		ifTrue: [c allCollect: block]
+		ifFalse: [error: 'Trying to across: using non-binary block that is of different arity than the number of arguments.']]
+].
+
+c@(Collection traits) pairCollect: binBlock
+"Apply binBlock to every (stream-adjacent) pair of c."
+[
+  [| :result src last current |
+   src := c reader.
+   last := src next.
+   src do: [| :current |
+	    result nextPut: (binBlock apply*, last, current).
+	    last := current]].
+     writingInto: (c new &capacity: c size - 1)
+].
+
+c1@(Collection traits) leftCollect: c2@(Collection traits) using: binBlock
+"Apply binBlock to every element of c1 using c2 as a second argument to the block."
+[
+  c1 collect: [| :item | binBlock apply*, item, c2]
+].
+
+c1@(Collection traits) rightCollect: c2@(Collection traits) using: binBlock
+"Like leftCollect, but using c1 as a left argument to binBlock and elements of c2 each as a second argument."
+[
+  c2 collect: [| :item | binBlock apply*, c1, item]
+].
+
+c@(Collection traits) most: binBlock
+"Answer the element which satisfies the binary comparison with (ideally)
+all other elements in the Collection. (see also least:)"
+"TODO: add an optional specifying the value if none is found, useful for when
+isEmpty implies Nil returns and subsequent necessary checks are not enough."
+[
+  c reduce: [| :a :b | (binBlock apply*, a, b)
+		       ifTrue: [a] ifFalse: [b]]
+].
+
+c@(Collection traits) most
+[c most: #>`er ].
+
+c@(Collection traits) least: binBlock
+"Answer the element which fails the binary comparison with (ideally) all
+other elements in the Collection. (see also most:)"
+"TODO: add an optional specifying the value if none is found, useful for when
+isEmpty implies Nil returns and subsequent necessary checks are not enough."
+[
+  c reduce: [| :a :b | (binBlock apply*, a, b)
+		       ifTrue: [b] ifFalse: [a]]
+].
+
+c@(Collection traits) least
+[c least: #>`er ].
+
+c@(Collection traits) reject: test
+"Answer the complement of select:, a subset of the collection containing those
+elements causing the input block to return False."
+[
+  c select: [| :each | (test apply*, each) not]
+].
+
+c@(Collection traits) copyWithout: obj
+"Return a new collection with all elements equal to the given ones removed."
+[
+  c reject: #(= obj) `er
+].
+
+c@(Collection traits) difference: d@(Collection traits)
+"Answer the subset of c that are not elements of d."
+[
+  c reject: #(d includes: _) `er
+].
+
+c@(Collection traits) intersection: d@(Collection traits)
+"Answer a collection of kind c with elements that are common to both c and d."
+[
+  c select: #(d includes: _) `er
+].
+
+c@(Collection traits) /\ d@(Collection traits)
+[
+  c intersection: d
+].
+
+c@(Collection traits) union: d@(Collection traits)
+"Answer a Set with elements from both input collections."
+[
+  ((c as: Set) writer ; d) contents
+].
+
+c@(Collection traits) \/ d@(Collection traits)
+[
+  c union: d
+].
+
+c@(Collection traits) includes: obj
+"Return whether some object equal to the input is in the collection."
+[
+  c anySatisfy: #(= obj) `er
+].
+
+c@(Collection traits) identityIncludes: obj
+"Return whether the input object is in the collection."
+[
+  c anySatisfy: #(== obj) `er
+].
+
+c@(Collection traits) includesAllOf: d
+"Return whether d is a subset of c. All elements of d are in c."
+[
+  d do: [| :each | (c includes: each) ifFalse: [^ False]].
+  True
+].
+
+c@(Collection traits) includesAnyOf: d
+"Return whether the collections have any common elements."
+[
+  d do: [| :each | (c includes: each) ifTrue: [^ True]].
+  False
+].
+
+c@(Collection traits) occurrencesOf: obj
+"Return how many times the input object occurs in the collection."
+[| tally |
+  tally := 0.
+  c do:
+    [| :each | obj = each ifTrue: [tally += 1]].
+  tally
+].

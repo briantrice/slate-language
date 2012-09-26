@@ -1,0 +1,167 @@
+
+Symbol traitsWindow _delegates := {
+  Root traits. Derivable traits. Cloneable traits. Mapping traits.
+  Collection traits. Sequence traits. ByteArray traits. String traits. ASCIIString traits. Symbol traits
+}.
+
+s@(Symbol traits) hash
+[s identityHash].
+
+x@(Symbol traits) = y
+[x == y].
+
+x@(Sequence traits) = y@(Symbol traits)
+[x == y].
+
+name@(String traits) =~ s@(Symbol traits)
+"Allows String-equality testing without interning."
+[#= sendTo: {name. s} through: {name. name}].
+
+x@(Symbol traits) =~ y@(Symbol traits)
+[x == y].
+
+(#at:put: findOn: {'' traits}) asMethod: #_at:put: on: {Symbol traits. NoRole. NoRole}.
+
+s@(Symbol traits) newNamed: name
+[
+  result ::= s newSizeOf: name.
+  name doWithIndex:
+    [| :each :index | result _at: index put: each].
+  result
+].
+
+s@(Symbol traits) name
+[String newWithAll: s].
+
+s@(Symbol traits) at: _ put: _
+[s immutable].
+
+s@(Symbol traits) replaceFrom: _ to: _ with: _ startingAt: _
+[s immutable].
+
+"Set up the table for interned strings, or Symbols in general."
+(lobby globals Symbols is: Sequence) ifTrue:
+  [newTable ::= Dictionary new &capacity: lobby globals Symbols size * 2.
+   lobby globals Symbols do: [| :each | newTable at: each name put: each].
+   lobby globals atSlotNamed: #Symbols put: newTable.
+   "Remove the bootstrap kluge."
+   #intern: removeMethodFrom: {lobby. ASCIIString traits}].
+
+_@lobby intern: s@(String traits)
+"Answer a Symbol object with the string as its name. This will identify any
+existing Symbol with the same name and use that, or create a new one if not."
+[
+  globals Symbols at: s ifAbsentPut: [Symbol newNamed: s]
+].
+
+s@(Symbol traits) named: name
+[
+  globals Symbols at: name
+].
+
+x@lobby intern: s@(Symbol traits)
+[x intern: s name].
+
+s@(Root traits) intern
+"A quick way to create a new Symbol, and allow for genericity later, perhaps."
+[lobby intern: s].
+
+globals removeSlot: #bootstrapSymbols.
+
+table@(globals Symbols) unintern: s@(String traits)
+"Answer a Symbol object with the string as its name. This will identify any
+existing Symbol with the same name and use that, or create a new one if not."
+[table removeKey: s].
+
+table@(globals Symbols) unintern: s@(Symbol traits)
+[table remove: s].
+
+s@(Root traits) unintern
+[globals Symbols unintern: s].
+
+s@(Root traits) isInterned
+"Answer whether the object is used as a key in the Symbols table."
+[(globals Symbols at: s ifAbsent: []) isNotNil].
+
+s@(Symbol traits) isInterned
+"Answer whether the object is used as a key in the Symbols table."
+[globals Symbols includes: s].
+
+s@(Symbol traits) as: _@(String traits)
+"A shortcut to refer to the String that names the symbol."
+[s name].
+
+s@(Symbol traits) as: _@(Symbol traits)
+"Symbol is: String, so the Symbol as: String conversion must be elided."
+[s].
+
+name@(String traits) as: _@(Symbol traits)
+[name intern].
+
+"The following methods rely on String protocols being provided, but are not
+called by the core libraries:" (
+
+s@(Symbol traits) isUnarySelector
+[
+  (name ::= s name) isEmpty not
+    /\ [(first ::= name first) isLetter \/ [first = $_] /\ [name last ~= $:]]
+].
+
+s@(Symbol traits) isBinarySelector
+[
+  (name ::= s name) isEmpty not
+    /\ [(first ::= name first) isLetter not]
+    /\ [first ~= $_]
+    /\ [first ~= $&]
+    /\ [name last ~= $:]
+].
+
+s@(Symbol traits) isKeywordSelector
+[
+  (name ::= s name) first ~= $& /\ [name last = $:]
+].
+
+s@(Symbol traits) keywords
+[s name splitWith: $:].
+
+s@(Symbol traits) isOptionalSelector
+[
+  s name first = $&
+].
+
+s@(Symbol traits) asOptionalSelector
+[
+  intern: '&' ; s ; ':'
+].
+
+s@(Symbol traits) arity
+"Answers in a relatively safe way the number of arguments that such a Symbol
+would take if used as a selector. Keyword selectors must end in a colon."
+[
+  s isBinarySelector
+    ifTrue: [2]
+    ifFalse: [s last = $:
+		ifTrue: [1 + (s name count: #(= $:) `er)]
+		ifFalse: [1]]
+].
+
+s@(globals Symbols) beginningWith: prefix
+[(s select: #(beginsWith: prefix) `er) keySet].
+
+s@(globals Symbols) endingWith: suffix
+[(s select: #(endsWith: suffix) `er) keySet].
+
+s@(globals Symbols) containing: segment
+[(s select: #(includesSubSeq: segment) `er) keySet].
+
+).
+
+s@(Symbol traits) findAllMethodsOn: args
+[
+  [| :result m |
+   m := s findOn: args.
+   [m isNotNil] whileTrue:
+     [result nextPut: m.
+      m := s findOn: args after: m].
+   ] writingAs: #{}
+].

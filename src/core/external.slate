@@ -1,0 +1,388 @@
+"The interface and abstract framework on which all external interaction
+libraries depend."
+
+prototypes define: #ExternalResource &parents: {Cloneable} &slots:
+ {#parentResource. "The parent external resource which spawned this resource, or Nil if a root resource."
+  #handle.      "An ID number perhaps for the struct or the actual low-level object itself."
+  #readStream.  "What object has read-capabilities for this resource."
+  #writeStream. "What object has write-capabilities for this resource."
+  #locator     "An identifying locator for the connection so that it may be closed and re-opened with persistent identity."}.
+"Abstract object for representing resources used by the system but
+maintained outside of it, such as external storage and network resources."
+
+"The set of resources currently open or that need to be recovered on startup."
+ExternalResource traits openResources ::= IdentitySet new.
+
+r@(ExternalResource traits) schedule
+"Topologically schedule the resources according to their designated parent resource."
+[
+  children ::= IdentityDictionary new.
+  workList ::= Stack new.
+  r openResources do:
+    [| :resource |
+     resource parentResource
+       ifNil:
+         [workList push: resource]
+       ifNotNilDo:
+         [| :parent |
+          (children at: parent ifAbsentPut: [IdentitySet new])
+            include: resource]].
+  schedule ::= ExtensibleArray new.
+  [workList isEmpty]
+    whileFalse:
+      [| resource |
+       resource := workList pop.
+       schedule addLast: resource.
+       children at: resource ifPresent:
+         [| :children | children do: #(workList push: _) `er]].
+  schedule
+].
+
+r@(ExternalResource traits) resetStreams
+"Resets all the stream connections to and from the resource."
+[
+  r readStream ifNotNilDo: [| :s | s resource := Nil].
+  r writeStream ifNotNilDo: [| :s | s resource := Nil].
+  r readStream := r writeStream := Nil.
+].
+
+r@(ExternalResource traits) startup
+"The action to be performed to recover the resource on startup.
+The default is to open the resource after getting rid of the old handle."
+[
+  r handle := Nil.
+  r open
+].
+
+r@(ExternalResource traits) shutdown
+"The action to be performed to cleanup a resource on shutdown.
+The default is to close the resource."
+[r close]. 
+
+r@(ExternalResource traits) enable
+"Creates the external resource represented and assigns the handle."
+[overrideThis].
+
+r@(ExternalResource traits) open
+"Resets/removes any stale I/O objects and then sets up the resource anew."
+[
+  r isOpen
+    ifTrue: [r connectionFailure]
+    ifFalse: [r enable. r openResources include: r].
+  r
+].
+
+r@(ExternalResource traits) reopen
+[r isOpen ifFalse: [r enable]].
+
+r@(ExternalResource traits) disable
+"Override this method as necessary to destroy an external resource. The default
+does nothing."
+[].
+
+r@(ExternalResource traits) close
+"Disable the resource connection and clear the handle."
+[
+  r isOpen
+    ifTrue: [r disable.
+	     r handle := Nil.
+	     r openResources remove: r]
+    ifFalse: [r signalClosed].
+  r
+].
+
+r@(ExternalResource traits) ensureClosed
+"Avoid throwing an error if it is already closed. The caller just wants to
+know that it's closed once this is done."
+[
+  r isOpen ifTrue: [r close]
+].
+
+r@(ExternalResource traits) commit
+"Commit all pending write-out information to the resource."
+[r].
+
+r@(ExternalResource traits) isOpen
+"Whether there is considered to be a working connection with the peer."
+[
+  r handle isNotNil
+].
+
+r@(ExternalResource traits) isActive
+"Whether both the system and the peer agree that the connection is working."
+[
+  r isOpen
+].
+
+r@(ExternalResource traits) sessionDo: block
+"Calls the block with the resource object as input, opening and closing it
+transparently in an error-tolerant way. Nesting is handled by detecting
+if the resource was open beforehand and not cycling it if so.
+The return value of the block is answered if it completes without error."
+[
+  wasOpen ::= r isOpen.
+  [wasOpen ifFalse: [r open].
+   block applyWith: r]
+     ensure: [r isOpen ifTrue:
+       [r commit. wasOpen ifFalse: [r close]]]
+].
+
+r@(ExternalResource traits) restart
+"Restart the resource if already active."
+[
+  r isActive ifTrue: [r open]
+].
+
+r@(ExternalResource traits) defaultBufferSize
+"The size that a Stream should use for an interaction buffer."
+[overrideThis].
+
+r@(ExternalResource traits) read: n from: handle into: array startingAt: start
+"The primitive for external input: read N bytes from the resource's handle
+at the given start position, placing them in the array (starting at 0)."
+[overrideThis].
+
+r@(ExternalResource traits) read: n into: array &startingAt: start
+[
+  r isOpen ifFalse: [r signalClosed].
+  r read: n from: r handle into: array startingAt: (start ifNil: [0])
+].
+
+r@(ExternalResource traits) write: n to: handle from: array startingAt: start
+"The primitive for external output: write N bytes to the resource's handle
+at the given start position, taking them from the array (starting at 0)."
+[overrideThis].
+
+r@(ExternalResource traits) write: n from: array &startingAt: start
+[
+  r isOpen ifFalse: [r signalClosed].
+  r write: n to: r handle from: array startingAt: (start ifNil: [0])
+].
+
+ExternalResource traits define: #Stream &parents: {Stream} &slots:
+  {#resource -> ExternalResource clone.
+   #indexOfLastDirtyElement -> 0}.
+"A Stream used on an ExternalResource."
+
+r@(ExternalResource traits) reader
+"This defers access control to the one object that has been handed original
+access."
+[
+  r readStream `defaultsTo: (r ReadStream newOn: r)
+].
+
+r@(ExternalResource traits) ASCIIReader
+"eventually use 'x reader &encoding: ASCIIEncoding' instead."
+[
+  r readStream `defaultsTo: (r ASCIIReadStream newOn: r)
+].
+
+r@(ExternalResource traits) writer
+"This defers access control to the one object that has been handed original
+access."
+[
+  r writeStream `defaultsTo: (r WriteStream newOn: r)
+].
+
+r@(ExternalResource traits) interactor
+"Provides a ReadWriteStream for working with the resource. It can't be an
+iterator since those provide synchronized (ie the reading and writing modify
+the same contents) access.
+This also defers access control to the one object that has been handed original
+access."
+[
+  r readStream := (r writeStream := r ReadWriteStream newOn: r)
+].
+
+r@(ExternalResource traits) iterator
+"This defers access control to the one object that has been handed original
+access."
+[
+  r readStream := (r writeStream := r ReadWriteStream newOn: r)
+].
+
+s@(ExternalResource Stream traits) on: r
+[
+  s resource := r.
+  s indexOfLastDirtyElement := 0.
+  s
+].
+
+s@(ExternalResource Stream traits) terminal [s resource].
+
+s@(ExternalResource Stream traits) elementType
+[
+  Integer
+].
+
+s@(ExternalResource Stream traits) collectionType
+[
+  ByteArray
+].
+
+s@(ExternalResource Stream traits) open
+[s resource open].
+
+s@(ExternalResource Stream traits) reopen
+[s resource reopen].
+
+s@(ExternalResource Stream traits) isOpen
+[s resource isNotNil /\ [s resource isOpen]].
+
+s@(ExternalResource Stream traits) isDirty
+"Whether the Stream's writing buffer has elements which should be committed."
+[
+  s indexOfLastDirtyElement > 0
+].
+
+s@(ExternalResource Stream traits) flushWriteBuffer
+"A hook for subtypes to hold a buffer for pending elements queued for when the
+ExternalResource is opened."
+[].
+
+s@(ExternalResource Stream traits) flush
+"Flushes any unwritten elements."
+[
+  s isDirty ifTrue:
+    [s resource isActive ifFalse: [s open].
+     s flushWriteBuffer.
+     s indexOfLastDirtyElement := 0].
+  s
+].
+
+s@(ExternalResource Stream traits) commit
+"Commit differs from flush in that the latter can make use of implicit
+buffering in the low-level implementation, while commit ensures that the data
+is actually sent to the peer."
+[
+  s flush.
+  s resource commit.
+  s
+].
+
+s@(ExternalResource Stream traits) close
+[
+  s resource isOpen ifTrue: [s resource close]
+].
+
+s@(ExternalResource Stream traits) sessionDo: block
+"Calls the block with the stream object as input, opening and closing it
+transparently in an error-tolerant way. Nesting is handled by detecting
+if the resource was open beforehand and not cycling it if so.
+The return value of the block is answered if it completes without error."
+[
+  wasOpen ::= s isOpen.
+  [wasOpen ifFalse: [s open].
+   block applyWith: s]
+     ensure: [s isOpen ifTrue:
+       [s commit. wasOpen ifFalse: [s close]]]
+].
+
+ExternalResource traits define: #ReadStream
+			&parents: {ExternalResource Stream. ReadStream}.
+
+s@(ExternalResource ReadStream traits) nextLine
+[
+  s upTo: $\n
+].
+
+s@(ExternalResource ReadStream traits) next: n putInto: seq startingAt: start
+[
+  overrideThis
+].
+
+s@(ExternalResource ReadStream traits) next: n putInto: bytes@(ByteArray traits) startingAt: start
+"Returns the number of bytes read. Should not signal errors on exhaustion here (return 0)."
+[
+  s read: n into: bytes &startingAt: start
+].
+
+s@(ExternalResource ReadStream traits) read: n into: bytes@(ByteArray traits) &startingAt: start
+"This is a low-level protocol to avoid delegation issues if
+next:putInto:startingAt: is overridden on ER subtypes."
+[
+  s resource read: n into: bytes &startingAt: start
+].
+
+ExternalResource traits define: #WriteStream
+			&parents: {ExternalResource Stream. WriteStream}.
+
+s@(ExternalResource WriteStream traits) nextPut: obj
+"fixme warn people not to use this too much"
+[s nextPutAll: ((s collectionType new &capacity: 1) `>> [at: 0 put: obj. ])].
+
+_@(ExternalResource WriteStream traits) nextPut: _@(String traits)
+[
+  error: 'Strings cannot be single elements for ExternalResource streams.'
+].
+
+s@(ExternalResource WriteStream traits) next: n putAll: seq startingAt: start
+[
+  overrideThis
+].
+
+s@(ExternalResource WriteStream traits) next: n putAll: bytes@(ByteArray traits) startingAt: start
+[s write: n from: bytes &startingAt: start].
+
+s@(ExternalResource WriteStream traits) write: n from: bytes@(ByteArray traits) &startingAt: start
+"This is a low-level protocol to avoid delegation issues if
+next:putAll:startingAt: is overridden on ER WriteStream subtypes."
+[s resource write: n from: bytes &startingAt: start].
+
+source@(ReadStream traits) >> sink@(ExternalResource WriteStream traits)
+[source copyTo: sink].
+
+ExternalResource traits define: #ReadWriteStream
+  &parents: {ExternalResource ReadStream. ExternalResource WriteStream}.
+ExternalResource traits define: #SeriousCondition
+			&parents: {SeriousCondition} &slots: {#resource}.
+
+ExternalResource traits define: #Closed
+			&parents: {ExternalResource SeriousCondition}.
+"A condition where I/O is attempted on a closed resource."
+
+r@(ExternalResource traits) signalClosed
+[r Closed new `>> [resource := r. signal]].
+
+r@(ExternalResource Closed traits) describeOn: out
+[
+  out ; 'External resource is closed.'
+].
+
+ExternalResource Closed traits define: #OpenResource
+			       &parents: {Restart}.
+"Try to open the resource."
+
+r@(ExternalResource Closed OpenResource traits) defaultHandler
+[r condition resource open].
+
+ExternalResource traits define: #ConnectionFailed
+			&parents: {ExternalResource SeriousCondition}.
+"A condition where a connection attempt fails."
+
+r@(ExternalResource traits) connectionFailure
+[r ConnectionFailed new `>> [resource := r. signal]].
+
+r@(ExternalResource ConnectionFailed traits) describeOn: out
+[
+  out ; 'Could not connect to ' ; (r resource locator as: String)
+].
+
+ExternalResource traits define: #Locator &parents: {Cloneable}.
+"An empty abstract type of object for filenames and other resource-locating
+structures."
+
+l@(ExternalResource Locator traits) locator
+"This makes #locator idempotent - calling it on a file or locator always
+yields a/the locator."
+[l].
+
+l@(ExternalResource Locator traits) type
+"Override this so that Locators know what kind of objects they're specifying."
+[ExternalResource].
+
+l@(ExternalResource Locator traits) newResource
+"Create and answer a new ExternalResource object of the appropriate type with
+the argument as its location specifier.
+Override this as the constructor method changes."
+[l type newNamed: l].

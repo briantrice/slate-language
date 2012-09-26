@@ -1,0 +1,216 @@
+m@(CompiledMethod traits) arity
+"Uses the slot which declares the number of input variables to answer the
+method's arity."
+[m inputVariables].
+
+m@(CompiledMethod traits) acceptsAdditionalArguments
+"Answers whether the method has a *rest paramter."
+[m restVariable].
+
+m@(CompiledMethod traits) allSelectorsSent
+"Answer a collection of all the Symbols used as direct message-sends in the
+method's body. This excludes local accessors which count as loads and stores."
+[
+  [| :result |
+   result ; m selectors.
+   (m selectors includesAnyOf:
+      #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+     ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+   m literals do: [| :each | (each is: Method) ifTrue:
+                     [result ; each allSelectorsSent]].
+   m sourceTree ifNotNilDo: [| :src | result ; src allSelectorsSent]]
+    writingAs: IdentitySet
+].
+
+m@(CompiledMethod traits) allSelectorsSentToInputs
+[
+  [| :result |
+   0 below: m arity do:
+     [| :index | result ; (m allSelectorsSentToInputAt: index)]]
+    writingAs: Set
+].
+
+m@(CompiledMethod traits) allSelectorsSentToInputAt: n
+"Answer those selectors which involve the argument at the given index directly,
+so that it can be inferred that objects supplied in this index/role should
+implement that selector."
+"(#allSelectorsSentToInputAt: findOn: {[]}) allSelectorsSentToInputAt: 0.
+(#allSelectorsSentToInputAt: findOn: {[]}) allSelectorsSentToInputAt: 1."
+[
+  [| :result |
+   (n between: 0 and: m arity)
+     ifTrue:
+       [(m selectors includesAnyOf:
+           #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+          ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+        m sourceTree
+          ifNil: []
+          ifNotNilDo: [| :src | result ; (src allSelectorsSentToInputAt: n)]]
+     ifFalse: [error: 'Invalid argument index.']]
+    writingAs: Set
+].
+
+m@(CompiledMethod traits) allSelectorsSentImplicitly
+"Answer those selectors which involve the implicit context argument,
+so that it can be inferred that objects acting as the context should
+implement that selector."
+[
+  [| :result |
+   (m selectors includesAnyOf:
+      #{#sendTo:. #sendWith:. #sendWith:with:. #sendWith:with:with:})
+     ifTrue: ["TODO: infer what literals or expressions are sent that can be statically inferred and add them to the result."].
+   m literals do: [| :each | (each is: Method) ifTrue:
+                     [result ; each allSelectorsSentImplicitly]].
+   m sourceTree
+     ifNotNilDo: [| :src | result ; src allSelectorsSentImplicitly]]
+    writingAs: Set
+].
+
+m@(Closure traits) new [m clone].
+m@(Closure traits) arity [m method arity].
+m@(Closure traits) acceptsAdditionalArguments [m method acceptsAdditionalArguments].
+m@(Closure traits) allSelectorsSent [m method allSelectorsSent].
+m@(Closure traits) selector [m method selector].
+m@(Closure traits) optionalKeywords [m method optionalKeywords].
+m@(Closure traits) environment [m method environment].
+
+m@(Method traits) selector
+"By default, Methods are not named, so this answers Nil."
+[Nil].
+
+m@(Method traits) isNamed
+"Answer whether the method has been defined with a dispatch signature."
+[m selector isNotNil].
+
+m@(Method traits) isAbstract
+"Answer whether the Method is intentionally abstract. Implementationally,
+whether it calls overrideThis."
+[m allSelectorsSent includes: #overrideThis ].
+
+name@(Symbol traits) macroSenders &in: namespace
+"Find all Methods sending the given name as macro-selector defined on objects
+reachable from a specified namespace (or just the current namespace). This
+requires that source code be available, of course."
+[
+  namespace `defaultsTo: here.
+  [| :result |
+   result ; (namespace methodsSendingMacro: name).
+   namespace allSlotsDo:
+     [| :obj | result ; (obj methodsSendingMacro: name)]]
+    writingAs: IdentitySet
+].
+
+name@(Symbol traits) senders &in: namespace
+"Find all Methods sending the given name as selector defined on objects
+reachable from a specified namespace (or just the current namespace)."
+[
+  namespace `defaultsTo: here.
+  [| :result |
+   result ; (namespace methodsSending: name).
+   namespace allSlotsDo:
+     [| :obj | result ; (obj methodsSending: name)]]
+    writingAs: IdentitySet
+].
+
+name@(Symbol traits) implementations &in: namespace
+"Find all Methods with the given name as selector defined on objects
+reachable from a specified namespace (or just the current namespace)."
+[
+  namespace `defaultsTo: here.
+  [| :result |
+   result ; (namespace methodsNamed: name).
+   namespace allSlotsAndDelegatesDo: [| :obj | result ; (obj methodsNamed: name)]]
+     writingAs: IdentitySet
+].
+
+Method traits define: #Signature &parents: {Cloneable} &slots: {#selector -> #'' . #roles -> {}}.
+
+sig@(Method Signature traits) newNamed: selector over: roleArray
+[sig cloneSettingSlots: #{#selector. #roles} to: {selector. roleArray}].
+
+sig1@(Method Signature traits) = sig2@(Method Signature traits)
+[
+  sig1 selector = sig2 selector /\ [sig1 roles = sig2 roles]
+].
+
+sig@(Method Signature traits) hash
+[
+  sig selector hash bitXor: sig roles hash
+].
+
+sig@(Method Signature traits) copy
+[resend `>> [roles := sig roles copy. ]].
+
+sig@(Method Signature traits) arity
+[
+  sig selector ifNil: [sig roles size] ifNotNilDo: #arity `er
+].
+
+selector@(Symbol traits) findRoleHoldersOn: args &in: namespace
+"Answers a collection of the objects on which the first-applicable method is
+defined for the given arguments."
+[| result method |
+  namespace `defaultsTo: here.
+  method := selector findOn: args.
+  result := args newSize: selector arity.
+  result infect: [| :_ | NoRole ].
+  args doWithIndex:
+    [| :each :index |
+     each allSlotsDo:
+       [| :obj | ((obj methodsNamed: selector at: index) anySatisfy:
+	 [| :each | each == method]) ifTrue:
+	   [result at: index put: obj representative]]].
+  result
+].
+
+selector@(Symbol traits) findSignatureOn: args &in: namespace
+"Answers a Method Signature on which the first-applicable method is defined
+for the given arguments."
+[
+  Method Signature newNamed: selector over:
+    (selector findRoleHoldersOn: args &in: namespace)
+].
+
+m@(Method traits) roleHolders &in: namespace
+"Performs a search in the namespace for the particular roles pointing to this
+method and answers a new Signature object describing it."
+[| result selector |
+  selector := m selector.
+  namespace `defaultsTo: here.
+  result := Array newSize: m arity.
+  result infect: [| :_ | NoRole].
+  result keysDo:
+    [| :index |
+     namespace allSlotsDo:
+       [| :obj | ((obj methodsNamed: selector at: index) anySatisfy:
+	 [| :each | each == m]) ifTrue:
+	   [result at: index put: obj representative]]].
+  result
+].
+
+m@(Method traits) signature &in: namespace
+"Answer a Signature object corresponding to the method's definition. Note that
+roles clone with their objects, so a Method really can have many signatures
+as such."
+[
+  m Signature newNamed: m selector over: (m roleHolders &in: namespace)
+].
+
+sig@(Method Signature traits) isDefined
+"Whether a Method is actually installed on the given roles with the same
+selector."
+[
+  (sig selector findRoleHoldersOn: sig roles) = sig roles
+].
+
+sig@(Method Signature traits) defineAs: method
+[
+  method arity = sig arity
+    ifTrue: [method asMethod: sig selector on: sig roles]
+    ifFalse: [error: 'The method\'s arity does not match the given signature.']
+].
+
+sig@(Method Signature traits) nearestMethod
+[
+  sig selector findOn: sig roles
+].

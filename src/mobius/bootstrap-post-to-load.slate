@@ -32,7 +32,7 @@ contents within the argument namespace or an optional override."
                       _@(retry) describeOn: console [ console ; 'Retry loading ' ; fileName printString ; '\n' ].
                       [ns load: src &in: namespace &verbose: verbose &showLoadMessage: showLoadMessage &imports: imports]
                         handlingCases: {retry -> [|:_| ^ (ns load: fileName &in: namespace &verbose: verbose)]}]
-             ifFalse: [warn: 'Called load: on something that didn\'t describe a file. Returning the input: ' ; fileName printString. fileName]
+	     ifFalse: [warn: 'Called load: on something that didn\'t describe a file. Returning the input: ' ; fileName printString. fileName]
 ].
 
 ns@(Namespace traits) load: file@(File traits) &in: namespace &verbose &showLoadMessage &imports
@@ -49,18 +49,18 @@ contents within the argument namespace or an optional override."
   (file locator isSameAs: file RelativeLocator)
     ifTrue:
       [[file exists] whileFalse:
-        [(globals defaultPaths before: file locator basePath)
-          ifNil: [error: 'Could not find the file relative to any of the default directories.'. ^ Nil]
-          ifNotNilDo: [| :newL | file locator basePath: newL]]].
+	[(globals defaultPaths before: file locator basePath)
+	  ifNil: [error: 'Could not find the file relative to any of the default directories.'. ^ Nil]
+	  ifNotNilDo: [| :newL | file locator basePath: newL]]].
   file ASCIIReader sessionDo:
     [| :input aParser |
      "Ignore an initial she-bang line."
      (input peek: 2) = '#!' ifTrue: [input upTo: $\n].
      (aParser: (Syntax Parser newOn: input)) do:
        [| :each |
-        verbose ifTrue:
-          [inform: 'Parsed to line ' ; aParser lexer lineNumber printString].
-        each evaluateIn: namespace]] &mode: file Read
+	verbose ifTrue:
+	  [inform: 'Parsed to line ' ; aParser lexer lineNumber printString].
+	each evaluateIn: namespace]] &mode: file Read
 ].
 
 ns@(Namespace traits) use: file

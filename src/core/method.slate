@@ -1,0 +1,518 @@
+
+m@(Method traits) do
+"Just runs the method without any inputs and answers the result."
+[m apply*].
+
+m@(Method traits) applyWith: x
+"Applies the method to the one input."
+[m apply*, x].
+
+m@(Method traits) applyWith: x with: y
+"Applies the method to 2 inputs."
+[m apply*, x, y].
+
+m@(Method traits) applyWith: x with: y with: z
+"Applies the method to 3 inputs."
+[m apply*, x, y, z].
+
+m@(Method traits) apply*
+"Applies the method to all available inputs. NB The Compiler optimizes this."
+[| *rest | m applyTo: rest].
+
+s@(Symbol traits) sendWith: x
+[s sendTo: {x}].
+
+s@(Symbol traits) sendWith: x with: y
+[s sendTo: {x. y}].
+
+s@(Symbol traits) sendWith: x with: y with: z
+[s sendTo: {x. y. z}].
+
+m@(Method traits) selector
+"By default, Methods are not named, so this answers Nil."
+[Nil].
+
+m@(Method traits) isNamed
+"Answer whether the method has been defined with a dispatch signature."
+[m selector isNotNil].
+
+m@(Closure traits) new [m clone].
+m@(Closure traits) arity [m method arity].
+m@(Closure traits) acceptsAdditionalArguments [m method acceptsAdditionalArguments].
+m@(Closure traits) allSelectorsSent [m method allSelectorsSent].
+m@(Closure traits) selector [m method selector].
+m@(Closure traits) optionalKeywords [m method optionalKeywords].
+
+m@(CompiledMethod traits) arity
+"Uses the slot which declares the number of input variables to answer the
+method's arity."
+[m inputVariables].
+
+m@(CompiledMethod traits) acceptsAdditionalArguments
+"Answers whether the method has a *rest paramter."
+[m restVariable].
+
+_ define: selector@(Symbol traits) on: args as: m@(Method traits)
+"Provides Algol-style method definition syntax, like:
+function_name(args) {body}"
+[m asMethod: selector on: args].
+
+m@(Method traits) replaceWith: newM on: args
+"Uninstall the given method from the arguments, which need to be those holding
+the actual role entries pointing to that method for dispatch, and then define
+the new Method on those same arguments."
+[
+  m removeFrom: args.
+  newM asMethod: m selector on: args
+].
+
+_@(Method traits) findNamed: selector on: args
+"Answer the method found through dispatch with the given name on the arguments."
+[selector findOn: args].
+
+name@(Symbol traits) isFoundOn: args
+"Answer whether a method with the given name is applicable to the arguments."
+[
+  (name findOn: args) isNotNil
+].
+
+name@(Symbol traits) removeMethodFrom: args &ifNotFound: block
+"Removes the method with the given selector from the arguments."
+[
+  block `defaultsTo: [name notFoundOn: args].
+  (name findOn: args)
+    ifNil: block
+    ifNotNilDo: #(removeFrom: args) `er
+].
+
+name@(Symbol traits) findsSameMethodOn: args1 asOn: args2
+"Answers whether lookup returns the exact same method for two different
+signatures.
+This also handles failed lookup, where Nil is returned from findOn:."
+[
+  (name findOn: args1)
+    ifNil: [False]
+    ifNotNilDo: [| :m1 | (name findOn: args2)
+			   ifNil: [False] ifNotNilDo: #(= m1) `er]
+].
+
+name@(Symbol traits) alias: selector on: args
+"Creates a method that just sends the given selector on the specified
+arguments."
+[
+  name arity = selector arity
+    ifTrue: [(nodes Literal for: selector) er evaluate asMethod: name on: args]
+    ifFalse: [error: 'The selector names do not match.']
+].
+
+name@(Symbol traits) delegateTo: attribute on: args
+"Creates a method that just sends the given selector to the attribute
+of the first argument."
+[name delegateTo: attribute at: 0 on: args].
+
+name@(Symbol traits) delegateTo: attribute at: roleIndex on: args
+"Creates a method that just sends the given selector to the attribute
+of the argument at the specified index."
+[
+  src ::= (nodes Literal for: name) er.
+  src statements first arguments at: roleIndex infect:
+    [| :arg | nodes UnaryMessage sending: attribute to: {arg}].
+  src evaluate asMethod: name on: args
+].
+
+x@(Root traits) perform: selector
+"Included for Smalltalk-80 compatibility and brevity."
+[selector sendTo: {x}].
+
+condition@(Method traits) whileTrue: body
+"Repeatedly execute the body block after checking each time that the condition
+block returns True."
+[
+  [condition do ifFalse: [^ Nil].
+   body do] loop
+].
+
+condition@(Method traits) whileTrue
+"Repeatedly execute the block until it returns False. Naturally the point is
+usually that the body before the last statement has some kind of side-effect
+or other computation that updates, or relies on external state to affect the
+condition."
+[
+  condition whileTrue: []
+].
+
+condition@(Method traits) whileFalse: body
+"Repeatedly execute the body block after checking each time that the condition
+block returns False."
+[
+  [condition do ifTrue: [^ Nil].
+   body do] loop
+].
+
+condition@(Method traits) whileFalse
+"Repeatedly execute the block until it returns True. Naturally the point is
+usually that the body before the last statement has some kind of side-effect
+or other computation that updates, or relies on external state to affect the
+condition."
+[
+  condition whileFalse: []
+].
+
+body@(Method traits) loop
+"Execute the block repeatedly, until control is thrown outside by the block
+itself. This relies on the byte-compiler's transformation of loop calls with
+methods to a lower-level control-flow implementation."
+[[body do. ] loop].
+
+_@(Root traits) if: boolean then: trueBlock
+[boolean ifTrue: trueBlock].
+
+_@(Root traits) if: boolean then: trueBlock else: falseBlock
+[boolean ifTrue: trueBlock ifFalse: falseBlock].
+
+body@(Method traits) while: testBlock
+"Evaluates the body block once, and then again as long as the testBlock
+returns True, and returns the last return value of the body."
+[| result |
+  [result := body do.
+   testBlock do] whileTrue.
+  result
+].
+
+body@(Method traits) until: testBlock
+"Evaluates the body block once, and then again as long as the testBlock
+returns False, and returns the last return value of the body."
+[| result |
+  [result := body do.
+   testBlock do] whileFalse.
+  result
+].
+
+m@(Method traits) unless: boolean
+"Evaluates the block body if the given condition is False."
+[boolean ifFalse: [m do]].
+
+m@(Method traits) if: boolean
+"Evaluates the block body if the given condition is True."
+[boolean ifTrue: [m do]].
+
+m@(Method traits) for: src
+"Evaluates the block for each element of the Enumerable (Collection or Stream)."
+[src do: m].
+
+count@(Integer traits) timesRepeat: block
+"Execute the block the number of times of the count, answering Nil."
+[
+  [count > 0]
+    whileTrue:
+      [block do.
+       count: count - 1]
+].
+
+start@(Integer traits) to: end do: block
+"Auto-detects the direction of the progression."
+[
+  start < end
+    ifTrue: [start upTo: end do: block]
+    ifFalse: [start downTo: end do: block]
+].
+
+start@(Integer traits) upTo: end do: block
+"Executes the block with each Integer from the start ascending by 1 to the end."
+[
+  [start <= end]
+    whileTrue:
+      [block applyWith: start.
+       start: start + 1]
+].
+
+start@(Integer traits) below: end do: block
+"Executes the block with each Integer from the start descending by 1 to
+just before the end."
+[
+  [start < end]
+    whileTrue:
+      [block applyWith: start.
+       start: start + 1]
+].
+
+start@(Integer traits) downTo: end do: block
+"Executes the block with each Integer from the start descending by 1 to the
+end."
+[
+  [start >= end]
+    whileTrue:
+      [block applyWith: start.
+       start: start - 1]
+].
+
+start@(Integer traits) above: end do: block
+"Executes the block with each Integer from the start ascending by 1 to
+just before the end."
+[
+  [start > end]
+    whileTrue:
+      [block applyWith: start.
+       start: start - 1]
+].
+
+start@(Number traits) downTo: end by: inc do: block
+"Executes the block with each Integer from the start descending by the
+increment to the end."
+[
+  [start >= end]
+    whileTrue:
+      [block applyWith: start.
+       start: start - inc]
+].
+
+start@(Number traits) above: end by: inc do: block
+"Executes the block with each Integer from the start descending by the
+increment to just before the end."
+[
+  start downTo: end + 1 by: inc do: block
+].
+
+start@(Number traits) upTo: end by: inc do: block
+"Executes the block with each Integer from the start ascending by the increment
+to the end."
+[
+  [start <= end]
+    whileTrue:
+      [block applyWith: start.
+       start: start + inc]
+].
+
+start@(Number traits) below: end by: inc do: block
+"Executes the block with each Integer from the start descending by the increment
+to just before the end."
+[
+  start upTo: end - 1 by: inc do: block
+].
+
+m@(Method traits) new
+[ m clone ].
+
+_@(Method traits) newAlwaysReturning: obj
+"Answers a new block which takes an argument and ignores it, returning the
+one (constant) object it was created for."
+[
+  [| *_ | obj]
+].
+
+"Additional overrides for /\ and \/ for lazy-evaluated conditionals:"
+
+_@True /\ block@(Method traits) [block do].
+_@False /\ _@(Method traits) [False].
+_@True \/ _@(Method traits) [True].
+_@False \/ block@(Method traits) [block do].
+
+m@(Method traits) ifCompletes: successBlock ifFails: errorBlock
+"Executes the first method, and then executes either the successBlock or the
+errorBlock depending on whether there is a non-local exit that prevents the
+first from completing normally."
+[| exitedNormally |
+  exitedNormally := False.
+  [result ::= m do. exitedNormally := True. result]
+    ensure: [exitedNormally ifTrue: [successBlock do] ifFalse: [errorBlock do]]
+].
+
+m@(Method traits) unlessCompletes: errorBlock
+"Executes the first Method, and executes the second method only if there
+is a non-local exit so that the first does not complete normally."
+[m ifCompletes: [] ifFails: errorBlock].
+
+m@(Method traits) ifCompletes: successBlock
+"Executes the first Method, and executes the second method only if there
+is no non-local exit so that the first completes normally."
+[m ifCompletes: successBlock ifFails: []].
+
+_@(Root traits) withBreakerDo: m@(Method traits)
+"Allows implementation of single-level block return (as opposed to full
+lexical return which is default) by passing as the argument a block which
+will return from this wrapper when invoked."
+[m applyWith: [^ Nil]].
+
+x@(Root traits) in: env do: m@(Method traits)
+"Executes the method without arguments, but having the environment set
+to the given one. This is non-reentrant, though, because the environment
+slot is per-method-object, not per-activation."
+[| prevEnv |
+  prevEnv := m environment.
+  [
+    [m do] on: MethodNotFound do:
+      [| :c m |
+       [(m := c message) selector sendTo: (m arguments copyReplace: m environment with: prevEnv) &optionals: m optionals]
+         on: MethodNotFound do:
+           [| :c m |
+            [(m := c message) selector sendTo: (m arguments copyReplace: prevEnv with: x) &optionals: m optionals]]]
+  ] ensure: [m environment := prevEnv]
+].
+
+m@(Method traits) doIn: env
+"Aliases doIn: for convenient expression."
+[here in: env do: m].
+
+m@(Method traits) ** n@(Method traits)
+"Answers a new Method whose effect is that of calling the first method
+on the results of the second method applied to whatever arguments are passed.
+This composition is associative, i.e. (a ** b) ** c = a ** (b ** c).
+When the second method, n, does not take a *rest option or the first takes
+more than one input, then the output is chunked into groups for its
+consumption. E.g.:
+#; `er ** #; `er apply*, 'a', 'b', 'c', 'd' => 'abcd'
+#; `er ** #name `er apply*, #a, #/ => 'a/'"
+[
+  n acceptsAdditionalArguments \/ [m arity = 1]
+    ifTrue:
+      [[| *args | m apply*, (n applyTo: args)]]
+    ifFalse:
+      [[| *args |
+        m applyTo:
+          ([| :stream |
+             args do: [| *each | stream nextPut: (n applyTo: each)]
+                  inGroupsOf: n arity] writingAs: #{})]]
+].
+
+#**`er asMethod: #compose: on: {Method traits. Method traits}.
+"A named alias for **."
+
+i@(Root traits) converge: block
+"Apply block to i until it returns the previously returned value or
+the original value. In other words, until no change happens anymore or
+we're back at the beginning.
+NOTE: The originality test is used to avoid endless loop. It's
+possible to construct blocks that don't always return the same
+value for same input, so should there be another converge without this
+test?"
+[| current last |
+  current := block applyWith: i.
+  [{i. last} includes: current] whileFalse:
+    [last := current.
+     current := block applyWith: current].
+  current
+].
+
+"Adverb operators:" (
+
+m@(Method traits) reducer
+"Over in K"
+[#(reduce: m) `er].
+
+m@(Method traits) collecter
+"Each in K"
+[#(collect: m) `er].
+
+m@(Method traits) acrosser
+"Rename me"
+[#(m across: _) `er].
+
+m@(Method traits) tracer
+"Scan or trace in K."
+[#(trace: m) `er].
+
+m@(Method traits) selecter
+[#(select: m) `er].
+
+m@(Method traits) injecter
+"Over dyad in K"
+[[| :arg1 :arg2 | arg2 inject: arg1 into: m]].
+
+m@(Method traits) converger
+[#(converge: m) `er].
+
+m@(Method traits) applier
+[#(m applyTo: _) `er].
+
+).
+
+m@(Method traits) fill: arg with: val
+"Answer a new method based on the given one, with the argument at a given index
+filled in with a value, essentially currying the method."
+[
+  (arg between: 0 and: 
+    (m acceptsAdditionalArguments ifTrue: [PositiveInfinity] ifFalse: [m arity - 1]))
+    ifFalse: [error: 'Attempted to fill nonexistent method argument.'].
+  [| *args | m applyTo: (args copyWith: val at: arg)]
+].
+
+m@(Method traits) <-* val
+[
+  [| *args | m applyTo: (args copyWith: val)]
+].
+
+Method traits Identity ::= [| :x | x].
+"The method Identity does nothing but return its sole argument."
+
+Method traits Y ::=
+  [| :f | [| :x | f applyWith: (x applyWith: x)]
+     applyWith: [| :x | f applyWith: (x applyWith: x)]].
+"The Y recursion combinator - also known as the fixed-point combinator, since
+it computes the fixed point of any single-argument Method it is applied with.
+The core property is that (f applyWith: (Y applyWith: f)) = (Y applyWith: f)
+for any method f. The practical use is allowing the definition of anonymous
+recursive Methods from Methods which define the individual step (and take an
+extra argument which is the Method to recurse on when appropriate)."
+
+Method traits define: #SequentialComposition &parents: {Method} &slots: {#methods -> #{}}.
+
+"A Method's SequentialComposition takes several methods with compatible
+signatures and applies them in order to the same arguments."
+
+mc@(Method SequentialComposition traits) newForAll: c
+[mc clone `>> [methods := c as: mc methods. ]].
+
+mc@(Method SequentialComposition traits) applyTo: args
+[mc contents do: #applyTo: `er <-* args].
+
+Method traits define: #Converse &parents: {Method} &slots: {#method -> []}.
+"A Method's converse takes the arguments in reverse to produce the same
+result. This implementation works on any method arity, but the client needs
+to be aware of this arity, naturally."
+
+m@(Method traits) converse
+"Answers a new converse of the given method."
+[m Converse cloneSettingSlots: #{#method} to: {m}].
+
+mc@(Method Converse traits) arity
+"The arity is inherited from the inner method."
+[mc method arity].
+
+mc@(Method Converse traits) allSelectorsSent
+"The selectors sent is inherited from the inner method."
+[mc method allSelectorsSent].
+
+mc@(Method Converse traits) converse
+"A converse of a converse is the original method."
+[mc method].
+
+mc@(Method Converse traits) do
+[mc method do].
+
+mc@(Method Converse traits) applyWith: obj
+[mc method applyWith: obj].
+
+mc@(Method Converse traits) applyWith: obj1 with: obj2
+[mc method applyWith: obj2 with: obj1].
+
+mc@(Method Converse traits) applyWith: obj1 with: obj2 with: obj3
+[mc method applyWith: obj3 with: obj2 with: obj1].
+
+mc@(Method Converse traits) applyTo: array
+[mc method applyTo: array reversed].
+
+m@(Method traits) swing
+"This is a higher-order function which does a reverse distribution of sorts.
+It was ported from:
+- http://www.haskell.org/hawiki/LicensedPreludeExts
+- http://www.haskell.org/haskellwiki/Pointfree#Swing
+Example: collect: takes a collection of objects and a method,
+  #collect:`er swing takes an object and a collection of methods.
+TODO: Improve the documentation, and add examples."
+[
+  m arity = 2
+    ifTrue: [[| :b :a | m apply*, a, [| :g | g apply*, b]]]
+    ifFalse:
+      [TODO: 'Implement multi-argument swing.'
+       "[| *args | m applyTo: {args last} ; args allButLast reversed]"]
+].

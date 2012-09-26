@@ -74,7 +74,7 @@ int dir_read(struct object_heap* oh, int dirHandle, struct ByteArray *entNameBuf
 #endif
   if (resultCode != 0) {
     /* An error situation. */
-    assert(resultCode >= 0);    /* TODO: read SUSv2. The Darwin manpage is unclear about this */
+    assert(resultCode >= 0);	/* TODO: read SUSv2. The Darwin manpage is unclear about this */
     return -resultCode;
   }
 
@@ -99,7 +99,7 @@ int dir_getcwd(struct ByteArray *pathBuffer) {
   return GetCurrentDirectory((DWORD)payload_size((struct Object *) pathBuffer), pathBuffer->elements);
 #else
   return ((getcwd((char *)pathBuffer->elements, byte_array_size(pathBuffer)) == NULL)
-          ? -errno : strlen((const char *)pathBuffer->elements));
+	  ? -errno : strlen((const char *)pathBuffer->elements));
 #endif
 }
 
@@ -108,7 +108,7 @@ int dir_setcwd(struct ByteArray *newpath) {
   char *path = (char*)malloc(pathLen + 1);
 #ifdef WIN32
   if (path == NULL)
-        return GetLastError();
+	return GetLastError();
   pathLen = extractCString(newpath, path, sizeof(path));
 
   if (pathLen < 0)

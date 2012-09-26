@@ -1,0 +1,202 @@
+define: #Precedence &slots: {#inter -> {}}.
+"TODO: allow for intra-message precedence [2 ^ 3 ^ 4 = 2 ^ (3 ^ 4)]"
+"TODO: add support for optional argument and macro messages"
+
+p@(Precedence traits) newFor: newInter "TODO &intra: newIntra"
+[p clone `setting: #{#inter} to: {newInter}].
+
+p@(Precedence traits) precedenceOf: symbol
+"Symbols of equal precedence are put into the same array and all these arrays
+are put into one container array. The position within this container is equal
+to its precedence value."
+[
+  (p inter indexOfFirstSatisfying:
+    [| :each | (each includes: symbol)]) ifNil:
+      [PositiveInfinity] "unknown elements have the highest precedence"
+].
+
+p@(Precedence traits) transform: s@(nodes Node traits)
+"Returns the transformed syntax tree. The passed-in syntax tree is destroyed!"
+[| stack |
+  stack := Stack new.
+  s flattenInto: stack.
+  p orderSyntaxNodes: stack.
+  stack unflattenSyntaxNodes
+].
+
+p@(Precedence traits) orderSyntaxNodes: stack
+"Note that Slate's syntax tree is ordered by the precedence rules for
+the different message types (keyword < binary < unary). This makes reordering
+more complicated because these rules might be overridden."
+[
+  [| :sel | sel sendTo: {p. stack}] for: #{
+    #orderInCompoundStatements:.
+    #orderKeywordMessages:.
+    #orderUnaryMessages:.
+    #orderBinaryMessages:
+  }
+].
+
+p@(Precedence traits) orderKeywordMessages: stack
+"We go from right to left when searching for a KeywordMessage.
+The message is placed next to the beginning of its last argument and then
+moved to the right of all higher-precedence messages, skipping unary messages."
+"NOTE: Slate does not recognize multiple KeywordMessages without parenthesis.
+  TODO: split KeywordMessages using the known symbols to partly overcome
+  this issue"
+[| index |
+  index := stack size.
+  [(index := stack indexOfLastSatisfying: #(is: KeywordMessage) `er before: index) isNotNil]
+    whileTrue: [| arg message next nodePrecedence |
+      message := stack at: index.
+      nodePrecedence := p precedenceOf: message selector.
+      "set arg to point after the first node of the last argument"
+      arg := (stack indexOf: message arguments first) + 2.
+      [next := stack indexOfFirstSatisfying: #(is: Message) `er startingAt: arg.
+        (p precedenceOf: (stack at: next) selector) > nodePrecedence
+          \/ [(stack at: next) is: UnaryMessage]]
+          whileTrue: [arg := next + 1].
+      stack shiftFrom: index by: arg - index.
+      index := arg.
+
+      "now handle inner arguments (between first and last)"
+      arg := (stack at: index) arguments.
+      (arg sliceFrom: 1 to: arg size - 2) do: #(p orderSyntaxNodes: _) `er.
+  ].
+].
+
+p@(Precedence traits) orderBinaryMessages: stack
+"Start with highest-precedence selectors and go down in precedence:
+Move message to the right of all higher-precedence messages.
+Go to next message and restart.
+When end is reached: try next selector."
+[
+  p inter reverseDo: [| :symbols index |
+    index := 0.
+    [index < stack size] whileTrue: [| toIndex node |
+      toIndex := index. "where we move this message"
+      node := (stack at: index). "the node to be moved"
+      ((node is: BinaryMessage) /\ [symbols includes: node selector])
+        ifTrue: [| next nodePrecedence |
+          nodePrecedence := (p precedenceOf: node selector).
+          [(next := stack indexOfFirstSatisfying: #(is: Message) `er startingAt: toIndex + 1)
+             isNotNil
+             /\ [nodePrecedence < (p precedenceOf: (stack at: next) selector)]]
+            whileTrue: [toIndex := next].
+          stack shiftFrom: index by: toIndex - index].
+      index := toIndex + 1]].
+].
+
+p@(Precedence traits) orderUnaryMessages: stack
+[| index |
+  index := 0.
+  [(index := stack indexOfFirstSatisfying: #(is: UnaryMessage) `er startingAt: index)
+     isNotNil] whileTrue:
+     [| nodePrecedence count next |
+      nodePrecedence := p precedenceOf: (stack at: index) selector.
+      count := 1. "number of subsequent UnaryMessages"
+      "count unary messages"
+      [(index += 1) < stack size
+         /\ [(next := stack at: index) is: UnaryMessage]]
+	whileTrue: [count += 1].
+      index := index min: stack indexLast.
+      "move next node backwards"
+      [(next is: Message)
+         /\ [nodePrecedence < (p precedenceOf: next selector)]]
+	whileTrue:
+	  [stack shiftFrom: index by: count negated.
+           index += 1.
+           next := index = stack size ifFalse: [stack at: index]]].
+].
+
+p@(Precedence traits) orderInCompoundStatements: stack
+"searches for CompoundStatements and orders the nodes in their statements"
+[| reader node |
+  reader := stack reader.
+  [reader isAtEnd] whileFalse:
+    [((node := reader next) is: CompoundStatement) ifTrue:
+      [node statements do: #(p orderSyntaxNodes: _) `er]].
+].
+
+Precedence traits define: #MathPrecedence ->
+  (Precedence newFor: #{
+    {#=. #~=. #==. #~==. #<. #<=. #>=. #>}.
+    {#+. #-}.
+    {#*. #/. #mod:. #rem:. #quo:}.
+    {#>>. #<<. #bitShift:. #bitNot. #bitOr:. #bitXor:. #bitAnd:}.
+    {#min:. #max:}.
+    {#'^'. #raisedTo:}}).
+
+s@(nodes Node traits) math
+"Convert the syntax tree into a flattened array of postfix-notated nodes,
+sort the messages, and transform back into a tree."
+[Precedence MathPrecedence transform: s].
+
+"flatten/unflatten, can only be used from within macros"
+s@(nodes Node traits) flattenInto: stack
+[stack push: s.].
+
+s@(nodes Annotation traits) flattenInto: stack
+["annotations are not needed"].
+
+s@(nodes CompoundStatement traits) flattenInto: stack
+[| ms |
+  s statements infect:
+    [| :each flattened |
+     flattened := Stack new.
+     each flattenInto: flattened.
+     flattened].
+  stack push: s.
+].
+
+s@(nodes UnaryMessage traits) flattenInto: stack
+[
+  s arguments first flattenInto: stack.
+  stack push: s.
+].
+
+s@(nodes Message traits) flattenInto: stack
+"All arguments between the first and the last one are flattened and put
+back into the arguments array."
+[
+  {s arguments first. s arguments last} do: #(flattenInto: stack) `er.
+  1 below: s arguments indexLast do:
+    [| :index flattened |
+     s arguments at: index infect:
+       [| :arg flattened | flattened := Stack new. arg flattenInto: flattened. flattened]].
+  stack push: s.
+].
+
+stack@(Stack traits) unflattenSyntaxNodes
+[| items |
+  items := stack new.
+  stack do: [| :each | items push: (each unflattenSyntaxNodesFrom: items)].
+  items last
+].
+
+s@(nodes Node traits) unflattenSyntaxNodesFrom: _
+[s].
+
+s@(nodes CompoundStatement traits) unflattenSyntaxNodesFrom: _
+[
+  s statements infect: #unflattenSyntaxNodes `er.
+  s
+].
+
+s@(nodes KeywordMessage traits) unflattenSyntaxNodesFrom: items
+[
+  "inner arguments"
+  1 below: s arguments indexLast do: [| :index |
+    s arguments at: index put: (s arguments at: index) unflattenSyntaxNodes].
+  "last argument"
+  s arguments at: s arguments indexLast put: items removeLast.
+  "first argument"
+  s arguments at: s indexFirst put: items removeLast.
+  s
+].
+
+s@(nodes Message traits) unflattenSyntaxNodesFrom: items
+[
+  s arguments := items removeLast: s selector arity.
+  s
+].

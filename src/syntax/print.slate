@@ -104,33 +104,33 @@ source on the stream."
                ifTrue: [w nextPut: $\(. closeParen := True].
              (w printAsArgument: args first) ifTrue: [w newColumn].
              w printSelectorPrefixOf: node.
-             w ; selector name]].
+	     w ; selector name]].
     [Syntax isBinarySelector: selector]
       -> [w withSurroundingArity: 2 do:
-            [(previousArity between: 0 and: 1)
+	    [(previousArity between: 0 and: 1)
                ifTrue: [w nextPut: $\(. closeParen := True].
-             (w printAsArgument: args first) ifTrue: [w newColumn].
+	     (w printAsArgument: args first) ifTrue: [w newColumn].
              w printSelectorPrefixOf: node.
-             w ; selector name.
-             w newColumn.
-             w printAsArgument: args second]].
+	     w ; selector name.
+	     w newColumn.
+	     w printAsArgument: args second]].
     "For keyword sends, print the first argument, partition the selector by
       the colons, (at an offset of 1 to synchronize indices for looping),
       and then loop from one to the end, printing the keywords and arguments
       alternately."
     [Syntax isKeywordSelector: selector]
       -> [| keywords |
-          keywords := selector keywords.
-          w withSurroundingArity: 3 do:
-            [previousArity >= 0 ifTrue:
+	  keywords := selector keywords.
+	  w withSurroundingArity: 3 do:
+	    [previousArity >= 0 ifTrue:
                [w nextPut: $\(. closeParen := True].
-                (w printAsArgument: args first) ifTrue: [w newColumn].
-                1 below: args size do:
-                  [| :index arg |
+	        (w printAsArgument: args first) ifTrue: [w newColumn].
+	        1 below: args size do:
+		  [| :index arg |
                    index = 1
                      ifTrue: [w printSelectorPrefixOf: node]
                      ifFalse: [w newColumn].
-                   w ; ((keywords at: index - 1) as: String) ; ': '.
+		   w ; ((keywords at: index - 1) as: String) ; ': '.
                    w printAsArgument: (args at: index)]]]).
   closeParen ifTrue: [w nextPut: $\)].
   w
@@ -139,7 +139,7 @@ source on the stream."
 w@(SourcePrintStream traits) print: node@(nodes StoreVariable traits)
 [
   w print: node sending: (node variable name name ; ':') intern
-                to: {nodes ImplicitArgument. node value}
+		to: {nodes ImplicitArgument. node value}
 ].
 
 w@(SourcePrintStream traits) print: node@(nodes LoadVariable traits)
@@ -154,7 +154,7 @@ w@(SourcePrintStream traits) print: node@(nodes Message traits)
 [
   w useApplyWith
     ifTrue: [w ; '(' ; node selector printString ; ' applyWith: '
-                     ; node arguments printString ; ')']
+		     ; node arguments printString ; ')']
     ifFalse: [w print: node sending: node selector to: node arguments].
   w
 ].
@@ -174,7 +174,7 @@ w@(SourcePrintStream traits) print: node@(nodes OptionalKeywords traits)
     [node keywords with: node arguments do:
       [| :selector :argument |
        w indentedDo:
-         [w newColumn.
+	 [w newColumn.
           w ; selector name.
           w newColumn.
           w printAsArgument: argument]]].
@@ -192,7 +192,7 @@ w@(SourcePrintStream traits) print: node@(nodes RestArguments traits)
     [node arguments do:
       [| :argument |
        w indentedDo:
-         [w ; ','.
+	 [w ; ','.
           w newColumn.
           w printAsArgument: argument]]].
   closeParen ifTrue: [w ; ')'].
@@ -226,9 +226,9 @@ w@(SourcePrintStream traits) printStatements: statements &separatedBy: separator
     [statements indexLast `cache.
      statements doWithIndex:
        [| :statement :index |
-        index = statements indexLast /\ [w isDefaultLastStatement: statement]
+	index = statements indexLast /\ [w isDefaultLastStatement: statement]
           ifFalse: [w print: statement]]
-                separatedBy: [w ; '.'. separator do]].
+		separatedBy: [w ; '.'. separator do]].
   w
 ].
 
@@ -268,19 +268,19 @@ w@(SourcePrintStream traits) printVariablesOf: node@(nodes Block traits) &skipIn
   (skipInputs not /\ [node inputVariables size > 0]) \/
     [node localVariables size > (node inputVariables size + node optionalVariables size)]
       ifTrue:
-        [w nextPut: $|.
+	[w nextPut: $|.
          skipInputs
            ifFalse:
              [node inputVariables do:
-               [| :inputVar |
-                w newColumn.
-                w ; ':' ; (inputVar name as: String)]].
+	       [| :inputVar |
+		w newColumn.
+		w ; ':' ; (inputVar name as: String)]].
          node localVariables do:
            [| :localVar |
             (node inputVariables includes: localVar) \/ [node optionalVariables includes: localVar]
               ifFalse:
                 [w newColumn.
-                 w ; (localVar name as: String)]].
+	         w ; (localVar name as: String)]].
          w ; ' | '].
 ].
 
@@ -315,29 +315,29 @@ source on the stream."
     [`conditions: (
        [(Syntax isUnarySelector: selector) /\ [args size = 1]]
          -> [w printArg: args first withRole: node roles first.
-             w newColumn.
-             w ; selector name].
+	     w newColumn.
+	     w ; selector name].
        [(Syntax isBinarySelector: selector) /\ [args size = 2]]
          -> [w printArg: args first withRole: node roles first.
-             w newColumn.
-             w ; selector name.
-             w newColumn.
-             w printArg: args second withRole: node roles second].
+	     w newColumn.
+	     w ; selector name.
+	     w newColumn.
+	     w printArg: args second withRole: node roles second].
        "For keyword sends, print the first argument, partition the selector by
          the colons, (at an offset of 1 to synchronize indices for looping),
          and then loop from one to the end, printing the keywords and arguments
          alternately."
        [Syntax isKeywordSelector: selector]
          -> [| name keywords |
-             name := selector name.
-             keywords := selector keywords.
-             w printArg: args first withRole: node roles first.
-             1 below: args size do:
+	     name := selector name.
+	     keywords := selector keywords.
+	     w printArg: args first withRole: node roles first.
+	     1 below: args size do:
                [| :index |
-                w newColumn.
-                w ; ((keywords at: index - 1) as: String) ; ':'.
-                w newColumn.
-                w printArg: (args at: index) withRole: (node roles at: index)]]).
+		w newColumn.
+		w ; ((keywords at: index - 1) as: String) ; ':'.
+		w newColumn.
+		w printArg: (args at: index) withRole: (node roles at: index)]]).
      node optionalKeywords with: node optionalVariables do:
        [| :selector :variable |
         w newColumn.
@@ -442,7 +442,7 @@ w@(SourcePrintStream traits) printAsArgument: node@(nodes Block traits)
       [w ; '['.
        w printVariablesOf: node.
        w indentedDo:
-         [w printStatements: node statements &separatedBy: [w newColumn]].
+	 [w printStatements: node statements &separatedBy: [w newColumn]].
        w ; ']']
     ifFalse: [resend].
   True
@@ -454,7 +454,7 @@ w@(SourcePrintStream traits) printAsArgument: node@(nodes Array traits)
     ifTrue:
       [w ; '{'.
        w indentedDo:
-         [w printStatements: node statements &separatedBy: [w newColumn]].
+	 [w printStatements: node statements &separatedBy: [w newColumn]].
        w ; '}']
     ifFalse: [resend].
   True

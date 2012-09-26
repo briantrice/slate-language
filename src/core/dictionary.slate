@@ -1,0 +1,405 @@
+collections define: #Dictionary &parents: {Collection. ExtensibleMapping} &slots: {
+  #tally -> 0.
+  #keys -> (Array newSize: 10).
+  #values -> (Array newSize: 10).
+  #hashBlock -> (#hash `er) .
+  #equalsBlock -> (#= `er) .
+}.
+
+Set identityHash.
+Mapping identityHash.
+Dictionary identityHash.
+
+"Dictionary uses two separate arrays to store its keys and values; it behaves
+as a Set of key-value pairs (but doesn't store Associations as in Smalltalk)."
+"Stores the associated values for the array's objects which are the keys.
+The correspondence is per-index, and there can obviously be only one value
+per key."
+
+d@(Dictionary traits) size
+"The number of elements, the conceptual size of the Dictionary."
+[
+  d tally
+].
+
+d@(Dictionary traits) isEmpty
+[d size = 0].
+
+d@(Dictionary traits) capacity
+"How large the Dictionary can be without requiring a new Array of larger size."
+[
+  d keys size
+].
+
+d@(Dictionary traits) growSize
+"The default amount to grow by, either doubling the size or a minimum."
+[
+  d keys size max: 4
+].
+
+d@(Dictionary traits) copy
+[
+  d clone `>>
+    [keys := d keys copy.
+     values := d values copy. ]
+].
+
+d@(Dictionary traits) new &capacity: n
+[
+  n `defaultsTo: 0.
+  d clone `>>
+    [| :newD |
+     keys := d keys new &capacity: (n max: 1).
+     tally := 0.
+     values := d values new &capacity: (n max: newD keys size). ]
+].
+
+d@(Dictionary traits) newFrom: keys@(Sequence traits) to: values@(Sequence traits)
+[
+  result ::= d new &capacity: (keys size min: values size).
+  keys with: values do: #(result at: _ put: _) `er.
+  result
+].
+
+collections IdentityDictionary ::= Dictionary copy `>>
+  [hashBlock := #identityHash`er.
+   equalsBlock := #==`er. ].
+"IdentityDictionary is an alternate prototype Dictionary using ==-based
+comparison and hashing."
+
+d@(Dictionary traits) acceptsKey: _@Nil
+[False].
+
+d@(Dictionary traits) = e@(Dictionary traits)
+[
+  d == e
+   \/ [d size = e size
+	 /\ [d keysAndValuesDo:
+	       [| :key :value |
+		(e at: key ifAbsent: [^ False]) = value ifFalse: [^ False]].
+	     True]]
+].
+
+d@(Dictionary traits) clear
+[
+  d keys clear.
+  d tally := 0.
+  d values clear.
+  d
+].
+
+d@(Dictionary traits) includes: obj
+"Returns whether the Dictionary includes the object as a value."
+[
+  (d detect: [| :each | d equalsBlock apply*, obj, each]) isNotNil
+].
+
+d@(Dictionary traits) includesIdentity: obj
+"Returns whether the object is identical to some keyed value."
+[
+  (d detect: [| :each | obj == each]) isNotNil
+].
+
+d@(Dictionary traits) occurrencesOf: obj
+"The number of indexed values equal to obj."
+[| count |
+  count := 0.
+  d do: [| :each | (d equalsBlock apply*, obj, each)
+    ifTrue: [count += 1]].
+  count
+].
+
+d@(Dictionary traits) addAll: map@(Mapping traits)
+"Adds all of the key-value pairs to the Dictionary. Notice that this works
+for any Mapping, but that other collections will not do."
+[
+  d == map ifFalse:
+    [map keysAndValuesDo: #(d at: _ put: _) `er].
+  map
+].
+
+d@(Dictionary traits) addAll: seq@(Sequence traits)
+[
+  seq doWithIndex: [| :assoc :index |
+    (assoc isSameAs: Association)
+      ifTrue: [d add: assoc]
+      ifFalse: [d at: index put: assoc]].
+  seq
+].
+
+d@(Dictionary traits) declare: key from: e@(Mapping traits)
+"Add key to d, unless the key already exists. Remove key from e
+and move its association to d."
+[
+  (d includesKey: key) ifFalse:
+    [(e includesKey: key)
+       ifTrue: [d add: (e associationAt: key).
+                e removeKey: key]
+       ifFalse: [d add: key -> Nil]].
+  d
+].
+
+d@(Dictionary traits) associationAt: key ifAbsent: block
+[
+  (d keys at: (index ::= d scanFor: key))
+    ifNil: [block do]
+    ifNotNil: [(d keys at: index) -> (d values at: index)]
+].
+
+d@(Dictionary traits) includesKey: key
+[
+  (d contents at: (index ::= d scanFor: key)) isNotNil
+].
+
+d@(Dictionary traits) at: key ifAbsent: block
+[
+  (d keys at: (index ::= d scanFor: key))
+    ifNil: [block do]
+    ifNotNil: [d values at: index]
+].
+
+d@(Dictionary traits) add: assoc@(Association traits)
+"Adds a new key value pair to the Dictionary from an assocation.
+For example: Dictionary new `>> [ add: 'first' -> 'Joe Henry'. ]."
+[
+  d at: assoc key put: assoc value.
+  assoc
+].
+
+d@(Dictionary traits) at: key put: obj
+[
+  (d keys at: (index ::= d scanFor: key)) ifNil:
+    [d keys at: index put: key.
+     d tally += 1].
+  d values at: index put: obj.
+  d fullCheck.
+  obj
+].
+
+d@(Dictionary traits) acceptsKey: _@Nil [False].
+d@(Dictionary traits) at: _@Nil put: obj
+[error: 'Dictionary cannot accept Nil keys.'].
+"TODO: extend Dictionary to handle Nil keys."
+
+d@(Dictionary traits) keyAtValue: obj ifAbsent: block
+[
+  d keysAndValuesDo: [| :key :value |
+      (d equalsBlock apply*, obj, value) ifTrue: [^ key]].
+  block do
+].
+
+d@(Dictionary traits) keyAtIdentityValue: obj ifAbsent: block
+[
+  d values doWithIndex: [| :each :index | each == obj
+    ifTrue: [^ (d keys at: index)]].
+  block do
+].
+
+d@(Dictionary traits) keyAtIdentityValue: obj
+[
+  d keyAtIdentityValue: obj ifAbsent: [obj elementNotFoundOn: d]
+].
+
+d@(Dictionary traits) keySet
+[
+  result ::= Set newSizeOf: d.
+  result equalsBlock := d equalsBlock.
+  d keysDo: #(result add: _) `er.
+  result
+].
+
+d@(Dictionary traits) valueSet
+[
+  result ::= Set newSizeOf: d.
+  result equalsBlock := d equalsBlock.
+  d valuesDo: #(result add: _) `er.
+  result
+].
+
+d@(Dictionary traits) keysAndValuesDo: block
+[
+  d isEmpty ifFalse:
+    [d keys doWithIndex:
+       [| :each :index |
+        each ifNotNil: [block apply*, each, (d values at: index)]]]
+].
+
+d@(Dictionary traits) keysDo: block
+[
+  d isEmpty ifFalse:
+    [d keys doWithIndex:
+       [| :each :index | each ifNotNil: [block apply*, each]]]
+].
+
+d@(Dictionary traits) valuesDo: block
+[
+  d isEmpty ifFalse:
+    [d keys doWithIndex:
+       [| :each :index | each ifNotNil: [block apply*, (d values at: index)]]]
+].
+
+d@(Dictionary traits) do: block
+[d valuesDo: block].
+
+d@(Dictionary traits) keysAndValuesRemove: block
+"Removes key-value pairs that satisfy the two-argument block."
+[
+  removals ::= ExtensibleArray new.
+  d keysAndValuesDo: [| :key :value | (block apply*, key, value)
+      ifTrue: [removals add: key]].
+  removals do: #(d removeKey: _) `er.
+  d
+].
+
+d@(Dictionary traits) fixCollisionsFrom: index
+"The element at index has been removed and replaced by Nil.
+This moves forward from there, relocating any entries that were
+placed below due to collisions with this one."
+[| oldIndex newIndex element |
+  d capacity `cache.
+  oldIndex := index.
+  [(oldIndex += 1) >= d capacity
+     ifTrue: [oldIndex := 1].
+   (element := d keys at: oldIndex) isNil]
+    whileFalse:
+      [(newIndex := d scanFor: element) = oldIndex
+         ifFalse: [d swap: oldIndex with: newIndex]].
+].
+
+d@(Dictionary traits) removeKey: key ifAbsent: block
+[
+  (index ::= d scanFor: key)
+    ifNil: [^ block do].
+  value ::= d keys at: index.
+  d keys at: index put: Nil.
+  d values at: index put: Nil.
+  d tally -= 1.
+  d fixCollisionsFrom: index.
+  value
+].
+
+d@(Dictionary traits) removeKey: key
+[
+  d removeKey: key ifAbsent: [key keyNotFoundOn: d]
+].
+
+d@(Dictionary traits) remove: key
+[
+  d removeKey: key
+].
+
+d@(Dictionary traits) remove: key ifAbsent: block
+[
+  d removeKey: key ifAbsent: block
+].
+
+d@(Dictionary traits) associationsDo: block
+[
+  d isEmpty ifFalse:
+    [d keys doWithIndex:
+       [| :each :index | each ifNotNil:
+          [block apply*, (each -> (d values at: index))]]]
+].
+
+d@(Dictionary traits) doWithIndex: block
+"Allow for iterating through the elements with a notional indexing."
+[| index |
+  index := -1.
+  d do: [| :item |
+	 item ifNotNil: [block apply*, item, (index += 1)]].
+].
+
+d mapSelect: block into: result@(Dictionary traits)
+"Filter the dictionary by values satisfying a block."
+[d keysAndValuesDo:
+  [| :key :value | (block apply*, key, value)
+      ifTrue: [result noCheckAt: key put: value]].
+  result
+].
+
+d select: block into: result@(Dictionary traits)
+[d mapSelect: [| :_ :value | block apply*, each] into: result].
+
+d@(Dictionary traits) collect: block
+"Generate a new collection based on applying the block to each value."
+[
+  result ::= ExtensibleArray new.
+  d do: [| :each | result add: (block apply*, each)].
+  result
+].
+
+d@(Dictionary traits) swap: index1 with: index2
+[
+  d keys swap: index1 with: index2.
+  d values swap: index1 with: index2.
+  d
+].
+
+d@(Dictionary traits) noCheckAt: key put: value
+[
+  index ::= d scanFor: key.
+  d keys at: index put: key.
+  d values at: index put: value.
+  d tally += 1.
+].
+
+d@(Dictionary traits) noCheckAdd: assoc
+[
+  d noCheckAt: assoc key put: assoc value
+].
+
+d@(Dictionary traits) fullCheck
+"Keep the array at least 1/4 free for decent hash behavior."
+[
+  d keys size - d tally < (d keys size // 4 max: 1)
+    ifTrue: [d grow].
+].
+
+d@(Dictionary traits) growBy: growthAmount
+[
+  tempDict ::= d new &capacity: d keys size + growthAmount.
+  d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
+  d keys := tempDict keys.
+  d values := tempDict values.
+  d
+].
+
+d@(Dictionary traits) grow
+"Grow the default amount."
+[
+  d growBy: d growSize
+].
+
+d@(Dictionary traits) rehash
+[
+  tempDict ::= d newSameSize.
+  d keysAndValuesDo: #(tempDict noCheckAt: _ put: _) `er.
+  d keys := tempDict keys.
+  d values := tempDict values.
+  d
+].
+
+d@(Dictionary traits) scanFor: obj
+"Scans the key array for the first empty slot or an element matching the
+object. Returns the index at which the object is used as a key, or Nil if
+it's not found and the Dictionary is full."
+[| key |
+  end ::= d keys size.
+  start ::= ((d hashBlock apply*, obj) \\ end) + 1.
+  block ::=
+    [| :index |
+     (key := d keys at: index) isNil \/
+       [d equalsBlock apply*, obj, key]
+       ifTrue: [^ index]].
+  start below: end do: block.
+  0 below: start do: block.
+  Nil
+].
+
+x@(Root traits) slotNamesAndValues
+"Answers a Dictionary of the slot names and values from the argument."
+[
+  result ::= Dictionary new.
+  x slotNamesAndValuesDo: #(result at: _ put: _) `er.
+  result
+].

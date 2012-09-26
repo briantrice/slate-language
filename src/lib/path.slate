@@ -11,7 +11,7 @@ path@(Path traits) hash
 [path names hash bitXor: path traits identityHash].
 
 path@(Path traits) from: root into: names foundBlock: foundBlock
-                   &filterBlock
+		   &filterBlock
 "Core of the path-searching functionality, contains the algorithm for
 breadth-first search of path between objects through slots. 
 
@@ -22,12 +22,12 @@ breadth-first search of path between objects through slots.
 
 Answers the target object where the found path leads to, or Nil if requested
 path does not exist."
-[
+[| pathLookupQueue seen |
   (foundBlock apply*, root, Nil, root) ifTrue: [^ root].
-  seen ::= IdentitySet newWith: root.
+  seen := IdentitySet newWith: root.
   filterBlock `defaultsTo: [| :src :name :tgt | True].
-  pathLookupQueue ::=
-    ExtensibleArray newWith: ExtensibleArray new -> root.
+  pathLookupQueue :=
+    (ExtensibleArray newWith: ExtensibleArray new -> root).
   [pathLookupQueue isEmpty] whileFalse:
     [| pathLookup lookupObject |
       pathLookup := pathLookupQueue removeFirst.
@@ -36,30 +36,32 @@ path does not exist."
       lookupObject slotNames do:
         [| :slotName slotValue |
           slotValue := lookupObject atSlotNamed: slotName.
-          [(seen accepts: slotValue) /\ [(seen includes: slotValue) not] 
-            ifTrue:
-              [seen include: slotValue.
-               newPath ::= pathLookup key copy.
-               newPath addLast: slotName.
-               (foundBlock apply*, lookupObject, slotName, slotValue)
-                 ifTrue: [names ; newPath. ^ slotValue].
-               (filterBlock apply*, lookupObject, slotName, slotValue)
-                 ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]
-          ] breakOn: MethodNotFound].
+	  [(seen accepts: slotValue) /\ [(seen includes: slotValue) not] 
+	    ifTrue:
+	      [| newPath |
+	        seen include: slotValue.
+	        newPath := pathLookup key copy.
+	        newPath addLast: slotName.
+		(foundBlock apply*, lookupObject, slotName, slotValue)
+		  ifTrue: [names ; newPath. ^ slotValue].
+		(filterBlock apply*, lookupObject, slotName, slotValue)
+		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]
+	  ] breakOn: MethodNotFound].
       "Check indexed slots."
       lookupObject hasIndexedSlots ifTrue:
-        [lookupObject keysDo:
-          [| :index slotValue |
-           slotValue := lookupObject at: index.
-           (seen accepts: slotValue) /\ [(seen includes: slotValue) not]
-             ifTrue:
-               [seen include: slotValue.
-                newPath ::= pathLookup key copy.
-                newPath addLast: index.
-                (foundBlock apply*, lookupObject, index, slotValue)
-                  ifTrue: [names ; newPath. ^ slotValue].
-                (filterBlock apply*, lookupObject, index, slotValue)
-                  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]]]].
+	[lookupObject keysDo:
+	  [| :index slotValue |
+	   slotValue := lookupObject at: index.
+	   (seen accepts: slotValue) /\ [(seen includes: slotValue) not]
+	     ifTrue:
+	       [| newPath |
+		seen include: slotValue.
+		newPath := pathLookup key copy.
+	        newPath addLast: index.
+		(foundBlock apply*, lookupObject, index, slotValue)
+		  ifTrue: [names ; newPath. ^ slotValue].
+		(filterBlock apply*, lookupObject, index, slotValue)
+		  ifTrue: [pathLookupQueue addLast: newPath -> slotValue]]]]].
   Nil
 ].
 
@@ -146,14 +148,14 @@ s@(Sequence traits) as: path@(RootedPath traits) &root
 [
   path clone `setting: #{#names. #root}
        to: {(s collect: [| :each | (each is: Integer)
-                                   ifTrue: [each] ifFalse: [each intern]])
-                as: path names.
-            root ifNil: [here]}
+				   ifTrue: [each] ifFalse: [each intern]])
+		as: path names.
+	    root ifNil: [here]}
 ].
 
 m@(nodes UnaryMessage traits) as: path@(Path traits) &root
-[| node |
-  names ::= ExtensibleArray new.
+[| names node |
+  names := ExtensibleArray new.
   node := m.
   [names addFirst: node selector.
    node := node argument.
@@ -173,7 +175,7 @@ path@(Path traits) as: _@(nodes Node traits)
     [| :result :each |
      (each is: Integer)
        ifTrue: [nodes KeywordMessage sending: #at: to:
-         {result. nodes Literal for: each}]
+	 {result. nodes Literal for: each}]
        ifFalse: [nodes UnaryMessage sending: each intern to: {result}]]
 ].
 
@@ -195,21 +197,21 @@ path@(RootedPath traits) isOneSlotFromDefinition
 path@(RootedPath traits) reduced
 "Answer a path consisting of the minimum set of accessor method lookups to
 reach the same object."
-[| this |
-  names ::= path names new writer.
+[| names this |
+  names := path names new writer.
   this := path root.
   path names do:
     [| :each |
      (each is: Integer)
        ifTrue: [this hasIndexedSlots /\ [this acceptsKey: each]
-                  ifTrue: [names nextPut: each]
-                  ifFalse: [each keyNotFoundOn: this]]
+		  ifTrue: [names nextPut: each]
+		  ifFalse: [each keyNotFoundOn: this]]
        ifFalse:
-         [(this hasSlotNamed: each)
-            ifTrue: [(this hasDelegateNamed: each)
-                       ifFalse: [names nextPut: each].
-                     this := this atSlotNamed: each]
-            ifFalse: [this slotNotFoundNamed: each]]].
+	 [(this hasSlotNamed: each)
+	    ifTrue: [(this hasDelegateNamed: each)
+		       ifFalse: [names nextPut: each].
+		     this := this atSlotNamed: each]
+	    ifFalse: [this slotNotFoundNamed: each]]].
   names contents isEmpty /\ [path names isEmpty not]
     ifTrue: [names nextPut: path names last].
   names contents as: path
@@ -222,8 +224,8 @@ returns the shortest delegation path compatible with the original path's slot
 names. If the path doesn't work, then those lookups are added unconditionally
 (we can't be smart about error-handling here - let the client deal with the
 data unfiltered)."
-[| this |
-  names ::= path names new writer.
+[| names this |
+  names := path names new writer.
   this := path root.
   path names do: 
     [| :each target |
@@ -260,11 +262,11 @@ pf@(PathFinder traits) on: obj
 [pf source := pf source newOn: obj].
 
 pf@(PathFinder traits) newFrom: root selecting: foundBlock &filterBlock
-[
-  result ::= pf newOn: root.
-  foundBlock ifNotNil: [result foundBlock := foundBlock].
-  filterBlock ifNotNil: [result filterBlock := filterBlock].
-  result
+[| newPF |
+  newPF := pf newOn: root.
+  foundBlock ifNotNil: [newPF foundBlock := foundBlock].
+  filterBlock ifNotNil: [newPF filterBlock := filterBlock].
+  newPF
 ].
 
 pf@(PathFinder traits) reset

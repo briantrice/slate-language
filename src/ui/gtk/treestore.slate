@@ -2,61 +2,61 @@ Gtk define: #TreeStore &parents: {GLib Object. Gtk TreeModel}.
 Gtk TreeStore traits atSlotNamed: #printName put: 'Gtk TreeStore'. 
 
 ts@(Gtk TreeStore traits) new [
-        ts shouldNotImplement
+	ts shouldNotImplement
 ].
 
 ts@(Gtk TreeStore traits) newWithTypes: types@(Sequence traits) [
-        | array |
-        array: (WordArray LittleEndian new &capacity: types size).
-        types doWithIndex: [| :each :index | array at: index put: each type ].
-        ts newWithHandle: (Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_tree_store_newv applyTo: {types size. array bytes}
-        ])
+	| array |
+	array: (WordArray LittleEndian new &capacity: types size).
+	types doWithIndex: [| :each :index | array at: index put: each type ].
+	ts newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_store_newv applyTo: {types size. array bytes}
+	])
 ].
 
 ts@(Gtk TreeStore traits) clear [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_tree_store_clear applyTo: {ts handle}
-        ].
-        ts
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_store_clear applyTo: {ts handle}
+	].
+	ts
 ].
 
 ts@(Gtk TreeStore traits) append: assoc@(Association traits) [
-        | iter key |
-        key: assoc key.
-        key ifNil: [ key: Gtk TreeIter newNull ].
-        iter: (ts appendIn: key).
-        ts at: iter put: assoc value.
-        iter
+	| iter key |
+	key: assoc key.
+	key ifNil: [ key: Gtk TreeIter newNull ].
+	iter: (ts appendIn: key).
+	ts at: iter put: assoc value.
+	iter
 ].
 
 ts@(Gtk TreeStore traits) appendIn: parent@(Gtk TreeIter traits) [
-        | iter |
-        iter: Gtk TreeIter new.
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_tree_store_append applyTo: {ts handle. iter handle. parent handle}
-        ].
-        iter
+	| iter |
+	iter: Gtk TreeIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_store_append applyTo: {ts handle. iter handle. parent handle}
+	].
+	iter
 ].
 
 ts@(Gtk TreeStore traits) at: iter@(Gtk TreeIter traits) put: values@(Sequence traits) [
-        0 below: values size do: [ 
-                | :i value |
-                value: (values at: i).
-                ts at: iter column: i put: (GLib Value newFor: value).
-        ]
+	0 below: values size do: [ 
+		| :i value |
+		value: (values at: i).
+		ts at: iter column: i put: (GLib Value newFor: value).
+	]
 ].
 
 ts@(Gtk TreeStore traits) at: iter@(Gtk TreeIter traits) column: column put: value@(GLib Value traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_tree_store_set_value applyTo: {ts handle. iter handle. column. value handle}
-        ].
-        ts
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_store_set_value applyTo: {ts handle. iter handle. column. value handle}
+	].
+	ts
 ].
 
 ts@(Gtk TreeStore traits) isValid: iter@(Gtk TreeIter traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_tree_store_iter_is_valid applyTo: {ts handle. iter handle}
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_tree_store_iter_is_valid applyTo: {ts handle. iter handle}
+	]
 ].
 

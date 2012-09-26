@@ -3,91 +3,91 @@ Gtk Debugger traits atSlotNamed: #printName put: 'Gtk Debugger'.
 
 d@(Gtk Debugger traits) newFor: condition from: symbol
 [
-        | debugger |
-                        
-        debugger: d new.
-        debugger condition: condition.
-        condition ifNotNil: [
-                debugger debugger: (Debugger newFor: d condition &topMethod: symbol &saved: True).
-        ].
-        debugger buildView.
-        debugger
+	| debugger |
+			
+	debugger: d new.
+	debugger condition: condition.
+	condition ifNotNil: [
+	  	debugger debugger: (Debugger newFor: d condition &topMethod: symbol &saved: True).
+	].
+	debugger buildView.
+	debugger
 ].
 
 d@(Gtk Debugger traits) show [
-        d view showAll.
-        d
+	d view showAll.
+	d
 ].
 
 d@(Gtk Debugger traits) destroy: _ [
-        d condition: Nil.
-        d view: Nil.
+	d condition: Nil.
+	d view: Nil.
 ].
 
 d@(Gtk Debugger traits) buildView [
-        | notebook stream |
-        
-        d view: Gtk Window newTopLevel.
-        d view when: #destroy send: #destroy: to: d.
-        stream: (Stream newTo: String new).
-        d condition describeOn: stream. 
-        d view title: ('Debugging: '; stream contents).
-        d view defaultSizeWidth: 300 height: 300.
-        d view add: d buildStackView.
+	| notebook stream |
+	
+	d view: Gtk Window newTopLevel.
+	d view when: #destroy send: #destroy: to: d.
+	stream: (Stream newTo: String new).
+	d condition describeOn: stream.	
+	d view title: ('Debugging: '; stream contents).
+	d view defaultSizeWidth: 300 height: 300.
+	d view add: d buildStackView.
 "FIXME: We cannot attend other windows, as we have one thread in slate for now, set modal"
-        d view isModal: True. 
-        d
+	d view isModal: True. 
+	d
 ].
 
 d@(Gtk Debugger traits) buildStackView [
-        | cell col stackView |
-        
-        stackView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
-                GLib FundamentalType String. 
-                GLib FundamentalType String. 
-                GLib FundamentalType String. 
-        })).
-        
-        col: Gtk TreeViewColumn new.
-        col title: 'Stack'.
-        cell: Gtk CellRendererPixbuf new.
-        col packStart: cell &expand: False.
-        col addAttribute: #stock-id column: 0 on: cell.
-        cell: Gtk CellRendererText new.
-        col     packStart: cell.
-        col addAttributes: { #text -> 1 } on: cell.     
-        stackView appendColumn: col.
-        
-        stackView gridLines: Gtk TreeViewGridLines Both.
-        d loadStackIn: stackView model.
-        stackView when: #row-activated send: #onStackView:rowActivated:column: to: d.
-        Gtk ScrolledWindow newWithChild: stackView      
+	| cell col stackView |
+	
+	stackView: (Gtk TreeView newWithModel: (Gtk TreeStore newWithTypes: {
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+		GLib FundamentalType String. 
+	})).
+	
+	col: Gtk TreeViewColumn new.
+ 	col title: 'Stack'.
+	cell: Gtk CellRendererPixbuf new.
+	col packStart: cell &expand: False.
+	col addAttribute: #stock-id column: 0 on: cell.
+	cell: Gtk CellRendererText new.
+	col	packStart: cell.
+	col addAttributes: { #text -> 1 } on: cell.	
+	stackView appendColumn: col.
+	
+	stackView gridLines: Gtk TreeViewGridLines Both.
+	d loadStackIn: stackView model.
+	stackView when: #row-activated send: #onStackView:rowActivated:column: to: d.
+	Gtk ScrolledWindow newWithChild: stackView	
 ].
 
 d@(Gtk Debugger traits) loadStackIn: model [
-        model clear.
-        d debugger ifNotNil: [
-                d debugger frameList do: [
-                        | :each |
-                        model append: (Nil -> { 'gtk-execute'. each method printString ; ' @ ' ; each method method definitionLocation })
-                ].
-        ].
+	model clear.
+	d debugger ifNotNil: [
+	 	d debugger frameList do: [
+			| :each |
+			model append: (Nil -> { 'gtk-execute'. each method printString ; ' @ ' ; each method method definitionLocation })
+		].
+	].
 ].
 
 d@(Gtk Debugger traits) onStackView: stackView rowActivated: path column: column [
-        | iter index selectedMethod |
-        d debugger ifNil: [ ^ Nil ].
-        iter: stackView selection selected.
-        iter ifNil: [ ^ Nil ].
-        index: ((stackView model stringFromIter: iter) as: Integer).
-        selectedMethod: (d debugger frameList at: index) method.
-        (selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
-        selectedMethod sourceTree ifNil: [ ^ Nil ].
-        (selectedMethod sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
-        (selectedMethod sourceTree source hasSlotNamed: #resource) ifTrue: [
-                | workspace |
-                workspace: (Gtk Workspace new &fileName: (selectedMethod sourceTree source resource locator as: String)).
-                workspace goToLineNumber: selectedMethod sourceTree lineNumber.
-                workspace show.
-        ]
+	| iter index selectedMethod |
+	d debugger ifNil: [ ^ Nil ].
+	iter: stackView selection selected.
+	iter ifNil: [ ^ Nil ].
+	index: ((stackView model stringFromIter: iter) as: Integer).
+	selectedMethod: (d debugger frameList at: index) method.
+	(selectedMethod is: CompiledMethod) ifFalse: [ ^ Nil ].
+	selectedMethod sourceTree ifNil: [ ^ Nil ].
+	(selectedMethod sourceTree hasSlotNamed: #source) ifFalse: [^ Nil].
+	(selectedMethod sourceTree source hasSlotNamed: #resource) ifTrue: [
+		| workspace |
+		workspace: (Gtk Workspace new &fileName: (selectedMethod sourceTree source resource locator as: String)).
+		workspace goToLineNumber: selectedMethod sourceTree lineNumber.
+		workspace show.
+	]
 ].

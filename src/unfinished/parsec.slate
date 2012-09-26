@@ -8,8 +8,8 @@ Parsec Result traits define: #Ok &parents: {Parsec Result}
                                  &slots: #{#consumed. #value. #state}.
 
 ok@(Parsec Result Ok traits) newConsumed: consumed
-                             withValue: value
-                             andState: state
+			     withValue: value
+			     andState: state
 [ok cloneSettingSlots: #{#consumed. #value. #state} to: {consumed. value. state}].
 
 Parsec Result traits define: #Error &parents: {Parsec Result}
@@ -58,8 +58,8 @@ p@(Parsec Parser traits) >>= f@(Method traits)
      (reply1 := (p block applyWith: state))
        ifOk: [(reply2 := (f applyWith: reply1 value) block
                  applyWith: reply1 state)
-                cloneSettingSlots: #{#consumed}
-                to: {reply1 consumed \/ reply2 consumed }]
+	        cloneSettingSlots: #{#consumed}
+		to: {reply1 consumed \/ reply2 consumed }]
        ifError: [reply1]]
 ].
 
@@ -91,7 +91,7 @@ p@(Parsec Parser traits) satisfy: pred
 [p tokenStopgapWithBlock:
   [| :c | (pred applyWith: c) ifTrue: [c] ifFalse: [Nil]]
 ].
-                        
+			
 p@(Parsec Parser traits) tokenStopgapWithBlock: test
 [p newWithBlock:
   [| :state |
@@ -99,11 +99,11 @@ p@(Parsec Parser traits) tokenStopgapWithBlock: test
        ifCons:
          [| :c :cs x |
           (x := test applyWith: c)
-            ifNil: [Parsec Result Error newConsumed: False]
-            ifNotNil: [Parsec Result Ok
-                         newConsumed: True
-                         withValue: x
-                         andState: (Parsec State newWithInput: cs)]]
+	    ifNil: [Parsec Result Error newConsumed: False]
+	    ifNotNil: [Parsec Result Ok
+			 newConsumed: True
+			 withValue: x
+			 andState: (Parsec State newWithInput: cs)]]
        ifNil: [Parsec Result Error newConsumed: False]]
 ].
 
@@ -120,12 +120,12 @@ p@(Parsec Parser traits) manyAccum: accum@(Method traits)
      r consumed
        ifTrue: [r ifOk: [| ys |
                          ys := accum applyTo*, r value, xs.
-                         walk applyTo*, ys, r state, p block applyWith: r state]
-                  ifError: [r]]
+			 walk applyTo*, ys, r state, p block applyWith: r state]
+		  ifError: [r]]
        ifFalse: [r ifOk: [error: 'combinator \'many\' is applied to a parser that accepts an empty string.']
                    ifError: [Parsec Result Ok
-                               cloneSettingSlots: #{#consumed. #value. #state}
-                               to: {False. xs. state}]]].
+			       cloneSettingSlots: #{#consumed. #value. #state}
+			       to: {False. xs. state}]]].
    (r2 := (p block applyWith: state)) consumed
      ifTrue: [walk applyWith: LazyList Nil with: state with: r2]
      ifFalse: []

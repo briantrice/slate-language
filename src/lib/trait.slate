@@ -1,6 +1,6 @@
 prototypes define: #Trait &parents: {Cloneable}
   &slots: {#users -> IdentitySet new "The Trait or Traits object that use this one."
-           }.
+	   }.
 "A Trait object is an individual protocol that exists for compile-time
 composition into Traits objects. In this way we can divide up protocols as many
 ways as conceptually appropriate without run-time overhead, and compile-time
@@ -31,7 +31,7 @@ t@(Trait traits) handleChangedComponent
 [
   t users do:
     [| :user | (user is: Trait) ifTrue: [user notifyUsersOfChange]
-                                ifFalse: [error: 'Recompilating concrete Trait users is not yet implemented.']]
+				ifFalse: [error: 'Recompilating concrete Trait users is not yet implemented.']]
 ].
 
 t@(Trait traits) addMutatorForTraitSlot: name
@@ -99,7 +99,7 @@ but is not in the services selector set."
     [| :m |
      (0 below: m arity) do:
        [| :index | requirements addAll:
-         ((m allSelectorsSentToInputAt: index) difference: provisions)]].
+	 ((m allSelectorsSentToInputAt: index) difference: provisions)]].
   requirements
 ].
 
@@ -161,14 +161,14 @@ service of the Trait."
   roles ::= def roles collect: #evaluate `er.
   (roles includes: tr) ifFalse: [error: 'The Trait is not dispatched upon.'].
   service ::= (tr services at: (Method Signature newNamed: def selector over: roles)
-                        put: (def deepCopy as: Syntax Block) compile) unquoted.
+		        put: (def deepCopy as: Syntax Block) compile) unquoted.
   tr notifyUsersOfChange.
   service
 ].
 
 prototypes define: #TraitComponent &parents: {Trait}
   &slots: {#services -> Dictionary new "Maps Signatures to Method objects."
-           }.
+	   }.
 
 t@(TraitComponent traits) newFrom: map@(Mapping traits)
 "Create a TraitComponent from valid signature->method associations."

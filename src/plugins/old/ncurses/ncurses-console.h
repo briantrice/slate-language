@@ -22,7 +22,7 @@ extern int sc_moveToXY(int x, int y);
 extern int sc_nextEvent(int blockingMillisecs);
 extern int sc_hasEvent();
 extern int sc_flush();
-extern int sc_deleteChar();     // delete char and move the rest of the line one left
+extern int sc_deleteChar();	// delete char and move the rest of the line one left
 extern int sc_deleteLines(int lines);
 extern int sc_insertLines(int lines);
 extern int sc_hideCursor();

@@ -11,11 +11,11 @@ OBJECTS=debug.o external-files.o external-pipes.o external-directory.o external-
 $(OBJECTS): slate.hpp
 
 %.o: %.cpp
-        $(SECHO) "Compiling src/vm/$(BASENAME)/$<       ($(MODE))"
-        $(CPP) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
+	$(SECHO) "Compiling src/vm/$(BASENAME)/$<	($(MODE))"
+	$(CPP) $(CFLAGS) $(CFLAGS_$<) -o $@ -c $<
 
 vm: $(OBJECTS)
-        $(CPP) $(LIBS) $(CFLAGS) $(CFLAGS_$<) -o $(VMNAME) $(OBJECTS)
+	$(CPP) $(LIBS) $(CFLAGS) $(CFLAGS_$<) -o $(VMNAME) $(OBJECTS)
 
 clean:
-        rm -f *.o *.gcda *.gcno *.gcov $(VMNAME)
+	rm -f *.o *.gcda *.gcno *.gcov $(VMNAME)

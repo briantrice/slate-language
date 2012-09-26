@@ -13,21 +13,21 @@ Net HTTP define: #Method &parents: {Cloneable}
 
 Net HTTP define: #Actor &parents: {Net Actor}
   &slots: {#method -> Net HTTP Method GET.
-           #socket.
-           #responseHeaders -> Dictionary.
-           #content.
-           #contentLength}.
+	   #socket.
+	   #responseHeaders -> Dictionary.
+	   #content.
+	   #contentLength}.
 
 u@(Net URL traits) readFrom: s
 [| r | 
   r: (Regex Matcher for: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r matches: s)
     ifTrue: [Net URL clone `>>
-               [scheme: (r subexpression: 3). 
-                authority: (r subexpression: 5). 
-                path: (r subexpression: 6). 
-                query: (r subexpression: 8). 
-                fragment: (r subexpression: 10). ]]
+	       [scheme: (r subexpression: 3). 
+		authority: (r subexpression: 5). 
+		path: (r subexpression: 6). 
+		query: (r subexpression: 8). 
+		fragment: (r subexpression: 10). ]]
     ifFalse: [ 'unable to parse URL' signal ]
 ].
 
@@ -104,11 +104,11 @@ huc@(Net HTTP Actor traits) readResponse
  Console ; 'response is ' ; (response as: String).
 
  (((response splitWith: $ ) at: 1) = '200') ifTrue: [
-         huc responseHeaders: huc responseHeaders new.
+	 huc responseHeaders: huc responseHeaders new.
          response: huc readLine.
-         
-         [ response = '\r\n' ] whileFalse: [ huc responseHeaders at: (((response splitWith: $:) at: 0) as: String) put: ((((response splitWith: $:) at: 1) as: String) strip). response: huc readLine.].
-        huc contentLength: (( huc responseHeaders at: 'Content-Length') as: Integer).
+	 
+ 	 [ response = '\r\n' ] whileFalse: [ huc responseHeaders at: (((response splitWith: $:) at: 0) as: String) put: ((((response splitWith: $:) at: 1) as: String) strip). response: huc readLine.].
+	huc contentLength: (( huc responseHeaders at: 'Content-Length') as: Integer).
  ] ifFalse: [ 'http error code' signal ].
 ].
 

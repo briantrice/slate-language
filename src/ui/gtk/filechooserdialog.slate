@@ -2,41 +2,41 @@ Gtk define: #FileChooserDialog &parents: {Gtk Dialog}.
 Gtk FileChooserDialog traits atSlotNamed: #printName put: 'Gtk FileChooserDialog'. 
 
 fcd@(Gtk FileChooserDialog traits) new [
-        fcd shouldNotImplement
+	fcd shouldNotImplement
 ].
 
 fcd@(Gtk FileChooserDialog traits) newWithAction: action &title: title &parent: parent [
-        | parentHandle |
-        parentHandle: (parent ifNil: [ Nil ] ifNotNil: [ parent handle ]).
-        fcd newWithHandle: (Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_file_chooser_dialog_new applyTo: {title. parentHandle. action. Nil }
-        ])
+	| parentHandle |
+	parentHandle: (parent ifNil: [ Nil ] ifNotNil: [ parent handle ]).
+	fcd newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_file_chooser_dialog_new applyTo: {title. parentHandle. action. Nil }
+	])
 ].
 
 fcd@(Gtk FileChooserDialog traits) newOpen &title: title &parent: parent [
-        fcd newWithAction: Gtk FileChooserAction Open &title: title &parent: parent
+	fcd newWithAction: Gtk FileChooserAction Open &title: title &parent: parent
 ].
 
 fcd@(Gtk FileChooserDialog traits) newSave &title: title &parent: parent [
-        fcd newWithAction: Gtk FileChooserAction Save &title: title &parent: parent
+	fcd newWithAction: Gtk FileChooserAction Save &title: title &parent: parent
 ].
 
 fcd@(Gtk FileChooserDialog traits) newSelectFolder &title: title &parent: parent [
-        fcd newWithAction: Gtk FileChooserAction SelectFolder &title: title &parent: parent
+	fcd newWithAction: Gtk FileChooserAction SelectFolder &title: title &parent: parent
 ].
 
 fcd@(Gtk FileChooserDialog traits) newCreateFolder &title: title &parent: parent [
-        fcd newWithAction: Gtk FileChooserAction CreateFolder &title: title &parent: parent
+	fcd newWithAction: Gtk FileChooserAction CreateFolder &title: title &parent: parent
 ].
 
 fcd@(Gtk FileChooserDialog traits) fileName [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_file_chooser_get_filename applyTo: {fcd handle }
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_file_chooser_get_filename applyTo: {fcd handle }
+	]
 ].
 
 fcd@(Gtk FileChooserDialog traits) fileName: fileName@(String traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_file_chooser_set_filename applyTo: {fcd handle. fileName }
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_file_chooser_set_filename applyTo: {fcd handle. fileName }
+	]
 ].

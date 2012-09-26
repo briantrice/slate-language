@@ -2,61 +2,61 @@ Gtk define: #ListStore &parents: {GLib Object. Gtk TreeModel}.
 Gtk ListStore traits atSlotNamed: #printName put: 'Gtk ListStore'. 
 
 ls@(Gtk ListStore traits) new [
-        ls shouldNotImplement
+	ls shouldNotImplement
 ].
 
 ls@(Gtk ListStore traits) newWithTypes: types@(Sequence traits) [
-        | array |
-        array: (WordArray LittleEndian new &capacity: types size).
-        types doWithIndex: [| :each :index | array at: index put: each type ].
-        ls newWithHandle: (Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_list_store_newv applyTo: {types size. array bytes}
-        ])
+	| array |
+	array: (WordArray LittleEndian new &capacity: types size).
+	types doWithIndex: [| :each :index | array at: index put: each type ].
+	ls newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_list_store_newv applyTo: {types size. array bytes}
+	])
 ].
 
 ls@(Gtk ListStore traits) clear [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_list_store_clear applyTo: {ls handle}
-        ].
-        ls
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_list_store_clear applyTo: {ls handle}
+	].
+	ls
 ].
 
 ls@(Gtk ListStore traits) append [
-        | iter |
-        iter: Gtk TreeIter new.
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_list_store_append applyTo: {ls handle. iter handle}
-        ].
-        iter
+	| iter |
+	iter: Gtk TreeIter new.
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_list_store_append applyTo: {ls handle. iter handle}
+	].
+	iter
 ].
 
 ls@(Gtk ListStore traits) at: iter@(Gtk TreeIter traits) put: values@(Sequence traits) [
-        0 below: values size do: [ 
-                | :i value |
-                value: (values at: i).
-                ls at: iter column: i put: (GLib Value newFor: value).
-        ]
+	0 below: values size do: [ 
+		| :i value |
+		value: (values at: i).
+		ls at: iter column: i put: (GLib Value newFor: value).
+	]
 ].
 
 ls@(Gtk ListStore traits) at: iter@(Gtk TreeIter traits) column: column put: value@(GLib Value traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_list_store_set_value applyTo: {ls handle. iter handle. column. value handle}
-        ].
-        ls
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_list_store_set_value applyTo: {ls handle. iter handle. column. value handle}
+	].
+	ls
 ].
 
 ls@(Gtk ListStore traits) append: values@(Sequence traits) [
-        "Convenience method to append an array of objects to the list.
-        Same as: listStore at: listStore append put: anArray"
-        | iter |
-        iter: ls append.
-        ls at: iter put: values.
-        iter
+	"Convenience method to append an array of objects to the list.
+	Same as: listStore at: listStore append put: anArray"
+	| iter |
+	iter: ls append.
+	ls at: iter put: values.
+	iter
 ].
 
 ls@(Gtk ListStore traits) isValid: iter@(Gtk TreeIter traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_list_store_iter_is_valid applyTo: {ls handle. iter handle}
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_list_store_iter_is_valid applyTo: {ls handle. iter handle}
+	]
 ].
 

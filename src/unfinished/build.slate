@@ -53,8 +53,8 @@ of its prerequisites."
 [
   t file exists /\ [t file lastModifiedTime `cache <= t lastUpdated]
    /\ [t prerequisites allSatisfy:
-        [| :each | each exists /\
-           [each lastModifiedTime < file lastModifiedTime]]]
+	[| :each | each exists /\
+	   [each lastModifiedTime < file lastModifiedTime]]]
 ].
 
 b@(Builder traits) taskNamed: name
@@ -66,7 +66,7 @@ obj@(Builder traits) defineTask: assoc@(Association traits)
     [| :key :value |
      (obj hasSlotNamed: key)
        ifTrue: [| :old | old := (obj atSlotNamed: key).
-                (old is: Task) ifTrue: [old dependOn: dep]].
+		(old is: Task) ifTrue: [old dependOn: dep]].
      obj define: (Task newNamed: key dependingOn: value).
 ].
 

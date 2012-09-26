@@ -1,0 +1,229 @@
+prototypes define: #NavigationHistory
+&slots: {
+#here -> here.
+#pastVisits -> ExtensibleSequence new.
+"Remembered visits in sequential, historical order."
+#futureVisits -> ExtensibleSequence new.
+"Remembered visits when navigation proceeds backwards."
+#allVisits -> Set new.
+"All visits this NavigationHistory has ever touched."
+#rememberTest -> [| :_ | True].
+"Answers whether a particular object, when visited, should be remembered."
+}.
+
+nh@(NavigationHistory traits) new
+[
+  resend `>> [clear. rememberTest := [| :_ | True]. ]
+].
+
+nh@(NavigationHistory traits) clear
+[
+  nh here := Nil.
+  nh allVisits := nh allVisits new.
+  nh clearFuture.
+  nh clearPast.
+].
+
+nh@(NavigationHistory traits) clearFuture
+[
+  nh futureVisits := nh futureVisits new.
+].
+
+nh@(NavigationHistory traits) clearPast
+[
+  nh pastVisits := nh pastVisits new.
+].
+
+nh@(NavigationHistory traits) hasFuture
+[
+  nh futureVisits isNotEmpty
+].
+
+nh@(NavigationHistory traits) hasPast
+[
+  nh pastVisits isNotEmpty
+].
+
+nh@(NavigationHistory traits) shouldRemember: obj
+[
+  (nh rememberTest applyWith: obj) not
+].
+
+nh@(NavigationHistory traits) remember: obj
+[
+  nh allVisits remove: obj ifAbsent: [].
+  nh allVisits add: obj.
+].
+
+nh@(NavigationHistory traits) next
+"Answer the closest visit from the future. Fail if the future is empty."
+[
+  nh futureVisits first
+].
+
+nh@(NavigationHistory traits) previous
+"Answer the closest visit from the past. Fail if the past is empty."
+[
+  nh pastVisits last
+].
+
+nh@(NavigationHistory traits) do: block
+[
+  (nh shouldRemember: nh here) ifFalse: [block applyWith: nh here].
+  nh allVisits do: block
+].
+
+nh@(NavigationHistory traits) goBack
+[
+  nh hasPast ifTrue:
+    [(nh shouldRemember: nh here) ifTrue:
+      [nh futureVisits addFirst: nh here].
+     nh here := nh pastVisits removeLast].
+].
+
+nh@(NavigationHistory traits) goBackTo: obj
+[
+  [nh here = obj \/ [nh hasPast not]] whileFalse: [nh goBack]
+].
+
+nh@(NavigationHistory traits) goForward
+[
+  nh hasFuture ifTrue:
+    [(nh shouldRemember: nh here) ifTrue:
+      [nh pastVisits addLast: nh here].
+     nh here := nh futureVisits removeFirst].
+].
+
+nh@(NavigationHistory traits) goForwardTo: obj
+[
+  [nh here = obj \/ [nh hasFuture not]] whileFalse: [nh goForward]
+].
+
+nh@(NavigationHistory traits) visit: obj
+"Make the argument the current object of the history.
+The prior current object becomes the last object of the 'past' queue.
+The 'future' queue is erased, unless the visit is the first future element."
+[
+  nh here = obj ifFalse:
+    [nh here isNotNil /\ [nh shouldRemember: nh here] ifTrue:
+      [nh pastVisits addLast: here].
+     nh here := obj.
+     (nh shouldRemember: obj) ifTrue: [nh remember: obj].
+     nh hasFuture ifTrue:
+       [nh futureVisits first = nh here
+	  ifTrue: [nh futureVisits removeFirst]
+	  ifFalse: [nh clearFuture]].
+     ].
+].
+
+nh@(NavigationHistory traits) hasVisited: obj
+[
+  nh allVisits includes: obj
+].
+
+prototypes define: #Navigator
+"This is a very basic object navigator, for playing around and ease of use
+at the command line."
+&slots: {
+#history -> (NavigationHistory new `>> [remember: here. ]).
+"The previous objects inspected into; the series of contexts followed."
+#namespace -> (Namespace clone `>> [addDelegate: lobby. ])
+"The namespace in which expressions are evaluated."}.
+
+i@(Navigator traits) newOn: obj
+[i clone `setting: #{#history} to: {i history new `>> [remember: obj. ]}].
+
+_@(Namespace traits) inspect: obj
+[| i |
+  i := (Navigator newOn: obj).
+  here inform: 'You are in a twisty little maze of objects, all alike.'.
+  obj
+].
+
+i@(Navigator traits) help &target: r
+[
+  (r ifNil: [Console]) writer
+    ; 'The Navigator is an extension to the evaluator which allows "travelling" and keeps a navigable travel-history.\n'
+    ; 'here - Answers the current location.\n'
+    ; 'go: address - Visits the object at the slot-name or index of \'here\'.\n'
+    ; 'slots - Shows the current slots here.\n'
+    ; 'indexedSlots - Shows the current array slots here, if any.\n'
+    ; 'parents - Shows the current parent slots here.\n'
+    ; 'visit: obj - Visits the mentioned object.\n'
+    ; 'history - Shows the history of visited objects.'
+    ; 'back - Goes back one step in the history.\n'
+    ; 'back: N - Goes back N steps along the history.\n'
+    ; 'backToStart - Goes back to the start of the history.\n'
+    ; 'navigator - Answers the navigator itself.\n'
+    ; 'close - Exits the Navigator.\n'
+    ; 'help - Prints this helpful message.\n'.
+].
+
+i@(Navigator traits) last
+[i history top].
+
+i@(Navigator traits) here
+[i history here].
+
+i@(Navigator traits) slots
+[i here slotNames].
+
+i@(Navigator traits) indexedSlots
+[| s |
+  s := Console writer.
+  (i here is: Sequence)
+    ifFalse: [^ Nil].
+  s nextPut: ${.
+  i here doWithIndex:
+    [| :each :index | s ; index printString ; ': ' ; each printString ; '.\n'].
+  s nextPut: $}.
+  s newLine.
+].
+
+i@(Navigator traits) parents
+[i here _map delegates].
+
+i@(Navigator traits) visit: obj
+[
+  i history visit: obj.
+  i here
+].
+
+i@(Navigator traits) visit: _@Nil
+['Nil: nothing done.'].
+
+i@(Navigator traits) go: slotName@(Symbol traits)
+[i visit: (i here atSlotNamed: slotName)].
+
+i@(Navigator traits) go: slotName
+[i go: slotName intern].
+
+i@(Navigator traits) go: index@(Integer traits)
+[i visit: (i here at: index)].
+
+i@(Navigator traits) back
+"Moves the last context off the history Stack and makes it it."
+[
+  i history goBack
+].
+
+i@(Navigator traits) back: n
+"Moves the last n contexts off the history Stack and makes the last one here."
+[
+  n timesRepeat: [i history goBack]
+].
+
+i@(Navigator traits) backToStart
+"Clears the history stack and returns the navigator to the original object
+inspected."
+[
+  i history goBackTo: i history pastVisits first.
+].
+
+i@(Navigator traits) close
+"Sever all the connections that make the Navigator work, for memory safety,
+and return the Navigator."
+[
+  i history := Nil.
+  i
+].

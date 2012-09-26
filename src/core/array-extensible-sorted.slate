@@ -1,0 +1,183 @@
+collections define: #InternallyOrderedSequence &parents: {ExtensibleSequence}.
+"An extensible Sequence whose elements order is determined by a constraint
+rather than manipulable by a public protocol."
+"TODO: Factor out an immutable Sequence type."
+
+sc@(InternallyOrderedSequence traits) at: index put: obj
+"TODO? Just call add:."
+[sc shouldNotImplement].
+
+collections define: #SortedArray &parents: {ExtensibleArray. InternallyOrderedSequence}
+  &slots: {#sortBlock -> #<= `er }.
+"A SortedArray is a Sequence which is Extensible, but which however maintains
+an order determined by a sorting block, therefore making indexed modification
+inappropriate."
+
+c@(Collection traits) sort
+"TODO: this scales up poorly."
+[(SortedArray newSizeOf: c) `>> [addAll: c. ]].
+
+c@(Collection traits) sortBy: block
+"TODO: this scales up poorly."
+[(SortedArray newSizeOf: c) `>> [sortBlock := block. addAll: c. ]].
+
+sc@(SortedArray traits) sort [sc].
+
+sc@(SortedArray traits) newSortedBy: block
+[sc new `>> [sortBlock: block. ]].
+
+sc@(SortedArray traits) shouldArrange: x before: y
+[sc sortBlock apply*, x, y].
+
+sc@(SortedArray traits) min
+[sc isEmpty ifFalse: [sc first]].
+
+sc@(SortedArray traits) max
+[sc isEmpty ifFalse: [sc last]].
+
+sc@(SortedArray traits) median
+[sc at: sc size + 1 // 2].
+
+sc@(SortedArray traits) sortViolation
+[error: 'Sort order violation.'].
+
+sc@(SortedArray traits) at: index insert: obj
+[
+  (sc indexForInserting: obj) = index
+    ifTrue: [resend]
+    ifFalse: [sc sortViolation]
+].
+
+sc@(SortedArray traits) add: obj
+"Use the unsafe #at:insert: call to avoid a double #indexForInserting:
+calculation which would be expensive."
+[#at:insert: sendTo: {sc. sc indexForInserting: obj. obj}
+	     through: {ExtensibleArray. Nil. Nil}
+].
+
+sc@(SortedArray traits) addLast: obj
+[
+  sc isEmpty
+    ifTrue: [resend]
+    ifFalse: [(sc shouldArrange: sc last before: obj)
+		ifTrue: [resend]
+		ifFalse: [sc sortViolation]]
+].
+
+sc@(SortedArray traits) addFirst: obj
+[
+  sc isEmpty
+    ifTrue: [resend]
+    ifFalse: [(sc shouldArrange: obj before: sc first)
+		ifTrue: [resend]
+		ifFalse: [sc sortViolation]]
+].
+
+sc@(SortedArray traits) addAll: c
+"If the number of elements to add is great enough, add the elements unsafely,
+and then sort. Otherwise, add each in turn."
+[
+  c size > (sc size // 3)
+    ifTrue: [c do: [| :each | #addLast: sendTo: {sc. each}
+					through: {ExtensibleArray. Nil}].
+	     sc reSort]
+    ifFalse: [c do: #(sc add: _) `er].
+  c
+].
+
+sc@(SortedArray traits) = sc2@(SortedArray traits)
+[
+  sc sortBlock = sc2 sortBlock /\ [resend]
+].
+
+sc@(SortedArray traits) copy
+"Make a new SortedArray with the same sortBlock. Since we know the order
+will not change, use the minimally-checking addLast: method vice addAll:."
+[
+  result ::= sc newSameSize.
+  sc do: #(result addLast: _) `er.
+  result
+].
+
+sc@(SortedArray traits) copyWith: obj
+"Non-destructively append, but don't use addLast: as ExtensibleArray does."
+[
+  sc copy `>> [add: obj. ]
+].
+
+sc@(SortedArray traits) copyFrom: start to: end
+"Copy the range into a new SortedArray which keeps the same sortBlock."
+[| result |
+  end < start \/ [sc isEmpty]
+    ifTrue: [result := sc new]
+    ifFalse:
+      [result := sc new &capacity: end - start + 1.
+       start to: end do: [| :index | result addLast: (sc at: index)]].
+  result
+].
+
+sc@(SortedArray traits) reversed
+[resend `>> [sortBlock := sc sortBlock converse. ]].
+
+sc@(SortedArray traits) collect: block
+"Override in order to return an ExtensibleArray instead of a SortedArray."
+[
+  result ::= ExtensibleArray newSizeOf: sc.
+  sc do: [| :each | result addLast: (block applyWith: each)].
+  result
+].
+
+sc@(SortedArray traits) indexOf: obj startingAt: start ifAbsent: block
+"Subdivides the SortedArray into segments by comparing mid-elements with
+the object, narrowing until the object is found, or running the block if it
+isn't."
+[| index low high |
+  low := sc firstIndex + start.
+  high := sc lastIndex.
+  [index := high + low // 2. low > high]
+    whileFalse:
+      [(sc contents at: index) = obj
+         ifTrue: [^ index].
+       (sc shouldArrange: (sc contents at: index) before: obj)
+         ifTrue: [low := index + 1]
+         ifFalse: [high := index - 1]].
+  block do
+].
+
+sc@(SortedArray traits) includes: obj
+"Overridden because the sort order makes a faster implementation possible."
+[
+  (sc indexOf: obj ifAbsent: [^ False]) isPositive
+].
+
+sc@(SortedArray traits) indexForInserting: obj
+"This returns the index where the object should be inserted to preserve sort
+order."
+[| index low high |
+  low := sc firstIndex.
+  high := sc lastIndex.
+  [index := high + low // 2. low > high]
+    whileFalse: [(sc shouldArrange: (sc contents at: index) before: obj)
+      ifTrue: [low := index + 1] ifFalse: [high := index - 1]].
+  low - sc firstIndex
+].
+
+sc@(SortedArray traits) replaceNextLargerWith: obj
+"Find the place at which obj would normally be inserted into the Sequence.
+If that place is already occupied by obj, just return Nil. If the place
+does not exist (i.e., it is off the end of the collection), add it to the
+end, otherwise replace the element at that point with obj. This returns the
+destination index in any normal case. This operation does preserve the
+sort order."
+[
+  (index ::= sc indexForInserting: obj) > sc indexLast
+    ifTrue: [sc addLast: obj. sc indexLast]
+    ifFalse: [(sc at: index) = obj ifFalse:
+      [sc contents at: index + sc firstIndex put: obj. index]]
+].
+
+sc@(SortedArray traits) reSort
+[
+  sc contents sortFrom: sc firstIndex to: sc lastIndex by: sc sortBlock.
+  sc
+].

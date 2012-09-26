@@ -2,42 +2,42 @@ Gtk define: #Window &parents: {Gtk Bin}.
 Gtk Window traits atSlotNamed: #printName put: 'Gtk Window'. 
 
 w@(Gtk Window traits) new [
-        w shouldNotImplement
+	w shouldNotImplement
 ].
 
 w@(Gtk Window traits) newWithType: type [
-        w newWithHandle: (Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_window_new applyTo: {type}
-        ])
+	w newWithHandle: (Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_window_new applyTo: {type}
+	])
 ].
 
 w@(Gtk Window traits) newTopLevel [
-        w newWithType: Gtk WindowType TopLevel
+	w newWithType: Gtk WindowType TopLevel
 ].
 
 w@(Gtk Window traits) title: title [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_window_set_title applyTo: {w handle. title}
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_window_set_title applyTo: {w handle. title}
+	]
 ].
 
 w@(Gtk Window traits) defaultSizeWidth: width height: height [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_window_set_default_size applyTo: {w handle. width. height}
-        ]
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_window_set_default_size applyTo: {w handle. width. height}
+	]
 ].
 
 w@(Gtk Window traits) isModal: isModal@(Boolean traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_window_set_modal applyTo: {w handle. isModal}
-        ].
-        w
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_window_set_modal applyTo: {w handle. isModal}
+	].
+	w
 ].
 
 w@(Gtk Window traits) add: accelGroup@(Gtk AccelGroup traits) [
-        Gdk Lib protectedDo: [
-                Gtk Lib primitives gtk_window_add_accel_group applyTo: {w handle. accelGroup handle}
-        ].
-        w
+	Gdk Lib protectedDo: [
+		Gtk Lib primitives gtk_window_add_accel_group applyTo: {w handle. accelGroup handle}
+	].
+	w
 ].
 
