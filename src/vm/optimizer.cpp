@@ -42,7 +42,7 @@ void print_opcode_args(struct object_heap* oh, std::vector<struct Object*>& code
 // this should eventually obsolete print_code_disassembled
 void print_code(struct object_heap* oh, std::vector<struct Object*> code) {
   for (size_t i = 0; i < code.size(); i += opcode_length(code, i)) {
-    fprintf(stderr, "[%" PRIuMAX "] ", i);
+    fprintf(stderr, "[%" PRIuMAX "] ", (uintmax_t)i);
     word_t rawop = (word_t)code[i];
     if (rawop >= OP_INTERNAL_SEND) {
       fprintf(stderr, "<internal>");
