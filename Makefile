@@ -48,7 +48,7 @@ install-strip: install
 
 installcheck:
 	$(info Checking installation)
-        # TODO: A few sanity checks should be run on the installed files
+	# TODO: A few sanity checks should be run on the installed files
 	$(SILENT) $(exec_prefix)/$(execname) --eval "3 + 4. quit."
 
 uninstall:
