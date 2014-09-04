@@ -107,34 +107,33 @@
 
 (defvar slate-mode-map
   (let ((map (make-sparse-keymap)))
-    (mapcar
-     #'(lambda (l)
-         (define-key map (car l) (cdr l)))
-     `(("\M-\t" . slate-tab)
-       ("\t" . slate-reindent)
-       ([backspace] . backward-delete-char-untabify)
-       ("\n" . slate-newline-and-indent)
-       ("\M-\C-a" . slate-begin-of-defun)
-       ("\M-\C-f" . slate-forward-sexp)
-       ("\M-\C-b" . slate-backward-sexp)
-       (":" . slate-colon)
-       ;;("@" . slate-dispatch)
-       ;;("\C-c\C-d" . slate-category-definition)
-       ;;("\C-cc" . slate-compile)
-       ("\C-cd" . slate-macroexpand-region)
-       ("\C-ce" . slate-eval-region)
-       ("\C-cf" . slate-filein)
-       ("\C-cm" . slate)
-       ("\C-cp" . slate-print)
-       ("\C-cq" . slate-quit)
-       ;;("\C-cr" . slate-reeval-region)
-       ("\C-cs" . slate-snapshot)
-       ("\C-ct" . ,slate-template-map)
-       ("\C-cu" . slate-unit-tests)
-       ("\C-cw" . slate-workspace)
-       ;;("\C-c\C-s" . slate-browse-selectors)
-       ;;("\C-x c" . slate-complete-traits)
-       ))
+    (dolist
+        (l `(("\M-\t" . slate-tab)
+             ("\t" . slate-reindent)
+             ([backspace] . backward-delete-char-untabify)
+             ("\n" . slate-newline-and-indent)
+             ("\M-\C-a" . slate-begin-of-defun)
+             ("\M-\C-f" . slate-forward-sexp)
+             ("\M-\C-b" . slate-backward-sexp)
+             (":" . slate-colon)
+             ;;("@" . slate-dispatch)
+             ;;("\C-c\C-d" . slate-category-definition)
+             ;;("\C-cc" . slate-compile)
+             ("\C-cd" . slate-macroexpand-region)
+             ("\C-ce" . slate-eval-region)
+             ("\C-cf" . slate-filein)
+             ("\C-cm" . slate)
+             ("\C-cp" . slate-print)
+             ("\C-cq" . slate-quit)
+             ;;("\C-cr" . slate-reeval-region)
+             ("\C-cs" . slate-snapshot)
+             ("\C-ct" . ,slate-template-map)
+             ("\C-cu" . slate-unit-tests)
+             ("\C-cw" . slate-workspace)
+             ;;("\C-c\C-s" . slate-browse-selectors)
+             ;;("\C-x c" . slate-complete-traits)
+             ))
+      (define-key map (car l) (cdr l)))
     map)
   "Slate mode keymappings")
 
@@ -151,7 +150,22 @@
   (regexp-opt '("lobby" "True" "False" "Nil" "NoRole" "thisContext"
         "resend" "clone" "here" "it" "_") 'words))
 
-(defconst slate-binop-chars "-+*/\\~;<>=&?"
+(defconst slate-binop-chars (concat "-+*/\\~;<>=&?"
+                                    "××÷−⋇"
+                                    "≡⋝≥≤̱≖≑≏≗≜"
+                                    "⊂⊃⊆⊉⊄⊅∩∪∍≈≊∨⊻⋎⋁⋃⋂★⋆∔⊡•⊣∠∢"
+                                    "⇁⇀→→↠↛↣⇒⇏⇒⇛⇚⇐⇍⇐↢↞↚←←↼↽"
+                                    "⇉⇇"
+                                    "↔⇆↔⇔↭"
+                                    "↺↻̣↫↬↩↪↦"
+                                    "↑̆⇈↓⇊↾⇂↿̣⇃"
+                                    "⇋⇌"
+                                    "∥∥⊥∦∦"
+                                    "∑∏∐"
+                                    "∴∃∀"
+                                    "▵▴▿▾▹▸◃◂⊵⊴△▽̱"
+                                    "♮♯♭"
+                                    "¶§※⚠")
   "The collection of characters that can compose a Slate binary selector.")
 
 (defconst slate-binop-regexp
@@ -171,42 +185,42 @@
 
 (defconst slate-mode-syntax-table
   (let ((table (make-syntax-table)))
-    (mapcar
-     #'(lambda (l)
-         (modify-syntax-entry (car l) (cdr l) table))
-     '((?\' . "\"") ; String
-       (?\" . "\"") ; Comment
-       (?+  . "w") ; Binary selector elements...
-       (?-  . "w")
-       (?*  . "w")
-       (?/  . "w")
-       (?=  . "w")
-       (??  . "w")
-       (?%  . "w")
-       (?~  . "w")
-       (?%  . "w")
-       (?\; . "w")
-       (?<  . "w")
-       (?>  . "w")
-       (?\[ . "(]") ; Block opener
-       (?\] . ")[") ; Block closer
-       (?\( . "()") ; Parens opener
-       (?\) . ")(") ; Parens closer
-       (?{  . "(}") ; Array opener
-       (?}  . "){") ; Array closer
-       (?&  . "'") ; Optional keyword marker
-       (?`  . "'") ; Macro character
-       (?$  . "'") ; Character literal
-       (?#  . "'") ; Symbol
-       (?|  . "$") ; Locals
-       (?_  . "w") ; Word-element and anonymous argument
-       (?:  . "_") ; Keyword marker
-       (?\\ . "\\") ; C-like escape
-       (?!  . "'") ; A stop in Smalltalk. A type annotation in Slate.
-       (?@  . "'") ; Dispatch annotator
-       (?^  . "w") ; Return
-       (?,  . ".") ; Comma for *rest parameters
-       (?.  . "."))) ; Statement separator
+    (dolist
+        (l '((?\' . "\"") ; String
+             (?\" . "\"") ; Comment
+             (?+  . "w") ; Binary selector elements...
+             (?-  . "w")
+             (?*  . "w")
+             (?/  . "w")
+             (?=  . "w")
+             (??  . "w")
+             (?%  . "w")
+             (?~  . "w")
+             (?%  . "w")
+             (?\; . "w")
+             (?<  . "w")
+             (?>  . "w")
+             (?\[ . "(]") ; Block opener
+             (?\] . ")[") ; Block closer
+             (?\( . "()") ; Parens opener
+             (?\) . ")(") ; Parens closer
+             (?{  . "(}") ; Array opener
+             (?}  . "){") ; Array closer
+             (?&  . "'") ; Optional keyword marker
+             (?`  . "'") ; Macro character
+             (?$  . "'") ; Character literal
+             (?#  . "'") ; Symbol
+             (?|  . "$") ; Locals
+             (?_  . "w") ; Word-element and anonymous argument
+             (?:  . "_") ; Keyword marker
+             (?\\ . "\\") ; C-like escape
+             (?!  . "'") ; A stop in Smalltalk. A type annotation in Slate.
+             (?@  . "'") ; Dispatch annotator
+             (?^  . "w") ; Return
+             (?,  . ".") ; Comma for *rest parameters
+             (?.  . ".") ; Statement separator
+             ))
+      (modify-syntax-entry (car l) (cdr l) table))
     table)
   "Slate character types")
 
@@ -270,8 +284,8 @@
     ("\\<[0-9_]+\\>" . font-lock-constant-face) ; integers
     (,slate-globals-regexp
      . font-lock-builtin-face)          ; globals
-;;     (,(concat "\\<" slate-binop-regexp "\\>")
-;;      . font-lock-string-face)        ; binary message send
+    (,(concat "\\<" slate-binop-regexp "\\>")
+     . font-lock-string-face)        ; binary message send
    )
   "Slate highlighting matchers.")
 
@@ -545,16 +559,16 @@ text."
 
 (defvar slate-interactor-mode-map
   (let ((map (copy-keymap slate-mode-map)))
-    (mapcar
-     #'(lambda (l) (define-key map (car l) (cdr l)))
-     '(("\C-m"      . 'comint-send-input)
-       ("\C-c\C-d"  . comint-delchar-or-maybe-eof)
-       ("\C-c\C-u"  . comint-kill-input)
-       ("\C-c\C-c"  . comint-interrupt-subjob)
-       ("\C-c\C-z"  . comint-stop-subjob)
-       ("\C-c\C-\\" . comint-quit-subjob)
-       ("\C-c\C-o"  . comint-kill-output)
-       ("\C-c\C-r"  . comint-show-output)))
+    (dolist
+        (l '(("\C-m"      . 'comint-send-input)
+             ("\C-c\C-d"  . comint-delchar-or-maybe-eof)
+             ("\C-c\C-u"  . comint-kill-input)
+             ("\C-c\C-c"  . comint-interrupt-subjob)
+             ("\C-c\C-z"  . comint-stop-subjob)
+             ("\C-c\C-\\" . comint-quit-subjob)
+             ("\C-c\C-o"  . comint-kill-output)
+             ("\C-c\C-r"  . comint-show-output)))
+      (define-key map (car l) (cdr l)))
     map)
   "Keymap for controlling the Slate listener")
 
