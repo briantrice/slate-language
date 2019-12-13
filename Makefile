@@ -6,7 +6,7 @@ all: vm
 
 vm:
 	$(SILENT) $(MAKE) -C $(VMDIR) vm
-	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./slate
+	$(SILENT) cp -f $(VMDIR)/$(VMNAME) ./$(execname)
 
 slate.%.image: kernel.new.%.image
 	$(SILENT) $(ECHO) "repl resetOnStartup. Load DefaultSourceDir := Directory newNamed: '$(slatesrcdir)'. Image saveNamed: '$@'." | $(VM) $(QUIETNESS) -i $<
@@ -46,9 +46,12 @@ install: vm installdirs
 install-strip: install
 	$(SILENT) $(INSTALL) -s $(VM) $(exec_prefix)/$(execname)
 
+# TODO: A few sanity checks should be run on the installed files
+check:
+	$(SILENT) $(execname) --eval "3 + 4. quit."
+
 installcheck:
 	$(info Checking installation)
-	# TODO: A few sanity checks should be run on the installed files
 	$(SILENT) $(exec_prefix)/$(execname) --eval "3 + 4. quit."
 
 uninstall:
