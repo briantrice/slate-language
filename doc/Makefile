@@ -7,7 +7,7 @@ ifeq ($(HOST_SYSTEM), Darwin)
   LYX_BIN=/Applications/LyX.app/Contents/MacOS/lyx
 endif
 OUT=progman
-DIAGRAMS=core-web collection-web stream-web
+DIAGRAMS= #core-web collection-web stream-web
 DIAGRAM_OUTS=$(foreach dgm, $(DIAGRAMS), $(dgm).eps)
 HTML_CONVERT=latex2html -no_subdir -reuse 1 -local_icons -split 5 -show_section_numbers
 
@@ -43,7 +43,7 @@ diagrams: $(DIAGRAM_OUTS)
 
 $(OUT): $(OUT).tex diagrams $(OUT)-dir
 	cp $< $(OUT)/
-	cp $(OUT).bib $(OUT)/
+	-cp $(OUT).bib $(OUT)/
 	-cp $(OUT).aux $(OUT)/
 	$(HTML_CONVERT) $(OUT)/$<
 	-rm $(OUT)/*.pl
