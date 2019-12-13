@@ -1,7 +1,11 @@
 # Generates new website documentation via LyX and latex2html
 
-#LYX_BIN=/Applications/Office/LyX.app/Contents/MacOS/lyx
+HOST_SYSTEM := $(shell uname -s)
+
 LYX_BIN=lyx
+ifeq ($(HOST_SYSTEM), Darwin)
+  LYX_BIN=/Applications/LyX.app/Contents/MacOS/lyx
+endif
 OUT=progman
 DIAGRAMS=core-web collection-web stream-web
 DIAGRAM_OUTS=$(foreach dgm, $(DIAGRAMS), $(dgm).eps)
