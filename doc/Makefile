@@ -16,7 +16,7 @@ default: $(OUT)
 #Call Lyx to output LaTeX, then replace \tabularnewline's with \\'s but not
 #the first one (that creates a circularity which breaks TeX).
 $(OUT).tex: $(OUT).lyx
-	$(LYX_BIN) -e latex $< $@
+	$(LYX_BIN) -e latex $< -E latex $@
 	mv $@ $@.pre
 	sed     -e '24,30s/tabularnewline/ZANZIBAR/' \
 		-e 's/\\tabularnewline/\\\\/g' \
