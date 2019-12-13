@@ -1,0 +1,22 @@
+name: LyX Docs
+
+on:
+  push:
+    branches:
+      - master
+    # file paths to consider in the event. Optional; defaults to all.
+    paths:
+      - 'doc/*'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install LyX
+      run: sudo apt-get install lyx
+    - name: Build Programmer's Manual
+      run: |
+        make -C doc progman
