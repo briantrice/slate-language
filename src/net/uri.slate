@@ -152,11 +152,11 @@ u@(Net URI traits) newFrom: s
   r := (Regex Matcher newOn: '^(([^:/?#]+)\\:)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?').
   (r match: s) ~= -1
     ifTrue: [u cloneSettingSlots: #{#scheme. #authority. #path. #query. #fragment}
-                     to: {(r subexpression: 1) as: Net Schemes Scheme.
-                          r subexpression: 3. 
-                          (r subexpression: 4) ifNil: ['/']. 
-                          r subexpression: 6. 
-                          r subexpression: 7}]
+                     to: {(r subexpressionAt: 1) as: Net Schemes Scheme.
+                          r subexpressionAt: 3.
+                          (r subexpressionAt: 4) ifNil: ['/'].
+                          r subexpressionAt: 6.
+                          r subexpressionAt: 7}]
     ifFalse: [error: 'Unable to parse: ' ; s ; ' as URI']
 ].
 
