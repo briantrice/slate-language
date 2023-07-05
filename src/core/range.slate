@@ -211,9 +211,9 @@ r@(Range traits) do: block
   each := r start.
   r step isNegative
     ifTrue: [[r end <= each]
-	       whileTrue: [block applyWith: each. each += r step]]
+           whileTrue: [block applyWith: each. each += r step]]
     ifFalse: [[r end >= each]
-		whileTrue: [block applyWith: each. each += r step]].
+        whileTrue: [block applyWith: each. each += r step]].
   r
 ].
 
@@ -222,9 +222,9 @@ r@(Range traits) reverseDo: block
   each := r start.
   r step isNegative
     ifTrue: [[r end >= each]
-	       whileTrue: [block applyWith: each. each -= step]]
+           whileTrue: [block applyWith: each. each -= step]]
     ifFalse: [[r end <= each]
-		whileTrue: [block applyWith: each. each -= step]].
+        whileTrue: [block applyWith: each. each -= step]].
   r
 ].
 
@@ -241,11 +241,11 @@ r1@(Range traits) /\ r2@(Range traits)
   (r1 intersects: r2)
     ifTrue:
       [r1 step = r2 step
-	 ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: r1 step]
-	 ifFalse:
-	   [({r1 step. r2 step} includes: (r1 step gcd: r2 step))
-	      ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: (r1 step min: r2 step)]
-	      ifFalse: ["Ranges do not step harmonically."]]]
+     ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: r1 step]
+     ifFalse:
+       [({r1 step. r2 step} includes: (r1 step gcd: r2 step))
+          ifTrue: [(r1 start max: r2 start) to: (r1 end min: r2 end) by: (r1 step min: r2 step)]
+          ifFalse: ["Ranges do not step harmonically."]]]
 ].
 
 "Some very basic range math"
@@ -283,16 +283,16 @@ r@(LogicRange traits) newFrom: start to: end by: step
     ifFalse: [(step applyWith: start) > start].
   r cloneSettingSlots: #{#start. #end. #step}
     to: {start.
-	 (end is: Number)
-	    ifTrue: [goesUp
-		       ifTrue: [[| :x | x >= end]]
-		       ifFalse: [[| :x | x <= end]]]
-	    ifFalse: [end].
-	 (step is: Number)
-	    ifTrue: [goesUp
-		       ifTrue: [[| :x | x + step]]
-		       ifFalse: [[| :x | x - step]]]
-	    ifFalse: [step]}
+     (end is: Number)
+        ifTrue: [goesUp
+               ifTrue: [[| :x | x >= end]]
+               ifFalse: [[| :x | x <= end]]]
+        ifFalse: [end].
+     (step is: Number)
+        ifTrue: [goesUp
+               ifTrue: [[| :x | x + step]]
+               ifFalse: [[| :x | x - step]]]
+        ifFalse: [step]}
 ].
 
 start@(Number traits) until: end by: step
@@ -343,7 +343,7 @@ r@(LogicRange traits) do: block
   each := r start.
   [r end applyWith: each]
     whileFalse: [block applyWith: each.
-		 each := r step applyWith: each].
+         each := r step applyWith: each].
   r
 ].
 
@@ -374,8 +374,8 @@ while not exceeding the end test."
 [
   (r end applyWith: n) not
     /\ [r isAscending
-	  ifTrue: [n >= r start]
-	  ifFalse: [n <= r start]]
+      ifTrue: [n >= r start]
+      ifFalse: [n <= r start]]
 ].
 
 r@(LogicRange traits) includes: n

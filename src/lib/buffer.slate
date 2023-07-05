@@ -18,7 +18,7 @@ s@(WriteBufferStream traits) flush
 [| b |
   (b := s buffer) isSplit
     ifTrue: [s nextPutAll: b from: b firstIndex to: b size - 1.
-	     s nextPutAll: b from: 0 to: b lastIndex]
+         s nextPutAll: b from: 0 to: b lastIndex]
     ifFalse: [s nextPutAll: b from: b firstIndex to: b lastIndex].
   b clear.
   s stream flush.
@@ -45,10 +45,10 @@ s@(WriteBufferStream traits) nextPutAll: seq
        dstIndex := s lastIndex.
        0 below: seq size do:
          [| :each |
-	  dstIndex := dstIndex = s contents size
-	    ifTrue: [0]
-	    ifFalse: [dstIndex + 1].
-	  s contents at: dstIndex := each].
+      dstIndex := dstIndex = s contents size
+        ifTrue: [0]
+        ifFalse: [dstIndex + 1].
+      s contents at: dstIndex := each].
        s lastIndex := dstIndex].
   seq
 ].
@@ -68,7 +68,7 @@ s@(ReadBufferStream traits) flush
   (b := s buffer) isSplit
     ifTrue: [s stream next: b gapSize putInto: b]
     ifFalse: [s stream next: b capacity - b lastIndex putInto: b.
-	      s stream next: b firstIndex putInto: b].
+          s stream next: b firstIndex putInto: b].
   s
 ].
 
@@ -94,11 +94,11 @@ s@(ReadBufferStream traits) next: n putInto: seq@(Sequence traits)
   n > oldSize
     ifTrue:
       [b doWithIndex:
-	 [| :each :index | seq at: index := each].
+     [| :each :index | seq at: index := each].
        b clear.
        s stream next: b capacity putInto: b.
        oldSize below: seq size do:
-	 [| :index | seq at: index := b removeFirst]]
+     [| :index | seq at: index := b removeFirst]]
     ifFalse:
       [0 below: n do: [| :index | seq at: index := b removeFirst]].
   seq size

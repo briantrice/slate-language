@@ -24,8 +24,8 @@ m@(MemoryArea traits) new &capacity: n &fixed
 [
   (fixed `defaultsTo: False)
     ifTrue: [result ::= m clone `setting: #{#handle. #locator} to: {Nil. m locator clone}.
-	     n ifNotNil: [result locator byteSize := n].
-	     result]
+         n ifNotNil: [result locator byteSize := n].
+         result]
     ifFalse: [ByteArray new &capacity: n]
 ].
 
@@ -35,7 +35,7 @@ m@(MemoryArea traits) enable
     ifNil: [error: 'Failed to allocate ' ; byteSize printString ; ' bytes.']
     ifNotNilDo:
       [| :handle | handle isNegative ifTrue: ['Primitive allocation error']
-				     ifFalse: [m handle := handle]].
+                     ifFalse: [m handle := handle]].
   m
 ].
 
@@ -78,8 +78,8 @@ m@(MemoryArea traits) resizeTo: size
   (m resize: m handle to: size)
     ifNil: [error: 'Not a valid memory handle.']
     ifNotNilDo: [| :newSize |
-		newSize isNegative ifTrue: [error: 'Unsuccessful allocation.']
-				   ifFalse: [m locator byteSize := newSize]]
+        newSize isNegative ifTrue: [error: 'Unsuccessful allocation.']
+                   ifFalse: [m locator byteSize := newSize]]
 ].
 
 m@(MemoryArea traits) addressAt: index

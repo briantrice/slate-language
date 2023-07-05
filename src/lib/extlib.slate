@@ -11,7 +11,7 @@ m@(ExternalMethod traits) allSelectorsSent [#{}].
 m@(ExternalMethod traits) optionalKeywords [#{}].
 
 ExternalLibrary traits define: #ConnectionFailed
-		       &parents: {ExternalResource ConnectionFailed}.
+               &parents: {ExternalResource ConnectionFailed}.
 
 l@(ExternalLibrary ConnectionFailed traits) describeOn: out
 [
@@ -42,7 +42,7 @@ r@(ExternalMethod traits) connectionFailure
 
 ExternalMethod traits ensureNamespace: #ArgumentFormat
   &slots: {#Void -> 0. #Int -> 1. #Float -> 2. #Pointer -> 3. #Bytes -> 4.
-	  #Boolean -> 5. #CString -> 6. #CStructValue -> 7. #Double -> 8}.
+      #Boolean -> 5. #CString -> 6. #CStructValue -> 7. #Double -> 8}.
 
 ExternalMethod traits ensureNamespace: #CallFormat
   &slots: {#C -> 0. #Std -> 1}.
@@ -83,7 +83,7 @@ d@(ExternalLibrary traits) newNamed: libName
        (c resource name beginsWith: 'lib/')
          ifTrue: [c defaultHandler]
          ifFalse: [c resource name := 'lib/' ; c resource name.
-		   c return: c resource open]]]
+           c return: c resource open]]]
    ifCompletes: [inform: 'Library ' ; libName ; ' was successfully loaded.']
 ].
 
@@ -197,8 +197,8 @@ e@(ExternalLibrary traits) installMethodsForSigs: sigs on: target
   sigs
     do: [| :sig functionName |
          functionName := nameTransformer applyWith: sig name.
-	 target addSlot: (intern: sig name) valued:
-	   ((e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af) as: CompiledMethod)].
+     target addSlot: (intern: sig name) valued:
+       ((e functionNamed: functionName returning: sig returnType from: sig argTypes &callFormat: af) as: CompiledMethod)].
 ].
 
 e@(ExternalLibrary traits) installMethodsForDefs: defs on: target
@@ -214,8 +214,8 @@ defs must be an array of size-3 sequences. See signaturesForDefs: for format det
   (e signaturesForDefs: defs &typesIn: ns &argumentFormats: af)
     do: [| :sig slotName method |
          slotName := intern: (nameTransformer applyWith: sig name).
-	 target addSlot: slotName valued:
-	   (e functionNamed: sig name returning: sig returnType from: sig argTypes &callFormat: cf)].
+     target addSlot: slotName valued:
+       (e functionNamed: sig name returning: sig returnType from: sig argTypes &callFormat: cf)].
 ].
 
 m@(ExternalMethod traits) enable
@@ -248,7 +248,7 @@ m@(ExternalMethod traits) as: _@(CompiledMethod traits)
 
 define: #CObject &parents: {ByteArray}
   &slots: {#specification -> C Structure clone.
-	   #storage -> ByteArray new "Where the data is stored; could also be a MemoryArea or a slice thereof."}.
+       #storage -> ByteArray new "Where the data is stored; could also be a MemoryArea or a slice thereof."}.
 "CObject uses a ByteArray to hold the payload contents of an actual or
 potential C struct value. It can automatically generate accessor methods based
 on a struct definition."
@@ -292,7 +292,7 @@ type@(C Structure traits) mutatorForOffset: offset [Nil].
 type@(C Char traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage at: offset) > 16r7f
-		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+            ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
 type@(C UnsignedChar traits) accessorForOffset: offset
@@ -309,7 +309,7 @@ type@(C UnsignedChar traits) mutatorForOffset: offset
 type@(C ShortInt traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage int16At: offset / 2) > 16r7fff
-		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+            ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
 type@(C UnsignedShortInt traits) accessorForOffset: offset
@@ -326,7 +326,7 @@ type@(C UnsignedShortInt traits) mutatorForOffset: offset
 type@(C LongInt traits) accessorForOffset: offset
 [
   [| :s value | (value := s storage int32At: offset / 4) > 16r7fffffff
-		    ifTrue: [(value >> 1) negated] ifFalse: [value]]
+            ifTrue: [(value >> 1) negated] ifFalse: [value]]
 ].
 
 type@(C UnsignedLongInt traits) accessorForOffset: offset
@@ -414,7 +414,7 @@ _@(CObject traits) addDefinition: def named: name into: ns
 
 define: #ExternalInterface
   &slots: {#primitives -> Namespace clone.
-	   #library -> ExternalLibrary. #specs -> {}. #leader -> ''}.
+       #library -> ExternalLibrary. #specs -> {}. #leader -> ''}.
 "This facade manages ExternalLibrary objects, by also setting up and
 holding their ExternalMethods and specs to re-generate them.  The leader
 is a prefix for all the function names, but not the generated method

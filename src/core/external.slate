@@ -85,8 +85,8 @@ r@(ExternalResource traits) close
 [
   r isOpen
     ifTrue: [r disable.
-	     r handle := Nil.
-	     r openResources remove: r]
+         r handle := Nil.
+         r openResources remove: r]
     ifFalse: [r signalClosed].
   r
 ].
@@ -279,7 +279,7 @@ The return value of the block is answered if it completes without error."
 ].
 
 ExternalResource traits define: #ReadStream
-			&parents: {ExternalResource Stream. ReadStream}.
+            &parents: {ExternalResource Stream. ReadStream}.
 
 s@(ExternalResource ReadStream traits) nextLine
 [
@@ -305,7 +305,7 @@ next:putInto:startingAt: is overridden on ER subtypes."
 ].
 
 ExternalResource traits define: #WriteStream
-			&parents: {ExternalResource Stream. WriteStream}.
+            &parents: {ExternalResource Stream. WriteStream}.
 
 s@(ExternalResource WriteStream traits) nextPut: obj
 "fixme warn people not to use this too much"
@@ -335,10 +335,10 @@ source@(ReadStream traits) >> sink@(ExternalResource WriteStream traits)
 ExternalResource traits define: #ReadWriteStream
   &parents: {ExternalResource ReadStream. ExternalResource WriteStream}.
 ExternalResource traits define: #SeriousCondition
-			&parents: {SeriousCondition} &slots: {#resource}.
+            &parents: {SeriousCondition} &slots: {#resource}.
 
 ExternalResource traits define: #Closed
-			&parents: {ExternalResource SeriousCondition}.
+            &parents: {ExternalResource SeriousCondition}.
 "A condition where I/O is attempted on a closed resource."
 
 r@(ExternalResource traits) signalClosed
@@ -350,14 +350,14 @@ r@(ExternalResource Closed traits) describeOn: out
 ].
 
 ExternalResource Closed traits define: #OpenResource
-			       &parents: {Restart}.
+                   &parents: {Restart}.
 "Try to open the resource."
 
 r@(ExternalResource Closed OpenResource traits) defaultHandler
 [r condition resource open].
 
 ExternalResource traits define: #ConnectionFailed
-			&parents: {ExternalResource SeriousCondition}.
+            &parents: {ExternalResource SeriousCondition}.
 "A condition where a connection attempt fails."
 
 r@(ExternalResource traits) connectionFailure

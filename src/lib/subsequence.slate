@@ -1,8 +1,8 @@
 define: #SubSequence &parents: {Sequence}
 "Represents a section/slice of a Sequence without allocating a new Sequence."
   &slots: {#sequence -> {}. "The source of the elements."
-	   #start -> 0. "The index within the source of the first element."
-	   #end -> 0 "The index within the source following the last element."}.
+       #start -> 0. "The index within the source of the first element."
+       #end -> 0 "The index within the source following the last element."}.
 
 c@(Sequence traits) sliceFrom: start below: end
 [
@@ -15,7 +15,7 @@ c@(SubSequence traits) sliceFrom: start below: end
 [
   start <= end
     ifTrue: [c clone `setting: #{#start. #end}
-	       to: {c start + start. c start + end}]
+           to: {c start + start. c start + end}]
     ifFalse: [error: 'This results in a negative size.']
 ].
 
@@ -92,7 +92,7 @@ c@(SubSequence traits) copyFrom: start to: end
   end < start \/ [c isEmpty]
     ifTrue: [c new]
     ifFalse: [(c arrayType new &capacity: (newSize := end - start + 1))
-		replaceFrom: 0 to: newSize - 1 with: c startingAt: start]
+        replaceFrom: 0 to: newSize - 1 with: c startingAt: start]
 ].
 
 s@(WriteStream traits) nextPutAll: c@(SubSequence traits)

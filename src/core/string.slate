@@ -305,9 +305,9 @@ s@(String traits) titleCase
      (word includes: $&)
        ifTrue: [word toUppercase]
        ifFalse:
-	 [(s SmallWords includes: word) /\ [index > 0]
+     [(s SmallWords includes: word) /\ [index > 0]
             ifTrue: [word toLowercase]
-	    ifFalse: [word capitalize]]].
+        ifFalse: [word capitalize]]].
   words join &separator: ' '
 ].
 
@@ -334,7 +334,7 @@ same value. This gives programmatic access to the right input for any String."
           $\a -> [result ; '\\a'].
           $\e -> [result ; '\\e'].
           $\0 -> [result ; '\\0'].
-	  $\s -> [result ; '\\ '].
+      $\s -> [result ; '\\ '].
         }
         otherwise:
           [c isPrintable
@@ -343,7 +343,7 @@ same value. This gives programmatic access to the right input for any String."
                [result ; '\\x'.
                 c code // 16 printOn: result &radix: 16.
                 c code \\ 16 printOn: result &radix: 16]]
-	]] writingAs: s
+    ]] writingAs: s
 ].
 
 s@(String traits) readFrom: src
@@ -377,8 +377,8 @@ requires a full lexicon (for English) - only use this for technical purposes."
     [s last isVowel] -> [s ; 's'].
     [s last toLowercase = $y]
       -> [(s at: s indexLast - 1) isVowel not
-	    ifTrue: [s allButLast ; 'ies']
-	    ifFalse: [s ; 's']].
+        ifTrue: [s allButLast ; 'ies']
+        ifFalse: [s ; 's']].
     [s endsWith: 'us'] -> [(s allButLast: 2) ; 'i'].
     [s endsWith: 'sis'] -> [(s allButLast: 2) ; 'es'].
     [s endsWith: 'on'] -> [(s allButLast: 2) ; 'a'].
@@ -397,7 +397,7 @@ s@(String traits) stripAll: c@(Collection traits) startingAt: start
     [| :index |
      each := s at: index.
      (c includes: each)
-	   ifFalse: [result nextPut: each]].
+       ifFalse: [result nextPut: each]].
   result contents
 ].
 
@@ -514,7 +514,7 @@ ch@(ASCIIString Character traits) rot13
   (code := ch toLowercase code) >= #[$a code] /\ [code < #[$n code]]
     ifTrue: [code += 13]
     ifFalse: [code > #[$m code] /\ [code <= #[$z code]]
-		ifTrue: [code -= 13]].
+        ifTrue: [code -= 13]].
   ch isUppercase
     ifTrue: [(code as: ch) toUppercase]
     ifFalse: [code as: ch]

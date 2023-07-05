@@ -216,7 +216,7 @@ c@(Collection traits) select: test collect: block
 [
   [| :result |
    c do: [| :each | (test apply*, each)
-		    ifTrue: [result nextPut: (block apply*, each)]]]
+            ifTrue: [result nextPut: (block apply*, each)]]]
     writingAs: c
 ].
 
@@ -225,8 +225,8 @@ c@(Collection traits) collect: block select: test
 [
   [| :result |
    c do: [| :each tmp |
-	  tmp := block apply*, each.
-	  (test apply*, tmp) ifTrue: [result nextPut: tmp]]]
+      tmp := block apply*, each.
+      (test apply*, tmp) ifTrue: [result nextPut: tmp]]]
     writingAs: c
 ].
 
@@ -289,8 +289,8 @@ Example:
   block arity = 2 
     ifTrue: [c allCollect: [| *rest | rest reduce: block]]
     ifFalse: [block arity = c size \/ [block acceptsAdditionalArguments]
-		ifTrue: [c allCollect: block]
-		ifFalse: [error: 'Trying to across: using non-binary block that is of different arity than the number of arguments.']]
+        ifTrue: [c allCollect: block]
+        ifFalse: [error: 'Trying to across: using non-binary block that is of different arity than the number of arguments.']]
 ].
 
 c@(Collection traits) pairCollect: binBlock
@@ -300,8 +300,8 @@ c@(Collection traits) pairCollect: binBlock
    src := c reader.
    last := src next.
    src do: [| :current |
-	    result nextPut: (binBlock apply*, last, current).
-	    last := current]].
+        result nextPut: (binBlock apply*, last, current).
+        last := current]].
      writingInto: (c new &capacity: c size - 1)
 ].
 
@@ -324,7 +324,7 @@ all other elements in the Collection. (see also least:)"
 isEmpty implies Nil returns and subsequent necessary checks are not enough."
 [
   c reduce: [| :a :b | (binBlock apply*, a, b)
-		       ifTrue: [a] ifFalse: [b]]
+               ifTrue: [a] ifFalse: [b]]
 ].
 
 c@(Collection traits) most
@@ -337,7 +337,7 @@ other elements in the Collection. (see also most:)"
 isEmpty implies Nil returns and subsequent necessary checks are not enough."
 [
   c reduce: [| :a :b | (binBlock apply*, a, b)
-		       ifTrue: [b] ifFalse: [a]]
+               ifTrue: [b] ifFalse: [a]]
 ].
 
 c@(Collection traits) least

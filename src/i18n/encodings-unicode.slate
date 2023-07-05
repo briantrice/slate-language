@@ -39,9 +39,9 @@ s@(UnicodeString traits) at: n put: char
 
 prototypes define: #SmallUnicodeString &parents: {UnicodeString}
   &slots: {#elementType -> UnicodeCharacter.
-	   #bytes1 -> ByteArray new.
-	   #bytes2 -> ByteArray new.
-	   #bytes3 -> ByteArray new}.
+       #bytes1 -> ByteArray new.
+       #bytes2 -> ByteArray new.
+       #bytes3 -> ByteArray new}.
 
 unicode@(Integer traits) as: c@(UnicodeCharacter traits)
 [
@@ -208,16 +208,16 @@ This is localized."
     13 -> [ns subsetFor13: i].
     14 -> [ns General].
     15 -> [i <= 16rF8FF ifTrue: [^ ns General].
-	   i <= 16rFAFF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
-	   i <= 16rFB4F ifTrue: [^ ns AlphabeticPresentations].
-	   i <= 16rFDFF ifTrue: [^ ns ArabicPresentationsA].
-	   i <= 16rFE0F ifTrue: [^ ns General].
-	   i <= 16rFE2F ifTrue: [^ ns CombiningHalfMarks].
-	   i <= 16rFE4F ifTrue: [^ ns General].
-	   i <= 16rFE6F ifTrue: [^ ns General].
-	   i <= 16rFEFF ifTrue: [^ ns ArabicPresentationsB].
-	   i <= 16rFFEF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
-	   ns General]
+       i <= 16rFAFF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
+       i <= 16rFB4F ifTrue: [^ ns AlphabeticPresentations].
+       i <= 16rFDFF ifTrue: [^ ns ArabicPresentationsA].
+       i <= 16rFE0F ifTrue: [^ ns General].
+       i <= 16rFE2F ifTrue: [^ ns CombiningHalfMarks].
+       i <= 16rFE4F ifTrue: [^ ns General].
+       i <= 16rFE6F ifTrue: [^ ns General].
+       i <= 16rFEFF ifTrue: [^ ns ArabicPresentationsB].
+       i <= 16rFFEF ifTrue: [^ ns subsetForKanjiClass: kanjiClass].
+       ns General]
   } otherwise:
     [(i between: 16r10300 and: 16r1032F) ifTrue: [^ ns OldItalic].
      i <= 16r1034F ifTrue: [^ ns Gothic].
@@ -359,14 +359,14 @@ c@(UnicodeCharacter traits) is: ss@(UnicodeSubset traits)
 ].
 
 CharacterData define: #MathematicalPluses
-	      &builder: [{16r2B as: UnicodeCharacter}].   "$+"
+          &builder: [{16r2B as: UnicodeCharacter}].   "$+"
 CharacterData define: #MathematicalMinuses
-	      &builder: [{16r2D as: UnicodeCharacter.    "$-"
-			 16r2212 as: UnicodeCharacter.  "Minus sign"
-			 16rFE63 as: UnicodeCharacter.  "Small minus"
-			 16rFF0D as: UnicodeCharacter}]. "Full-width minus"
+          &builder: [{16r2D as: UnicodeCharacter.    "$-"
+             16r2212 as: UnicodeCharacter.  "Minus sign"
+             16rFE63 as: UnicodeCharacter.  "Small minus"
+             16rFF0D as: UnicodeCharacter}]. "Full-width minus"
 CharacterData define: #MathematicalPeriods
-	      &builder: [{16r2E as: UnicodeCharacter}].   "$."
+          &builder: [{16r2E as: UnicodeCharacter}].   "$."
 "TODO: add more, if there are any"
 CharacterData define: #MathematicalExponents
               &builder: [{16r52 as: UnicodeCharacter.
@@ -385,7 +385,7 @@ ignored."
   number := 0.
   [l isAtEnd not
      /\ [(l peek isDigit &radix: radix)
-	   \/ [separators includes: l peek]]]
+       \/ [separators includes: l peek]]]
     whileTrue:
       [| c |
        ((c := l next) isDigit &radix: radix) ifTrue:
@@ -405,8 +405,8 @@ FIXME: add checks that numbers are of same script"
   (CharacterData MathematicalPluses includes: c)
     \/ [CharacterData MathematicalMinuses includes: c]
     ifTrue: [(CharacterData MathematicalMinuses includes: c) 
-		ifTrue: [sign := -1].
-	     l next].
+        ifTrue: [sign := -1].
+         l next].
   "Now read in all the continuous string of digits possible as an integer."
   number := (l readInteger &radix: 10).
   "Reaching the end of the lexing stream just finalizes the process."
@@ -418,7 +418,7 @@ FIXME: add checks that numbers are of same script"
       [number := l readInteger &radix: number]
     ifFalse:
       [(CharacterData MathematicalPeriods includes: c)
-	 /\ [l isAtEnd not] /\ [l peek isDigit]
+     /\ [l isAtEnd not] /\ [l peek isDigit]
          ifTrue:
            [number := (number as: Float) + (l readMantissa &separators: separators).
             l isAtEnd
@@ -441,11 +441,11 @@ l@(ReadStream traits) readMantissa &separators: separators
     whileTrue:
       [| c |
         c := l next.
-	c toDigit.
+    c toDigit.
         c isDigit
           ifTrue:
             [number := number * 10 + c toDigit.
-	     place *= 10]
+         place *= 10]
       ].
   (number as: Float) / (place as: Float)
 ].

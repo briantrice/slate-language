@@ -14,7 +14,7 @@ f@(File traits) size
 "Get the file size in bytes."
 [
   f isOpen ifTrue: [f sizeOf: f handle]
-	   ifFalse: [f fileInfo ifNotNilDo: #fileSize `er]
+       ifFalse: [f fileInfo ifNotNilDo: #fileSize `er]
 ].
 
 f@(File traits) position
@@ -87,7 +87,7 @@ f@(File traits) enable
        f Write -> [f handleForOutput: filename].
        f ReadWrite -> [f handleFor: filename].
        f CreateWrite -> [f handleForNew: filename]}
-	 otherwise: [error: 'No mode specified.'])
+     otherwise: [error: 'No mode specified.'])
     ifNil: [f connectionFailure]
     ifNotNil: [f register].
   f
@@ -143,8 +143,8 @@ If &mode is defined then this mode will be used for both files."
   f1 sessionDo:
     [| :file1 |
       f2 sessionDo:
-	[| :file2 |
-	  block applyWith: file1 with: file2
+    [| :file2 |
+      block applyWith: file1 with: file2
         ] &mode: mode2
     ] &mode: mode1
 ].
@@ -181,8 +181,8 @@ be cheap."
 [
   file1 size = file2 size
     /\ [[file1 reader with: file2 reader do:
-	  [| :char1 :char2 | char1 = char2 ifFalse: [^ False]]]
-	    on: Stream Exhaustion do: [| :c | ^ False]. True]
+      [| :char1 :char2 | char1 = char2 ifFalse: [^ False]]]
+        on: Stream Exhaustion do: [| :c | ^ False]. True]
 ].
 
 file1@(File traits) copyContentsTo: file2@(File traits)
@@ -335,7 +335,7 @@ If &mode is defined then this mode will be used for both files."
     [| :file1 |
      l2 sessionDo:
        [| :file2 |
-	block apply*, file1, file2] &mode: mode2] &mode: mode1
+    block apply*, file1, file2] &mode: mode2] &mode: mode1
 ].
 
 File Locator traits define: #hostSeparator -> $:.
@@ -356,8 +356,8 @@ this will assume the current platform's naming scheme."
      name := s last = l pathSeparator
        ifTrue: ['']
        ifFalse: [s copyFrom:
-		   (s lastIndexOf: l pathSeparator ifAbsent: [-1]) + 1
-		   to: s indexLast]. ]
+           (s lastIndexOf: l pathSeparator ifAbsent: [-1]) + 1
+           to: s indexLast]. ]
 ].
 
 l@(File Locator traits) as: _@(File Locator traits) [l].
@@ -398,27 +398,27 @@ l@(File Locator traits) readFrom: src &pathSeparator
     ifTrue:
       [src next.
        firstPart size = 1 /\ [firstPart first isLetter]
-	 "Windows-style path detection, detects a drive letter:"
-	 ifTrue: [(l readFrom: src upToEnd &pathSeparator: $\\)
-		    `>> [device := firstPart. ]]
-	 "It's a hostname. Read the rest from scratch."
-	 ifFalse: [(l readFrom: src upToEnd) `>> [host := firstPart. ]]]
+     "Windows-style path detection, detects a drive letter:"
+     ifTrue: [(l readFrom: src upToEnd &pathSeparator: $\\)
+            `>> [device := firstPart. ]]
+     "It's a hostname. Read the rest from scratch."
+     ifFalse: [(l readFrom: src upToEnd) `>> [host := firstPart. ]]]
     ifFalse: "Now detect initial relativity of location or a hostname."
       [(({l hereString. l parentString. l homeString} includes:
-	firstPart)
-	ifTrue: [l type RelativeLocator newFrom: (firstPart caseOf:
-	  {l hereString -> [Directory Current].
-	   l parentString -> [Directory Current parent].
-	   l homeString -> [Directory Home]})]
-	ifFalse:
-	  [firstPart isEmpty
-	     "Nothing before \ or / - means it is absolute."
-	     ifTrue: [l type AbsoluteLocator clone]
-	     "Implicitly relative to the current directory."
-	     ifFalse: [src reset.
-		       l type RelativeLocator newFrom: Directory Current]])
-	 "Now read the sequence of Path elements into it."
-	 `>> [readPathElementsFrom: src &pathSeparator: pathSeparator. ]]
+    firstPart)
+    ifTrue: [l type RelativeLocator newFrom: (firstPart caseOf:
+      {l hereString -> [Directory Current].
+       l parentString -> [Directory Current parent].
+       l homeString -> [Directory Home]})]
+    ifFalse:
+      [firstPart isEmpty
+         "Nothing before \ or / - means it is absolute."
+         ifTrue: [l type AbsoluteLocator clone]
+         "Implicitly relative to the current directory."
+         ifFalse: [src reset.
+               l type RelativeLocator newFrom: Directory Current]])
+     "Now read the sequence of Path elements into it."
+     `>> [readPathElementsFrom: src &pathSeparator: pathSeparator. ]]
 ].
 
 l@(File Locator traits) readPathElementsFrom: s &pathSeparator
@@ -535,7 +535,7 @@ l@(File Locator traits) newChildNamed: name
 [l copy `>> [path addLast: name. ]].
 
 "File traits define: #Stream
-	    &parents: {ExternalResource ReadWriteStream. PositionableStream}.
+        &parents: {ExternalResource ReadWriteStream. PositionableStream}.
 File Stream removeSlot: #position."
 
 "fix: this is a hack (i.e. problem with parent linearization) to make sure we know that

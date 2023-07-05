@@ -11,15 +11,15 @@ give slot name, and then overwrite the mutator for the slot."
     \/ [mutatorName isFoundOn: {obj. NoRole}]
     ifTrue:
       [(Observers at: obj ifAbsentPut: [Set new])
-	 include: {observer. slotName}.
+     include: {observer. slotName}.
        "Define the mtutator to eventually notify all the observers."
        obj addMutator:
-	 [| :obj :newValue | here %notifyThat: obj changed: slotName to: newValue.
-	  obj atSlotNamed: slotName put: newValue]
-	   for: slotName &mutatorName: mutatorName.
+     [| :obj :newValue | here %notifyThat: obj changed: slotName to: newValue.
+      obj atSlotNamed: slotName put: newValue]
+       for: slotName &mutatorName: mutatorName.
        "Send an initial notification to give the observer an initial record."
        observer %noticeThat: obj changed: slotName to:
-	 (obj atSlotNamed: slotName). ]
+     (obj atSlotNamed: slotName). ]
 ].
 
 obj@(Root traits) removeObserver: observer
@@ -48,7 +48,7 @@ n@(Namespace traits) notifyThat: obj changed: slotName to: newValue
   n Observers at: obj ifPresent:
     [| :observerEntries | observerEntries do:
       [| :obs :slot | slot == slotName ifTrue:
-	[obs %noticeThat: obj changed: slotName to: newValue]] applier]
+    [obs %noticeThat: obj changed: slotName to: newValue]] applier]
 ].
 
 obj@(Root traits) noticeThat: obj changed: slotName to: newValue

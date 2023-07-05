@@ -369,7 +369,7 @@ source@(ReadStream traits) copyTo: sink &chunkSize: n
 ].
 
 streams define: #ReadWriteStream
-	   &parents: {ReadStream. WriteStream}.
+       &parents: {ReadStream. WriteStream}.
 
 s@(ReadWriteStream traits) iterator
 "A ReadWriteStream is already its own resource."
@@ -526,10 +526,10 @@ but not including anything from the pattern."
       [(s peek: patternSize) = pattern
          "The pattern has been found. Answer up to the pattern."
          ifTrue: [end := s position.
-	          s position := start.
-	          ^ (s next: end - start)]
-	 "Increment the position past the last start."
-	 ifFalse: [s position += 1]].
+              s position := start.
+              ^ (s next: end - start)]
+     "Increment the position past the last start."
+     ifFalse: [s position += 1]].
   s position := start.
   s upToEnd
 ].
@@ -781,7 +781,7 @@ s@(LineNumberedReadStreamMixin traits) on: r@(ReadStream traits)
 [
   resend.
   s `>> [eolPositions := ExtensibleArray new*, r position.
-	 lastPosition := r position.
+     lastPosition := r position.
          previousWasCR := False. ]
 ].
 
@@ -799,9 +799,9 @@ s@(LineNumberedReadStreamMixin traits) lineNumber
   stop := s eolPositions size.
   [start + 1 < stop]
     whileTrue: [index := start + stop // 2.
-		(s eolPositions at: index) <= pos
-		  ifTrue: [start := index]
-		  ifFalse: [stop := index]].
+        (s eolPositions at: index) <= pos
+          ifTrue: [start := index]
+          ifFalse: [stop := index]].
   start - 1
 ].
 
@@ -834,11 +834,11 @@ s@(LineNumberedReadStreamMixin traits) next
     ifTrue:
       [s lastPosition += 1.
        char = String Character cr
-	 ifTrue: [s eolPositions add: s position.
-		  s previousWasCR := True]
-	 ifFalse: [s previousWasCR not /\ [char = String Character lf]
-		     ifTrue: [s eolPositions add: s position].
-		   s previousWasCR := False]]
+     ifTrue: [s eolPositions add: s position.
+          s previousWasCR := True]
+     ifFalse: [s previousWasCR not /\ [char = String Character lf]
+             ifTrue: [s eolPositions add: s position].
+           s previousWasCR := False]]
     ifFalse: [error: 'Got out of sync!'].
   char
 ].

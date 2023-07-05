@@ -98,13 +98,13 @@ p@(Precedence traits) orderUnaryMessages: stack
       "count unary messages"
       [(index += 1) < stack size
          /\ [(next := stack at: index) is: UnaryMessage]]
-	whileTrue: [count += 1].
+    whileTrue: [count += 1].
       index := index min: stack indexLast.
       "move next node backwards"
       [(next is: Message)
          /\ [nodePrecedence < (p precedenceOf: next selector)]]
-	whileTrue:
-	  [stack shiftFrom: index by: count negated.
+    whileTrue:
+      [stack shiftFrom: index by: count negated.
            index += 1.
            next := index = stack size ifFalse: [stack at: index]]].
 ].

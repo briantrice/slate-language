@@ -30,12 +30,12 @@ rs@(RandomStream traits) next
   (tmp := rs state at: pos)
     bitXor:
       ((tmp bitShift: -11)
-	 bitXor:
-	   (((tmp bitShift: 7) bitAnd: 16r9D2C5680)
-	      bitXor:
-		(((tmp bitShift: 15) bitAnd: 16rEFC60000)
-		   bitXor:
-		     (tmp bitShift: -18))))
+     bitXor:
+       (((tmp bitShift: 7) bitAnd: 16r9D2C5680)
+          bitXor:
+        (((tmp bitShift: 15) bitAnd: 16rEFC60000)
+           bitXor:
+             (tmp bitShift: -18))))
 ].
 
 rs@(RandomStream traits) seed: seed
@@ -55,38 +55,38 @@ rs@(RandomStream traits) refill
   state := rs state.
   0 below: state size - 397
     do: [| :index |
-	 tmp :=
-	   ((state at: index) bitAnd: 16r80000000)
-	     bitOr:
-	       ((state at: index + 1) bitAnd: 16r7FFFFFFF).
-	 state at: index :=
-	   (state at: index + 397)
-	     bitXor:
-	       ((tmp bitShift: -1)
-		  bitXor:
-		    ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))].
+     tmp :=
+       ((state at: index) bitAnd: 16r80000000)
+         bitOr:
+           ((state at: index + 1) bitAnd: 16r7FFFFFFF).
+     state at: index :=
+       (state at: index + 397)
+         bitXor:
+           ((tmp bitShift: -1)
+          bitXor:
+            ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))].
   state size - 397 below: state size - 1 do:
     [| :index |
      tmp :=
        ((state at: index) bitAnd: 16r80000000)
          bitOr:
-	   ((state at: index + 1) bitAnd: 16r7FFFFFFF).
+       ((state at: index + 1) bitAnd: 16r7FFFFFFF).
      state at: index :=
        (state at: index + 397 - state size)
          bitXor:
-	   ((tmp bitShift: -1)
-	      bitXor:
-		((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))].
+       ((tmp bitShift: -1)
+          bitXor:
+        ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF))].
   tmp :=
     ((state at: 0) bitAnd: 16r80000000)
       bitOr:
-	((state at: 1) bitAnd: 16r7FFFFFFF).
+    ((state at: 1) bitAnd: 16r7FFFFFFF).
   state at: state size - 1 :=
     (state at: 397 - 1)
       bitXor:
-	((tmp bitShift: -1)
-	   bitXor:
-	     ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)).
+    ((tmp bitShift: -1)
+       bitXor:
+         ((16r100000000 - (tmp bitAnd: 1)) bitAnd: 16r9908B0DF)).
   rs position := 0
 ].
 

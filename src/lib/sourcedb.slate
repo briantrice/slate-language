@@ -6,12 +6,12 @@ _@lobby slurpSourceIn
       [| :file |
        inform: 'Parsing ' ; file locator printString.
        (Syntax Parser newOn: file reader)
-	 do: [| :tree | tree walk:
-	   [| :node | (node isSameAs: Syntax MethodDefinition)
-	      /\ [node parentScope = Syntax Lobby] ifTrue:
-		[(node selector findOn: (node roles collect: #evaluate `er ))
-		  ifNil: [inform: node selector printString ; ' not found!']
-		  ifNotNilDo: [| :m | m method sourceTree := node]]]]]].
+     do: [| :tree | tree walk:
+       [| :node | (node isSameAs: Syntax MethodDefinition)
+          /\ [node parentScope = Syntax Lobby] ifTrue:
+        [(node selector findOn: (node roles collect: #evaluate `er ))
+          ifNil: [inform: node selector printString ; ' not found!']
+          ifNotNilDo: [| :m | m method sourceTree := node]]]]]].
 ].
 
 slurpSourceIn.

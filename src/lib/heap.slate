@@ -61,7 +61,7 @@ h@(Heap traits) remove: obj ifAbsent: block
   h isEmpty ifTrue: [^ block do].
   h firstIndex to: h lastIndex
     do: [| :index | (h contents at: index) = obj
-		  ifTrue: [^ (h removeAt: index)]].
+          ifTrue: [^ (h removeAt: index)]].
   block do
 ].
 
@@ -91,15 +91,15 @@ Everything above (i.e. left of) the index is ok."
     [j := k + k.
     "use max(j,j+1)"
     (j < h lastIndex
-	/\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
+    /\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
       ifTrue: [j += 1].
     "check if position k is ok"
     (h sorts: value before: (h contents at: j))
       ifTrue: [n := k - 1] "break loop"
       ifFalse: ["make room at j by moving j-th element to k-th slot"
-		 h contents at: k put: (h contents at: j).
-		"and try again with j"
-		k := j]].
+         h contents at: k put: (h contents at: j).
+        "and try again with j"
+        k := j]].
   h contents at: k put: value
 ].
 
@@ -118,7 +118,7 @@ larger than for being somewhere in the middle this version should be faster."
     [j := k + k.
     "use max(j,j+1)"
     (j < h lastIndex
-	/\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
+    /\ [h sorts: (h contents at: j+1) before: (h contents at: j)])
       ifTrue: [j += 1].
     h contents at: k put: (h contents at: j).
     "and try again with j"
@@ -136,6 +136,6 @@ Everything below the index is ok."
   value := h contents at: index.
   [k > 1 /\ [h sorts: value before: (tmp := h contents at: (kDiv2 := k // 2))]]
     whileTrue: [array at: k put: tmp.
-		k := kDiv2].
+        k := kDiv2].
   array at: k put: value
 ].

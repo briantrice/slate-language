@@ -114,7 +114,7 @@ node@(Digraph Node traits) isTerminal
 [
   node transitions isEmpty
     \/ [node transitions size = 1
-	  /\ [node hasSimpleLoop]]
+      /\ [node hasSimpleLoop]]
 ].
 
 node@(Digraph Node traits) allNodesInto: set
@@ -172,7 +172,7 @@ node@(Digraph Node traits) transitionsMatch: node2
 [
   node transitions
     allSatisfy: [| :each | (node2 transitions includes: each)
-		   \/ [node2 hasTransitionTo: node mirroring: each]]
+           \/ [node2 hasTransitionTo: node mirroring: each]]
 ].
 
 Digraph traits define: #Edge &parents: {Cloneable} &slots:
@@ -249,8 +249,8 @@ node@(KeyedDigraph Node traits) hasTransitionTo: node2 mirroring: edgeBw
 [
   node = edgeBw target
     /\ [(node transitions
-      	      	  detect: [| :edge | edge target = node2]
-	          ifNone: [^ False]) keys = edgeBw keys]
+                      detect: [| :edge | edge target = node2]
+              ifNone: [^ False]) keys = edgeBw keys]
 ].
 
 
@@ -289,8 +289,8 @@ edge@(KeyedDigraph Edge traits) does: seq includeKey: key
   stop isZero ifTrue: [^ False].
   [mid := start + stop // 2. mid == start]
     whileFalse: [((seq at: mid) as: Integer) < (key as: Integer)
-		   ifTrue: [start := mid]
-		   ifFalse: [stop := mid]].
+           ifTrue: [start := mid]
+           ifFalse: [stop := mid]].
   (seq at: start) == key
     \/ [(seq at: stop) == key]
 ].

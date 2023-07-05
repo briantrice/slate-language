@@ -69,10 +69,10 @@ m@(Module traits) newForFileNamed: filename
 m@(Module traits) copy
 [m clone `setting: #{#requirements. #imports. #exports. #objects. #methods}
    to: {m requirements copy.
-	m imports copy.
-	m exports copy.
-	m objects copy.
-	m methods copy}
+    m imports copy.
+    m exports copy.
+    m objects copy.
+    m methods copy}
 ].
 
 m@(Module traits) newBasedOn: moduleSet
@@ -117,7 +117,7 @@ m@(Module traits) importAll: c from: prereq
 [
   c do: [| :each | (prereq provides: each)
     ifFalse: [^ (prereq error:
-		   prereq name ; ' does not provide ' ; (each as: String))]].
+           prereq name ; ' does not provide ' ; (each as: String))]].
   m requirements include: prereq.
   c do: [| :each | m imports include: each].
   m
@@ -259,7 +259,7 @@ l@(Load traits) run
     [| :each |
      l verbose ifTrue:
        [l Level timesRepeat: [DebugConsole writer nextPut: $\s].
-	inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
+    inform: 'Parsed to line ' ; l parser lexer lineNumber printString &target: DebugConsole].
      [each evaluateIn: l targetNamespace]
        on: RebindError do: [| :c | c return]].
 ].
@@ -376,27 +376,27 @@ evaluated."
    m parseSessionDo:
      [| :p |
       p do: [| :tree | tree walk:
-	[| :node accessor partPath |
-	 "Handle the slot-based definitions which produce an accessor."
-	 (node is: Syntax Message)
-	   /\ [m DefinitionSelectors includes: node selector]
-	   /\ [node arguments second is: Syntax Literal]
-	   ifTrue:
-	     [accessor: node arguments second value.
-	      partPath: node arguments first]
-	   "Handle unary top-level method definitions."
-	   ifFalse:
-	     [(node is: Syntax MethodDefinition)
-		/\ [node selector isUnarySelector]
-		/\ [node parentScope isNil]
-		ifTrue:
-		  [accessor := node selector.
-		   partPath := node roles first]].
-	 "Given an accessor, check the path for validity, then add it."
-	 accessor ifNotNil:
-	   [(partPath as: RootedPath &root: namespace) ifNotNilDo:
-	     [| :path | result nextPut: (path childNamed: accessor)]]
-	 ]]]] writingAs: Set
+    [| :node accessor partPath |
+     "Handle the slot-based definitions which produce an accessor."
+     (node is: Syntax Message)
+       /\ [m DefinitionSelectors includes: node selector]
+       /\ [node arguments second is: Syntax Literal]
+       ifTrue:
+         [accessor: node arguments second value.
+          partPath: node arguments first]
+       "Handle unary top-level method definitions."
+       ifFalse:
+         [(node is: Syntax MethodDefinition)
+        /\ [node selector isUnarySelector]
+        /\ [node parentScope isNil]
+        ifTrue:
+          [accessor := node selector.
+           partPath := node roles first]].
+     "Given an accessor, check the path for validity, then add it."
+     accessor ifNotNil:
+       [(partPath as: RootedPath &root: namespace) ifNotNilDo:
+         [| :path | result nextPut: (path childNamed: accessor)]]
+     ]]]] writingAs: Set
 ].
 
 m@(FileModule traits) defines: path@(Path traits)
@@ -406,8 +406,8 @@ globals ensureNamespace: #AutoLoader
 "Manages 'autoloading' stubs - these are mock accessors for unloaded features
 which load those features transparently and return them once done."
   &slots: {#defs -> Dictionary new.
-	   #storage -> (File newNamed: 'AutoLoad').
-	   #standardFiles -> (
+       #storage -> (File newNamed: 'AutoLoad').
+       #standardFiles -> (
   "Extra generic libraries."
   ({'extlib'. 'time'. 'dimensioned'. 'predicate'. 'group'. 'heap'. 'skiplist'.
     'tree'. 'tokenizer'. 'set-sorted'. 'relation'.
@@ -439,8 +439,8 @@ to the in-memory database."
 [
   fileList `defaultsTo: l standardFiles.
   fileList do: [| :file |
-		inform: 'Scanning \'' ; file ; '\''.
-		l readFromSourceIn: file]
+        inform: 'Scanning \'' ; file ; '\''.
+        l readFromSourceIn: file]
 ].
 
 l@AutoLoader install: m@(Module traits) when: selector isCalledOn: namespace
@@ -471,7 +471,7 @@ that are one slot definition away from completion."
     [| :path :mod |
      path isOneSlotFromDefinition
        ifTrue:
-	 [l install: mod when: path names last isCalledOn: path parent target]]
+     [l install: mod when: path names last isCalledOn: path parent target]]
 ].
 
 l@AutoLoader readStorage &from: file &in: namespace
@@ -482,19 +482,19 @@ line in the text file or default storage."
   namespace `defaultsTo: here.
   file exists
     ifFalse: [warn: 'The database file for auto-loaders is not present.'.
-	      ^ Nil].
+          ^ Nil].
   file sessionDo:
     [| :f r |
      r := f reader lines.
      [r isAtEnd] whileFalse:
        [r next ifNotNilDo:
-	 [| :line |
-	  (line indexOfSubSeq: ' ->') ifNotNilDo:
-	    [| :splitIndex path filename |
-	     path := (line first: splitIndex + 1) split
+     [| :line |
+      (line indexOfSubSeq: ' ->') ifNotNilDo:
+        [| :splitIndex path filename |
+         path := (line first: splitIndex + 1) split
                as: RootedPath &root: namespace.
-	     filename := String readFrom: (line copyFrom: splitIndex + 4).
-	     AutoLoader defs at: path := FileModule newLocated: filename]]]].
+         filename := String readFrom: (line copyFrom: splitIndex + 4).
+         AutoLoader defs at: path := FileModule newLocated: filename]]]].
   l installReadyItems
 ].
 
@@ -506,8 +506,8 @@ l@AutoLoader writeToStorage
      out := f writer.
      l defs keysAndValuesDo:
        [| :path :mod |
-	out ; ((path as: Syntax Node) printString
-	  ; ' -> ' ; (mod locator as: String) printString as: ByteArray) ; '\n']]
+    out ; ((path as: Syntax Node) printString
+      ; ' -> ' ; (mod locator as: String) printString as: ByteArray) ; '\n']]
     &mode: l storage CreateWrite.
 ].
 
@@ -529,10 +529,10 @@ System has by holding several other Modules, and return the requirements."
   covered := Set newSizeOf: features.
   s modules
     do: [| :each coverage |
-	 coverage := each exports intersection: features.
-	 coverage isEmpty
-	   ifFalse: [module requirements include: each.
-		     covered includeAll: coverage]].
+     coverage := each exports intersection: features.
+     coverage isEmpty
+       ifFalse: [module requirements include: each.
+             covered includeAll: coverage]].
   module requirements
 ].
 
@@ -556,9 +556,9 @@ s@(System traits) load
   [remaining isEmpty]
     whileFalse:
       [remaining do:
-	[| :each |
-	 (features includesAllOf: each requirements)
-		 ifTrue: [each load. remaining remove: each]]].
+    [| :each |
+     (features includesAllOf: each requirements)
+         ifTrue: [each load. remaining remove: each]]].
 ].
 
 s@(System traits) load: module

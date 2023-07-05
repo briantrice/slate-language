@@ -141,8 +141,8 @@ x@(Root traits) addImmutableSlot: slotName valued: slotValue
   (x hasSlotNamed: slotName)
     ifTrue: [x atSlotNamed: slotName put: slotValue]
     ifFalse: [x rawAddSlot: slotName valued: slotValue.
-	      x addAccessorFor: slotName.
-	      slotValue]
+          x addAccessorFor: slotName.
+          slotValue]
 ].
 
 x@(Root traits) bind: slotName to: slotValue
@@ -271,12 +271,12 @@ using a seen-Set to avoid multiple visits."
     [| :slotName |
      (x hasSlotNamed: slotName)
        ifTrue:
-	 [| obj |
-	  (seen identityIncludes: (obj := x atSlotNamed: slotName))
-	    ifFalse:
-	      [seen include: obj.
-	       obj addSlotsFromRecursively: (another atSlotNamed: slotName)
-		   &seen: seen]]
+     [| obj |
+      (seen identityIncludes: (obj := x atSlotNamed: slotName))
+        ifFalse:
+          [seen include: obj.
+           obj addSlotsFromRecursively: (another atSlotNamed: slotName)
+           &seen: seen]]
        ifFalse: [x addSlotNamed: slotName from: another]].
   x
 ].
@@ -299,8 +299,8 @@ their values."
   otherSlotNames := another slotNames.
   slotNames
     do: [| :slotName |
-	 (anotherSlotNames identityIncludes: slotName)
-	   ifTrue: [x addSlotNamed: slotName from: another]].
+     (anotherSlotNames identityIncludes: slotName)
+       ifTrue: [x addSlotNamed: slotName from: another]].
   x
 ].
 
@@ -341,10 +341,10 @@ slot if it fails. This always returns the resulting value of the slot."
 [
   (x hasSlotNamed: slotName)
     ifTrue: [| oldValue |
-	     oldValue := x atSlotNamed: slotName.
-	     (testBlock applyWith: oldValue)
-		ifTrue: [oldValue]
-		ifFalse: [x atSlotNamed: slotName put: newValue. newValue]]
+         oldValue := x atSlotNamed: slotName.
+         (testBlock applyWith: oldValue)
+        ifTrue: [oldValue]
+        ifFalse: [x atSlotNamed: slotName put: newValue. newValue]]
     ifFalse: [x addSlot: slotName valued: newValue. newValue]
 ].
 
@@ -389,7 +389,7 @@ duplicates."
     [| :delegate |
       (seen identityIncludes: delegate)
         ifFalse: [seen include: delegate.
-		  delegate allDelegates &seen: seen]].
+          delegate allDelegates &seen: seen]].
   seen
 ].
 
@@ -402,8 +402,8 @@ avoiding circularity and duplicates."
     [| :obj |
       (seen identityIncludes: obj)
         ifFalse: [seen include: obj.
-		  block applyWith: obj.
-		  obj allSlotsDo: block &seen: seen]].
+          block applyWith: obj.
+          obj allSlotsDo: block &seen: seen]].
 ].
 
 x@(Root traits) allDelegatesDo: block &seen
@@ -414,9 +414,9 @@ avoiding circularity and duplicates."
   x delegatesDo: [| :each |
     (seen identityIncludes: each)
       ifFalse:
-	[seen include: each.
-	 block applyWith: each.
-	 each allDelegatesDo: block &seen: seen]].
+    [seen include: each.
+     block applyWith: each.
+     each allDelegatesDo: block &seen: seen]].
 ].
 
 x@(Root traits) allSlotsAndDelegatesDo: block &seen
@@ -426,8 +426,8 @@ x@(Root traits) allSlotsAndDelegatesDo: block &seen
     [| :obj |
      (seen identityIncludes: obj)
        ifFalse: [seen include: obj.
-		 block applyWith: obj.
-		 obj allSlotsAndDelegatesDo: block &seen: seen]].
+         block applyWith: obj.
+         obj allSlotsAndDelegatesDo: block &seen: seen]].
 ].
 
 x isSameAs: y@(Root traits)
@@ -454,8 +454,8 @@ Do not override this."
   yt := y traits.
   x traits == yt
     \/ [x allDelegatesDo:
-	  [| :each | each == yt ifTrue: [^ True]].
-	False]
+      [| :each | each == yt ifTrue: [^ True]].
+    False]
 ].
 
 x is: y@(Root traits)

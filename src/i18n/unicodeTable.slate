@@ -215,14 +215,14 @@ two-phase-table (a kind of trie)."
                      [| :index | table at: index put:
                                    CharacterData Unicode EmptyTable].
                    tableIndex: highBits.
-		   Console ; '\r' ; (highBits as: String).
-		   Console writer flush.
+           Console ; '\r' ; (highBits as: String).
+           Console writer flush.
                    table at: tableIndex put: (Array newSize: 128)].
         (table addItem: properties toCodePoint: codePoint withCrosslink: currentLink)
-	  ifTrue: [currentLink: (links next ifNil: [Nil -> Nil])].
+      ifTrue: [currentLink: (links next ifNil: [Nil -> Nil])].
         compositions addComposition: properties DecompositionMapping
-	  toCodePoint: codePoint
-	  decompositionType: properties DecompositionType]].
+      toCodePoint: codePoint
+      decompositionType: properties DecompositionType]].
   Console ; '\r'.
 ].
 
@@ -234,7 +234,7 @@ yet."
   compositions do:
     [| :each |
      (table atCode: each key first) Compositions
-	 ifNil: [(table atCode: each key first)
+     ifNil: [(table atCode: each key first)
                    Compositions: Dictionary new `>> [hashBlock: [| :obj | obj]. ]].
      (table atCode: each key first) Compositions at: each key second put: each value]
 ].
@@ -262,10 +262,10 @@ table@(Unicode Trie traits) fillRangeFrom: start to: end
 [| highBits |
   start + 1 upTo: end
    do: [| :index |
-	  highBits: (index bitShift: -7).
-	  ((table at: highBits) == CharacterData Unicode EmptyTable)
-	      ifTrue: [table at: highBits put: (Array newSize: 128)].
-	  table atCode: index put: (table atCode: start)]
+      highBits: (index bitShift: -7).
+      ((table at: highBits) == CharacterData Unicode EmptyTable)
+          ifTrue: [table at: highBits put: (Array newSize: 128)].
+      table atCode: index put: (table atCode: start)]
 ].
 
 table@(Unicode Trie traits) crosslinkPhase1From: crosslinks

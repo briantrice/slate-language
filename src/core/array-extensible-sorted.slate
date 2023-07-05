@@ -52,7 +52,7 @@ sc@(SortedArray traits) add: obj
 "Use the unsafe #at:insert: call to avoid a double #indexForInserting:
 calculation which would be expensive."
 [#at:insert: sendTo: {sc. sc indexForInserting: obj. obj}
-	     through: {ExtensibleArray. Nil. Nil}
+         through: {ExtensibleArray. Nil. Nil}
 ].
 
 sc@(SortedArray traits) addLast: obj
@@ -60,8 +60,8 @@ sc@(SortedArray traits) addLast: obj
   sc isEmpty
     ifTrue: [resend]
     ifFalse: [(sc shouldArrange: sc last before: obj)
-		ifTrue: [resend]
-		ifFalse: [sc sortViolation]]
+        ifTrue: [resend]
+        ifFalse: [sc sortViolation]]
 ].
 
 sc@(SortedArray traits) addFirst: obj
@@ -69,8 +69,8 @@ sc@(SortedArray traits) addFirst: obj
   sc isEmpty
     ifTrue: [resend]
     ifFalse: [(sc shouldArrange: obj before: sc first)
-		ifTrue: [resend]
-		ifFalse: [sc sortViolation]]
+        ifTrue: [resend]
+        ifFalse: [sc sortViolation]]
 ].
 
 sc@(SortedArray traits) addAll: c
@@ -79,8 +79,8 @@ and then sort. Otherwise, add each in turn."
 [
   c size > (sc size // 3)
     ifTrue: [c do: [| :each | #addLast: sendTo: {sc. each}
-					through: {ExtensibleArray. Nil}].
-	     sc reSort]
+                    through: {ExtensibleArray. Nil}].
+         sc reSort]
     ifFalse: [c do: #(sc add: _) `er].
   c
 ].

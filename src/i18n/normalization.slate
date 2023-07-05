@@ -3,7 +3,7 @@
 
 Unicode define: #NormalizationForm &parents: {Cloneable}
   &slots: {#Type -> #Canonical.
-	   #Compose -> True}.
+       #Compose -> True}.
 
 unf@(Unicode NormalizationForm traits) type: type composition: composition
 [unf cloneSettingSlots: #{#Type. #Compose} to: {type. composition}].
@@ -39,9 +39,9 @@ s@(UnicodeString traits) decomposeForForm: form@(Unicode NormalizationForm trait
       [| :each |
        (current := each getRecursiveDecompositionFor: form) first combiningClass isZero
          ifTrue: 
-	   [result ; (buffer destructiveStableSortBy: 
-	                [| :a :b | a combiningClass <= b combiningClass]).
-	    buffer clear].
+       [result ; (buffer destructiveStableSortBy:
+                    [| :a :b | a combiningClass <= b combiningClass]).
+        buffer clear].
        buffer addAll: current].
     buffer isNotEmpty \/ [current first combiningClass isZero not] ifTrue:
       [result ; (buffer destructiveStableSortBy: 
@@ -60,10 +60,10 @@ If it's NFKC or NFKD, perform both canonical and compatibility decomposition."
      [| :decomp |
       form Type = #Canonical /\ [c decompositionType = #Compatibility]
         ifTrue: [{c}]
-	ifFalse:
-	  [| temp |
-	   temp := decomp collect: #(getRecursiveDecompositionFor: form) `er.
-	   (temp gather: #; `er) ifNil: [#{}]]]
+    ifFalse:
+      [| temp |
+       temp := decomp collect: #(getRecursiveDecompositionFor: form) `er.
+       (temp gather: #; `er) ifNil: [#{}]]]
 ].
 
 s@(UnicodeString traits) composeForForm: form@(Unicode NormalizationForm traits)
@@ -79,14 +79,14 @@ s@(UnicodeString traits) composeForForm: form@(Unicode NormalizationForm traits)
      chClass := ch combiningClass.
      composite := (starterCh composeWith: ch).
      composite isNotNil /\ [(lastClass < chClass \/ [lastClass isZero]) 
-			      \/ [composite isHangulLV]]
+                  \/ [composite isHangulLV]]
        ifTrue: [s at: starterPos put: composite.
-		starterCh := composite]
+        starterCh := composite]
        ifFalse: [chClass isZero ifTrue: [starterPos := compPos.
-					 starterCh := ch].
-		 lastClass := chClass.
-		 s at: compPos put: ch.
-		 compPos += 1]].
+                     starterCh := ch].
+         lastClass := chClass.
+         s at: compPos put: ch.
+         compPos += 1]].
   s first: compPos
 ].
 

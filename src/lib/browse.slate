@@ -4,12 +4,12 @@ prototypes ensureNamespace: #browsing &delegate: True.
 
 browsing define: #MetaNode &parents: {Cloneable}
   &slots: {#filter. "The object type used to filter children."
-	   #column. "The object type of the column to display children."
-	   #edges -> ExtensibleArray new.
-	   "Messages that could be sent to the node to obtain children."
-	   #actors -> ExtensibleArray new.
-	   "Providers of functionality to manipulate the node."
-	   #displaySelector -> #name "The message used to retrieve the display name."}.
+       #column. "The object type of the column to display children."
+       #edges -> ExtensibleArray new.
+       "Messages that could be sent to the node to obtain children."
+       #actors -> ExtensibleArray new.
+       "Providers of functionality to manipulate the node."
+       #displaySelector -> #name "The message used to retrieve the display name."}.
 "A hypothetical BrowseNode in the browser's domain graph."
 
 n@(MetaNode traits) new &name
@@ -39,8 +39,8 @@ n@(MetaNode traits) columnInPanel: panel node: node
 
 browsing define: #MetaEdge &parents: {Cloneable}
   &slots: {#label -> ''. "A String describing the metaNode, for filters which allow the user to choose which edges to follow."
-	   #selector -> #children. "The message to send to obtain children when a BrowseNode is selected by the user."
-	   #metaNode -> MetaNode "A MetaNode corresponding to the BrowseNodes answered by the selector."}.
+       #selector -> #children. "The message to send to obtain children when a BrowseNode is selected by the user."
+       #metaNode -> MetaNode "A MetaNode corresponding to the BrowseNodes answered by the selector."}.
 "An edge in the browser's metagraph. It represents a message sent to a
 BrowseNode to obtain further Nodes. It is referred to by the parent MetaNode,
 and refers to the child MetaNode."
@@ -118,9 +118,9 @@ c@(Column traits) refresh
     ifFalse:
       [c chooseSilently: node.
        c hasSelection
-	 ifFalse:
-	   [c clearNext.
-	    c panel nodeChanged]].
+     ifFalse:
+       [c clearNext.
+        c panel nodeChanged]].
 ].
 
 c@(Column traits) choose: n@(BrowseNode traits)
@@ -163,7 +163,7 @@ c@(Column traits) createNext
 c@(Column traits) next
 [
   c basicNext ifNil: [c hasSelection /\ [c shouldBeLast not]
-			ifTrue: [c createNext]]
+            ifTrue: [c createNext]]
 ].
 
 c@(Column traits) clearNext
@@ -235,7 +235,7 @@ b@(BrowseChain traits) canTrimColumn
 [
   b columns size <= b minColumns
     /\ [b columns last isEmpty \/
-	  [(b columns at: b columns indexLast - 1) shouldBeLast]]
+      [(b columns at: b columns indexLast - 1) shouldBeLast]]
 ].
 
 b@(BrowseChain traits) trimColumns

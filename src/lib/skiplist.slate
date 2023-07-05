@@ -57,12 +57,12 @@ sl@(SkipList traits) neighboursFor: obj
      node ifNil: [node := sl pointers at: level].
      node ifNotNil:
        [(sl sortBlock apply*, node object, obj)
-	  ifTrue:
-	    [[(node forward: level) isNotNil /\
-	      [sl sortBlock apply*, (node forward: level) object, obj]]
-              	whileTrue: [node := node forward: level].
-	     nextptrs at: level := node]
-	  ifFalse: [nextptrs at: level := node := Nil]]].
+      ifTrue:
+        [[(node forward: level) isNotNil /\
+          [sl sortBlock apply*, (node forward: level) object, obj]]
+                  whileTrue: [node := node forward: level].
+         nextptrs at: level := node]
+      ifFalse: [nextptrs at: level := node := Nil]]].
   nextptrs
 ].
 
@@ -73,21 +73,21 @@ sl@(SkipList traits) add: obj
   sl isEmpty
     ifTrue:
       [0 below: sl maxLevel do: [| :i | 
-      	  sl pointers at: i := newNode.
-	  newNode pointers at: i := Nil]]
+            sl pointers at: i := newNode.
+      newNode pointers at: i := Nil]]
     ifFalse:
       [| nextptrs |
        nextptrs := sl neighboursFor: obj.
        0 upTo: sl newPointerLength do:
-	 [| :level |
-	  (nextptrs at: level)
-	    ifNil:
-	      [newNode pointers at: level := sl pointers at: level.
-	       sl pointers at: level := newNode]
-	    ifNotNilDo:
-	      [| :nodePtr |
-	       newNode pointers at: level := nodePtr pointers at: level.
-	       nodePtr pointers at: level := newNode]]].
+     [| :level |
+      (nextptrs at: level)
+        ifNil:
+          [newNode pointers at: level := sl pointers at: level.
+           sl pointers at: level := newNode]
+        ifNotNilDo:
+          [| :nodePtr |
+           newNode pointers at: level := nodePtr pointers at: level.
+           nodePtr pointers at: level := newNode]]].
   sl numElements += 1.
   obj
 ].
@@ -98,10 +98,10 @@ sl@(SkipList traits) includes: obj
     [(sl neighboursFor: obj) first
        ifNil: [sl identityBlock apply*, sl pointers first object, obj]
        ifNotNilDo:
-	 [| :ptr | ptr pointers first
-		   ifNil: [False]
-		   ifNotNilDo:
-		     [| :node | sl identityBlock apply*, node object, obj]]]
+     [| :ptr | ptr pointers first
+           ifNil: [False]
+           ifNotNilDo:
+             [| :node | sl identityBlock apply*, node object, obj]]]
 ].
 
 sl@(SkipList traits) remove: obj
@@ -110,16 +110,16 @@ sl@(SkipList traits) remove: obj
     [| nextptrs |
      (nextptrs := sl neighboursFor: obj) first ifNil:
        [| node |
-	node := sl pointers first.
-	(sl identityBlock apply*, node object, obj) ifTrue: [
-      	  0 below: sl maxLevel do:
+    node := sl pointers first.
+    (sl identityBlock apply*, node object, obj) ifTrue: [
+            0 below: sl maxLevel do:
             [| :i | sl pointers at: i := node pointers at: i].
-	  sl numElements -= 1]]
+      sl numElements -= 1]]
        ifNotNilDo:
          [| :neighbour |
-	  neighbour pointers first ifNotNilDo:
+      neighbour pointers first ifNotNilDo:
             [| :candidate |
-	     (sl identityBlock apply*, candidate object, obj) ifTrue: 
+         (sl identityBlock apply*, candidate object, obj) ifTrue:
                [0 below: sl maxLevel do:
                   [| :i | (nextptrs at: i) ifNotNilDo:
                      [| :node | node pointers at: i := candidate pointers at: i]].
