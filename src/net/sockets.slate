@@ -97,7 +97,7 @@ addr@(Net SocketAddress traits) separatePort: string@(String traits)
   regex := Regex Matcher newOn: '^([^:]+)(\\:(\\d+))?$'.
   (regex match: string) = -11
     ifTrue: [{Nil. Nil}]
-    ifFalse: [{regex subexpression: 0. regex subexpression: 2}]
+    ifFalse: [{regex subexpressionAt: 0. regex subexpressionAt: 2}]
 ].
 
 addr@(Net SocketAddress traits) newOn: string@(String traits)
@@ -108,7 +108,7 @@ addr@(Net SocketAddress traits) newOn: string@(String traits)
   regex := Regex Matcher newOn: '^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$'.
   (regex match: portIp first) = -1
       ifTrue: [error: 'cannot get ip from string: ' ; string].
-  array := {regex subexpression: 0. regex subexpression: 1. regex subexpression: 2. regex subexpression: 3. }
+  array := {regex subexpressionAt: 0. regex subexpressionAt: 1. regex subexpressionAt: 2. regex subexpressionAt: 3. }
     collect: #(as: Integer) `er.
   Net IP4Address new `>> [address := Net IP4Address domain createIPAddress: array port: (portIp second as: Integer) options: #{}. ]
 ].

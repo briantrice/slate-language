@@ -236,7 +236,7 @@ hc@(Net HttpClient traits) readHeaders: stream@(ReadStream traits)
     line isEmpty ifTrue: [^ headers].
     re := hc headerResponseRegex clone.
     (re match: line) = -1 ifTrue: [error: 'malformed header line'].
-    headers at: (re subexpression: 0) toLowercase put: (re subexpression: 1).
+    headers at: (re subexpressionAt: 0) toLowercase put: (re subexpressionAt: 1).
   ] loop.
 ].
 
@@ -269,7 +269,7 @@ hc@(Net HttpClient traits) readBodyInto: response@(Net ChunkedHttpResponse trait
     chunkHeader := (hc readLineFrom: stream).
     chunkMatch := hc chunkHeaderRegex clone.
     (chunkMatch match: chunkHeader) = -1 ifTrue: [error: 'error reading chunk header: ' ; chunkHeader].
-    length := ((chunkMatch subexpression: 0) as: Integer &radix: 16)
+    length := ((chunkMatch subexpressionAt: 0) as: Integer &radix: 16)
     inform: 'reading chunk len: ' ; length printString. 
     len = 0 ifTrue: [trailers := (hc readHeaders: stream).
                      response headers addAll: trailers.
@@ -287,9 +287,9 @@ hc@(Net HttpClient traits) readResponse: stream@(ReadStream traits)
   re := hc statusResponseRegex clone.
   (re match: status) = -1
     ifTrue: [error: 'Invalid status line in http response']
-    ifFalse: [httpVersion := (re subexpression: 0).
-              statusCode := (re subexpression: 1).
-              statusReason := (re subexpression: 2)].
+    ifFalse: [httpVersion := (re subexpressionAt: 0).
+              statusCode := (re subexpressionAt: 1).
+              statusReason := (re subexpressionAt: 2)].
 
   httpVersion ~= 'HTTP/1.1' ifTrue: [error: 'Only supporting http version 1.1.'].
   headers := (hc readHeaders: stream).
@@ -324,9 +324,9 @@ _@(Net AsyncHttpReader traits) new
      headerReader handle := me handle.
      (re match: me result) = -1
        ifTrue: [error: 'Invalid status line in http response']
-       ifFalse: [httpVersion := (re subexpression: 0).
-                 statusCode := (re subexpression: 1).
-                 statusReason := (re subexpression: 2)].
+       ifFalse: [httpVersion := (re subexpressionAt: 0).
+                 statusCode := (re subexpressionAt: 1).
+                 statusReason := (re subexpressionAt: 2)].
      httpVersion ~= 'HTTP/1.1' ifTrue: [error: 'Only supporting http version 1.1.'].
      o workBlock := [headerReader workOn]].
 
@@ -375,7 +375,7 @@ _@(Net AsyncHttpHeaderReader traits) new
                 o complete &result: headers]
        ifFalse: [(re match: me result) = -1
                       ifTrue: [error: 'Invalid header line in http response']
-                      ifFalse: [headers at: (re subexpression: 0) toLowercase put: (re subexpression: 1).
+                      ifFalse: [headers at: (re subexpressionAt: 0) toLowercase put: (re subexpressionAt: 1).
                                 lineReader reset]]
        
          ].
@@ -416,7 +416,7 @@ _@(Net AsyncHttpBodyReader traits) new
              lineReader completionBlock :=
                [| :me length |
                 (re match: me result) = -1 ifTrue: [error: 'error reading chunk header: ' ; me result].
-                length := ((chunkMatch subexpression: 0) as: Integer &radix: 16).
+                length := ((chunkMatch subexpressionAt: 0) as: Integer &radix: 16).
                 inform: 'reading chunk len: ' ; length printString.
                 chunkReader reset.
                 chunkReader amount := length + 2. "plus CRLF"
